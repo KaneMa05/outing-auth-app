@@ -353,7 +353,7 @@ function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("현장 인증 사진", fileInput("sitePhoto"), "full"),
-    field("영수증 인증 사진", fileInput("receiptPhoto"), "full"),
+    field("영수증 인증 사진 (선택)", fileInput("receiptPhoto"), "full"),
     el("div", { className: "field full" }, [
       submitButton,
     ]),
@@ -373,34 +373,32 @@ function createVerifyForm() {
 
     const sitePhoto = form.elements.sitePhoto.files[0];
     const receiptPhoto = form.elements.receiptPhoto.files[0];
-    if (!sitePhoto || !receiptPhoto) return notify("현장 인증 사진과 영수증 인증 사진을 모두 업로드해주세요.");
+    if (!sitePhoto) return notify("현장 인증 사진을 업로드해주세요.");
 
     submitButton.disabled = true;
     submitButton.textContent = "사진 처리 중...";
 
     try {
-      const [siteDataUrl, receiptDataUrl] = await Promise.all([
-        compressImage(sitePhoto),
-        compressImage(receiptPhoto),
-      ]);
+      const siteDataUrl = await compressImage(sitePhoto);
+      const receiptDataUrl = receiptPhoto ? await compressImage(receiptPhoto) : "";
 
     outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
-    outing.photos.push(
-      {
-        id: createId(),
-        type: "현장 인증",
-        name: sitePhoto.name,
-        dataUrl: siteDataUrl,
-        uploadedAt: new Date().toISOString(),
-      },
-      {
+    outing.photos.push({
+      id: createId(),
+      type: "현장 인증",
+      name: sitePhoto.name,
+      dataUrl: siteDataUrl,
+      uploadedAt: new Date().toISOString(),
+    });
+    if (receiptPhoto) {
+      outing.photos.push({
         id: createId(),
         type: "영수증 인증",
         name: receiptPhoto.name,
         dataUrl: receiptDataUrl,
         uploadedAt: new Date().toISOString(),
-      }
-    );
+      });
+    }
     outing.receiptNote = "";
     outing.status = outing.status === "returned" ? "returned" : "verified";
     outing.verifiedAt = new Date().toISOString();
