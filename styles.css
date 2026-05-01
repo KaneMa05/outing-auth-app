@@ -461,6 +461,19 @@ th {
   margin-bottom: 0;
 }
 
+.inline-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.inline-section h3 {
+  margin-bottom: 12px;
+}
+
+.compact-form {
+  align-items: end;
+}
+
 .student-hero {
   border: 1px solid rgba(17, 108, 93, 0.22);
   border-radius: 8px;

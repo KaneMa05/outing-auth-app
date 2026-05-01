@@ -25,6 +25,7 @@ const routeTitles = {
   "student-verify": "사진 인증",
   "student-return": "복귀 반납",
   teacher: "교사용 관리",
+  students: "학생 등록",
   duplicates: "중복 사진",
   trash: "삭제 내역",
 };
@@ -68,11 +69,10 @@ function normalizeRoute(route) {
     "student-out": "student",
     "student-verify": "student",
     "student-return": "student",
-    students: "teacher",
     settings: "teacher",
   };
   const normalized = legacy[route] || route;
-  if (APP_MODE === "teacher") return ["teacher", "duplicates", "trash"].includes(normalized) ? normalized : "teacher";
+  if (APP_MODE === "teacher") return ["teacher", "students", "duplicates", "trash"].includes(normalized) ? normalized : "teacher";
   return normalized === "student" ? normalized : "student";
 }
 
@@ -278,6 +278,7 @@ function render() {
     "student-verify": renderStudentVerify,
     "student-return": renderStudentReturn,
     teacher: renderTeacher,
+    students: renderStudentsAdmin,
     duplicates: renderDuplicates,
     trash: renderTrash,
   };
@@ -552,7 +553,6 @@ function renderTeacher() {
       stat("외출 중", active.length),
       stat("오늘 복귀", returnedToday.length),
     ]),
-    panel("학생 등록", [teacherStudentForm()]),
     panel("외출 신청 전체 관리", [
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 한 페이지에서 확인하고 처리합니다."),
       teacherFilterControls(),
@@ -560,6 +560,12 @@ function renderTeacher() {
         ? renderOutingGroupsByDate(visibleOutings, { teacher: true })
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
+  ]);
+}
+
+function renderStudentsAdmin() {
+  return el("div", { className: "grid" }, [
+    panel("학생 등록", [teacherStudentForm()]),
   ]);
 }
 
@@ -712,6 +718,16 @@ function teacherStudentForm() {
     el("div", { className: "field full" }, [button("학생 등록/수정", "btn")]),
   ]);
 
+  const bulkForm = el("form", { className: "form-grid compact-form" }, [
+    field("시작 고유번호", input("startId", "number", "18001", "18001")),
+    field("끝 고유번호", input("endId", "number", "18200", "18200")),
+    field("기본 반", input("className", "text", "오프라인반", state.settings.className)),
+    el("div", { className: "field full" }, [
+      button("번호 일괄 생성", "btn secondary"),
+      el("p", { className: "subtle" }, "이름은 고유번호로 임시 등록됩니다. 이후 필요한 학생만 이름을 수정하세요."),
+    ]),
+  ]);
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = formData(form);
@@ -732,6 +748,34 @@ function teacherStudentForm() {
     notify(existing ? "학생 정보를 수정했습니다." : "학생을 등록했습니다.");
   });
 
+  bulkForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(bulkForm);
+    const start = Number(data.startId);
+    const end = Number(data.endId);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start > end) {
+      return notify("시작/끝 고유번호를 확인해주세요.");
+    }
+    if (end - start > 500) return notify("한 번에 최대 500명까지 생성할 수 있습니다.");
+
+    let created = 0;
+    for (let id = start; id <= end; id += 1) {
+      const studentId = String(id);
+      if (findStudent(studentId)) continue;
+      state.students.push({
+        id: studentId,
+        name: studentId,
+        className: data.className.trim() || state.settings.className,
+        phone: "",
+        createdAt: new Date().toISOString(),
+      });
+      created += 1;
+    }
+    saveState();
+    render();
+    notify(`${created}명의 학생 고유번호를 생성했습니다.`);
+  });
+
   const rows = state.students.map((student) =>
     el("tr", {}, [
       el("td", {}, student.id),
@@ -743,6 +787,10 @@ function teacherStudentForm() {
 
   return el("div", { className: "grid" }, [
     form,
+    el("section", { className: "inline-section" }, [
+      el("h3", {}, "학생 고유번호 일괄 생성"),
+      bulkForm,
+    ]),
     rows.length ? table(["고유번호", "이름", "반", "연락처"], rows) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
   ]);
 }
