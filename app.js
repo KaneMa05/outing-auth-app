@@ -426,9 +426,11 @@ function renderStudentReturn() {
 
 function createReturnForm() {
   if (!state.settings.returnUnlocked) {
+    const scanner = createQrScanner();
     return el("div", { className: "qr-lock" }, [
       el("h3", {}, "현장 QR 확인 필요"),
       el("p", { className: "subtle" }, "복귀 반납은 학원 현장에 있는 복귀 QR을 휴대폰 카메라로 찍어 들어온 경우에만 진행할 수 있습니다."),
+      scanner,
     ]);
   }
 
@@ -479,6 +481,85 @@ function createReturnForm() {
   });
 
   return form;
+}
+
+function createQrScanner() {
+  const video = el("video", { className: "qr-video", playsInline: true, muted: true });
+  const canvas = el("canvas", { className: "qr-canvas" });
+  const status = el("p", { className: "subtle qr-status" }, "");
+  let stream = null;
+  let scanning = false;
+
+  const startButton = button("카메라 열기", "btn", "button", async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      notify("이 브라우저에서는 카메라를 열 수 없습니다.");
+      return;
+    }
+    if (!window.jsQR) {
+      notify("QR 스캐너를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    try {
+      startButton.disabled = true;
+      startButton.textContent = "QR 인식 중...";
+      status.textContent = "현장 QR을 카메라 안에 맞춰주세요.";
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      scanning = true;
+      scanQrFrame(video, canvas, status, () => {
+        scanning = false;
+        stopCamera(stream);
+        state.settings.returnUnlocked = true;
+        state.settings.studentStep = "return";
+        saveState();
+        render();
+        notify("현장 QR 확인이 완료되었습니다.");
+      }, () => scanning);
+    } catch (error) {
+      console.error(error);
+      startButton.disabled = false;
+      startButton.textContent = "카메라 열기";
+      status.textContent = "";
+      notify("카메라 권한을 허용한 뒤 다시 시도해주세요.");
+      stopCamera(stream);
+    }
+  });
+
+  return el("div", { className: "qr-scanner" }, [startButton, video, canvas, status]);
+}
+
+function scanQrFrame(video, canvas, status, onSuccess, shouldContinue) {
+  if (!shouldContinue()) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+    if (code?.data) {
+      if (isReturnQr(code.data)) {
+        onSuccess();
+        return;
+      }
+      status.textContent = "복귀 QR이 아닙니다. 현장 복귀 QR을 스캔해주세요.";
+    }
+  }
+  requestAnimationFrame(() => scanQrFrame(video, canvas, status, onSuccess, shouldContinue));
+}
+
+function isReturnQr(value) {
+  return String(value).includes("#return-qr");
+}
+
+function stopCamera(stream) {
+  if (!stream) return;
+  stream.getTracks().forEach((track) => track.stop());
 }
 
 function renderTeacher() {
