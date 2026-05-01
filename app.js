@@ -484,18 +484,25 @@ function createReturnForm() {
 }
 
 function createQrScanner() {
-  const video = el("video", { className: "qr-video", playsInline: true, muted: true });
+  const video = el("video", {
+    className: "qr-video",
+    autoplay: true,
+    playsInline: true,
+    muted: true,
+    "webkit-playsinline": "true",
+  });
   const canvas = el("canvas", { className: "qr-canvas" });
   const status = el("p", { className: "subtle qr-status" }, "");
   let stream = null;
   let scanning = false;
+  let startedAt = 0;
 
   const startButton = button("카메라 열기", "btn", "button", async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
       notify("이 브라우저에서는 카메라를 열 수 없습니다.");
       return;
     }
-    if (!window.jsQR) {
+    if (!window.BarcodeDetector && !window.jsQR) {
       notify("QR 스캐너를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
@@ -504,14 +511,19 @@ function createQrScanner() {
       startButton.disabled = true;
       startButton.textContent = "QR 인식 중...";
       status.textContent = "현장 QR을 카메라 안에 맞춰주세요.";
+      startedAt = Date.now();
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
       video.srcObject = stream;
       await video.play();
       scanning = true;
-      scanQrFrame(video, canvas, status, () => {
+      scanQrFrame(video, canvas, status, startedAt, () => {
         scanning = false;
         stopCamera(stream);
         state.settings.returnUnlocked = true;
@@ -533,28 +545,55 @@ function createQrScanner() {
   return el("div", { className: "qr-scanner" }, [startButton, video, canvas, status]);
 }
 
-function scanQrFrame(video, canvas, status, onSuccess, shouldContinue) {
+async function scanQrFrame(video, canvas, status, startedAt, onSuccess, shouldContinue) {
   if (!shouldContinue()) return;
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-    if (code?.data) {
-      if (isReturnQr(code.data)) {
+    const nativeCode = await detectQrWithNativeApi(video);
+    if (nativeCode) {
+      if (isReturnQr(nativeCode)) {
         onSuccess();
         return;
       }
       status.textContent = "복귀 QR이 아닙니다. 현장 복귀 QR을 스캔해주세요.";
     }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    if (canvas.width && canvas.height && window.jsQR) {
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+      if (code?.data) {
+        if (isReturnQr(code.data)) {
+          onSuccess();
+          return;
+        }
+        status.textContent = "복귀 QR이 아닙니다. 현장 복귀 QR을 스캔해주세요.";
+      }
+    }
   }
-  requestAnimationFrame(() => scanQrFrame(video, canvas, status, onSuccess, shouldContinue));
+  if (Date.now() - startedAt > 8000) {
+    status.textContent = "인식이 느리면 QR을 더 밝게 비추고 화면 중앙에 크게 맞춰주세요.";
+  }
+  requestAnimationFrame(() => scanQrFrame(video, canvas, status, startedAt, onSuccess, shouldContinue));
+}
+
+async function detectQrWithNativeApi(video) {
+  if (!window.BarcodeDetector) return "";
+  try {
+    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+    const codes = await detector.detect(video);
+    return codes[0]?.rawValue || "";
+  } catch {
+    return "";
+  }
 }
 
 function isReturnQr(value) {
-  return String(value).includes("#return-qr");
+  return String(value).includes("return-qr");
 }
 
 function stopCamera(stream) {
@@ -853,7 +892,12 @@ function findStudent(id) {
 }
 
 function getActiveOuting(studentId) {
-  return state.outings.find((outing) => outing.studentId === String(studentId).trim() && outing.status !== "returned");
+  return state.outings.find(
+    (outing) =>
+      outing.studentId === String(studentId).trim() &&
+      outing.status !== "returned" &&
+      outing.decision !== "rejected"
+  );
 }
 
 function getLatestOuting(studentId) {
