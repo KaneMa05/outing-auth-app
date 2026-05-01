@@ -357,7 +357,7 @@ function createVerifyForm() {
     field("영수증 인증 사진", fileInput("receiptPhoto"), "full"),
     el("div", { className: "field full" }, [
       submitButton,
-      el("p", { className: "subtle" }, "모바일 사진은 제출 시 자동으로 용량을 줄여 저장합니다."),
+      el("p", { className: "subtle" }, "카메라로 바로 촬영해 제출해주세요. 사진은 자동으로 용량을 줄여 저장합니다."),
     ]),
   ]);
 
@@ -432,19 +432,35 @@ function createReturnForm() {
     ]);
   }
 
+  const submitButton = button("복귀 반납 완료", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("학생 고유번호", input("studentId", "text", "예: 18004", state.settings.lastStudentId || ""), "", "예: 18기 4번 → 18004"),
+    field("복귀 현장 사진", fileInput("returnPhoto"), "full"),
     el("div", { className: "field full" }, [
-      button("복귀 반납 완료", "btn"),
+      submitButton,
       el("p", { className: "subtle" }, "복귀 후 반드시 반납 완료를 눌러야 교사용 화면에 복귀 시간이 기록됩니다."),
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const outing = getActiveOuting(data.studentId);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
+    const returnPhoto = form.elements.returnPhoto.files[0];
+    if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
+    submitButton.disabled = true;
+    submitButton.textContent = "복귀 처리 중...";
+    try {
+    const returnDataUrl = await compressImage(returnPhoto);
+    outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
+    outing.photos.push({
+      id: createId(),
+      type: "복귀 인증",
+      name: returnPhoto.name,
+      dataUrl: returnDataUrl,
+      uploadedAt: new Date().toISOString(),
+    });
     outing.status = "returned";
     outing.returnedAt = new Date().toISOString();
     state.settings.lastStudentId = outing.studentId;
@@ -454,6 +470,12 @@ function createReturnForm() {
     form.reset();
     render();
     notify("복귀 반납이 완료되었습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("복귀 사진 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+      submitButton.disabled = false;
+      submitButton.textContent = "복귀 반납 완료";
+    }
   });
 
   return form;
@@ -694,7 +716,7 @@ function input(name, type, placeholder, value = "") {
 }
 
 function fileInput(name) {
-  return el("input", { name, type: "file", accept: "image/*" });
+  return el("input", { name, type: "file", accept: "image/*", capture: "environment" });
 }
 
 function textarea(name, placeholder) {
