@@ -309,7 +309,16 @@ function createOutForm() {
     const data = formData(form);
     const student = findStudent(data.studentId);
     if (!student) return notify("등록된 학생 고유번호가 아닙니다. 교사용 관리에서 학생을 먼저 등록해주세요.");
-    if (getActiveOuting(data.studentId)) return notify("이미 진행 중인 외출 신청이 있습니다.");
+    const activeOuting = getActiveOuting(data.studentId);
+    if (activeOuting) {
+      state.settings.lastStudentId = student.id;
+      state.settings.studentStep = activeOuting.status === "requested" ? "verify" : "return";
+      state.settings.earlyLeaveMode = false;
+      saveState();
+      render();
+      notify("진행 중인 외출 신청 화면으로 이동했습니다.");
+      return;
+    }
 
     state.outings.unshift({
       id: createId(),
@@ -717,6 +726,7 @@ function outingCard(outing, options = {}) {
           saveState();
           render();
         }),
+        button("삭제", "icon-btn danger", "button", () => deleteOuting(outing.id)),
       ])
     );
     if (outing.teacherMemo) nodes.push(el("p", { className: "subtle" }, `교사용 메모: ${outing.teacherMemo}`));
@@ -740,6 +750,16 @@ function decideOuting(id, decision) {
   saveState();
   render();
   notify(decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
+}
+
+function deleteOuting(id) {
+  const outing = state.outings.find((item) => item.id === id);
+  if (!outing) return;
+  if (!confirm(`${outing.studentName} 학생의 외출 신청 기록을 삭제할까요?`)) return;
+  state.outings = state.outings.filter((item) => item.id !== id);
+  saveState();
+  render();
+  notify("외출 신청 기록을 삭제했습니다.");
 }
 
 function stat(label, value) {
