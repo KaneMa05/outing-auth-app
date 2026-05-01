@@ -598,6 +598,101 @@ th {
   transform: translateY(0);
 }
 
+body:not([data-app-mode="teacher"]) {
+  background: #f6faf8;
+}
+
+body:not([data-app-mode="teacher"]) .app-frame {
+  display: block;
+  min-height: 100svh;
+}
+
+body:not([data-app-mode="teacher"]) .sidebar {
+  position: static;
+  border-right: 0;
+  border-bottom: 0;
+  padding: 18px 18px 8px;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+body:not([data-app-mode="teacher"]) .brand {
+  width: min(420px, 100%);
+  margin: 0 auto;
+}
+
+body:not([data-app-mode="teacher"]) .nav-list {
+  display: none;
+}
+
+body:not([data-app-mode="teacher"]) .main-shell {
+  width: min(420px, 100%);
+  margin: 0 auto;
+  padding: 8px 18px 32px;
+}
+
+body:not([data-app-mode="teacher"]) .content-area,
+body:not([data-app-mode="teacher"]) .student-view {
+  gap: 0;
+}
+
+body:not([data-app-mode="teacher"]) .panel {
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(24, 41, 34, 0.1);
+}
+
+body:not([data-app-mode="teacher"]) .panel h2 {
+  margin-bottom: 16px;
+}
+
+body:not([data-app-mode="teacher"]) .form-grid {
+  grid-template-columns: 1fr;
+  gap: 13px;
+}
+
+body:not([data-app-mode="teacher"]) .field.full {
+  gap: 10px;
+}
+
+body:not([data-app-mode="teacher"]) .time-field {
+  max-width: 180px;
+}
+
+body:not([data-app-mode="teacher"]) .time-field input {
+  min-height: 42px;
+  padding-inline: 10px;
+}
+
+body:not([data-app-mode="teacher"]) .btn {
+  width: 100%;
+  margin-top: 2px;
+}
+
+body[data-app-mode="teacher"] .app-frame {
+  display: block;
+}
+
+body[data-app-mode="teacher"] .sidebar {
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 16px 28px;
+}
+
+body[data-app-mode="teacher"] .sidebar .brand {
+  margin-bottom: 0;
+}
+
+body[data-app-mode="teacher"] .nav-list {
+  display: none;
+}
+
+body[data-app-mode="teacher"] .main-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 22px 0 44px;
+}
+
 @media (max-width: 900px) {
   .app-frame {
     grid-template-columns: 1fr;
@@ -758,72 +853,6 @@ th {
     max-width: calc(100% - 24px);
   }
 
-  body:not([data-app-mode="teacher"]) {
-    background: #f6faf8;
-  }
-
-  body:not([data-app-mode="teacher"]) .app-frame {
-    display: block;
-  }
-
-  body:not([data-app-mode="teacher"]) .sidebar {
-    position: static;
-    border-bottom: 0;
-    padding: 18px 18px 8px;
-    background: transparent;
-    backdrop-filter: none;
-  }
-
-  body:not([data-app-mode="teacher"]) .brand {
-    width: min(420px, 100%);
-    margin: 0 auto;
-  }
-
-  body:not([data-app-mode="teacher"]) .nav-list {
-    display: none;
-  }
-
-  body:not([data-app-mode="teacher"]) .main-shell {
-    width: min(420px, 100%);
-    margin: 0 auto;
-    padding: 8px 18px 32px;
-  }
-
-  body:not([data-app-mode="teacher"]) .content-area,
-  body:not([data-app-mode="teacher"]) .student-view {
-    gap: 0;
-  }
-
-  body:not([data-app-mode="teacher"]) .panel {
-    padding: 18px;
-    border-radius: 14px;
-    box-shadow: 0 14px 34px rgba(24, 41, 34, 0.1);
-  }
-
-  body:not([data-app-mode="teacher"]) .panel h2 {
-    margin-bottom: 16px;
-  }
-
-  body:not([data-app-mode="teacher"]) .form-grid {
-    gap: 13px;
-  }
-
-  body:not([data-app-mode="teacher"]) .field.full {
-    gap: 10px;
-  }
-
-  body:not([data-app-mode="teacher"]) .time-field {
-    max-width: 180px;
-  }
-
-  body:not([data-app-mode="teacher"]) .time-field input {
-    min-height: 42px;
-    padding-inline: 10px;
-  }
-
-  body:not([data-app-mode="teacher"]) .btn {
-    margin-top: 2px;
-  }
 }
 
 @media (max-width: 430px) {
