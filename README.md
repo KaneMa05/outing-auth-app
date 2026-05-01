@@ -36,13 +36,11 @@ window.OUTING_APP_CONFIG = {
 
 - 학생용 외출 체크리스트: `index.html#student`
 - 교사용 관리: `teacher.html#teacher`
-- 현장 복귀 QR: `index.html#return-qr`
 
 Vercel 배포 후에는 아래처럼 사용합니다.
 
 - 학생용: `https://YOUR_DOMAIN.vercel.app/#student`
 - 교사용: `https://YOUR_DOMAIN.vercel.app/teacher#teacher`
-- 현장 복귀 QR: `https://YOUR_DOMAIN.vercel.app/#return-qr`
 
 ## Vercel 배포
 
@@ -69,4 +67,4 @@ vercel --prod
 2. `supabase/schema.sql` 실행
 3. 사진 업로드를 Supabase Storage로 연결
 4. 관리자 비밀번호를 서버 환경변수로 이동
-5. Vercel 배포 후 학생용/현장 복귀 QR 주소로 QR 코드 제작
+5. Vercel 배포 후 학생용 주소로 QR 코드 제작

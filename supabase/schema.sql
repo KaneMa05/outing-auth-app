@@ -23,6 +23,7 @@ create table if not exists public.outings (
     check (decision in ('pending', 'approved', 'rejected')),
   receipt_note text,
   teacher_memo text,
+  early_leave_reason text,
   created_at timestamptz not null default now(),
   verified_at timestamptz,
   returned_at timestamptz

@@ -1,6 +1,5 @@
 const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
-const RETURN_QR_ROUTE = "return-qr";
 
 const state = loadState();
 let currentRoute = defaultRoute();
@@ -68,12 +67,6 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") return "teacher";
-  if (normalized === RETURN_QR_ROUTE) {
-    state.settings.returnUnlocked = true;
-    state.settings.studentStep = "return";
-    saveState();
-    return "student";
-  }
   return normalized === "student" ? normalized : "student";
 }
 
@@ -101,7 +94,7 @@ function defaultState() {
       className: "오프라인반",
       lastStudentId: "",
       studentStep: "request",
-      returnUnlocked: false,
+      earlyLeaveMode: false,
     },
     students: [],
     outings: [],
@@ -178,6 +171,7 @@ async function loadStateFromRemote() {
     status: outing.status,
     decision: outing.decision,
     teacherMemo: outing.teacher_memo || "",
+    earlyLeaveReason: outing.early_leave_reason || "",
     receiptNote: outing.receipt_note || "",
     photos: (photos || [])
       .filter((photo) => photo.outing_id === outing.id)
@@ -215,6 +209,7 @@ async function saveStateToRemote() {
     decision: outing.decision,
     receipt_note: outing.receiptNote || null,
     teacher_memo: outing.teacherMemo || null,
+    early_leave_reason: outing.earlyLeaveReason || null,
     created_at: outing.createdAt,
     verified_at: outing.verifiedAt,
     returned_at: outing.returnedAt,
@@ -326,6 +321,7 @@ function createOutForm() {
       status: "requested",
       decision: "pending",
       teacherMemo: "",
+      earlyLeaveReason: "",
       receiptNote: "",
       photos: [],
       createdAt: new Date().toISOString(),
@@ -351,13 +347,21 @@ function renderStudentVerify() {
 }
 
 function createVerifyForm() {
+  if (state.settings.earlyLeaveMode) return createEarlyLeaveForm();
+
   const submitButton = button("사진 인증 제출", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("현장 인증 사진", fileInput("sitePhoto"), "full"),
     field("영수증 인증 사진", fileInput("receiptPhoto"), "full"),
     el("div", { className: "field full" }, [
       submitButton,
-      el("p", { className: "subtle" }, "카메라로 바로 촬영해 제출해주세요. 사진은 자동으로 용량을 줄여 저장합니다."),
+    ]),
+    el("div", { className: "field full" }, [
+      button("조퇴", "btn secondary", "button", () => {
+        state.settings.earlyLeaveMode = true;
+        saveState();
+        render();
+      }),
     ]),
   ]);
 
@@ -401,7 +405,7 @@ function createVerifyForm() {
     outing.verifiedAt = new Date().toISOString();
     state.settings.lastStudentId = outing.studentId;
     state.settings.studentStep = "return";
-    state.settings.returnUnlocked = false;
+    state.settings.earlyLeaveMode = false;
     saveState();
     form.reset();
     render();
@@ -417,6 +421,43 @@ function createVerifyForm() {
   return form;
 }
 
+function createEarlyLeaveForm() {
+  const form = el("form", { className: "form-grid" }, [
+    field("조퇴 사유", textarea("earlyLeaveReason", "조퇴 사유를 입력하세요."), "full"),
+    el("div", { className: "field full" }, [
+      button("조퇴 완료", "btn"),
+      button("사진 인증으로 돌아가기", "btn secondary", "button", () => {
+        state.settings.earlyLeaveMode = false;
+        saveState();
+        render();
+      }),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const reason = data.earlyLeaveReason.trim();
+    if (!reason) return notify("조퇴 사유를 입력해주세요.");
+    const outing = getActiveOuting(state.settings.lastStudentId);
+    if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
+
+    outing.status = "returned";
+    outing.decision = "approved";
+    outing.teacherMemo = outing.teacherMemo ? `${outing.teacherMemo}\n조퇴 사유: ${reason}` : `조퇴 사유: ${reason}`;
+    outing.earlyLeaveReason = reason;
+    outing.returnedAt = new Date().toISOString();
+    state.settings.studentStep = "done";
+    state.settings.earlyLeaveMode = false;
+    saveState();
+    form.reset();
+    render();
+    notify("조퇴 처리가 완료되었습니다.");
+  });
+
+  return form;
+}
+
 function renderStudentReturn() {
   return studentShell("복귀 반납", "복귀 시간을 남기면 교사가 한 페이지에서 최종 상태를 확인할 수 있습니다.", [
     panel("복귀 처리", [createReturnForm()]),
@@ -425,22 +466,13 @@ function renderStudentReturn() {
 }
 
 function createReturnForm() {
-  if (!state.settings.returnUnlocked) {
-    const scanner = createQrScanner();
-    return el("div", { className: "qr-lock" }, [
-      el("h3", {}, "현장 QR 확인 필요"),
-      el("p", { className: "subtle" }, "복귀 반납은 학원 현장에 있는 복귀 QR을 휴대폰 카메라로 찍어 들어온 경우에만 진행할 수 있습니다."),
-      scanner,
-    ]);
-  }
-
   const submitButton = button("복귀 반납 완료", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("학생 고유번호", input("studentId", "text", "예: 18004", state.settings.lastStudentId || ""), "", "예: 18기 4번 → 18004"),
     field("복귀 현장 사진", fileInput("returnPhoto"), "full"),
     el("div", { className: "field full" }, [
       submitButton,
-      el("p", { className: "subtle" }, "복귀 후 반드시 반납 완료를 눌러야 교사용 화면에 복귀 시간이 기록됩니다."),
+      el("p", { className: "subtle" }, "복귀 후 반드시 반납 완료를 눌러야 복귀 시간이 기록됩니다."),
     ]),
   ]);
 
@@ -467,7 +499,6 @@ function createReturnForm() {
     outing.returnedAt = new Date().toISOString();
     state.settings.lastStudentId = outing.studentId;
     state.settings.studentStep = "done";
-    state.settings.returnUnlocked = false;
     saveState();
     form.reset();
     render();
@@ -481,124 +512,6 @@ function createReturnForm() {
   });
 
   return form;
-}
-
-function createQrScanner() {
-  const video = el("video", {
-    className: "qr-video",
-    autoplay: true,
-    playsInline: true,
-    muted: true,
-    "webkit-playsinline": "true",
-  });
-  const canvas = el("canvas", { className: "qr-canvas" });
-  const status = el("p", { className: "subtle qr-status" }, "");
-  let stream = null;
-  let scanning = false;
-  let startedAt = 0;
-
-  const startButton = button("카메라 열기", "btn", "button", async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      notify("이 브라우저에서는 카메라를 열 수 없습니다.");
-      return;
-    }
-    if (!window.BarcodeDetector && !window.jsQR) {
-      notify("QR 스캐너를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-
-    try {
-      startButton.disabled = true;
-      startButton.textContent = "QR 인식 중...";
-      status.textContent = "현장 QR을 카메라 안에 맞춰주세요.";
-      startedAt = Date.now();
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-      video.srcObject = stream;
-      await video.play();
-      scanning = true;
-      scanQrFrame(video, canvas, status, startedAt, () => {
-        scanning = false;
-        stopCamera(stream);
-        state.settings.returnUnlocked = true;
-        state.settings.studentStep = "return";
-        saveState();
-        render();
-        notify("현장 QR 확인이 완료되었습니다.");
-      }, () => scanning);
-    } catch (error) {
-      console.error(error);
-      startButton.disabled = false;
-      startButton.textContent = "카메라 열기";
-      status.textContent = "";
-      notify("카메라 권한을 허용한 뒤 다시 시도해주세요.");
-      stopCamera(stream);
-    }
-  });
-
-  return el("div", { className: "qr-scanner" }, [startButton, video, canvas, status]);
-}
-
-async function scanQrFrame(video, canvas, status, startedAt, onSuccess, shouldContinue) {
-  if (!shouldContinue()) return;
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    const nativeCode = await detectQrWithNativeApi(video);
-    if (nativeCode) {
-      if (isReturnQr(nativeCode)) {
-        onSuccess();
-        return;
-      }
-      status.textContent = "복귀 QR이 아닙니다. 현장 복귀 QR을 스캔해주세요.";
-    }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    if (canvas.width && canvas.height && window.jsQR) {
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "attemptBoth",
-      });
-      if (code?.data) {
-        if (isReturnQr(code.data)) {
-          onSuccess();
-          return;
-        }
-        status.textContent = "복귀 QR이 아닙니다. 현장 복귀 QR을 스캔해주세요.";
-      }
-    }
-  }
-  if (Date.now() - startedAt > 8000) {
-    status.textContent = "인식이 느리면 QR을 더 밝게 비추고 화면 중앙에 크게 맞춰주세요.";
-  }
-  requestAnimationFrame(() => scanQrFrame(video, canvas, status, startedAt, onSuccess, shouldContinue));
-}
-
-async function detectQrWithNativeApi(video) {
-  if (!window.BarcodeDetector) return "";
-  try {
-    const detector = new BarcodeDetector({ formats: ["qr_code"] });
-    const codes = await detector.detect(video);
-    return codes[0]?.rawValue || "";
-  } catch {
-    return "";
-  }
-}
-
-function isReturnQr(value) {
-  return String(value).includes("return-qr");
-}
-
-function stopCamera(stream) {
-  if (!stream) return;
-  stream.getTracks().forEach((track) => track.stop());
 }
 
 function renderTeacher() {
@@ -624,16 +537,14 @@ function renderTeacher() {
     panel("학생용 링크", [
       el("div", { className: "grid two" }, [
         linkBox("학생용 외출 체크리스트", makeStudentUrl("student")),
-        linkBox("현장 복귀 QR 주소", makeStudentUrl(RETURN_QR_ROUTE)),
       ]),
     ]),
   ]);
 }
 
 function renderDoneState() {
-  const outing = getLatestOuting(state.settings.lastStudentId);
   return el("div", { className: "grid" }, [
-    outing ? outingCard(outing, { hideDecision: true }) : el("div", { className: "empty" }, "완료된 외출 기록을 찾지 못했습니다."),
+    el("div", { className: "empty success-message" }, "복귀 반납이 완료되었습니다."),
     resetStudentButton("새 외출 신청"),
   ]);
 }
@@ -641,7 +552,6 @@ function renderDoneState() {
 function resetStudentButton(label = "처음부터 다시") {
   return button(label, "btn secondary", "button", () => {
     state.settings.studentStep = "request";
-    state.settings.returnUnlocked = false;
     saveState();
     render();
     notify("외출 신청 단계로 돌아왔습니다.");
@@ -752,6 +662,7 @@ function outingCard(outing, options = {}) {
       options.hideDecision ? null : detailItem("교사 판단", decisionText(outing.decision)),
       detailItem("복귀 상태", outing.status === "returned" ? "복귀 완료" : "복귀 전"),
       detailItem("사진 인증", outing.photos.length ? `${outing.photos.length}장 업로드` : "미제출"),
+      outing.earlyLeaveReason ? detailItem("조퇴 사유", outing.earlyLeaveReason) : null,
     ].filter(Boolean))
   );
 
