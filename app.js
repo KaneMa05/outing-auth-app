@@ -469,7 +469,7 @@ function createReturnForm() {
   const submitButton = button("복귀 반납 완료", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("학생 고유번호", input("studentId", "text", "예: 18004", state.settings.lastStudentId || ""), "", "예: 18기 4번 → 18004"),
-    field("복귀 현장 사진", fileInput("returnPhoto"), "full"),
+    field("복귀 현장 사진", fileInput("returnPhoto"), "full", "사무실에 있는 복귀 사진을 찍어주세요."),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle" }, "복귀 후 반드시 반납 완료를 눌러야 복귀 시간이 기록됩니다."),
