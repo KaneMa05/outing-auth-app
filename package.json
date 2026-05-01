@@ -1,0 +1,11 @@
+{
+  "name": "outing-auth-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build-config.js",
+    "dev": "vercel dev",
+    "deploy": "vercel",
+    "deploy:prod": "vercel --prod"
+  }
+}

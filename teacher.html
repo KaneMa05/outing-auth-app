@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>론박스터디 외출 인증 - 교사용</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-app-mode="teacher">
+    <div class="app-frame">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">T</div>
+          <div>
+            <strong>론박스터디</strong>
+            <span>교사용 관리</span>
+          </div>
+        </div>
+        <nav class="nav-list" aria-label="주요 메뉴">
+          <p class="nav-section">교사용</p>
+          <button data-route="teacher">외출 관리</button>
+        </nav>
+      </aside>
+
+      <main class="main-shell">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Teacher Control</p>
+            <h1 id="page-title">교사용 관리</h1>
+          </div>
+          <div class="top-actions">
+            <button id="seed-demo" class="icon-btn" title="샘플 데이터">샘플</button>
+            <button id="reset-data" class="icon-btn danger" title="초기화">초기화</button>
+          </div>
+        </header>
+        <section id="app" class="content-area" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
