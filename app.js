@@ -532,13 +532,8 @@ function renderTeacher() {
     panel("외출 신청 전체 관리", [
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 한 페이지에서 확인하고 처리합니다."),
       state.outings.length
-        ? renderOutingList(state.outings, { teacher: true })
+        ? renderOutingGroupsByDate(state.outings, { teacher: true })
         : el("div", { className: "empty" }, "아직 외출 신청이 없습니다."),
-    ]),
-    panel("학생용 링크", [
-      el("div", { className: "grid two" }, [
-        linkBox("학생용 외출 체크리스트", makeStudentUrl("student")),
-      ]),
     ]),
   ]);
 }
@@ -640,6 +635,29 @@ function renderOutingList(outings, options = {}) {
     "div",
     { className: "grid" },
     outings.map((outing) => outingCard(outing, options))
+  );
+}
+
+function renderOutingGroupsByDate(outings, options = {}) {
+  const groups = outings.reduce((acc, outing) => {
+    const key = formatDateKey(outing.createdAt);
+    if (!acc.has(key)) acc.set(key, []);
+    acc.get(key).push(outing);
+    return acc;
+  }, new Map());
+
+  return el(
+    "div",
+    { className: "date-groups" },
+    [...groups.entries()].map(([date, items]) =>
+      el("section", { className: "date-group" }, [
+        el("div", { className: "date-heading" }, [
+          el("h3", {}, date),
+          el("span", {}, `${items.length}건`),
+        ]),
+        renderOutingList(items, options),
+      ])
+    )
   );
 }
 
@@ -876,6 +894,16 @@ function formatTime(value) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatDateKey(value) {
+  if (!value) return "날짜 없음";
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
   }).format(new Date(value));
 }
 
