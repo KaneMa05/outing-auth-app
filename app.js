@@ -95,6 +95,7 @@ function defaultState() {
       lastStudentId: "",
       studentStep: "request",
       earlyLeaveMode: false,
+      completionType: "",
     },
     students: [],
     outings: [],
@@ -449,6 +450,7 @@ function createEarlyLeaveForm() {
     outing.returnedAt = new Date().toISOString();
     state.settings.studentStep = "done";
     state.settings.earlyLeaveMode = false;
+    state.settings.completionType = "earlyLeave";
     saveState();
     form.reset();
     render();
@@ -499,6 +501,7 @@ function createReturnForm() {
     outing.returnedAt = new Date().toISOString();
     state.settings.lastStudentId = outing.studentId;
     state.settings.studentStep = "done";
+    state.settings.completionType = "return";
     saveState();
     form.reset();
     render();
@@ -543,8 +546,9 @@ function renderTeacher() {
 }
 
 function renderDoneState() {
+  const message = state.settings.completionType === "earlyLeave" ? "조퇴 처리되었습니다." : "복귀 반납이 완료되었습니다.";
   return el("div", { className: "grid" }, [
-    el("div", { className: "empty success-message" }, "복귀 반납이 완료되었습니다."),
+    el("div", { className: "empty success-message" }, message),
     resetStudentButton("새 외출 신청"),
   ]);
 }
@@ -552,6 +556,8 @@ function renderDoneState() {
 function resetStudentButton(label = "처음부터 다시") {
   return button(label, "btn secondary", "button", () => {
     state.settings.studentStep = "request";
+    state.settings.earlyLeaveMode = false;
+    state.settings.completionType = "";
     saveState();
     render();
     notify("외출 신청 단계로 돌아왔습니다.");
