@@ -494,7 +494,9 @@ th {
 
 @media (min-width: 901px) {
   body[data-app-mode="teacher"] .main-shell {
-    padding-inline: 32px;
+    width: min(1240px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 22px 0 44px;
   }
 
   body[data-app-mode="teacher"] .content-area {
@@ -667,30 +669,6 @@ body:not([data-app-mode="teacher"]) .time-field input {
 body:not([data-app-mode="teacher"]) .btn {
   width: 100%;
   margin-top: 2px;
-}
-
-body[data-app-mode="teacher"] .app-frame {
-  display: block;
-}
-
-body[data-app-mode="teacher"] .sidebar {
-  border-right: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 16px 28px;
-}
-
-body[data-app-mode="teacher"] .sidebar .brand {
-  margin-bottom: 0;
-}
-
-body[data-app-mode="teacher"] .nav-list {
-  display: none;
-}
-
-body[data-app-mode="teacher"] .main-shell {
-  width: min(1180px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 22px 0 44px;
 }
 
 @media (max-width: 900px) {

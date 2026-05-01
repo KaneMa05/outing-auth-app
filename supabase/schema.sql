@@ -26,7 +26,8 @@ create table if not exists public.outings (
   early_leave_reason text,
   created_at timestamptz not null default now(),
   verified_at timestamptz,
-  returned_at timestamptz
+  returned_at timestamptz,
+  deleted_at timestamptz
 );
 
 create table if not exists public.outing_photos (

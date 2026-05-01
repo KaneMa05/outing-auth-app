@@ -21,6 +21,7 @@ const routeTitles = {
   "student-verify": "사진 인증",
   "student-return": "복귀 반납",
   teacher: "교사용 관리",
+  trash: "삭제 내역",
 };
 
 document.querySelectorAll("[data-route]").forEach((button) => {
@@ -66,7 +67,7 @@ function normalizeRoute(route) {
     settings: "teacher",
   };
   const normalized = legacy[route] || route;
-  if (APP_MODE === "teacher") return "teacher";
+  if (APP_MODE === "teacher") return normalized === "trash" ? "trash" : "teacher";
   return normalized === "student" ? normalized : "student";
 }
 
@@ -99,6 +100,7 @@ function defaultState() {
     },
     students: [],
     outings: [],
+    deletedOutings: [],
   };
 }
 
@@ -161,7 +163,7 @@ async function loadStateFromRemote() {
     createdAt: student.created_at,
   }));
 
-  state.outings = (outings || []).map((outing) => ({
+  const mappedOutings = (outings || []).map((outing) => ({
     id: outing.id,
     studentId: outing.student_id,
     studentName: outing.student_name || "",
@@ -186,7 +188,10 @@ async function loadStateFromRemote() {
     createdAt: outing.created_at,
     verifiedAt: outing.verified_at,
     returnedAt: outing.returned_at,
+    deletedAt: outing.deleted_at || "",
   }));
+  state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
+  state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
 }
 
 async function saveStateToRemote() {
@@ -198,7 +203,8 @@ async function saveStateToRemote() {
     created_at: student.createdAt || new Date().toISOString(),
   }));
 
-  const outingRows = state.outings.map((outing) => ({
+  const allOutings = [...state.outings, ...(state.deletedOutings || [])];
+  const outingRows = allOutings.map((outing) => ({
     id: outing.id,
     student_id: outing.studentId,
     student_name: outing.studentName,
@@ -214,9 +220,10 @@ async function saveStateToRemote() {
     created_at: outing.createdAt,
     verified_at: outing.verifiedAt,
     returned_at: outing.returnedAt,
+    deleted_at: outing.deletedAt || null,
   }));
 
-  const photoRows = state.outings.flatMap((outing) =>
+  const photoRows = allOutings.flatMap((outing) =>
     outing.photos.map((photo) => ({
       id: photo.id,
       outing_id: outing.id,
@@ -266,6 +273,7 @@ function render() {
     "student-verify": renderStudentVerify,
     "student-return": renderStudentReturn,
     teacher: renderTeacher,
+    trash: renderTrash,
   };
 
   app.innerHTML = "";
@@ -547,6 +555,18 @@ function renderTeacher() {
   ]);
 }
 
+function renderTrash() {
+  const deleted = state.deletedOutings || [];
+  return el("div", { className: "grid" }, [
+    panel("삭제 내역", [
+      el("p", { className: "subtle" }, "삭제한 외출 신청 기록을 확인하고 복구할 수 있습니다."),
+      deleted.length
+        ? renderOutingGroupsByDate(deleted, { trash: true })
+        : el("div", { className: "empty" }, "삭제된 외출 신청 기록이 없습니다."),
+    ]),
+  ]);
+}
+
 function renderDoneState() {
   const message = state.settings.completionType === "earlyLeave" ? "조퇴 처리되었습니다." : "복귀 반납이 완료되었습니다.";
   return el("div", { className: "grid" }, [
@@ -732,6 +752,14 @@ function outingCard(outing, options = {}) {
     if (outing.teacherMemo) nodes.push(el("p", { className: "subtle" }, `교사용 메모: ${outing.teacherMemo}`));
   }
 
+  if (options.trash) {
+    nodes.push(
+      el("div", { className: "action-row" }, [
+        button("복구", "btn secondary", "button", () => restoreOuting(outing.id)),
+      ])
+    );
+  }
+
   return el("article", { className: "outing-card" }, nodes);
 }
 
@@ -756,10 +784,23 @@ function deleteOuting(id) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
   if (!confirm(`${outing.studentName} 학생의 외출 신청 기록을 삭제할까요?`)) return;
+  outing.deletedAt = new Date().toISOString();
   state.outings = state.outings.filter((item) => item.id !== id);
+  state.deletedOutings = [outing, ...(state.deletedOutings || [])];
   saveState();
   render();
-  notify("외출 신청 기록을 삭제했습니다.");
+  notify("외출 신청 기록을 삭제 내역으로 이동했습니다.");
+}
+
+function restoreOuting(id) {
+  const outing = (state.deletedOutings || []).find((item) => item.id === id);
+  if (!outing) return;
+  outing.deletedAt = "";
+  state.deletedOutings = (state.deletedOutings || []).filter((item) => item.id !== id);
+  state.outings = [outing, ...state.outings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  saveState();
+  render();
+  notify("외출 신청 기록을 복구했습니다.");
 }
 
 function stat(label, value) {
