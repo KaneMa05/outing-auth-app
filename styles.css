@@ -503,8 +503,9 @@ th {
 
   body[data-app-mode="teacher"] .photo-grid {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 150px));
     margin-top: 2px;
+    justify-content: start;
   }
 
   body[data-app-mode="teacher"] .action-row {
@@ -517,7 +518,8 @@ th {
   }
 
   body[data-app-mode="teacher"] .photo-thumb img {
-    aspect-ratio: 1 / 1;
+    height: 108px;
+    aspect-ratio: auto;
   }
 
   body[data-app-mode="teacher"] .photo-thumb span {
