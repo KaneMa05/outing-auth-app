@@ -678,7 +678,7 @@ function outingCard(outing, options = {}) {
         outing.photos.map((photo) =>
           el("div", { className: "photo-thumb" }, [
             el("img", { src: photo.dataUrl, alt: photo.type }),
-            el("span", {}, `${photo.type} · ${photo.name}`),
+            el("span", {}, photo.type),
             el("time", { dateTime: photo.uploadedAt || "" }, formatTime(photo.uploadedAt)),
           ])
         )
