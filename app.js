@@ -128,7 +128,6 @@ async function initRemoteStore() {
     await loadStateFromRemote();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     render();
-    notify("Supabase 데이터와 연결되었습니다.");
   } catch (error) {
     console.error(error);
     notify("Supabase 연결을 확인해주세요. 임시로 이 기기 저장소를 사용합니다.");
@@ -302,7 +301,7 @@ function createOutForm() {
   const form = el("form", { className: "form-grid" }, [
     field("학생 고유번호", input("studentId", "text", "예: 18004"), "", "예: 18기 4번 → 18004"),
     field("외출 사유", select("reason", ["병원", "은행", "수영레슨", "개인 사유 인증", "기타"])),
-    field("예상 복귀 시각", input("expectedReturn", "time")),
+    field("예상 복귀 시각", input("expectedReturn", "time"), "time-field"),
     field("상세 사유", textarea("detail", "방문 장소나 필요한 내용을 입력하세요."), "full"),
     el("div", { className: "field full" }, [
       button("외출 신청하기", "btn"),
@@ -352,10 +351,14 @@ function renderStudentVerify() {
 }
 
 function createVerifyForm() {
+  const submitButton = button("사진 인증 제출", "btn");
   const form = el("form", { className: "form-grid" }, [
     field("현장 인증 사진", fileInput("sitePhoto"), "full"),
     field("영수증 인증 사진", fileInput("receiptPhoto"), "full"),
-    el("div", { className: "field full" }, [button("사진 인증 제출", "btn")]),
+    el("div", { className: "field full" }, [
+      submitButton,
+      el("p", { className: "subtle" }, "모바일 사진은 제출 시 자동으로 용량을 줄여 저장합니다."),
+    ]),
   ]);
 
   form.addEventListener("submit", async (event) => {
@@ -367,20 +370,29 @@ function createVerifyForm() {
     const receiptPhoto = form.elements.receiptPhoto.files[0];
     if (!sitePhoto || !receiptPhoto) return notify("현장 인증 사진과 영수증 인증 사진을 모두 업로드해주세요.");
 
+    submitButton.disabled = true;
+    submitButton.textContent = "사진 처리 중...";
+
+    try {
+      const [siteDataUrl, receiptDataUrl] = await Promise.all([
+        compressImage(sitePhoto),
+        compressImage(receiptPhoto),
+      ]);
+
     outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
     outing.photos.push(
       {
         id: createId(),
         type: "현장 인증",
         name: sitePhoto.name,
-        dataUrl: await readFile(sitePhoto),
+        dataUrl: siteDataUrl,
         uploadedAt: new Date().toISOString(),
       },
       {
         id: createId(),
         type: "영수증 인증",
         name: receiptPhoto.name,
-        dataUrl: await readFile(receiptPhoto),
+        dataUrl: receiptDataUrl,
         uploadedAt: new Date().toISOString(),
       }
     );
@@ -394,6 +406,12 @@ function createVerifyForm() {
     form.reset();
     render();
     notify("사진 인증이 제출되었습니다. 복귀 후 반납 처리하세요.");
+    } catch (error) {
+      console.error(error);
+      notify("사진 처리 중 오류가 발생했습니다. 더 작은 사진으로 다시 시도해주세요.");
+      submitButton.disabled = false;
+      submitButton.textContent = "사진 인증 제출";
+    }
   });
 
   return form;
@@ -473,7 +491,7 @@ function renderTeacher() {
 function renderDoneState() {
   const outing = getLatestOuting(state.settings.lastStudentId);
   return el("div", { className: "grid" }, [
-    outing ? outingCard(outing) : el("div", { className: "empty" }, "완료된 외출 기록을 찾지 못했습니다."),
+    outing ? outingCard(outing, { hideDecision: true }) : el("div", { className: "empty" }, "완료된 외출 기록을 찾지 못했습니다."),
     resetStudentButton("새 외출 신청"),
   ]);
 }
@@ -589,10 +607,10 @@ function outingCard(outing, options = {}) {
   nodes.push(
     el("div", { className: "detail-grid" }, [
       detailItem("상세 사유", outing.detail || "-"),
-      detailItem("교사 판단", decisionText(outing.decision)),
+      options.hideDecision ? null : detailItem("교사 판단", decisionText(outing.decision)),
       detailItem("복귀 상태", outing.status === "returned" ? "복귀 완료" : "복귀 전"),
       detailItem("사진 인증", outing.photos.length ? `${outing.photos.length}장 업로드` : "미제출"),
-    ])
+    ].filter(Boolean))
   );
 
   if (outing.photos.length) {
@@ -604,6 +622,7 @@ function outingCard(outing, options = {}) {
           el("div", { className: "photo-thumb" }, [
             el("img", { src: photo.dataUrl, alt: photo.type }),
             el("span", {}, `${photo.type} · ${photo.name}`),
+            el("time", { dateTime: photo.uploadedAt || "" }, formatTime(photo.uploadedAt)),
           ])
         )
       )
@@ -744,6 +763,33 @@ function readFile(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function compressImage(file, maxSize = 1280, quality = 0.72) {
+  if (!file.type.startsWith("image/")) return readFile(file);
+
+  const dataUrl = await readFile(file);
+  const image = await loadImage(dataUrl);
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
   });
 }
 
