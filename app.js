@@ -648,12 +648,13 @@ function outingCard(outing, options = {}) {
     el("div", { className: "outing-head" }, [
       el("div", {}, [
         el("h3", {}, `${outing.studentName} (${outing.studentId})`),
-        el("p", { className: "outing-meta" }, [
-          `${outing.className} · ${outing.reason}`,
-          el("br"),
-          `신청 ${formatTime(outing.createdAt)} · 예상 복귀 ${outing.expectedReturn || "-"}`,
-          outing.verifiedAt ? ` · 인증 ${formatTime(outing.verifiedAt)}` : "",
-          outing.returnedAt ? ` · 복귀 ${formatTime(outing.returnedAt)}` : "",
+        el("div", { className: "outing-meta-list" }, [
+          metaChip("반", outing.className),
+          metaChip("사유", outing.reason),
+          metaChip("신청", formatTime(outing.createdAt)),
+          metaChip("예상 복귀", formatExpectedReturn(outing.expectedReturn)),
+          outing.verifiedAt ? metaChip("인증", formatTime(outing.verifiedAt)) : null,
+          outing.returnedAt ? metaChip("복귀", formatTime(outing.returnedAt)) : null,
         ]),
       ]),
       statusBadge(outing),
@@ -708,6 +709,10 @@ function outingCard(outing, options = {}) {
 
 function detailItem(label, value) {
   return el("div", { className: "detail-item" }, [el("span", {}, label), el("strong", {}, value)]);
+}
+
+function metaChip(label, value) {
+  return el("span", { className: "meta-chip" }, [el("em", {}, label), String(value || "-")]);
 }
 
 function decideOuting(id, decision) {
@@ -872,6 +877,11 @@ function formatTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatExpectedReturn(value) {
+  if (!value) return "-";
+  return String(value).slice(0, 5);
 }
 
 function isToday(value) {

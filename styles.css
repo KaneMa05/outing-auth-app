@@ -354,6 +354,31 @@ th {
   line-height: 1.7;
 }
 
+.outing-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fbfcfb;
+  padding: 5px 8px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.meta-chip em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 700;
+}
+
 .student-hero {
   border: 1px solid rgba(17, 108, 93, 0.22);
   border-radius: 8px;
@@ -455,7 +480,7 @@ th {
 
   body[data-app-mode="teacher"] .outing-card {
     display: grid;
-    grid-template-columns: minmax(260px, 1.1fr) minmax(320px, 1.2fr) minmax(220px, 0.8fr);
+    grid-template-columns: minmax(260px, 0.85fr) minmax(300px, 1fr);
     align-items: start;
     gap: 16px;
     padding: 18px;
@@ -477,18 +502,17 @@ th {
   }
 
   body[data-app-mode="teacher"] .photo-grid {
-    grid-column: 3;
-    grid-row: 1 / span 3;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-top: 0;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 2px;
   }
 
   body[data-app-mode="teacher"] .action-row {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
   }
 
   body[data-app-mode="teacher"] .outing-card > .subtle {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     margin-bottom: 0;
   }
 
