@@ -13,6 +13,10 @@ const resetButton = document.querySelector("#reset-data");
 const remoteStore = createRemoteStore();
 let isRemoteLoading = false;
 let remoteSaveTimer = null;
+const teacherFilters = {
+  query: "",
+  sort: "name",
+};
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
 
 const routeTitles = {
@@ -537,6 +541,7 @@ function renderTeacher() {
   const requested = state.outings.filter((outing) => outing.decision === "pending");
   const verified = state.outings.filter((outing) => outing.photos.length > 0 || outing.receiptNote);
   const returnedToday = state.outings.filter((outing) => isToday(outing.returnedAt));
+  const visibleOutings = getFilteredTeacherOutings();
 
   return el("div", { className: "grid" }, [
     el("div", { className: "grid stats" }, [
@@ -546,13 +551,120 @@ function renderTeacher() {
       stat("오늘 복귀", returnedToday.length),
     ]),
     panel("학생 등록", [teacherStudentForm()]),
+    renderDuplicatePhotoPanel(),
     panel("외출 신청 전체 관리", [
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 한 페이지에서 확인하고 처리합니다."),
-      state.outings.length
-        ? renderOutingGroupsByDate(state.outings, { teacher: true })
-        : el("div", { className: "empty" }, "아직 외출 신청이 없습니다."),
+      teacherFilterControls(),
+      visibleOutings.length
+        ? renderOutingGroupsByDate(visibleOutings, { teacher: true })
+        : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
   ]);
+}
+
+function teacherFilterControls() {
+  const search = input("teacherSearch", "search", "이름, 고유번호, 사유 검색", teacherFilters.query);
+  const sort = select("teacherSort", ["이름순", "최신순"]);
+  sort.value = teacherFilters.sort === "latest" ? "최신순" : "이름순";
+
+  const form = el("form", { className: "teacher-search" }, [
+    field("검색", search),
+    el("div", { className: "field" }, [
+      el("span", {}, " "),
+      button("검색", "btn secondary"),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    teacherFilters.query = search.value;
+    render();
+  });
+
+  sort.addEventListener("change", (event) => {
+    teacherFilters.sort = event.target.value === "최신순" ? "latest" : "name";
+    render();
+  });
+
+  return el("div", { className: "teacher-tools" }, [
+    form,
+    field("정렬", sort),
+  ]);
+}
+
+function getFilteredTeacherOutings() {
+  const query = teacherFilters.query.trim().toLowerCase();
+  const filtered = state.outings.filter((outing) => {
+    if (!query) return true;
+    return [
+      outing.studentName,
+      outing.studentId,
+      outing.reason,
+      outing.detail,
+      outing.className,
+      outing.earlyLeaveReason,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+
+  return filtered.sort((a, b) => {
+    if (teacherFilters.sort === "latest") return new Date(b.createdAt) - new Date(a.createdAt);
+    const nameCompare = String(a.studentName || "").localeCompare(String(b.studentName || ""), "ko-KR");
+    if (nameCompare !== 0) return nameCompare;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+}
+
+function renderDuplicatePhotoPanel() {
+  const groups = findDuplicatePhotoGroups(state.outings);
+  if (!groups.length) return panel("중복 사진 의심", [el("div", { className: "empty" }, "같은 사진으로 보이는 인증 내역이 없습니다.")]);
+
+  return panel("중복 사진 의심", [
+    el("p", { className: "subtle" }, "같은 이미지 데이터가 여러 외출 기록에 쓰인 경우입니다. 사진을 재사용한 학생을 확인할 때 참고하세요."),
+    el(
+      "div",
+      { className: "duplicate-list" },
+      groups.map((group) =>
+        el("article", { className: "duplicate-item" }, [
+          el("img", { src: group.photo.dataUrl, alt: group.photo.type }),
+          el("div", {}, [
+            el("strong", {}, `${group.photo.type} · ${group.items.length}건`),
+            el("p", { className: "subtle" }, group.items.map((item) => `${item.studentName} (${item.studentId})`).join(", ")),
+          ]),
+        ])
+      )
+    ),
+  ]);
+}
+
+function findDuplicatePhotoGroups(outings) {
+  const map = new Map();
+  outings.forEach((outing) => {
+    outing.photos.forEach((photo) => {
+      if (!photo.dataUrl) return;
+      const key = photo.dataUrl;
+      if (!map.has(key)) map.set(key, { photo, items: [] });
+      map.get(key).items.push(outing);
+    });
+  });
+
+  return [...map.values()]
+    .map((group) => ({
+      ...group,
+      items: uniqueBy(group.items, (item) => item.id),
+    }))
+    .filter((group) => group.items.length > 1);
+}
+
+function uniqueBy(items, keyFn) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = keyFn(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function renderTrash() {

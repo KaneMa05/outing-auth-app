@@ -410,6 +410,57 @@ th {
   font-weight: 800;
 }
 
+.teacher-tools,
+.teacher-search {
+  display: grid;
+  gap: 10px;
+}
+
+.teacher-tools {
+  grid-template-columns: minmax(280px, 1fr) minmax(160px, 220px);
+  align-items: end;
+  margin: 14px 0;
+}
+
+.teacher-search {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+}
+
+.duplicate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.duplicate-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 10px;
+}
+
+.duplicate-item img {
+  width: 72px;
+  height: 72px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.duplicate-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.duplicate-item p {
+  margin-bottom: 0;
+}
+
 .student-hero {
   border: 1px solid rgba(17, 108, 93, 0.22);
   border-radius: 8px;
@@ -733,6 +784,8 @@ body:not([data-app-mode="teacher"]) .btn {
   .grid.stats,
   .grid.two,
   .form-grid,
+  .teacher-tools,
+  .teacher-search,
   .detail-grid {
     grid-template-columns: 1fr;
   }
