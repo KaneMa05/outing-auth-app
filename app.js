@@ -25,6 +25,7 @@ const routeTitles = {
   "student-verify": "사진 인증",
   "student-return": "복귀 반납",
   teacher: "교사용 관리",
+  duplicates: "중복 사진",
   trash: "삭제 내역",
 };
 
@@ -71,7 +72,7 @@ function normalizeRoute(route) {
     settings: "teacher",
   };
   const normalized = legacy[route] || route;
-  if (APP_MODE === "teacher") return normalized === "trash" ? "trash" : "teacher";
+  if (APP_MODE === "teacher") return ["teacher", "duplicates", "trash"].includes(normalized) ? normalized : "teacher";
   return normalized === "student" ? normalized : "student";
 }
 
@@ -277,6 +278,7 @@ function render() {
     "student-verify": renderStudentVerify,
     "student-return": renderStudentReturn,
     teacher: renderTeacher,
+    duplicates: renderDuplicates,
     trash: renderTrash,
   };
 
@@ -551,7 +553,6 @@ function renderTeacher() {
       stat("오늘 복귀", returnedToday.length),
     ]),
     panel("학생 등록", [teacherStudentForm()]),
-    renderDuplicatePhotoPanel(),
     panel("외출 신청 전체 관리", [
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 한 페이지에서 확인하고 처리합니다."),
       teacherFilterControls(),
@@ -560,6 +561,10 @@ function renderTeacher() {
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
   ]);
+}
+
+function renderDuplicates() {
+  return el("div", { className: "grid" }, [renderDuplicatePhotoPanel()]);
 }
 
 function teacherFilterControls() {
