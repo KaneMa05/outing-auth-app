@@ -545,6 +545,8 @@ function renderTeacher() {
   const verified = state.outings.filter((outing) => outing.photos.length > 0 || outing.receiptNote);
   const returnedToday = state.outings.filter((outing) => isToday(outing.returnedAt));
   const visibleOutings = getFilteredTeacherOutings();
+  const pendingOutings = visibleOutings.filter(isActionRequired);
+  const completedOutings = visibleOutings.filter((outing) => !isActionRequired(outing));
 
   return el("div", { className: "grid" }, [
     el("div", { className: "grid stats" }, [
@@ -557,10 +559,99 @@ function renderTeacher() {
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 한 페이지에서 확인하고 처리합니다."),
       teacherFilterControls(),
       visibleOutings.length
-        ? renderOutingGroupsByDate(visibleOutings, { teacher: true })
+        ? el("div", { className: "teacher-sections" }, [
+            teacherOutingSection("처리 필요", pendingOutings, { teacher: true }),
+            teacherOutingSection("처리 완료", completedOutings, { teacher: true }),
+          ])
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
   ]);
+}
+
+function isActionRequired(outing) {
+  return outing.decision === "pending" || outing.status !== "returned";
+}
+
+function teacherOutingSection(titleText, outings, options) {
+  return el("section", { className: "teacher-section" }, [
+    el("div", { className: "section-heading" }, [
+      el("h3", {}, titleText),
+      el("span", {}, `${outings.length}건`),
+    ]),
+    outings.length ? renderTeacherOutingTable(outings, options) : el("div", { className: "empty" }, "해당 기록이 없습니다."),
+  ]);
+}
+
+function renderTeacherOutingTable(outings, options = {}) {
+  const rows = outings.map((outing) =>
+    el("tr", {}, [
+      el("td", {}, formatDateCompact(outing.createdAt)),
+      el("td", {}, [
+        el("strong", {}, outing.studentName || "-"),
+        el("span", { className: "cell-sub" }, outing.studentId || "-"),
+      ]),
+      el("td", {}, outing.reason || "-"),
+      el("td", { className: "wide-cell" }, outing.detail || "-"),
+      el("td", {}, formatExpectedReturn(outing.expectedReturn)),
+      el("td", {}, formatTime(outing.verifiedAt)),
+      el("td", {}, formatTime(outing.returnedAt)),
+      el("td", {}, statusBadge(outing)),
+      el("td", {}, photoMiniList(outing.photos)),
+      el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
+    ])
+  );
+
+  return el("div", { className: "excel-table-wrap" }, [
+    el("table", { className: "excel-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "신청일"),
+          el("th", {}, "학생"),
+          el("th", {}, "사유"),
+          el("th", {}, "상세"),
+          el("th", {}, "예상"),
+          el("th", {}, "인증"),
+          el("th", {}, "복귀"),
+          el("th", {}, "상태"),
+          el("th", {}, "사진"),
+          el("th", {}, "처리"),
+        ]),
+      ]),
+      el("tbody", {}, rows),
+    ]),
+  ]);
+}
+
+function teacherRowActions(outing, options = {}) {
+  if (options.trash) {
+    return [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))];
+  }
+
+  return [
+    button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")),
+    button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")),
+    button("메모", "mini-btn", "button", () => {
+      const memo = prompt("교사용 메모", outing.teacherMemo || "");
+      if (memo === null) return;
+      outing.teacherMemo = memo;
+      saveState();
+      render();
+    }),
+    button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)),
+  ];
+}
+
+function photoMiniList(photos = []) {
+  if (!photos.length) return "-";
+  return el(
+    "div",
+    { className: "photo-mini-list" },
+    photos.map((photo) =>
+      el("a", { href: photo.dataUrl, target: "_blank", rel: "noreferrer", title: photo.type }, [
+        el("img", { src: photo.dataUrl, alt: photo.type }),
+      ])
+    )
+  );
 }
 
 function renderStudentsAdmin() {
@@ -684,7 +775,7 @@ function renderTrash() {
     panel("삭제 내역", [
       el("p", { className: "subtle" }, "삭제한 외출 신청 기록을 확인하고 복구할 수 있습니다."),
       deleted.length
-        ? renderOutingGroupsByDate(deleted, { trash: true })
+        ? renderTeacherOutingTable(deleted, { trash: true })
         : el("div", { className: "empty" }, "삭제된 외출 신청 기록이 없습니다."),
     ]),
   ]);
@@ -873,15 +964,7 @@ function outingCard(outing, options = {}) {
     ]),
   ];
 
-  nodes.push(
-    el("div", { className: "detail-grid" }, [
-      detailItem("상세 사유", outing.detail || "-"),
-      options.hideDecision ? null : detailItem("교사 판단", decisionText(outing.decision)),
-      detailItem("복귀 상태", outing.status === "returned" ? "복귀 완료" : "복귀 전"),
-      detailItem("사진 인증", outing.photos.length ? `${outing.photos.length}장 업로드` : "미제출"),
-      outing.earlyLeaveReason ? detailItem("조퇴 사유", outing.earlyLeaveReason) : null,
-    ].filter(Boolean))
-  );
+  nodes.push(outingDataTable(outing, options));
 
   if (outing.photos.length) {
     nodes.push(
@@ -926,6 +1009,29 @@ function outingCard(outing, options = {}) {
   }
 
   return el("article", { className: "outing-card" }, nodes);
+}
+
+function outingDataTable(outing, options = {}) {
+  const rows = [
+    ["상세 사유", outing.detail || "-"],
+    options.hideDecision ? null : ["교사 판단", decisionText(outing.decision)],
+    ["복귀 상태", outing.status === "returned" ? "복귀 완료" : "복귀 전"],
+    ["사진 인증", outing.photos.length ? `${outing.photos.length}장 업로드` : "미제출"],
+    outing.earlyLeaveReason ? ["조퇴 사유", outing.earlyLeaveReason] : null,
+  ].filter(Boolean);
+
+  return el("table", { className: "outing-data-table" }, [
+    el(
+      "tbody",
+      {},
+      rows.map(([label, value]) =>
+        el("tr", {}, [
+          el("th", {}, label),
+          el("td", {}, value),
+        ])
+      )
+    ),
+  ]);
 }
 
 function detailItem(label, value) {
@@ -1136,6 +1242,16 @@ function formatDateKey(value) {
 function formatExpectedReturn(value) {
   if (!value) return "-";
   return String(value).slice(0, 5);
+}
+
+function formatDateCompact(value) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function isToday(value) {
