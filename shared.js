@@ -98,9 +98,9 @@ async function initRemoteStore() {
   isRemoteLoading = true;
   try {
     await loadStateFromRemote();
-    reconcileStudentRegistrationFromRemote();
+    const registrationChanged = reconcileStudentRegistrationFromRemote();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    render();
+    if (registrationChanged || !shouldPreserveStudentAuthForm()) render();
     startRemoteRefresh();
   } catch (error) {
     console.error(error);
@@ -125,8 +125,9 @@ async function refreshStateFromRemote() {
   try {
     await loadStateFromRemote();
     const registrationChanged = reconcileStudentRegistrationFromRemote();
+    const preserveAuthForm = shouldPreserveStudentAuthForm();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    render();
+    if (registrationChanged || !preserveAuthForm) render();
     if (registrationChanged) notify("앱 등록이 초기화되었습니다. 다시 등록해주세요.");
   } catch (error) {
     console.error(error);
@@ -146,6 +147,23 @@ function reconcileStudentRegistrationFromRemote() {
   state.settings.studentAuthId = "";
   if (state.settings.lastStudentId === studentId) state.settings.lastStudentId = "";
   return true;
+}
+
+function shouldPreserveStudentAuthForm() {
+  if (APP_MODE !== "student" || getAuthedStudent()) return false;
+  const authForm = app?.querySelector(".student-auth-card");
+  if (!authForm) return false;
+
+  const active = document.activeElement;
+  if (active && authForm.contains(active)) return true;
+
+  const textInputs = [...authForm.querySelectorAll("input")].filter((input) =>
+    ["studentId", "password", "customTrack"].includes(input.name)
+  );
+  if (textInputs.some((input) => String(input.value || "").trim())) return true;
+
+  const profileArea = authForm.querySelector(".student-auth-profile");
+  return Boolean(profileArea && !profileArea.hidden);
 }
 
 function scheduleRemoteSave() {
