@@ -12,14 +12,20 @@ const topActions = document.querySelector(".top-actions");
 const seedButton = document.querySelector("#seed-demo");
 const resetButton = document.querySelector("#reset-data");
 const remoteStore = createRemoteStore();
+const localDevStoreUrl = createLocalDevStoreUrl();
 const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
 const STUDENT_INTERACTION_PAUSE_MS = 15000;
 const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
+const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
+const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
+let localDevSaveTimer = null;
 let hasPendingRemoteSave = false;
+let isLocalDevLoading = false;
+let isLocalDevSaving = false;
 let isRemoteRefreshStarted = false;
 let remoteResumeRefreshTimer = null;
 let deferredInstallPrompt = null;
@@ -116,12 +122,32 @@ function defaultState() {
       studentStep: "request",
       earlyLeaveMode: false,
       completionType: "",
+      attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
+      attendanceDeadlineEnabled: false,
     },
     students: [],
     outings: [],
     deletedOutings: [],
+    attendanceChecks: [],
   };
 }
+
+function mergeDefaultState(nextState) {
+  const defaults = defaultState();
+  return {
+    ...defaults,
+    ...nextState,
+    settings: {
+      ...defaults.settings,
+      ...(nextState?.settings || {}),
+    },
+    students: Array.isArray(nextState?.students) ? nextState.students : defaults.students,
+    outings: Array.isArray(nextState?.outings) ? nextState.outings : defaults.outings,
+    deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
+    attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
+  };
+}
+
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -130,6 +156,7 @@ function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(makeLocalStorageSafeState()));
   }
   scheduleRemoteSave();
+  scheduleLocalDevSave();
 }
 
 function isStorageQuotaError(error) {
@@ -144,6 +171,7 @@ function isStorageQuotaError(error) {
 function makeLocalStorageSafeState() {
   const snapshot = JSON.parse(JSON.stringify(state));
   snapshot.outings = (snapshot.outings || []).slice(0, 30).map(stripPhotoDataForLocalStorage);
+  snapshot.attendanceChecks = (snapshot.attendanceChecks || []).slice(0, 120).map(stripAttendancePhotoDataForLocalStorage);
   snapshot.deletedOutings = [];
   return snapshot;
 }
@@ -158,6 +186,13 @@ function stripPhotoDataForLocalStorage(outing) {
   };
 }
 
+function stripAttendancePhotoDataForLocalStorage(check) {
+  return {
+    ...check,
+    photoDataUrl: "",
+  };
+}
+
 function createRemoteStore() {
   const config = window.OUTING_APP_CONFIG || {};
   const hasConfig = Boolean(config.supabaseUrl && config.supabaseAnonKey);
@@ -166,8 +201,16 @@ function createRemoteStore() {
   return window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 }
 
+function createLocalDevStoreUrl() {
+  const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
+  return isLocalHost ? "/api/local-state" : "";
+}
+
 async function initRemoteStore() {
-  if (!remoteStore) return;
+  if (!remoteStore) {
+    await initLocalDevStore();
+    return;
+  }
   isRemoteLoading = true;
   try {
     await loadStateFromRemote();
@@ -180,6 +223,26 @@ async function initRemoteStore() {
     notify("Supabase 저장 중 오류가 발생했습니다.");
   } finally {
     isRemoteLoading = false;
+  }
+}
+
+async function initLocalDevStore() {
+  if (!localDevStoreUrl) return;
+  isLocalDevLoading = true;
+  try {
+    const response = await fetch(localDevStoreUrl, { credentials: "same-origin" });
+    const data = response.ok ? await response.json() : { ok: false };
+    if (data.ok && data.exists && data.state) {
+      Object.assign(state, mergeDefaultState(data.state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+      return;
+    }
+    if (hasLocalDevStateData(state)) scheduleLocalDevSave();
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLocalDevLoading = false;
   }
 }
 
@@ -414,6 +477,42 @@ function scheduleRemoteSave() {
   }, 250);
 }
 
+function scheduleLocalDevSave() {
+  if (!localDevStoreUrl || remoteStore || isLocalDevLoading) return;
+  window.clearTimeout(localDevSaveTimer);
+  localDevSaveTimer = window.setTimeout(() => {
+    localDevSaveTimer = null;
+    isLocalDevSaving = true;
+    fetch(localDevStoreUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: makeLocalDevSafeState() }),
+    })
+      .catch((error) => console.error(error))
+      .finally(() => {
+        isLocalDevSaving = false;
+      });
+  }, 180);
+}
+
+function hasLocalDevStateData(snapshot) {
+  return Boolean(
+    snapshot?.students?.length ||
+    snapshot?.outings?.length ||
+    snapshot?.deletedOutings?.length ||
+    snapshot?.attendanceChecks?.length
+  );
+}
+
+function makeLocalDevSafeState() {
+  const snapshot = JSON.parse(JSON.stringify(state));
+  snapshot.outings = (snapshot.outings || []).map(stripPhotoDataForLocalStorage);
+  snapshot.deletedOutings = (snapshot.deletedOutings || []).map(stripPhotoDataForLocalStorage);
+  snapshot.attendanceChecks = (snapshot.attendanceChecks || []).map(stripAttendancePhotoDataForLocalStorage);
+  return snapshot;
+}
+
 async function loadStateFromRemote() {
   const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
   const outingColumns = [
@@ -434,16 +533,33 @@ async function loadStateFromRemote() {
     "deleted_at",
   ].join(",");
   const photoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
-  const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }] =
+  const attendanceColumns = [
+    "id",
+    "student_id",
+    "student_name",
+    "class_name",
+    "check_date",
+    "status",
+    "reason",
+    "detail",
+    "photo_path",
+    "photo_url",
+    "photo_data_url",
+    "original_name",
+    "created_at",
+  ].join(",");
+  const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }, attendanceResult] =
     await Promise.all([
       remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
       remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
       remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
+      remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
     ]);
 
   if (studentsError) throw studentsError;
   if (outingsError) throw outingsError;
   if (photosError) throw photosError;
+  if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
 
   state.students = (students || []).map((student) => ({
     id: student.id,
@@ -485,6 +601,7 @@ async function loadStateFromRemote() {
   }));
   state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
+  state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
 }
 
 async function saveStateToRemote() {
@@ -550,6 +667,7 @@ async function saveStateToRemote() {
       status: "requested",
       decision: "pending",
       receipt_note: outing.receiptNote || null,
+      early_leave_reason: outing.earlyLeaveReason || null,
       created_at: outing.createdAt,
       verified_at: null,
       returned_at: null,
@@ -623,12 +741,43 @@ async function saveStateToRemote() {
       .upsert(photoRows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw error;
   }
+
+  const attendanceRows = (state.attendanceChecks || [])
+    .filter((check) => check.id && check.studentId && check.photoPath)
+    .map((check) => ({
+      id: check.id,
+      student_id: check.studentId,
+      student_name: check.studentName,
+      class_name: check.className || state.settings.className || "오프라인반",
+      check_date: check.checkDate,
+      status: check.status || "present",
+      reason: check.reason || null,
+      detail: check.detail || null,
+      photo_path: check.photoPath,
+      photo_url: check.photoUrl || null,
+      photo_data_url: null,
+      original_name: check.originalName || null,
+      created_at: check.createdAt,
+    }));
+
+  if (attendanceRows.length) {
+    const { error } = await remoteStore
+      .from("attendance_checks")
+      .upsert(attendanceRows, { onConflict: "id", ignoreDuplicates: true });
+    if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
+  }
 }
 
 function isMissingColumnError(error, columnName) {
   if (!error) return false;
   const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
   return text.includes(columnName.toLowerCase()) && (text.includes("column") || text.includes("schema cache"));
+}
+
+function isMissingRelationError(error, relationName) {
+  if (!error) return false;
+  const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
+  return text.includes(String(relationName).toLowerCase()) && (text.includes("relation") || text.includes("table") || text.includes("schema cache"));
 }
 
 function renderOutingList(outings, options = {}) {
@@ -969,6 +1118,163 @@ function getLatestOuting(studentId) {
   return state.outings.find((outing) => outing.studentId === String(studentId).trim());
 }
 
+function mapAttendanceCheckFromRemote(check) {
+  return {
+    id: check.id,
+    studentId: check.student_id,
+    studentName: check.student_name || "",
+    className: check.class_name || "",
+    checkDate: check.check_date,
+    status: check.status || "present",
+    reason: check.reason || "",
+    detail: check.detail || "",
+    photoPath: check.photo_path || "",
+    photoUrl: check.photo_url || "",
+    photoDataUrl: check.photo_data_url || "",
+    originalName: check.original_name || "",
+    createdAt: check.created_at,
+  };
+}
+
+function getTodayDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getAttendanceChecksForDate(dateKey = getTodayDateKey()) {
+  return (state.attendanceChecks || []).filter((check) => check.checkDate === dateKey);
+}
+
+function getStudentAttendanceForDate(studentId, dateKey = getTodayDateKey()) {
+  return getAttendanceChecksForDate(dateKey).find((check) => check.studentId === String(studentId || "").trim());
+}
+
+function isAttendanceCheckOpen(now = new Date()) {
+  if (!state.settings.attendanceDeadlineEnabled) return true;
+  const [hour, minute] = getAttendanceDeadlineParts();
+  const deadline = new Date(now);
+  deadline.setHours(hour, minute, 0, 0);
+  return now <= deadline;
+}
+
+function formatAttendanceDeadline() {
+  const [hour, minute] = getAttendanceDeadlineParts();
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function getAttendanceDeadlineParts() {
+  const value = String(state.settings.attendanceDeadline || DEFAULT_ATTENDANCE_DEADLINE);
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  if (!match) return [8, 50];
+  return [Number(match[1]), Number(match[2])];
+}
+
+function setAttendanceDeadline(value, enabled) {
+  const nextValue = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")) ? String(value) : DEFAULT_ATTENDANCE_DEADLINE;
+  state.settings.attendanceDeadline = nextValue;
+  state.settings.attendanceDeadlineEnabled = Boolean(enabled);
+  saveState();
+}
+
+function getAttendancePhotoSrc(check) {
+  return check?.photoUrl || check?.photoDataUrl || "";
+}
+
+async function createAttendanceCheck(student, file, options = {}) {
+  if (!student) throw new Error("student_required");
+  if (!file) throw new Error("photo_required");
+  const id = createId();
+  const createdAt = new Date().toISOString();
+  const checkDate = getTodayDateKey();
+  const status = options.status || "present";
+  const compressedDataUrl = await compressImage(file, 900, 0.64, 180000);
+  let photoPath = "";
+  let photoUrl = "";
+  let photoDataUrl = compressedDataUrl;
+
+  if (remoteStore) {
+    const blob = dataUrlToBlob(compressedDataUrl);
+    photoPath = createAttendancePhotoPath(student.id, id);
+    const { error: uploadError } = await remoteStore.storage
+      .from(ATTENDANCE_PHOTO_BUCKET)
+      .upload(photoPath, blob, {
+        cacheControl: "31536000",
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
+    if (uploadError) throw uploadError;
+    const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(photoPath);
+    photoUrl = data?.publicUrl || "";
+    photoDataUrl = "";
+  }
+
+  const check = {
+    id,
+    studentId: student.id,
+    studentName: student.name,
+    className: student.className || state.settings.className || "오프라인반",
+    checkDate,
+    status,
+    reason: String(options.reason || "").trim(),
+    detail: String(options.detail || "").trim(),
+    photoPath,
+    photoUrl,
+    photoDataUrl,
+    originalName: file.name || "",
+    createdAt,
+  };
+
+  if (remoteStore) {
+    const { error } = await remoteStore.from("attendance_checks").insert({
+      id: check.id,
+      student_id: check.studentId,
+      student_name: check.studentName,
+      class_name: check.className,
+      check_date: check.checkDate,
+      status: check.status,
+      reason: check.reason || null,
+      detail: check.detail || null,
+      photo_path: check.photoPath,
+      photo_url: check.photoUrl || null,
+      photo_data_url: null,
+      original_name: check.originalName || null,
+      created_at: check.createdAt,
+    });
+    if (error) throw error;
+  }
+
+  state.attendanceChecks = [
+    check,
+    ...(state.attendanceChecks || []).filter((item) => !(item.studentId === student.id && item.checkDate === checkDate)),
+  ];
+  saveState();
+  return check;
+}
+
+function createPreArrivalReasonCheck(student, file, reason, detail) {
+  return createAttendanceCheck(student, file, {
+    status: "pre_arrival_reason",
+    reason,
+    detail,
+  });
+}
+
+function createAttendancePhotoPath(studentId, checkId) {
+  return `${getTodayDateKey()}/${String(studentId || "student")}/${checkId}.jpg`;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [meta, content] = String(dataUrl || "").split(",");
+  const mime = /data:([^;]+)/.exec(meta || "")?.[1] || "image/jpeg";
+  const binary = atob(content || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mime });
+}
+
 function readFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1088,7 +1394,7 @@ function openPhotoModal(photo) {
         ]),
         button("닫기", "mini-btn", "button", closePhotoModal),
       ]),
-      el("img", { src: photo.dataUrl, alt: photo.type || "인증 사진" }),
+      el("img", { src: photo.dataUrl || photo.photoUrl || photo.photoDataUrl || "", alt: photo.type || "인증 사진" }),
     ]),
   ]);
 

@@ -107,6 +107,7 @@ async function logoutTeacher() {
 
 function renderTeacher() {
   const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
   const visibleOutings = getFilteredTeacherOutings();
@@ -118,6 +119,7 @@ function renderTeacher() {
       studentCountStatGroup(),
       statGroup("외출 인원", [
         stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
+        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명"),
       ]),
       statGroup("외출 건수", [
         stat("처리 대기", pendingOutingCases.length, "건"),
@@ -135,6 +137,139 @@ function renderTeacher() {
           ])
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
+  ]);
+}
+
+function renderAttendanceManagement() {
+  if (!hasTeacherPermission("attendance.read")) return renderForbidden();
+  const todayKey = getTodayDateKey();
+  const todayChecks = getAttendanceChecksForDate(todayKey);
+  const presentChecks = todayChecks.filter((check) => check.status === "present");
+  const reasonChecks = todayChecks.filter((check) => check.status === "pre_arrival_reason");
+  const checkedStudentIds = new Set(todayChecks.map((check) => check.studentId));
+  const absentStudents = state.students.filter((student) => !checkedStudentIds.has(student.id));
+
+  return el("div", { className: "grid" }, [
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup("오늘 출석", [
+        stat("출석 인증", presentChecks.length, "명"),
+        stat("사유신청", reasonChecks.length, "명"),
+        stat("미인증", absentStudents.length, "명"),
+      ]),
+    ]),
+    panel("오늘 출석 사진", [
+      el("p", { className: "subtle" }, "학생이 촬영한 현장 사진으로 출석 인증 여부를 확인합니다. 이미지는 Storage에 저장되고 이 화면은 경로만 불러옵니다."),
+      todayChecks.length ? renderAttendanceTable(todayChecks) : el("div", { className: "empty" }, "오늘 출석 인증 내역이 없습니다."),
+    ]),
+    panel("출석 시간 설정", [attendanceDeadlineForm()]),
+    panel("미인증 학생", [
+      absentStudents.length
+        ? table(
+            ["고유번호", "이름", "반"],
+            absentStudents
+              .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
+              .map((student) => el("tr", {}, [el("td", {}, student.id), el("td", {}, student.name), el("td", {}, student.className || "-")]))
+          )
+        : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
+    ]),
+  ]);
+}
+
+function attendanceDeadlineForm() {
+  const enabledInput = el("input", {
+    name: "attendanceDeadlineEnabled",
+    type: "checkbox",
+    checked: Boolean(state.settings.attendanceDeadlineEnabled),
+  });
+  const timeInput = el("input", {
+    name: "attendanceDeadline",
+    type: "time",
+    value: state.settings.attendanceDeadline || "08:50",
+  });
+  const form = el("form", { className: "form-grid compact-form" }, [
+    field("마감 시간", timeInput),
+    el("label", { className: "field attendance-toggle-field" }, [
+      el("span", {}, "시간 제한"),
+      el("div", { className: "attendance-toggle-control" }, [
+        enabledInput,
+        el("strong", {}, "출석 버튼 마감 적용"),
+      ]),
+    ]),
+    el("div", { className: "field full" }, [
+      button("설정 저장", "btn secondary"),
+      el(
+        "p",
+        { className: "subtle attendance-deadline-note" },
+        state.settings.attendanceDeadlineEnabled
+          ? `현재 오전 ${formatAttendanceDeadline()} 이후 출석 인증 버튼이 비활성화됩니다.`
+          : "현재 테스트 모드라 출석 인증 버튼이 항상 활성화됩니다."
+      ),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked);
+    render();
+    notify("출석 시간 설정을 저장했습니다.");
+  });
+
+  return form;
+}
+
+function renderAttendanceTable(checks) {
+  const rows = [...checks]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((check) =>
+      el("tr", {}, [
+        el("td", {}, formatDateCompact(check.createdAt)),
+        el("td", {}, [
+          el("strong", {}, check.studentName || "-"),
+          el("span", { className: "cell-sub" }, check.studentId || "-"),
+        ]),
+        el("td", {}, check.className || "-"),
+        el("td", {}, attendanceStatusBadge(check)),
+        el("td", {}, check.reason || "-"),
+        el("td", { className: "wide-cell" }, check.detail || "-"),
+        el("td", {}, attendancePhotoButton(check)),
+      ])
+    );
+
+  return el("div", { className: "excel-table-wrap" }, [
+    el("table", { className: "excel-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "인증 시각"),
+          el("th", {}, "학생"),
+          el("th", {}, "반"),
+          el("th", {}, "상태"),
+          el("th", {}, "사유"),
+          el("th", {}, "상세"),
+          el("th", {}, "사진"),
+        ]),
+      ]),
+      el("tbody", {}, rows),
+    ]),
+  ]);
+}
+
+function attendanceStatusBadge(check) {
+  if (check.status === "pre_arrival_reason") return el("span", { className: "badge pending" }, "사유신청");
+  return el("span", { className: "badge approved" }, "출석");
+}
+
+function attendancePhotoButton(check) {
+  const src = getAttendancePhotoSrc(check);
+  if (!src) return "-";
+  return button("", "attendance-photo-thumb", "button", () => openPhotoModal({
+    type: check.status === "pre_arrival_reason" ? "등원 전 사유 인증" : "출석 인증",
+    photoUrl: src,
+    uploadedAt: check.createdAt,
+  }), [
+    el("img", { src, alt: "출석 인증 사진" }),
+    el("span", {}, "크게 보기"),
   ]);
 }
 
@@ -161,7 +296,7 @@ function renderTeacherOutingTable(outings, options = {}) {
         el("span", { className: "cell-sub" }, outing.studentId || "-"),
       ]),
       el("td", {}, outing.reason || "-"),
-      el("td", { className: "wide-cell" }, outing.detail || "-"),
+      el("td", { className: "wide-cell" }, outing.earlyLeaveReason || outing.detail || "-"),
       el("td", {}, formatExpectedReturn(outing.expectedReturn)),
       el("td", {}, formatTime(outing.verifiedAt)),
       el("td", {}, formatTime(outing.returnedAt)),

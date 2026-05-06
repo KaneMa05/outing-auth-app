@@ -51,6 +51,34 @@ create table if not exists public.manager_allowed_ips (
   last_seen_at timestamptz not null default now()
 );
 
+create table if not exists public.attendance_checks (
+  id uuid primary key default gen_random_uuid(),
+  student_id text not null references public.students(id) on delete cascade,
+  student_name text not null,
+  class_name text not null default '오프라인반',
+  check_date date not null default ((now() at time zone 'Asia/Seoul')::date),
+  status text not null default 'present'
+    check (status in ('present', 'pre_arrival_reason')),
+  reason text,
+  detail text,
+  photo_path text not null,
+  photo_url text,
+  photo_data_url text,
+  original_name text,
+  created_at timestamptz not null default now(),
+  unique (student_id, check_date)
+);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('attendance-photos', 'attendance-photos', true, 524288, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+create index if not exists attendance_checks_check_date_created_at_idx
+on public.attendance_checks (check_date, created_at desc);
+
 alter table public.students
 add column if not exists track text,
 add column if not exists gender text,
@@ -58,10 +86,31 @@ add column if not exists password_hash text,
 add column if not exists device_token text,
 add column if not exists app_registered_at timestamptz;
 
+alter table public.attendance_checks
+add column if not exists reason text,
+add column if not exists detail text;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'attendance_checks_status_check'
+      and conrelid = 'public.attendance_checks'::regclass
+  ) then
+    alter table public.attendance_checks drop constraint attendance_checks_status_check;
+  end if;
+end $$;
+
+alter table public.attendance_checks
+add constraint attendance_checks_status_check
+check (status in ('present', 'pre_arrival_reason'));
+
 alter table public.students enable row level security;
 alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
 alter table public.manager_allowed_ips enable row level security;
+alter table public.attendance_checks enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -76,11 +125,16 @@ drop policy if exists "anon_outings_update_teacher_decision" on public.outings;
 drop policy if exists "anon_outings_soft_delete" on public.outings;
 drop policy if exists "anon_photos_select" on public.outing_photos;
 drop policy if exists "anon_photos_insert" on public.outing_photos;
+drop policy if exists "anon_attendance_select" on public.attendance_checks;
+drop policy if exists "anon_attendance_insert" on public.attendance_checks;
+drop policy if exists "anon_attendance_photo_select" on storage.objects;
+drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 
 revoke all on public.students from anon;
 revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
 revoke all on public.manager_allowed_ips from anon;
+revoke all on public.attendance_checks from anon;
 
 grant select (
   id,
@@ -138,6 +192,7 @@ grant insert (
   status,
   decision,
   receipt_note,
+  early_leave_reason,
   created_at,
   verified_at,
   returned_at
@@ -170,6 +225,38 @@ grant insert (
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
+
+grant select (
+  id,
+  student_id,
+  student_name,
+  class_name,
+  check_date,
+  status,
+  reason,
+  detail,
+  photo_path,
+  photo_url,
+  photo_data_url,
+  original_name,
+  created_at
+) on public.attendance_checks to anon;
+
+grant insert (
+  id,
+  student_id,
+  student_name,
+  class_name,
+  check_date,
+  status,
+  reason,
+  detail,
+  photo_path,
+  photo_url,
+  photo_data_url,
+  original_name,
+  created_at
+) on public.attendance_checks to anon;
 
 create policy "anon_students_select_active"
 on public.students
@@ -221,7 +308,6 @@ with check (
   and status = 'requested'
   and decision = 'pending'
   and teacher_memo is null
-  and early_leave_reason is null
   and verified_at is null
   and returned_at is null
 );
@@ -282,4 +368,35 @@ with check (
       and outings.deleted_at is null
       and outings.decision <> 'rejected'
   )
+);
+
+create policy "anon_attendance_select"
+on public.attendance_checks
+for select
+to anon
+using (true);
+
+create policy "anon_attendance_insert"
+on public.attendance_checks
+for insert
+to anon
+with check (
+  status in ('present', 'pre_arrival_reason')
+  and check_date = ((now() at time zone 'Asia/Seoul')::date)
+  and photo_path is not null
+);
+
+create policy "anon_attendance_photo_select"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'attendance-photos');
+
+create policy "anon_attendance_photo_insert"
+on storage.objects
+for insert
+to anon
+with check (
+  bucket_id = 'attendance-photos'
+  and lower((storage.foldername(name))[1]) = to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD')
 );

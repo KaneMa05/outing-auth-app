@@ -96,7 +96,7 @@ function normalizeRoute(route) {
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  return ["home", "student", "student-verify", "student-return", "student-done", "mypage"].includes(normalized) ? normalized : "home";
+  return ["home", "student", "student-verify", "student-return", "student-done", "attendance", "mypage"].includes(normalized) ? normalized : "home";
 }
 
 function defaultRoute() {
@@ -119,7 +119,7 @@ function render() {
   });
   if (APP_MODE === "teacher") updateTeacherNavSections();
 
-  title.textContent = routeTitles[currentRoute] || routeTitles.student;
+  title.textContent = APP_MODE !== "teacher" && currentRoute === "attendance" ? "출석 체크" : routeTitles[currentRoute] || routeTitles.student;
   if (topActions) {
     topActions.innerHTML = "";
     if (APP_MODE === "teacher" && teacherAuth.authenticated) {
@@ -138,7 +138,7 @@ function render() {
           outing: renderTeacher,
           grades: () => renderComingSoonManagement("성적 관리", "시험별 성적 입력, 학생별 추이, 반 평균 분석 기능을 이곳에 연결할 예정입니다."),
           penalties: () => renderComingSoonManagement("벌점 관리", "벌점 부여, 누적 현황, 지도 이력 관리 기능을 이곳에 연결할 예정입니다."),
-          attendance: () => renderComingSoonManagement("출석 관리", "출석 체크, 지각/결석 기록, 기간별 출석 통계 기능을 이곳에 연결할 예정입니다."),
+          attendance: renderAttendanceManagement,
           students: renderStudentsAdmin,
           duplicates: renderDuplicates,
           trash: renderTrash,
@@ -149,6 +149,7 @@ function render() {
           "student-verify": () => requireStudentAuth(renderStudentChecklist),
           "student-return": () => requireStudentAuth(renderStudentChecklist),
           "student-done": () => requireStudentAuth(renderStudentChecklist),
+          attendance: () => requireStudentAuth(renderStudentAttendance),
           mypage: () => requireStudentAuth(renderStudentMypage),
         };
 
@@ -365,6 +366,7 @@ function createDeviceToken() {
 function renderStudentHome() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
+  const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
@@ -375,6 +377,7 @@ function renderStudentHome() {
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
     renderStudentTodayCard(activeOuting),
+    renderStudentAttendanceSummaryCard(todayAttendance),
     el("section", { className: "student-summary-card" }, [
       el("div", {}, [
         el("strong", {}, homeAction.title),
@@ -382,6 +385,16 @@ function renderStudentHome() {
       ]),
       button(homeAction.buttonText, "btn", "button", homeAction.action),
     ]),
+  ]);
+}
+
+function renderStudentAttendanceSummaryCard(check) {
+  return el("section", { className: "student-summary-card" }, [
+    el("div", {}, [
+      el("strong", {}, check ? "오늘 출석 인증 완료" : "오늘 출석 인증"),
+      el("p", {}, check ? `${formatTimeOnly(check.createdAt)}에 출석 처리되었습니다.` : "현장 사진으로 오늘 출석을 인증하세요."),
+    ]),
+    button(check ? "출석 확인" : "출석 체크", "btn secondary", "button", () => navigate("attendance")),
   ]);
 }
 
@@ -655,6 +668,7 @@ function formatExamDate(dateString) {
 
 function renderHome() {
   const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
 
@@ -663,6 +677,7 @@ function renderHome() {
       studentCountStatGroup(),
       statGroup("외출 인원", [
         stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
+        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명"),
       ]),
       statGroup("외출 건수", [
         stat("승인 대기", pendingOutingCases.length, "건"),
@@ -675,7 +690,7 @@ function renderHome() {
         hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
         hasTeacherPermission("penalties.read") ? moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "준비 중") : null,
-        hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "출석, 지각, 결석과 기간별 통계를 관리합니다.", "attendance", "준비 중") : null,
+        hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
       ].filter(Boolean)),
     ]),
   ]);

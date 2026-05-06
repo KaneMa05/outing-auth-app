@@ -836,6 +836,32 @@ th {
   border-color: var(--accent);
 }
 
+.attendance-photo-thumb {
+  width: 72px;
+  display: grid;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.attendance-photo-thumb img {
+  display: block;
+  width: 72px;
+  height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.attendance-photo-thumb:hover img {
+  border-color: var(--accent);
+}
+
 .photo-modal {
   position: fixed;
   inset: 0;
@@ -1179,6 +1205,54 @@ th {
   color: var(--muted);
   font-size: 0.74rem;
   text-align: right;
+}
+
+.attendance-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.attendance-photo-grid {
+  margin-top: 14px;
+}
+
+.attendance-photo-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attendance-secondary-action {
+  display: grid;
+}
+
+.attendance-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-deadline-note {
+  margin-top: 7px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.attendance-toggle-control {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attendance-toggle-control input {
+  width: 18px;
+  height: 18px;
+}
+
+.attendance-toggle-control strong {
+  font-size: 0.88rem;
 }
 
 @media (min-width: 901px) {
