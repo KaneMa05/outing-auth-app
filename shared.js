@@ -13,6 +13,7 @@ const resetButton = document.querySelector("#reset-data");
 const remoteStore = createRemoteStore();
 let isRemoteLoading = false;
 let remoteSaveTimer = null;
+let remoteRefreshTimer = null;
 let deferredInstallPrompt = null;
 const teacherAuth = {
   checked: APP_MODE !== "teacher",
@@ -97,14 +98,54 @@ async function initRemoteStore() {
   isRemoteLoading = true;
   try {
     await loadStateFromRemote();
+    reconcileStudentRegistrationFromRemote();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     render();
+    startRemoteRefresh();
   } catch (error) {
     console.error(error);
     notify("Supabase 저장 중 오류가 발생했습니다.");
   } finally {
     isRemoteLoading = false;
   }
+}
+
+function startRemoteRefresh() {
+  if (!remoteStore || APP_MODE !== "student" || remoteRefreshTimer) return;
+  remoteRefreshTimer = window.setInterval(refreshStateFromRemote, 10000);
+  window.addEventListener("focus", refreshStateFromRemote);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshStateFromRemote();
+  });
+}
+
+async function refreshStateFromRemote() {
+  if (!remoteStore || isRemoteLoading) return;
+  isRemoteLoading = true;
+  try {
+    await loadStateFromRemote();
+    const registrationChanged = reconcileStudentRegistrationFromRemote();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+    if (registrationChanged) notify("앱 등록이 초기화되었습니다. 다시 등록해주세요.");
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isRemoteLoading = false;
+  }
+}
+
+function reconcileStudentRegistrationFromRemote() {
+  if (APP_MODE !== "student") return false;
+  const studentId = String(state.settings.studentAuthId || "").trim();
+  const profile = getStudentProfile(studentId);
+  const student = findStudent(studentId);
+  if (!studentId || !profile?.deviceToken || !student || student.appRegisteredAt) return false;
+
+  delete state.settings.studentProfiles[studentId];
+  state.settings.studentAuthId = "";
+  if (state.settings.lastStudentId === studentId) state.settings.lastStudentId = "";
+  return true;
 }
 
 function scheduleRemoteSave() {
