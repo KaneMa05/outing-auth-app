@@ -2,6 +2,12 @@ const fs = require("fs");
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
+for (const file of ["shared.js", "student.js", "teacher.js"]) {
+  if (!fs.existsSync(file)) {
+    throw new Error(`${file} is missing.`);
+  }
+}
+
 if (!supabaseUrl || !supabaseAnonKey) {
   console.log("SUPABASE_URL or SUPABASE_ANON_KEY is empty. Writing empty config.js.");
   fs.writeFileSync(
