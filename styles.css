@@ -831,6 +831,52 @@ th {
   width: 100%;
 }
 
+.loading-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+
+.loading-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 18, 15, 0.42);
+}
+
+.loading-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(320px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  background: #fff;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+}
+
+.loading-modal-panel .loading-spinner {
+  inline-size: 28px;
+  block-size: 28px;
+  border-color: rgba(7, 93, 164, 0.18);
+  border-top-color: var(--accent);
+}
+
+.loading-modal-panel strong {
+  font-size: 1.05rem;
+}
+
+.loading-modal-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .action-cell {
   min-width: 160px;
 }

@@ -454,6 +454,8 @@ async function resetStudentAppRegistration(id) {
   if (!student) return;
   if (!confirm(student.name + " (" + student.id + ") 학생의 앱 등록 상태를 초기화할까요?")) return;
 
+  openLoadingModal("등록 초기화 중", "학생 앱 등록 정보를 초기화하고 있습니다.");
+
   if (remoteStore) {
     try {
       const response = await fetch("/api/reset-student-registration", {
@@ -475,7 +477,11 @@ async function resetStudentAppRegistration(id) {
       console.error(error);
       notify("서버 등록 초기화 요청 중 오류가 발생했습니다.");
       return;
+    } finally {
+      closeLoadingModal();
     }
+  } else {
+    closeLoadingModal();
   }
 
   student.track = "";

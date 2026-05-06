@@ -712,6 +712,23 @@ function openInfoModal({ title, content, className = "" }) {
   document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
+function openLoadingModal(title, message) {
+  closeLoadingModal();
+  const modal = el("div", { className: "loading-modal", role: "alertdialog", ariaModal: "true", ariaLive: "assertive" }, [
+    el("div", { className: "loading-modal-backdrop" }),
+    el("div", { className: "loading-modal-panel" }, [
+      el("span", { className: "loading-spinner", ariaHidden: "true" }),
+      el("strong", {}, title || "처리 중"),
+      el("p", {}, message || "잠시만 기다려주세요."),
+    ]),
+  ]);
+  document.body.appendChild(modal);
+}
+
+function closeLoadingModal() {
+  document.querySelector(".loading-modal")?.remove();
+}
+
 function closeInfoModal() {
   document.querySelector(".info-modal")?.remove();
   document.removeEventListener("keydown", closeInfoModalOnEscape);
