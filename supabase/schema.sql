@@ -69,6 +69,17 @@ create table if not exists public.attendance_checks (
   unique (student_id, check_date)
 );
 
+create table if not exists public.penalties (
+  id uuid primary key default gen_random_uuid(),
+  student_id text not null references public.students(id) on delete cascade,
+  student_name text not null,
+  class_name text not null default '오프라인반',
+  points integer not null check (points > 0),
+  reason text not null,
+  manager_name text not null,
+  created_at timestamptz not null default now()
+);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('attendance-photos', 'attendance-photos', true, 524288, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do update
@@ -78,6 +89,9 @@ set public = excluded.public,
 
 create index if not exists attendance_checks_check_date_created_at_idx
 on public.attendance_checks (check_date, created_at desc);
+
+create index if not exists penalties_student_id_created_at_idx
+on public.penalties (student_id, created_at desc);
 
 alter table public.students
 add column if not exists track text,
@@ -111,6 +125,7 @@ alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
 alter table public.manager_allowed_ips enable row level security;
 alter table public.attendance_checks enable row level security;
+alter table public.penalties enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -127,6 +142,8 @@ drop policy if exists "anon_photos_select" on public.outing_photos;
 drop policy if exists "anon_photos_insert" on public.outing_photos;
 drop policy if exists "anon_attendance_select" on public.attendance_checks;
 drop policy if exists "anon_attendance_insert" on public.attendance_checks;
+drop policy if exists "anon_penalties_select" on public.penalties;
+drop policy if exists "anon_penalties_insert" on public.penalties;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 
@@ -135,6 +152,7 @@ revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
 revoke all on public.manager_allowed_ips from anon;
 revoke all on public.attendance_checks from anon;
+revoke all on public.penalties from anon;
 
 grant select (
   id,
@@ -241,6 +259,28 @@ grant select (
   original_name,
   created_at
 ) on public.attendance_checks to anon;
+
+grant select (
+  id,
+  student_id,
+  student_name,
+  class_name,
+  points,
+  reason,
+  manager_name,
+  created_at
+) on public.penalties to anon;
+
+grant insert (
+  id,
+  student_id,
+  student_name,
+  class_name,
+  points,
+  reason,
+  manager_name,
+  created_at
+) on public.penalties to anon;
 
 grant insert (
   id,
@@ -384,6 +424,22 @@ with check (
   status in ('present', 'pre_arrival_reason')
   and check_date = ((now() at time zone 'Asia/Seoul')::date)
   and photo_path is not null
+);
+
+create policy "anon_penalties_select"
+on public.penalties
+for select
+to anon
+using (true);
+
+create policy "anon_penalties_insert"
+on public.penalties
+for insert
+to anon
+with check (
+  points > 0
+  and reason is not null
+  and manager_name is not null
 );
 
 create policy "anon_attendance_photo_select"

@@ -862,6 +862,52 @@ th {
   border-color: var(--accent);
 }
 
+.penalty-summary-table {
+  min-width: 720px;
+}
+
+.penalty-history-table {
+  min-width: 860px;
+}
+
+.penalty-total {
+  color: #b42318;
+}
+
+.penalty-sort-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.mini-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.penalty-modal {
+  width: min(520px, 100%);
+}
+
+.penalty-form textarea {
+  min-height: 94px;
+}
+
+.penalty-detail-modal {
+  width: min(980px, 100%);
+  max-height: min(86vh, 760px);
+}
+
+.penalty-detail-table-wrap {
+  max-height: min(70vh, 620px);
+}
+
+.penalty-detail-table {
+  min-width: 840px;
+}
+
 .photo-modal {
   position: fixed;
   inset: 0;

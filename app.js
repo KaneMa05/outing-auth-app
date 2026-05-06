@@ -129,6 +129,9 @@ function render() {
       if (currentRoute === "attendance" && hasTeacherPermission("attendance.write")) {
         topActions.appendChild(button("출석 시간 설정", "btn secondary", "button", openAttendanceDeadlineModal));
       }
+      if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
+        topActions.appendChild(button("벌점 부여", "btn", "button", openPenaltyModal));
+      }
       topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
     topActions.hidden = !topActions.children.length;
@@ -140,7 +143,7 @@ function render() {
           home: renderHome,
           outing: renderTeacher,
           grades: () => renderComingSoonManagement("성적 관리", "시험별 성적 입력, 학생별 추이, 반 평균 분석 기능을 이곳에 연결할 예정입니다."),
-          penalties: () => renderComingSoonManagement("벌점 관리", "벌점 부여, 누적 현황, 지도 이력 관리 기능을 이곳에 연결할 예정입니다."),
+          penalties: renderPenaltyManagement,
           attendance: renderAttendanceManagement,
           students: renderStudentsAdmin,
           duplicates: renderDuplicates,
@@ -557,6 +560,7 @@ function renderStudentMypage() {
       el("p", { className: "student-profile-note" }, "정보 수정은 사무실에 문의해주세요."),
     ]),
     renderStudentOutingHistoryButton(student.id),
+    renderStudentPenaltyHistoryButton(student.id),
     renderHomeScreenInstallCard(),
   ]);
 }
@@ -598,6 +602,57 @@ function openStudentOutingHistoryModal(studentId) {
         )
       : el("div", { className: "empty" }, "아직 외출 내역이 없습니다."),
   });
+}
+
+function renderStudentPenaltyHistoryButton(studentId) {
+  const penalties = getPenaltiesForStudent(studentId);
+  const total = getPenaltyTotal(studentId);
+
+  return el("section", { className: "student-history-button-card student-penalty-card" }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "벌점 내역"),
+      el("span", {}, `누적 ${total}점 · ${penalties.length}건`),
+    ]),
+    button("벌점 내역 보기", "btn secondary", "button", () => openStudentPenaltyHistoryModal(studentId)),
+  ]);
+}
+
+function openStudentPenaltyHistoryModal(studentId) {
+  const penalties = getPenaltiesForStudent(studentId);
+  openInfoModal({
+    title: "벌점 내역",
+    className: "history-modal-panel penalty-detail-modal",
+    content: penalties.length
+      ? renderPenaltyDetailTable(penalties)
+      : el("div", { className: "empty" }, "아직 벌점 내역이 없습니다."),
+  });
+}
+
+function renderPenaltyDetailTable(penalties) {
+  return el("div", { className: "excel-table-wrap penalty-detail-table-wrap" }, [
+    el("table", { className: "excel-table penalty-detail-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "날짜"),
+          el("th", {}, "벌점"),
+          el("th", {}, "사유"),
+          el("th", {}, "담당자"),
+        ]),
+      ]),
+      el(
+        "tbody",
+        {},
+        penalties.map((penalty) =>
+          el("tr", {}, [
+            el("td", {}, formatDateOnly(penalty.createdAt)),
+            el("td", {}, String(Number(penalty.points) || 0) + "점"),
+            el("td", { className: "wide-cell" }, penalty.reason || "-"),
+            el("td", {}, penalty.managerName || "-"),
+          ])
+        )
+      ),
+    ]),
+  ]);
 }
 
 function historyRow(label, value) {
@@ -680,7 +735,7 @@ function renderHome() {
       el("div", { className: "module-grid" }, [
         hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
-        hasTeacherPermission("penalties.read") ? moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "준비 중") : null,
+        hasTeacherPermission("penalties.read") ? moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
       ].filter(Boolean)),
     ]),

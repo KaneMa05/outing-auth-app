@@ -129,6 +129,7 @@ function defaultState() {
     outings: [],
     deletedOutings: [],
     attendanceChecks: [],
+    penalties: [],
   };
 }
 
@@ -145,6 +146,7 @@ function mergeDefaultState(nextState) {
     outings: Array.isArray(nextState?.outings) ? nextState.outings : defaults.outings,
     deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
+    penalties: Array.isArray(nextState?.penalties) ? nextState.penalties : defaults.penalties,
   };
 }
 
@@ -501,7 +503,8 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.students?.length ||
     snapshot?.outings?.length ||
     snapshot?.deletedOutings?.length ||
-    snapshot?.attendanceChecks?.length
+    snapshot?.attendanceChecks?.length ||
+    snapshot?.penalties?.length
   );
 }
 
@@ -510,6 +513,7 @@ function makeLocalDevSafeState() {
   snapshot.outings = (snapshot.outings || []).map(stripPhotoDataForLocalStorage);
   snapshot.deletedOutings = (snapshot.deletedOutings || []).map(stripPhotoDataForLocalStorage);
   snapshot.attendanceChecks = snapshot.attendanceChecks || [];
+  snapshot.penalties = snapshot.penalties || [];
   return snapshot;
 }
 
@@ -548,14 +552,26 @@ async function loadStateFromRemote() {
     "original_name",
     "created_at",
   ].join(",");
+  const penaltyColumns = [
+    "id",
+    "student_id",
+    "student_name",
+    "class_name",
+    "points",
+    "reason",
+    "manager_name",
+    "created_at",
+  ].join(",");
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
     remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
     remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
+    remoteStore.from("penalties").select(penaltyColumns).order("created_at", { ascending: false }),
   ]);
   const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
   let attendanceResult = remoteResults[3];
+  const penaltyResult = remoteResults[4];
   if (isMissingColumnError(attendanceResult.error, "reason") || isMissingColumnError(attendanceResult.error, "detail")) {
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
@@ -568,6 +584,7 @@ async function loadStateFromRemote() {
   if (outingsError) throw outingsError;
   if (photosError) throw photosError;
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
+  if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
 
   state.students = (students || []).map((student) => ({
     id: student.id,
@@ -610,6 +627,7 @@ async function loadStateFromRemote() {
   state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
+  state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
 }
 
 async function saveStateToRemote() {
@@ -783,6 +801,26 @@ async function saveStateToRemote() {
       return;
     }
     if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
+  }
+
+  const penaltyRows = (state.penalties || [])
+    .filter((penalty) => penalty.id && penalty.studentId && Number(penalty.points) > 0)
+    .map((penalty) => ({
+      id: penalty.id,
+      student_id: penalty.studentId,
+      student_name: penalty.studentName,
+      class_name: penalty.className || state.settings.className || "오프라인반",
+      points: Number(penalty.points) || 0,
+      reason: penalty.reason || null,
+      manager_name: penalty.managerName || null,
+      created_at: penalty.createdAt,
+    }));
+
+  if (penaltyRows.length) {
+    const { error } = await remoteStore
+      .from("penalties")
+      .upsert(penaltyRows, { onConflict: "id", ignoreDuplicates: true });
+    if (error && !isMissingRelationError(error, "penalties")) throw error;
   }
 }
 
@@ -1164,6 +1202,46 @@ function mapAttendanceCheckFromRemote(check) {
     originalName: check.original_name || "",
     createdAt: check.created_at,
   };
+}
+
+function mapPenaltyFromRemote(penalty) {
+  return {
+    id: penalty.id,
+    studentId: penalty.student_id,
+    studentName: penalty.student_name || "",
+    className: penalty.class_name || "",
+    points: Number(penalty.points) || 0,
+    reason: penalty.reason || "",
+    managerName: penalty.manager_name || "",
+    createdAt: penalty.created_at,
+  };
+}
+
+function getPenaltiesForStudent(studentId) {
+  return (state.penalties || [])
+    .filter((penalty) => penalty.studentId === String(studentId || "").trim())
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function getPenaltyTotal(studentId) {
+  return getPenaltiesForStudent(studentId).reduce((sum, penalty) => sum + (Number(penalty.points) || 0), 0);
+}
+
+function createPenalty(student, points, reason, managerName) {
+  if (!student) throw new Error("student_required");
+  const penalty = {
+    id: createId(),
+    studentId: student.id,
+    studentName: student.name,
+    className: student.className || state.settings.className || "오프라인반",
+    points: Number(points) || 0,
+    reason: String(reason || "").trim(),
+    managerName: String(managerName || "").trim(),
+    createdAt: new Date().toISOString(),
+  };
+  state.penalties = [penalty, ...(state.penalties || [])];
+  saveState();
+  return penalty;
 }
 
 function getTodayDateKey() {

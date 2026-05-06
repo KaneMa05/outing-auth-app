@@ -2,6 +2,7 @@
   query: "",
   sort: "name",
 };
+let penaltySortMode = "id";
 
 function renderTeacherAuthLoading() {
   return el("div", { className: "grid" }, [
@@ -173,6 +174,186 @@ function renderAttendanceManagement() {
         : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
     ]),
   ]);
+}
+
+function renderPenaltyManagement() {
+  if (!hasTeacherPermission("penalties.read")) return renderForbidden();
+  const summaries = getPenaltySummaries();
+  const totalPoints = summaries.reduce((sum, item) => sum + item.total, 0);
+  const penalizedStudents = summaries.filter((item) => item.total > 0).length;
+  const latestPenalties = [...(state.penalties || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return el("div", { className: "grid" }, [
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup("벌점 현황", [
+        stat("벌점 학생", penalizedStudents, "명"),
+        stat("누적 벌점", totalPoints, "점"),
+      ]),
+    ]),
+    panel("전체 벌점 내역", [
+      el("p", { className: "subtle" }, "학생별 누적 벌점을 고유번호 기준으로 확인합니다."),
+      penaltySortControls(),
+      summaries.length ? renderPenaltySummaryTable(summaries) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
+    ]),
+    panel("최근 부여 내역", [
+      latestPenalties.length ? renderPenaltyHistoryTable(latestPenalties) : el("div", { className: "empty" }, "아직 부여된 벌점이 없습니다."),
+    ]),
+  ]);
+}
+
+function getPenaltySummaries() {
+  return [...state.students]
+    .map((student) => ({
+      student,
+      total: getPenaltyTotal(student.id),
+      count: getPenaltiesForStudent(student.id).length,
+    }))
+    .sort((a, b) => {
+      if (penaltySortMode === "points") {
+        const pointCompare = b.total - a.total;
+        if (pointCompare) return pointCompare;
+      }
+      return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
+    });
+}
+
+function penaltySortControls() {
+  return el("div", { className: "penalty-sort-controls", role: "group", ariaLabel: "벌점 정렬" }, [
+    button("번호순", penaltySortMode === "id" ? "mini-btn active" : "mini-btn", "button", () => {
+      penaltySortMode = "id";
+      render();
+    }),
+    button("누적 벌점순", penaltySortMode === "points" ? "mini-btn active" : "mini-btn", "button", () => {
+      penaltySortMode = "points";
+      render();
+    }),
+  ]);
+}
+
+function renderPenaltySummaryTable(summaries) {
+  const rows = summaries.map(({ student, total, count }) =>
+    el("tr", {}, [
+      el("td", {}, student.id),
+      el("td", {}, student.name),
+      el("td", {}, student.className || "-"),
+      el("td", {}, el("strong", { className: total ? "penalty-total" : "" }, String(total) + "점")),
+      el("td", {}, count ? button("내역", "mini-btn", "button", () => openPenaltyHistoryModal(student.id)) : "-"),
+    ])
+  );
+
+  return el("div", { className: "excel-table-wrap" }, [
+    el("table", { className: "excel-table penalty-summary-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "번호"),
+          el("th", {}, "이름"),
+          el("th", {}, "반"),
+          el("th", {}, "누적벌점"),
+          el("th", {}, "상세"),
+        ]),
+      ]),
+      el("tbody", {}, rows),
+    ]),
+  ]);
+}
+
+function renderPenaltyHistoryTable(penalties) {
+  const rows = penalties.map((penalty) =>
+    el("tr", {}, [
+      el("td", {}, formatDateCompact(penalty.createdAt)),
+      el("td", {}, [
+        el("strong", {}, penalty.studentName || "-"),
+        el("span", { className: "cell-sub" }, penalty.studentId || "-"),
+      ]),
+      el("td", {}, String(Number(penalty.points) || 0) + "점"),
+      el("td", { className: "wide-cell" }, penalty.reason || "-"),
+      el("td", {}, penalty.managerName || "-"),
+    ])
+  );
+
+  return el("div", { className: "excel-table-wrap" }, [
+    el("table", { className: "excel-table penalty-history-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "부여일"),
+          el("th", {}, "학생"),
+          el("th", {}, "벌점"),
+          el("th", {}, "사유"),
+          el("th", {}, "담당자"),
+        ]),
+      ]),
+      el("tbody", {}, rows),
+    ]),
+  ]);
+}
+
+function openPenaltyModal() {
+  closeInfoModal();
+  const studentSelect = el(
+    "select",
+    { name: "studentId", required: true },
+    [
+      el("option", { value: "" }, "학생 선택"),
+      ...[...state.students]
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
+        .map((student) => el("option", { value: student.id }, `${student.id} ${student.name}`)),
+    ]
+  );
+  const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 1", required: true });
+  const reasonInput = textarea("reason", "벌점 사유");
+  reasonInput.required = true;
+  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
+  managerInput.required = true;
+
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", studentSelect),
+    field("벌점", pointsInput),
+    field("사유", reasonInput, "full"),
+    field("담당자", managerInput),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("부여", "btn"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const student = findStudent(data.studentId);
+    const points = Number(data.points);
+    if (!student) return notify("학생을 선택해주세요.");
+    if (!Number.isFinite(points) || points < 1) return notify("벌점은 1점 이상 입력해주세요.");
+    createPenalty(student, Math.floor(points), data.reason, data.managerName);
+    closeInfoModal();
+    render();
+    notify("벌점을 부여했습니다.");
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "벌점 부여 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "벌점 부여"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function openPenaltyHistoryModal(studentId) {
+  const student = findStudent(studentId);
+  const penalties = getPenaltiesForStudent(studentId);
+  openInfoModal({
+    title: `${student?.name || "학생"} 벌점 내역`,
+    className: "history-modal-panel penalty-detail-modal",
+    content: penalties.length
+      ? renderPenaltyDetailTable(penalties)
+      : el("div", { className: "empty" }, "벌점 내역이 없습니다."),
+  });
 }
 
 function openAttendanceDeadlineModal() {
