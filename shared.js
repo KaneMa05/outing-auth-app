@@ -3,6 +3,7 @@ const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "stud
 
 const state = loadState();
 let currentRoute = "";
+let selectedStudentCohort = "";
 
 const app = document.querySelector("#app");
 const title = document.querySelector("#page-title");
@@ -32,7 +33,34 @@ let studentPullIndicator = null;
 const teacherAuth = {
   checked: APP_MODE !== "teacher",
   authenticated: APP_MODE !== "teacher",
+  user: null,
 };
+
+const routePermissions = {
+  home: null,
+  outing: "outing.read",
+  grades: "grades.read",
+  penalties: "penalties.read",
+  attendance: "attendance.read",
+  students: "students.read",
+  duplicates: "outing.audit",
+  trash: "outing.delete",
+};
+
+function hasTeacherPermission(permission) {
+  if (APP_MODE !== "teacher") return true;
+  if (!permission) return true;
+  const permissions = Array.isArray(teacherAuth.user?.permissions) ? teacherAuth.user.permissions : [];
+  return permissions.includes("*") || permissions.includes(permission);
+}
+
+function canUseRoute(route) {
+  return hasTeacherPermission(routePermissions[route]);
+}
+
+function firstAllowedTeacherRoute() {
+  return ["home", "outing", "penalties", "attendance", "grades", "students", "duplicates", "trash"].find(canUseRoute) || "home";
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -95,8 +123,39 @@ function defaultState() {
   };
 }
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(makeLocalStorageSafeState()));
+  }
   scheduleRemoteSave();
+}
+
+function isStorageQuotaError(error) {
+  return (
+    error?.name === "QuotaExceededError" ||
+    error?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error?.code === 22 ||
+    error?.code === 1014
+  );
+}
+
+function makeLocalStorageSafeState() {
+  const snapshot = JSON.parse(JSON.stringify(state));
+  snapshot.outings = (snapshot.outings || []).slice(0, 30).map(stripPhotoDataForLocalStorage);
+  snapshot.deletedOutings = [];
+  return snapshot;
+}
+
+function stripPhotoDataForLocalStorage(outing) {
+  return {
+    ...outing,
+    photos: (outing.photos || []).map((photo) => ({
+      ...photo,
+      dataUrl: "",
+    })),
+  };
 }
 
 function createRemoteStore() {
@@ -504,10 +563,12 @@ async function saveStateToRemote() {
   }
 
   const statusRows = activeOutings
-    .filter((outing) => ["verified", "returned"].includes(outing.status))
+    .filter((outing) => outing.decision !== "pending" || ["verified", "returned"].includes(outing.status) || outing.teacherMemo)
     .map((outing) => ({
       id: outing.id,
       status: outing.status,
+      decision: outing.decision,
+      teacher_memo: outing.teacherMemo || null,
       receipt_note: outing.receiptNote || null,
       verified_at: outing.verifiedAt,
       returned_at: outing.returnedAt,
@@ -518,6 +579,8 @@ async function saveStateToRemote() {
       .from("outings")
       .update({
         status: outing.status,
+        decision: outing.decision,
+        teacher_memo: outing.teacher_memo,
         receipt_note: outing.receipt_note,
         verified_at: outing.verified_at,
         returned_at: outing.returned_at,
@@ -725,8 +788,89 @@ function restoreOuting(id) {
   render();
   notify("외출 신청 기록을 복구했습니다.");
 }
-function stat(label, value) {
-  return el("div", { className: "stat" }, [el("span", {}, label), el("strong", {}, String(value))]);
+function stat(label, value, unit = "") {
+  return el("div", { className: "stat" }, [
+    el("span", {}, label),
+    el("strong", {}, [String(value), unit ? el("small", {}, unit) : null].filter(Boolean)),
+  ]);
+}
+
+function countOutingStudents(outings) {
+  return new Set(
+    outings
+      .map((outing) => String(outing.studentId || "").trim())
+      .filter(Boolean)
+  ).size;
+}
+
+function getStudentCohort(student) {
+  const id = String(student?.id || "").trim();
+  if (!/^\d{4,}$/.test(id)) return "";
+  return id.slice(0, -3);
+}
+
+function getStudentCohortStats() {
+  const counts = new Map();
+  state.students.forEach((student) => {
+    const cohort = getStudentCohort(student);
+    const key = cohort || "미분류";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  return [...counts.entries()]
+    .sort(([a], [b]) => {
+      if (a === "미분류") return 1;
+      if (b === "미분류") return -1;
+      return Number(a) - Number(b);
+    })
+    .map(([cohort, count]) => ({
+      value: cohort,
+      label: cohort === "미분류" ? cohort : cohort + "기",
+      count,
+    }));
+}
+
+function selectedStudentCohortCount() {
+  const cohorts = getStudentCohortStats();
+  if (!cohorts.length) {
+    selectedStudentCohort = "";
+    return { label: "선택 기수", count: 0 };
+  }
+  if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = cohorts[0].value;
+  return cohorts.find((cohort) => cohort.value === selectedStudentCohort) || cohorts[0];
+}
+
+function statGroup(titleText, stats) {
+  return el("section", { className: "stat-group" }, [
+    el("h2", {}, titleText),
+    el("div", { className: "grid stats" }, stats),
+  ]);
+}
+
+function studentCountStatGroup() {
+  const cohorts = getStudentCohortStats();
+  const selected = selectedStudentCohortCount();
+  const selectNode = el("select", { className: "cohort-select", ariaLabel: "등록 학생 기수 선택" }, [
+    cohorts.map((cohort) => el("option", { value: cohort.value }, cohort.label)),
+  ]);
+  selectNode.value = selectedStudentCohort;
+  selectNode.addEventListener("change", () => {
+    selectedStudentCohort = selectNode.value;
+    render();
+  });
+
+  return el("section", { className: "stat-group" }, [
+    el("div", { className: "stat-group-heading" }, [
+      el("h2", {}, "인원 현황"),
+      el("label", { className: "cohort-filter" }, [
+        el("span", {}, "기수"),
+        selectNode,
+      ]),
+    ]),
+    el("div", { className: "grid stats" }, [
+      stat(selected.label, selected.count, "명"),
+    ]),
+  ]);
 }
 
 function panel(heading, children, id = "") {
@@ -834,22 +978,36 @@ function readFile(file) {
   });
 }
 
-async function compressImage(file, maxSize = 1280, quality = 0.72) {
+async function compressImage(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
   if (!file.type.startsWith("image/")) return readFile(file);
 
   const dataUrl = await readFile(file);
   const image = await loadImage(dataUrl);
-  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
+  let currentMaxSize = maxSize;
+  let currentQuality = quality;
+  let output = "";
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  context.drawImage(image, 0, 0, width, height);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const scale = Math.min(1, currentMaxSize / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, width, height);
+    output = canvas.toDataURL("image/jpeg", currentQuality);
+    if (estimateDataUrlBytes(output) <= targetBytes) return output;
+    currentQuality = Math.max(0.42, currentQuality - 0.08);
+    if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
+  }
 
-  return canvas.toDataURL("image/jpeg", quality);
+  return output;
+}
+
+function estimateDataUrlBytes(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
 }
 
 function loadImage(src) {

@@ -92,9 +92,9 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    return ["home", "outing", "grades", "penalties", "attendance", "students", "duplicates", "trash"].includes(normalized)
-      ? normalized
-      : "home";
+    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "students", "duplicates", "trash"];
+    if (!teacherRoutes.includes(normalized)) return "home";
+    return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   return ["home", "student", "student-verify", "student-return", "student-done", "mypage"].includes(normalized) ? normalized : "home";
 }
@@ -113,13 +113,19 @@ function render() {
   }
 
   document.querySelectorAll("[data-route]").forEach((button) => {
+    const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(button.dataset.route);
+    button.hidden = !allowed;
     button.classList.toggle("active", button.dataset.route === currentRoute);
   });
+  if (APP_MODE === "teacher") updateTeacherNavSections();
 
   title.textContent = routeTitles[currentRoute] || routeTitles.student;
   if (topActions) {
     topActions.innerHTML = "";
     if (APP_MODE === "teacher" && teacherAuth.authenticated) {
+      if (teacherAuth.user?.role === "student_manager") {
+        topActions.appendChild(el("span", { className: "auth-chip" }, "장학생 관리자"));
+      }
       topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
     topActions.hidden = !topActions.children.length;
@@ -148,7 +154,7 @@ function render() {
 
   app.innerHTML = "";
   const renderRoute = routes[currentRoute] || routes[defaultRoute()];
-  app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(renderRoute) : renderRoute());
+  app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden())) : renderRoute());
 }
 
 async function initTeacherAuth() {
@@ -160,11 +166,14 @@ async function initTeacherAuth() {
     const response = await fetch("/api/teacher-session", { credentials: "same-origin" });
     const data = response.ok ? await response.json() : { ok: false };
     teacherAuth.authenticated = Boolean(data.ok);
+    teacherAuth.user = data.user || null;
   } catch (error) {
     console.error(error);
     teacherAuth.authenticated = false;
+    teacherAuth.user = null;
   } finally {
     teacherAuth.checked = true;
+    if (teacherAuth.authenticated && !canUseRoute(currentRoute)) currentRoute = firstAllowedTeacherRoute();
     render();
   }
 
@@ -174,6 +183,24 @@ async function initTeacherAuth() {
 function requireTeacherAuth(renderFn) {
   if (!teacherAuth.checked) return renderTeacherAuthLoading();
   return teacherAuth.authenticated ? renderFn() : renderTeacherAuth();
+}
+
+function updateTeacherNavSections() {
+  document.querySelectorAll(".nav-section").forEach((section) => {
+    let node = section.nextElementSibling;
+    let hasVisibleButton = false;
+    while (node && !node.classList?.contains("nav-section")) {
+      if (node.matches?.("[data-route]") && !node.hidden) hasVisibleButton = true;
+      node = node.nextElementSibling;
+    }
+    section.hidden = !hasVisibleButton;
+  });
+}
+
+function renderForbidden() {
+  return el("div", { className: "grid" }, [
+    panel("접근 권한 없음", [el("div", { className: "empty" }, "이 계정으로는 해당 관리 메뉴를 사용할 수 없습니다.")]),
+  ]);
 }
 
 function requireStudentAuth(renderFn) {
@@ -627,24 +654,29 @@ function formatExamDate(dateString) {
 }
 
 function renderHome() {
-  const activeOutings = state.outings.filter((outing) => outing.status !== "returned").length;
-  const pendingOutings = state.outings.filter((outing) => outing.decision === "pending").length;
-  const returnedToday = state.outings.filter((outing) => isToday(outing.returnedAt)).length;
+  const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
+  const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
 
   return el("div", { className: "grid" }, [
-    el("div", { className: "grid stats" }, [
-      stat("등록 학생", state.students.length),
-      stat("외출 중", activeOutings),
-      stat("승인 대기", pendingOutings),
-      stat("오늘 복귀", returnedToday),
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup("외출 인원", [
+        stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
+      ]),
+      statGroup("외출 건수", [
+        stat("승인 대기", pendingOutingCases.length, "건"),
+        stat("외출 중", activeOutings.length, "건"),
+        stat("오늘 복귀", returnedTodayCases.length, "건"),
+      ]),
     ]),
     panel("관리 메뉴", [
       el("div", { className: "module-grid" }, [
-        moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중"),
-        moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중"),
-        moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "준비 중"),
-        moduleCard("출석 관리", "출석, 지각, 결석과 기간별 통계를 관리합니다.", "attendance", "준비 중"),
-      ]),
+        hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
+        hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
+        hasTeacherPermission("penalties.read") ? moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "준비 중") : null,
+        hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "출석, 지각, 결석과 기간별 통계를 관리합니다.", "attendance", "준비 중") : null,
+      ].filter(Boolean)),
     ]),
   ]);
 }

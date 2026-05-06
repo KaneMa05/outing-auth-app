@@ -53,16 +53,28 @@ function renderTeacherAuth() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const data = response.ok ? await response.json() : { ok: false };
+      const data = await response.json().catch(() => ({ ok: false }));
 
       if (!data.ok) {
         result.className = "student-auth-result error";
-        result.textContent = response.status === 503 ? "서버에 교사 계정이 설정되어 있지 않습니다." : "아이디 또는 비밀번호가 일치하지 않습니다.";
+        if (data.error === "manager_ip_store_not_configured") {
+          result.textContent = "장학생 PC 등록을 위해 Supabase 서비스 키 설정이 필요합니다.";
+        } else if (data.error === "manager_ip_store_unavailable" || data.error === "manager_ip_register_failed") {
+          result.textContent = "장학생 PC 등록 정보를 저장하지 못했습니다. Supabase 스키마를 확인해주세요.";
+        } else if (response.status === 503) {
+          result.textContent = "서버에 교사 계정이 설정되어 있지 않습니다.";
+        } else if (response.status === 403) {
+          result.textContent = "이 장학생 계정은 등록된 사무실 PC에서만 로그인할 수 있습니다.";
+        } else {
+          result.textContent = "아이디 또는 비밀번호가 일치하지 않습니다.";
+        }
         return;
       }
 
       teacherAuth.authenticated = true;
       teacherAuth.checked = true;
+      teacherAuth.user = data.user || null;
+      if (!canUseRoute(currentRoute)) currentRoute = firstAllowedTeacherRoute();
       await initRemoteStore();
       render();
       notify("교사 로그인이 완료되었습니다.");
@@ -88,24 +100,30 @@ async function logoutTeacher() {
 
   teacherAuth.authenticated = false;
   teacherAuth.checked = true;
+  teacherAuth.user = null;
   render();
   notify("로그아웃되었습니다.");
 }
 
 function renderTeacher() {
-  const active = state.outings.filter((outing) => outing.status !== "returned");
-  const requested = state.outings.filter((outing) => outing.decision === "pending");
-  const returnedToday = state.outings.filter((outing) => isToday(outing.returnedAt));
+  const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
+  const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
   const visibleOutings = getFilteredTeacherOutings();
   const pendingOutings = visibleOutings.filter(isActionRequired);
   const completedOutings = visibleOutings.filter((outing) => !isActionRequired(outing));
 
   return el("div", { className: "grid" }, [
-    el("div", { className: "grid stats" }, [
-      stat("등록 학생", state.students.length),
-      stat("처리 대기", requested.length),
-      stat("외출 중", active.length),
-      stat("오늘 복귀", returnedToday.length),
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup("외출 인원", [
+        stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
+      ]),
+      statGroup("외출 건수", [
+        stat("처리 대기", pendingOutingCases.length, "건"),
+        stat("외출 중", activeOutings.length, "건"),
+        stat("오늘 복귀", returnedTodayCases.length, "건"),
+      ]),
     ]),
     panel("외출 신청 전체 관리", [
       el("p", { className: "subtle" }, "신청 내용, 사진 인증, 복귀 시간, 교사 판단을 이 페이지에서 확인하고 처리합니다."),
@@ -121,7 +139,7 @@ function renderTeacher() {
 }
 
 function isActionRequired(outing) {
-  return outing.decision === "pending" || outing.status !== "returned";
+  return outing.decision === "pending";
 }
 
 function teacherOutingSection(titleText, outings, options) {
@@ -175,20 +193,20 @@ function renderTeacherOutingTable(outings, options = {}) {
 }
 
 function teacherRowActions(outing, options = {}) {
-  if (options.trash) return [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))];
+  if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
 
   return [
-    button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")),
-    button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")),
-    button("메모", "mini-btn", "button", () => {
+    hasTeacherPermission("outing.approve") ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
+    hasTeacherPermission("outing.approve") ? button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
+    hasTeacherPermission("outing.memo") ? button("메모", "mini-btn", "button", () => {
       const memo = prompt("교사용 메모", outing.teacherMemo || "");
       if (memo === null) return;
       outing.teacherMemo = memo;
       saveState();
       render();
-    }),
-    button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)),
-  ];
+    }) : null,
+    hasTeacherPermission("outing.delete") ? button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)) : null,
+  ].filter(Boolean);
 }
 
 function photoMiniList(photos = []) {
@@ -205,10 +223,12 @@ function photoMiniList(photos = []) {
 }
 
 function renderStudentsAdmin() {
+  if (!hasTeacherPermission("students.read")) return renderForbidden();
   return el("div", { className: "grid" }, [teacherStudentForm()]);
 }
 
 function renderDuplicates() {
+  if (!hasTeacherPermission("outing.audit")) return renderForbidden();
   return el("div", { className: "grid" }, [renderDuplicatePhotoPanel()]);
 }
 
@@ -305,6 +325,7 @@ function uniqueBy(items, keyFn) {
 }
 
 function renderTrash() {
+  if (!hasTeacherPermission("outing.delete")) return renderForbidden();
   const deleted = state.deletedOutings || [];
   return el("div", { className: "grid" }, [
     panel("삭제 내역", [
@@ -364,6 +385,7 @@ function teacherStudentForm() {
 
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
+    studentCountStatGroup(),
     table(
       ["고유번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]

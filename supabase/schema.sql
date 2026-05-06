@@ -44,6 +44,13 @@ create table if not exists public.outing_photos (
   uploaded_at timestamptz not null default now()
 );
 
+create table if not exists public.manager_allowed_ips (
+  username text primary key,
+  ip_address text not null,
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+
 alter table public.students
 add column if not exists track text,
 add column if not exists gender text,
@@ -54,6 +61,7 @@ add column if not exists app_registered_at timestamptz;
 alter table public.students enable row level security;
 alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
+alter table public.manager_allowed_ips enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -64,6 +72,7 @@ drop policy if exists "anon_students_register_profile_once" on public.students;
 drop policy if exists "anon_outings_select_not_deleted" on public.outings;
 drop policy if exists "anon_outings_insert_request" on public.outings;
 drop policy if exists "anon_outings_update_student_status" on public.outings;
+drop policy if exists "anon_outings_update_teacher_decision" on public.outings;
 drop policy if exists "anon_outings_soft_delete" on public.outings;
 drop policy if exists "anon_photos_select" on public.outing_photos;
 drop policy if exists "anon_photos_insert" on public.outing_photos;
@@ -71,6 +80,7 @@ drop policy if exists "anon_photos_insert" on public.outing_photos;
 revoke all on public.students from anon;
 revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
+revoke all on public.manager_allowed_ips from anon;
 
 grant select (
   id,
@@ -135,7 +145,9 @@ grant insert (
 
 grant update (
   status,
+  decision,
   receipt_note,
+  teacher_memo,
   verified_at,
   returned_at,
   deleted_at
@@ -224,6 +236,16 @@ with check (
   and decision <> 'rejected'
   and teacher_memo is null
   and status in ('verified', 'returned')
+);
+
+create policy "anon_outings_update_teacher_decision"
+on public.outings
+for update
+to anon
+using (deleted_at is null)
+with check (
+  deleted_at is null
+  and decision in ('approved', 'rejected')
 );
 
 create policy "anon_outings_soft_delete"

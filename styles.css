@@ -190,6 +190,19 @@ h1 {
   gap: 8px;
 }
 
+.auth-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -218,6 +231,52 @@ h1 {
 
 .grid.stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stat-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.stat-group h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stat-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cohort-filter {
+  display: grid;
+  grid-template-columns: auto minmax(92px, 128px);
+  align-items: center;
+  gap: 8px;
+}
+
+.cohort-filter span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.cohort-filter select {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.stat-group .grid.stats {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 .grid.two {
@@ -313,9 +372,16 @@ h1 {
 }
 
 .stat strong {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   margin-top: 8px;
   font-size: 2rem;
+}
+
+.stat strong small {
+  font-size: 0.95rem;
+  color: var(--muted);
 }
 
 .form-grid {
@@ -393,6 +459,9 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
 }
 
 .photo-input-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
@@ -400,6 +469,17 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
 
 .photo-input-status.selected {
   color: var(--accent);
+}
+
+.photo-input-status.loading {
+  color: var(--accent-strong);
+}
+
+.photo-input-status .loading-spinner {
+  inline-size: 14px;
+  block-size: 14px;
+  border-color: rgba(7, 93, 164, 0.24);
+  border-top-color: var(--accent);
 }
 
 .photo-input-preview {
@@ -1913,6 +1993,7 @@ body:not([data-app-mode="teacher"]) .btn {
     white-space: nowrap;
   }
 
+  .stat-groups,
   .grid.stats,
   .grid.two,
   .module-grid,
