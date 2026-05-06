@@ -182,8 +182,9 @@ function renderAttendanceManagement() {
 
 function renderPenaltyManagement() {
   if (!hasTeacherPermission("penalties.read")) return renderForbidden();
-  const visiblePenalties = getFilteredPenalties();
-  const summaries = getPenaltySummaries(visiblePenalties);
+  const selected = selectedStudentCohortCount();
+  const visiblePenalties = getFilteredPenalties(selected.value);
+  const summaries = getPenaltySummaries(visiblePenalties, selected.value);
   const totalPoints = summaries.reduce((sum, item) => sum + item.total, 0);
   const penalizedStudents = summaries.filter((item) => item.total > 0).length;
   const latestPenalties = [...visiblePenalties].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -210,8 +211,8 @@ function renderPenaltyManagement() {
   ]);
 }
 
-function getFilteredPenalties() {
-  return (state.penalties || []).filter(isPenaltyInSelectedPeriod);
+function getFilteredPenalties(cohort = selectedStudentCohort) {
+  return (state.penalties || []).filter((penalty) => isPenaltyInSelectedPeriod(penalty) && isPenaltyInSelectedCohort(penalty, cohort));
 }
 
 function isPenaltyInSelectedPeriod(penalty) {
@@ -220,6 +221,11 @@ function isPenaltyInSelectedPeriod(penalty) {
   if (penaltyPeriodFilter.start && dateKey < penaltyPeriodFilter.start) return false;
   if (penaltyPeriodFilter.end && dateKey > penaltyPeriodFilter.end) return false;
   return true;
+}
+
+function isPenaltyInSelectedCohort(penalty, cohort = selectedStudentCohort) {
+  if (!cohort) return true;
+  return getStudentCohort({ id: penalty.studentId }) === cohort;
 }
 
 function getDateInputValue(value) {
@@ -232,7 +238,7 @@ function getDateInputValue(value) {
   return `${year}-${month}-${day}`;
 }
 
-function getPenaltySummaries(penalties = state.penalties || []) {
+function getPenaltySummaries(penalties = state.penalties || [], cohort = selectedStudentCohort) {
   const penaltyMap = penalties.reduce((map, penalty) => {
     const key = String(penalty.studentId || "").trim();
     if (!map.has(key)) map.set(key, []);
@@ -241,6 +247,7 @@ function getPenaltySummaries(penalties = state.penalties || []) {
   }, new Map());
 
   return [...state.students]
+    .filter((student) => !cohort || getStudentCohort(student) === cohort)
     .map((student) => ({
       student,
       total: (penaltyMap.get(student.id) || []).reduce((sum, penalty) => sum + (Number(penalty.points) || 0), 0),
@@ -363,6 +370,7 @@ function openPenaltyModal() {
     [
       el("option", { value: "" }, "학생 선택"),
       ...[...state.students]
+        .filter((student) => !selectedStudentCohort || getStudentCohort(student) === selectedStudentCohort)
         .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
         .map((student) => el("option", { value: student.id }, `${student.id} ${student.name}`)),
     ]
