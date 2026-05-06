@@ -215,10 +215,14 @@ function photoCaptureInput(name) {
   inputNode.className = "visually-hidden-file";
   const status = el("span", { className: "photo-input-status" }, "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
-  const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => inputNode.click());
+  const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
+    markStudentFilePickerOpen();
+    inputNode.click();
+  });
   let previewUrl = "";
 
   inputNode.addEventListener("change", () => {
+    markStudentFilePickerClosed();
     const file = inputNode.files[0];
     status.textContent = file ? "사진이 선택되었습니다." : "사진을 촬영해주세요.";
     status.className = file ? "photo-input-status selected" : "photo-input-status";

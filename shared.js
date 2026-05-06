@@ -11,12 +11,24 @@ const topActions = document.querySelector(".top-actions");
 const seedButton = document.querySelector("#seed-demo");
 const resetButton = document.querySelector("#reset-data");
 const remoteStore = createRemoteStore();
+const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
+const STUDENT_INTERACTION_PAUSE_MS = 15000;
+const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
+const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
 let hasPendingRemoteSave = false;
-let remoteRefreshTimer = null;
+let isRemoteRefreshStarted = false;
+let remoteResumeRefreshTimer = null;
 let deferredInstallPrompt = null;
+let studentFilePickerOpenedAt = 0;
+let studentInteractionPausedUntil = 0;
+let isStudentInteractionTrackingStarted = false;
+let isStudentPullRefreshStarted = false;
+let studentPullStartY = 0;
+let studentPullDistance = 0;
+let studentPullIndicator = null;
 const teacherAuth = {
   checked: APP_MODE !== "teacher",
   authenticated: APP_MODE !== "teacher",
@@ -113,16 +125,23 @@ async function initRemoteStore() {
 }
 
 function startRemoteRefresh() {
-  if (!remoteStore || APP_MODE !== "student" || remoteRefreshTimer) return;
-  remoteRefreshTimer = window.setInterval(refreshStateFromRemote, 10000);
-  window.addEventListener("focus", refreshStateFromRemote);
+  if (!remoteStore || APP_MODE !== "student" || isRemoteRefreshStarted) return;
+  isRemoteRefreshStarted = true;
+  startStudentInteractionTracking();
+  startStudentPullRefresh();
+  window.addEventListener("focus", scheduleResumeRemoteRefresh);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) refreshStateFromRemote();
+    if (!document.hidden) scheduleResumeRemoteRefresh();
   });
 }
 
-async function refreshStateFromRemote() {
-  if (!remoteStore || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
+async function refreshStateFromRemote(options = {}) {
+  const force = Boolean(options.force);
+  if (!remoteStore || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return false;
+  if (shouldPauseStudentRemoteRefresh()) {
+    if (force) notify("입력 중인 내용이 있어 새로고침을 건너뛰었습니다.");
+    return false;
+  }
   isRemoteLoading = true;
   try {
     await loadStateFromRemote();
@@ -131,11 +150,113 @@ async function refreshStateFromRemote() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     if (registrationChanged || !preserveAuthForm) render();
     if (registrationChanged) notify("앱 등록이 초기화되었습니다. 다시 등록해주세요.");
+    else if (force) notify("새로고침되었습니다.");
+    return true;
   } catch (error) {
     console.error(error);
+    if (force) notify("새로고침 중 오류가 발생했습니다.");
+    return false;
   } finally {
     isRemoteLoading = false;
   }
+}
+
+function scheduleResumeRemoteRefresh() {
+  window.clearTimeout(remoteResumeRefreshTimer);
+  remoteResumeRefreshTimer = window.setTimeout(refreshStateFromRemote, STUDENT_RESUME_REFRESH_DELAY_MS);
+}
+
+function startStudentInteractionTracking() {
+  if (isStudentInteractionTrackingStarted || !app) return;
+  isStudentInteractionTrackingStarted = true;
+  ["focusin", "input", "change", "pointerdown"].forEach((eventName) => {
+    app.addEventListener(eventName, (event) => {
+      if (isStudentInteractiveTarget(event.target)) markStudentInteraction();
+    });
+  });
+}
+
+function isStudentInteractiveTarget(target) {
+  return Boolean(target?.closest?.(".student-view form, .student-auth-card, .photo-input-control"));
+}
+
+function markStudentInteraction() {
+  studentInteractionPausedUntil = Date.now() + STUDENT_INTERACTION_PAUSE_MS;
+}
+
+function startStudentPullRefresh() {
+  if (isStudentPullRefreshStarted || !("ontouchstart" in window)) return;
+  isStudentPullRefreshStarted = true;
+  studentPullIndicator = el("div", { className: "student-refresh-indicator", hidden: true }, "아래로 당겨 새로고침");
+  document.body.appendChild(studentPullIndicator);
+  window.addEventListener("touchstart", onStudentPullStart, { passive: true });
+  window.addEventListener("touchmove", onStudentPullMove, { passive: false });
+  window.addEventListener("touchend", onStudentPullEnd);
+  window.addEventListener("touchcancel", resetStudentPullRefresh);
+}
+
+function onStudentPullStart(event) {
+  if (window.scrollY > 0 || shouldPauseStudentRemoteRefresh() || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
+  if (isStudentInteractiveTarget(event.target)) return;
+  studentPullStartY = event.touches[0]?.clientY || 0;
+  studentPullDistance = 0;
+}
+
+function onStudentPullMove(event) {
+  if (!studentPullStartY || window.scrollY > 0) return;
+  studentPullDistance = Math.max(0, (event.touches[0]?.clientY || 0) - studentPullStartY);
+  if (studentPullDistance < 10) return;
+  event.preventDefault();
+  updateStudentPullIndicator(studentPullDistance);
+}
+
+function onStudentPullEnd() {
+  if (!studentPullStartY) return;
+  const shouldRefresh = studentPullDistance >= STUDENT_PULL_REFRESH_THRESHOLD;
+  resetStudentPullGesture();
+  if (shouldRefresh) runStudentPullRefresh();
+  else hideStudentPullIndicator();
+}
+
+async function runStudentPullRefresh() {
+  updateStudentPullIndicator(STUDENT_PULL_REFRESH_THRESHOLD, "새로고침 중...");
+  await refreshStateFromRemote({ force: true });
+  window.setTimeout(hideStudentPullIndicator, 480);
+}
+
+function updateStudentPullIndicator(distance, text = "") {
+  if (!studentPullIndicator) return;
+  const progress = Math.min(1, distance / STUDENT_PULL_REFRESH_THRESHOLD);
+  studentPullIndicator.hidden = false;
+  studentPullIndicator.textContent = text || (progress >= 1 ? "놓으면 새로고침" : "아래로 당겨 새로고침");
+  studentPullIndicator.style.transform = `translate(-50%, ${Math.round(progress * 56)}px)`;
+  studentPullIndicator.style.opacity = String(0.35 + progress * 0.65);
+}
+
+function hideStudentPullIndicator() {
+  if (!studentPullIndicator) return;
+  studentPullIndicator.hidden = true;
+  studentPullIndicator.style.transform = "";
+  studentPullIndicator.style.opacity = "";
+}
+
+function resetStudentPullGesture() {
+  studentPullStartY = 0;
+  studentPullDistance = 0;
+}
+
+function resetStudentPullRefresh() {
+  resetStudentPullGesture();
+  hideStudentPullIndicator();
+}
+
+function markStudentFilePickerOpen() {
+  markStudentInteraction();
+  studentFilePickerOpenedAt = Date.now();
+}
+
+function markStudentFilePickerClosed() {
+  studentFilePickerOpenedAt = 0;
 }
 
 function reconcileStudentRegistrationFromRemote() {
@@ -172,6 +293,47 @@ function shouldPreserveStudentAuthForm() {
 
   const profileArea = authForm.querySelector(".student-auth-profile");
   return Boolean(profileArea && !profileArea.hidden);
+}
+
+function shouldPauseStudentRemoteRefresh() {
+  if (APP_MODE !== "student") return false;
+  return (
+    isStudentInteractionPaused() ||
+    isStudentFilePickerOpen() ||
+    hasSelectedStudentPhoto() ||
+    shouldPreserveStudentAuthForm() ||
+    hasActiveStudentForm() ||
+    hasUnsavedStudentFormValues()
+  );
+}
+
+function isStudentInteractionPaused() {
+  return Date.now() < studentInteractionPausedUntil;
+}
+
+function isStudentFilePickerOpen() {
+  return studentFilePickerOpenedAt && Date.now() - studentFilePickerOpenedAt < STUDENT_FILE_PICKER_PAUSE_MS;
+}
+
+function hasSelectedStudentPhoto() {
+  return [...document.querySelectorAll(".photo-input-control input[type='file']")].some((input) => input.files?.length);
+}
+
+function hasActiveStudentForm() {
+  const active = document.activeElement;
+  return Boolean(active?.closest?.(".student-view form, .student-auth-card"));
+}
+
+function hasUnsavedStudentFormValues() {
+  return [...document.querySelectorAll(".student-view form, .student-auth-card")].some((form) =>
+    [...form.elements].some((fieldNode) => {
+      if (!fieldNode.name || fieldNode.disabled) return false;
+      if (["button", "submit", "reset"].includes(fieldNode.type)) return false;
+      if (fieldNode.type === "file") return Boolean(fieldNode.files?.length);
+      if (fieldNode.tagName === "SELECT") return fieldNode.selectedIndex > 0;
+      return String(fieldNode.value || "").trim() !== "";
+    })
+  );
 }
 
 function scheduleRemoteSave() {

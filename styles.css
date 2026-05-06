@@ -38,6 +38,30 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.student-refresh-indicator {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 220;
+  min-width: 142px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--accent-strong);
+  box-shadow: 0 12px 30px rgba(10, 41, 78, 0.16);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.student-refresh-indicator[hidden] {
+  display: none;
+}
+
 button,
 input,
 select,
