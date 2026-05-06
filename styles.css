@@ -874,11 +874,36 @@ th {
   color: #b42318;
 }
 
+.penalty-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 12px;
+  flex-wrap: wrap;
+}
+
+.penalty-period-controls,
 .penalty-sort-controls {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
   gap: 6px;
-  margin: 10px 0 12px;
+  flex-wrap: wrap;
+}
+
+.penalty-period-controls .field {
+  min-width: 150px;
+  margin: 0;
+}
+
+.penalty-period-controls input {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.penalty-period-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .mini-btn.active {

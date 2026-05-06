@@ -3,6 +3,10 @@
   sort: "name",
 };
 let penaltySortMode = "id";
+const penaltyPeriodFilter = {
+  start: "",
+  end: "",
+};
 
 function renderTeacherAuthLoading() {
   return el("div", { className: "grid" }, [
@@ -178,10 +182,11 @@ function renderAttendanceManagement() {
 
 function renderPenaltyManagement() {
   if (!hasTeacherPermission("penalties.read")) return renderForbidden();
-  const summaries = getPenaltySummaries();
+  const visiblePenalties = getFilteredPenalties();
+  const summaries = getPenaltySummaries(visiblePenalties);
   const totalPoints = summaries.reduce((sum, item) => sum + item.total, 0);
   const penalizedStudents = summaries.filter((item) => item.total > 0).length;
-  const latestPenalties = [...(state.penalties || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const latestPenalties = [...visiblePenalties].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   return el("div", { className: "grid" }, [
     el("div", { className: "stat-groups" }, [
@@ -192,8 +197,11 @@ function renderPenaltyManagement() {
       ]),
     ]),
     panel("전체 벌점 내역", [
-      el("p", { className: "subtle" }, "학생별 누적 벌점을 고유번호 기준으로 확인합니다."),
-      penaltySortControls(),
+      el("p", { className: "subtle" }, "선택한 기간 기준으로 학생별 누적 벌점을 확인합니다."),
+      el("div", { className: "penalty-toolbar" }, [
+        penaltyPeriodControls(),
+        penaltySortControls(),
+      ]),
       summaries.length ? renderPenaltySummaryTable(summaries) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
     ]),
     panel("최근 부여 내역", [
@@ -202,12 +210,41 @@ function renderPenaltyManagement() {
   ]);
 }
 
-function getPenaltySummaries() {
+function getFilteredPenalties() {
+  return (state.penalties || []).filter(isPenaltyInSelectedPeriod);
+}
+
+function isPenaltyInSelectedPeriod(penalty) {
+  const dateKey = getDateInputValue(penalty.createdAt);
+  if (!dateKey) return false;
+  if (penaltyPeriodFilter.start && dateKey < penaltyPeriodFilter.start) return false;
+  if (penaltyPeriodFilter.end && dateKey > penaltyPeriodFilter.end) return false;
+  return true;
+}
+
+function getDateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getPenaltySummaries(penalties = state.penalties || []) {
+  const penaltyMap = penalties.reduce((map, penalty) => {
+    const key = String(penalty.studentId || "").trim();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(penalty);
+    return map;
+  }, new Map());
+
   return [...state.students]
     .map((student) => ({
       student,
-      total: getPenaltyTotal(student.id),
-      count: getPenaltiesForStudent(student.id).length,
+      total: (penaltyMap.get(student.id) || []).reduce((sum, penalty) => sum + (Number(penalty.points) || 0), 0),
+      count: (penaltyMap.get(student.id) || []).length,
     }))
     .sort((a, b) => {
       if (penaltySortMode === "points") {
@@ -216,6 +253,36 @@ function getPenaltySummaries() {
       }
       return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
     });
+}
+
+function penaltyPeriodControls() {
+  const startInput = el("input", { name: "startDate", type: "date", value: penaltyPeriodFilter.start });
+  const endInput = el("input", { name: "endDate", type: "date", value: penaltyPeriodFilter.end });
+  const form = el("form", { className: "penalty-period-controls" }, [
+    field("시작일", startInput),
+    field("종료일", endInput),
+    el("div", { className: "penalty-period-actions" }, [
+      button("조회", "mini-btn"),
+      button("전체", "mini-btn", "button", () => {
+        penaltyPeriodFilter.start = "";
+        penaltyPeriodFilter.end = "";
+        render();
+      }),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (startInput.value && endInput.value && startInput.value > endInput.value) {
+      notify("시작일은 종료일보다 늦을 수 없습니다.");
+      return;
+    }
+    penaltyPeriodFilter.start = startInput.value;
+    penaltyPeriodFilter.end = endInput.value;
+    render();
+  });
+
+  return form;
 }
 
 function penaltySortControls() {
@@ -346,7 +413,9 @@ function openPenaltyModal() {
 
 function openPenaltyHistoryModal(studentId) {
   const student = findStudent(studentId);
-  const penalties = getPenaltiesForStudent(studentId);
+  const penalties = getFilteredPenalties()
+    .filter((penalty) => penalty.studentId === String(studentId || "").trim())
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   openInfoModal({
     title: `${student?.name || "학생"} 벌점 내역`,
     className: "history-modal-panel penalty-detail-modal",
