@@ -346,10 +346,11 @@ function renderTeacherOutingTable(outings, options = {}) {
 
 function teacherRowActions(outing, options = {}) {
   if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
+  const canDecide = outing.decision === "pending" && hasTeacherPermission("outing.approve");
 
   return [
-    hasTeacherPermission("outing.approve") ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
-    hasTeacherPermission("outing.approve") ? button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
+    canDecide ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
+    canDecide ? button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
     hasTeacherPermission("outing.memo") ? button("메모", "mini-btn", "button", () => {
       const memo = prompt("교사용 메모", outing.teacherMemo || "");
       if (memo === null) return;

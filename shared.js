@@ -548,13 +548,21 @@ async function loadStateFromRemote() {
     "original_name",
     "created_at",
   ].join(",");
-  const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }, attendanceResult] =
-    await Promise.all([
-      remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
-      remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
-      remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
-      remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
-    ]);
+  const remoteResults = await Promise.all([
+    remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
+    remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
+    remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
+    remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
+  ]);
+  const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
+  let attendanceResult = remoteResults[3];
+  if (isMissingColumnError(attendanceResult.error, "reason") || isMissingColumnError(attendanceResult.error, "detail")) {
+    const fallbackAttendanceColumns = attendanceColumns
+      .split(",")
+      .filter((column) => !["reason", "detail"].includes(column))
+      .join(",");
+    attendanceResult = await remoteStore.from("attendance_checks").select(fallbackAttendanceColumns).order("created_at", { ascending: false });
+  }
 
   if (studentsError) throw studentsError;
   if (outingsError) throw outingsError;
@@ -764,8 +772,21 @@ async function saveStateToRemote() {
     const { error } = await remoteStore
       .from("attendance_checks")
       .upsert(attendanceRows, { onConflict: "id", ignoreDuplicates: true });
+    if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
+      const fallbackRows = attendanceRows.map(stripAttendanceReasonColumnsFromRow);
+      const { error: fallbackError } = await remoteStore
+        .from("attendance_checks")
+        .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+      if (fallbackError && !isMissingRelationError(fallbackError, "attendance_checks")) throw fallbackError;
+      return;
+    }
     if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
   }
+}
+
+function stripAttendanceReasonColumnsFromRow(row) {
+  const { reason, detail, ...rest } = row;
+  return rest;
 }
 
 function isMissingColumnError(error, columnName) {
@@ -848,10 +869,11 @@ function outingCard(outing, options = {}) {
   }
 
   if (options.teacher) {
+    const canDecide = outing.decision === "pending";
     nodes.push(
       el("div", { className: "action-row" }, [
-        button("승인", "btn secondary", "button", () => decideOuting(outing.id, "approved")),
-        button("반려", "btn danger", "button", () => decideOuting(outing.id, "rejected")),
+        canDecide ? button("승인", "btn secondary", "button", () => decideOuting(outing.id, "approved")) : null,
+        canDecide ? button("반려", "btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
         button("메모", "icon-btn", "button", () => {
           const memo = prompt("교사용 메모", outing.teacherMemo || "");
           if (memo === null) return;
@@ -1228,7 +1250,7 @@ async function createAttendanceCheck(student, file, options = {}) {
   };
 
   if (remoteStore) {
-    const { error } = await remoteStore.from("attendance_checks").insert({
+    const attendanceRow = {
       id: check.id,
       student_id: check.studentId,
       student_name: check.studentName,
@@ -1242,8 +1264,12 @@ async function createAttendanceCheck(student, file, options = {}) {
       photo_data_url: null,
       original_name: check.originalName || null,
       created_at: check.createdAt,
-    });
-    if (error) throw error;
+    };
+    const { error } = await remoteStore.from("attendance_checks").insert(attendanceRow);
+    if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
+      const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(attendanceRow));
+      if (fallbackError) throw fallbackError;
+    } else if (error) throw error;
   }
 
   state.attendanceChecks = [
