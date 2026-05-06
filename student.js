@@ -372,17 +372,24 @@ function renderStudentAttendance() {
   const todayCheck = student ? getStudentAttendanceForDate(student.id) : null;
   const needsPhotoRetry = todayCheck && !getAttendancePhotoSrc(todayCheck);
   const isReasonMode = state.settings.attendanceMode === "pre-arrival-reason" && !todayCheck;
+  const isOpen = isAttendanceCheckOpen();
+  const preArrivalButton = button("등원 전 사유신청", "btn secondary", "button", () => {
+    if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
+    state.settings.attendanceMode = "pre-arrival-reason";
+    saveState();
+    render();
+  });
+  preArrivalButton.disabled = !isOpen;
   return el("div", { className: "grid student-view" }, [
     panel(isReasonMode ? "등원 전 사유신청" : "오늘 출석", [
       todayCheck && !needsPhotoRetry ? renderStudentAttendanceComplete(todayCheck) : isReasonMode ? createPreArrivalReasonForm(student) : createAttendanceForm(student, { retryMissingPhoto: needsPhotoRetry }),
     ]),
     !todayCheck && !isReasonMode
       ? el("div", { className: "attendance-secondary-action" }, [
-          button("등원 전 사유신청", "btn secondary", "button", () => {
-            state.settings.attendanceMode = "pre-arrival-reason";
-            saveState();
-            render();
-          }),
+          preArrivalButton,
+          !isOpen && state.settings.attendanceDeadlineEnabled
+            ? el("p", { className: "subtle attendance-deadline-note" }, `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`)
+            : null,
         ])
       : null,
   ]);
@@ -440,7 +447,9 @@ function createAttendanceForm(student, options = {}) {
 }
 
 function createPreArrivalReasonForm(student) {
+  const isOpen = isAttendanceCheckOpen();
   const submitButton = button("사유 인증하기", "btn");
+  submitButton.disabled = !isOpen;
   const cancelButton = button("출석 체크로 돌아가기", "btn secondary", "button", () => {
     state.settings.attendanceMode = "";
     saveState();
@@ -450,14 +459,26 @@ function createPreArrivalReasonForm(student) {
     field("신청 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
     field("사유", select("reason", ["병원", "교통 지연", "개인 사유 인증", "기타"])),
     field("상세 사유", textarea("detail", "필요한 내용을 입력하세요."), "full"),
-    field("인증 사진", photoCaptureInput("reasonPhoto"), "full"),
-    el("div", { className: "field full attendance-action-row" }, [submitButton, cancelButton]),
+    field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen }), "full"),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-action-row" }, [submitButton, cancelButton]),
+      el(
+        "p",
+        { className: "subtle attendance-deadline-note" },
+        state.settings.attendanceDeadlineEnabled
+          ? isOpen
+            ? `등원 전 사유신청은 오전 ${formatAttendanceDeadline()}까지입니다.`
+            : `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`
+          : "테스트 중에는 등원 전 사유신청 시간 제한이 꺼져 있습니다."
+      ),
+    ]),
   ]);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!student) return notify("학생 등록 후 사유신청을 이용할 수 있습니다.");
     if (getStudentAttendanceForDate(student.id)) return notify("오늘 출석 처리가 이미 완료되었습니다.");
+    if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
     const data = formData(form);
     const reasonPhoto = form.elements.reasonPhoto.files[0];
     if (!reasonPhoto) return notify("인증 사진을 촬영해주세요.");
