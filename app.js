@@ -383,8 +383,61 @@ async function installToHomeScreen() {
     return;
   }
 
+  openInstallGuideModal();
+}
+
+function openInstallGuideModal() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isKakao = userAgent.includes("kakaotalk");
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  notify(isIos ? "공유 버튼을 누른 뒤 '홈 화면에 추가'를 선택해주세요." : "브라우저 메뉴에서 '앱 설치' 또는 '홈 화면에 추가'를 선택해주세요.");
+  const isAndroid = userAgent.includes("android");
+  const pageUrl = location.href;
+  const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
+  const steps = isKakao
+    ? [
+        "카카오톡 오른쪽 위 메뉴를 누릅니다.",
+        isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
+        "브라우저에서 공유 또는 메뉴를 누른 뒤 홈 화면에 추가를 선택합니다.",
+      ]
+    : isIos
+      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누르면 앱처럼 실행할 수 있습니다."]
+      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치를 누르면 앱처럼 실행할 수 있습니다."];
+
+  const actions = [
+    button("주소 복사", "btn secondary", "button", async () => {
+      await copyText(pageUrl);
+      notify("주소를 복사했습니다. 브라우저에 붙여넣어 열어주세요.");
+    }),
+  ];
+
+  if (isKakao && isAndroid) {
+    actions.unshift(button("Chrome으로 열기", "btn", "button", openCurrentPageInChrome));
+  }
+
+  openInfoModal({
+    title,
+    content: el("div", { className: "install-guide" }, [
+      el(
+        "p",
+        {},
+        isKakao
+          ? "카카오톡 안에서는 앱 설치가 바로 열리지 않을 수 있습니다. 먼저 기본 브라우저에서 열면 홈 화면에 추가할 수 있습니다."
+          : "설치 창이 자동으로 뜨지 않는 브라우저에서는 아래 순서로 홈 화면에 추가해주세요."
+      ),
+      el(
+        "ol",
+        {},
+        steps.map((step) => el("li", {}, step))
+      ),
+      el("div", { className: "install-guide-actions" }, actions),
+    ]),
+  });
+}
+
+function openCurrentPageInChrome() {
+  const url = new URL(location.href);
+  const fallback = encodeURIComponent(location.href);
+  location.href = `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=${url.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
 }
 
 function isRunningStandalone() {
