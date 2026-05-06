@@ -449,10 +449,34 @@ function deleteStudent(id) {
   notify("학생을 삭제했습니다.");
 }
 
-function resetStudentAppRegistration(id) {
+async function resetStudentAppRegistration(id) {
   const student = findStudent(id);
   if (!student) return;
   if (!confirm(student.name + " (" + student.id + ") 학생의 앱 등록 상태를 초기화할까요?")) return;
+
+  if (remoteStore) {
+    try {
+      const response = await fetch("/api/reset-student-registration", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId: student.id }),
+      });
+      const data = response.ok ? await response.json() : { ok: false };
+      if (!data.ok) {
+        if (response.status === 401) {
+          notify("교사 로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+        } else {
+          notify(response.status === 503 ? "서버 초기화 설정을 확인해주세요." : "서버 등록 초기화에 실패했습니다.");
+        }
+        return;
+      }
+    } catch (error) {
+      console.error(error);
+      notify("서버 등록 초기화 요청 중 오류가 발생했습니다.");
+      return;
+    }
+  }
 
   student.track = "";
   student.gender = "";
