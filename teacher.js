@@ -148,11 +148,13 @@ function renderTeacher() {
 function renderAttendanceManagement() {
   if (!hasTeacherPermission("attendance.read")) return renderForbidden();
   const todayKey = getTodayDateKey();
-  const todayChecks = getAttendanceChecksForDate(todayKey);
+  const selected = selectedStudentCohortCount();
+  const visibleStudents = getStudentsInCohort(selected.value);
+  const todayChecks = getAttendanceChecksForDate(todayKey).filter((check) => isAttendanceCheckInCohort(check, selected.value));
   const presentChecks = todayChecks.filter((check) => check.status === "present");
   const reasonChecks = todayChecks.filter((check) => check.status === "pre_arrival_reason");
   const checkedStudentIds = new Set(todayChecks.map((check) => check.studentId));
-  const absentStudents = state.students.filter((student) => !checkedStudentIds.has(student.id));
+  const absentStudents = visibleStudents.filter((student) => !checkedStudentIds.has(student.id));
 
   return el("div", { className: "grid" }, [
     el("div", { className: "stat-groups" }, [
@@ -178,6 +180,15 @@ function renderAttendanceManagement() {
         : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
     ]),
   ]);
+}
+
+function getStudentsInCohort(cohort = selectedStudentCohort) {
+  return [...state.students].filter((student) => !cohort || getStudentCohort(student) === cohort);
+}
+
+function isAttendanceCheckInCohort(check, cohort = selectedStudentCohort) {
+  if (!cohort) return true;
+  return getStudentCohort({ id: check.studentId }) === cohort;
 }
 
 function renderPenaltyManagement() {
@@ -698,7 +709,9 @@ function renderDuplicatePhotoPanel() {
       { className: "duplicate-list" },
       groups.map((group) =>
         el("article", { className: "duplicate-item" }, [
-          el("img", { src: group.photo.dataUrl, alt: group.photo.type }),
+          button("", "duplicate-photo-button", "button", () => openDuplicatePhotoModal(group), [
+            el("img", { src: group.photo.dataUrl, alt: group.photo.type }),
+          ]),
           el("div", {}, [
             el("strong", {}, group.photo.type + " · " + group.items.length + "건"),
             el("p", { className: "subtle" }, group.items.map((item) => item.studentName + " (" + item.studentId + ")").join(", ")),
@@ -709,6 +722,17 @@ function renderDuplicatePhotoPanel() {
   ]);
 }
 
+function openDuplicatePhotoModal(group) {
+  openPhotoModal({
+    ...group.photo,
+    type: group.photo.type + " · " + group.items.length + "건",
+    details: group.items.map((item) => {
+      const date = formatDateKey(item.duplicatePhotoUploadedAt || item.createdAt);
+      return `${item.studentName || "학생"} (${item.studentId || "-"}) · 인증 날짜 ${date}`;
+    }),
+  });
+}
+
 function findDuplicatePhotoGroups(outings) {
   const map = new Map();
   outings.forEach((outing) => {
@@ -716,7 +740,7 @@ function findDuplicatePhotoGroups(outings) {
       if (!photo.dataUrl) return;
       const key = photo.dataUrl;
       if (!map.has(key)) map.set(key, { photo, items: [] });
-      map.get(key).items.push(outing);
+      map.get(key).items.push({ ...outing, duplicatePhotoUploadedAt: photo.uploadedAt });
     });
   });
 

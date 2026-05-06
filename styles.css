@@ -955,7 +955,7 @@ th {
   width: min(860px, 100%);
   max-height: min(86vh, 760px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   border-radius: 10px;
   background: #fff;
   overflow: hidden;
@@ -980,6 +980,19 @@ th {
   margin-top: 3px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.photo-modal-details {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.photo-modal-details p {
+  margin: 0;
 }
 
 .photo-modal-panel > img {
@@ -1167,9 +1180,22 @@ th {
   padding: 10px;
 }
 
+.duplicate-photo-button,
 .duplicate-item img {
   width: 72px;
   height: 72px;
+}
+
+.duplicate-photo-button {
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.duplicate-item img {
   border-radius: 6px;
   object-fit: cover;
 }

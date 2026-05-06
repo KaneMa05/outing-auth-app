@@ -1496,6 +1496,7 @@ function notify(message) {
 
 function openPhotoModal(photo) {
   closePhotoModal();
+  const details = Array.isArray(photo.details) ? photo.details.filter(Boolean) : [];
   const modal = el("div", { className: "photo-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "photo-modal-backdrop", type: "button", ariaLabel: "사진 닫기" }),
     el("div", { className: "photo-modal-panel" }, [
@@ -1506,6 +1507,13 @@ function openPhotoModal(photo) {
         ]),
         button("닫기", "mini-btn", "button", closePhotoModal),
       ]),
+      details.length
+        ? el(
+            "div",
+            { className: "photo-modal-details" },
+            details.map((detail) => el("p", {}, detail))
+          )
+        : null,
       el("img", { src: photo.dataUrl || photo.photoUrl || photo.photoDataUrl || "", alt: photo.type || "인증 사진" }),
     ]),
   ]);
