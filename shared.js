@@ -655,9 +655,11 @@ async function saveStateToRemote() {
     if (isMissingColumnError(error, "device_token")) {
       delete profileUpdate.device_token;
       const { error: fallbackError } = await remoteStore.from("students").update(profileUpdate).eq("id", student.id);
+      if (isExpectedProfileRewriteError(fallbackError)) continue;
       if (fallbackError) throw fallbackError;
       continue;
     }
+    if (isExpectedProfileRewriteError(error)) continue;
     if (error) throw error;
   }
 
@@ -793,6 +795,12 @@ function isMissingColumnError(error, columnName) {
   if (!error) return false;
   const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
   return text.includes(columnName.toLowerCase()) && (text.includes("column") || text.includes("schema cache"));
+}
+
+function isExpectedProfileRewriteError(error) {
+  if (!error) return false;
+  const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("42501") || text.includes("row-level security") || text.includes("violates row-level security");
 }
 
 function isMissingRelationError(error, relationName) {
