@@ -1254,7 +1254,7 @@ body[data-app-mode="teacher"] .student-footer-menu {
   display: none;
 }
 
-body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focus) .student-footer-menu {
+body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-footer-menu {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
