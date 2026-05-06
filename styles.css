@@ -1245,7 +1245,8 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .student-footer-menu button {
   min-height: 58px;
   display: grid;
-  place-items: center;
+  grid-template-rows: 24px auto;
+  justify-items: center;
   align-content: center;
   gap: 4px;
   border: 0;
@@ -1270,19 +1271,24 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 
 .footer-icon {
   position: relative;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: block;
   color: currentColor;
+}
+
+.footer-icon::before,
+.footer-icon::after {
+  box-sizing: border-box;
 }
 
 .footer-icon-home::before {
   content: "";
   position: absolute;
-  left: 4px;
+  left: 5px;
   top: 4px;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-top: 2px solid currentColor;
   border-left: 2px solid currentColor;
   transform: rotate(45deg);
@@ -1291,8 +1297,8 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-home::after {
   content: "";
   position: absolute;
-  left: 5px;
-  top: 10px;
+  left: 6px;
+  top: 11px;
   width: 12px;
   height: 9px;
   border: 2px solid currentColor;
@@ -1304,7 +1310,7 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
   content: "";
   position: absolute;
   left: 4px;
-  top: 3px;
+  top: 4px;
   width: 10px;
   height: 16px;
   border: 2px solid currentColor;
@@ -1314,9 +1320,9 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-outing::after {
   content: "";
   position: absolute;
-  right: 2px;
-  top: 9px;
-  width: 9px;
+  right: 5px;
+  top: 11px;
+  width: 8px;
   height: 2px;
   background: currentColor;
   box-shadow: 3px -3px 0 -1px currentColor, 3px 3px 0 -1px currentColor;
@@ -1325,8 +1331,8 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-grades::before {
   content: "";
   position: absolute;
-  left: 3px;
-  bottom: 3px;
+  left: 4px;
+  bottom: 4px;
   width: 4px;
   height: 8px;
   border-radius: 2px;
@@ -1337,9 +1343,9 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-grades::after {
   content: "";
   position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 1px;
+  left: 3px;
+  right: 3px;
+  bottom: 2px;
   height: 2px;
   border-radius: 2px;
   background: currentColor;
@@ -1348,31 +1354,31 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-attendance::before {
   content: "";
   position: absolute;
-  left: 3px;
+  left: 4px;
   top: 4px;
   width: 16px;
-  height: 15px;
+  height: 16px;
   border: 2px solid currentColor;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .footer-icon-attendance::after {
   content: "";
   position: absolute;
-  left: 7px;
-  top: 10px;
-  width: 8px;
-  height: 5px;
-  border-left: 2px solid currentColor;
+  left: 9px;
+  top: 6px;
+  width: 6px;
+  height: 9px;
+  border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
-  transform: rotate(-45deg);
+  transform: rotate(45deg);
 }
 
 .footer-icon-mypage::before {
   content: "";
   position: absolute;
-  left: 7px;
-  top: 3px;
+  left: 8px;
+  top: 4px;
   width: 8px;
   height: 8px;
   border: 2px solid currentColor;
@@ -1382,8 +1388,8 @@ body:not([data-app-mode="teacher"]):has(input:focus, select:focus, textarea:focu
 .footer-icon-mypage::after {
   content: "";
   position: absolute;
-  left: 3px;
-  bottom: 2px;
+  left: 4px;
+  bottom: 3px;
   width: 16px;
   height: 9px;
   border: 2px solid currentColor;

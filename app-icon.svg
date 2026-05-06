@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Ron Park Study Management">
+  <rect width="240" height="240" fill="#ffffff"/>
+  <g stroke="#050505" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M31 148c-8-16-16-35-21-57 3-17 11-31 24-42l9 10c-8 12-10 26-9 41 4 19 12 35 24 48Z" fill="#f3dfd1" stroke-width="3.5"/>
+    <path d="M209 148c8-16 16-35 21-57-3-17-11-31-24-42l-9 10c8 12 10 26 9 41-4 19-12 35-24 48Z" fill="#f3dfd1" stroke-width="3.5"/>
+    <path d="M76 130c8-18 26-27 44-27s36 9 44 27v22H76Z" fill="#f3dfd1" stroke-width="3.5"/>
+    <ellipse cx="120" cy="75" rx="38" ry="56" fill="#f3dfd1" stroke-width="3.5"/>
+    <path d="M83 80c-2-30 13-52 37-52s39 22 37 52c-9-14-22-21-37-21s-28 7-37 21Z" fill="#050505" stroke-width="3.5"/>
+    <path d="M95 4c38 8 65 18 88 33l-30 31-56-14Z" fill="#ffffff" stroke-width="3.5"/>
+    <path d="M103 2c26-4 62 9 66 40" fill="none" stroke-width="3.5"/>
+    <path d="M119 30v20m-8-10h16m-3-7c7 6 3 17-5 17s-12-11-5-17" fill="none" stroke-width="2.5"/>
+    <circle cx="104" cy="77" r="4.5" fill="#050505" stroke="none"/>
+    <circle cx="136" cy="77" r="4.5" fill="#050505" stroke="none"/>
+    <path d="M120 99c-14-5-25 2-33 16 15 4 26 0 33-11 7 11 18 15 33 11-8-14-19-21-33-16Z" fill="#050505" stroke-width="1"/>
+  </g>
+  <rect x="2" y="148" width="236" height="90" fill="#0b80b4" stroke="#050505" stroke-width="3"/>
+  <text x="120" y="204" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-size="40" font-weight="900" fill="#ffffff">RON PARK</text>
+  <text x="120" y="225" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="800" letter-spacing="3" fill="#ffffff">STUDY MANAGEMENT</text>
+</svg>
