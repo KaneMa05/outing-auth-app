@@ -369,7 +369,6 @@ function createDeviceToken() {
 function renderStudentHome() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
-  const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
@@ -380,7 +379,6 @@ function renderStudentHome() {
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
     renderStudentTodayCard(activeOuting),
-    renderStudentAttendanceSummaryCard(todayAttendance),
     el("section", { className: "student-summary-card" }, [
       el("div", {}, [
         el("strong", {}, homeAction.title),
@@ -388,16 +386,6 @@ function renderStudentHome() {
       ]),
       button(homeAction.buttonText, "btn", "button", homeAction.action),
     ]),
-  ]);
-}
-
-function renderStudentAttendanceSummaryCard(check) {
-  return el("section", { className: "student-summary-card" }, [
-    el("div", {}, [
-      el("strong", {}, check ? "오늘 출석 인증 완료" : "오늘 출석 인증"),
-      el("p", {}, check ? `${formatTimeOnly(check.createdAt)}에 출석 처리되었습니다.` : "현장 사진으로 오늘 출석을 인증하세요."),
-    ]),
-    button(check ? "출석 확인" : "출석 체크", "btn secondary", "button", () => navigate("attendance")),
   ]);
 }
 
