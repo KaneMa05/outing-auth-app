@@ -1,8 +1,9 @@
 const {
   COOKIE_NAME,
   getConfig,
+  hasPermission,
+  readSessionToken,
   readCookie,
-  verifySessionToken,
 } = require("./teacher-auth-utils");
 
 module.exports = async function handler(req, res) {
@@ -14,8 +15,13 @@ module.exports = async function handler(req, res) {
 
   const { secret } = getConfig();
   const token = readCookie(req, COOKIE_NAME);
-  if (!verifySessionToken(token, secret)) {
+  const session = readSessionToken(token, secret);
+  if (!session) {
     res.status(401).json({ ok: false, error: "unauthorized" });
+    return;
+  }
+  if (!hasPermission(session, "students.reset")) {
+    res.status(403).json({ ok: false, error: "forbidden" });
     return;
   }
 

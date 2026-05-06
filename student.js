@@ -201,7 +201,7 @@ function createVerifyForm() {
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
     } catch (error) {
       console.error(error);
-      notify("사진 처리 중 오류가 발생했습니다. 더 작은 사진으로 다시 시도해주세요.");
+      notify(getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
     }
@@ -215,28 +215,63 @@ function photoCaptureInput(name) {
   inputNode.className = "visually-hidden-file";
   const status = el("span", { className: "photo-input-status" }, "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
+  let pickerResetTimer = null;
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
     markStudentFilePickerOpen();
+    setPhotoInputLoading(trigger, status, true, "사진 선택 중...");
     inputNode.click();
   });
   let previewUrl = "";
 
-  inputNode.addEventListener("change", () => {
+  window.addEventListener("focus", () => {
+    window.clearTimeout(pickerResetTimer);
+    pickerResetTimer = window.setTimeout(() => {
+      if (!inputNode.files?.length) setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+    }, 700);
+  });
+
+  inputNode.addEventListener("cancel", () => {
+    markStudentFilePickerClosed();
+    setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+  });
+
+  inputNode.addEventListener("change", async () => {
+    window.clearTimeout(pickerResetTimer);
     markStudentFilePickerClosed();
     const file = inputNode.files[0];
-    status.textContent = file ? "사진이 선택되었습니다." : "사진을 촬영해주세요.";
-    status.className = file ? "photo-input-status selected" : "photo-input-status";
     preview.innerHTML = "";
     preview.hidden = !file;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = "";
-    if (file) {
-      previewUrl = URL.createObjectURL(file);
-      preview.appendChild(el("img", { src: previewUrl, alt: "선택한 사진 미리보기" }));
+    if (!file) {
+      setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+      return;
     }
+
+    setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
+    previewUrl = URL.createObjectURL(file);
+    const previewImage = el("img", { alt: "선택한 사진 미리보기" });
+    previewImage.addEventListener("load", () => {
+      status.textContent = "사진이 선택되었습니다.";
+      status.className = "photo-input-status selected";
+      trigger.disabled = false;
+    });
+    previewImage.addEventListener("error", () => {
+      setPhotoInputLoading(trigger, status, false, "사진을 다시 선택해주세요.");
+    });
+    previewImage.src = previewUrl;
+    preview.appendChild(previewImage);
   });
 
   return el("div", { className: "photo-input-control" }, [inputNode, trigger, status, preview]);
+}
+
+function setPhotoInputLoading(trigger, status, loading, text) {
+  trigger.disabled = loading;
+  status.className = loading ? "photo-input-status loading" : "photo-input-status";
+  status.innerHTML = "";
+  if (loading) status.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
+  status.appendChild(document.createTextNode(text));
 }
 
 function setButtonLoading(buttonNode, text) {
@@ -294,13 +329,20 @@ function createReturnForm() {
       notify("복귀 완료되었습니다.");
     } catch (error) {
       console.error(error);
-      notify("복귀 사진 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+      notify(getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "복귀 완료";
     }
   });
 
   return form;
+}
+
+function getPhotoSubmitErrorMessage(error) {
+  if (isStorageQuotaError(error)) {
+    return "기기 저장공간이 부족해 임시 저장을 줄였습니다. 다시 한 번 제출해주세요.";
+  }
+  return "사진 처리 중 오류가 발생했습니다. 다른 사진으로 다시 시도해주세요.";
 }
 
 function renderDoneState() {

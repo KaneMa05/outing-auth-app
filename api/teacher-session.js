@@ -1,8 +1,8 @@
 const {
   COOKIE_NAME,
   getConfig,
+  readSessionToken,
   readCookie,
-  verifySessionToken,
 } = require("./teacher-auth-utils");
 
 module.exports = function handler(req, res) {
@@ -14,5 +14,6 @@ module.exports = function handler(req, res) {
 
   const { secret } = getConfig();
   const token = readCookie(req, COOKIE_NAME);
-  res.status(200).json({ ok: verifySessionToken(token, secret) });
+  const session = readSessionToken(token, secret);
+  res.status(200).json({ ok: Boolean(session), user: session || null });
 };
