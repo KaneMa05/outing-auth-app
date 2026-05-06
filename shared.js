@@ -220,7 +220,7 @@ async function initRemoteStore() {
     startRemoteRefresh();
   } catch (error) {
     console.error(error);
-    notify("Supabase 저장 중 오류가 발생했습니다.");
+    if (APP_MODE === "teacher") notify("Supabase 불러오기 중 오류가 발생했습니다.");
   } finally {
     isRemoteLoading = false;
   }
@@ -469,7 +469,7 @@ function scheduleRemoteSave() {
     saveStateToRemote()
       .catch((error) => {
         console.error(error);
-        notify("Supabase 저장 중 오류가 발생했습니다.");
+        if (APP_MODE === "teacher") notify("Supabase 저장 중 오류가 발생했습니다.");
       })
       .finally(() => {
         isRemoteSaving = false;
