@@ -12,7 +12,9 @@ const seedButton = document.querySelector("#seed-demo");
 const resetButton = document.querySelector("#reset-data");
 const remoteStore = createRemoteStore();
 let isRemoteLoading = false;
+let isRemoteSaving = false;
 let remoteSaveTimer = null;
+let hasPendingRemoteSave = false;
 let remoteRefreshTimer = null;
 let deferredInstallPrompt = null;
 const teacherAuth = {
@@ -120,7 +122,7 @@ function startRemoteRefresh() {
 }
 
 async function refreshStateFromRemote() {
-  if (!remoteStore || isRemoteLoading) return;
+  if (!remoteStore || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
   isRemoteLoading = true;
   try {
     await loadStateFromRemote();
@@ -142,11 +144,17 @@ function reconcileStudentRegistrationFromRemote() {
   const profile = getStudentProfile(studentId);
   const student = findStudent(studentId);
   if (!studentId || !profile?.deviceToken || !student || student.appRegisteredAt) return false;
+  if (isRecentStudentRegistration(profile)) return false;
 
   delete state.settings.studentProfiles[studentId];
   state.settings.studentAuthId = "";
   if (state.settings.lastStudentId === studentId) state.settings.lastStudentId = "";
   return true;
+}
+
+function isRecentStudentRegistration(profile) {
+  const authedAt = profile?.authedAt ? new Date(profile.authedAt).getTime() : 0;
+  return authedAt && Date.now() - authedAt < 120000;
 }
 
 function shouldPreserveStudentAuthForm() {
@@ -168,12 +176,20 @@ function shouldPreserveStudentAuthForm() {
 
 function scheduleRemoteSave() {
   if (!remoteStore || isRemoteLoading) return;
+  hasPendingRemoteSave = true;
   window.clearTimeout(remoteSaveTimer);
   remoteSaveTimer = window.setTimeout(() => {
-    saveStateToRemote().catch((error) => {
-      console.error(error);
-      notify("Supabase 저장 중 오류가 발생했습니다.");
-    });
+    remoteSaveTimer = null;
+    hasPendingRemoteSave = false;
+    isRemoteSaving = true;
+    saveStateToRemote()
+      .catch((error) => {
+        console.error(error);
+        notify("Supabase 저장 중 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        isRemoteSaving = false;
+      });
   }, 250);
 }
 
@@ -268,7 +284,19 @@ async function saveStateToRemote() {
     if (error) throw error;
   }
 
-  const registeredStudents = state.students.filter((student) => student.passwordHash && student.deviceToken && student.appRegisteredAt);
+  const registeredStudents = state.students
+    .map((student) => {
+      const profile = getStudentProfile(student.id) || {};
+      return {
+        ...student,
+        track: normalizeCoastGuardTrack(student.track || profile.track),
+        gender: student.gender || profile.gender || "",
+        passwordHash: student.passwordHash || profile.passwordHash || "",
+        deviceToken: student.deviceToken || profile.deviceToken || "",
+        appRegisteredAt: student.appRegisteredAt || profile.authedAt || "",
+      };
+    })
+    .filter((student) => student.passwordHash && student.deviceToken && student.appRegisteredAt);
   for (const student of registeredStudents) {
     const profileUpdate = {
       track: normalizeCoastGuardTrack(student.track) || null,
