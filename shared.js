@@ -509,7 +509,7 @@ function makeLocalDevSafeState() {
   const snapshot = JSON.parse(JSON.stringify(state));
   snapshot.outings = (snapshot.outings || []).map(stripPhotoDataForLocalStorage);
   snapshot.deletedOutings = (snapshot.deletedOutings || []).map(stripPhotoDataForLocalStorage);
-  snapshot.attendanceChecks = (snapshot.attendanceChecks || []).map(stripAttendancePhotoDataForLocalStorage);
+  snapshot.attendanceChecks = snapshot.attendanceChecks || [];
   return snapshot;
 }
 

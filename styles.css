@@ -1255,6 +1255,16 @@ th {
   font-size: 0.88rem;
 }
 
+.attendance-settings-modal {
+  gap: 14px;
+}
+
+.attendance-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (min-width: 901px) {
   body[data-app-mode="teacher"] .main-shell {
     width: min(1240px, calc(100% - 48px));

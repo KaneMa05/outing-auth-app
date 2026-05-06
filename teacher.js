@@ -162,7 +162,6 @@ function renderAttendanceManagement() {
       el("p", { className: "subtle" }, "학생이 촬영한 현장 사진으로 출석 인증 여부를 확인합니다. 이미지는 Storage에 저장되고 이 화면은 경로만 불러옵니다."),
       todayChecks.length ? renderAttendanceTable(todayChecks) : el("div", { className: "empty" }, "오늘 출석 인증 내역이 없습니다."),
     ]),
-    panel("출석 시간 설정", [attendanceDeadlineForm()]),
     panel("미인증 학생", [
       absentStudents.length
         ? table(
@@ -176,7 +175,21 @@ function renderAttendanceManagement() {
   ]);
 }
 
-function attendanceDeadlineForm() {
+function openAttendanceDeadlineModal() {
+  closeInfoModal();
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "출석 시간 설정 닫기" }),
+    el("div", { className: "info-modal-panel attendance-settings-modal" }, [
+      el("strong", {}, "출석 시간 설정"),
+      attendanceDeadlineForm({ modal: true }),
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function attendanceDeadlineForm(options = {}) {
   const enabledInput = el("input", {
     name: "attendanceDeadlineEnabled",
     type: "checkbox",
@@ -197,7 +210,10 @@ function attendanceDeadlineForm() {
       ]),
     ]),
     el("div", { className: "field full" }, [
-      button("설정 저장", "btn secondary"),
+      el("div", { className: "attendance-modal-actions" }, [
+        button("저장", "btn"),
+        options.modal ? button("취소", "btn secondary", "button", closeInfoModal) : null,
+      ]),
       el(
         "p",
         { className: "subtle attendance-deadline-note" },
@@ -212,6 +228,7 @@ function attendanceDeadlineForm() {
     event.preventDefault();
     const data = formData(form);
     setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked);
+    if (options.modal) closeInfoModal();
     render();
     notify("출석 시간 설정을 저장했습니다.");
   });
