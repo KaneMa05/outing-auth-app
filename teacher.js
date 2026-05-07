@@ -1296,20 +1296,32 @@ function teacherStudentForm() {
       el("p", { className: "subtle" }, "예: 기수 18, 번호 4번은 18004로 저장됩니다. 이미 등록된 고유번호는 이름과 반 정보가 업데이트됩니다."),
     ]),
   ]);
+  const submitButton = form.querySelector("button[type='submit']");
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const cohort = String(data.cohort || "").trim();
     if (!isValidCohort(cohort)) return notify("기수를 숫자로 입력해주세요.");
     const parsed = parseStudentRoster(data.roster, cohort);
     if (!parsed.length) return notify("등록할 학생 번호와 이름을 입력해주세요.");
-    const result = upsertStudents(parsed, data.className);
-    selectedStudentCohort = cohort;
-    saveState();
-    form.reset();
-    render();
-    notify("학생 " + result.created + "명 등록, " + result.updated + "명 수정되었습니다.");
+    submitButton.disabled = true;
+    submitButton.textContent = "저장 중...";
+    try {
+      const result = upsertStudents(parsed, data.className);
+      selectedStudentCohort = cohort;
+      saveState();
+      await flushRemoteSave();
+      form.reset();
+      render();
+      notify("학생 " + result.created + "명 등록, " + result.updated + "명 수정되었습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("학생 등록 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "학생 등록/수정";
+    }
   });
 
   const rows = [...visibleStudents]

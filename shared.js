@@ -482,6 +482,19 @@ function scheduleRemoteSave() {
   }, 250);
 }
 
+async function flushRemoteSave() {
+  if (!remoteStore || isRemoteLoading) return;
+  window.clearTimeout(remoteSaveTimer);
+  remoteSaveTimer = null;
+  hasPendingRemoteSave = false;
+  isRemoteSaving = true;
+  try {
+    await saveStateToRemote();
+  } finally {
+    isRemoteSaving = false;
+  }
+}
+
 function scheduleLocalDevSave() {
   if (!localDevStoreUrl || remoteStore || isLocalDevLoading) return;
   window.clearTimeout(localDevSaveTimer);
