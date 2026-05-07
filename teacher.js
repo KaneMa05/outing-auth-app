@@ -7,6 +7,9 @@ const penaltyPeriodFilter = {
   start: "",
   end: "",
 };
+const LATE_ATTENDANCE_PENALTY_POINTS = 5;
+const LATE_ATTENDANCE_PENALTY_REASON = "지각 - 출석 미인증";
+const NOT_RETURNED_PENALTY_REASON_PREFIX = "외출 후 미복귀";
 
 function renderTeacherAuthLoading() {
   return el("div", { className: "grid" }, [
@@ -111,6 +114,7 @@ async function logoutTeacher() {
 }
 
 function renderTeacher() {
+  applyAutoApprovalForReturnedOutings();
   const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
   const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
@@ -170,16 +174,107 @@ function renderAttendanceManagement() {
       todayChecks.length ? renderAttendanceTable(todayChecks) : el("div", { className: "empty" }, "오늘 출석 인증 내역이 없습니다."),
     ]),
     panel("미인증 학생", [
+      absentStudents.length && hasTeacherPermission("penalties.write")
+        ? el("div", { className: "attendance-bulk-actions" }, [
+            button(
+              "미인증 학생 지각 벌점 일괄 부여",
+              "btn danger",
+              "button",
+              () => giveLatePenaltyToAbsentStudents(absentStudents)
+            ),
+          ])
+        : null,
       absentStudents.length
         ? table(
-            ["고유번호", "이름", "반"],
+            hasTeacherPermission("penalties.write") ? ["번호", "이름", "반", "처리"] : ["번호", "이름", "반"],
             absentStudents
               .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
-              .map((student) => el("tr", {}, [el("td", {}, student.id), el("td", {}, student.name), el("td", {}, student.className || "-")]))
+              .map((student) =>
+                el("tr", {}, [
+                  el("td", {}, formatStudentNumber(student.id)),
+                  el("td", {}, student.name),
+                  el("td", {}, student.className || "-"),
+                  hasTeacherPermission("penalties.write")
+                    ? el("td", { className: "action-cell" }, latePenaltyAction(student))
+                    : null,
+                ])
+              )
           )
         : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
     ]),
   ]);
+}
+
+function latePenaltyAction(student) {
+  if (hasLateAttendancePenaltyForToday(student.id)) {
+    return el("button", { className: "mini-btn", type: "button", disabled: true }, "부여 완료");
+  }
+  return button(`지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점`, "mini-btn danger", "button", () => giveLatePenalty(student));
+}
+
+function hasLateAttendancePenaltyForToday(studentId) {
+  const todayKey = getTodayDateKey();
+  return (state.penalties || []).some((penalty) =>
+    String(penalty.studentId || "").trim() === String(studentId || "").trim()
+    && getDateInputValue(penalty.createdAt) === todayKey
+    && Number(penalty.points) === LATE_ATTENDANCE_PENALTY_POINTS
+    && penalty.reason === LATE_ATTENDANCE_PENALTY_REASON
+  );
+}
+
+function giveLatePenalty(student) {
+  if (!student || !hasTeacherPermission("penalties.write")) return;
+  if (hasLateAttendancePenaltyForToday(student.id)) {
+    notify("이미 오늘 지각 벌점이 부여된 학생입니다.");
+    render();
+    return;
+  }
+  const confirmed = confirm(`${student.name} 학생에게 지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점을 부여할까요?`);
+  if (!confirmed) return;
+  createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher");
+  render();
+  notify("지각 벌점 5점을 부여했습니다.");
+}
+
+function giveLatePenaltyToAbsentStudents(students) {
+  if (!hasTeacherPermission("penalties.write")) return;
+  const targets = (students || []).filter((student) => !hasLateAttendancePenaltyForToday(student.id));
+  const skipped = (students || []).length - targets.length;
+  if (!targets.length) {
+    notify("오늘 지각 벌점이 모두 이미 부여되었습니다.");
+    render();
+    return;
+  }
+  const confirmed = confirm(`미인증 학생 ${targets.length}명에게 지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점을 일괄 부여할까요?`);
+  if (!confirmed) return;
+  targets.forEach((student) => {
+    createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher");
+  });
+  render();
+  notify(skipped ? `${targets.length}명에게 지각 벌점을 부여했습니다. 이미 부여된 ${skipped}명은 제외했습니다.` : `${targets.length}명에게 지각 벌점을 부여했습니다.`);
+}
+
+function applyAutoApprovalForReturnedOutings() {
+  if (!hasTeacherPermission("outing.approve")) return;
+  let changed = false;
+  state.outings.forEach((outing) => {
+    if (outing.decision === "pending" && isReturnPhotoCompleted(outing)) {
+      outing.decision = "approved";
+      changed = true;
+    }
+  });
+  if (changed) saveState();
+}
+
+function isReturnPhotoCompleted(outing) {
+  return outing?.status === "returned"
+    && Boolean(outing.returnedAt)
+    && (outing.photos || []).some((photo) => photo.type === "복귀 인증");
+}
+
+function formatStudentNumber(studentId) {
+  const value = String(studentId || "").trim();
+  return value.length > 3 ? value.slice(-3) : value || "-";
 }
 
 function getStudentsInCohort(cohort = selectedStudentCohort) {
@@ -319,7 +414,7 @@ function penaltySortControls() {
 function renderPenaltySummaryTable(summaries) {
   const rows = summaries.map(({ student, total, count }) =>
     el("tr", {}, [
-      el("td", {}, student.id),
+      el("td", {}, formatStudentNumber(student.id)),
       el("td", {}, student.name),
       el("td", {}, student.className || "-"),
       el("td", {}, el("strong", { className: getPenaltyPointClass(total) }, formatPenaltyPoints(total))),
@@ -347,10 +442,8 @@ function renderPenaltyHistoryTable(penalties) {
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(penalty.createdAt)),
-      el("td", {}, [
-        el("strong", {}, penalty.studentName || "-"),
-        el("span", { className: "cell-sub" }, penalty.studentId || "-"),
-      ]),
+      el("td", {}, formatStudentNumber(penalty.studentId)),
+      el("td", {}, penalty.studentName || "-"),
       el("td", {}, el("span", { className: getPenaltyPointClass(penalty.points) }, formatPenaltyPoints(penalty.points))),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
@@ -362,7 +455,8 @@ function renderPenaltyHistoryTable(penalties) {
       el("thead", {}, [
         el("tr", {}, [
           el("th", {}, "부여일"),
-          el("th", {}, "학생"),
+          el("th", {}, "번호"),
+          el("th", {}, "이름"),
           el("th", {}, "상/벌점"),
           el("th", {}, "사유"),
           el("th", {}, "담당자"),
@@ -450,6 +544,72 @@ function openPenaltyHistoryModal(studentId) {
   });
 }
 
+function openNotReturnedPenaltyModal(outing) {
+  if (!outing || !hasTeacherPermission("penalties.write")) return;
+  closeInfoModal();
+  const student = findStudent(outing.studentId) || {
+    id: outing.studentId,
+    name: outing.studentName,
+    className: outing.className,
+  };
+  if (hasNotReturnedPenaltyForOuting(outing)) {
+    notify("이미 이 외출 건에 미복귀 벌점이 부여되었습니다.");
+    render();
+    return;
+  }
+
+  const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 5", required: true });
+  const reasonInput = textarea("reason", "미복귀 사유를 입력하세요.");
+  reasonInput.value = "예상 복귀 시간 이후 미복귀";
+  reasonInput.required = true;
+  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
+  managerInput.required = true;
+
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${student.id || "-"})`)),
+    field("외출 신청", el("span", {}, formatDateCompact(outing.createdAt))),
+    field("예상 복귀", el("span", {}, formatExpectedReturn(outing.expectedReturn))),
+    field("벌점", pointsInput),
+    field("사유", reasonInput, "full"),
+    field("담당자", managerInput),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("부여", "btn"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const points = Number(data.points);
+    const reason = String(data.reason || "").trim();
+    if (!Number.isFinite(points) || points < 1) return notify("벌점은 1점 이상 입력해주세요.");
+    if (!reason) return notify("미복귀 사유를 입력해주세요.");
+    if (hasNotReturnedPenaltyForOuting(outing)) {
+      closeInfoModal();
+      render();
+      return notify("이미 이 외출 건에 미복귀 벌점이 부여되었습니다.");
+    }
+    createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
+    closeInfoModal();
+    render();
+    notify("미복귀 벌점을 부여했습니다.");
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "미복귀 벌점 부여 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "미복귀 벌점 부여"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
 function openAttendanceDeadlineModal() {
   closeInfoModal();
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -517,10 +677,8 @@ function renderAttendanceTable(checks) {
     .map((check) =>
       el("tr", {}, [
         el("td", {}, formatDateCompact(check.createdAt)),
-        el("td", {}, [
-          el("strong", {}, check.studentName || "-"),
-          el("span", { className: "cell-sub" }, check.studentId || "-"),
-        ]),
+        el("td", {}, formatStudentNumber(check.studentId)),
+        el("td", {}, check.studentName || "-"),
         el("td", {}, check.className || "-"),
         el("td", {}, attendanceStatusBadge(check)),
         el("td", {}, check.reason || "-"),
@@ -534,7 +692,8 @@ function renderAttendanceTable(checks) {
       el("thead", {}, [
         el("tr", {}, [
           el("th", {}, "인증 시각"),
-          el("th", {}, "학생"),
+          el("th", {}, "번호"),
+          el("th", {}, "이름"),
           el("th", {}, "반"),
           el("th", {}, "상태"),
           el("th", {}, "사유"),
@@ -583,10 +742,8 @@ function renderTeacherOutingTable(outings, options = {}) {
   const rows = outings.map((outing) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(outing.createdAt)),
-      el("td", {}, [
-        el("strong", {}, outing.studentName || "-"),
-        el("span", { className: "cell-sub" }, outing.studentId || "-"),
-      ]),
+      el("td", {}, formatStudentNumber(outing.studentId)),
+      el("td", {}, outing.studentName || "-"),
       el("td", {}, outing.reason || "-"),
       el("td", { className: "wide-cell" }, outing.earlyLeaveReason || outing.detail || "-"),
       el("td", {}, formatExpectedReturn(outing.expectedReturn)),
@@ -603,7 +760,8 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("thead", {}, [
         el("tr", {}, [
           el("th", {}, "신청일"),
-          el("th", {}, "학생"),
+          el("th", {}, "번호"),
+          el("th", {}, "이름"),
           el("th", {}, "사유"),
           el("th", {}, "상세"),
           el("th", {}, "예상"),
@@ -622,10 +780,16 @@ function renderTeacherOutingTable(outings, options = {}) {
 function teacherRowActions(outing, options = {}) {
   if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
   const canDecide = outing.decision === "pending" && hasTeacherPermission("outing.approve");
+  const canGiveNotReturnedPenalty = canGiveNotReturnedPenaltyForOuting(outing);
 
   return [
     canDecide ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
     canDecide ? button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
+    canGiveNotReturnedPenalty
+      ? hasNotReturnedPenaltyForOuting(outing)
+        ? el("button", { className: "mini-btn", type: "button", disabled: true }, "벌점 완료")
+        : button("미복귀 벌점", "mini-btn danger", "button", () => openNotReturnedPenaltyModal(outing))
+      : null,
     hasTeacherPermission("outing.memo") ? button("메모", "mini-btn", "button", () => {
       const memo = prompt("교사용 메모", outing.teacherMemo || "");
       if (memo === null) return;
@@ -635,6 +799,25 @@ function teacherRowActions(outing, options = {}) {
     }) : null,
     hasTeacherPermission("outing.delete") ? button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)) : null,
   ].filter(Boolean);
+}
+
+function canGiveNotReturnedPenaltyForOuting(outing) {
+  return hasTeacherPermission("penalties.write")
+    && outing?.decision !== "rejected"
+    && outing?.status !== "returned";
+}
+
+function hasNotReturnedPenaltyForOuting(outing) {
+  const label = notReturnedPenaltyReasonLabel(outing);
+  return (state.penalties || []).some((penalty) =>
+    String(penalty.studentId || "").trim() === String(outing?.studentId || "").trim()
+    && Number(penalty.points) > 0
+    && String(penalty.reason || "").startsWith(label)
+  );
+}
+
+function notReturnedPenaltyReasonLabel(outing) {
+  return `${NOT_RETURNED_PENALTY_REASON_PREFIX} (신청: ${formatDateCompact(outing?.createdAt)})`;
 }
 
 function photoMiniList(photos = []) {
@@ -811,7 +994,7 @@ function teacherStudentForm() {
     .map((student) => {
       const profile = getStudentProfileForTeacher(student.id);
       return el("tr", {}, [
-        el("td", {}, student.id),
+        el("td", {}, formatStudentNumber(student.id)),
         el("td", {}, student.name),
         el("td", {}, student.className),
         el("td", {}, profile ? el("span", { className: "badge approved" }, "완료") : el("span", { className: "badge" }, "미등록")),
@@ -828,7 +1011,7 @@ function teacherStudentForm() {
     panel("학생 등록", [form]),
     studentCountStatGroup(),
     table(
-      ["고유번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
+      ["번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
