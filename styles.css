@@ -930,11 +930,19 @@ th {
 }
 
 .penalty-detail-table-wrap {
-  max-height: min(70vh, 620px);
+  max-height: calc(100vh - 170px);
+  overflow: auto;
 }
 
 .penalty-detail-table {
-  min-width: 840px;
+  width: 100%;
+  min-width: 760px;
+}
+
+.penalty-detail-table th,
+.penalty-detail-table td {
+  padding: 12px 14px;
+  font-size: 0.94rem;
 }
 
 .photo-modal {
@@ -2051,6 +2059,16 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .history-modal-panel {
   width: min(420px, 100%);
+}
+
+.history-modal-panel.penalty-detail-modal {
+  width: min(1120px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+}
+
+.history-modal-panel.penalty-detail-modal .wide-cell {
+  min-width: 280px;
+  max-width: 520px;
 }
 
 .student-history-list {
