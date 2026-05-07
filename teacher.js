@@ -217,7 +217,12 @@ function reasonAttendanceAction(student) {
   if (getStudentAttendanceForDate(student.id)) {
     return el("button", { className: "mini-btn", type: "button", disabled: true }, "처리 완료");
   }
-  return button("사유 인증", "mini-btn", "button", () => openTeacherReasonAttendanceModal(student));
+  const actions = [];
+  if (hasLateAttendancePenaltyForToday(student.id)) {
+    actions.push(el("span", { className: "mini-status penalty-applied" }, "벌점 부여 완료"));
+  }
+  actions.push(button("사유 인증", "mini-btn", "button", () => openTeacherReasonAttendanceModal(student)));
+  return el("div", { className: "attendance-action-stack" }, actions);
 }
 
 function hasLateAttendancePenaltyForToday(studentId) {
@@ -595,20 +600,18 @@ function openPenaltyModal() {
   closeInfoModal();
   const selectedStudents = [];
   const selectedStudentList = el("div", { className: "penalty-selected-students" });
-  let pendingPenaltyStudent = null;
   const availableStudents = [...state.students]
     .filter((student) => !selectedStudentCohort || getStudentCohort(student) === selectedStudentCohort)
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
   const studentSearch = input("studentSearch", "search", "번호 입력");
-  const lookupResult = el("div", { className: "student-check-result" }, "번호를 조회해주세요.");
-  const lookupStudentButton = button("조회", "btn secondary", "button", () => {
+  const lookupResult = el("div", { className: "student-check-result" }, "번호 입력 후 추가를 눌러주세요.");
+  function findPenaltyStudentByInput() {
     const query = String(studentSearch.value || "").trim().toLowerCase();
     const normalizedShortNumber = /^\d{1,3}$/.test(query) ? query.padStart(3, "0") : query;
-    pendingPenaltyStudent = null;
     if (!query) {
       lookupResult.className = "student-check-result error";
-      lookupResult.textContent = "조회할 번호를 입력해주세요.";
-      return;
+      lookupResult.textContent = "추가할 번호를 입력해주세요.";
+      return null;
     }
     const matches = availableStudents.filter((student) =>
       [student.id, formatStudentNumber(student.id)]
@@ -618,28 +621,34 @@ function openPenaltyModal() {
     if (matches.length !== 1) {
       lookupResult.className = "student-check-result error";
       lookupResult.textContent = matches.length ? "같은 번호의 학생이 여러 명입니다. 전체 고유번호로 조회해주세요." : "해당 번호의 학생을 찾을 수 없습니다.";
+      return null;
+    }
+    return matches[0];
+  }
+  function addPenaltyStudentFromInput() {
+    const student = findPenaltyStudentByInput();
+    if (!student) return;
+    if (selectedStudents.some((item) => item.id === student.id)) {
+      lookupResult.className = "student-check-result error";
+      lookupResult.textContent = "이미 추가된 학생입니다.";
       return;
     }
-    pendingPenaltyStudent = matches[0];
-    lookupResult.className = "student-check-result success";
-    lookupResult.textContent = `${formatStudentNumber(pendingPenaltyStudent.id)} ${pendingPenaltyStudent.name} 학생이 확인되었습니다.`;
-  });
-  studentSearch.addEventListener("input", () => {
-    pendingPenaltyStudent = null;
-    lookupResult.className = "student-check-result";
-    lookupResult.textContent = "번호를 조회해주세요.";
-  });
-  const addStudentButton = button("추가", "btn secondary", "button", () => {
-    const student = pendingPenaltyStudent;
-    if (!student) return notify("번호 조회 후 학생을 추가해주세요.");
-    if (selectedStudents.some((item) => item.id === student.id)) return notify("이미 추가된 학생입니다.");
     selectedStudents.push(student);
     studentSearch.value = "";
-    pendingPenaltyStudent = null;
-    lookupResult.className = "student-check-result";
-    lookupResult.textContent = "번호를 조회해주세요.";
+    lookupResult.className = "student-check-result success";
+    lookupResult.textContent = `${formatStudentNumber(student.id)} ${student.name} 학생을 추가했습니다.`;
     renderSelectedPenaltyStudents();
+  }
+  studentSearch.addEventListener("input", () => {
+    lookupResult.className = "student-check-result";
+    lookupResult.textContent = "번호 입력 후 추가를 눌러주세요.";
   });
+  studentSearch.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addPenaltyStudentFromInput();
+  });
+  const addStudentButton = button("추가", "btn secondary", "button", addPenaltyStudentFromInput);
   const typeSelect = el("select", { name: "scoreType", required: true }, [
     el("option", { value: "penalty" }, "벌점"),
     el("option", { value: "reward" }, "상점"),
@@ -656,7 +665,7 @@ function openPenaltyModal() {
 
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생 추가", el("div", { className: "penalty-student-lookup" }, [
-      el("div", { className: "penalty-student-picker" }, [studentSearch, lookupStudentButton, addStudentButton]),
+      el("div", { className: "penalty-student-picker" }, [studentSearch, addStudentButton]),
       lookupResult,
     ]), "full"),
     field("부여 대상", selectedStudentList, "full"),
@@ -674,20 +683,19 @@ function openPenaltyModal() {
   ]);
 
   function renderSelectedPenaltyStudents() {
-    selectedStudentList.replaceChildren(
-      selectedStudents.length
-        ? selectedStudents.map((student) =>
-            el("span", { className: "penalty-student-chip" }, [
-              `${formatStudentNumber(student.id)} ${student.name}`,
-              button("삭제", "mini-btn", "button", () => {
-                const index = selectedStudents.findIndex((item) => item.id === student.id);
-                if (index >= 0) selectedStudents.splice(index, 1);
-                renderSelectedPenaltyStudents();
-              }),
-            ])
-          )
-        : el("span", { className: "subtle" }, "아직 추가된 학생이 없습니다.")
-    );
+    const nodes = selectedStudents.length
+      ? selectedStudents.map((student) =>
+          el("span", { className: "penalty-student-chip" }, [
+            `${formatStudentNumber(student.id)}-${student.name}`,
+            button("삭제", "mini-btn", "button", () => {
+              const index = selectedStudents.findIndex((item) => item.id === student.id);
+              if (index >= 0) selectedStudents.splice(index, 1);
+              renderSelectedPenaltyStudents();
+            }),
+          ])
+        )
+      : [el("span", { className: "subtle" }, "아직 추가된 학생이 없습니다.")];
+    selectedStudentList.replaceChildren(...nodes);
   }
   renderSelectedPenaltyStudents();
 

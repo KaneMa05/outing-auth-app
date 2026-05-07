@@ -923,7 +923,7 @@ th {
 }
 
 .penalty-modal {
-  width: min(760px, 100%);
+  width: min(920px, 100%);
   max-height: min(86vh, 760px);
   overflow-y: auto;
 }
@@ -934,7 +934,7 @@ th {
 
 .penalty-student-picker {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(96px, auto);
   gap: 8px;
 }
 
@@ -1164,6 +1164,30 @@ th {
 
 .action-cell {
   min-width: 160px;
+}
+
+.attendance-action-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mini-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: var(--surface-soft);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.mini-status.penalty-applied {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .attendance-bulk-actions {
@@ -2043,18 +2067,22 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .student-profile-head h2 {
+  min-width: 0;
   margin: 3px 0 0;
   font-size: 1.35rem;
+  overflow-wrap: anywhere;
 }
 
 .student-profile-name-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  min-width: 0;
 }
 
 .student-profile-name-row .mini-btn {
+  flex: 0 0 auto;
   min-height: 26px;
 }
 
