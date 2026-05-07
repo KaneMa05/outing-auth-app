@@ -150,7 +150,7 @@ function renderTeacher() {
       visibleOutings.length
         ? el("div", { className: "teacher-sections" }, [
             teacherOutingSection("처리 필요", pendingOutings, { teacher: true }),
-            teacherOutingSection("처리 완료", completedOutings, { teacher: true }),
+            completedTeacherOutingSections(completedOutings, { teacher: true }),
           ])
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
@@ -1006,6 +1006,48 @@ function teacherOutingSection(titleText, outings, options) {
     ]),
     outings.length ? renderTeacherOutingTable(outings, options) : el("div", { className: "empty" }, "해당 기록이 없습니다."),
   ]);
+}
+
+function completedTeacherOutingSections(outings, options) {
+  const sortedOutings = sortOutingsByCreatedAtDesc(outings);
+  return el("section", { className: "teacher-section" }, [
+    el("div", { className: "section-heading" }, [
+      el("h3", {}, "처리 완료"),
+      el("span", {}, String(sortedOutings.length) + "건"),
+    ]),
+    sortedOutings.length
+      ? el(
+          "div",
+          { className: "teacher-date-sections" },
+          groupOutingsByCreatedDate(sortedOutings).map((group) =>
+            el("section", { className: "teacher-date-section" }, [
+              el("div", { className: "section-heading compact" }, [
+                el("h3", {}, group.date),
+                el("span", {}, String(group.outings.length) + "건"),
+              ]),
+              renderTeacherOutingTable(group.outings, options),
+            ])
+          )
+        )
+      : el("div", { className: "empty" }, "해당 기록이 없습니다."),
+  ]);
+}
+
+function groupOutingsByCreatedDate(outings) {
+  const groups = new Map();
+  outings.forEach((outing) => {
+    const date = formatDateKey(outing.createdAt);
+    if (!groups.has(date)) groups.set(date, []);
+    groups.get(date).push(outing);
+  });
+  return [...groups.entries()].map(([date, groupOutings]) => ({
+    date,
+    outings: sortOutingsByCreatedAtDesc(groupOutings),
+  }));
+}
+
+function sortOutingsByCreatedAtDesc(outings) {
+  return [...outings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 function renderTeacherOutingTable(outings, options = {}) {

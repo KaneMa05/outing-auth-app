@@ -696,6 +696,24 @@ th {
   gap: 12px;
 }
 
+.teacher-date-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.teacher-date-section {
+  display: grid;
+  gap: 8px;
+}
+
+.section-heading.compact {
+  padding: 0 2px;
+}
+
+.section-heading.compact h3 {
+  font-size: 0.95rem;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
