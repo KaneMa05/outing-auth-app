@@ -924,6 +924,33 @@ th {
   min-height: 94px;
 }
 
+.penalty-student-picker {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  gap: 8px;
+}
+
+.penalty-selected-students {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.penalty-student-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  padding: 4px 4px 4px 10px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .penalty-detail-modal {
   width: min(980px, 100%);
   max-height: min(86vh, 760px);

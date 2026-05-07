@@ -10,6 +10,14 @@ const penaltyPeriodFilter = {
 const LATE_ATTENDANCE_PENALTY_POINTS = 5;
 const LATE_ATTENDANCE_PENALTY_REASON = "지각 - 출석 미인증";
 const NOT_RETURNED_PENALTY_REASON_PREFIX = "외출 후 미복귀";
+const PENALTY_PRESETS = [
+  { reason: "주간과제 미제출", points: 10 },
+  { reason: "개인사유", points: 5 },
+  { reason: "오후 지각", points: 5 },
+  { reason: "저녁 지각", points: 5 },
+  { reason: "일일과제 미제출", points: 5 },
+  { reason: "무단이탈", points: 10 },
+];
 
 function renderTeacherAuthLoading() {
   return el("div", { className: "grid" }, [
@@ -533,20 +541,43 @@ function renderPenaltyHistoryTable(penalties) {
 
 function openPenaltyModal() {
   closeInfoModal();
-  const studentSelect = el(
-    "select",
-    { name: "studentId", required: true },
-    [
-      el("option", { value: "" }, "학생 선택"),
-      ...[...state.students]
-        .filter((student) => !selectedStudentCohort || getStudentCohort(student) === selectedStudentCohort)
-        .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
-        .map((student) => el("option", { value: student.id }, `${student.id} ${student.name}`)),
-    ]
-  );
+  const selectedStudents = [];
+  const selectedStudentList = el("div", { className: "penalty-selected-students" });
+  const availableStudents = [...state.students]
+    .filter((student) => !selectedStudentCohort || getStudentCohort(student) === selectedStudentCohort)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+  const studentSearch = input("studentSearch", "search", "번호 또는 이름 검색");
+  const studentSelect = el("select", { name: "studentId" });
+  const renderPenaltyStudentOptions = () => {
+    const query = String(studentSearch.value || "").trim().toLowerCase();
+    const matchedStudents = availableStudents.filter((student) => {
+      if (!query) return true;
+      return [student.id, formatStudentNumber(student.id), student.name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+    studentSelect.replaceChildren(
+      el("option", { value: "" }, matchedStudents.length ? "학생 선택" : "검색 결과 없음"),
+      ...matchedStudents.map((student) => el("option", { value: student.id }, `${formatStudentNumber(student.id)} ${student.name}`))
+    );
+  };
+  studentSearch.addEventListener("input", renderPenaltyStudentOptions);
+  renderPenaltyStudentOptions();
+  const addStudentButton = button("추가", "btn secondary", "button", () => {
+    const student = findStudent(studentSelect.value);
+    if (!student) return notify("추가할 학생을 선택해주세요.");
+    if (selectedStudents.some((item) => item.id === student.id)) return notify("이미 추가된 학생입니다.");
+    selectedStudents.push(student);
+    studentSelect.value = "";
+    renderSelectedPenaltyStudents();
+  });
   const typeSelect = el("select", { name: "scoreType", required: true }, [
     el("option", { value: "penalty" }, "벌점"),
     el("option", { value: "reward" }, "상점"),
+  ]);
+  const presetSelect = el("select", { name: "penaltyPreset" }, [
+    el("option", { value: "" }, "직접 입력"),
+    ...PENALTY_PRESETS.map((preset) => el("option", { value: preset.reason }, `${preset.reason} - ${preset.points}점`)),
   ]);
   const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 1", required: true });
   const reasonInput = textarea("reason", "상/벌점 사유");
@@ -555,8 +586,10 @@ function openPenaltyModal() {
   managerInput.required = true;
 
   const form = el("form", { className: "form-grid penalty-form" }, [
-    field("학생", studentSelect),
+    field("학생 추가", el("div", { className: "penalty-student-picker" }, [studentSearch, studentSelect, addStudentButton]), "full"),
+    field("부여 대상", selectedStudentList, "full"),
     field("구분", typeSelect),
+    field("벌점 항목", presetSelect),
     field("점수", pointsInput),
     field("사유", reasonInput, "full"),
     field("담당자", managerInput),
@@ -568,18 +601,51 @@ function openPenaltyModal() {
     ]),
   ]);
 
+  function renderSelectedPenaltyStudents() {
+    selectedStudentList.replaceChildren(
+      selectedStudents.length
+        ? selectedStudents.map((student) =>
+            el("span", { className: "penalty-student-chip" }, [
+              `${formatStudentNumber(student.id)} ${student.name}`,
+              button("삭제", "mini-btn", "button", () => {
+                const index = selectedStudents.findIndex((item) => item.id === student.id);
+                if (index >= 0) selectedStudents.splice(index, 1);
+                renderSelectedPenaltyStudents();
+              }),
+            ])
+          )
+        : el("span", { className: "subtle" }, "아직 추가된 학생이 없습니다.")
+    );
+  }
+  renderSelectedPenaltyStudents();
+
+  const syncPresetState = () => {
+    const isPenalty = typeSelect.value === "penalty";
+    presetSelect.disabled = !isPenalty;
+    if (!isPenalty) {
+      presetSelect.value = "";
+      return;
+    }
+    const preset = PENALTY_PRESETS.find((item) => item.reason === presetSelect.value);
+    if (!preset) return;
+    pointsInput.value = String(preset.points);
+    reasonInput.value = preset.reason;
+  };
+  typeSelect.addEventListener("change", syncPresetState);
+  presetSelect.addEventListener("change", syncPresetState);
+  syncPresetState();
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = formData(form);
-    const student = findStudent(data.studentId);
     const points = Number(data.points);
-    if (!student) return notify("학생을 선택해주세요.");
+    if (!selectedStudents.length) return notify("학생을 한 명 이상 추가해주세요.");
     if (!Number.isFinite(points) || points < 1) return notify("점수는 1점 이상 입력해주세요.");
     const signedPoints = data.scoreType === "reward" ? -Math.floor(points) : Math.floor(points);
-    createPenalty(student, signedPoints, data.reason, data.managerName);
+    selectedStudents.forEach((student) => createPenalty(student, signedPoints, data.reason, data.managerName));
     closeInfoModal();
     render();
-    notify(data.scoreType === "reward" ? "상점을 부여했습니다." : "벌점을 부여했습니다.");
+    notify(`${selectedStudents.length}명에게 ${data.scoreType === "reward" ? "상점" : "벌점"}을 부여했습니다.`);
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -666,6 +732,69 @@ function openNotReturnedPenaltyModal(outing) {
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "미복귀 벌점 부여 닫기" }),
     el("div", { className: "info-modal-panel penalty-modal" }, [
       el("strong", {}, "미복귀 벌점 부여"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function openRejectOutingPenaltyModal(outing) {
+  if (!outing || !hasTeacherPermission("outing.approve") || !hasTeacherPermission("penalties.write")) return;
+  closeInfoModal();
+  const student = findStudent(outing.studentId) || {
+    id: outing.studentId,
+    name: outing.studentName,
+    className: outing.className,
+  };
+
+  const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 5", required: true });
+  const reasonInput = textarea("reason", "반려 및 벌점 사유를 입력하세요.");
+  reasonInput.value = "외출 후 미복귀";
+  reasonInput.required = true;
+  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
+  managerInput.required = true;
+
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${formatStudentNumber(student.id)})`)),
+    field("외출 신청", el("span", {}, formatDateCompact(outing.createdAt))),
+    field("예상 복귀", el("span", {}, formatExpectedReturn(outing.expectedReturn))),
+    field("벌점", pointsInput),
+    field("사유", reasonInput, "full"),
+    field("담당자", managerInput),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("반려 및 벌점 부여", "btn danger"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const points = Number(data.points);
+    const reason = String(data.reason || "").trim();
+    if (!Number.isFinite(points) || points < 1) return notify("벌점은 1점 이상 입력해주세요.");
+    if (!reason) return notify("반려 사유를 입력해주세요.");
+
+    outing.decision = "rejected";
+    outing.teacherMemo = `반려 사유: ${reason}`;
+    const alreadyPenalized = hasNotReturnedPenaltyForOuting(outing);
+    if (!alreadyPenalized) {
+      createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
+    }
+    saveState();
+    closeInfoModal();
+    render();
+    notify(alreadyPenalized ? "반려 처리했습니다. 기존 미복귀 벌점이 있어 추가 부여는 생략했습니다." : "반려 처리하고 벌점을 부여했습니다.");
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "반려 및 벌점 부여 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "반려 및 벌점 부여"),
       form,
     ]),
   ]);
@@ -845,11 +974,15 @@ function teacherRowActions(outing, options = {}) {
   if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
   const canDecide = outing.decision === "pending" && hasTeacherPermission("outing.approve");
   const canGiveNotReturnedPenalty = canGiveNotReturnedPenaltyForOuting(outing);
+  const canRejectWithPenalty = canDecide && hasTeacherPermission("penalties.write");
 
   return [
     canDecide ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
-    canDecide ? button("반려", "mini-btn danger", "button", () => decideOuting(outing.id, "rejected")) : null,
-    canGiveNotReturnedPenalty
+    canDecide ? button("반려", "mini-btn danger", "button", () => {
+      if (canRejectWithPenalty) openRejectOutingPenaltyModal(outing);
+      else decideOuting(outing.id, "rejected");
+    }) : null,
+    canGiveNotReturnedPenalty && !canDecide
       ? hasNotReturnedPenaltyForOuting(outing)
         ? el("button", { className: "mini-btn", type: "button", disabled: true }, "벌점 완료")
         : button("미복귀 벌점", "mini-btn danger", "button", () => openNotReturnedPenaltyModal(outing))
