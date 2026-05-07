@@ -170,7 +170,7 @@ function renderAttendanceManagement() {
       ]),
     ]),
     panel("오늘 출석 사진", [
-      el("p", { className: "subtle" }, "학생이 촬영한 현장 사진으로 출석 인증 여부를 확인합니다. 이미지는 Storage에 저장되고 이 화면은 경로만 불러옵니다."),
+      el("p", { className: "subtle" }, "학생이 제출한 현장 사진과 사유를 확인해 오늘 출석 상태를 관리합니다."),
       todayChecks.length ? renderAttendanceTable(todayChecks) : el("div", { className: "empty" }, "오늘 출석 인증 내역이 없습니다."),
     ]),
     panel("미인증 학생", [
