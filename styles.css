@@ -923,7 +923,9 @@ th {
 }
 
 .penalty-modal {
-  width: min(520px, 100%);
+  width: min(760px, 100%);
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
 }
 
 .penalty-form textarea {
@@ -932,8 +934,13 @@ th {
 
 .penalty-student-picker {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  grid-template-columns: minmax(140px, 1fr) auto auto;
   gap: 8px;
+}
+
+.penalty-student-lookup {
+  display: grid;
+  gap: 6px;
 }
 
 .penalty-selected-students {
@@ -2256,6 +2263,7 @@ body:not([data-app-mode="teacher"]) .btn {
   .grid.two,
   .module-grid,
   .form-grid,
+  .penalty-student-picker,
   .teacher-tools,
   .teacher-search,
   .detail-grid {

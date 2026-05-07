@@ -465,20 +465,20 @@ function downloadPenaltySummaryCsv(summaries) {
       String(summary.count),
     ]),
   ];
-  downloadCsv(`penalty-summary-${getPenaltyExportDateLabel()}.csv`, rows);
+  downloadCsv(`벌점 내역_${getPenaltyExportDateLabel()}.xls`, rows);
   notify("상/벌점 누적 내역 파일을 다운로드했습니다.");
 }
 
 function getPenaltyExportDateLabel() {
   if (penaltyPeriodFilter.start || penaltyPeriodFilter.end) {
-    return `${penaltyPeriodFilter.start || "start"}-${penaltyPeriodFilter.end || "end"}`;
+    return `${penaltyPeriodFilter.start || "시작"}~${penaltyPeriodFilter.end || "종료"}`;
   }
   return getTodayDateKey();
 }
 
 function downloadCsv(filename, rows) {
   const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
-  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob(["\ufeff", csv], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = el("a", { href: url, download: filename, style: "display:none" });
   document.body.appendChild(link);
@@ -595,32 +595,49 @@ function openPenaltyModal() {
   closeInfoModal();
   const selectedStudents = [];
   const selectedStudentList = el("div", { className: "penalty-selected-students" });
+  let pendingPenaltyStudent = null;
   const availableStudents = [...state.students]
     .filter((student) => !selectedStudentCohort || getStudentCohort(student) === selectedStudentCohort)
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
-  const studentSearch = input("studentSearch", "search", "번호 또는 이름 검색");
-  const studentSelect = el("select", { name: "studentId" });
-  const renderPenaltyStudentOptions = () => {
+  const studentSearch = input("studentSearch", "search", "번호 입력");
+  const lookupResult = el("div", { className: "student-check-result" }, "번호를 조회해주세요.");
+  const lookupStudentButton = button("조회", "btn secondary", "button", () => {
     const query = String(studentSearch.value || "").trim().toLowerCase();
-    const matchedStudents = availableStudents.filter((student) => {
-      if (!query) return true;
-      return [student.id, formatStudentNumber(student.id), student.name]
+    const normalizedShortNumber = /^\d{1,3}$/.test(query) ? query.padStart(3, "0") : query;
+    pendingPenaltyStudent = null;
+    if (!query) {
+      lookupResult.className = "student-check-result error";
+      lookupResult.textContent = "조회할 번호를 입력해주세요.";
+      return;
+    }
+    const matches = availableStudents.filter((student) =>
+      [student.id, formatStudentNumber(student.id)]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
-    studentSelect.replaceChildren(
-      el("option", { value: "" }, matchedStudents.length ? "학생 선택" : "검색 결과 없음"),
-      ...matchedStudents.map((student) => el("option", { value: student.id }, `${formatStudentNumber(student.id)} ${student.name}`))
+        .some((value) => String(value).toLowerCase() === query || String(value).toLowerCase() === normalizedShortNumber)
     );
-  };
-  studentSearch.addEventListener("input", renderPenaltyStudentOptions);
-  renderPenaltyStudentOptions();
+    if (matches.length !== 1) {
+      lookupResult.className = "student-check-result error";
+      lookupResult.textContent = matches.length ? "같은 번호의 학생이 여러 명입니다. 전체 고유번호로 조회해주세요." : "해당 번호의 학생을 찾을 수 없습니다.";
+      return;
+    }
+    pendingPenaltyStudent = matches[0];
+    lookupResult.className = "student-check-result success";
+    lookupResult.textContent = `${formatStudentNumber(pendingPenaltyStudent.id)} ${pendingPenaltyStudent.name} 학생이 확인되었습니다.`;
+  });
+  studentSearch.addEventListener("input", () => {
+    pendingPenaltyStudent = null;
+    lookupResult.className = "student-check-result";
+    lookupResult.textContent = "번호를 조회해주세요.";
+  });
   const addStudentButton = button("추가", "btn secondary", "button", () => {
-    const student = findStudent(studentSelect.value);
-    if (!student) return notify("추가할 학생을 선택해주세요.");
+    const student = pendingPenaltyStudent;
+    if (!student) return notify("번호 조회 후 학생을 추가해주세요.");
     if (selectedStudents.some((item) => item.id === student.id)) return notify("이미 추가된 학생입니다.");
     selectedStudents.push(student);
-    studentSelect.value = "";
+    studentSearch.value = "";
+    pendingPenaltyStudent = null;
+    lookupResult.className = "student-check-result";
+    lookupResult.textContent = "번호를 조회해주세요.";
     renderSelectedPenaltyStudents();
   });
   const typeSelect = el("select", { name: "scoreType", required: true }, [
@@ -638,7 +655,10 @@ function openPenaltyModal() {
   managerInput.required = true;
 
   const form = el("form", { className: "form-grid penalty-form" }, [
-    field("학생 추가", el("div", { className: "penalty-student-picker" }, [studentSearch, studentSelect, addStudentButton]), "full"),
+    field("학생 추가", el("div", { className: "penalty-student-lookup" }, [
+      el("div", { className: "penalty-student-picker" }, [studentSearch, lookupStudentButton, addStudentButton]),
+      lookupResult,
+    ]), "full"),
     field("부여 대상", selectedStudentList, "full"),
     field("구분", typeSelect),
     field("벌점 항목", presetSelect),
