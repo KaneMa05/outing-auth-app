@@ -48,6 +48,7 @@ const routePermissions = {
   grades: "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
+  managers: "managers.read",
   students: "students.read",
   duplicates: "outing.audit",
   trash: "outing.delete",
@@ -65,7 +66,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "penalties", "attendance", "grades", "students", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "penalties", "attendance", "grades", "managers", "students", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -126,6 +127,7 @@ function defaultState() {
       attendanceDeadlineEnabled: false,
     },
     students: [],
+    managers: [],
     outings: [],
     deletedOutings: [],
     attendanceChecks: [],
@@ -143,6 +145,7 @@ function mergeDefaultState(nextState) {
       ...(nextState?.settings || {}),
     },
     students: Array.isArray(nextState?.students) ? nextState.students : defaults.students,
+    managers: Array.isArray(nextState?.managers) ? nextState.managers : defaults.managers,
     outings: Array.isArray(nextState?.outings) ? nextState.outings : defaults.outings,
     deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
@@ -501,6 +504,7 @@ function scheduleLocalDevSave() {
 function hasLocalDevStateData(snapshot) {
   return Boolean(
     snapshot?.students?.length ||
+    snapshot?.managers?.length ||
     snapshot?.outings?.length ||
     snapshot?.deletedOutings?.length ||
     snapshot?.attendanceChecks?.length ||
@@ -512,6 +516,7 @@ function makeLocalDevSafeState() {
   const snapshot = JSON.parse(JSON.stringify(state));
   snapshot.outings = (snapshot.outings || []).map(stripPhotoDataForLocalStorage);
   snapshot.deletedOutings = (snapshot.deletedOutings || []).map(stripPhotoDataForLocalStorage);
+  snapshot.managers = snapshot.managers || [];
   snapshot.attendanceChecks = snapshot.attendanceChecks || [];
   snapshot.penalties = snapshot.penalties || [];
   return snapshot;
@@ -519,6 +524,7 @@ function makeLocalDevSafeState() {
 
 async function loadStateFromRemote() {
   const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
+  const managerColumns = "id,name,role,memo,is_active,created_at";
   const outingColumns = [
     "id",
     "student_id",
@@ -564,14 +570,15 @@ async function loadStateFromRemote() {
   ].join(",");
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
+    remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true }),
     remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
     remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
     remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
     remoteStore.from("penalties").select(penaltyColumns).order("created_at", { ascending: false }),
   ]);
-  const [{ data: students, error: studentsError }, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
-  let attendanceResult = remoteResults[3];
-  const penaltyResult = remoteResults[4];
+  const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
+  let attendanceResult = remoteResults[4];
+  const penaltyResult = remoteResults[5];
   if (isMissingColumnError(attendanceResult.error, "reason") || isMissingColumnError(attendanceResult.error, "detail")) {
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
@@ -581,6 +588,7 @@ async function loadStateFromRemote() {
   }
 
   if (studentsError) throw studentsError;
+  if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
   if (outingsError) throw outingsError;
   if (photosError) throw photosError;
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
@@ -596,6 +604,7 @@ async function loadStateFromRemote() {
     appRegisteredAt: student.app_registered_at || "",
     createdAt: student.created_at,
   }));
+  if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
 
   const mappedOutings = (outings || []).map((outing) => ({
     id: outing.id,
@@ -646,6 +655,24 @@ async function saveStateToRemote() {
       .from("students")
       .upsert(rosterRows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw error;
+  }
+
+  const managerRows = (state.managers || [])
+    .filter((manager) => manager.id && manager.name)
+    .map((manager) => ({
+      id: manager.id,
+      name: manager.name,
+      role: manager.role || null,
+      memo: manager.memo || null,
+      is_active: manager.isActive !== false,
+      created_at: manager.createdAt || new Date().toISOString(),
+    }));
+
+  if (managerRows.length) {
+    const { error } = await remoteStore
+      .from("managers")
+      .upsert(managerRows, { onConflict: "id" });
+    if (error && !isMissingRelationError(error, "managers")) throw error;
   }
 
   const registeredStudents = state.students
@@ -1214,6 +1241,17 @@ function mapPenaltyFromRemote(penalty) {
     reason: penalty.reason || "",
     managerName: penalty.manager_name || "",
     createdAt: penalty.created_at,
+  };
+}
+
+function mapManagerFromRemote(manager) {
+  return {
+    id: manager.id,
+    name: manager.name || "",
+    role: manager.role || "",
+    memo: manager.memo || "",
+    isActive: manager.is_active !== false,
+    createdAt: manager.created_at,
   };
 }
 

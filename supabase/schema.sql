@@ -51,6 +51,15 @@ create table if not exists public.manager_allowed_ips (
   last_seen_at timestamptz not null default now()
 );
 
+create table if not exists public.managers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  role text,
+  memo text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.attendance_checks (
   id uuid primary key default gen_random_uuid(),
   student_id text not null references public.students(id) on delete cascade,
@@ -142,6 +151,7 @@ alter table public.students enable row level security;
 alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
 alter table public.manager_allowed_ips enable row level security;
+alter table public.managers enable row level security;
 alter table public.attendance_checks enable row level security;
 alter table public.penalties enable row level security;
 
@@ -158,6 +168,9 @@ drop policy if exists "anon_outings_update_teacher_decision" on public.outings;
 drop policy if exists "anon_outings_soft_delete" on public.outings;
 drop policy if exists "anon_photos_select" on public.outing_photos;
 drop policy if exists "anon_photos_insert" on public.outing_photos;
+drop policy if exists "anon_managers_select_active" on public.managers;
+drop policy if exists "anon_managers_insert" on public.managers;
+drop policy if exists "anon_managers_update" on public.managers;
 drop policy if exists "anon_attendance_select" on public.attendance_checks;
 drop policy if exists "anon_attendance_insert" on public.attendance_checks;
 drop policy if exists "anon_penalties_select" on public.penalties;
@@ -169,6 +182,7 @@ revoke all on public.students from anon;
 revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
 revoke all on public.manager_allowed_ips from anon;
+revoke all on public.managers from anon;
 revoke all on public.attendance_checks from anon;
 revoke all on public.penalties from anon;
 
@@ -261,6 +275,32 @@ grant insert (
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
+
+grant select (
+  id,
+  name,
+  role,
+  memo,
+  is_active,
+  created_at
+) on public.managers to anon;
+
+grant insert (
+  id,
+  name,
+  role,
+  memo,
+  is_active,
+  created_at
+) on public.managers to anon;
+
+grant update (
+  name,
+  role,
+  memo,
+  is_active,
+  created_at
+) on public.managers to anon;
 
 grant select (
   id,
@@ -427,6 +467,25 @@ with check (
       and outings.decision <> 'rejected'
   )
 );
+
+create policy "anon_managers_select_active"
+on public.managers
+for select
+to anon
+using (is_active = true);
+
+create policy "anon_managers_insert"
+on public.managers
+for insert
+to anon
+with check (is_active = true and name is not null);
+
+create policy "anon_managers_update"
+on public.managers
+for update
+to anon
+using (true)
+with check (name is not null);
 
 create policy "anon_attendance_select"
 on public.attendance_checks

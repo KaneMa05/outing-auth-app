@@ -660,8 +660,7 @@ function openPenaltyModal() {
   const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 1", required: true });
   const reasonInput = textarea("reason", "상/벌점 사유");
   reasonInput.required = true;
-  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
-  managerInput.required = true;
+  const managerInput = managerNameControl();
 
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생 추가", el("div", { className: "penalty-student-lookup" }, [
@@ -772,8 +771,7 @@ function openNotReturnedPenaltyModal(outing) {
   const reasonInput = textarea("reason", "미복귀 사유를 입력하세요.");
   reasonInput.value = "예상 복귀 시간 이후 미복귀";
   reasonInput.required = true;
-  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
-  managerInput.required = true;
+  const managerInput = managerNameControl();
 
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생", el("strong", {}, `${student.name || "-"} (${student.id || "-"})`)),
@@ -833,8 +831,7 @@ function openRejectOutingPenaltyModal(outing) {
   const reasonInput = textarea("reason", "반려 및 벌점 사유를 입력하세요.");
   reasonInput.value = "외출 후 미복귀";
   reasonInput.required = true;
-  const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
-  managerInput.required = true;
+  const managerInput = managerNameControl();
 
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생", el("strong", {}, `${student.name || "-"} (${formatStudentNumber(student.id)})`)),
@@ -1115,6 +1112,11 @@ function renderStudentsAdmin() {
   return el("div", { className: "grid" }, [teacherStudentForm()]);
 }
 
+function renderManagersAdmin() {
+  if (!hasTeacherPermission("managers.read")) return renderForbidden();
+  return el("div", { className: "grid" }, [managerAdminPanel()]);
+}
+
 function renderDuplicates() {
   if (!hasTeacherPermission("outing.audit")) return renderForbidden();
   return el("div", { className: "grid" }, [renderDuplicatePhotoPanel()]);
@@ -1237,13 +1239,16 @@ function renderTrash() {
 }
 
 function teacherStudentForm() {
+  const selected = selectedStudentCohortCount();
+  const visibleStudents = getStudentsInCohort(selected.value);
+  const cohortInput = input("cohort", "number", "18", selected.value || "18");
   const rosterInput = el("textarea", {
     name: "roster",
     placeholder: "1 홍길동\n2 김민지\n3 박서준",
     rows: 8,
   });
   const form = el("form", { className: "form-grid" }, [
-    field("기수", input("cohort", "number", "18", "18")),
+    field("기수", cohortInput),
     field("기본 반", input("className", "text", "오프라인반", state.settings.className)),
     field("학생 번호와 이름", rosterInput, "full", "한 줄에 한 명씩 입력하세요. 한 명만 입력하면 단일 등록, 여러 명이면 일괄 등록됩니다."),
     el("div", { className: "field full" }, [
@@ -1260,13 +1265,14 @@ function teacherStudentForm() {
     const parsed = parseStudentRoster(data.roster, cohort);
     if (!parsed.length) return notify("등록할 학생 번호와 이름을 입력해주세요.");
     const result = upsertStudents(parsed, data.className);
+    selectedStudentCohort = cohort;
     saveState();
     form.reset();
     render();
     notify("학생 " + result.created + "명 등록, " + result.updated + "명 수정되었습니다.");
   });
 
-  const rows = [...state.students]
+  const rows = [...visibleStudents]
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
     .map((student) => {
       const profile = getStudentProfileForTeacher(student.id);
@@ -1292,6 +1298,109 @@ function teacherStudentForm() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+function managerAdminPanel() {
+  const nameInput = input("name", "text", "담당자 이름");
+  nameInput.required = true;
+  const roleInput = input("role", "text", "예: 데스크, 담임, 장학생");
+  const memoInput = textarea("memo", "메모 (선택)");
+  const form = el("form", { className: "form-grid" }, [
+    field("이름", nameInput),
+    field("역할", roleInput),
+    field("메모", memoInput, "full"),
+    el("div", { className: "field full" }, [
+      button("담당자 등록", "btn"),
+      el("p", { className: "subtle" }, "등록한 담당자는 상/벌점 부여 화면의 담당자 선택 목록에 표시됩니다."),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasTeacherPermission("managers.write")) return notify("담당자 등록 권한이 없습니다.");
+    const data = formData(form);
+    const name = String(data.name || "").trim();
+    if (!name) return notify("담당자 이름을 입력해주세요.");
+    const result = upsertManager(data);
+    saveState();
+    form.reset();
+    render();
+    notify(result.created ? "담당자를 등록했습니다." : "기존 담당자 정보를 수정했습니다.");
+  });
+
+  const rows = getActiveManagers().map((manager) =>
+    el("tr", {}, [
+      el("td", {}, manager.name),
+      el("td", {}, manager.role || "-"),
+      el("td", {}, manager.memo || "-"),
+      el("td", {}, formatDateCompact(manager.createdAt)),
+      el("td", { className: "student-admin-actions" }, [
+        hasTeacherPermission("managers.write") ? button("삭제", "mini-btn danger", "button", () => deleteManager(manager.id)) : null,
+      ]),
+    ])
+  );
+
+  return el("div", { className: "grid" }, [
+    panel("담당자 등록", [form]),
+    table(
+      ["이름", "역할", "메모", "등록일", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "등록된 담당자가 없습니다."))])]
+    ),
+  ]);
+}
+
+function getActiveManagers() {
+  return (state.managers || [])
+    .filter((manager) => manager.isActive !== false && String(manager.name || "").trim())
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ko-KR"));
+}
+
+function managerNameControl() {
+  const managers = getActiveManagers();
+  if (!managers.length) {
+    const fallback = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
+    fallback.required = true;
+    return fallback;
+  }
+  const node = el("select", { name: "managerName", required: true }, [
+    el("option", { value: "" }, "담당자 선택"),
+    ...managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name)),
+  ]);
+  const defaultName = String(teacherAuth.user?.username || "").trim();
+  if (managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
+  return node;
+}
+
+function upsertManager(data) {
+  const name = String(data.name || "").trim();
+  const role = String(data.role || "").trim();
+  const memo = String(data.memo || "").trim();
+  state.managers = state.managers || [];
+  const existing = state.managers.find((manager) => manager.isActive !== false && manager.name === name);
+  if (existing) {
+    existing.role = role;
+    existing.memo = memo;
+    return { created: false };
+  }
+  state.managers.push({
+    id: createId(),
+    name,
+    role,
+    memo,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  });
+  return { created: true };
+}
+
+function deleteManager(id) {
+  const manager = (state.managers || []).find((item) => item.id === id);
+  if (!manager) return;
+  if (!confirm(`${manager.name} 담당자를 삭제할까요? 기존 상/벌점 기록의 담당자명은 유지됩니다.`)) return;
+  manager.isActive = false;
+  saveState();
+  render();
+  notify("담당자를 삭제했습니다.");
 }
 
 function getStudentProfileForTeacher(studentId) {

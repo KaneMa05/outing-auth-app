@@ -10,6 +10,7 @@
   attendance: "출석 관리",
   mypage: "마이페이지",
   teacher: "외출 관리",
+  managers: "담당자 등록",
   students: "학생 등록",
   duplicates: "중복 사진",
   trash: "삭제 내역",
@@ -92,7 +93,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "students", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "managers", "students", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -145,6 +146,7 @@ function render() {
           grades: () => renderComingSoonManagement("성적 관리", "시험별 성적 입력, 학생별 추이, 반 평균 분석 기능을 이곳에 연결할 예정입니다."),
           penalties: renderPenaltyManagement,
           attendance: renderAttendanceManagement,
+          managers: renderManagersAdmin,
           students: renderStudentsAdmin,
           duplicates: renderDuplicates,
           trash: renderTrash,
@@ -739,6 +741,7 @@ function renderHome() {
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
+        hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
       ].filter(Boolean)),
     ]),
   ]);
