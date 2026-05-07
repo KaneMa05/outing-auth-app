@@ -804,7 +804,7 @@ async function saveStateToRemote() {
   }
 
   const penaltyRows = (state.penalties || [])
-    .filter((penalty) => penalty.id && penalty.studentId && Number(penalty.points) > 0)
+    .filter((penalty) => penalty.id && penalty.studentId && Number(penalty.points) !== 0)
     .map((penalty) => ({
       id: penalty.id,
       student_id: penalty.studentId,
@@ -1225,6 +1225,19 @@ function getPenaltiesForStudent(studentId) {
 
 function getPenaltyTotal(studentId) {
   return getPenaltiesForStudent(studentId).reduce((sum, penalty) => sum + (Number(penalty.points) || 0), 0);
+}
+
+function formatPenaltyPoints(points) {
+  const value = Number(points) || 0;
+  if (value < 0) return `상점 ${Math.abs(value)}점`;
+  return `벌점 ${value}점`;
+}
+
+function getPenaltyPointClass(points) {
+  const value = Number(points) || 0;
+  if (value < 0) return "reward-total";
+  if (value > 0) return "penalty-total";
+  return "";
 }
 
 function createPenalty(student, points, reason, managerName) {

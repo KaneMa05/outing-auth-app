@@ -74,11 +74,29 @@ create table if not exists public.penalties (
   student_id text not null references public.students(id) on delete cascade,
   student_name text not null,
   class_name text not null default '오프라인반',
-  points integer not null check (points > 0),
+  points integer not null check (points <> 0),
   reason text not null,
   manager_name text not null,
   created_at timestamptz not null default now()
 );
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'penalties_points_check'
+      and conrelid = 'public.penalties'::regclass
+  ) then
+    alter table public.penalties drop constraint penalties_points_check;
+  end if;
+
+  alter table public.penalties
+  add constraint penalties_points_check
+  check (points <> 0);
+exception
+  when duplicate_object then null;
+end $$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('attendance-photos', 'attendance-photos', true, 524288, array['image/jpeg', 'image/png', 'image/webp'])
@@ -437,7 +455,7 @@ on public.penalties
 for insert
 to anon
 with check (
-  points > 0
+  points <> 0
   and reason is not null
   and manager_name is not null
 );

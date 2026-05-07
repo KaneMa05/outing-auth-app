@@ -203,13 +203,13 @@ function renderPenaltyManagement() {
   return el("div", { className: "grid" }, [
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
-      statGroup("벌점 현황", [
+      statGroup("상/벌점 현황", [
         stat("벌점 학생", penalizedStudents, "명"),
-        stat("누적 벌점", totalPoints, "점"),
+        stat("누적 점수", totalPoints, "점"),
       ]),
     ]),
-    panel("전체 벌점 내역", [
-      el("p", { className: "subtle" }, "선택한 기간 기준으로 학생별 누적 벌점을 확인합니다."),
+    panel("전체 상/벌점 내역", [
+      el("p", { className: "subtle" }, "선택한 기간 기준으로 학생별 누적 점수를 확인합니다."),
       el("div", { className: "penalty-toolbar" }, [
         penaltyPeriodControls(),
         penaltySortControls(),
@@ -217,7 +217,7 @@ function renderPenaltyManagement() {
       summaries.length ? renderPenaltySummaryTable(summaries) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
     ]),
     panel("최근 부여 내역", [
-      latestPenalties.length ? renderPenaltyHistoryTable(latestPenalties) : el("div", { className: "empty" }, "아직 부여된 벌점이 없습니다."),
+      latestPenalties.length ? renderPenaltyHistoryTable(latestPenalties) : el("div", { className: "empty" }, "아직 부여된 상/벌점이 없습니다."),
     ]),
   ]);
 }
@@ -304,12 +304,12 @@ function penaltyPeriodControls() {
 }
 
 function penaltySortControls() {
-  return el("div", { className: "penalty-sort-controls", role: "group", ariaLabel: "벌점 정렬" }, [
+  return el("div", { className: "penalty-sort-controls", role: "group", ariaLabel: "상/벌점 정렬" }, [
     button("번호순", penaltySortMode === "id" ? "mini-btn active" : "mini-btn", "button", () => {
       penaltySortMode = "id";
       render();
     }),
-    button("누적 벌점순", penaltySortMode === "points" ? "mini-btn active" : "mini-btn", "button", () => {
+    button("누적 점수순", penaltySortMode === "points" ? "mini-btn active" : "mini-btn", "button", () => {
       penaltySortMode = "points";
       render();
     }),
@@ -322,7 +322,7 @@ function renderPenaltySummaryTable(summaries) {
       el("td", {}, student.id),
       el("td", {}, student.name),
       el("td", {}, student.className || "-"),
-      el("td", {}, el("strong", { className: total ? "penalty-total" : "" }, String(total) + "점")),
+      el("td", {}, el("strong", { className: getPenaltyPointClass(total) }, formatPenaltyPoints(total))),
       el("td", {}, count ? button("내역", "mini-btn", "button", () => openPenaltyHistoryModal(student.id)) : "-"),
     ])
   );
@@ -334,7 +334,7 @@ function renderPenaltySummaryTable(summaries) {
           el("th", {}, "번호"),
           el("th", {}, "이름"),
           el("th", {}, "반"),
-          el("th", {}, "누적벌점"),
+          el("th", {}, "누적점수"),
           el("th", {}, "상세"),
         ]),
       ]),
@@ -351,7 +351,7 @@ function renderPenaltyHistoryTable(penalties) {
         el("strong", {}, penalty.studentName || "-"),
         el("span", { className: "cell-sub" }, penalty.studentId || "-"),
       ]),
-      el("td", {}, String(Number(penalty.points) || 0) + "점"),
+      el("td", {}, el("span", { className: getPenaltyPointClass(penalty.points) }, formatPenaltyPoints(penalty.points))),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
     ])
@@ -363,7 +363,7 @@ function renderPenaltyHistoryTable(penalties) {
         el("tr", {}, [
           el("th", {}, "부여일"),
           el("th", {}, "학생"),
-          el("th", {}, "벌점"),
+          el("th", {}, "상/벌점"),
           el("th", {}, "사유"),
           el("th", {}, "담당자"),
         ]),
@@ -386,15 +386,20 @@ function openPenaltyModal() {
         .map((student) => el("option", { value: student.id }, `${student.id} ${student.name}`)),
     ]
   );
+  const typeSelect = el("select", { name: "scoreType", required: true }, [
+    el("option", { value: "penalty" }, "벌점"),
+    el("option", { value: "reward" }, "상점"),
+  ]);
   const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 1", required: true });
-  const reasonInput = textarea("reason", "벌점 사유");
+  const reasonInput = textarea("reason", "상/벌점 사유");
   reasonInput.required = true;
   const managerInput = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
   managerInput.required = true;
 
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생", studentSelect),
-    field("벌점", pointsInput),
+    field("구분", typeSelect),
+    field("점수", pointsInput),
     field("사유", reasonInput, "full"),
     field("담당자", managerInput),
     el("div", { className: "field full" }, [
@@ -411,17 +416,18 @@ function openPenaltyModal() {
     const student = findStudent(data.studentId);
     const points = Number(data.points);
     if (!student) return notify("학생을 선택해주세요.");
-    if (!Number.isFinite(points) || points < 1) return notify("벌점은 1점 이상 입력해주세요.");
-    createPenalty(student, Math.floor(points), data.reason, data.managerName);
+    if (!Number.isFinite(points) || points < 1) return notify("점수는 1점 이상 입력해주세요.");
+    const signedPoints = data.scoreType === "reward" ? -Math.floor(points) : Math.floor(points);
+    createPenalty(student, signedPoints, data.reason, data.managerName);
     closeInfoModal();
     render();
-    notify("벌점을 부여했습니다.");
+    notify(data.scoreType === "reward" ? "상점을 부여했습니다." : "벌점을 부여했습니다.");
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
-    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "벌점 부여 닫기" }),
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "상/벌점 부여 닫기" }),
     el("div", { className: "info-modal-panel penalty-modal" }, [
-      el("strong", {}, "벌점 부여"),
+      el("strong", {}, "상/벌점 부여"),
       form,
     ]),
   ]);
@@ -436,11 +442,11 @@ function openPenaltyHistoryModal(studentId) {
     .filter((penalty) => penalty.studentId === String(studentId || "").trim())
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   openInfoModal({
-    title: `${student?.name || "학생"} 벌점 내역`,
+    title: `${student?.name || "학생"} 상/벌점 내역`,
     className: "history-modal-panel penalty-detail-modal",
     content: penalties.length
       ? renderPenaltyDetailTable(penalties)
-      : el("div", { className: "empty" }, "벌점 내역이 없습니다."),
+      : el("div", { className: "empty" }, "상/벌점 내역이 없습니다."),
   });
 }
 

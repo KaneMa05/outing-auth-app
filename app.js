@@ -6,7 +6,7 @@
   "student-done": "복귀 완료",
   outing: "외출 관리",
   grades: "성적 관리",
-  penalties: "벌점 관리",
+  penalties: "상/벌점 관리",
   attendance: "출석 관리",
   mypage: "마이페이지",
   teacher: "외출 관리",
@@ -130,7 +130,7 @@ function render() {
         topActions.appendChild(button("출석 시간 설정", "btn secondary", "button", openAttendanceDeadlineModal));
       }
       if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
-        topActions.appendChild(button("벌점 부여", "btn", "button", openPenaltyModal));
+        topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));
       }
       topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
@@ -610,21 +610,21 @@ function renderStudentPenaltyHistoryButton(studentId) {
 
   return el("section", { className: "student-history-button-card student-penalty-card" }, [
     el("div", { className: "student-history-head" }, [
-      el("h2", {}, "벌점 내역"),
-      el("span", {}, `누적 ${total}점 · ${penalties.length}건`),
+      el("h2", {}, "상/벌점 내역"),
+      el("span", {}, `누적 ${formatPenaltyPoints(total)} · ${penalties.length}건`),
     ]),
-    button("벌점 내역 보기", "btn secondary", "button", () => openStudentPenaltyHistoryModal(studentId)),
+    button("상/벌점 내역 보기", "btn secondary", "button", () => openStudentPenaltyHistoryModal(studentId)),
   ]);
 }
 
 function openStudentPenaltyHistoryModal(studentId) {
   const penalties = getPenaltiesForStudent(studentId);
   openInfoModal({
-    title: "벌점 내역",
+    title: "상/벌점 내역",
     className: "history-modal-panel penalty-detail-modal",
     content: penalties.length
       ? renderPenaltyDetailTable(penalties)
-      : el("div", { className: "empty" }, "아직 벌점 내역이 없습니다."),
+      : el("div", { className: "empty" }, "아직 상/벌점 내역이 없습니다."),
   });
 }
 
@@ -634,7 +634,7 @@ function renderPenaltyDetailTable(penalties) {
       el("thead", {}, [
         el("tr", {}, [
           el("th", {}, "날짜"),
-          el("th", {}, "벌점"),
+          el("th", {}, "상/벌점"),
           el("th", {}, "사유"),
           el("th", {}, "담당자"),
         ]),
@@ -645,7 +645,7 @@ function renderPenaltyDetailTable(penalties) {
         penalties.map((penalty) =>
           el("tr", {}, [
             el("td", {}, formatDateOnly(penalty.createdAt)),
-            el("td", {}, String(Number(penalty.points) || 0) + "점"),
+            el("td", {}, formatPenaltyPoints(penalty.points)),
             el("td", { className: "wide-cell" }, penalty.reason || "-"),
             el("td", {}, penalty.managerName || "-"),
           ])
@@ -735,7 +735,7 @@ function renderHome() {
       el("div", { className: "module-grid" }, [
         hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
-        hasTeacherPermission("penalties.read") ? moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
+        hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
       ].filter(Boolean)),
     ]),

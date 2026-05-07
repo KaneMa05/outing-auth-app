@@ -874,6 +874,10 @@ th {
   color: #b42318;
 }
 
+.reward-total {
+  color: #047857;
+}
+
 .penalty-toolbar {
   display: flex;
   align-items: flex-end;
