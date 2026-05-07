@@ -590,7 +590,7 @@ function openStudentOutingHistoryModal(studentId) {
 
   openInfoModal({
     title: "외출 내역",
-    className: "history-modal-panel",
+    className: "history-modal-panel outing-history-modal",
     content: outings.length
       ? el(
           "div",

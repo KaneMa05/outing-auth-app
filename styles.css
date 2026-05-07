@@ -940,14 +940,21 @@ th {
   gap: 8px;
 }
 
-.penalty-modal {
-  width: min(1280px, calc(100vw - 32px));
-  max-height: min(86vh, 760px);
-  overflow-y: auto;
+.info-modal-panel.penalty-modal {
+  width: min(1080px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  gap: 10px;
+  padding: 18px;
+  overflow: visible;
+}
+
+.penalty-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 12px;
 }
 
 .penalty-form textarea {
-  min-height: 94px;
+  min-height: 72px;
 }
 
 .penalty-student-picker {
@@ -963,10 +970,15 @@ th {
 
 .penalty-selected-students {
   display: flex;
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.penalty-modal .attendance-modal-actions .btn {
+  width: auto;
+  min-width: 108px;
 }
 
 .penalty-student-chip {
@@ -2179,6 +2191,11 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   width: min(420px, 100%);
 }
 
+.history-modal-panel.outing-history-modal {
+  width: min(420px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+}
+
 .history-modal-panel.penalty-detail-modal {
   width: min(1120px, calc(100vw - 28px));
   max-height: calc(100vh - 28px);
@@ -2196,6 +2213,18 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   overflow: auto;
 }
 
+.outing-history-modal .student-history-list {
+  max-height: min(62dvh, 520px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.outing-history-modal .student-history-list::-webkit-scrollbar {
+  display: none;
+}
+
 .student-history-item {
   display: grid;
   gap: 4px;
@@ -2209,6 +2238,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   justify-content: space-between;
   gap: 12px;
   min-height: 28px;
+  min-width: 0;
 }
 
 .student-history-row span {
@@ -2218,7 +2248,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .student-history-row strong {
+  min-width: 0;
   font-size: 0.92rem;
+  overflow-wrap: anywhere;
   text-align: right;
 }
 
