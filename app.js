@@ -548,7 +548,10 @@ function renderStudentMypage() {
         el("div", { className: "student-avatar" }, student.name.slice(0, 1)),
         el("div", {}, [
           el("span", {}, "로그인 정보"),
-          el("h2", {}, student.name),
+          el("div", { className: "student-profile-name-row" }, [
+            el("h2", {}, student.name),
+            button("정보 수정", "mini-btn", "button", () => notify("정보 수정은 사무실에 문의해주세요.")),
+          ]),
         ]),
       ]),
       el("div", { className: "student-profile-list" }, [
@@ -557,7 +560,6 @@ function renderStudentMypage() {
         profileItem("직렬", normalizeCoastGuardTrack(profile.track) || "-"),
         profileItem("성별", profile.gender || "-"),
       ]),
-      el("p", { className: "student-profile-note" }, "정보 수정은 사무실에 문의해주세요."),
     ]),
     renderStudentOutingHistoryButton(student.id),
     renderStudentPenaltyHistoryButton(student.id),

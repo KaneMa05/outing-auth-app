@@ -910,6 +910,12 @@ th {
   gap: 6px;
 }
 
+.penalty-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
 .mini-btn.active {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -2022,6 +2028,17 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .student-profile-head h2 {
   margin: 3px 0 0;
   font-size: 1.35rem;
+}
+
+.student-profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.student-profile-name-row .mini-btn {
+  min-height: 26px;
 }
 
 .student-profile-list {

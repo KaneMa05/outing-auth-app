@@ -384,6 +384,11 @@ function renderPenaltyManagement() {
       summaries.length ? renderPenaltySummaryTable(summaries) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
     ]),
     panel("최근 부여 내역", [
+      summaries.some((summary) => summary.count)
+        ? el("div", { className: "penalty-export-actions" }, [
+            button("엑셀 다운로드", "btn secondary", "button", () => downloadPenaltySummaryCsv(summaries)),
+          ])
+        : null,
       latestPenalties.length ? renderPenaltyHistoryTable(latestPenalties) : el("div", { className: "empty" }, "아직 부여된 상/벌점이 없습니다."),
     ]),
   ]);
@@ -438,6 +443,53 @@ function getPenaltySummaries(penalties = state.penalties || [], cohort = selecte
       }
       return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
     });
+}
+
+function downloadPenaltySummaryCsv(summaries) {
+  const sortedSummaries = [...summaries]
+    .filter((summary) => summary.count)
+    .sort((a, b) => {
+      const pointCompare = b.total - a.total;
+      if (pointCompare) return pointCompare;
+      return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
+    });
+  const rows = [
+    ["순위", "번호", "고유번호", "이름", "반", "누적 점수", "부여 건수"],
+    ...sortedSummaries.map((summary, index) => [
+      String(index + 1),
+      formatStudentNumber(summary.student.id),
+      summary.student.id || "",
+      summary.student.name || "",
+      summary.student.className || "",
+      String(summary.total),
+      String(summary.count),
+    ]),
+  ];
+  downloadCsv(`penalty-summary-${getPenaltyExportDateLabel()}.csv`, rows);
+  notify("상/벌점 누적 내역 파일을 다운로드했습니다.");
+}
+
+function getPenaltyExportDateLabel() {
+  if (penaltyPeriodFilter.start || penaltyPeriodFilter.end) {
+    return `${penaltyPeriodFilter.start || "start"}-${penaltyPeriodFilter.end || "end"}`;
+  }
+  return getTodayDateKey();
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = el("a", { href: url, download: filename, style: "display:none" });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function penaltyPeriodControls() {
