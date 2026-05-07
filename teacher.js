@@ -379,16 +379,16 @@ function renderPenaltyManagement() {
       el("p", { className: "subtle" }, "선택한 기간 기준으로 학생별 누적 점수를 확인합니다."),
       el("div", { className: "penalty-toolbar" }, [
         penaltyPeriodControls(),
-        penaltySortControls(),
+        el("div", { className: "penalty-toolbar-right" }, [
+          summaries.some((summary) => summary.count)
+            ? button("엑셀 다운로드", "btn secondary", "button", () => downloadPenaltySummaryCsv(summaries))
+            : null,
+          penaltySortControls(),
+        ]),
       ]),
       summaries.length ? renderPenaltySummaryTable(summaries) : el("div", { className: "empty" }, "등록된 학생이 없습니다."),
     ]),
     panel("최근 부여 내역", [
-      summaries.some((summary) => summary.count)
-        ? el("div", { className: "penalty-export-actions" }, [
-            button("엑셀 다운로드", "btn secondary", "button", () => downloadPenaltySummaryCsv(summaries)),
-          ])
-        : null,
       latestPenalties.length ? renderPenaltyHistoryTable(latestPenalties) : el("div", { className: "empty" }, "아직 부여된 상/벌점이 없습니다."),
     ]),
   ]);

@@ -910,16 +910,16 @@ th {
   gap: 6px;
 }
 
-.penalty-export-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
 .mini-btn.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.penalty-toolbar-right {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
 }
 
 .penalty-modal {
