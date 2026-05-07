@@ -177,7 +177,7 @@ function renderAttendanceManagement() {
       absentStudents.length && hasTeacherPermission("penalties.write")
         ? el("div", { className: "attendance-bulk-actions" }, [
             button(
-              "미인증 학생 지각 벌점 일괄 부여",
+              "벌점 일괄 부여",
               "btn danger",
               "button",
               () => giveLatePenaltyToAbsentStudents(absentStudents)
@@ -186,7 +186,7 @@ function renderAttendanceManagement() {
         : null,
       absentStudents.length
         ? table(
-            hasTeacherPermission("penalties.write") ? ["번호", "이름", "반", "처리"] : ["번호", "이름", "반"],
+            hasTeacherPermission("attendance.write") ? ["번호", "이름", "반", "처리"] : ["번호", "이름", "반"],
             absentStudents
               .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
               .map((student) =>
@@ -194,8 +194,8 @@ function renderAttendanceManagement() {
                   el("td", {}, formatStudentNumber(student.id)),
                   el("td", {}, student.name),
                   el("td", {}, student.className || "-"),
-                  hasTeacherPermission("penalties.write")
-                    ? el("td", { className: "action-cell" }, latePenaltyAction(student))
+                  hasTeacherPermission("attendance.write")
+                    ? el("td", { className: "action-cell" }, reasonAttendanceAction(student))
                     : null,
                 ])
               )
@@ -205,11 +205,11 @@ function renderAttendanceManagement() {
   ]);
 }
 
-function latePenaltyAction(student) {
-  if (hasLateAttendancePenaltyForToday(student.id)) {
-    return el("button", { className: "mini-btn", type: "button", disabled: true }, "부여 완료");
+function reasonAttendanceAction(student) {
+  if (getStudentAttendanceForDate(student.id)) {
+    return el("button", { className: "mini-btn", type: "button", disabled: true }, "처리 완료");
   }
-  return button(`지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점`, "mini-btn danger", "button", () => giveLatePenalty(student));
+  return button("사유 인증", "mini-btn", "button", () => openTeacherReasonAttendanceModal(student));
 }
 
 function hasLateAttendancePenaltyForToday(studentId) {
@@ -222,18 +222,82 @@ function hasLateAttendancePenaltyForToday(studentId) {
   );
 }
 
-function giveLatePenalty(student) {
-  if (!student || !hasTeacherPermission("penalties.write")) return;
-  if (hasLateAttendancePenaltyForToday(student.id)) {
-    notify("이미 오늘 지각 벌점이 부여된 학생입니다.");
+function openTeacherReasonAttendanceModal(student) {
+  if (!student || !hasTeacherPermission("attendance.write")) return;
+  closeInfoModal();
+  if (getStudentAttendanceForDate(student.id)) {
+    notify("이미 오늘 출석 처리가 완료된 학생입니다.");
     render();
     return;
   }
-  const confirmed = confirm(`${student.name} 학생에게 지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점을 부여할까요?`);
-  if (!confirmed) return;
-  createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher");
-  render();
-  notify("지각 벌점 5점을 부여했습니다.");
+
+  const reasonInput = textarea("reason", "사유를 입력하세요.");
+  reasonInput.required = true;
+  const detailInput = textarea("detail", "상세 내용 (선택)");
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${formatStudentNumber(student.id)})`)),
+    field("사유", reasonInput, "full"),
+    field("상세", detailInput, "full"),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("출석 처리", "btn"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const reason = String(data.reason || "").trim();
+    if (!reason) return notify("사유를 입력해주세요.");
+    if (getStudentAttendanceForDate(student.id)) {
+      closeInfoModal();
+      render();
+      return notify("이미 오늘 출석 처리가 완료된 학생입니다.");
+    }
+    createTeacherReasonAttendanceCheck(student, reason, data.detail);
+    closeInfoModal();
+    render();
+    notify("사유 인증으로 출석 처리했습니다.");
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "사유 인증 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "사유 인증"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function createTeacherReasonAttendanceCheck(student, reason, detail) {
+  const id = createId();
+  const checkDate = getTodayDateKey();
+  const check = {
+    id,
+    studentId: student.id,
+    studentName: student.name,
+    className: student.className || state.settings.className || "오프라인반",
+    checkDate,
+    status: "pre_arrival_reason",
+    reason: String(reason || "").trim(),
+    detail: String(detail || "").trim(),
+    photoPath: `teacher-reason/${checkDate}/${student.id}/${id}`,
+    photoUrl: "",
+    photoDataUrl: "",
+    originalName: "",
+    createdAt: new Date().toISOString(),
+  };
+  state.attendanceChecks = [
+    check,
+    ...(state.attendanceChecks || []).filter((item) => !(item.studentId === student.id && item.checkDate === checkDate)),
+  ];
+  saveState();
+  return check;
 }
 
 function giveLatePenaltyToAbsentStudents(students) {
