@@ -923,7 +923,7 @@ th {
 }
 
 .penalty-modal {
-  width: min(920px, 100%);
+  width: min(1280px, calc(100vw - 32px));
   max-height: min(86vh, 760px);
   overflow-y: auto;
 }
