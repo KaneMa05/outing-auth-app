@@ -132,6 +132,9 @@ on public.penalties (student_id, created_at desc);
 create index if not exists notices_created_at_idx
 on public.notices (created_at desc);
 
+delete from public.notices
+where id in ('attendance-guide', 'outing-guide');
+
 alter table public.students
 add column if not exists track text,
 add column if not exists gender text,

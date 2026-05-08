@@ -1,24 +1,8 @@
 ﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
-const DEFAULT_IMPORTANT_NOTICES = [
-  {
-    id: "attendance-guide",
-    title: "출석 인증 및 등원 전 사유신청 안내",
-    body: "출석 인증은 등원 후 학생 앱의 출석 메뉴에서 사진을 제출해주세요.\n\n등원 전 사유신청이 필요한 경우 사유와 사진을 함께 제출하면 담당자가 확인합니다.\n\n사진이 누락되면 홈 화면에 다시 제출 안내가 표시됩니다.",
-    isPublished: true,
-    createdAt: "2026-05-08T00:00:00.000Z",
-    updatedAt: "2026-05-08T00:00:00.000Z",
-  },
-  {
-    id: "outing-guide",
-    title: "외출/조퇴 신청 이용 안내",
-    body: "외출 신청 후에는 현장 인증 사진을 제출해야 신청 흐름이 이어집니다.\n\n학원에 복귀했다면 사무실에서 복귀 인증을 완료해주세요.\n\n조퇴 신청은 담당자 승인 상태를 학생 앱에서 확인할 수 있습니다.",
-    isPublished: true,
-    createdAt: "2026-05-08T00:00:00.000Z",
-    updatedAt: "2026-05-08T00:00:00.000Z",
-  },
-];
+const DEFAULT_IMPORTANT_NOTICES = [];
+const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
 
 const state = loadState();
 let currentRoute = "";
@@ -170,7 +154,7 @@ function mergeDefaultState(nextState) {
     deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
     penalties: Array.isArray(nextState?.penalties) ? nextState.penalties : defaults.penalties,
-    notices: Array.isArray(nextState?.notices) ? nextState.notices : defaults.notices,
+    notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
 }
 
@@ -711,6 +695,7 @@ async function loadStateFromRemote() {
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
   if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
+  state.notices = removeLegacySampleNotices(state.notices);
 }
 
 async function saveStateToRemote() {
@@ -1367,7 +1352,7 @@ function mapNoticeFromRemote(notice) {
 }
 
 function getImportantNotices({ publishedOnly = false } = {}) {
-  return (state.notices || [])
+  return removeLegacySampleNotices(state.notices || [])
     .filter((notice) => String(notice.title || "").trim())
     .filter((notice) => !publishedOnly || notice.isPublished !== false)
     .sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
@@ -1375,6 +1360,10 @@ function getImportantNotices({ publishedOnly = false } = {}) {
 
 function getImportantNoticeById(id, options = {}) {
   return getImportantNotices(options).find((notice) => notice.id === String(id || ""));
+}
+
+function removeLegacySampleNotices(notices) {
+  return (notices || []).filter((notice) => !LEGACY_SAMPLE_NOTICE_IDS.has(String(notice?.id || "")));
 }
 
 function getPenaltiesForStudent(studentId) {

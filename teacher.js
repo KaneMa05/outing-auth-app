@@ -1477,6 +1477,7 @@ function noticeAdminPanel() {
     if (!title || !body) return notify("공지 제목과 내용을 입력해주세요.");
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
+    const beforeNotices = JSON.parse(JSON.stringify(state.notices || []));
     try {
       upsertNotice({
         id: editingNotice?.id,
@@ -1491,9 +1492,12 @@ function noticeAdminPanel() {
       notify(editingNotice ? "공지글을 수정했습니다." : "공지글을 등록했습니다.");
     } catch (error) {
       console.error(error);
-      notify("공지글을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      state.notices = beforeNotices;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      notify("공지글을 원격 저장소에 저장하지 못했습니다. Supabase notices 권한을 확인해주세요.");
       submitButton.disabled = false;
       submitButton.textContent = editingNotice ? "공지 수정" : "공지 등록";
+      render();
     }
   });
 
