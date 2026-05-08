@@ -8,7 +8,14 @@
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   if (activeOuting?.earlyLeaveReason) return el("div", { className: "grid student-view" }, [panel("조퇴 신청 완료", [renderEarlyLeaveDoneState(activeOuting)])]);
   if (step === "verify") return studentStepView("사진 인증", createVerifyForm(), "photo-step");
-  if (step === "return") return studentStepView("학원 복귀 인증", createReturnForm(), "return-step");
+  if (step === "return") {
+    return el("div", { className: "grid student-view" }, [
+      panel("학원 복귀 인증", [
+        el("p", { className: "subtle" }, "사무실에 있는 복귀 사진을 찍어주세요."),
+        createReturnForm(),
+      ], "return-step"),
+    ]);
+  }
   if (step === "done") return el("div", { className: "grid student-view" }, [panel("복귀 완료", [renderDoneState()])]);
   return renderStudentRequestStep();
 }
@@ -544,8 +551,7 @@ function createReturnForm() {
   const student = getAuthedStudent();
   const submitButton = button("복귀 완료", "btn");
   const form = el("form", { className: "form-grid" }, [
-    field("복귀 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
-    field("복귀 현장 사진", photoCaptureInput("returnPhoto"), "full", "사무실에 있는 복귀 사진을 찍어주세요."),
+    field("복귀 현장 사진", photoCaptureInput("returnPhoto"), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),

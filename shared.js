@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-verify-message";
+    script.src = "./supabase.js?v=20260508-return-guidance";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
