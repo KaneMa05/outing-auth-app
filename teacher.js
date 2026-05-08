@@ -1440,17 +1440,17 @@ function getActiveManagers() {
 
 function managerNameControl() {
   const managers = getActiveManagers();
-  if (!managers.length) {
-    const fallback = input("managerName", "text", "담당자 이름", teacherAuth.user?.username || "");
-    fallback.required = true;
-    return fallback;
-  }
+  const defaultName = String(teacherAuth.user?.username || "").trim();
+  const options = managers.length
+    ? managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name))
+    : defaultName
+      ? [el("option", { value: defaultName }, defaultName)]
+      : [];
   const node = el("select", { name: "managerName", required: true }, [
     el("option", { value: "" }, "담당자 선택"),
-    ...managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name)),
+    ...options,
   ]);
-  const defaultName = String(teacherAuth.user?.username || "").trim();
-  if (managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
+  if (options.some((option) => option.value === defaultName)) node.value = defaultName;
   return node;
 }
 
