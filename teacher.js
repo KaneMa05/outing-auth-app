@@ -879,6 +879,10 @@ function openRejectOutingPenaltyModal(outing) {
 }
 
 function openAttendanceDeadlineModal() {
+  if (teacherAuth.user?.role === "student_manager" || !hasTeacherPermission("attendance.write")) {
+    notify("출석 시간 설정 권한이 없습니다.");
+    return;
+  }
   closeInfoModal();
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "출석 시간 설정 닫기" }),
