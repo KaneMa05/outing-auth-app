@@ -368,7 +368,6 @@ function renderPenaltyManagement() {
   const selected = selectedStudentCohortCount();
   const visiblePenalties = getFilteredPenalties(selected.value);
   const summaries = getPenaltySummaries(visiblePenalties, selected.value);
-  const totalPoints = summaries.reduce((sum, item) => sum + item.total, 0);
   const penalizedStudents = summaries.filter((item) => item.total > 0).length;
   const latestPenalties = [...visiblePenalties].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -376,7 +375,6 @@ function renderPenaltyManagement() {
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
       statGroup("상/벌점 현황", [
-        stat("누적 점수", totalPoints, "점"),
         stat("벌점 학생", penalizedStudents, "명"),
       ]),
     ]),

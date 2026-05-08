@@ -11,9 +11,6 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "penalties.write",
   "attendance.read",
   "attendance.write",
-  "students.read",
-  "students.write",
-  "students.reset",
 ];
 
 function getConfig() {
