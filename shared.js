@@ -106,7 +106,7 @@ function normalizeCoastGuardTrack(track) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved || defaultState();
+    return mergeDefaultState(saved);
   } catch {
     return defaultState();
   }
