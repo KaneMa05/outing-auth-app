@@ -313,7 +313,7 @@ function createTeacherReasonAttendanceCheck(student, reason, detail) {
   return check;
 }
 
-function giveLatePenaltyToAbsentStudents(students) {
+async function giveLatePenaltyToAbsentStudents(students) {
   if (!hasTeacherPermission("penalties.write")) return;
   const targets = (students || []).filter((student) => !hasLateAttendancePenaltyForToday(student.id));
   const skipped = (students || []).length - targets.length;
@@ -324,11 +324,19 @@ function giveLatePenaltyToAbsentStudents(students) {
   }
   const confirmed = confirm(`미인증 학생 ${targets.length}명에게 지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점을 일괄 부여할까요?`);
   if (!confirmed) return;
-  targets.forEach((student) => {
-    createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher");
-  });
-  render();
-  notify(skipped ? `${targets.length}명에게 지각 벌점을 부여했습니다. 이미 부여된 ${skipped}명은 제외했습니다.` : `${targets.length}명에게 지각 벌점을 부여했습니다.`);
+  try {
+    await Promise.all(
+      targets.map((student) =>
+        createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher")
+      )
+    );
+    render();
+    notify(skipped ? `${targets.length}명에게 지각 벌점을 부여했습니다. 이미 부여된 ${skipped}명은 제외했습니다.` : `${targets.length}명에게 지각 벌점을 부여했습니다.`);
+  } catch (error) {
+    console.error(error);
+    render();
+    notify("벌점 저장 중 오류가 발생했습니다.");
+  }
 }
 
 function applyAutoApprovalForReturnedOutings() {
@@ -712,17 +720,23 @@ function openPenaltyModal() {
   presetSelect.addEventListener("change", syncPresetState);
   syncPresetState();
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const points = Number(data.points);
     if (!selectedStudents.length) return notify("학생을 한 명 이상 추가해주세요.");
     if (!Number.isFinite(points) || points < 1) return notify("점수는 1점 이상 입력해주세요.");
     const signedPoints = data.scoreType === "reward" ? -Math.floor(points) : Math.floor(points);
-    selectedStudents.forEach((student) => createPenalty(student, signedPoints, data.reason, data.managerName));
-    closeInfoModal();
-    render();
-    notify(`${selectedStudents.length}명에게 ${data.scoreType === "reward" ? "상점" : "벌점"}을 부여했습니다.`);
+    try {
+      await Promise.all(selectedStudents.map((student) => createPenalty(student, signedPoints, data.reason, data.managerName)));
+      closeInfoModal();
+      render();
+      notify(`${selectedStudents.length}명에게 ${data.scoreType === "reward" ? "상점" : "벌점"}을 부여했습니다.`);
+    } catch (error) {
+      console.error(error);
+      render();
+      notify("벌점 저장 중 오류가 발생했습니다.");
+    }
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -786,7 +800,7 @@ function openNotReturnedPenaltyModal(outing) {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const points = Number(data.points);
@@ -798,10 +812,16 @@ function openNotReturnedPenaltyModal(outing) {
       render();
       return notify("이미 이 외출 건에 미복귀 벌점이 부여되었습니다.");
     }
-    createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
-    closeInfoModal();
-    render();
-    notify("미복귀 벌점을 부여했습니다.");
+    try {
+      await createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
+      closeInfoModal();
+      render();
+      notify("미복귀 벌점을 부여했습니다.");
+    } catch (error) {
+      console.error(error);
+      render();
+      notify("벌점 저장 중 오류가 발생했습니다.");
+    }
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -846,7 +866,7 @@ function openRejectOutingPenaltyModal(outing) {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const points = Number(data.points);
@@ -857,13 +877,19 @@ function openRejectOutingPenaltyModal(outing) {
     outing.decision = "rejected";
     outing.teacherMemo = `반려 사유: ${reason}`;
     const alreadyPenalized = hasNotReturnedPenaltyForOuting(outing);
-    if (!alreadyPenalized) {
-      createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
+    try {
+      if (!alreadyPenalized) {
+        await createPenalty(student, Math.floor(points), `${notReturnedPenaltyReasonLabel(outing)} - ${reason}`, data.managerName);
+      }
+      saveState();
+      closeInfoModal();
+      render();
+      notify(alreadyPenalized ? "반려 처리했습니다. 기존 미복귀 벌점이 있어 추가 부여는 생략했습니다." : "반려 처리하고 벌점을 부여했습니다.");
+    } catch (error) {
+      console.error(error);
+      render();
+      notify("벌점 저장 중 오류가 발생했습니다.");
     }
-    saveState();
-    closeInfoModal();
-    render();
-    notify(alreadyPenalized ? "반려 처리했습니다. 기존 미복귀 벌점이 있어 추가 부여는 생략했습니다." : "반려 처리하고 벌점을 부여했습니다.");
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [

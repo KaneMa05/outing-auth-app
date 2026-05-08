@@ -153,14 +153,14 @@ function mergeDefaultState(nextState) {
   };
 }
 
-function saveState() {
+function saveState(options = {}) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(makeLocalStorageSafeState()));
   }
-  scheduleRemoteSave();
+  if (!options.skipRemote) scheduleRemoteSave();
   scheduleLocalDevSave();
 }
 
@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-home-attendance-card";
+    script.src = "./supabase.js?v=20260508-penalty-insert";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
@@ -880,25 +880,6 @@ async function saveStateToRemote() {
     }
   }
 
-  const penaltyRows = (state.penalties || [])
-    .filter((penalty) => penalty.id && penalty.studentId && Number(penalty.points) !== 0)
-    .map((penalty) => ({
-      id: penalty.id,
-      student_id: penalty.studentId,
-      student_name: penalty.studentName,
-      class_name: penalty.className || state.settings.className || "오프라인반",
-      points: Number(penalty.points) || 0,
-      reason: penalty.reason || null,
-      manager_name: penalty.managerName || null,
-      created_at: penalty.createdAt,
-    }));
-
-  if (penaltyRows.length) {
-    const { error } = await remoteStore
-      .from("penalties")
-      .upsert(penaltyRows, { onConflict: "id", ignoreDuplicates: true });
-    if (error && !isMissingRelationError(error, "penalties")) throw error;
-  }
 }
 
 function stripAttendanceReasonColumnsFromRow(row) {
@@ -1328,7 +1309,7 @@ function getPenaltyPointClass(points) {
   return "";
 }
 
-function createPenalty(student, points, reason, managerName) {
+async function createPenalty(student, points, reason, managerName) {
   if (!student) throw new Error("student_required");
   const penalty = {
     id: createId(),
@@ -1341,8 +1322,35 @@ function createPenalty(student, points, reason, managerName) {
     createdAt: new Date().toISOString(),
   };
   state.penalties = [penalty, ...(state.penalties || [])];
-  saveState();
+  saveState({ skipRemote: true });
+  try {
+    await insertPenaltyToRemote(penalty);
+  } catch (error) {
+    state.penalties = (state.penalties || []).filter((item) => item.id !== penalty.id);
+    saveState({ skipRemote: true });
+    throw error;
+  }
   return penalty;
+}
+
+async function insertPenaltyToRemote(penalty) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const row = {
+    id: penalty.id,
+    student_id: penalty.studentId,
+    student_name: penalty.studentName,
+    class_name: penalty.className || state.settings.className || "오프라인반",
+    points: Number(penalty.points) || 0,
+    reason: penalty.reason || null,
+    manager_name: penalty.managerName || null,
+    created_at: penalty.createdAt,
+  };
+  const { error } = await remoteStore.from("penalties").insert(row);
+  if (error && !isMissingRelationError(error, "penalties")) throw error;
 }
 
 function getTodayDateKey() {
