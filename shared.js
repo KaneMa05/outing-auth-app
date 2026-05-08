@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-penalty-insert";
+    script.src = "./supabase.js?v=20260508-direct-decision";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
@@ -1032,13 +1032,36 @@ function metaChip(label, value) {
   return el("span", { className: "meta-chip" }, [el("em", {}, label), String(value || "-")]);
 }
 
-function decideOuting(id, decision) {
+async function decideOuting(id, decision) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
+  const previousDecision = outing.decision;
   outing.decision = decision;
-  saveState();
+  saveState({ skipRemote: true });
   render();
-  notify(decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
+  try {
+    await updateOutingDecisionToRemote(outing);
+    notify(decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
+  } catch (error) {
+    console.error(error);
+    outing.decision = previousDecision;
+    saveState({ skipRemote: true });
+    render();
+    notify(decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
+  }
+}
+
+async function updateOutingDecisionToRemote(outing) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("outings")
+    .update({ decision: outing.decision })
+    .eq("id", outing.id);
+  if (error) throw error;
 }
 
 function deleteOuting(id) {
