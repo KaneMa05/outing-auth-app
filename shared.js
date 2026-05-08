@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-manager-save-skip";
+    script.src = "./supabase.js?v=20260508-attendance-save-skip";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
@@ -845,37 +845,39 @@ async function saveStateToRemote() {
     if (error) throw error;
   }
 
-  const attendanceRows = (state.attendanceChecks || [])
-    .filter((check) => check.id && check.studentId && check.photoPath)
-    .map((check) => ({
-      id: check.id,
-      student_id: check.studentId,
-      student_name: check.studentName,
-      class_name: check.className || state.settings.className || "오프라인반",
-      check_date: check.checkDate,
-      status: check.status || "present",
-      reason: check.reason || null,
-      detail: check.detail || null,
-      photo_path: check.photoPath,
-      photo_url: check.photoUrl || null,
-      photo_data_url: null,
-      original_name: check.originalName || null,
-      created_at: check.createdAt,
-    }));
+  if (APP_MODE === "teacher") {
+    const attendanceRows = (state.attendanceChecks || [])
+      .filter((check) => check.id && check.studentId && check.photoPath)
+      .map((check) => ({
+        id: check.id,
+        student_id: check.studentId,
+        student_name: check.studentName,
+        class_name: check.className || state.settings.className || "오프라인반",
+        check_date: check.checkDate,
+        status: check.status || "present",
+        reason: check.reason || null,
+        detail: check.detail || null,
+        photo_path: check.photoPath,
+        photo_url: check.photoUrl || null,
+        photo_data_url: null,
+        original_name: check.originalName || null,
+        created_at: check.createdAt,
+      }));
 
-  if (attendanceRows.length) {
-    const { error } = await remoteStore
-      .from("attendance_checks")
-      .upsert(attendanceRows, { onConflict: "id", ignoreDuplicates: true });
-    if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
-      const fallbackRows = attendanceRows.map(stripAttendanceReasonColumnsFromRow);
-      const { error: fallbackError } = await remoteStore
+    if (attendanceRows.length) {
+      const { error } = await remoteStore
         .from("attendance_checks")
-        .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
-      if (fallbackError && !isMissingRelationError(fallbackError, "attendance_checks")) throw fallbackError;
-      return;
+        .upsert(attendanceRows, { onConflict: "id", ignoreDuplicates: true });
+      if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
+        const fallbackRows = attendanceRows.map(stripAttendanceReasonColumnsFromRow);
+        const { error: fallbackError } = await remoteStore
+          .from("attendance_checks")
+          .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+        if (fallbackError && !isMissingRelationError(fallbackError, "attendance_checks")) throw fallbackError;
+        return;
+      }
+      if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
     }
-    if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
   }
 
   const penaltyRows = (state.penalties || [])
