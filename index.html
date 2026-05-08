@@ -64,23 +64,23 @@
     </div>
 
     <footer class="student-footer-menu" aria-label="학생 메뉴">
-      <button data-route="home" type="button">
+      <button data-route="home" onclick="window.__studentNav && window.__studentNav('home'); return false;" type="button">
         <span class="footer-icon footer-icon-home" aria-hidden="true"></span>
         <span>홈</span>
       </button>
-      <button data-route="student" type="button">
+      <button data-route="student" onclick="window.__studentNav && window.__studentNav('student'); return false;" type="button">
         <span class="footer-icon footer-icon-outing" aria-hidden="true"></span>
         <span>외출</span>
       </button>
-      <button data-unreleased="성적" type="button" aria-disabled="true">
+      <button data-unreleased="성적" onclick="window.__studentUnreleased && window.__studentUnreleased('성적'); return false;" type="button" aria-disabled="true">
         <span class="footer-icon footer-icon-grades" aria-hidden="true"></span>
         <span>성적</span>
       </button>
-      <button data-route="attendance" type="button">
+      <button data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance'); return false;" type="button">
         <span class="footer-icon footer-icon-attendance" aria-hidden="true"></span>
         <span>출석</span>
       </button>
-      <button data-route="mypage" type="button">
+      <button data-route="mypage" onclick="window.__studentNav && window.__studentNav('mypage'); return false;" type="button">
         <span class="footer-icon footer-icon-mypage" aria-hidden="true"></span>
         <span>마이</span>
       </button>
@@ -141,9 +141,22 @@
           if (route === "student" || route === "attendance" || route === "mypage") return route;
           return "home";
         }
+        function navFallback(route) {
+          location.hash = route;
+          if (!window.render) renderFallback(route);
+        }
+        function unreleasedFallback(featureName) {
+          if (typeof window.openUnreleasedModal === "function") window.openUnreleasedModal(featureName);
+          else showToast("준비 중인 기능입니다.");
+        }
         window.__studentFallbackRender = renderFallback;
+        window.__studentNav = navFallback;
+        window.__studentUnreleased = unreleasedFallback;
         document.addEventListener("click", function (event) {
           var node = event.target;
+          while (node && node !== document && node.nodeType !== 1) {
+            node = node.parentNode;
+          }
           while (node && node !== document && !node.getAttribute("data-route") && !node.getAttribute("data-unreleased") && !node.getAttribute("data-fallback-route")) {
             node = node.parentNode;
           }
@@ -151,8 +164,7 @@
           var unreleased = node.getAttribute("data-unreleased");
           if (unreleased) {
             event.preventDefault();
-            if (typeof window.openUnreleasedModal === "function") window.openUnreleasedModal(unreleased);
-            else showToast("준비 중인 기능입니다.");
+            unreleasedFallback(unreleased);
             return;
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
@@ -160,14 +172,16 @@
           if (route === "home" || route === "student" || route === "attendance" || route === "mypage") {
             if (!window.render) {
               event.preventDefault();
-              location.hash = route;
-              renderFallback(route);
+              navFallback(route);
             }
           }
         }, true);
         window.addEventListener("hashchange", function () {
           if (!window.render) renderFallback(currentRoute());
         });
+        window.setTimeout(function () {
+          if (!window.render) renderFallback(currentRoute());
+        }, 900);
       })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
