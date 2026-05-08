@@ -37,6 +37,7 @@ let isStudentInteractionTrackingStarted = false;
 let isStudentPullRefreshStarted = false;
 let studentPullStartY = 0;
 let studentPullDistance = 0;
+let studentPullPointerId = null;
 let studentPullIndicator = null;
 const teacherAuth = {
   checked: APP_MODE !== "teacher",
@@ -346,29 +347,60 @@ function markStudentInteraction() {
 }
 
 function startStudentPullRefresh() {
-  if (isStudentPullRefreshStarted || !("ontouchstart" in window)) return;
+  if (isStudentPullRefreshStarted) return;
   isStudentPullRefreshStarted = true;
   studentPullIndicator = el("div", { className: "student-refresh-indicator", hidden: true }, "아래로 당겨 새로고침");
   document.body.appendChild(studentPullIndicator);
-  window.addEventListener("touchstart", onStudentPullStart, { passive: true });
-  window.addEventListener("touchmove", onStudentPullMove, { passive: false });
-  window.addEventListener("touchend", onStudentPullEnd);
-  window.addEventListener("touchcancel", resetStudentPullRefresh);
+  if ("ontouchstart" in window) {
+    window.addEventListener("touchstart", onStudentPullStart, { passive: true });
+    window.addEventListener("touchmove", onStudentPullMove, { passive: false });
+    window.addEventListener("touchend", onStudentPullEnd);
+    window.addEventListener("touchcancel", resetStudentPullRefresh);
+    return;
+  }
+  if (window.PointerEvent) {
+    window.addEventListener("pointerdown", onStudentPullPointerStart, { passive: true });
+    window.addEventListener("pointermove", onStudentPullPointerMove, { passive: false });
+    window.addEventListener("pointerup", onStudentPullPointerEnd);
+    window.addEventListener("pointercancel", resetStudentPullRefresh);
+  }
 }
 
 function onStudentPullStart(event) {
-  if (window.scrollY > 0 || shouldPauseStudentRemoteRefresh() || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
+  if (getStudentScrollTop() > 0 || shouldPauseStudentRemoteRefresh() || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
   if (isStudentInteractiveTarget(event.target)) return;
   studentPullStartY = event.touches[0]?.clientY || 0;
   studentPullDistance = 0;
 }
 
 function onStudentPullMove(event) {
-  if (!studentPullStartY || window.scrollY > 0) return;
+  if (!studentPullStartY || getStudentScrollTop() > 0) return;
   studentPullDistance = Math.max(0, (event.touches[0]?.clientY || 0) - studentPullStartY);
   if (studentPullDistance < 10) return;
   event.preventDefault();
   updateStudentPullIndicator(studentPullDistance);
+}
+
+function onStudentPullPointerStart(event) {
+  if (event.pointerType === "mouse") return;
+  if (getStudentScrollTop() > 0 || shouldPauseStudentRemoteRefresh() || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return;
+  if (isStudentInteractiveTarget(event.target)) return;
+  studentPullPointerId = event.pointerId;
+  studentPullStartY = event.clientY || 0;
+  studentPullDistance = 0;
+}
+
+function onStudentPullPointerMove(event) {
+  if (studentPullPointerId !== event.pointerId || !studentPullStartY || getStudentScrollTop() > 0) return;
+  studentPullDistance = Math.max(0, (event.clientY || 0) - studentPullStartY);
+  if (studentPullDistance < 10) return;
+  event.preventDefault();
+  updateStudentPullIndicator(studentPullDistance);
+}
+
+function onStudentPullPointerEnd(event) {
+  if (studentPullPointerId !== event.pointerId) return;
+  onStudentPullEnd();
 }
 
 function onStudentPullEnd() {
@@ -404,11 +436,20 @@ function hideStudentPullIndicator() {
 function resetStudentPullGesture() {
   studentPullStartY = 0;
   studentPullDistance = 0;
+  studentPullPointerId = null;
 }
 
 function resetStudentPullRefresh() {
   resetStudentPullGesture();
   hideStudentPullIndicator();
+}
+
+function getStudentScrollTop() {
+  return Math.max(
+    window.scrollY || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0
+  );
 }
 
 function markStudentFilePickerOpen() {
