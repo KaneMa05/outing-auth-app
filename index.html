@@ -19,10 +19,10 @@
     <meta name="twitter:title" content="론박스터디" />
     <meta name="twitter:description" content="론박스터디 오프라인 전용" />
     <meta name="twitter:image" content="https://outing-auth-app.vercel.app/app-icon.png?v=20260505-final-icon" />
-    <link rel="manifest" href="./manifest.webmanifest?v=20260506-soft-theme" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260508-ios-route-fix" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260508-ios-route-fix" />
   </head>
   <body>
     <div class="app-frame">
@@ -49,7 +49,17 @@
           </div>
           <div class="top-actions" hidden></div>
         </header>
-        <section id="app" class="content-area" aria-live="polite"></section>
+        <section id="app" class="content-area" aria-live="polite">
+          <div class="grid student-view">
+            <section class="student-auth-card">
+              <div>
+                <span>학생 화면</span>
+                <h2>화면을 불러오는 중입니다</h2>
+                <p>잠시 후에도 화면이 바뀌지 않으면 아래 메뉴를 다시 눌러주세요.</p>
+              </div>
+            </section>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -77,10 +87,93 @@
     </footer>
 
     <div id="toast" class="toast" role="status"></div>
+    <script>
+      (function () {
+        var routeTitles = {
+          home: "홈",
+          student: "외출 신청",
+          attendance: "출석 체크",
+          mypage: "마이페이지"
+        };
+        function qs(selector) {
+          return document.querySelector(selector);
+        }
+        function qsa(selector) {
+          return Array.prototype.slice.call(document.querySelectorAll(selector));
+        }
+        function setActive(route) {
+          qsa("[data-route]").forEach(function (button) {
+            if (button.getAttribute("data-route") === route) button.classList.add("active");
+            else button.classList.remove("active");
+          });
+        }
+        function showToast(message) {
+          var toast = qs("#toast");
+          if (!toast) return;
+          toast.textContent = message;
+          toast.classList.add("show");
+          window.setTimeout(function () {
+            toast.classList.remove("show");
+          }, 2200);
+        }
+        function fallbackHtml(route) {
+          if (route === "student") {
+            return '<div class="grid student-view"><section class="panel"><h2>외출 신청</h2><div class="empty">앱 데이터를 불러오는 중입니다. 계속 이 화면이면 Safari 방문 기록/웹 사이트 데이터를 삭제한 뒤 다시 접속해주세요.</div></section></div>';
+          }
+          if (route === "attendance") {
+            return '<div class="grid student-view"><section class="panel"><h2>출석 체크</h2><div class="empty">학생 출석 기능은 준비 중입니다.</div></section></div>';
+          }
+          if (route === "mypage") {
+            return '<div class="grid student-view"><section class="panel"><h2>마이페이지</h2><div class="empty">학생 등록 후 이용할 수 있습니다.</div></section></div>';
+          }
+          return '<div class="grid student-view student-home"><section class="student-dday-card"><div><span>해양경찰 필기시험</span><strong>D-36</strong></div><p>2026. 06. 13. 시험 기준</p></section><section class="student-summary-card"><strong>외출 신청</strong><button class="btn" data-fallback-route="student" type="button">외출 신청하기</button></section></div>';
+        }
+        function renderFallback(route) {
+          var app = qs("#app");
+          var title = qs("#page-title");
+          if (!app) return;
+          app.innerHTML = fallbackHtml(route);
+          if (title) title.textContent = routeTitles[route] || "홈";
+          setActive(route);
+        }
+        function currentRoute() {
+          var route = String(location.hash || "").replace("#", "");
+          if (route === "student" || route === "attendance" || route === "mypage") return route;
+          return "home";
+        }
+        window.__studentFallbackRender = renderFallback;
+        document.addEventListener("click", function (event) {
+          var node = event.target;
+          while (node && node !== document && !node.getAttribute("data-route") && !node.getAttribute("data-unreleased") && !node.getAttribute("data-fallback-route")) {
+            node = node.parentNode;
+          }
+          if (!node || node === document) return;
+          var unreleased = node.getAttribute("data-unreleased");
+          if (unreleased) {
+            event.preventDefault();
+            if (typeof window.openUnreleasedModal === "function") window.openUnreleasedModal(unreleased);
+            else showToast("준비 중인 기능입니다.");
+            return;
+          }
+          var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
+          if (!route) return;
+          if (route === "home" || route === "student" || route === "attendance" || route === "mypage") {
+            if (!window.render) {
+              event.preventDefault();
+              location.hash = route;
+              renderFallback(route);
+            }
+          }
+        }, true);
+        window.addEventListener("hashchange", function () {
+          if (!window.render) renderFallback(currentRoute());
+        });
+      })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./config.js"></script>
-    <script src="./shared.js" defer></script>
-    <script src="./student.js" defer></script>
-    <script src="./app.js" defer></script>
+    <script src="./config.js?v=20260508-ios-route-fix"></script>
+    <script src="./shared.js?v=20260508-ios-route-fix" defer></script>
+    <script src="./student.js?v=20260508-ios-route-fix" defer></script>
+    <script src="./app.js?v=20260508-ios-route-fix" defer></script>
   </body>
 </html>
