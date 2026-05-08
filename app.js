@@ -379,16 +379,6 @@ function renderStudentHome() {
   const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
   const needsAttendance = !todayAttendance || !getAttendancePhotoSrc(todayAttendance);
   const homeAction = getStudentHomeAction(activeOuting);
-  const actionButtons = [
-    needsAttendance
-      ? button("출석 인증하기", "btn", "button", () => {
-          state.settings.attendanceMode = "";
-          saveState();
-          navigate("attendance");
-        })
-      : null,
-    button(homeAction.buttonText, needsAttendance ? "btn secondary" : "btn", "button", homeAction.action),
-  ];
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
       el("div", {}, [
@@ -398,12 +388,25 @@ function renderStudentHome() {
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
     renderStudentTodayCard(activeOuting),
+    needsAttendance
+      ? el("section", { className: "student-summary-card" }, [
+          el("div", {}, [
+            el("strong", {}, "출석 인증"),
+            el("p", {}, todayAttendance ? "출석 사진을 다시 제출해주세요." : "오늘 출석 인증을 완료해주세요."),
+          ]),
+          button("출석 인증하기", "btn", "button", () => {
+            state.settings.attendanceMode = "";
+            saveState();
+            navigate("attendance");
+          }),
+        ])
+      : null,
     el("section", { className: "student-summary-card" }, [
       el("div", {}, [
         el("strong", {}, homeAction.title),
         homeAction.copy ? el("p", {}, homeAction.copy) : null,
       ]),
-      el("div", { className: "student-summary-actions" }, actionButtons),
+      button(homeAction.buttonText, "btn", "button", homeAction.action),
     ]),
   ]);
 }
