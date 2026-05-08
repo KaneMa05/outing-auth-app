@@ -19,10 +19,10 @@
     <meta name="twitter:title" content="론박스터디" />
     <meta name="twitter:description" content="론박스터디 오프라인 전용" />
     <meta name="twitter:image" content="https://outing-auth-app.vercel.app/app-icon.png?v=20260505-final-icon" />
-    <link rel="manifest" href="./manifest.webmanifest?v=20260508-full-restore" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260508-fallback-copy" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260508-full-restore" />
+    <link rel="stylesheet" href="./styles.css?v=20260508-fallback-copy" />
   </head>
   <body>
     <noscript>
@@ -124,13 +124,13 @@
         var fallbackMode = false;
         function fallbackHtml(route) {
           if (route === "student") {
-            return '<div class="grid student-view"><section class="panel"><h2>외출 신청</h2><div class="empty">앱 데이터를 불러오는 중입니다. 계속 이 화면이면 Safari 방문 기록/웹 사이트 데이터를 삭제한 뒤 다시 접속해주세요.</div></section></div>';
+            return '<div class="grid student-view"><section class="panel"><h2>외출 신청</h2><div class="empty">앱 데이터를 불러오는 중입니다. 잠시 후에도 계속 이 화면이면 앱을 완전히 종료한 뒤 다시 접속해주세요.</div></section></div>';
           }
           if (route === "attendance") {
-            return '<div class="grid student-view"><section class="panel"><h2>출석 체크</h2><div class="empty">학생 출석 기능은 준비 중입니다.</div></section></div>';
+            return '<div class="grid student-view"><section class="panel"><h2>출석 체크</h2><div class="empty">앱 데이터를 불러오는 중입니다. 정상 로딩 후 출석 인증 화면이 표시됩니다.</div></section></div>';
           }
           if (route === "mypage") {
-            return '<div class="grid student-view"><section class="panel"><h2>마이페이지</h2><div class="empty">학생 등록 후 이용할 수 있습니다.</div></section></div>';
+            return '<div class="grid student-view"><section class="panel"><h2>마이페이지</h2><div class="empty">앱 데이터를 불러오는 중입니다. 정상 로딩 후 학생 정보와 내역이 표시됩니다.</div></section></div>';
           }
           return '<div class="grid student-view"><section class="student-auth-card"><div><span>학생 등록</span><h2>학생 등록</h2><p>앱 데이터를 불러오는 중입니다. 잠시 후에도 등록 입력창이 나오지 않으면 사무실에 기기 화면을 보여주세요.</p></div><label class="field"><span>학생 고유번호</span><input type="text" placeholder="예: 18004" autocomplete="off" disabled></label><button class="btn" type="button" disabled>시작하기</button></section></div>';
         }
@@ -196,10 +196,10 @@
         }, 900);
       })();
     </script>
-    <script src="./config.js?v=20260508-full-restore"></script>
-    <script src="./supabase.js?v=20260508-full-restore" defer></script>
-    <script src="./shared.js?v=20260508-full-restore" defer></script>
-    <script src="./student.js?v=20260508-full-restore" defer></script>
-    <script src="./app.js?v=20260508-full-restore" defer></script>
+    <script src="./config.js?v=20260508-fallback-copy"></script>
+    <script src="./supabase.js?v=20260508-fallback-copy" defer></script>
+    <script src="./shared.js?v=20260508-fallback-copy" defer></script>
+    <script src="./student.js?v=20260508-fallback-copy" defer></script>
+    <script src="./app.js?v=20260508-fallback-copy" defer></script>
   </body>
 </html>
