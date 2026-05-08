@@ -89,6 +89,15 @@ create table if not exists public.penalties (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.notices (
+  id text primary key,
+  title text not null,
+  body text not null,
+  is_published boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 do $$
 begin
   if exists (
@@ -119,6 +128,9 @@ on public.attendance_checks (check_date, created_at desc);
 
 create index if not exists penalties_student_id_created_at_idx
 on public.penalties (student_id, created_at desc);
+
+create index if not exists notices_created_at_idx
+on public.notices (created_at desc);
 
 alter table public.students
 add column if not exists track text,
@@ -154,6 +166,7 @@ alter table public.manager_allowed_ips enable row level security;
 alter table public.managers enable row level security;
 alter table public.attendance_checks enable row level security;
 alter table public.penalties enable row level security;
+alter table public.notices enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -175,6 +188,10 @@ drop policy if exists "anon_attendance_select" on public.attendance_checks;
 drop policy if exists "anon_attendance_insert" on public.attendance_checks;
 drop policy if exists "anon_penalties_select" on public.penalties;
 drop policy if exists "anon_penalties_insert" on public.penalties;
+drop policy if exists "anon_notices_select" on public.notices;
+drop policy if exists "anon_notices_insert" on public.notices;
+drop policy if exists "anon_notices_update" on public.notices;
+drop policy if exists "anon_notices_delete" on public.notices;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 
@@ -185,6 +202,7 @@ revoke all on public.manager_allowed_ips from anon;
 revoke all on public.managers from anon;
 revoke all on public.attendance_checks from anon;
 revoke all on public.penalties from anon;
+revoke all on public.notices from anon;
 
 grant select (
   id,
@@ -317,6 +335,34 @@ grant select (
   original_name,
   created_at
 ) on public.attendance_checks to anon;
+
+grant select (
+  id,
+  title,
+  body,
+  is_published,
+  created_at,
+  updated_at
+) on public.notices to anon;
+
+grant insert (
+  id,
+  title,
+  body,
+  is_published,
+  created_at,
+  updated_at
+) on public.notices to anon;
+
+grant update (
+  title,
+  body,
+  is_published,
+  created_at,
+  updated_at
+) on public.notices to anon;
+
+grant delete on public.notices to anon;
 
 grant select (
   id,
@@ -518,6 +564,31 @@ with check (
   and reason is not null
   and manager_name is not null
 );
+
+create policy "anon_notices_select"
+on public.notices
+for select
+to anon
+using (true);
+
+create policy "anon_notices_insert"
+on public.notices
+for insert
+to anon
+with check (title is not null and body is not null);
+
+create policy "anon_notices_update"
+on public.notices
+for update
+to anon
+using (true)
+with check (title is not null and body is not null);
+
+create policy "anon_notices_delete"
+on public.notices
+for delete
+to anon
+using (true);
 
 create policy "anon_attendance_photo_select"
 on storage.objects

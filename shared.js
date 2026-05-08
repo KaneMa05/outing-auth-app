@@ -1,6 +1,24 @@
 ﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
+const DEFAULT_IMPORTANT_NOTICES = [
+  {
+    id: "attendance-guide",
+    title: "출석 인증 및 등원 전 사유신청 안내",
+    body: "출석 인증은 등원 후 학생 앱의 출석 메뉴에서 사진을 제출해주세요.\n\n등원 전 사유신청이 필요한 경우 사유와 사진을 함께 제출하면 담당자가 확인합니다.\n\n사진이 누락되면 홈 화면에 다시 제출 안내가 표시됩니다.",
+    isPublished: true,
+    createdAt: "2026-05-08T00:00:00.000Z",
+    updatedAt: "2026-05-08T00:00:00.000Z",
+  },
+  {
+    id: "outing-guide",
+    title: "외출/조퇴 신청 이용 안내",
+    body: "외출 신청 후에는 현장 인증 사진을 제출해야 신청 흐름이 이어집니다.\n\n학원에 복귀했다면 사무실에서 복귀 인증을 완료해주세요.\n\n조퇴 신청은 담당자 승인 상태를 학생 앱에서 확인할 수 있습니다.",
+    isPublished: true,
+    createdAt: "2026-05-08T00:00:00.000Z",
+    updatedAt: "2026-05-08T00:00:00.000Z",
+  },
+];
 
 const state = loadState();
 let currentRoute = "";
@@ -48,6 +66,7 @@ const routePermissions = {
   grades: "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
+  notices: "notices.read",
   managers: "managers.read",
   students: "students.read",
   duplicates: "outing.audit",
@@ -66,7 +85,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "penalties", "attendance", "grades", "managers", "students", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "penalties", "attendance", "notices", "grades", "managers", "students", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -132,6 +151,7 @@ function defaultState() {
     deletedOutings: [],
     attendanceChecks: [],
     penalties: [],
+    notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
 }
 
@@ -150,6 +170,7 @@ function mergeDefaultState(nextState) {
     deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
     penalties: Array.isArray(nextState?.penalties) ? nextState.penalties : defaults.penalties,
+    notices: Array.isArray(nextState?.notices) ? nextState.notices : defaults.notices,
   };
 }
 
@@ -550,7 +571,8 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.outings?.length ||
     snapshot?.deletedOutings?.length ||
     snapshot?.attendanceChecks?.length ||
-    snapshot?.penalties?.length
+    snapshot?.penalties?.length ||
+    snapshot?.notices?.length
   );
 }
 
@@ -561,6 +583,7 @@ function makeLocalDevSafeState() {
   snapshot.managers = snapshot.managers || [];
   snapshot.attendanceChecks = snapshot.attendanceChecks || [];
   snapshot.penalties = snapshot.penalties || [];
+  snapshot.notices = snapshot.notices || [];
   return snapshot;
 }
 
@@ -610,6 +633,7 @@ async function loadStateFromRemote() {
     "manager_name",
     "created_at",
   ].join(",");
+  const noticeColumns = "id,title,body,is_published,created_at,updated_at";
   const managerRequest =
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
@@ -621,10 +645,12 @@ async function loadStateFromRemote() {
     remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
     remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
     remoteStore.from("penalties").select(penaltyColumns).order("created_at", { ascending: false }),
+    remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
   ]);
   const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
   let attendanceResult = remoteResults[4];
   const penaltyResult = remoteResults[5];
+  const noticeResult = remoteResults[6];
   if (isMissingColumnError(attendanceResult.error, "reason") || isMissingColumnError(attendanceResult.error, "detail")) {
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
@@ -639,6 +665,7 @@ async function loadStateFromRemote() {
   if (photosError) throw photosError;
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
+  if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
 
   state.students = (students || []).map((student) => ({
     id: student.id,
@@ -683,6 +710,7 @@ async function loadStateFromRemote() {
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
+  if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
 }
 
 async function saveStateToRemote() {
@@ -720,6 +748,24 @@ async function saveStateToRemote() {
         .from("managers")
         .upsert(managerRows, { onConflict: "id" });
       if (error && !isMissingRelationError(error, "managers")) throw error;
+    }
+
+    const noticeRows = (state.notices || [])
+      .filter((notice) => notice.id && String(notice.title || "").trim())
+      .map((notice) => ({
+        id: notice.id,
+        title: String(notice.title || "").trim(),
+        body: String(notice.body || "").trim(),
+        is_published: notice.isPublished !== false,
+        created_at: notice.createdAt || new Date().toISOString(),
+        updated_at: notice.updatedAt || new Date().toISOString(),
+      }));
+
+    if (noticeRows.length) {
+      const { error } = await remoteStore
+        .from("notices")
+        .upsert(noticeRows, { onConflict: "id" });
+      if (error && !isMissingRelationError(error, "notices")) throw error;
     }
   }
 
@@ -1307,6 +1353,28 @@ function mapManagerFromRemote(manager) {
     isActive: manager.is_active !== false,
     createdAt: manager.created_at,
   };
+}
+
+function mapNoticeFromRemote(notice) {
+  return {
+    id: notice.id,
+    title: notice.title || "",
+    body: notice.body || "",
+    isPublished: notice.is_published !== false,
+    createdAt: notice.created_at,
+    updatedAt: notice.updated_at || notice.created_at,
+  };
+}
+
+function getImportantNotices({ publishedOnly = false } = {}) {
+  return (state.notices || [])
+    .filter((notice) => String(notice.title || "").trim())
+    .filter((notice) => !publishedOnly || notice.isPublished !== false)
+    .sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
+}
+
+function getImportantNoticeById(id, options = {}) {
+  return getImportantNotices(options).find((notice) => notice.id === String(id || ""));
 }
 
 function getPenaltiesForStudent(studentId) {

@@ -3,6 +3,7 @@
   sort: "name",
 };
 let penaltySortMode = "id";
+let editingNoticeId = "";
 const penaltyPeriodFilter = {
   start: "",
   end: "",
@@ -1188,6 +1189,11 @@ function renderManagersAdmin() {
   return el("div", { className: "grid" }, [managerAdminPanel()]);
 }
 
+function renderNoticesAdmin() {
+  if (!hasTeacherPermission("notices.read")) return renderForbidden();
+  return el("div", { className: "grid" }, [noticeAdminPanel()]);
+}
+
 function renderDuplicates() {
   if (!hasTeacherPermission("outing.audit")) return renderForbidden();
   return el("div", { className: "grid" }, [renderDuplicatePhotoPanel()]);
@@ -1430,6 +1436,140 @@ function managerAdminPanel() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "등록된 담당자가 없습니다."))])]
     ),
   ]);
+}
+
+function noticeAdminPanel() {
+  const editingNotice = editingNoticeId ? getImportantNoticeById(editingNoticeId) : null;
+  const titleInput = input("title", "text", "공지 제목", editingNotice?.title || "");
+  titleInput.required = true;
+  const bodyInput = el("textarea", {
+    name: "body",
+    placeholder: "공지 내용을 입력하세요.",
+    rows: 8,
+  }, editingNotice?.body || "");
+  bodyInput.required = true;
+  const publishedInput = el("input", { name: "isPublished", type: "checkbox", checked: editingNotice?.isPublished !== false });
+  const submitButton = button(editingNotice ? "공지 수정" : "공지 등록", "btn");
+  const formActions = [submitButton];
+  if (editingNotice) {
+    formActions.push(button("수정 취소", "btn secondary", "button", () => {
+      editingNoticeId = "";
+      render();
+    }));
+  }
+
+  const form = el("form", { className: "form-grid notice-admin-form" }, [
+    field("제목", titleInput, "full"),
+    field("내용", bodyInput, "full"),
+    el("label", { className: "notice-publish-toggle" }, [
+      publishedInput,
+      el("span", {}, "학생 홈에 공개"),
+    ]),
+    el("div", { className: "field full notice-form-actions" }, formActions),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!hasTeacherPermission("notices.write")) return notify("공지 저장 권한이 없습니다.");
+    const data = formData(form);
+    const title = String(data.title || "").trim();
+    const body = String(data.body || "").trim();
+    if (!title || !body) return notify("공지 제목과 내용을 입력해주세요.");
+    submitButton.disabled = true;
+    submitButton.textContent = "저장 중...";
+    try {
+      upsertNotice({
+        id: editingNotice?.id,
+        title,
+        body,
+        isPublished: Boolean(data.isPublished),
+      });
+      editingNoticeId = "";
+      saveState();
+      await flushRemoteSave();
+      render();
+      notify(editingNotice ? "공지글을 수정했습니다." : "공지글을 등록했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("공지글을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      submitButton.disabled = false;
+      submitButton.textContent = editingNotice ? "공지 수정" : "공지 등록";
+    }
+  });
+
+  const rows = getImportantNotices()
+    .map((notice) =>
+      el("tr", {}, [
+        el("td", { className: "wide-cell" }, [
+          el("strong", {}, notice.title),
+          notice.body ? el("p", { className: "notice-admin-preview" }, notice.body.replace(/\s+/g, " ").slice(0, 80)) : null,
+        ]),
+        el("td", {}, notice.isPublished !== false ? el("span", { className: "badge approved" }, "공개") : el("span", { className: "badge" }, "숨김")),
+        el("td", {}, formatDateCompact(notice.createdAt)),
+        el("td", { className: "student-admin-actions" }, [
+          hasTeacherPermission("notices.write") ? button("수정", "mini-btn", "button", () => {
+            editingNoticeId = notice.id;
+            render();
+          }) : null,
+          hasTeacherPermission("notices.write") ? button("삭제", "mini-btn danger", "button", () => deleteNotice(notice.id)) : null,
+        ]),
+      ])
+    );
+
+  return el("div", { className: "grid" }, [
+    panel(editingNotice ? "공지 수정" : "공지 등록", [form]),
+    panel("공지 목록", [
+      table(
+        ["제목", "상태", "등록일", "관리"],
+        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 4 }, el("div", { className: "empty table-empty" }, "등록된 공지글이 없습니다."))])]
+      ),
+    ]),
+  ]);
+}
+
+function upsertNotice({ id, title, body, isPublished }) {
+  state.notices = state.notices || [];
+  const now = new Date().toISOString();
+  const existing = id ? state.notices.find((notice) => notice.id === id) : null;
+  if (existing) {
+    existing.title = title;
+    existing.body = body;
+    existing.isPublished = isPublished;
+    existing.updatedAt = now;
+    return existing;
+  }
+  const notice = {
+    id: createId(),
+    title,
+    body,
+    isPublished,
+    createdAt: now,
+    updatedAt: now,
+  };
+  state.notices.unshift(notice);
+  return notice;
+}
+
+async function deleteNotice(id) {
+  if (!hasTeacherPermission("notices.write")) return notify("공지 삭제 권한이 없습니다.");
+  const notice = getImportantNoticeById(id);
+  if (!notice) return;
+  if (!confirm(`"${notice.title}" 공지글을 삭제할까요?`)) return;
+  state.notices = (state.notices || []).filter((item) => item.id !== id);
+  if (editingNoticeId === id) editingNoticeId = "";
+  saveState();
+  try {
+    if (remoteStore) {
+      const { error } = await remoteStore.from("notices").delete().eq("id", id);
+      if (error && !isMissingRelationError(error, "notices")) throw error;
+    }
+    render();
+    notify("공지글을 삭제했습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("공지글 삭제를 원격 저장소에 반영하지 못했습니다.");
+    render();
+  }
 }
 
 function getActiveManagers() {

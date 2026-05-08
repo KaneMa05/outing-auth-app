@@ -2159,6 +2159,42 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   gap: 8px;
 }
 
+.notice-admin-form textarea {
+  min-height: 180px;
+}
+
+.notice-publish-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--text);
+  font-weight: 850;
+}
+
+.notice-publish-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.notice-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notice-form-actions .btn {
+  width: auto;
+}
+
+.notice-admin-preview {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .student-summary-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

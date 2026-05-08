@@ -14,40 +14,10 @@
   students: "학생 등록",
   duplicates: "중복 사진",
   trash: "삭제 내역",
+  notices: "공지 관리",
 };
 const COAST_GUARD_EXAM_DATE = "2026-06-13";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
-const IMPORTANT_NOTICES = [
-  {
-    id: "attendance-guide",
-    title: "출석 인증 및 등원 전 사유신청 안내",
-    date: "2026-05-08",
-    body: [
-      "출석 인증은 등원 후 학생 앱의 출석 메뉴에서 사진을 제출해주세요.",
-      "등원 전 사유신청이 필요한 경우 사유와 사진을 함께 제출하면 담당자가 확인합니다.",
-      "사진이 누락되면 홈 화면에 다시 제출 안내가 표시됩니다.",
-    ],
-  },
-  {
-    id: "outing-guide",
-    title: "외출/조퇴 신청 이용 안내",
-    date: "2026-05-08",
-    body: [
-      "외출 신청 후에는 현장 인증 사진을 제출해야 신청 흐름이 이어집니다.",
-      "학원에 복귀했다면 사무실에서 복귀 인증을 완료해주세요.",
-      "조퇴 신청은 담당자 승인 상태를 학생 앱에서 확인할 수 있습니다.",
-    ],
-  },
-  {
-    id: "classroom-rule",
-    title: "학습실 이용 기본 안내",
-    date: "2026-05-08",
-    body: [
-      "개인 물품은 지정 좌석 주변에 정리하고, 장시간 이석 시 자리 정돈을 부탁드립니다.",
-      "문의가 필요한 내용은 사무실 또는 담당자에게 먼저 알려주세요.",
-    ],
-  },
-];
 const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 해경학과 항해(경장)",
@@ -124,7 +94,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "managers", "students", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "notices", "managers", "students", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -179,6 +149,7 @@ function render() {
           grades: () => renderComingSoonManagement("성적 관리", "시험별 성적 입력, 학생별 추이, 반 평균 분석 기능을 이곳에 연결할 예정입니다."),
           penalties: renderPenaltyManagement,
           attendance: renderAttendanceManagement,
+          notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
           duplicates: renderDuplicates,
@@ -542,7 +513,8 @@ function isRunningStandalone() {
 }
 
 function renderStudentImportantNoticeCard() {
-  const notices = IMPORTANT_NOTICES.slice(0, 2);
+  const notices = getImportantNotices({ publishedOnly: true }).slice(0, 2);
+  if (!notices.length) return null;
   return el("section", { className: "student-notice-card" }, [
     el("div", { className: "student-notice-head" }, [
       el("h3", {}, "중요 공지"),
@@ -564,6 +536,7 @@ function renderStudentNoticeRow(notice) {
 }
 
 function renderStudentNoticeList() {
+  const notices = getImportantNotices({ publishedOnly: true });
   return el("div", { className: "grid student-view student-notices" }, [
     el("section", { className: "student-notices-panel" }, [
       el("div", { className: "student-notices-head" }, [
@@ -573,7 +546,7 @@ function renderStudentNoticeList() {
       el(
         "div",
         { className: "student-notice-list full" },
-        IMPORTANT_NOTICES.map((notice) => renderStudentNoticeRow(notice))
+        notices.length ? notices.map((notice) => renderStudentNoticeRow(notice)) : el("div", { className: "empty" }, "등록된 중요 공지가 없습니다.")
       ),
     ]),
   ]);
@@ -581,7 +554,7 @@ function renderStudentNoticeList() {
 
 function renderStudentNoticeDetail() {
   const noticeId = currentRoute.replace(/^notice-/, "");
-  const notice = IMPORTANT_NOTICES.find((item) => item.id === noticeId);
+  const notice = getImportantNoticeById(noticeId, { publishedOnly: true });
   if (!notice) {
     return el("div", { className: "grid student-view student-notices" }, [
       el("section", { className: "student-notices-panel" }, [
@@ -594,13 +567,13 @@ function renderStudentNoticeDetail() {
   return el("div", { className: "grid student-view student-notices" }, [
     el("article", { className: "student-notice-detail" }, [
       el("div", { className: "student-notice-detail-head" }, [
-        el("span", {}, formatNoticeDate(notice.date)),
+        el("span", {}, formatNoticeDate(notice.createdAt)),
         el("h2", {}, notice.title),
       ]),
       el(
         "div",
         { className: "student-notice-body" },
-        notice.body.map((paragraph) => el("p", {}, paragraph))
+        splitNoticeBody(notice.body).map((paragraph) => el("p", {}, paragraph))
       ),
       el("div", { className: "student-notice-actions" }, [
         button("목록으로", "btn secondary", "button", () => navigate("notices")),
@@ -612,7 +585,20 @@ function renderStudentNoticeDetail() {
 
 function formatNoticeDate(value) {
   if (!value) return "";
-  return String(value).replaceAll("-", ".");
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10).replaceAll("-", ".");
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function splitNoticeBody(value) {
+  return String(value || "")
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
 }
 
 function getStudentHomeStatus(outing) {
@@ -891,6 +877,7 @@ function renderHome() {
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
+        hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
       ].filter(Boolean)),
     ]),
