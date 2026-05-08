@@ -508,6 +508,7 @@ function createPreArrivalReasonForm(student) {
 
 function renderStudentAttendanceComplete(check) {
   const photoSrc = getAttendancePhotoSrc(check);
+  const thumbnailSrc = getAttendanceThumbnailSrc(check);
   const isReason = check.status === "pre_arrival_reason";
   return el("div", { className: "attendance-complete" }, [
     el("div", { className: "empty success-message" }, isReason ? "등원 전 사유신청이 완료되었습니다." : "오늘 출석 인증이 완료되었습니다."),
@@ -524,7 +525,7 @@ function renderStudentAttendanceComplete(check) {
             photoUrl: photoSrc,
             uploadedAt: check.createdAt,
           }), [
-            el("img", { src: photoSrc, alt: isReason ? "등원 전 사유 인증 사진" : "출석 인증 사진" }),
+            el("img", { src: thumbnailSrc, alt: isReason ? "등원 전 사유 인증 사진" : "출석 인증 사진", loading: "lazy" }),
             el("span", {}, isReason ? "사유 인증" : "출석 인증"),
             el("time", { dateTime: check.createdAt || "" }, formatTime(check.createdAt)),
           ]),

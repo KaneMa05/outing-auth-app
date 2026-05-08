@@ -42,6 +42,8 @@ create table if not exists public.outing_photos (
   data_url text,
   photo_path text,
   photo_url text,
+  thumbnail_path text,
+  thumbnail_url text,
   original_name text,
   uploaded_at timestamptz not null default now()
 );
@@ -74,6 +76,8 @@ create table if not exists public.attendance_checks (
   detail text,
   photo_path text not null,
   photo_url text,
+  thumbnail_path text,
+  thumbnail_url text,
   photo_data_url text,
   original_name text,
   created_at timestamptz not null default now(),
@@ -153,11 +157,15 @@ add column if not exists app_registered_at timestamptz;
 
 alter table public.attendance_checks
 add column if not exists reason text,
-add column if not exists detail text;
+add column if not exists detail text,
+add column if not exists thumbnail_path text,
+add column if not exists thumbnail_url text;
 
 alter table public.outing_photos
 add column if not exists photo_path text,
 add column if not exists photo_url text,
+add column if not exists thumbnail_path text,
+add column if not exists thumbnail_url text,
 alter column data_url drop not null;
 
 do $$
@@ -302,6 +310,8 @@ grant select (
   data_url,
   photo_path,
   photo_url,
+  thumbnail_path,
+  thumbnail_url,
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
@@ -313,6 +323,8 @@ grant insert (
   data_url,
   photo_path,
   photo_url,
+  thumbnail_path,
+  thumbnail_url,
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
@@ -354,6 +366,8 @@ grant select (
   detail,
   photo_path,
   photo_url,
+  thumbnail_path,
+  thumbnail_url,
   photo_data_url,
   original_name,
   created_at
@@ -420,6 +434,8 @@ grant insert (
   detail,
   photo_path,
   photo_url,
+  thumbnail_path,
+  thumbnail_url,
   photo_data_url,
   original_name,
   created_at

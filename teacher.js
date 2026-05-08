@@ -1013,13 +1013,14 @@ function attendanceStatusBadge(check) {
 
 function attendancePhotoButton(check) {
   const src = getAttendancePhotoSrc(check);
+  const thumbnailSrc = getAttendanceThumbnailSrc(check);
   if (!src) return "-";
   return button("", "attendance-photo-thumb", "button", () => openPhotoModal({
     type: check.status === "pre_arrival_reason" ? "등원 전 사유 인증" : "출석 인증",
     photoUrl: src,
     uploadedAt: check.createdAt,
   }), [
-    el("img", { src, alt: "출석 인증 사진" }),
+    el("img", { src: thumbnailSrc, alt: "출석 인증 사진", loading: "lazy" }),
     el("span", {}, "크게 보기"),
   ]);
 }
@@ -1171,11 +1172,14 @@ function photoMiniList(photos = []) {
   return el(
     "div",
     { className: "photo-mini-list" },
-    photos.map((photo) =>
-      button("", "photo-mini-button", "button", () => openLoadedOutingPhotoModal(photo), [
-        el("span", { className: "photo-mini-placeholder" }, "보기"),
-      ])
-    )
+    photos.map((photo) => {
+      const thumbnailSrc = getOutingThumbnailSrc(photo);
+      return button("", "photo-mini-button", "button", () => openLoadedOutingPhotoModal(photo), [
+        thumbnailSrc
+          ? el("img", { src: thumbnailSrc, alt: photo.type || "외출 인증 사진", loading: "lazy" })
+          : el("span", { className: "photo-mini-placeholder" }, "보기"),
+      ]);
+    })
   );
 }
 
