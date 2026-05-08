@@ -164,6 +164,8 @@ function render() {
   app.innerHTML = "";
   const renderRoute = routes[currentRoute] || routes[defaultRoute()];
   app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden())) : renderRoute());
+  app.removeAttribute("data-loading-shell");
+  if (APP_MODE !== "teacher" && typeof window.__studentAppReady === "function") window.__studentAppReady();
 }
 
 async function initTeacherAuth() {
