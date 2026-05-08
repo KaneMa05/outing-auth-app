@@ -226,9 +226,16 @@ function renderStudentVerify() {
 
 function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
+  const activeOuting = getActiveOuting(state.settings.lastStudentId);
+  const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
   const form = el("form", { className: "form-grid" }, [
     field("현장 인증 사진", photoCaptureInput("sitePhoto"), "full"),
-    field("영수증 인증 사진 (선택)", photoCaptureInput("receiptPhoto"), "full"),
+    field(
+      isReceiptRequired ? "영수증 인증 사진 (필수)" : "영수증 인증 사진 (선택)",
+      photoCaptureInput("receiptPhoto"),
+      "full",
+      isReceiptRequired ? "병원 외출은 영수증 인증 사진을 함께 제출해야 합니다." : ""
+    ),
     el("div", { className: "field full" }, [submitButton]),
   ]);
 
@@ -240,6 +247,7 @@ function createVerifyForm() {
     const sitePhoto = form.elements.sitePhoto.files[0];
     const receiptPhoto = form.elements.receiptPhoto.files[0];
     if (!sitePhoto) return notify("현장 인증 사진을 업로드해주세요.");
+    if (String(outing.reason || "").trim() === "병원" && !receiptPhoto) return notify("병원 외출은 영수증 인증 사진을 업로드해주세요.");
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "사진 업로드 중...");
