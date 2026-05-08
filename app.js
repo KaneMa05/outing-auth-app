@@ -376,7 +376,19 @@ function createDeviceToken() {
 function renderStudentHome() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
+  const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
+  const needsAttendance = !todayAttendance || !getAttendancePhotoSrc(todayAttendance);
   const homeAction = getStudentHomeAction(activeOuting);
+  const actionButtons = [
+    needsAttendance
+      ? button("출석 인증하기", "btn", "button", () => {
+          state.settings.attendanceMode = "";
+          saveState();
+          navigate("attendance");
+        })
+      : null,
+    button(homeAction.buttonText, needsAttendance ? "btn secondary" : "btn", "button", homeAction.action),
+  ];
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
       el("div", {}, [
@@ -391,7 +403,7 @@ function renderStudentHome() {
         el("strong", {}, homeAction.title),
         homeAction.copy ? el("p", {}, homeAction.copy) : null,
       ]),
-      button(homeAction.buttonText, "btn", "button", homeAction.action),
+      el("div", { className: "student-summary-actions" }, actionButtons),
     ]),
   ]);
 }

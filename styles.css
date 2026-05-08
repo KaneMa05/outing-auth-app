@@ -2083,6 +2083,12 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-size: 0.88rem;
 }
 
+.student-summary-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .student-mypage {
   gap: 10px;
 }
