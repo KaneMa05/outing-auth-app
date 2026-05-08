@@ -19,10 +19,10 @@
     <meta name="twitter:title" content="론박스터디" />
     <meta name="twitter:description" content="론박스터디 오프라인 전용" />
     <meta name="twitter:image" content="https://outing-auth-app.vercel.app/app-icon.png?v=20260505-final-icon" />
-    <link rel="manifest" href="./manifest.webmanifest?v=20260508-return-guidance" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260508-footer-order" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260508-return-guidance" />
+    <link rel="stylesheet" href="./styles.css?v=20260508-footer-order" />
   </head>
   <body>
     <noscript>
@@ -63,6 +63,10 @@
         <span class="footer-icon footer-icon-home" aria-hidden="true"></span>
         <span>홈</span>
       </a>
+      <a href="#attendance" data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance');">
+        <span class="footer-icon footer-icon-attendance" aria-hidden="true"></span>
+        <span>출석</span>
+      </a>
       <a href="#student" data-route="student" onclick="window.__studentNav && window.__studentNav('student');">
         <span class="footer-icon footer-icon-outing" aria-hidden="true"></span>
         <span>외출</span>
@@ -70,10 +74,6 @@
       <a href="#grades" data-unreleased="성적" onclick="window.__studentUnreleased && window.__studentUnreleased('성적'); return false;" aria-disabled="true">
         <span class="footer-icon footer-icon-grades" aria-hidden="true"></span>
         <span>성적</span>
-      </a>
-      <a href="#attendance" data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance');">
-        <span class="footer-icon footer-icon-attendance" aria-hidden="true"></span>
-        <span>출석</span>
       </a>
       <a href="#mypage" data-route="mypage" onclick="window.__studentNav && window.__studentNav('mypage');">
         <span class="footer-icon footer-icon-mypage" aria-hidden="true"></span>
@@ -191,10 +191,10 @@
         }, 900);
       })();
     </script>
-    <script src="./config.js?v=20260508-return-guidance"></script>
-    <script src="./supabase.js?v=20260508-return-guidance" defer></script>
-    <script src="./shared.js?v=20260508-return-guidance" defer></script>
-    <script src="./student.js?v=20260508-return-guidance" defer></script>
-    <script src="./app.js?v=20260508-return-guidance" defer></script>
+    <script src="./config.js?v=20260508-footer-order"></script>
+    <script src="./supabase.js?v=20260508-footer-order" defer></script>
+    <script src="./shared.js?v=20260508-footer-order" defer></script>
+    <script src="./student.js?v=20260508-footer-order" defer></script>
+    <script src="./app.js?v=20260508-footer-order" defer></script>
   </body>
 </html>
