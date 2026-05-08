@@ -387,25 +387,14 @@ function renderStudentAttendance() {
   const needsPhotoRetry = todayCheck && !getAttendancePhotoSrc(todayCheck);
   const isReasonMode = state.settings.attendanceMode === "pre-arrival-reason" && !todayCheck;
   const isOpen = isAttendanceCheckOpen();
-  const preArrivalButton = button("등원 전 사유신청", "btn secondary", "button", () => {
-    if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
-    state.settings.attendanceMode = "pre-arrival-reason";
-    saveState();
-    render();
-  });
-  preArrivalButton.disabled = !isOpen;
   return el("div", { className: "grid student-view" }, [
     panel(isReasonMode ? "등원 전 사유신청" : "오늘 출석", [
-      todayCheck && !needsPhotoRetry ? renderStudentAttendanceComplete(todayCheck) : isReasonMode ? createPreArrivalReasonForm(student) : createAttendanceForm(student, { retryMissingPhoto: needsPhotoRetry }),
+      todayCheck && !needsPhotoRetry
+        ? renderStudentAttendanceComplete(todayCheck)
+        : isReasonMode
+          ? createPreArrivalReasonForm(student)
+          : createAttendanceForm(student, { retryMissingPhoto: needsPhotoRetry, showPreArrival: !todayCheck }),
     ]),
-    !todayCheck && !isReasonMode
-      ? el("div", { className: "attendance-secondary-action" }, [
-          preArrivalButton,
-          !isOpen && state.settings.attendanceDeadlineEnabled
-            ? el("p", { className: "subtle attendance-deadline-note" }, `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`)
-            : null,
-        ])
-      : null,
   ]);
 }
 
@@ -413,11 +402,21 @@ function createAttendanceForm(student, options = {}) {
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("출석 인증하기", "btn");
   submitButton.disabled = !isOpen;
+  const preArrivalButton = options.showPreArrival
+    ? button("등원 전 사유신청", "btn", "button", () => {
+        if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
+        state.settings.attendanceMode = "pre-arrival-reason";
+        saveState();
+        render();
+      })
+    : null;
+  if (preArrivalButton) preArrivalButton.disabled = !isOpen;
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("출석 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
     field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
+      preArrivalButton,
       el(
         "p",
         { className: "subtle attendance-deadline-note" },
@@ -427,6 +426,9 @@ function createAttendanceForm(student, options = {}) {
             : `오전 ${formatAttendanceDeadline()} 이후에는 출석 인증을 할 수 없습니다.`
           : "테스트 중에는 출석 인증 시간 제한이 꺼져 있습니다."
       ),
+      preArrivalButton && !isOpen && state.settings.attendanceDeadlineEnabled
+        ? el("p", { className: "subtle attendance-deadline-note" }, `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`)
+        : null,
     ]),
   ]);
 
