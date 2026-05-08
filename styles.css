@@ -73,6 +73,19 @@ button {
   cursor: pointer;
 }
 
+.no-script-warning {
+  margin: 12px auto 0;
+  width: min(420px, calc(100% - 28px));
+  border: 1px solid var(--danger-soft);
+  border-radius: 12px;
+  background: #fff7f5;
+  color: var(--danger);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .app-frame {
   display: grid;
   grid-template-columns: 248px 1fr;
@@ -1667,7 +1680,8 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
   transform: translate(-50%, calc(100% + 24px));
 }
 
-.student-footer-menu button {
+.student-footer-menu button,
+.student-footer-menu a {
   min-height: 58px;
   display: grid;
   grid-template-rows: 24px auto;
@@ -1680,22 +1694,33 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 800;
+  text-decoration: none;
 }
 
-.student-footer-menu button.active {
+.student-footer-menu button.active,
+.student-footer-menu a.active {
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
 
+.student-footer-menu button:active,
+.student-footer-menu a:active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  transform: translateY(1px);
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .student-footer-menu button:hover {
+  .student-footer-menu button:hover,
+  .student-footer-menu a:hover {
     background: var(--accent-soft);
     color: var(--accent-strong);
   }
 }
 
 .student-footer-menu button:disabled,
-.student-footer-menu button[aria-disabled="true"] {
+.student-footer-menu button[aria-disabled="true"],
+.student-footer-menu a[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.46;
 }

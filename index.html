@@ -25,6 +25,11 @@
     <link rel="stylesheet" href="./styles.css?v=20260508-ios-route-fix" />
   </head>
   <body>
+    <noscript>
+      <div class="no-script-warning">
+        이 앱은 JavaScript가 켜져 있어야 사용할 수 있습니다. iPhone 설정에서 Safari/Chrome의 JavaScript 차단 또는 콘텐츠 차단을 해제해주세요.
+      </div>
+    </noscript>
     <div class="app-frame">
       <aside class="sidebar">
         <div class="brand">
@@ -64,26 +69,26 @@
     </div>
 
     <footer class="student-footer-menu" aria-label="학생 메뉴">
-      <button data-route="home" onclick="window.__studentNav && window.__studentNav('home'); return false;" type="button">
+      <a href="#home" data-route="home" onclick="window.__studentNav && window.__studentNav('home');">
         <span class="footer-icon footer-icon-home" aria-hidden="true"></span>
         <span>홈</span>
-      </button>
-      <button data-route="student" onclick="window.__studentNav && window.__studentNav('student'); return false;" type="button">
+      </a>
+      <a href="#student" data-route="student" onclick="window.__studentNav && window.__studentNav('student');">
         <span class="footer-icon footer-icon-outing" aria-hidden="true"></span>
         <span>외출</span>
-      </button>
-      <button data-unreleased="성적" onclick="window.__studentUnreleased && window.__studentUnreleased('성적'); return false;" type="button" aria-disabled="true">
+      </a>
+      <a href="#grades" data-unreleased="성적" onclick="window.__studentUnreleased && window.__studentUnreleased('성적'); return false;" aria-disabled="true">
         <span class="footer-icon footer-icon-grades" aria-hidden="true"></span>
         <span>성적</span>
-      </button>
-      <button data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance'); return false;" type="button">
+      </a>
+      <a href="#attendance" data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance');">
         <span class="footer-icon footer-icon-attendance" aria-hidden="true"></span>
         <span>출석</span>
-      </button>
-      <button data-route="mypage" onclick="window.__studentNav && window.__studentNav('mypage'); return false;" type="button">
+      </a>
+      <a href="#mypage" data-route="mypage" onclick="window.__studentNav && window.__studentNav('mypage');">
         <span class="footer-icon footer-icon-mypage" aria-hidden="true"></span>
         <span>마이</span>
-      </button>
+      </a>
     </footer>
 
     <div id="toast" class="toast" role="status"></div>
@@ -141,9 +146,14 @@
           if (route === "student" || route === "attendance" || route === "mypage") return route;
           return "home";
         }
+        function shouldUseFallback() {
+          var app = qs("#app");
+          if (!app) return false;
+          return !window.render || app.textContent.indexOf("화면을 불러오는 중입니다") !== -1;
+        }
         function navFallback(route) {
           location.hash = route;
-          if (!window.render) renderFallback(route);
+          if (shouldUseFallback()) renderFallback(route);
         }
         function unreleasedFallback(featureName) {
           if (typeof window.openUnreleasedModal === "function") window.openUnreleasedModal(featureName);
@@ -177,10 +187,10 @@
           }
         }, true);
         window.addEventListener("hashchange", function () {
-          if (!window.render) renderFallback(currentRoute());
+          if (shouldUseFallback()) renderFallback(currentRoute());
         });
         window.setTimeout(function () {
-          if (!window.render) renderFallback(currentRoute());
+          if (shouldUseFallback()) renderFallback(currentRoute());
         }, 900);
       })();
     </script>
