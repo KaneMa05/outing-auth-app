@@ -67,11 +67,13 @@ if (resetButton) {
 window.addEventListener("hashchange", () => {
   currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
   render();
+  scrollAppToTop();
 });
 
 window.addEventListener("popstate", () => {
   currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
   render();
+  scrollAppToTop();
 });
 
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
@@ -108,7 +110,18 @@ function defaultRoute() {
 }
 
 function navigate(route) {
+  const nextRoute = normalizeRoute(route || defaultRoute());
+  const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextRoute}`;
   location.hash = route;
+  if (shouldScrollOnly) scrollAppToTop();
+}
+
+function scrollAppToTop() {
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  });
 }
 
 function render() {
