@@ -11,7 +11,7 @@ const toast = document.querySelector("#toast");
 const topActions = document.querySelector(".top-actions");
 const seedButton = document.querySelector("#seed-demo");
 const resetButton = document.querySelector("#reset-data");
-const remoteStore = createRemoteStore();
+let remoteStore = createRemoteStore();
 const localDevStoreUrl = createLocalDevStoreUrl();
 const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
 const STUDENT_INTERACTION_PAUSE_MS = 15000;
@@ -72,13 +72,13 @@ function firstAllowedTeacherRoute() {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
-  render();
+  renderAppIfReady();
 });
 
 window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
   notify("홈화면에 추가되었습니다.");
-  render();
+  renderAppIfReady();
 });
 
 if ("serviceWorker" in navigator) {
@@ -206,12 +206,41 @@ function createRemoteStore() {
   return window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 }
 
+function renderAppIfReady() {
+  if (typeof render === "function") render();
+}
+
+function loadSupabaseSdk() {
+  if (window.supabase && window.supabase.createClient) return Promise.resolve(true);
+  if (window.__outingSupabaseSdkPromise) return window.__outingSupabaseSdkPromise;
+  window.__outingSupabaseSdkPromise = new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(false), 5000);
+    const script = document.createElement("script");
+    script.src = "./supabase.js?v=20260508-normal-render";
+    script.async = true;
+    script.onload = () => {
+      window.clearTimeout(timer);
+      resolve(Boolean(window.supabase && window.supabase.createClient));
+    };
+    script.onerror = () => {
+      window.clearTimeout(timer);
+      resolve(false);
+    };
+    document.head.appendChild(script);
+  });
+  return window.__outingSupabaseSdkPromise;
+}
+
 function createLocalDevStoreUrl() {
   const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
   return isLocalHost ? "/api/local-state" : "";
 }
 
 async function initRemoteStore() {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
   if (!remoteStore) {
     await initLocalDevStore();
     return;
