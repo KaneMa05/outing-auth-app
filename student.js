@@ -576,6 +576,7 @@ function createReturnForm() {
         uploadedAt: new Date().toISOString(),
       });
       outing.status = "returned";
+      if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
       setStudentStep("done");

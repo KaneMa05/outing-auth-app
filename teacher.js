@@ -346,9 +346,10 @@ function applyAutoApprovalForReturnedOutings() {
     if (outing.decision === "pending" && isReturnPhotoCompleted(outing)) {
       outing.decision = "approved";
       changed = true;
+      updateOutingDecisionToRemote(outing).catch((error) => console.error(error));
     }
   });
-  if (changed) saveState();
+  if (changed) saveState({ skipRemote: true });
 }
 
 function isReturnPhotoCompleted(outing) {
