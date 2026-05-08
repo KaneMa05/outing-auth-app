@@ -57,15 +57,6 @@ function renderStudentRequestStep() {
   const isEarlyLeaveMode = Boolean(state.settings.earlyLeaveMode);
   return el("div", { className: "grid student-view" }, [
     panel(isEarlyLeaveMode ? "조퇴 신청" : "외출 신청", [isEarlyLeaveMode ? createEarlyLeaveForm() : createOutForm()], "request-step"),
-    !isEarlyLeaveMode
-      ? el("div", { className: "attendance-secondary-action" }, [
-          button("조퇴 신청하기", "btn secondary", "button", () => {
-            state.settings.earlyLeaveMode = true;
-            saveState();
-            render();
-          }),
-        ])
-      : null,
   ]);
 }
 
@@ -86,7 +77,14 @@ function createOutForm() {
     field("외출 사유", select("reason", ["병원", "은행", "수영레슨", "개인 사유 인증", "기타"])),
     field("예상 복귀 시각", expectedReturnInput, "time-field"),
     field("상세 사유", textarea("detail", "방문 장소나 필요한 내용을 입력하세요."), "full"),
-    el("div", { className: "field full" }, [button("외출 신청하기", "btn")]),
+    el("div", { className: "field full" }, [
+      button("외출 신청하기", "btn"),
+      button("조퇴 신청하기", "btn", "button", () => {
+        state.settings.earlyLeaveMode = true;
+        saveState();
+        render();
+      }),
+    ]),
   ]);
 
   form.addEventListener("submit", (event) => {
