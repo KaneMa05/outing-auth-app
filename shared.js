@@ -21,6 +21,7 @@ const STUDENT_INTERACTION_PAUSE_MS = 15000;
 const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
+const OUTING_PHOTO_BUCKET = "outing-photos";
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
@@ -613,6 +614,7 @@ function makeLocalDevSafeState() {
 }
 
 async function loadStateFromRemote() {
+  const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
   const managerColumns = "id,name,role,memo,is_active,created_at";
   const outingColumns = [
@@ -632,7 +634,7 @@ async function loadStateFromRemote() {
     "returned_at",
     "deleted_at",
   ].join(",");
-  const photoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
+  const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,original_name,uploaded_at";
   const attendanceColumns = [
     "id",
     "student_id",
@@ -644,7 +646,6 @@ async function loadStateFromRemote() {
     "detail",
     "photo_path",
     "photo_url",
-    "photo_data_url",
     "original_name",
     "created_at",
   ].join(",");
@@ -663,19 +664,37 @@ async function loadStateFromRemote() {
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
       : Promise.resolve({ data: state.managers || [], error: null });
+  let outingRequest = remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false });
+  let attendanceRequest = remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false });
+  let penaltyRequest = remoteStore.from("penalties").select(penaltyColumns).order("created_at", { ascending: false });
+  if (scopedStudentId) {
+    outingRequest = outingRequest.eq("student_id", scopedStudentId);
+    attendanceRequest = attendanceRequest.eq("student_id", scopedStudentId).limit(30);
+    penaltyRequest = penaltyRequest.eq("student_id", scopedStudentId).limit(100);
+  } else if (APP_MODE === "student") {
+    outingRequest = Promise.resolve({ data: [], error: null });
+    attendanceRequest = Promise.resolve({ data: [], error: null });
+    penaltyRequest = Promise.resolve({ data: [], error: null });
+  }
+  const photoRequest =
+    APP_MODE === "teacher"
+      ? remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null });
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
-    remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
-    remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
-    remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
-    remoteStore.from("penalties").select(penaltyColumns).order("created_at", { ascending: false }),
+    outingRequest,
+    photoRequest,
+    attendanceRequest,
+    penaltyRequest,
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
   ]);
-  const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }, { data: photos, error: photosError }] = remoteResults;
+  const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }] = remoteResults;
+  let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
   const penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
+  let outingPhotos = photoResult.data || [];
   if (isMissingColumnError(attendanceResult.error, "reason") || isMissingColumnError(attendanceResult.error, "detail")) {
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
@@ -687,10 +706,34 @@ async function loadStateFromRemote() {
   if (studentsError) throw studentsError;
   if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
   if (outingsError) throw outingsError;
-  if (photosError) throw photosError;
+  if (isMissingColumnError(photoResult.error, "photo_path") || isMissingColumnError(photoResult.error, "photo_url")) {
+    const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+    photoResult = APP_MODE === "teacher"
+      ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).order("uploaded_at", { ascending: true })
+      : { data: [], error: null };
+    outingPhotos = photoResult.data || [];
+  }
+  if (photoResult.error) throw photoResult.error;
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
+  if (APP_MODE === "student" && (outings || []).length) {
+    const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
+    const scopedPhotoResult = outingIds.length
+      ? await remoteStore.from("outing_photos").select(photoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
+      : { data: [], error: null };
+    if (isMissingColumnError(scopedPhotoResult.error, "photo_path") || isMissingColumnError(scopedPhotoResult.error, "photo_url")) {
+      const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+      const fallbackPhotoResult = outingIds.length
+        ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
+        : { data: [], error: null };
+      if (fallbackPhotoResult.error) throw fallbackPhotoResult.error;
+      outingPhotos = fallbackPhotoResult.data || [];
+    } else {
+      if (scopedPhotoResult.error) throw scopedPhotoResult.error;
+      outingPhotos = scopedPhotoResult.data || [];
+    }
+  }
 
   state.students = (students || []).map((student) => ({
     id: student.id,
@@ -717,13 +760,15 @@ async function loadStateFromRemote() {
     teacherMemo: "",
     earlyLeaveReason: outing.early_leave_reason || "",
     receiptNote: outing.receipt_note || "",
-    photos: (photos || [])
+    photos: outingPhotos
       .filter((photo) => photo.outing_id === outing.id)
       .map((photo) => ({
         id: photo.id,
         type: photo.photo_type,
         name: photo.original_name || "",
-        dataUrl: photo.data_url || "",
+        dataUrl: "",
+        photoPath: photo.photo_path || "",
+        photoUrl: photo.photo_url || "",
         uploadedAt: photo.uploaded_at,
       })),
     createdAt: outing.created_at,
@@ -904,7 +949,9 @@ async function saveStateToRemote() {
       id: photo.id,
       outing_id: outing.id,
       photo_type: photo.type,
-      data_url: photo.dataUrl,
+      data_url: photo.dataUrl || null,
+      photo_path: photo.photoPath || null,
+      photo_url: photo.photoUrl || null,
       original_name: photo.name || null,
       uploaded_at: photo.uploadedAt,
     }))
@@ -1035,7 +1082,9 @@ function outingCard(outing, options = {}) {
         { className: "photo-grid" },
         outing.photos.map((photo) =>
           el("div", { className: "photo-thumb" }, [
-            el("img", { src: photo.dataUrl, alt: photo.type }),
+            button("", "photo-thumb-button", "button", async () => openLoadedOutingPhotoModal(photo), [
+              el("span", { className: "photo-placeholder" }, "사진 보기"),
+            ]),
             el("span", {}, photo.type),
             el("time", { dateTime: photo.uploadedAt || "" }, formatTime(photo.uploadedAt)),
           ])
@@ -1519,6 +1568,95 @@ function setAttendanceDeadline(value, enabled) {
 
 function getAttendancePhotoSrc(check) {
   return check?.photoUrl || check?.photoDataUrl || "";
+}
+
+function getOutingPhotoSrc(photo) {
+  return photo?.photoUrl || photo?.dataUrl || "";
+}
+
+async function createOutingPhoto(outing, file, type) {
+  if (!outing) throw new Error("outing_required");
+  if (!file) throw new Error("photo_required");
+  const id = createId();
+  const uploadedAt = new Date().toISOString();
+  const compressedDataUrl = await compressImage(file);
+  let photoPath = "";
+  let photoUrl = "";
+  let dataUrl = compressedDataUrl;
+
+  if (remoteStore) {
+    const blob = dataUrlToBlob(compressedDataUrl);
+    photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
+    const { error: uploadError } = await remoteStore.storage
+      .from(OUTING_PHOTO_BUCKET)
+      .upload(photoPath, blob, {
+        cacheControl: "31536000",
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
+    if (uploadError) throw uploadError;
+    const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(photoPath);
+    photoUrl = data?.publicUrl || "";
+    dataUrl = "";
+  }
+
+  return {
+    id,
+    type,
+    name: file.name || "",
+    dataUrl,
+    photoPath,
+    photoUrl,
+    uploadedAt,
+  };
+}
+
+function createOutingPhotoPath(studentId, outingId, photoId) {
+  return `${getTodayDateKey()}/${String(studentId || "student")}/${String(outingId || "outing")}/${String(photoId || createId())}.jpg`;
+}
+
+async function loadOutingPhotoForView(photo) {
+  if (!photo) return photo;
+  if (getOutingPhotoSrc(photo)) return photo;
+  if (photo.photoPath && remoteStore) {
+    const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(photo.photoPath);
+    photo.photoUrl = data?.publicUrl || "";
+    if (photo.photoUrl) return photo;
+  }
+  if (photo.id && remoteStore) {
+    let { data, error } = await remoteStore
+      .from("outing_photos")
+      .select("data_url,photo_path,photo_url")
+      .eq("id", photo.id)
+      .maybeSingle();
+    if (isMissingColumnError(error, "photo_path") || isMissingColumnError(error, "photo_url")) {
+      const fallbackResult = await remoteStore
+        .from("outing_photos")
+        .select("data_url")
+        .eq("id", photo.id)
+        .maybeSingle();
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+    if (error) throw error;
+    photo.dataUrl = data?.data_url || photo.dataUrl || "";
+    photo.photoPath = data?.photo_path || photo.photoPath || "";
+    photo.photoUrl = data?.photo_url || photo.photoUrl || "";
+    if (!photo.photoUrl && photo.photoPath) {
+      const { data: publicData } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(photo.photoPath);
+      photo.photoUrl = publicData?.publicUrl || "";
+    }
+  }
+  return photo;
+}
+
+async function openLoadedOutingPhotoModal(photo) {
+  try {
+    openPhotoModal(await loadOutingPhotoForView(photo));
+  } catch (error) {
+    console.error(error);
+    notify("사진을 불러오지 못했습니다.");
+  }
 }
 
 async function createAttendanceCheck(student, file, options = {}) {

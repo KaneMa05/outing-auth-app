@@ -259,25 +259,11 @@ function createVerifyForm() {
     setButtonLoading(submitButton, "사진 업로드 중...");
 
     try {
-      const siteDataUrl = await compressImage(sitePhoto);
-      const receiptDataUrl = receiptPhoto ? await compressImage(receiptPhoto) : "";
-
+      await flushRemoteSave();
       outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
-      outing.photos.push({
-        id: createId(),
-        type: "현장 인증",
-        name: sitePhoto.name,
-        dataUrl: siteDataUrl,
-        uploadedAt: new Date().toISOString(),
-      });
+      outing.photos.push(await createOutingPhoto(outing, sitePhoto, "현장 인증"));
       if (receiptPhoto) {
-        outing.photos.push({
-          id: createId(),
-          type: "영수증 인증",
-          name: receiptPhoto.name,
-          dataUrl: receiptDataUrl,
-          uploadedAt: new Date().toISOString(),
-        });
+        outing.photos.push(await createOutingPhoto(outing, receiptPhoto, "영수증 인증"));
       }
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
@@ -568,15 +554,9 @@ function createReturnForm() {
     submitButton.disabled = true;
     setButtonLoading(submitButton, "복귀 처리 중...");
     try {
-      const returnDataUrl = await compressImage(returnPhoto);
+      await flushRemoteSave();
       outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
-      outing.photos.push({
-        id: createId(),
-        type: "복귀 인증",
-        name: returnPhoto.name,
-        dataUrl: returnDataUrl,
-        uploadedAt: new Date().toISOString(),
-      });
+      outing.photos.push(await createOutingPhoto(outing, returnPhoto, "복귀 인증"));
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();

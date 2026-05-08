@@ -1172,8 +1172,8 @@ function photoMiniList(photos = []) {
     "div",
     { className: "photo-mini-list" },
     photos.map((photo) =>
-      button("", "photo-mini-button", "button", () => openPhotoModal(photo), [
-        el("img", { src: photo.dataUrl, alt: photo.type }),
+      button("", "photo-mini-button", "button", () => openLoadedOutingPhotoModal(photo), [
+        el("span", { className: "photo-mini-placeholder" }, "보기"),
       ])
     )
   );

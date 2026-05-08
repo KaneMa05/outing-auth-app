@@ -39,7 +39,9 @@ create table if not exists public.outing_photos (
   id uuid primary key default gen_random_uuid(),
   outing_id uuid not null references public.outings(id) on delete cascade,
   photo_type text not null,
-  data_url text not null,
+  data_url text,
+  photo_path text,
+  photo_url text,
   original_name text,
   uploaded_at timestamptz not null default now()
 );
@@ -123,6 +125,13 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('outing-photos', 'outing-photos', true, 524288, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 create index if not exists attendance_checks_check_date_created_at_idx
 on public.attendance_checks (check_date, created_at desc);
 
@@ -145,6 +154,11 @@ add column if not exists app_registered_at timestamptz;
 alter table public.attendance_checks
 add column if not exists reason text,
 add column if not exists detail text;
+
+alter table public.outing_photos
+add column if not exists photo_path text,
+add column if not exists photo_url text,
+alter column data_url drop not null;
 
 do $$
 begin
@@ -197,6 +211,8 @@ drop policy if exists "anon_notices_update" on public.notices;
 drop policy if exists "anon_notices_delete" on public.notices;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
+drop policy if exists "anon_outing_photo_select" on storage.objects;
+drop policy if exists "anon_outing_photo_insert" on storage.objects;
 
 revoke all on public.students from anon;
 revoke all on public.outings from anon;
@@ -284,6 +300,8 @@ grant select (
   outing_id,
   photo_type,
   data_url,
+  photo_path,
+  photo_url,
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
@@ -293,6 +311,8 @@ grant insert (
   outing_id,
   photo_type,
   data_url,
+  photo_path,
+  photo_url,
   original_name,
   uploaded_at
 ) on public.outing_photos to anon;
@@ -515,6 +535,7 @@ with check (
       and outings.deleted_at is null
       and outings.decision <> 'rejected'
   )
+  and (outing_photos.data_url is not null or outing_photos.photo_url is not null or outing_photos.photo_path is not null)
 );
 
 create policy "anon_managers_select_active"
@@ -605,5 +626,20 @@ for insert
 to anon
 with check (
   bucket_id = 'attendance-photos'
+  and lower((storage.foldername(name))[1]) = to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD')
+);
+
+create policy "anon_outing_photo_select"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'outing-photos');
+
+create policy "anon_outing_photo_insert"
+on storage.objects
+for insert
+to anon
+with check (
+  bucket_id = 'outing-photos'
   and lower((storage.foldername(name))[1]) = to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD')
 );

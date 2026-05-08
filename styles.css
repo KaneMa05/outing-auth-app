@@ -853,7 +853,7 @@ th {
 .photo-mini-button {
   border: 0;
   border-radius: 5px;
-  background: transparent;
+  background: var(--surface-soft);
   padding: 0;
 }
 
@@ -865,6 +865,18 @@ th {
 
 .photo-mini-button:hover img {
   border-color: var(--accent);
+}
+
+.photo-mini-placeholder {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--accent-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .attendance-photo-thumb {
@@ -1419,11 +1431,39 @@ th {
   object-fit: cover;
 }
 
+.photo-thumb-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: center;
+}
+
+.photo-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
 .photo-thumb span {
   display: block;
   padding: 8px 8px 4px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.photo-thumb .photo-placeholder {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  color: var(--accent-strong);
+  font-weight: 800;
 }
 
 .photo-thumb time {
