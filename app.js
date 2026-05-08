@@ -322,17 +322,216 @@ function renderStudentMypage() {
         el("div", { className: "student-avatar" }, student.name.slice(0, 1)),
         el("div", {}, [
           el("span", {}, "로그인 정보"),
-          el("h2", {}, student.name),
+          el("div", { className: "student-profile-name-row" }, [
+            el("h2", {}, student.name),
+            button("정보 수정", "mini-btn", "button", () => notify("정보 수정은 사무실에 문의해주세요.")),
+          ]),
         ]),
       ]),
       el("div", { className: "student-profile-list" }, [
         profileItem("학생 고유번호", student.id),
         profileItem("반", student.className || state.settings.className || "오프라인반"),
-        profileItem("직렬", profile.track || "-"),
+        profileItem("직렬", normalizeCoastGuardTrack(profile.track) || "-"),
         profileItem("성별", profile.gender || "-"),
       ]),
     ]),
+    renderStudentOutingHistoryButton(student.id),
+    renderStudentPenaltyHistoryButton(student.id),
+    renderHomeScreenInstallCard(),
   ]);
+}
+
+function renderStudentOutingHistoryButton(studentId) {
+  const outings = state.outings
+    .filter((outing) => outing.studentId === String(studentId))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return el("section", { className: "student-history-button-card" }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "외출 내역"),
+      el("span", {}, String(outings.length) + "건"),
+    ]),
+    button("외출 내역 보기", "btn secondary", "button", () => openStudentOutingHistoryModal(studentId)),
+  ]);
+}
+
+function openStudentOutingHistoryModal(studentId) {
+  const outings = state.outings
+    .filter((outing) => outing.studentId === String(studentId))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  openInfoModal({
+    title: "외출 내역",
+    className: "history-modal-panel outing-history-modal",
+    content: outings.length
+      ? el(
+          "div",
+          { className: "student-history-list" },
+          outings.map((outing) =>
+            el("article", { className: "student-history-item" }, [
+              historyRow("날짜", formatDateOnly(outing.createdAt)),
+              historyRow("사유", outing.reason || "-"),
+              historyRow("외출 시간", formatTimeOnly(outing.createdAt)),
+              historyRow("복귀 시간", outing.returnedAt ? formatTimeOnly(outing.returnedAt) : "-"),
+            ])
+          )
+        )
+      : el("div", { className: "empty" }, "아직 외출 내역이 없습니다."),
+  });
+}
+
+function renderStudentPenaltyHistoryButton(studentId) {
+  const penalties = getPenaltiesForStudent(studentId);
+  const total = getPenaltyTotal(studentId);
+
+  return el("section", { className: "student-history-button-card student-penalty-card" }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "상/벌점 내역"),
+      el("span", {}, `누적 ${formatPenaltyPoints(total)} · ${penalties.length}건`),
+    ]),
+    button("상/벌점 내역 보기", "btn secondary", "button", () => openStudentPenaltyHistoryModal(studentId)),
+  ]);
+}
+
+function openStudentPenaltyHistoryModal(studentId) {
+  const penalties = getPenaltiesForStudent(studentId);
+  openInfoModal({
+    title: "상/벌점 내역",
+    className: "history-modal-panel penalty-detail-modal",
+    content: penalties.length
+      ? renderPenaltyDetailTable(penalties)
+      : el("div", { className: "empty" }, "아직 상/벌점 내역이 없습니다."),
+  });
+}
+
+function renderPenaltyDetailTable(penalties) {
+  return el("div", { className: "excel-table-wrap penalty-detail-table-wrap" }, [
+    el("table", { className: "excel-table penalty-detail-table" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "날짜"),
+          el("th", {}, "상/벌점"),
+          el("th", {}, "사유"),
+          el("th", {}, "담당자"),
+        ]),
+      ]),
+      el(
+        "tbody",
+        {},
+        penalties.map((penalty) =>
+          el("tr", {}, [
+            el("td", {}, formatDateOnly(penalty.createdAt)),
+            el("td", {}, formatPenaltyPoints(penalty.points)),
+            el("td", { className: "wide-cell" }, penalty.reason || "-"),
+            el("td", {}, penalty.managerName || "-"),
+          ])
+        )
+      ),
+    ]),
+  ]);
+}
+
+function historyRow(label, value) {
+  return el("div", { className: "student-history-row" }, [
+    el("span", {}, label),
+    el("strong", {}, value),
+  ]);
+}
+
+function formatDateOnly(value) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  }).format(new Date(value));
+}
+
+function formatTimeOnly(value) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function renderHomeScreenInstallCard() {
+  if (isRunningStandalone()) return null;
+  return el("section", { className: "student-install-card" }, [
+    el("strong", {}, "앱처럼 사용하기"),
+    button("홈화면 추가", "btn secondary", "button", installToHomeScreen),
+  ]);
+}
+
+function isRunningStandalone() {
+  return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
+}
+
+async function installToHomeScreen() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    render();
+    return;
+  }
+
+  openInstallGuideModal();
+}
+
+function openInstallGuideModal() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isKakao = userAgent.includes("kakaotalk");
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isAndroid = userAgent.includes("android");
+  const pageUrl = location.href;
+  const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
+  const steps = isKakao
+    ? [
+        "카카오톡 오른쪽 위 메뉴를 누릅니다.",
+        isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
+        "브라우저에서 공유 또는 메뉴를 누른 뒤 홈 화면에 추가를 선택합니다.",
+      ]
+    : isIos
+      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누르면 앱처럼 실행할 수 있습니다."]
+      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치를 누르면 앱처럼 실행할 수 있습니다."];
+
+  const actions = [
+    button("주소 복사", "btn secondary", "button", async () => {
+      await copyText(pageUrl);
+      notify("주소를 복사했습니다. 브라우저에 붙여넣어 열어주세요.");
+    }),
+  ];
+
+  if (isKakao && isAndroid) {
+    actions.unshift(button("Chrome으로 열기", "btn", "button", openCurrentPageInChrome));
+  }
+
+  openInfoModal({
+    title,
+    content: el("div", { className: "install-guide" }, [
+      el(
+        "p",
+        {},
+        isKakao
+          ? "카카오톡 안에서는 앱 설치가 바로 열리지 않을 수 있습니다. 먼저 기본 브라우저에서 열면 홈 화면에 추가할 수 있습니다."
+          : "설치 창이 자동으로 뜨지 않는 브라우저에서는 아래 순서로 홈 화면에 추가해주세요."
+      ),
+      el(
+        "ol",
+        {},
+        steps.map((step) => el("li", {}, step))
+      ),
+      el("div", { className: "install-guide-actions" }, actions),
+    ]),
+  });
+}
+
+function openCurrentPageInChrome() {
+  const url = new URL(location.href);
+  const fallback = encodeURIComponent(location.href);
+  location.href = `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=${url.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
 }
 
 function profileItem(label, value) {
