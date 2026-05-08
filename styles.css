@@ -1945,8 +1945,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-dday-card {
   display: grid;
-  gap: 12px;
-  padding: 22px 20px;
+  gap: 7px;
+  padding: 14px 18px;
 }
 
 .student-dday-card div {
@@ -1964,14 +1964,14 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-dday-card strong {
   color: var(--accent-strong);
-  font-size: 2.4rem;
+  font-size: 1.85rem;
   line-height: 1;
 }
 
 .student-dday-card p {
   margin-bottom: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .student-today-card {
