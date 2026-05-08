@@ -17,6 +17,37 @@
 };
 const COAST_GUARD_EXAM_DATE = "2026-06-13";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
+const IMPORTANT_NOTICES = [
+  {
+    id: "attendance-guide",
+    title: "출석 인증 및 등원 전 사유신청 안내",
+    date: "2026-05-08",
+    body: [
+      "출석 인증은 등원 후 학생 앱의 출석 메뉴에서 사진을 제출해주세요.",
+      "등원 전 사유신청이 필요한 경우 사유와 사진을 함께 제출하면 담당자가 확인합니다.",
+      "사진이 누락되면 홈 화면에 다시 제출 안내가 표시됩니다.",
+    ],
+  },
+  {
+    id: "outing-guide",
+    title: "외출/조퇴 신청 이용 안내",
+    date: "2026-05-08",
+    body: [
+      "외출 신청 후에는 현장 인증 사진을 제출해야 신청 흐름이 이어집니다.",
+      "학원에 복귀했다면 사무실에서 복귀 인증을 완료해주세요.",
+      "조퇴 신청은 담당자 승인 상태를 학생 앱에서 확인할 수 있습니다.",
+    ],
+  },
+  {
+    id: "classroom-rule",
+    title: "학습실 이용 기본 안내",
+    date: "2026-05-08",
+    body: [
+      "개인 물품은 지정 좌석 주변에 정리하고, 장시간 이석 시 자리 정돈을 부탁드립니다.",
+      "문의가 필요한 내용은 사무실 또는 담당자에게 먼저 알려주세요.",
+    ],
+  },
+];
 const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 해경학과 항해(경장)",
@@ -97,7 +128,9 @@ function normalizeRoute(route) {
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  return ["home", "student", "student-verify", "student-return", "student-done", "attendance", "mypage"].includes(normalized) ? normalized : "home";
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "mypage", "notices"];
+  if (studentRoutes.includes(normalized) || normalized.startsWith("notice-")) return normalized;
+  return "home";
 }
 
 function defaultRoute() {
@@ -120,7 +153,7 @@ function render() {
   });
   if (APP_MODE === "teacher") updateTeacherNavSections();
 
-  title.textContent = APP_MODE !== "teacher" && currentRoute === "attendance" ? "출석 체크" : routeTitles[currentRoute] || routeTitles.student;
+  title.textContent = getRouteTitle(currentRoute);
   if (topActions) {
     topActions.innerHTML = "";
     if (APP_MODE === "teacher" && teacherAuth.authenticated) {
@@ -159,13 +192,24 @@ function render() {
           "student-done": () => requireStudentAuth(renderStudentChecklist),
           attendance: () => requireStudentAuth(renderStudentAttendance),
           mypage: () => requireStudentAuth(renderStudentMypage),
+          notices: () => requireStudentAuth(renderStudentNoticeList),
         };
 
   app.innerHTML = "";
-  const renderRoute = routes[currentRoute] || routes[defaultRoute()];
+  const renderRoute =
+    routes[currentRoute] ||
+    (APP_MODE !== "teacher" && currentRoute.startsWith("notice-") ? () => requireStudentAuth(renderStudentNoticeDetail) : routes[defaultRoute()]);
   app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden())) : renderRoute());
   app.removeAttribute("data-loading-shell");
   if (APP_MODE !== "teacher" && typeof window.__studentAppReady === "function") window.__studentAppReady();
+}
+
+function getRouteTitle(route) {
+  if (APP_MODE !== "teacher") {
+    if (route === "attendance") return "출석 체크";
+    if (route === "notices" || route.startsWith("notice-")) return "중요 공지";
+  }
+  return routeTitles[route] || routeTitles.student;
 }
 
 async function initTeacherAuth() {
@@ -387,7 +431,7 @@ function renderStudentHome() {
       ]),
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
-    renderStudentTodayCard(activeOuting),
+    renderStudentImportantNoticeCard(),
     needsAttendance
       ? el("section", { className: "student-summary-card" }, [
           el("div", {}, [
@@ -497,18 +541,78 @@ function isRunningStandalone() {
   return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
 }
 
-function renderStudentTodayCard(activeOuting = null) {
-  const status = getStudentHomeStatus(activeOuting);
-  return el("section", { className: "student-today-card" }, [
-    el("h3", {}, "오늘 상태"),
-    el("div", { className: "student-status-row" }, [
-      el("span", { className: "student-status-dot " + status.dot }),
-      el("div", {}, [
-        el("strong", {}, status.title),
-        status.copy ? el("p", {}, status.copy) : null,
+function renderStudentImportantNoticeCard() {
+  const notices = IMPORTANT_NOTICES.slice(0, 2);
+  return el("section", { className: "student-notice-card" }, [
+    el("div", { className: "student-notice-head" }, [
+      el("h3", {}, "중요 공지"),
+      button("더보기", "student-notice-more", "button", () => navigate("notices")),
+    ]),
+    el(
+      "div",
+      { className: "student-notice-list" },
+      notices.map((notice) => renderStudentNoticeRow(notice))
+    ),
+  ]);
+}
+
+function renderStudentNoticeRow(notice) {
+  return button("", "student-notice-title", "button", () => navigate(`notice-${notice.id}`), [
+    el("span", { className: "student-notice-title-text" }, notice.title),
+    el("span", { className: "student-notice-arrow", ariaHidden: "true" }, ">"),
+  ]);
+}
+
+function renderStudentNoticeList() {
+  return el("div", { className: "grid student-view student-notices" }, [
+    el("section", { className: "student-notices-panel" }, [
+      el("div", { className: "student-notices-head" }, [
+        el("h2", {}, "중요 공지"),
+        button("홈", "mini-btn", "button", () => navigate("home")),
+      ]),
+      el(
+        "div",
+        { className: "student-notice-list full" },
+        IMPORTANT_NOTICES.map((notice) => renderStudentNoticeRow(notice))
+      ),
+    ]),
+  ]);
+}
+
+function renderStudentNoticeDetail() {
+  const noticeId = currentRoute.replace(/^notice-/, "");
+  const notice = IMPORTANT_NOTICES.find((item) => item.id === noticeId);
+  if (!notice) {
+    return el("div", { className: "grid student-view student-notices" }, [
+      el("section", { className: "student-notices-panel" }, [
+        el("h2", {}, "공지글을 찾을 수 없습니다"),
+        el("p", {}, "삭제되었거나 주소가 변경된 공지입니다."),
+        button("목록으로", "btn secondary", "button", () => navigate("notices")),
+      ]),
+    ]);
+  }
+  return el("div", { className: "grid student-view student-notices" }, [
+    el("article", { className: "student-notice-detail" }, [
+      el("div", { className: "student-notice-detail-head" }, [
+        el("span", {}, formatNoticeDate(notice.date)),
+        el("h2", {}, notice.title),
+      ]),
+      el(
+        "div",
+        { className: "student-notice-body" },
+        notice.body.map((paragraph) => el("p", {}, paragraph))
+      ),
+      el("div", { className: "student-notice-actions" }, [
+        button("목록으로", "btn secondary", "button", () => navigate("notices")),
+        button("홈으로", "btn", "button", () => navigate("home")),
       ]),
     ]),
   ]);
+}
+
+function formatNoticeDate(value) {
+  if (!value) return "";
+  return String(value).replaceAll("-", ".");
 }
 
 function getStudentHomeStatus(outing) {

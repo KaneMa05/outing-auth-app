@@ -1936,6 +1936,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-dday-card,
 .student-today-card,
+.student-notice-card,
 .student-summary-card {
   border: 0;
   border-radius: 18px;
@@ -2023,6 +2024,139 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-status-dot.active {
   background: var(--accent);
+}
+
+.student-notice-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.student-notice-head,
+.student-notices-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-notice-head h3,
+.student-notices-head h2 {
+  margin-bottom: 0;
+  color: var(--text);
+}
+
+.student-notice-head h3 {
+  font-size: 1.02rem;
+}
+
+.student-notice-more {
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid #d9e0e8;
+  border-radius: 999px;
+  background: #f3f6f9;
+  color: #506070;
+  font-weight: 900;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.student-notice-list {
+  display: grid;
+  gap: 8px;
+}
+
+.student-notice-list.full {
+  gap: 10px;
+}
+
+.student-notice-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 14px;
+  border: 1px solid #e7edf5;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.student-notice-title:active {
+  transform: translateY(1px);
+}
+
+.student-notice-title-text {
+  overflow: hidden;
+  font-weight: 850;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-notice-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e7eef8;
+  color: var(--accent-strong);
+  font-weight: 900;
+  font-size: 0.74rem;
+}
+
+.student-notices {
+  gap: 10px;
+}
+
+.student-notices-panel,
+.student-notice-detail {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.student-notice-detail-head {
+  display: grid;
+  gap: 8px;
+}
+
+.student-notice-detail-head span {
+  color: var(--accent-strong);
+  font-weight: 900;
+  font-size: 0.82rem;
+}
+
+.student-notice-detail-head h2 {
+  margin-bottom: 0;
+  font-size: 1.26rem;
+  line-height: 1.35;
+}
+
+.student-notice-body {
+  display: grid;
+  gap: 12px;
+}
+
+.student-notice-body p {
+  margin-bottom: 0;
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.student-notice-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .student-summary-card {
