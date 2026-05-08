@@ -12,12 +12,19 @@ function renderStudentChecklist() {
 }
 
 function getStudentStepFromRoute() {
-  if (currentRoute === "student") return "request";
   const routeSteps = {
     "student-verify": "verify",
     "student-return": "return",
     "student-done": "done",
   };
+  if (routeSteps[currentRoute]) return routeSteps[currentRoute];
+  if (currentRoute === "student") {
+    const studentId = getAuthedStudent()?.id || state.settings.lastStudentId;
+    const activeOuting = getActiveOuting(studentId);
+    if (activeOuting) return activeOuting.status === "requested" ? "verify" : "return";
+    if (state.settings.studentStep === "done") return "done";
+    return "request";
+  }
   return routeSteps[currentRoute] || state.settings.studentStep || "request";
 }
 

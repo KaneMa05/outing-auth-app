@@ -129,7 +129,7 @@ function render() {
           trash: renderTrash,
         }
       : {
-          home: () => requireStudentAuth(renderStudentHome),
+          home: () => requireStudentAuth(renderStudentHomeFlow),
           student: () => requireStudentAuth(renderStudentChecklist),
           "student-verify": () => requireStudentAuth(renderStudentChecklist),
           "student-return": () => requireStudentAuth(renderStudentChecklist),
@@ -311,6 +311,90 @@ function renderStudentTodayCard() {
       ]),
     ]),
   ]);
+}
+
+function renderStudentHomeFlow() {
+  const student = getAuthedStudent();
+  const activeOuting = student ? getActiveOuting(student.id) : null;
+  const homeAction = getStudentHomeAction(activeOuting);
+  return el("div", { className: "grid student-view student-home" }, [
+    el("section", { className: "student-dday-card" }, [
+      el("div", {}, [
+        el("span", {}, COAST_GUARD_EXAM_LABEL),
+        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
+      ]),
+      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
+    ]),
+    renderStudentTodayCardFlow(activeOuting),
+    el("section", { className: "student-summary-card" }, [
+      el("div", {}, [
+        el("strong", {}, homeAction.title),
+        homeAction.copy ? el("p", {}, homeAction.copy) : null,
+      ]),
+      button(homeAction.buttonText, "btn", "button", homeAction.action),
+    ]),
+  ]);
+}
+
+function renderStudentTodayCardFlow(activeOuting = null) {
+  const status = getStudentHomeStatus(activeOuting);
+  return el("section", { className: "student-today-card" }, [
+    el("h3", {}, "오늘 상태"),
+    el("div", { className: "student-status-row" }, [
+      el("span", { className: "student-status-dot " + status.dot }),
+      el("div", {}, [
+        el("strong", {}, status.title),
+        status.copy ? el("p", {}, status.copy) : null,
+      ]),
+    ]),
+  ]);
+}
+
+function getStudentHomeStatus(outing) {
+  if (!outing) {
+    return {
+      dot: "active",
+      title: "해양경찰 시험 준비 중",
+      copy: "",
+    };
+  }
+  if (outing.status === "requested") {
+    return {
+      dot: "pending",
+      title: "외출 신청 후 사진 인증이 필요합니다",
+      copy: `${outing.reason} 외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요.`,
+    };
+  }
+  return {
+    dot: "pending",
+    title: "외출 중입니다",
+    copy: "학원에 도착했다면 복귀 인증을 완료해주세요.",
+  };
+}
+
+function getStudentHomeAction(outing) {
+  if (!outing) {
+    return {
+      title: "외출 신청",
+      copy: "",
+      buttonText: "외출 신청하기",
+      action: () => navigate("student"),
+    };
+  }
+  if (outing.status === "requested") {
+    return {
+      title: "다음 단계",
+      copy: "현장 인증 사진이 필요합니다.",
+      buttonText: "사진 인증하기",
+      action: () => navigate("student-verify"),
+    };
+  }
+  return {
+    title: "다음 단계",
+    copy: "복귀했다면 사무실에서 복귀 인증을 완료하세요.",
+    buttonText: "복귀 인증하기",
+    action: () => navigate("student-return"),
+  };
 }
 
 function renderStudentMypage() {
