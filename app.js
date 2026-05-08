@@ -519,6 +519,27 @@ function getStudentHomeStatus(outing) {
       copy: "",
     };
   }
+  if (outing.earlyLeaveReason) {
+    if (outing.decision === "approved") {
+      return {
+        dot: "active",
+        title: "조퇴 완료되었습니다.",
+        copy: "",
+      };
+    }
+    if (outing.decision === "rejected") {
+      return {
+        dot: "pending",
+        title: "조퇴 신청이 반려되었습니다.",
+        copy: "사무실에 문의해주세요.",
+      };
+    }
+    return {
+      dot: "pending",
+      title: "조퇴 신청이 접수되었습니다.",
+      copy: "승인 대기 중입니다.",
+    };
+  }
   if (outing.status === "requested") {
     return {
       dot: "pending",
@@ -539,6 +560,14 @@ function getStudentHomeAction(outing) {
       title: "외출 신청",
       copy: "",
       buttonText: "외출 신청하기",
+      action: () => navigate("student"),
+    };
+  }
+  if (outing.earlyLeaveReason) {
+    return {
+      title: "조퇴 신청",
+      copy: outing.decision === "approved" ? "조퇴 처리가 완료되었습니다." : "처리 상태를 확인할 수 있습니다.",
+      buttonText: "상태 확인하기",
       action: () => navigate("student"),
     };
   }

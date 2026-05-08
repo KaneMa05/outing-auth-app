@@ -611,8 +611,14 @@ function renderDoneState() {
 }
 
 function renderEarlyLeaveDoneState(outing) {
+  const message =
+    outing.decision === "approved"
+      ? "조퇴 완료되었습니다."
+      : outing.decision === "rejected"
+        ? "조퇴 신청이 반려되었습니다."
+        : "조퇴 신청이 접수되었습니다.";
   return el("div", { className: "grid" }, [
-    el("div", { className: "empty success-message" }, "조퇴 신청이 접수되었습니다."),
+    el("div", { className: "empty success-message" }, message),
     el("div", { className: "detail-grid attendance-detail-grid" }, [
       el("div", { className: "detail-item" }, [el("span", {}, "신청 시각"), el("strong", {}, formatTimeOnly(outing.createdAt))]),
       el("div", { className: "detail-item" }, [el("span", {}, "처리 상태"), el("strong", {}, decisionText(outing.decision))]),
