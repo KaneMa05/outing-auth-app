@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-quiet-loading";
+    script.src = "./supabase.js?v=20260508-manager-save-skip";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
@@ -703,22 +703,24 @@ async function saveStateToRemote() {
     if (error) throw error;
   }
 
-  const managerRows = (state.managers || [])
-    .filter((manager) => manager.id && manager.name)
-    .map((manager) => ({
-      id: manager.id,
-      name: manager.name,
-      role: manager.role || null,
-      memo: manager.memo || null,
-      is_active: manager.isActive !== false,
-      created_at: manager.createdAt || new Date().toISOString(),
-    }));
+  if (APP_MODE === "teacher") {
+    const managerRows = (state.managers || [])
+      .filter((manager) => manager.id && manager.name)
+      .map((manager) => ({
+        id: manager.id,
+        name: manager.name,
+        role: manager.role || null,
+        memo: manager.memo || null,
+        is_active: manager.isActive !== false,
+        created_at: manager.createdAt || new Date().toISOString(),
+      }));
 
-  if (managerRows.length) {
-    const { error } = await remoteStore
-      .from("managers")
-      .upsert(managerRows, { onConflict: "id" });
-    if (error && !isMissingRelationError(error, "managers")) throw error;
+    if (managerRows.length) {
+      const { error } = await remoteStore
+        .from("managers")
+        .upsert(managerRows, { onConflict: "id" });
+      if (error && !isMissingRelationError(error, "managers")) throw error;
+    }
   }
 
   const registeredStudents = state.students
