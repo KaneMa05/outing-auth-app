@@ -134,7 +134,7 @@ function render() {
           "student-verify": () => requireStudentAuth(renderStudentChecklist),
           "student-return": () => requireStudentAuth(renderStudentChecklist),
           "student-done": () => requireStudentAuth(renderStudentChecklist),
-          attendance: () => requireStudentAuth(() => renderComingSoonManagement("출석 체크", "학생 출석 기능은 준비 중입니다.")),
+          attendance: () => requireStudentAuth(renderStudentAttendance),
           mypage: () => requireStudentAuth(renderStudentMypage),
         };
 

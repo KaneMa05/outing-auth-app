@@ -49,12 +49,18 @@ function renderStudentOut() {
 }
 
 function createOutForm() {
-  const studentIdInput = input("studentId", "text", "예: 18004");
+  const authedStudent = typeof getAuthedStudent === "function" ? getAuthedStudent() : null;
+  const studentIdInput = input("studentId", "text", "예: 18004", authedStudent?.id || state.settings.lastStudentId || "");
   const expectedReturnInput = splitTimeSelect("expectedReturn");
   const studentResult = el("div", { className: "student-check-result", ariaLive: "polite" });
+  if (authedStudent) {
+    studentIdInput.readOnly = true;
+    studentResult.className = "student-check-result success";
+    studentResult.textContent = authedStudent.name;
+  }
   const studentIdControl = el("div", { className: "student-id-check" }, [
     studentIdInput,
-    button("조회", "btn secondary", "button", () => {
+    authedStudent ? null : button("조회", "btn secondary", "button", () => {
       const student = findStudent(studentIdInput.value);
       studentResult.innerHTML = "";
       if (!student) {
@@ -68,6 +74,7 @@ function createOutForm() {
   ]);
 
   studentIdInput.addEventListener("input", () => {
+    if (authedStudent) return;
     studentResult.className = "student-check-result";
     studentResult.textContent = "";
   });
@@ -126,6 +133,93 @@ function createOutForm() {
     form.reset();
     render();
     notify("외출 신청이 접수되었습니다. 사진 인증을 진행하세요.");
+  });
+
+  return form;
+}
+
+function renderStudentAttendance() {
+  const student = getAuthedStudent();
+  const todayCheck = getStudentAttendanceForDate(student.id);
+  const rows = [
+    panel("학생 정보", [
+      el("div", { className: "student-profile-list" }, [
+        profileItem("학생 고유번호", student.id),
+        profileItem("이름", student.name),
+        profileItem("반", student.className || state.settings.className || "오프라인반"),
+      ]),
+    ]),
+  ];
+
+  if (todayCheck) {
+    rows.push(panel("오늘 출석", [
+      el("div", { className: "empty success-message" }, "오늘 출석 인증이 완료되었습니다."),
+      renderStudentAttendanceCheckSummary(todayCheck),
+    ]));
+  } else {
+    rows.push(panel("출석 체크", [createStudentAttendanceForm(student)]));
+  }
+
+  return el("div", { className: "grid student-view" }, rows);
+}
+
+function renderStudentAttendanceCheckSummary(check) {
+  const src = getAttendancePhotoSrc(check);
+  const nodes = [
+    el("div", { className: "student-profile-list" }, [
+      profileItem("출석일", check.checkDate || getTodayDateKey()),
+      profileItem("상태", check.status === "pre_arrival_reason" ? "사유 인증" : "출석"),
+      profileItem("인증 시간", formatTime(check.createdAt)),
+    ]),
+  ];
+  if (src) {
+    nodes.push(button("인증 사진 보기", "btn secondary", "button", () => {
+      openPhotoModal({
+        type: check.status === "pre_arrival_reason" ? "등원 전 사유 인증" : "출석 인증",
+        photoUrl: check.photoUrl,
+        photoDataUrl: check.photoDataUrl,
+        uploadedAt: check.createdAt,
+        details: [check.studentName, check.reason, check.detail],
+      });
+    }));
+  }
+  return el("div", { className: "grid" }, nodes);
+}
+
+function createStudentAttendanceForm(student) {
+  const submitButton = button("출석 인증하기", "btn");
+  const form = el("form", { className: "form-grid" }, [
+    field("출석 인증 사진", photoCaptureInput("attendancePhoto"), "full", "학원 현장에서 사진을 찍어주세요."),
+    el("div", { className: "field full" }, [
+      submitButton,
+      el("p", { className: "subtle" }, isAttendanceCheckOpen() ? "오늘 한 번만 출석 인증할 수 있습니다." : `출석 인증 시간이 마감되었습니다. 마감 시간: ${formatAttendanceDeadline()}`),
+    ]),
+  ]);
+
+  if (!isAttendanceCheckOpen()) submitButton.disabled = true;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (getStudentAttendanceForDate(student.id)) {
+      render();
+      return notify("이미 오늘 출석 인증이 완료되었습니다.");
+    }
+    const file = form.elements.attendancePhoto.files[0];
+    if (!file) return notify("출석 인증 사진을 촬영해주세요.");
+
+    submitButton.disabled = true;
+    setButtonLoading(submitButton, "출석 인증 중...");
+    try {
+      await createAttendanceCheck(student, file);
+      form.reset();
+      render();
+      notify("출석 인증이 완료되었습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("출석 인증 중 오류가 발생했습니다. 다시 시도해주세요.");
+      submitButton.disabled = false;
+      submitButton.textContent = "출석 인증하기";
+    }
   });
 
   return form;
