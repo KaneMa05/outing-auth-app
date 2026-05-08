@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-tdz-fix";
+    script.src = "./supabase.js?v=20260508-manager-skip";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
@@ -610,9 +610,13 @@ async function loadStateFromRemote() {
     "manager_name",
     "created_at",
   ].join(",");
+  const managerRequest =
+    APP_MODE === "teacher"
+      ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
+      : Promise.resolve({ data: state.managers || [], error: null });
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
-    remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true }),
+    managerRequest,
     remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
     remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
     remoteStore.from("attendance_checks").select(attendanceColumns).order("created_at", { ascending: false }),
