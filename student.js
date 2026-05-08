@@ -229,6 +229,7 @@ function createVerifyForm() {
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
   const form = el("form", { className: "form-grid" }, [
+    el("p", { className: "subtle full" }, "외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요."),
     field("현장 인증 사진", photoCaptureInput("sitePhoto"), "full"),
     field(
       isReceiptRequired ? "영수증 인증 사진 (필수)" : "영수증 인증 사진 (선택)",
