@@ -141,26 +141,14 @@ function createOutForm() {
 function renderStudentAttendance() {
   const student = getAuthedStudent();
   const todayCheck = getStudentAttendanceForDate(student.id);
-  const rows = [
-    panel("학생 정보", [
-      el("div", { className: "student-profile-list" }, [
-        profileItem("학생 고유번호", student.id),
-        profileItem("이름", student.name),
-        profileItem("반", student.className || state.settings.className || "오프라인반"),
-      ]),
-    ]),
-  ];
-
-  if (todayCheck) {
-    rows.push(panel("오늘 출석", [
-      el("div", { className: "empty success-message" }, "오늘 출석 인증이 완료되었습니다."),
-      renderStudentAttendanceCheckSummary(todayCheck),
-    ]));
-  } else {
-    rows.push(panel("출석 체크", [createStudentAttendanceForm(student)]));
-  }
-
-  return el("div", { className: "grid student-view" }, rows);
+  return el("div", { className: "grid student-view" }, [
+    todayCheck
+      ? panel("오늘 출석", [
+          el("div", { className: "empty success-message" }, "오늘 출석 인증이 완료되었습니다."),
+          renderStudentAttendanceCheckSummary(todayCheck),
+        ])
+      : panel("출석 체크", [createStudentAttendanceForm(student)]),
+  ]);
 }
 
 function renderStudentAttendanceCheckSummary(check) {
