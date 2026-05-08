@@ -1,4 +1,4 @@
-const routeTitles = {
+﻿const routeTitles = {
   home: "홈",
   student: "외출 신청",
   "student-verify": "사진 인증",
@@ -6,10 +6,11 @@ const routeTitles = {
   "student-done": "복귀 완료",
   outing: "외출 관리",
   grades: "성적 관리",
-  penalties: "벌점 관리",
+  penalties: "상/벌점 관리",
   attendance: "출석 관리",
   mypage: "마이페이지",
   teacher: "외출 관리",
+  managers: "담당자 등록",
   students: "학생 등록",
   duplicates: "중복 사진",
   trash: "삭제 내역",
@@ -33,8 +34,7 @@ const COAST_GUARD_TRACK_OPTIONS = [
   "일반직 - 해양오염방제 화공",
   "일반직 - 해양오염방제 항해",
   "일반직 - 해양오염방제 기관",
-  "일반직 - 관제전송기술",
-  "일반직 - 관제정보보호",
+  "기타",
 ];
 
 document.querySelectorAll("[data-route]").forEach((button) => {
@@ -75,7 +75,11 @@ window.addEventListener("popstate", () => {
 
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
 render();
-initRemoteStore();
+if (APP_MODE === "teacher") {
+  initTeacherAuth();
+} else {
+  initRemoteStore();
+}
 
 function normalizeRoute(route) {
   const legacy = {
@@ -89,9 +93,9 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    return ["home", "outing", "grades", "penalties", "attendance", "students", "duplicates", "trash"].includes(normalized)
-      ? normalized
-      : "home";
+    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "managers", "students", "duplicates", "trash"];
+    if (!teacherRoutes.includes(normalized)) return "home";
+    return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   return ["home", "student", "student-verify", "student-return", "student-done", "attendance", "mypage"].includes(normalized) ? normalized : "home";
 }
@@ -110,11 +114,29 @@ function render() {
   }
 
   document.querySelectorAll("[data-route]").forEach((button) => {
+    const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(button.dataset.route);
+    button.hidden = !allowed;
     button.classList.toggle("active", button.dataset.route === currentRoute);
   });
+  if (APP_MODE === "teacher") updateTeacherNavSections();
 
-  title.textContent = routeTitles[currentRoute] || routeTitles.student;
-  if (topActions) topActions.hidden = !topActions.children.length;
+  title.textContent = APP_MODE !== "teacher" && currentRoute === "attendance" ? "출석 체크" : routeTitles[currentRoute] || routeTitles.student;
+  if (topActions) {
+    topActions.innerHTML = "";
+    if (APP_MODE === "teacher" && teacherAuth.authenticated) {
+      if (teacherAuth.user?.role === "student_manager") {
+        topActions.appendChild(el("span", { className: "auth-chip" }, "장학생 관리자"));
+      }
+      if (currentRoute === "attendance" && hasTeacherPermission("attendance.write")) {
+        topActions.appendChild(button("출석 시간 설정", "btn secondary", "button", openAttendanceDeadlineModal));
+      }
+      if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
+        topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));
+      }
+      topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
+    }
+    topActions.hidden = !topActions.children.length;
+  }
 
   const routes =
     APP_MODE === "teacher"
@@ -122,14 +144,15 @@ function render() {
           home: renderHome,
           outing: renderTeacher,
           grades: () => renderComingSoonManagement("성적 관리", "시험별 성적 입력, 학생별 추이, 반 평균 분석 기능을 이곳에 연결할 예정입니다."),
-          penalties: () => renderComingSoonManagement("벌점 관리", "벌점 부여, 누적 현황, 지도 이력 관리 기능을 이곳에 연결할 예정입니다."),
-          attendance: () => renderComingSoonManagement("출석 관리", "출석 체크, 지각/결석 기록, 기간별 출석 통계 기능을 이곳에 연결할 예정입니다."),
+          penalties: renderPenaltyManagement,
+          attendance: renderAttendanceManagement,
+          managers: renderManagersAdmin,
           students: renderStudentsAdmin,
           duplicates: renderDuplicates,
           trash: renderTrash,
         }
       : {
-          home: () => requireStudentAuth(renderStudentHomeFlow),
+          home: () => requireStudentAuth(renderStudentHome),
           student: () => requireStudentAuth(renderStudentChecklist),
           "student-verify": () => requireStudentAuth(renderStudentChecklist),
           "student-return": () => requireStudentAuth(renderStudentChecklist),
@@ -138,27 +161,54 @@ function render() {
           mypage: () => requireStudentAuth(renderStudentMypage),
         };
 
-  try {
-    const nextView = (routes[currentRoute] || routes[defaultRoute()])();
-    app.innerHTML = "";
-    app.appendChild(nextView);
-  } catch (error) {
-    console.error(error);
-    app.innerHTML = "";
-    app.appendChild(renderStudentRenderError());
-  }
+  app.innerHTML = "";
+  const renderRoute = routes[currentRoute] || routes[defaultRoute()];
+  app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden())) : renderRoute());
 }
 
-function renderStudentRenderError() {
-  return el("div", { className: "grid student-view" }, [
-    panel("화면을 불러오지 못했습니다", [
-      el("div", { className: "empty" }, "앱 데이터를 새로 불러온 뒤 다시 시도해주세요."),
-      button("홈으로 다시 불러오기", "btn secondary", "button", () => {
-        currentRoute = "home";
-        location.hash = "home";
-        render();
-      }),
-    ]),
+async function initTeacherAuth() {
+  teacherAuth.checked = false;
+  teacherAuth.authenticated = false;
+  render();
+
+  try {
+    const response = await fetch("/api/teacher-session", { credentials: "same-origin" });
+    const data = response.ok ? await response.json() : { ok: false };
+    teacherAuth.authenticated = Boolean(data.ok);
+    teacherAuth.user = data.user || null;
+  } catch (error) {
+    console.error(error);
+    teacherAuth.authenticated = false;
+    teacherAuth.user = null;
+  } finally {
+    teacherAuth.checked = true;
+    if (teacherAuth.authenticated && !canUseRoute(currentRoute)) currentRoute = firstAllowedTeacherRoute();
+    render();
+  }
+
+  if (teacherAuth.authenticated) initRemoteStore();
+}
+
+function requireTeacherAuth(renderFn) {
+  if (!teacherAuth.checked) return renderTeacherAuthLoading();
+  return teacherAuth.authenticated ? renderFn() : renderTeacherAuth();
+}
+
+function updateTeacherNavSections() {
+  document.querySelectorAll(".nav-section").forEach((section) => {
+    let node = section.nextElementSibling;
+    let hasVisibleButton = false;
+    while (node && !node.classList?.contains("nav-section")) {
+      if (node.matches?.("[data-route]") && !node.hidden) hasVisibleButton = true;
+      node = node.nextElementSibling;
+    }
+    section.hidden = !hasVisibleButton;
+  });
+}
+
+function renderForbidden() {
+  return el("div", { className: "grid" }, [
+    panel("접근 권한 없음", [el("div", { className: "empty" }, "이 계정으로는 해당 관리 메뉴를 사용할 수 없습니다.")]),
   ]);
 }
 
@@ -169,7 +219,7 @@ function requireStudentAuth(renderFn) {
 function getAuthedStudent() {
   const student = findStudent(state.settings.studentAuthId);
   const profile = getStudentProfile(state.settings.studentAuthId);
-  return student && profile?.passwordHash ? student : null;
+  return student && profile?.passwordHash && profile?.deviceToken ? student : null;
 }
 
 function ensureStudentProfiles() {
@@ -200,7 +250,21 @@ function renderStudentAuth() {
     }
 
     const profile = getStudentProfile(selectedStudent.id) || {};
-    trackSelect.value = profile.track || trackSelect.value;
+    if (selectedStudent.appRegisteredAt && !profile.deviceToken) {
+      lookupResult.className = "student-auth-result error";
+      lookupResult.textContent = "이미 다른 기기에서 앱 등록이 완료된 학생입니다. 사무실에 문의해주세요.";
+      return;
+    }
+    const normalizedTrack = normalizeCoastGuardTrack(profile.track || selectedStudent.track);
+    if (COAST_GUARD_TRACK_OPTIONS.includes(normalizedTrack)) {
+      trackSelect.value = normalizedTrack;
+      customTrackField.hidden = true;
+      customTrackInput.value = "";
+    } else if (normalizedTrack) {
+      trackSelect.value = "기타";
+      customTrackInput.value = normalizedTrack;
+      customTrackField.hidden = false;
+    }
     genderSelect.value = profile.gender || genderSelect.value;
     studentNameNode.textContent = selectedStudent.name;
     lookupResult.className = "student-auth-result success";
@@ -209,21 +273,28 @@ function renderStudentAuth() {
   });
 
   const trackSelect = select("track", COAST_GUARD_TRACK_OPTIONS);
+  const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
+  const customTrackField = field("기타 직렬", customTrackInput);
+  customTrackField.hidden = true;
+  trackSelect.addEventListener("change", () => {
+    customTrackField.hidden = trackSelect.value !== "기타";
+    if (customTrackField.hidden) customTrackInput.value = "";
+  });
   const genderSelect = select("gender", ["남", "여"]);
-  const passwordInput = input("password", "password", "패스워드");
+  const passwordInput = input("password", "password", "비밀번호");
 
   profileArea.append(
     field("이름", studentNameNode),
     field("직렬", trackSelect),
+    customTrackField,
     field("성별", genderSelect),
-    field("본인 패스워드", passwordInput, "", "다음 접속 때 본인 확인에 사용됩니다.")
+    field("본인 비밀번호", passwordInput, "", "다음 접속 때 본인 확인에 사용합니다.")
   );
 
   const form = el("form", { className: "student-auth-card" }, [
     el("div", {}, [
-      el("span", {}, "학생 등록"),
       el("h2", {}, "학생 등록"),
-      el("p", {}, "고유번호 조회 후 등록해주세요."),
+      el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요."),
     ]),
     field("학생 고유번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "예: 18기 4번 -> 18004"),
     lookupResult,
@@ -238,41 +309,49 @@ function renderStudentAuth() {
     selectedStudent = selectedStudent?.id === studentId ? selectedStudent : findStudent(studentId);
 
     if (!selectedStudent) {
-      return notify("먼저 관리자 등록 고유번호를 조회해주세요.");
+      return notify("먼저 관리자가 등록한 고유번호를 조회해주세요.");
     }
-    if (!data.track || !data.gender || !data.password) {
-      return notify("직렬, 성별, 패스워드를 모두 입력해주세요.");
+    const finalTrack = resolveStudentTrack(data.track, data.customTrack);
+    if (!finalTrack || !data.gender || !data.password) {
+      return notify("직렬, 성별, 비밀번호를 모두 입력해주세요.");
     }
 
     const profiles = ensureStudentProfiles();
     const existingProfile = profiles[studentId];
+    if (selectedStudent.appRegisteredAt && !existingProfile?.deviceToken) {
+      return notify("이미 다른 기기에서 앱 등록이 완료된 학생입니다. 사무실에 문의해주세요.");
+    }
     const passwordHash = await hashStudentPassword(data.password);
     if (existingProfile?.passwordHash && existingProfile.passwordHash !== passwordHash) {
-      return notify("패스워드가 일치하지 않습니다.");
+      return notify("비밀번호가 일치하지 않습니다.");
     }
 
+    const deviceToken = existingProfile?.deviceToken || createDeviceToken();
+    const authedAt = new Date().toISOString();
+
     profiles[studentId] = {
-      track: data.track,
+      track: finalTrack,
       gender: data.gender,
       passwordHash,
-      authedAt: new Date().toISOString(),
+      deviceToken,
+      authedAt,
     };
-    selectedStudent.track = data.track;
+    selectedStudent.track = finalTrack;
     selectedStudent.gender = data.gender;
     selectedStudent.passwordHash = passwordHash;
-    selectedStudent.appRegisteredAt = new Date().toISOString();
+    selectedStudent.deviceToken = deviceToken;
+    selectedStudent.appRegisteredAt = authedAt;
     state.settings.studentAuthId = studentId;
     state.settings.lastStudentId = studentId;
     saveState();
     currentRoute = "home";
     if (location.hash !== "#home") location.hash = "home";
     render();
-    notify(`${selectedStudent.name}님, 인증되었습니다.`);
+    notify(`${selectedStudent.name}님 인증되었습니다.`);
   });
 
-  return el("div", { className: "grid student-view" }, [form]);
+  return el("div", { className: "grid student-view" }, [form, renderStudentAuthInstallCard()].filter(Boolean));
 }
-
 async function hashStudentPassword(password) {
   const value = String(password || "");
   if (window.crypto?.subtle) {
@@ -283,37 +362,16 @@ async function hashStudentPassword(password) {
   return btoa(unescape(encodeURIComponent(value)));
 }
 
+function createDeviceToken() {
+  const bytes = new Uint8Array(32);
+  if (window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
 function renderStudentHome() {
-  return el("div", { className: "grid student-view student-home" }, [
-    el("section", { className: "student-dday-card" }, [
-      el("div", {}, [
-        el("span", {}, COAST_GUARD_EXAM_LABEL),
-        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
-      ]),
-      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
-    ]),
-    renderStudentTodayCard(),
-    el("section", { className: "student-summary-card" }, [
-      el("strong", {}, "외출 신청"),
-      button("외출 신청하기", "btn", "button", () => navigate("student")),
-    ]),
-  ]);
-}
-
-function renderStudentTodayCard() {
-  return el("section", { className: "student-today-card" }, [
-    el("h3", {}, "오늘 상태"),
-    el("div", { className: "student-status-row" }, [
-      el("span", { className: "student-status-dot active" }),
-      el("div", {}, [
-        el("strong", {}, "해양경찰 시험 준비 중"),
-        el("p", {}, "D-Day를 기준으로 학습과 생활 기록을 관리합니다."),
-      ]),
-    ]),
-  ]);
-}
-
-function renderStudentHomeFlow() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
   const homeAction = getStudentHomeAction(activeOuting);
@@ -325,7 +383,7 @@ function renderStudentHomeFlow() {
       ]),
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
-    renderStudentTodayCardFlow(activeOuting),
+    renderStudentTodayCard(activeOuting),
     el("section", { className: "student-summary-card" }, [
       el("div", {}, [
         el("strong", {}, homeAction.title),
@@ -336,7 +394,93 @@ function renderStudentHomeFlow() {
   ]);
 }
 
-function renderStudentTodayCardFlow(activeOuting = null) {
+function renderHomeScreenInstallCard() {
+  if (isRunningStandalone()) return null;
+  return el("section", { className: "student-install-card" }, [
+    el("strong", {}, "앱처럼 사용하기"),
+    button("홈화면 추가", "btn secondary", "button", installToHomeScreen),
+  ]);
+}
+
+function renderStudentAuthInstallCard() {
+  if (isRunningStandalone()) return null;
+  return el("section", { className: "student-install-card student-auth-install-card" }, [
+    el("strong", {}, "앱처럼 이용하기"),
+    button("앱으로 이용하기", "btn secondary", "button", installToHomeScreen),
+  ]);
+}
+
+async function installToHomeScreen() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    render();
+    return;
+  }
+
+  openInstallGuideModal();
+}
+
+function openInstallGuideModal() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isKakao = userAgent.includes("kakaotalk");
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isAndroid = userAgent.includes("android");
+  const pageUrl = location.href;
+  const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
+  const steps = isKakao
+    ? [
+        "카카오톡 오른쪽 위 메뉴를 누릅니다.",
+        isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
+        "브라우저에서 공유 또는 메뉴를 누른 뒤 홈 화면에 추가를 선택합니다.",
+      ]
+    : isIos
+      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누르면 앱처럼 실행할 수 있습니다."]
+      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치를 누르면 앱처럼 실행할 수 있습니다."];
+
+  const actions = [
+    button("주소 복사", "btn secondary", "button", async () => {
+      await copyText(pageUrl);
+      notify("주소를 복사했습니다. 브라우저에 붙여넣어 열어주세요.");
+    }),
+  ];
+
+  if (isKakao && isAndroid) {
+    actions.unshift(button("Chrome으로 열기", "btn", "button", openCurrentPageInChrome));
+  }
+
+  openInfoModal({
+    title,
+    content: el("div", { className: "install-guide" }, [
+      el(
+        "p",
+        {},
+        isKakao
+          ? "카카오톡 안에서는 앱 설치가 바로 열리지 않을 수 있습니다. 먼저 기본 브라우저에서 열면 홈 화면에 추가할 수 있습니다."
+          : "설치 창이 자동으로 뜨지 않는 브라우저에서는 아래 순서로 홈 화면에 추가해주세요."
+      ),
+      el(
+        "ol",
+        {},
+        steps.map((step) => el("li", {}, step))
+      ),
+      el("div", { className: "install-guide-actions" }, actions),
+    ]),
+  });
+}
+
+function openCurrentPageInChrome() {
+  const url = new URL(location.href);
+  const fallback = encodeURIComponent(location.href);
+  location.href = `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=${url.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+}
+
+function isRunningStandalone() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function renderStudentTodayCard(activeOuting = null) {
   const status = getStudentHomeStatus(activeOuting);
   return el("section", { className: "student-today-card" }, [
     el("h3", {}, "오늘 상태"),
@@ -354,7 +498,7 @@ function getStudentHomeStatus(outing) {
   if (!outing) {
     return {
       dot: "active",
-      title: "해양경찰 시험 준비 중",
+      title: "해양경찰 시험 준비 중.",
       copy: "",
     };
   }
@@ -540,82 +684,10 @@ function formatTimeOnly(value) {
   }).format(new Date(value));
 }
 
-function renderHomeScreenInstallCard() {
-  if (isRunningStandalone()) return null;
-  return el("section", { className: "student-install-card" }, [
-    el("strong", {}, "앱처럼 사용하기"),
-    button("홈화면 추가", "btn secondary", "button", installToHomeScreen),
-  ]);
-}
-
-function isRunningStandalone() {
-  return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
-}
-
-async function installToHomeScreen() {
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    render();
-    return;
-  }
-
-  openInstallGuideModal();
-}
-
-function openInstallGuideModal() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isKakao = userAgent.includes("kakaotalk");
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isAndroid = userAgent.includes("android");
-  const pageUrl = location.href;
-  const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
-  const steps = isKakao
-    ? [
-        "카카오톡 오른쪽 위 메뉴를 누릅니다.",
-        isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
-        "브라우저에서 공유 또는 메뉴를 누른 뒤 홈 화면에 추가를 선택합니다.",
-      ]
-    : isIos
-      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누르면 앱처럼 실행할 수 있습니다."]
-      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치를 누르면 앱처럼 실행할 수 있습니다."];
-
-  const actions = [
-    button("주소 복사", "btn secondary", "button", async () => {
-      await copyText(pageUrl);
-      notify("주소를 복사했습니다. 브라우저에 붙여넣어 열어주세요.");
-    }),
-  ];
-
-  if (isKakao && isAndroid) {
-    actions.unshift(button("Chrome으로 열기", "btn", "button", openCurrentPageInChrome));
-  }
-
-  openInfoModal({
-    title,
-    content: el("div", { className: "install-guide" }, [
-      el(
-        "p",
-        {},
-        isKakao
-          ? "카카오톡 안에서는 앱 설치가 바로 열리지 않을 수 있습니다. 먼저 기본 브라우저에서 열면 홈 화면에 추가할 수 있습니다."
-          : "설치 창이 자동으로 뜨지 않는 브라우저에서는 아래 순서로 홈 화면에 추가해주세요."
-      ),
-      el(
-        "ol",
-        {},
-        steps.map((step) => el("li", {}, step))
-      ),
-      el("div", { className: "install-guide-actions" }, actions),
-    ]),
-  });
-}
-
-function openCurrentPageInChrome() {
-  const url = new URL(location.href);
-  const fallback = encodeURIComponent(location.href);
-  location.href = `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=${url.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+function resolveStudentTrack(track, customTrack) {
+  const selected = normalizeCoastGuardTrack(track);
+  if (selected !== "기타") return selected;
+  return String(customTrack || "").trim();
 }
 
 function profileItem(label, value) {
@@ -645,24 +717,32 @@ function formatExamDate(dateString) {
 }
 
 function renderHome() {
-  const activeOutings = state.outings.filter((outing) => outing.status !== "returned").length;
-  const pendingOutings = state.outings.filter((outing) => outing.decision === "pending").length;
-  const returnedToday = state.outings.filter((outing) => isToday(outing.returnedAt)).length;
+  const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
+  const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
+  const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
 
   return el("div", { className: "grid" }, [
-    el("div", { className: "grid stats" }, [
-      stat("등록 학생", state.students.length),
-      stat("외출 중", activeOutings),
-      stat("승인 대기", pendingOutings),
-      stat("오늘 복귀", returnedToday),
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup("외출 인원", [
+        stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
+        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명"),
+      ]),
+      statGroup("외출 건수", [
+        stat("승인 대기", pendingOutingCases.length, "건"),
+        stat("외출 중", activeOutings.length, "건"),
+        stat("오늘 복귀", returnedTodayCases.length, "건"),
+      ]),
     ]),
     panel("관리 메뉴", [
       el("div", { className: "module-grid" }, [
-        moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중"),
-        moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중"),
-        moduleCard("벌점 관리", "벌점 부여, 누적 벌점, 지도 기록을 관리합니다.", "penalties", "준비 중"),
-        moduleCard("출석 관리", "출석, 지각, 결석과 기간별 통계를 관리합니다.", "attendance", "준비 중"),
-      ]),
+        hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
+        hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "시험 성적 입력과 학생별 성적 추이를 관리합니다.", "grades", "준비 중") : null,
+        hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
+        hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
+        hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
+      ].filter(Boolean)),
     ]),
   ]);
 }
