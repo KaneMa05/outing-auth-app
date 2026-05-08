@@ -1,5 +1,6 @@
 ﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
+const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 
 const state = loadState();
 let currentRoute = "";
@@ -18,7 +19,6 @@ const STUDENT_INTERACTION_PAUSE_MS = 15000;
 const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
-const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
@@ -216,7 +216,7 @@ function loadSupabaseSdk() {
   window.__outingSupabaseSdkPromise = new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(false), 5000);
     const script = document.createElement("script");
-    script.src = "./supabase.js?v=20260508-normal-render";
+    script.src = "./supabase.js?v=20260508-tdz-fix";
     script.async = true;
     script.onload = () => {
       window.clearTimeout(timer);
