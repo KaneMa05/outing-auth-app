@@ -1,12 +1,15 @@
-const CACHE_NAME = "outing-auth-app-v49";
+const CACHE_NAME = "outing-auth-app-v50";
 const APP_SHELL = [
   "/",
   "/index.html",
+  "/teacher",
+  "/teacher.html",
   "/styles.css",
   "/config.js",
   "/supabase.js",
   "/shared.js",
   "/student.js",
+  "/teacher.js",
   "/app.js",
   "/manifest.webmanifest",
   "/app-icon.png",
