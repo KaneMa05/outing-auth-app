@@ -417,37 +417,67 @@ h1 {
 }
 
 .track-option-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
   margin-top: 12px;
 }
 
-.track-option-chip {
-  display: inline-flex;
+.track-option-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 7px;
-  max-width: 100%;
-  min-height: 34px;
-  padding: 5px 7px 5px 10px;
+  gap: 10px;
+  min-height: 54px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  font-size: 0.86rem;
+}
+
+.track-option-row.fixed {
+  background: var(--surface-soft);
+}
+
+.track-option-order {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
   font-weight: 800;
 }
 
-.track-option-chip.fixed {
-  background: var(--surface-soft);
-  color: var(--muted);
-  padding-right: 10px;
+.track-option-name {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
-.track-option-chip .mini-btn {
-  min-height: 24px;
-  padding: 3px 7px;
-  font-size: 0.72rem;
+.track-option-name strong,
+.track-option-name span {
+  overflow-wrap: anywhere;
+}
+
+.track-option-name span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.track-option-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.track-option-actions .mini-btn {
+  min-width: 34px;
+  min-height: 32px;
+  padding: 6px 9px;
 }
 
 .student-id-check {

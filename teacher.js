@@ -1431,15 +1431,15 @@ function trackOptionAdminPanel() {
     if (getCoastGuardTrackOptions().includes(label)) return notify("이미 등록된 직렬 항목입니다.");
 
     state.settings.trackOptions = normalizeTrackOptionList([...getCoastGuardTrackOptions().filter((option) => option !== "기타"), label]);
-    saveState();
+    saveState({ skipRemote: true });
+    form.reset();
+    render();
     try {
       await flushRemoteSave();
-      form.reset();
-      render();
       notify("직렬 항목을 추가했습니다.");
     } catch (error) {
       console.error(error);
-      notify("직렬 항목을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      notify("직렬 항목을 화면에 추가했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
     }
   });
 
@@ -1448,19 +1448,35 @@ function trackOptionAdminPanel() {
   const optionList = el("div", { className: "track-option-list" }, [
     ...options.map((option, index) => {
       const isBaseOption = baseOptions.has(option);
-      return el("span", { className: isBaseOption ? "track-option-chip fixed" : "track-option-chip" }, [
-        el("span", {}, option),
-        button("위", "mini-btn", "button", () => moveTrackOption(option, -1)),
-        button("아래", "mini-btn", "button", () => moveTrackOption(option, 1)),
-        isBaseOption ? null : button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
-      ].filter(Boolean));
+      const upButton = button("↑", "mini-btn", "button", () => moveTrackOption(option, -1));
+      const downButton = button("↓", "mini-btn", "button", () => moveTrackOption(option, 1));
+      upButton.disabled = index === 0;
+      downButton.disabled = index === options.length - 1;
+      return el("div", { className: "track-option-row" }, [
+        el("div", { className: "track-option-order" }, String(index + 1)),
+        el("div", { className: "track-option-name" }, [
+          el("strong", {}, option),
+          el("span", {}, isBaseOption ? "기본 항목" : "추가 항목"),
+        ]),
+        el("div", { className: "track-option-actions" }, [
+          upButton,
+          downButton,
+          isBaseOption ? null : button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
+        ].filter(Boolean)),
+      ]);
     }),
-    el("span", { className: "track-option-chip fixed" }, "기타"),
+    el("div", { className: "track-option-row fixed" }, [
+      el("div", { className: "track-option-order" }, String(options.length + 1)),
+      el("div", { className: "track-option-name" }, [
+        el("strong", {}, "기타"),
+        el("span", {}, "맨 아래 고정"),
+      ]),
+    ]),
   ]);
 
   return panel("직렬 항목 관리", [
     form,
-    el("p", { className: "subtle" }, "추가한 항목은 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기본 항목은 삭제할 수 없습니다."),
+    el("p", { className: "subtle" }, "이 순서대로 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기본 항목은 삭제할 수 없고, 기타는 항상 맨 아래에 고정됩니다."),
     optionList,
   ]);
 }
@@ -1475,14 +1491,14 @@ async function moveTrackOption(option, direction) {
   const nextOptions = [...options];
   [nextOptions[currentIndex], nextOptions[nextIndex]] = [nextOptions[nextIndex], nextOptions[currentIndex]];
   state.settings.trackOptions = normalizeTrackOptionList(nextOptions);
-  saveState();
+  saveState({ skipRemote: true });
+  render();
   try {
     await flushRemoteSave();
-    render();
     notify("직렬 항목 순서를 변경했습니다.");
   } catch (error) {
     console.error(error);
-    notify("직렬 항목 순서를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    notify("순서를 화면에 반영했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
   }
 }
 
@@ -1491,7 +1507,8 @@ async function deleteTrackOption(option) {
   if (!label) return;
   if (!confirm(`${label} 직렬 항목을 삭제할까요? 이미 이 직렬로 저장된 학생 정보는 유지됩니다.`)) return;
   state.settings.trackOptions = getCoastGuardTrackOptions().filter((item) => item !== "기타" && item !== label);
-  saveState();
+  saveState({ skipRemote: true });
+  render();
 
   if (remoteStore) {
     try {

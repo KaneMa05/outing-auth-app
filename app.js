@@ -407,7 +407,7 @@ function renderStudentHome() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
   const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
-  const needsAttendance = !todayAttendance || !getAttendancePhotoSrc(todayAttendance);
+  const needsAttendance = !todayAttendance;
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
@@ -422,7 +422,7 @@ function renderStudentHome() {
       ? el("section", { className: "student-summary-card" }, [
           el("div", {}, [
             el("strong", {}, "출석 인증"),
-            el("p", {}, todayAttendance ? "출석 사진을 다시 제출해주세요." : "오늘 출석 인증을 완료해주세요."),
+            el("p", {}, "오늘 출석 인증을 완료해주세요."),
           ]),
           button("출석 인증하기", "btn", "button", () => {
             state.settings.attendanceMode = "";

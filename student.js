@@ -370,16 +370,15 @@ function renderStudentReturn() {
 function renderStudentAttendance() {
   const student = getAuthedStudent();
   const todayCheck = student ? getStudentAttendanceForDate(student.id) : null;
-  const needsPhotoRetry = todayCheck && !getAttendancePhotoSrc(todayCheck);
   const isReasonMode = state.settings.attendanceMode === "pre-arrival-reason" && !todayCheck;
   const isOpen = isAttendanceCheckOpen();
   return el("div", { className: "grid student-view" }, [
     panel(isReasonMode ? "등원 전 사유신청" : "오늘 출석", [
-      todayCheck && !needsPhotoRetry
+      todayCheck
         ? renderStudentAttendanceComplete(todayCheck)
         : isReasonMode
           ? createPreArrivalReasonForm(student)
-          : createAttendanceForm(student, { retryMissingPhoto: needsPhotoRetry, showPreArrival: !todayCheck }),
+          : createAttendanceForm(student, { showPreArrival: true }),
     ]),
   ]);
 }
@@ -422,7 +421,7 @@ function createAttendanceForm(student, options = {}) {
     event.preventDefault();
     if (!student) return notify("학생 등록 후 출석 체크를 이용할 수 있습니다.");
     const existingCheck = getStudentAttendanceForDate(student.id);
-    if (existingCheck && !options.retryMissingPhoto) return notify("오늘 출석은 이미 인증되었습니다.");
+    if (existingCheck) return notify("오늘 출석은 이미 인증되었습니다.");
     if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 인증할 수 없습니다.");
     const attendancePhoto = form.elements.attendancePhoto.files[0];
     if (!attendancePhoto) return notify("출석 확인 현장 사진을 촬영해주세요.");
@@ -430,9 +429,6 @@ function createAttendanceForm(student, options = {}) {
     submitButton.disabled = true;
     setButtonLoading(submitButton, "출석 인증 중...");
     try {
-      if (options.retryMissingPhoto && existingCheck) {
-        state.attendanceChecks = (state.attendanceChecks || []).filter((check) => check.id !== existingCheck.id);
-      }
       await createAttendanceCheck(student, attendancePhoto);
       form.reset();
       render();

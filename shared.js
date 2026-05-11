@@ -849,7 +849,10 @@ async function loadStateFromRemote() {
   if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
   state.notices = removeLegacySampleNotices(state.notices);
   if (!trackOptionResult.error) {
-    state.settings.trackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
+    const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
+    if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {
+      state.settings.trackOptions = remoteTrackOptions;
+    }
   }
 }
 
@@ -1841,6 +1844,14 @@ async function createAttendanceCheck(student, file, options = {}) {
   const createdAt = new Date().toISOString();
   const checkDate = getTodayDateKey();
   const status = options.status || "present";
+  if (remoteStore) {
+    const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+    if (existingCheck) {
+      upsertLocalAttendanceCheck(existingCheck);
+      saveState();
+      return existingCheck;
+    }
+  }
   const compressedDataUrl = await compressImage(file, 900, 0.64, 180000);
   const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
   let photoPath = "";
@@ -1916,22 +1927,104 @@ async function createAttendanceCheck(student, file, options = {}) {
     const { error } = await remoteStore.from("attendance_checks").insert(attendanceRow);
     if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
       const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(attendanceRow));
+      if (isDuplicateAttendanceError(fallbackError)) {
+        const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+        if (existingCheck) {
+          upsertLocalAttendanceCheck(existingCheck);
+          saveState();
+          return existingCheck;
+        }
+      }
       if (fallbackError) throw fallbackError;
     } else if (
       isMissingColumnError(error, "thumbnail_path") ||
       isMissingColumnError(error, "thumbnail_url")
     ) {
       const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceThumbnailColumnsFromRow(attendanceRow));
+      if (isDuplicateAttendanceError(fallbackError)) {
+        const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+        if (existingCheck) {
+          upsertLocalAttendanceCheck(existingCheck);
+          saveState();
+          return existingCheck;
+        }
+      }
       if (fallbackError) throw fallbackError;
+    } else if (isDuplicateAttendanceError(error)) {
+      const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+      if (existingCheck) {
+        upsertLocalAttendanceCheck(existingCheck);
+        saveState();
+        return existingCheck;
+      }
+      throw error;
     } else if (error) throw error;
   }
 
-  state.attendanceChecks = [
-    check,
-    ...(state.attendanceChecks || []).filter((item) => !(item.studentId === student.id && item.checkDate === checkDate)),
-  ];
+  upsertLocalAttendanceCheck(check);
   saveState();
   return check;
+}
+
+async function fetchRemoteAttendanceCheck(studentId, checkDate) {
+  if (!remoteStore) return null;
+  const columns = [
+    "id",
+    "student_id",
+    "student_name",
+    "class_name",
+    "check_date",
+    "status",
+    "reason",
+    "detail",
+    "photo_path",
+    "photo_url",
+    "thumbnail_path",
+    "thumbnail_url",
+    "photo_data_url",
+    "original_name",
+    "created_at",
+  ].join(",");
+  let result = await remoteStore
+    .from("attendance_checks")
+    .select(columns)
+    .eq("student_id", String(studentId || "").trim())
+    .eq("check_date", checkDate)
+    .maybeSingle();
+
+  if (
+    isMissingColumnError(result.error, "reason") ||
+    isMissingColumnError(result.error, "detail") ||
+    isMissingColumnError(result.error, "thumbnail_path") ||
+    isMissingColumnError(result.error, "thumbnail_url")
+  ) {
+    const fallbackColumns = columns
+      .split(",")
+      .filter((column) => !["reason", "detail", "thumbnail_path", "thumbnail_url"].includes(column))
+      .join(",");
+    result = await remoteStore
+      .from("attendance_checks")
+      .select(fallbackColumns)
+      .eq("student_id", String(studentId || "").trim())
+      .eq("check_date", checkDate)
+      .maybeSingle();
+  }
+
+  if (result.error || !result.data) return null;
+  return mapAttendanceCheckFromRemote(result.data);
+}
+
+function upsertLocalAttendanceCheck(check) {
+  state.attendanceChecks = [
+    check,
+    ...(state.attendanceChecks || []).filter((item) => !(item.studentId === check.studentId && item.checkDate === check.checkDate)),
+  ];
+}
+
+function isDuplicateAttendanceError(error) {
+  if (!error) return false;
+  const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("23505") || text.includes("duplicate key") || text.includes("attendance_checks_student_id_check_date");
 }
 
 function createPreArrivalReasonCheck(student, file, reason, detail) {
