@@ -149,8 +149,9 @@ function render() {
       if (teacherAuth.user?.role === "student_manager") {
         topActions.appendChild(el("span", { className: "auth-chip" }, "장학생 관리자"));
       }
-      if (currentRoute === "attendance" && teacherAuth.user?.role !== "student_manager" && hasTeacherPermission("attendance.write")) {
-        topActions.appendChild(button("출석 설정", "btn secondary", "button", openAttendanceDeadlineModal));
+      if (currentRoute === "attendance" && isTeacherAdmin()) {
+        topActions.appendChild(button("출석 시간 설정", "btn secondary", "button", openAttendanceDeadlineModal));
+        topActions.appendChild(button("출석 휴일 설정", "btn secondary", "button", openAttendanceHolidayModal));
       }
       if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
         topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));

@@ -1336,6 +1336,27 @@ th {
   margin-bottom: 10px;
 }
 
+.attendance-holiday-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(27, 99, 197, 0.2);
+  border-radius: 8px;
+  background: #eaf3ff;
+  color: #174ea6;
+}
+
+.attendance-holiday-banner strong {
+  font-size: 0.98rem;
+}
+
+.attendance-holiday-banner span {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
 .table-wrap td:last-child {
   white-space: nowrap;
 }
@@ -1611,11 +1632,121 @@ th {
   gap: 14px;
 }
 
+.attendance-holiday-modal {
+  width: min(860px, calc(100vw - 28px));
+}
+
+.attendance-holiday-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(220px, 0.55fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.attendance-holiday-calendar-form {
+  display: grid;
+  gap: 12px;
+}
+
+.attendance-calendar-head {
+  display: grid;
+  grid-template-columns: 64px 1fr 64px;
+  align-items: center;
+  gap: 8px;
+}
+
+.attendance-calendar-head strong {
+  text-align: center;
+  font-size: 1rem;
+}
+
+.attendance-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.attendance-calendar-weekday {
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.attendance-calendar-empty {
+  min-height: 40px;
+}
+
+.attendance-calendar-day {
+  position: relative;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 1px solid rgba(116, 135, 158, 0.26);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.attendance-calendar-day input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.attendance-calendar-day small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  font-size: 0.56rem;
+  font-weight: 700;
+}
+
+.attendance-calendar-day:has(input:checked) {
+  border-color: rgba(27, 99, 197, 0.72);
+  background: #eaf3ff;
+  color: #174ea6;
+}
+
+.attendance-calendar-day.default-holiday {
+  border-color: rgba(27, 99, 197, 0.5);
+  background: #eaf3ff;
+  color: #174ea6;
+}
+
+.attendance-calendar-day.open-default-holiday {
+  border-color: rgba(37, 157, 116, 0.55);
+  background: #ecfdf6;
+  color: #087a55;
+}
+
+.attendance-calendar-day.disabled {
+  background: #f2f5f9;
+  color: #98a5b5;
+  cursor: not-allowed;
+}
+
+.attendance-calendar-day.disabled input {
+  cursor: not-allowed;
+}
+
 .attendance-holiday-settings {
   display: grid;
   gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(116, 135, 158, 0.22);
+  padding-left: 16px;
+  border-left: 1px solid rgba(116, 135, 158, 0.22);
+  max-height: min(540px, calc(100vh - 220px));
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .attendance-holiday-settings > strong {
@@ -1624,6 +1755,19 @@ th {
 
 .attendance-holiday-form {
   margin: 0;
+}
+
+@media (max-width: 720px) {
+  .attendance-holiday-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-holiday-settings {
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: 0;
+    border-top: 1px solid rgba(116, 135, 158, 0.22);
+  }
 }
 
 .attendance-modal-actions {

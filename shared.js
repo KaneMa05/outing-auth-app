@@ -3,6 +3,32 @@ const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "stud
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_IMPORTANT_NOTICES = [];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
+const ATTENDANCE_OPEN_OVERRIDE_NOTE = "__open_attendance_day__";
+const KOREA_PUBLIC_HOLIDAYS = {
+  2026: {
+    "2026-01-01": "신정",
+    "2026-02-16": "설날",
+    "2026-02-17": "설날",
+    "2026-02-18": "설날",
+    "2026-03-01": "3·1절",
+    "2026-03-02": "3·1절 대체공휴일",
+    "2026-05-01": "근로자의 날",
+    "2026-05-05": "어린이날",
+    "2026-05-24": "부처님오신날",
+    "2026-05-25": "부처님오신날 대체공휴일",
+    "2026-06-03": "전국동시지방선거일",
+    "2026-06-06": "현충일",
+    "2026-08-15": "광복절",
+    "2026-08-17": "광복절 대체공휴일",
+    "2026-09-24": "추석",
+    "2026-09-25": "추석",
+    "2026-09-26": "추석",
+    "2026-10-03": "개천절",
+    "2026-10-05": "개천절 대체공휴일",
+    "2026-10-09": "한글날",
+    "2026-12-25": "기독탄신일",
+  },
+};
 
 const state = loadState();
 let currentRoute = "";
@@ -65,6 +91,10 @@ function hasTeacherPermission(permission) {
   if (!permission) return true;
   const permissions = Array.isArray(teacherAuth.user?.permissions) ? teacherAuth.user.permissions : [];
   return permissions.includes("*") || permissions.includes(permission);
+}
+
+function isTeacherAdmin() {
+  return APP_MODE === "teacher" && teacherAuth.user?.role === "admin";
 }
 
 function canUseRoute(route) {
@@ -161,6 +191,7 @@ function defaultState() {
       completionType: "",
       attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
       attendanceDeadlineEnabled: false,
+      attendanceHolidayOverrides: [],
     },
     students: [],
     managers: [],
@@ -180,6 +211,7 @@ function mergeDefaultState(nextState) {
     ...(nextState?.settings || {}),
   };
   settings.trackOptions = normalizeTrackOptionList(settings.trackOptions);
+  settings.attendanceHolidayOverrides = normalizeDateKeyList(settings.attendanceHolidayOverrides);
   return {
     ...defaults,
     ...nextState,
@@ -1787,18 +1819,76 @@ function normalizeAttendanceHolidays(holidays) {
   return [...map.values()].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
 }
 
+function getCustomAttendanceHolidays() {
+  return (state.attendanceHolidays || []).filter((holiday) => holiday.note !== ATTENDANCE_OPEN_OVERRIDE_NOTE);
+}
+
 function isValidDateKey(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
   const date = new Date(`${value}T00:00:00`);
   return !Number.isNaN(date.getTime()) && value === getDateInputValue(date.toISOString());
 }
 
+function normalizeDateKeyList(dateKeys) {
+  return [...new Set((Array.isArray(dateKeys) ? dateKeys : []).map((dateKey) => String(dateKey || "").trim()).filter(isValidDateKey))].sort();
+}
+
 function getAttendanceHoliday(dateKey = getTodayDateKey()) {
-  return (state.attendanceHolidays || []).find((holiday) => holiday.dateKey === dateKey) || null;
+  if (isAttendanceHolidayOverridden(dateKey)) return null;
+  const customHoliday = (state.attendanceHolidays || []).find((holiday) => holiday.dateKey === dateKey);
+  if (customHoliday) return customHoliday;
+  return getDefaultAttendanceHoliday(dateKey);
 }
 
 function isAttendanceHoliday(dateKey = getTodayDateKey()) {
   return Boolean(getAttendanceHoliday(dateKey));
+}
+
+function getDefaultAttendanceHoliday(dateKey = getTodayDateKey()) {
+  if (!isValidDateKey(dateKey)) return null;
+  const publicHolidayName = getKoreaPublicHolidayName(dateKey);
+  if (publicHolidayName) return { dateKey, note: publicHolidayName, isDefault: true };
+  if (isWeekendDateKey(dateKey)) return { dateKey, note: "주말", isDefault: true };
+  return null;
+}
+
+function isAttendanceHolidayOverridden(dateKey) {
+  return (
+    normalizeDateKeyList(state.settings.attendanceHolidayOverrides).includes(dateKey) ||
+    (state.attendanceHolidays || []).some((holiday) => holiday.dateKey === dateKey && holiday.note === ATTENDANCE_OPEN_OVERRIDE_NOTE)
+  );
+}
+
+async function setAttendanceHolidayOverride(dateKey, overridden) {
+  if (!isValidDateKey(dateKey)) return;
+  const overrides = new Set(normalizeDateKeyList(state.settings.attendanceHolidayOverrides));
+  if (overridden) overrides.add(dateKey);
+  else overrides.delete(dateKey);
+  state.settings.attendanceHolidayOverrides = normalizeDateKeyList([...overrides]);
+  if (overridden) {
+    await setAttendanceHoliday(dateKey, ATTENDANCE_OPEN_OVERRIDE_NOTE);
+  } else {
+    await deleteAttendanceHoliday(dateKey);
+  }
+}
+
+function getKoreaPublicHolidayName(dateKey) {
+  const year = String(dateKey || "").slice(0, 4);
+  return KOREA_PUBLIC_HOLIDAYS[year]?.[dateKey] || "";
+}
+
+function isWeekendDateKey(dateKey) {
+  const date = parseDateKeyAsLocalDate(dateKey);
+  if (!date) return false;
+  return date.getDay() === 0 || date.getDay() === 6;
+}
+
+function parseDateKeyAsLocalDate(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
 }
 
 function attendanceHolidayMessage(dateKey = getTodayDateKey()) {
@@ -1808,7 +1898,7 @@ function attendanceHolidayMessage(dateKey = getTodayDateKey()) {
 async function setAttendanceHoliday(dateKey, note = "") {
   if (!isValidDateKey(dateKey)) throw new Error("invalid_holiday_date");
   const now = new Date().toISOString();
-  const existing = getAttendanceHoliday(dateKey);
+  const existing = (state.attendanceHolidays || []).find((holiday) => holiday.dateKey === dateKey);
   const holiday = {
     dateKey,
     note: String(note || "").trim(),
