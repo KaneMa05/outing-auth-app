@@ -12,6 +12,7 @@ const apiHandlers = {
   "/api/teacher-login": require("./api/teacher-login"),
   "/api/teacher-session": require("./api/teacher-session"),
   "/api/teacher-logout": require("./api/teacher-logout"),
+  "/api/managers": require("./api/managers"),
   "/api/reset-student-registration": require("./api/reset-student-registration"),
 };
 

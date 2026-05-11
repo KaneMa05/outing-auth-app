@@ -1543,17 +1543,33 @@ function managerAdminPanel() {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!hasTeacherPermission("managers.write")) return notify("담당자 등록 권한이 없습니다.");
     const data = formData(form);
     const name = String(data.name || "").trim();
     if (!name) return notify("담당자 이름을 입력해주세요.");
-    const result = upsertManager(data);
-    saveState();
-    form.reset();
-    render();
-    notify(result.created ? "담당자를 등록했습니다." : "기존 담당자 정보를 수정했습니다.");
+    const beforeManagers = JSON.parse(JSON.stringify(state.managers || []));
+    const submitButton = form.querySelector("button[type='submit']");
+    submitButton.disabled = true;
+    submitButton.textContent = "저장 중...";
+    try {
+      const result = upsertManager(data);
+      saveState({ skipRemote: true });
+      await flushRemoteSave();
+      form.reset();
+      render();
+      notify(result.created ? "담당자를 등록했습니다." : "기존 담당자 정보를 수정했습니다.");
+    } catch (error) {
+      console.error(error);
+      state.managers = beforeManagers;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      notify("담당자를 서버에 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      render();
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "담당자 등록";
+    }
   });
 
   const rows = getActiveManagers().map((manager) =>
@@ -1783,14 +1799,24 @@ function upsertManager(data) {
   return { created: true };
 }
 
-function deleteManager(id) {
+async function deleteManager(id) {
   const manager = (state.managers || []).find((item) => item.id === id);
   if (!manager) return;
   if (!confirm(`${manager.name} 담당자를 삭제할까요? 기존 상/벌점 기록의 담당자명은 유지됩니다.`)) return;
+  const beforeManagers = JSON.parse(JSON.stringify(state.managers || []));
   manager.isActive = false;
-  saveState();
-  render();
-  notify("담당자를 삭제했습니다.");
+  try {
+    saveState({ skipRemote: true });
+    await flushRemoteSave();
+    render();
+    notify("담당자를 삭제했습니다.");
+  } catch (error) {
+    console.error(error);
+    state.managers = beforeManagers;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+    notify("담당자 삭제를 서버에 저장하지 못했습니다.");
+  }
 }
 
 function getStudentProfileForTeacher(studentId) {

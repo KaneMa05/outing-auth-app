@@ -810,6 +810,10 @@ async function loadStateFromRemote() {
     createdAt: student.created_at,
   }));
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
+  if (APP_MODE === "teacher") {
+    const apiManagers = await loadManagersFromTeacherApi();
+    if (apiManagers) state.managers = apiManagers;
+  }
 
   const mappedOutings = (outings || []).map((outing) => ({
     id: outing.id,
@@ -910,11 +914,14 @@ async function saveStateToRemote() {
         created_at: manager.createdAt || new Date().toISOString(),
       }));
 
+    if (managerRows.length) await saveManagersToTeacherApi(managerRows);
     if (managerRows.length) {
       const { error } = await remoteStore
         .from("managers")
         .upsert(managerRows, { onConflict: "id" });
-      if (error && !isMissingRelationError(error, "managers")) throw error;
+      if (error && !isMissingRelationError(error, "managers")) {
+        console.warn("Supabase anon manager sync failed; server API sync was already attempted.", error);
+      }
     }
 
     const trackOptionRows = getCoastGuardTrackOptions().filter((label) => label !== "기타").map((label, index) => ({
@@ -1621,6 +1628,29 @@ function mapManagerFromRemote(manager) {
     isActive: manager.is_active !== false,
     createdAt: manager.created_at,
   };
+}
+
+async function loadManagersFromTeacherApi() {
+  try {
+    const response = await fetch("/api/managers", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) return null;
+    return (data.managers || []).map(mapManagerFromRemote);
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function saveManagersToTeacherApi(managerRows) {
+  const response = await fetch("/api/managers", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ managers: managerRows }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "manager_save_failed");
 }
 
 function mapNoticeFromRemote(notice) {
