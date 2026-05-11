@@ -4,6 +4,7 @@
 };
 let penaltySortMode = "id";
 let editingNoticeId = "";
+let trackOptionDraft = null;
 const penaltyPeriodFilter = {
   start: "",
   end: "",
@@ -1414,6 +1415,8 @@ function teacherStudentForm() {
 }
 
 function trackOptionAdminPanel() {
+  const draftOptions = ensureTrackOptionDraft();
+  const isDirty = isTrackOptionDraftDirty();
   const trackInput = input("trackOption", "text", "추가할 직렬명");
   const form = el("form", { className: "form-grid track-option-form" }, [
     field("직렬 항목 추가", trackInput),
@@ -1428,30 +1431,22 @@ function trackOptionAdminPanel() {
     const label = normalizeCoastGuardTrack(formData(form).trackOption);
     if (!label) return notify("추가할 직렬명을 입력해주세요.");
     if (label === "기타") return notify("기타는 기본 항목으로 이미 포함되어 있습니다.");
-    if (getCoastGuardTrackOptions().includes(label)) return notify("이미 등록된 직렬 항목입니다.");
+    if (draftOptions.includes(label)) return notify("이미 등록된 직렬 항목입니다.");
 
-    state.settings.trackOptions = normalizeTrackOptionList([...getCoastGuardTrackOptions().filter((option) => option !== "기타"), label]);
-    saveState({ skipRemote: true });
+    trackOptionDraft = normalizeTrackOptionList([...draftOptions, label]);
     form.reset();
     render();
-    try {
-      await flushRemoteSave();
-      notify("직렬 항목을 추가했습니다.");
-    } catch (error) {
-      console.error(error);
-      notify("직렬 항목을 화면에 추가했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
-    }
+    notify("직렬 항목을 추가했습니다. 저장 버튼을 눌러 반영해주세요.");
   });
 
   const baseOptions = new Set(getBaseTrackOptions());
-  const options = getCoastGuardTrackOptions().filter((option) => option !== "기타");
   const optionList = el("div", { className: "track-option-list" }, [
-    ...options.map((option, index) => {
+    ...draftOptions.map((option, index) => {
       const isBaseOption = baseOptions.has(option);
       const upButton = button("↑", "mini-btn", "button", () => moveTrackOption(option, -1));
       const downButton = button("↓", "mini-btn", "button", () => moveTrackOption(option, 1));
       upButton.disabled = index === 0;
-      downButton.disabled = index === options.length - 1;
+      downButton.disabled = index === draftOptions.length - 1;
       return el("div", { className: "track-option-row" }, [
         el("div", { className: "track-option-order" }, String(index + 1)),
         el("div", { className: "track-option-name" }, [
@@ -1466,64 +1461,96 @@ function trackOptionAdminPanel() {
       ]);
     }),
     el("div", { className: "track-option-row fixed" }, [
-      el("div", { className: "track-option-order" }, String(options.length + 1)),
+      el("div", { className: "track-option-order" }, String(draftOptions.length + 1)),
       el("div", { className: "track-option-name" }, [
         el("strong", {}, "기타"),
         el("span", {}, "맨 아래 고정"),
       ]),
     ]),
   ]);
+  const saveButton = button("저장", "btn", "button", saveTrackOptionDraft);
+  saveButton.disabled = !isDirty;
+  const resetButton = button("변경 취소", "btn secondary", "button", resetTrackOptionDraft);
+  resetButton.disabled = !isDirty;
 
   return panel("직렬 항목 관리", [
     form,
     el("p", { className: "subtle" }, "이 순서대로 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기본 항목은 삭제할 수 없고, 기타는 항상 맨 아래에 고정됩니다."),
     optionList,
+    el("div", { className: "track-option-savebar" }, [
+      el("span", { className: isDirty ? "badge pending" : "badge approved" }, isDirty ? "저장 전 변경사항 있음" : "저장됨"),
+      saveButton,
+      resetButton,
+    ]),
   ]);
 }
 
-async function moveTrackOption(option, direction) {
+function ensureTrackOptionDraft() {
+  if (!Array.isArray(trackOptionDraft)) {
+    trackOptionDraft = getCoastGuardTrackOptions().filter((option) => option !== "기타");
+  }
+  return trackOptionDraft;
+}
+
+function isTrackOptionDraftDirty() {
+  const saved = getCoastGuardTrackOptions().filter((option) => option !== "기타");
+  const draft = ensureTrackOptionDraft();
+  return saved.length !== draft.length || saved.some((option, index) => option !== draft[index]);
+}
+
+function moveTrackOption(option, direction) {
   const label = normalizeCoastGuardTrack(option);
-  const options = getCoastGuardTrackOptions().filter((item) => item !== "기타");
+  const options = ensureTrackOptionDraft();
   const currentIndex = options.indexOf(label);
   const nextIndex = currentIndex + direction;
   if (currentIndex < 0 || nextIndex < 0 || nextIndex >= options.length) return;
 
   const nextOptions = [...options];
   [nextOptions[currentIndex], nextOptions[nextIndex]] = [nextOptions[nextIndex], nextOptions[currentIndex]];
-  state.settings.trackOptions = normalizeTrackOptionList(nextOptions);
-  saveState({ skipRemote: true });
+  trackOptionDraft = normalizeTrackOptionList(nextOptions);
   render();
-  try {
-    await flushRemoteSave();
-    notify("직렬 항목 순서를 변경했습니다.");
-  } catch (error) {
-    console.error(error);
-    notify("순서를 화면에 반영했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
-  }
 }
 
-async function deleteTrackOption(option) {
+function deleteTrackOption(option) {
   const label = normalizeCoastGuardTrack(option);
   if (!label) return;
-  if (!confirm(`${label} 직렬 항목을 삭제할까요? 이미 이 직렬로 저장된 학생 정보는 유지됩니다.`)) return;
-  state.settings.trackOptions = getCoastGuardTrackOptions().filter((item) => item !== "기타" && item !== label);
-  saveState({ skipRemote: true });
+  trackOptionDraft = ensureTrackOptionDraft().filter((item) => item !== label);
   render();
+  notify("직렬 항목을 목록에서 제외했습니다. 저장 버튼을 눌러 반영해주세요.");
+}
+
+function resetTrackOptionDraft() {
+  trackOptionDraft = null;
+  render();
+  notify("직렬 항목 변경사항을 취소했습니다.");
+}
+
+async function saveTrackOptionDraft() {
+  const nextOptions = normalizeTrackOptionList(ensureTrackOptionDraft());
+  const previousCustomOptions = getCustomTrackOptions();
+  const nextSet = new Set(nextOptions);
+  const deletedCustomOptions = previousCustomOptions.filter((option) => !nextSet.has(option));
+  state.settings.trackOptions = nextOptions;
+  saveState({ skipRemote: true });
 
   if (remoteStore) {
     try {
-      const { error } = await remoteStore.from("track_options").update({ is_active: false }).eq("label", label);
-      if (error && !isMissingRelationError(error, "track_options")) throw error;
+      await flushRemoteSave();
+      for (const label of deletedCustomOptions) {
+        const { error } = await remoteStore.from("track_options").update({ is_active: false }).eq("label", label);
+        if (error && !isMissingRelationError(error, "track_options")) throw error;
+      }
     } catch (error) {
       console.error(error);
-      notify("서버 직렬 항목 삭제에 실패했습니다. 로컬 목록에서는 삭제되었습니다.");
+      notify("직렬 항목을 로컬에 저장했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
       render();
       return;
     }
   }
 
+  trackOptionDraft = null;
   render();
-  notify("직렬 항목을 삭제했습니다.");
+  notify("직렬 항목을 저장했습니다.");
 }
 
 function managerAdminPanel() {

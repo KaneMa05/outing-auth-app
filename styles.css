@@ -480,6 +480,23 @@ h1 {
   padding: 6px 9px;
 }
 
+.track-option-savebar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(10, 41, 78, 0.12);
+}
+
 .student-id-check {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
