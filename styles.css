@@ -2703,10 +2703,15 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   body[data-app-mode="teacher"] .nav-list {
-    display: flex;
+    display: flex !important;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    align-items: center;
     gap: 6px;
     overflow-x: auto;
+    overflow-y: hidden;
     max-width: calc(100vw - 24px);
+    max-height: 44px;
     padding: 0 0 4px;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
@@ -2717,8 +2722,8 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   body[data-app-mode="teacher"] .nav-list button {
-    width: auto;
-    flex: 0 0 auto;
+    width: auto !important;
+    flex: 0 0 auto !important;
     min-height: 36px;
     padding: 7px 11px;
     font-size: 0.82rem;
