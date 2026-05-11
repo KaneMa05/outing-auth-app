@@ -1555,8 +1555,8 @@ function managerAdminPanel() {
     submitButton.textContent = "저장 중...";
     try {
       const result = upsertManager(data);
+      await saveManagersToTeacherApi([managerToRemoteRow(result.manager)]);
       saveState({ skipRemote: true });
-      await flushRemoteSave();
       form.reset();
       render();
       notify(result.created ? "담당자를 등록했습니다." : "기존 담당자 정보를 수정했습니다.");
@@ -1786,17 +1786,29 @@ function upsertManager(data) {
   if (existing) {
     existing.role = role;
     existing.memo = memo;
-    return { created: false };
+    return { created: false, manager: existing };
   }
-  state.managers.push({
+  const manager = {
     id: createId(),
     name,
     role,
     memo,
     isActive: true,
     createdAt: new Date().toISOString(),
-  });
-  return { created: true };
+  };
+  state.managers.push(manager);
+  return { created: true, manager };
+}
+
+function managerToRemoteRow(manager) {
+  return {
+    id: manager.id,
+    name: manager.name,
+    role: manager.role || null,
+    memo: manager.memo || null,
+    is_active: manager.isActive !== false,
+    created_at: manager.createdAt || new Date().toISOString(),
+  };
 }
 
 async function deleteManager(id) {
@@ -1806,8 +1818,8 @@ async function deleteManager(id) {
   const beforeManagers = JSON.parse(JSON.stringify(state.managers || []));
   manager.isActive = false;
   try {
+    await deleteManagerFromTeacherApi(id);
     saveState({ skipRemote: true });
-    await flushRemoteSave();
     render();
     notify("담당자를 삭제했습니다.");
   } catch (error) {

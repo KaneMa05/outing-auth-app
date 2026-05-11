@@ -1653,6 +1653,17 @@ async function saveManagersToTeacherApi(managerRows) {
   if (!response.ok || !data.ok) throw new Error(data.error || "manager_save_failed");
 }
 
+async function deleteManagerFromTeacherApi(id) {
+  const response = await fetch("/api/managers", {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "manager_delete_failed");
+}
+
 function mapNoticeFromRemote(notice) {
   return {
     id: notice.id,
