@@ -1346,8 +1346,8 @@ function teacherStudentForm() {
     try {
       const result = upsertStudents(parsed, data.className, track);
       selectedStudentCohort = cohort;
-      saveState();
-      await flushRemoteSave();
+      await saveStudentsToRemote(parsed.map((student) => student.id));
+      saveState({ skipRemote: true });
       form.reset();
       render();
       notify("학생 " + result.created + "명 등록, " + result.updated + "명 수정되었습니다.");
@@ -1387,6 +1387,48 @@ function teacherStudentForm() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 8 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+async function saveStudentsToRemote(studentIds) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const idSet = new Set(studentIds.map((id) => String(id || "").trim()).filter(Boolean));
+  const rows = state.students
+    .filter((student) => idSet.has(String(student.id || "").trim()) && student.id && student.name)
+    .map((student) => ({
+      id: student.id,
+      name: student.name,
+      class_name: student.className || state.settings.className || "오프라인반",
+      track: normalizeCoastGuardTrack(student.track) || null,
+      is_active: true,
+      created_at: student.createdAt || new Date().toISOString(),
+    }));
+
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("students").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
+  if (isExpectedProfileRewriteError(error)) {
+    const fallbackRows = rows.map(({ track, ...row }) => row);
+    const { error: fallbackError } = await remoteStore.from("students").upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+    if (fallbackError) throw fallbackError;
+  } else if (error) {
+    throw error;
+  }
+
+  for (const row of rows) {
+    const { error: updateError } = await remoteStore
+      .from("students")
+      .update({
+        name: row.name,
+        class_name: row.class_name,
+        track: row.track,
+      })
+      .eq("id", row.id);
+    if (isExpectedProfileRewriteError(updateError)) continue;
+    if (updateError) throw updateError;
+  }
 }
 
 function trackOptionAdminPanel() {
@@ -1510,11 +1552,7 @@ async function saveTrackOptionDraft() {
 
   if (remoteStore) {
     try {
-      await flushRemoteSave();
-      for (const label of deletedCustomOptions) {
-        const { error } = await remoteStore.from("track_options").update({ is_active: false }).eq("label", label);
-        if (error && !isMissingRelationError(error, "track_options")) throw error;
-      }
+      await saveTrackOptionsToRemote(nextOptions, deletedCustomOptions);
     } catch (error) {
       console.error(error);
       notify("직렬 항목을 로컬에 저장했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");
@@ -1526,6 +1564,33 @@ async function saveTrackOptionDraft() {
   trackOptionDraft = null;
   render();
   notify("직렬 항목을 저장했습니다.");
+}
+
+async function saveTrackOptionsToRemote(options, deletedOptions = []) {
+  const rows = normalizeTrackOptionList(options)
+    .filter((label) => label !== "기타")
+    .map((label, index) => ({
+      label,
+      sort_order: index + 1,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    }));
+
+  if (rows.length) {
+    const { error } = await remoteStore.from("track_options").upsert(rows, { onConflict: "label" });
+    if (isMissingColumnError(error, "sort_order")) {
+      const fallbackRows = rows.map(({ sort_order, ...row }) => row);
+      const { error: fallbackError } = await remoteStore.from("track_options").upsert(fallbackRows, { onConflict: "label" });
+      if (fallbackError && !isMissingRelationError(fallbackError, "track_options")) throw fallbackError;
+    } else if (error && !isMissingRelationError(error, "track_options")) {
+      throw error;
+    }
+  }
+
+  for (const label of deletedOptions) {
+    const { error } = await remoteStore.from("track_options").update({ is_active: false }).eq("label", label);
+    if (error && !isMissingRelationError(error, "track_options")) throw error;
+  }
 }
 
 function managerAdminPanel() {

@@ -903,27 +903,6 @@ async function saveStateToRemote() {
   }
 
   if (APP_MODE === "teacher") {
-    const managerRows = (state.managers || [])
-      .filter((manager) => manager.id && manager.name)
-      .map((manager) => ({
-        id: manager.id,
-        name: manager.name,
-        role: manager.role || null,
-        memo: manager.memo || null,
-        is_active: manager.isActive !== false,
-        created_at: manager.createdAt || new Date().toISOString(),
-      }));
-
-    if (managerRows.length) await saveManagersToTeacherApi(managerRows);
-    if (managerRows.length) {
-      const { error } = await remoteStore
-        .from("managers")
-        .upsert(managerRows, { onConflict: "id" });
-      if (error && !isMissingRelationError(error, "managers")) {
-        console.warn("Supabase anon manager sync failed; server API sync was already attempted.", error);
-      }
-    }
-
     const trackOptionRows = getCoastGuardTrackOptions().filter((label) => label !== "기타").map((label, index) => ({
       label,
       sort_order: index + 1,
