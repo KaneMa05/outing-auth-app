@@ -4,3 +4,5 @@ node_modules
 .env.local
 config.js
 .local-dev-state.json
+
+.vercel
