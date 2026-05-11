@@ -1325,7 +1325,7 @@ function teacherStudentForm() {
   const cohortInput = input("cohort", "number", "18", selected.value || "18");
   const trackSelect = el("select", { name: "track" }, [
     el("option", { value: "" }, "선택 안 함"),
-    ...COAST_GUARD_TRACK_OPTIONS.map((option) => el("option", { value: option }, option)),
+    ...getCoastGuardTrackOptions().map((option) => el("option", { value: option }, option)),
   ]);
   const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
   const customTrackField = field("기타 직렬", customTrackInput);
@@ -1400,12 +1400,86 @@ function teacherStudentForm() {
 
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
+    trackOptionAdminPanel(),
     studentCountStatGroup(),
     table(
       ["번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+function trackOptionAdminPanel() {
+  const trackInput = input("trackOption", "text", "추가할 직렬명");
+  const form = el("form", { className: "form-grid track-option-form" }, [
+    field("직렬 항목 추가", trackInput),
+    el("div", { className: "field" }, [
+      el("span", {}, " "),
+      button("항목 추가", "btn"),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const label = normalizeCoastGuardTrack(formData(form).trackOption);
+    if (!label) return notify("추가할 직렬명을 입력해주세요.");
+    if (label === "기타") return notify("기타는 기본 항목으로 이미 포함되어 있습니다.");
+    if (getCoastGuardTrackOptions().includes(label)) return notify("이미 등록된 직렬 항목입니다.");
+
+    state.settings.trackOptions = normalizeTrackOptionList([...(state.settings.trackOptions || []), label]);
+    saveState();
+    try {
+      await flushRemoteSave();
+      form.reset();
+      render();
+      notify("직렬 항목을 추가했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("직렬 항목을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    }
+  });
+
+  const baseOptions = getBaseTrackOptions();
+  const customOptions = getCustomTrackOptions();
+  const optionList = el("div", { className: "track-option-list" }, [
+    ...baseOptions.map((option) => el("span", { className: "track-option-chip fixed" }, option)),
+    ...customOptions.map((option) =>
+      el("span", { className: "track-option-chip" }, [
+        el("span", {}, option),
+        button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
+      ])
+    ),
+    el("span", { className: "track-option-chip fixed" }, "기타"),
+  ]);
+
+  return panel("직렬 항목 관리", [
+    form,
+    el("p", { className: "subtle" }, "추가한 항목은 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기본 항목은 삭제할 수 없습니다."),
+    optionList,
+  ]);
+}
+
+async function deleteTrackOption(option) {
+  const label = normalizeCoastGuardTrack(option);
+  if (!label) return;
+  if (!confirm(`${label} 직렬 항목을 삭제할까요? 이미 이 직렬로 저장된 학생 정보는 유지됩니다.`)) return;
+  state.settings.trackOptions = normalizeTrackOptionList(state.settings.trackOptions).filter((item) => item !== label);
+  saveState();
+
+  if (remoteStore) {
+    try {
+      const { error } = await remoteStore.from("track_options").update({ is_active: false }).eq("label", label);
+      if (error && !isMissingRelationError(error, "track_options")) throw error;
+    } catch (error) {
+      console.error(error);
+      notify("서버 직렬 항목 삭제에 실패했습니다. 로컬 목록에서는 삭제되었습니다.");
+      render();
+      return;
+    }
+  }
+
+  render();
+  notify("직렬 항목을 삭제했습니다.");
 }
 
 function managerAdminPanel() {

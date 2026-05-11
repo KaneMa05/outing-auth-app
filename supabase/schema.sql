@@ -64,6 +64,12 @@ create table if not exists public.managers (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.track_options (
+  label text primary key,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.attendance_checks (
   id uuid primary key default gen_random_uuid(),
   student_id text not null references public.students(id) on delete cascade,
@@ -189,6 +195,7 @@ alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
 alter table public.manager_allowed_ips enable row level security;
 alter table public.managers enable row level security;
+alter table public.track_options enable row level security;
 alter table public.attendance_checks enable row level security;
 alter table public.penalties enable row level security;
 alter table public.notices enable row level security;
@@ -200,6 +207,9 @@ drop policy if exists "anon_students_select_active" on public.students;
 drop policy if exists "anon_students_insert_roster" on public.students;
 drop policy if exists "anon_students_register_profile_once" on public.students;
 drop policy if exists "anon_students_update_roster_before_registration" on public.students;
+drop policy if exists "anon_track_options_select_active" on public.track_options;
+drop policy if exists "anon_track_options_insert" on public.track_options;
+drop policy if exists "anon_track_options_update" on public.track_options;
 drop policy if exists "anon_outings_select_not_deleted" on public.outings;
 drop policy if exists "anon_outings_insert_request" on public.outings;
 drop policy if exists "anon_outings_update_student_status" on public.outings;
@@ -228,6 +238,7 @@ revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
 revoke all on public.manager_allowed_ips from anon;
 revoke all on public.managers from anon;
+revoke all on public.track_options from anon;
 revoke all on public.attendance_checks from anon;
 revoke all on public.penalties from anon;
 revoke all on public.notices from anon;
@@ -358,6 +369,24 @@ grant update (
   is_active,
   created_at
 ) on public.managers to anon;
+
+grant select (
+  label,
+  is_active,
+  created_at
+) on public.track_options to anon;
+
+grant insert (
+  label,
+  is_active,
+  created_at
+) on public.track_options to anon;
+
+grant update (
+  label,
+  is_active,
+  created_at
+) on public.track_options to anon;
 
 grant select (
   id,
@@ -496,6 +525,25 @@ with check (
   and password_hash is null
   and device_token is null
 );
+
+create policy "anon_track_options_select_active"
+on public.track_options
+for select
+to anon
+using (is_active = true);
+
+create policy "anon_track_options_insert"
+on public.track_options
+for insert
+to anon
+with check (label <> '');
+
+create policy "anon_track_options_update"
+on public.track_options
+for update
+to anon
+using (true)
+with check (label <> '');
 
 create policy "anon_outings_select_not_deleted"
 on public.outings

@@ -286,7 +286,7 @@ function renderStudentAuth() {
       return;
     }
     const normalizedTrack = normalizeCoastGuardTrack(profile.track || selectedStudent.track);
-    if (COAST_GUARD_TRACK_OPTIONS.includes(normalizedTrack)) {
+    if (getCoastGuardTrackOptions().includes(normalizedTrack)) {
       trackSelect.value = normalizedTrack;
       customTrackField.hidden = true;
       customTrackInput.value = "";
@@ -302,7 +302,7 @@ function renderStudentAuth() {
     profileArea.hidden = false;
   });
 
-  const trackSelect = select("track", COAST_GUARD_TRACK_OPTIONS);
+  const trackSelect = select("track", getCoastGuardTrackOptions());
   const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
   const customTrackField = field("기타 직렬", customTrackInput);
   customTrackField.hidden = true;

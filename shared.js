@@ -108,6 +108,33 @@ function normalizeCoastGuardTrack(track) {
   };
   return aliases[value] || value;
 }
+
+function normalizeTrackOptionList(options) {
+  const seen = new Set();
+  return (Array.isArray(options) ? options : [])
+    .map((option) => normalizeCoastGuardTrack(option))
+    .filter((option) => option && option !== "기타")
+    .filter((option) => {
+      if (seen.has(option)) return false;
+      seen.add(option);
+      return true;
+    });
+}
+
+function getBaseTrackOptions() {
+  const options = typeof COAST_GUARD_TRACK_OPTIONS === "undefined" ? [] : COAST_GUARD_TRACK_OPTIONS;
+  return normalizeTrackOptionList(options);
+}
+
+function getCustomTrackOptions() {
+  const base = new Set(getBaseTrackOptions());
+  return normalizeTrackOptionList(state.settings.trackOptions).filter((option) => !base.has(option));
+}
+
+function getCoastGuardTrackOptions() {
+  return [...getBaseTrackOptions(), ...getCustomTrackOptions(), "기타"];
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -125,6 +152,7 @@ function defaultState() {
       lastStudentId: "",
       studentAuthId: "",
       studentProfiles: {},
+      trackOptions: [],
       studentStep: "request",
       earlyLeaveMode: false,
       completionType: "",
@@ -143,13 +171,15 @@ function defaultState() {
 
 function mergeDefaultState(nextState) {
   const defaults = defaultState();
+  const settings = {
+    ...defaults.settings,
+    ...(nextState?.settings || {}),
+  };
+  settings.trackOptions = normalizeTrackOptionList(settings.trackOptions);
   return {
     ...defaults,
     ...nextState,
-    settings: {
-      ...defaults.settings,
-      ...(nextState?.settings || {}),
-    },
+    settings,
     students: Array.isArray(nextState?.students) ? nextState.students : defaults.students,
     managers: Array.isArray(nextState?.managers) ? nextState.managers : defaults.managers,
     outings: Array.isArray(nextState?.outings) ? nextState.outings : defaults.outings,
@@ -616,6 +646,7 @@ function makeLocalDevSafeState() {
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
+  const trackOptionColumns = "label,is_active,created_at";
   const managerColumns = "id,name,role,memo,is_active,created_at";
   const outingColumns = [
     "id",
@@ -686,6 +717,7 @@ async function loadStateFromRemote() {
     APP_MODE === "teacher"
       ? remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true })
       : Promise.resolve({ data: [], error: null });
+  const trackOptionRequest = remoteStore.from("track_options").select(trackOptionColumns).eq("is_active", true).order("created_at", { ascending: true });
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
@@ -694,12 +726,14 @@ async function loadStateFromRemote() {
     attendanceRequest,
     penaltyRequest,
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
+    trackOptionRequest,
   ]);
   const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }] = remoteResults;
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
   const penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
+  const trackOptionResult = remoteResults[7];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -733,6 +767,7 @@ async function loadStateFromRemote() {
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
+  if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
   if (APP_MODE === "student" && (outings || []).length) {
     const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
@@ -805,6 +840,9 @@ async function loadStateFromRemote() {
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
   if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
   state.notices = removeLegacySampleNotices(state.notices);
+  if (!trackOptionResult.error) {
+    state.settings.trackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
+  }
 }
 
 async function saveStateToRemote() {
@@ -866,6 +904,19 @@ async function saveStateToRemote() {
         .from("managers")
         .upsert(managerRows, { onConflict: "id" });
       if (error && !isMissingRelationError(error, "managers")) throw error;
+    }
+
+    const trackOptionRows = normalizeTrackOptionList(state.settings.trackOptions).map((label) => ({
+      label,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    }));
+
+    if (trackOptionRows.length) {
+      const { error } = await remoteStore
+        .from("track_options")
+        .upsert(trackOptionRows, { onConflict: "label" });
+      if (error && !isMissingRelationError(error, "track_options")) throw error;
     }
 
     const noticeRows = (state.notices || [])
