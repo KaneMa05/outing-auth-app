@@ -1046,13 +1046,13 @@ function renderAttendanceHolidayCalendar(monthKey) {
       name: rawDefaultHoliday ? "openDefaultHolidayDate" : "holidayDate",
       type: "checkbox",
       value: dateKey,
-      checked: rawDefaultHoliday ? isOverridden : customHolidayDates.has(dateKey),
+      checked: rawDefaultHoliday ? !isOverridden : customHolidayDates.has(dateKey),
       disabled,
     });
     const dayCell = el("label", { className: `attendance-calendar-day${disabled ? " disabled" : ""}${defaultHoliday ? " default-holiday" : ""}${isOverridden ? " open-default-holiday" : ""}` }, [
       checkbox,
       el("span", {}, String(day)),
-      rawDefaultHoliday ? el("small", {}, isOverridden ? "출석" : rawDefaultHoliday.note || "휴일") : null,
+      rawDefaultHoliday ? el("small", {}, isOverridden ? "출석일" : rawDefaultHoliday.note || "휴일") : null,
     ]);
     if (rawDefaultHoliday && !disabled) {
       dayCell.addEventListener("click", (event) => {

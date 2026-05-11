@@ -1724,8 +1724,12 @@ th {
 }
 
 .attendance-calendar-day.open-default-holiday {
-  border-color: rgba(37, 157, 116, 0.55);
-  background: #ecfdf6;
+  border-color: rgba(116, 135, 158, 0.26);
+  background: #fff;
+  color: var(--text);
+}
+
+.attendance-calendar-day.open-default-holiday small {
   color: #087a55;
 }
 
