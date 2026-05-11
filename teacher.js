@@ -1650,9 +1650,10 @@ function noticeAdminPanel() {
         body,
         isPublished: Boolean(data.isPublished),
       });
+      const savedNotice = editingNotice?.id ? getImportantNoticeById(editingNotice.id) : state.notices[0];
+      await saveNoticeToRemote(savedNotice);
       editingNoticeId = "";
-      saveState();
-      await flushRemoteSave();
+      saveState({ skipRemote: true });
       render();
       notify(editingNotice ? "공지글을 수정했습니다." : "공지글을 등록했습니다.");
     } catch (error) {
@@ -1724,21 +1725,39 @@ async function deleteNotice(id) {
   const notice = getImportantNoticeById(id);
   if (!notice) return;
   if (!confirm(`"${notice.title}" 공지글을 삭제할까요?`)) return;
-  state.notices = (state.notices || []).filter((item) => item.id !== id);
-  if (editingNoticeId === id) editingNoticeId = "";
-  saveState();
   try {
-    if (remoteStore) {
-      const { error } = await remoteStore.from("notices").delete().eq("id", id);
-      if (error && !isMissingRelationError(error, "notices")) throw error;
-    }
-    render();
-    notify("공지글을 삭제했습니다.");
+    await deleteNoticeFromRemote(id);
   } catch (error) {
     console.error(error);
     notify("공지글 삭제를 원격 저장소에 반영하지 못했습니다.");
-    render();
+    return;
   }
+
+  state.notices = (state.notices || []).filter((item) => item.id !== id);
+  if (editingNoticeId === id) editingNoticeId = "";
+  saveState({ skipRemote: true });
+  render();
+  notify("공지글을 삭제했습니다.");
+}
+
+async function saveNoticeToRemote(notice) {
+  if (!remoteStore || !notice) return;
+  const row = {
+    id: notice.id,
+    title: String(notice.title || "").trim(),
+    body: String(notice.body || "").trim(),
+    is_published: notice.isPublished !== false,
+    created_at: notice.createdAt || new Date().toISOString(),
+    updated_at: notice.updatedAt || new Date().toISOString(),
+  };
+  const { error } = await remoteStore.from("notices").upsert(row, { onConflict: "id" });
+  if (error) throw error;
+}
+
+async function deleteNoticeFromRemote(id) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore.from("notices").delete().eq("id", id);
+  if (error) throw error;
 }
 
 function getActiveManagers() {
