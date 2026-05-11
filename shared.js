@@ -814,6 +814,7 @@ async function saveStateToRemote() {
       id: student.id,
       name: student.name,
       class_name: student.className || state.settings.className || "오프라인반",
+      track: normalizeCoastGuardTrack(student.track) || null,
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
@@ -822,7 +823,30 @@ async function saveStateToRemote() {
     const { error } = await remoteStore
       .from("students")
       .upsert(rosterRows, { onConflict: "id", ignoreDuplicates: true });
-    if (error) throw error;
+    if (isExpectedProfileRewriteError(error)) {
+      const fallbackRows = rosterRows.map(({ track, ...row }) => row);
+      const { error: fallbackError } = await remoteStore
+        .from("students")
+        .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+      if (fallbackError) throw fallbackError;
+    } else if (error) {
+      throw error;
+    }
+  }
+
+  if (APP_MODE === "teacher") {
+    for (const row of rosterRows) {
+      const { error } = await remoteStore
+        .from("students")
+        .update({
+          name: row.name,
+          class_name: row.class_name,
+          track: row.track,
+        })
+        .eq("id", row.id);
+      if (isExpectedProfileRewriteError(error)) continue;
+      if (error) throw error;
+    }
   }
 
   if (APP_MODE === "teacher") {

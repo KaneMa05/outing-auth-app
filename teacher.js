@@ -1323,6 +1323,17 @@ function teacherStudentForm() {
   const selected = selectedStudentCohortCount();
   const visibleStudents = getStudentsInCohort(selected.value);
   const cohortInput = input("cohort", "number", "18", selected.value || "18");
+  const trackSelect = el("select", { name: "track" }, [
+    el("option", { value: "" }, "선택 안 함"),
+    ...COAST_GUARD_TRACK_OPTIONS.map((option) => el("option", { value: option }, option)),
+  ]);
+  const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
+  const customTrackField = field("기타 직렬", customTrackInput);
+  customTrackField.hidden = true;
+  trackSelect.addEventListener("change", () => {
+    customTrackField.hidden = trackSelect.value !== "기타";
+    if (customTrackField.hidden) customTrackInput.value = "";
+  });
   const rosterInput = el("textarea", {
     name: "roster",
     placeholder: "1 홍길동\n2 김민지\n3 박서준",
@@ -1331,10 +1342,12 @@ function teacherStudentForm() {
   const form = el("form", { className: "form-grid" }, [
     field("기수", cohortInput),
     field("기본 반", input("className", "text", "오프라인반", state.settings.className)),
+    field("직렬", trackSelect, "", "선택하면 이번 등록 명단에 동일하게 적용됩니다."),
+    customTrackField,
     field("학생 번호와 이름", rosterInput, "full", "한 줄에 한 명씩 입력하세요. 한 명만 입력하면 단일 등록, 여러 명이면 일괄 등록됩니다."),
     el("div", { className: "field full" }, [
       button("학생 등록/수정", "btn"),
-      el("p", { className: "subtle" }, "예: 기수 18, 번호 4번은 18004로 저장됩니다. 이미 등록된 고유번호는 이름과 반 정보가 업데이트됩니다."),
+      el("p", { className: "subtle" }, "예: 기수 18, 번호 4번은 18004로 저장됩니다. 직렬을 선택하면 이름, 반 정보와 함께 저장됩니다."),
     ]),
   ]);
   const submitButton = form.querySelector("button[type='submit']");
@@ -1346,10 +1359,12 @@ function teacherStudentForm() {
     if (!isValidCohort(cohort)) return notify("기수를 숫자로 입력해주세요.");
     const parsed = parseStudentRoster(data.roster, cohort);
     if (!parsed.length) return notify("등록할 학생 번호와 이름을 입력해주세요.");
+    const track = resolveStudentTrack(data.track, data.customTrack);
+    if (data.track && !track) return notify("기타 직렬을 입력해주세요.");
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
     try {
-      const result = upsertStudents(parsed, data.className);
+      const result = upsertStudents(parsed, data.className, track);
       selectedStudentCohort = cohort;
       saveState();
       await flushRemoteSave();
@@ -1650,16 +1665,17 @@ function getStudentProfileForTeacher(studentId) {
   return localProfile;
 }
 
-function upsertStudents(students, className) {
+function upsertStudents(students, className, track = "") {
   let created = 0;
   let updated = 0;
+  const nextTrack = normalizeCoastGuardTrack(track);
   students.forEach((student) => {
     const existing = findStudent(student.id);
     const payload = {
       id: student.id,
       name: student.name,
       className: String(className || "").trim() || state.settings.className,
-      track: normalizeCoastGuardTrack(existing?.track),
+      track: nextTrack || normalizeCoastGuardTrack(existing?.track),
       gender: existing?.gender || "",
       passwordHash: existing?.passwordHash || "",
       deviceToken: existing?.deviceToken || "",

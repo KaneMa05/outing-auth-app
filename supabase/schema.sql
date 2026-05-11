@@ -199,6 +199,7 @@ drop policy if exists "outing_app_photos_all" on public.outing_photos;
 drop policy if exists "anon_students_select_active" on public.students;
 drop policy if exists "anon_students_insert_roster" on public.students;
 drop policy if exists "anon_students_register_profile_once" on public.students;
+drop policy if exists "anon_students_update_roster_before_registration" on public.students;
 drop policy if exists "anon_outings_select_not_deleted" on public.outings;
 drop policy if exists "anon_outings_insert_request" on public.outings;
 drop policy if exists "anon_outings_update_student_status" on public.outings;
@@ -246,11 +247,14 @@ grant insert (
   id,
   name,
   class_name,
+  track,
   is_active,
   created_at
 ) on public.students to anon;
 
 grant update (
+  name,
+  class_name,
   track,
   gender,
   password_hash,
@@ -474,6 +478,23 @@ with check (
   and app_registered_at is not null
   and password_hash is not null
   and device_token is not null
+);
+
+create policy "anon_students_update_roster_before_registration"
+on public.students
+for update
+to anon
+using (
+  is_active = true
+  and app_registered_at is null
+  and password_hash is null
+  and device_token is null
+)
+with check (
+  is_active = true
+  and app_registered_at is null
+  and password_hash is null
+  and device_token is null
 );
 
 create policy "anon_outings_select_not_deleted"
