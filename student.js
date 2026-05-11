@@ -662,3 +662,373 @@ function studentLookup(buttonText) {
 
   return el("div", { className: "grid" }, [form, result]);
 }
+
+let selectedStudentExamId = "";
+let studentGradesView = "";
+let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+
+function renderStudentGrades() {
+  const student = getAuthedStudent();
+  if (!student) return renderStudentAuth();
+  if (studentGradesView !== "weekly") return renderStudentGradesHome();
+  return renderStudentWeeklyGrades(student);
+}
+
+function renderStudentGradesHome() {
+  return el("div", { className: "grid student-view student-grade-home" }, [
+    panel("성적", [
+      el("div", { className: "student-grade-card-grid" }, [
+        button("", "student-grade-card", "button", () => {
+          studentGradesView = "weekly";
+          render();
+        }, [
+          el("strong", {}, "주간평가"),
+          el("span", {}, "주차별 평가 목록과 과목별 제출 현황을 확인합니다."),
+        ]),
+        button("", "student-grade-card", "button", () => notify("파이널 성적은 아직 준비 중입니다."), [
+          el("strong", {}, "파이널"),
+          el("span", {}, "파이널 성적은 준비 중입니다."),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderStudentWeeklyGrades(student) {
+  const exams = getVisibleStudentExams(student);
+  const selectedExam = exams.find((exam) => exam.id === selectedStudentExamId) || exams[0] || null;
+  if (selectedExam) selectedStudentExamId = selectedExam.id;
+  if (!selectedExam) {
+    return el("div", { className: "grid student-view" }, [
+      panel("주간평가", [
+        button("성적 선택으로 돌아가기", "mini-btn", "button", () => {
+          studentGradesView = "";
+          render();
+        }),
+        el("div", { className: "empty" }, "현재 공개된 주간평가가 없습니다."),
+      ]),
+    ]);
+  }
+  const sections = getStudentExamSections(selectedExam, student);
+  const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
+  return el("div", { className: "grid student-view student-exam-view" }, [
+    renderStudentGradesBackPanel(),
+    renderStudentExamList(exams, selectedExam),
+    selectedSection ? renderStudentExamAnswerEntry(selectedExam, selectedSection, student, sections) : renderStudentExamSubjectList(selectedExam, sections, student),
+  ]);
+}
+
+function renderStudentGradesBackPanel() {
+  return panel("성적 구분", [
+    button("성적 선택으로 돌아가기", "mini-btn", "button", () => {
+      studentGradesView = "";
+      studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+      render();
+    }),
+  ]);
+}
+
+function getVisibleStudentExams(student) {
+  const track = normalizeCoastGuardTrack(student.track);
+  return (state.exams || [])
+    .filter((exam) => exam.isPublished)
+    .filter((exam) => (state.examSections || []).some((section) => section.examId === exam.id && isStudentSectionMatch(section, track)))
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber));
+}
+
+function getStudentExamSections(exam, student) {
+  const track = normalizeCoastGuardTrack(student.track);
+  return (state.examSections || []).filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track));
+}
+
+function isStudentSectionMatch(section, studentTrack) {
+  return section.isActive !== false && isStudentSectionPublished(section) && (section.track === studentTrack || section.track === "전체");
+}
+
+function isStudentSectionPublished(section) {
+  const answerCount = (state.examAnswers || []).filter((answer) => answer.examSectionId === section.id && answer.correctAnswer).length;
+  return answerCount >= (Number(section.questionCount) || 20);
+}
+
+function renderStudentExamList(exams, selectedExam) {
+  return panel("주간평가 목록", [
+    el("div", { className: "student-exam-tabs" }, exams.map((exam) =>
+      button(`${exam.weekNumber}주차`, exam.id === selectedExam.id ? "mini-btn active" : "mini-btn", "button", () => {
+        studentExamDraft.sectionId = "";
+        selectedStudentExamId = exam.id;
+        render();
+      })
+    )),
+    el("p", { className: "subtle" }, formatStudentWeeklyExamName(selectedExam.weekNumber)),
+  ]);
+}
+
+function renderStudentExamSubjectList(exam, sections, student) {
+  const scoreOpen = canStudentSeeScore(exam, sections, student);
+  const totalScore = sections.reduce((sum, section) => sum + (getStudentSubmission(student.id, section.id)?.score || 0), 0);
+  return panel(formatStudentWeeklyExamName(exam.weekNumber), [
+    scoreOpen ? el("div", { className: "student-exam-total" }, [`총점 ${Math.round(totalScore * 10) / 10}점`, el("span", {}, `평균 ${Math.round((totalScore / Math.max(sections.length, 1)) * 10) / 10}점`)]) : null,
+    sections.length
+      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
+      : el("div", { className: "empty" }, "본인 직렬에 해당하는 과목이 없습니다."),
+  ]);
+}
+
+function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen) {
+  const submission = getStudentSubmission(student.id, section.id);
+  const status = getStudentSectionStatus(exam, section, submission);
+  return el("article", { className: "student-exam-subject" }, [
+    el("div", {}, [el("strong", {}, section.subject), el("span", { className: "badge" }, status)]),
+    el("p", { className: "subtle" }, `${section.questionCount}문항 · ${section.totalScore}점`),
+    submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${section.questionCount}`) : null,
+    submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
+    submission?.status === "submitted"
+      ? renderStudentExamFiles(exam, section, canStudentSeeExplanation(exam, sections, student))
+      : isExamOpen(exam)
+        ? button("답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
+        : el("p", { className: "subtle" }, "현재 응시할 수 없는 기간입니다."),
+  ]);
+}
+
+function renderStudentExamFiles(exam, section, canOpen) {
+  if (!canOpen || exam.explanationReleaseMode === "hidden") return null;
+  const labels = { answer_pdf: "답안지" };
+  const files = (state.examFiles || []).filter((file) => file.examSectionId === section.id && file.fileType === "answer_pdf" && file.fileUrl);
+  return files.length ? el("div", { className: "student-exam-files" }, files.map((file) => el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, labels[file.fileType] || "파일"))) : null;
+}
+
+function getStudentSectionStatus(exam, section, submission) {
+  if (submission?.status === "submitted") return "제출 완료";
+  if (exam.startAt && Date.now() < new Date(exam.startAt).getTime()) return "기간 전";
+  if (exam.endAt && Date.now() > new Date(exam.endAt).getTime()) return "기간 종료";
+  if (studentExamDraft.sectionId === section.id) return "입력 중";
+  return "미제출";
+}
+
+function isExamOpen(exam) {
+  const now = Date.now();
+  if (exam.startAt && now < new Date(exam.startAt).getTime()) return false;
+  if (exam.endAt && now > new Date(exam.endAt).getTime()) return false;
+  return true;
+}
+
+function canStudentSeeScore(exam, sections, student) {
+  if (exam.scoreReleaseMode === "hidden") return false;
+  if (exam.scoreReleaseMode === "after_submit") return true;
+  return sections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
+}
+
+function canStudentSeeExplanation(exam, sections, student) {
+  if (exam.explanationReleaseMode === "hidden") return false;
+  if (exam.explanationReleaseMode === "after_submit") return true;
+  return sections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
+}
+
+function getStudentSubmission(studentId, sectionId) {
+  return (state.examSubmissions || []).find((submission) => submission.studentId === studentId && submission.examSectionId === sectionId && submission.status === "submitted");
+}
+
+function startStudentSectionAnswer(section) {
+  studentExamDraft = { sectionId: section.id, page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+  render();
+}
+
+function renderStudentExamAnswerEntry(exam, section, student, allSections) {
+  if (getStudentSubmission(student.id, section.id)?.status === "submitted") {
+    studentExamDraft.sectionId = "";
+    return renderStudentExamSubjectList(exam, allSections, student);
+  }
+  if (studentExamDraft.review) return renderStudentExamReview(exam, section, student);
+  const start = studentExamDraft.page * 10 + 1;
+  const end = Math.min(start + 9, section.questionCount);
+  const cards = [];
+  for (let question = start; question <= end; question += 1) cards.push(renderStudentAnswerQuestion(question));
+  return panel(`${section.subject} ${section.questionCount}문제`, [
+    el("div", { className: "student-answer-range" }, `${start}~${end}번`),
+    el("div", { className: "student-answer-list" }, cards),
+    renderStudentAnswerNav(section),
+  ]);
+}
+
+function renderStudentAnswerQuestion(questionNumber) {
+  const current = studentExamDraft.answers[questionNumber] || "";
+  const locked = studentExamDraft.locked[questionNumber] && !studentExamDraft.editing[questionNumber];
+  const options = [1, 2, 3, 4].map((value) => {
+    const selected = Number(current) === value;
+    const node = button(`${toCircledAnswer(value)}${selected ? " ✓" : ""}`, selected ? "answer-choice selected" : "answer-choice", "button", () => {
+      if (locked) return;
+      const previous = studentExamDraft.answers[questionNumber];
+      studentExamDraft.answers[questionNumber] = value;
+      studentExamDraft.locked[questionNumber] = true;
+      studentExamDraft.editing[questionNumber] = false;
+      render();
+      if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
+    });
+    node.disabled = locked;
+    return node;
+  });
+  return el("article", { className: locked ? "student-answer-card locked" : "student-answer-card" }, [
+    el("div", { className: "student-answer-head" }, [el("strong", {}, `${questionNumber}번`), el("span", {}, current ? `선택 ${toCircledAnswer(current)}` : "미입력")]),
+    el("div", { className: "answer-choice-row" }, options),
+    locked ? el("p", { className: "subtle" }, "수정하려면 수정 버튼을 눌러주세요.") : null,
+    current
+      ? el("div", { className: "action-row" }, [
+          studentExamDraft.editing[questionNumber]
+            ? button("수정 취소", "mini-btn", "button", () => {
+                studentExamDraft.editing[questionNumber] = false;
+                render();
+              })
+            : button("수정", "mini-btn", "button", () => {
+                studentExamDraft.editing[questionNumber] = true;
+                render();
+              }),
+        ])
+      : null,
+  ]);
+}
+
+function renderStudentAnswerNav(section) {
+  const prev = button("이전 10문제", "btn secondary", "button", () => {
+    studentExamDraft.page = Math.max(0, studentExamDraft.page - 1);
+    render();
+  });
+  prev.disabled = studentExamDraft.page === 0;
+  const next = button("다음 10문제", "btn secondary", "button", () => {
+    studentExamDraft.page = Math.min(Math.ceil(section.questionCount / 10) - 1, studentExamDraft.page + 1);
+    render();
+  });
+  next.disabled = studentExamDraft.page >= Math.ceil(section.questionCount / 10) - 1;
+  return el("div", { className: "student-answer-nav" }, [
+    prev,
+    button("답안표", "btn", "button", () => {
+      studentExamDraft.review = true;
+      studentExamDraft.confirmed = false;
+      render();
+    }),
+    next,
+  ]);
+}
+
+function renderStudentExamReview(exam, section, student) {
+  const missing = [];
+  const cells = [];
+  for (let question = 1; question <= section.questionCount; question += 1) {
+    const answer = studentExamDraft.answers[question];
+    if (!answer) missing.push(question);
+    cells.push(button(`${question}. ${answer ? toCircledAnswer(answer) : "미입력"}`, answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+      studentExamDraft.review = false;
+      studentExamDraft.page = Math.floor((question - 1) / 10);
+      render();
+    }));
+  }
+  const checkbox = el("input", { type: "checkbox" });
+  const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing));
+  submitButton.disabled = true;
+  checkbox.addEventListener("change", () => {
+    studentExamDraft.confirmed = checkbox.checked;
+    submitButton.disabled = !checkbox.checked;
+  });
+  return panel(`${section.subject} 답안표 확인`, [
+    el("div", { className: "answer-sheet-grid" }, cells),
+    missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "subtle" }, "모든 문항을 입력했습니다."),
+    el("label", { className: "confirm-check" }, [checkbox, el("span", {}, "위 답안을 모두 확인했습니다.")]),
+    el("div", { className: "student-answer-nav" }, [
+      button("답안 수정", "btn secondary", "button", () => {
+        studentExamDraft.review = false;
+        render();
+      }),
+      submitButton,
+    ]),
+  ]);
+}
+
+function confirmStudentExamSubmit(section, student, missing) {
+  const message = missing.length
+    ? `총 ${section.questionCount}문항 중 ${section.questionCount - missing.length}문항만 입력했습니다.\n미입력 문항: ${missing.join(", ")}번\n미입력 문항은 오답 처리됩니다.\n그래도 제출하시겠습니까?`
+    : `총 ${section.questionCount}문항 중 ${section.questionCount}문항을 모두 입력했습니다.\n제출 후에는 답안을 수정할 수 없습니다.\n최종 제출하시겠습니까?`;
+  if (!confirm(message)) return;
+  submitStudentSectionAnswers(section, student);
+}
+
+async function submitStudentSectionAnswers(section, student) {
+  if (getStudentSubmission(student.id, section.id)?.status === "submitted") return notify("이미 제출한 과목입니다. 제출 후에는 수정할 수 없습니다.");
+  const submission = {
+    id: createId(),
+    examSectionId: section.id,
+    studentId: student.id,
+    studentName: student.name,
+    track: normalizeCoastGuardTrack(student.track),
+    status: "submitted",
+    score: 0,
+    correctCount: 0,
+    submittedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+  gradeStudentSubmission(section, submission);
+  state.examSubmissions = [...(state.examSubmissions || []), submission];
+  saveState({ skipRemote: true });
+  if (remoteStore) {
+    await saveStudentExamSubmissionToRemote(submission);
+    await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id));
+  }
+  studentExamDraft.sectionId = "";
+  studentExamDraft.review = false;
+  render();
+  notify("답안을 제출했습니다.");
+}
+
+function gradeStudentSubmission(section, submission) {
+  const key = (state.examAnswers || []).filter((answer) => answer.examSectionId === section.id);
+  let score = 0;
+  let correctCount = 0;
+  state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
+  for (let question = 1; question <= section.questionCount; question += 1) {
+    const answerKey = key.find((answer) => answer.questionNumber === question);
+    const selectedAnswer = Number(studentExamDraft.answers[question]) || null;
+    const isCorrect = Boolean(answerKey?.correctAnswer && selectedAnswer === answerKey.correctAnswer);
+    const pointsAwarded = isCorrect ? Number(answerKey.points) || 0 : 0;
+    if (isCorrect) correctCount += 1;
+    score += pointsAwarded;
+    state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
+  }
+  submission.score = Math.round(score * 10) / 10;
+  submission.correctCount = correctCount;
+}
+
+async function saveStudentExamSubmissionToRemote(submission) {
+  const { error } = await remoteStore.from("exam_submissions").upsert({
+    id: submission.id,
+    exam_section_id: submission.examSectionId,
+    student_id: submission.studentId,
+    student_name: submission.studentName,
+    track: submission.track,
+    status: submission.status,
+    score: submission.score,
+    correct_count: submission.correctCount,
+    submitted_at: submission.submittedAt,
+    created_at: submission.createdAt,
+  }, { onConflict: "student_id,exam_section_id" });
+  if (error) throw error;
+}
+
+async function saveStudentSubmissionAnswersToRemote(answers) {
+  if (!answers.length) return;
+  const rows = answers.map((answer) => ({
+    id: answer.id,
+    submission_id: answer.submissionId,
+    question_number: answer.questionNumber,
+    selected_answer: answer.selectedAnswer || null,
+    is_correct: answer.isCorrect,
+    points_awarded: answer.pointsAwarded || 0,
+  }));
+  const { error } = await remoteStore.from("submission_answers").upsert(rows, { onConflict: "submission_id,question_number" });
+  if (error) throw error;
+}
+
+function toCircledAnswer(value) {
+  return ["", "①", "②", "③", "④"][Number(value)] || "-";
+}
+
+function formatStudentWeeklyExamName(weekNumber) {
+  return `${Number(weekNumber) || 1}주차 주간평가`;
+}

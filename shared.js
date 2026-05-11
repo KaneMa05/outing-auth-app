@@ -75,6 +75,7 @@ const teacherAuth = {
 const routePermissions = {
   home: null,
   outing: "outing.read",
+  "weekly-exams": "grades.read",
   grades: "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
@@ -102,7 +103,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "penalties", "attendance", "notices", "grades", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -201,6 +202,13 @@ function defaultState() {
     attendanceChecks: [],
     attendanceHolidays: [],
     penalties: [],
+    exams: [],
+    examSections: [],
+    examAnswers: [],
+    examSubmissions: [],
+    submissionAnswers: [],
+    examFiles: [],
+    examSubjectSettings: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
 }
@@ -224,6 +232,13 @@ function mergeDefaultState(nextState) {
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
     attendanceHolidays: normalizeAttendanceHolidays(nextState?.attendanceHolidays || defaults.attendanceHolidays),
     penalties: Array.isArray(nextState?.penalties) ? nextState.penalties : defaults.penalties,
+    exams: Array.isArray(nextState?.exams) ? nextState.exams : defaults.exams,
+    examSections: Array.isArray(nextState?.examSections) ? nextState.examSections : defaults.examSections,
+    examAnswers: Array.isArray(nextState?.examAnswers) ? nextState.examAnswers : defaults.examAnswers,
+    examSubmissions: Array.isArray(nextState?.examSubmissions) ? nextState.examSubmissions : defaults.examSubmissions,
+    submissionAnswers: Array.isArray(nextState?.submissionAnswers) ? nextState.submissionAnswers : defaults.submissionAnswers,
+    examFiles: Array.isArray(nextState?.examFiles) ? nextState.examFiles : defaults.examFiles,
+    examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
 }
@@ -734,6 +749,13 @@ async function loadStateFromRemote() {
   ].join(",");
   const noticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
+  const examColumns = "id,name,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
+  const examSectionColumns = "id,exam_id,track,subject,question_count,total_score,is_active,created_at";
+  const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,points";
+  const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
+  const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
+  const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
+  const examSubjectSettingColumns = "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at";
   const managerRequest =
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
@@ -771,6 +793,17 @@ async function loadStateFromRemote() {
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
     trackOptionRequest,
     remoteStore.from("attendance_holidays").select(attendanceHolidayColumns).order("date_key", { ascending: false }).limit(120),
+    remoteStore.from("exams").select(examColumns).order("week_number", { ascending: false }).order("created_at", { ascending: false }),
+    remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true }),
+    remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }),
+    APP_MODE === "teacher" || scopedStudentId
+      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    APP_MODE === "teacher"
+      ? remoteStore.from("submission_answers").select(submissionAnswerColumns).order("question_number", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
+    remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
   const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }] = remoteResults;
   let photoResult = remoteResults[3];
@@ -779,6 +812,13 @@ async function loadStateFromRemote() {
   const noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
   const attendanceHolidayResult = remoteResults[8];
+  const examResult = remoteResults[9];
+  const examSectionResult = remoteResults[10];
+  const examAnswerResult = remoteResults[11];
+  let examSubmissionResult = remoteResults[12];
+  const submissionAnswerResult = remoteResults[13];
+  const examFileResult = remoteResults[14];
+  const examSubjectSettingResult = remoteResults[15];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -817,6 +857,16 @@ async function loadStateFromRemote() {
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
   if (attendanceHolidayResult.error && !isMissingRelationError(attendanceHolidayResult.error, "attendance_holidays")) throw attendanceHolidayResult.error;
+  if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
+  if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
+  if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
+  if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
+  if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
+  if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
+  if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
+  if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
+    examSubmissionResult.data = (examSubmissionResult.data || []).filter((submission) => String(submission.student_id) === scopedStudentId);
+  }
   if (APP_MODE === "student" && (outings || []).length) {
     const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
@@ -894,6 +944,13 @@ async function loadStateFromRemote() {
   if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
+  if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
+  if (!examSectionResult.error) state.examSections = (examSectionResult.data || []).map(mapExamSectionFromRemote);
+  if (!examAnswerResult.error) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
+  if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
+  if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
+  if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
+  if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
     if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {
@@ -1651,6 +1708,97 @@ function mapAttendanceHolidayFromRemote(holiday) {
   };
 }
 
+function mapExamFromRemote(exam) {
+  return {
+    id: exam.id,
+    name: exam.name || "",
+    weekNumber: Number(exam.week_number) || 1,
+    startAt: exam.start_at || "",
+    endAt: exam.end_at || "",
+    targetTracks: Array.isArray(exam.target_tracks) ? exam.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
+    isPublished: exam.is_published === true,
+    scoreReleaseMode: exam.score_release_mode || "after_all_submitted",
+    explanationReleaseMode: exam.explanation_release_mode || "after_all_submitted",
+    createdAt: exam.created_at || "",
+    updatedAt: exam.updated_at || exam.created_at || "",
+  };
+}
+
+function mapExamSectionFromRemote(section) {
+  return {
+    id: section.id,
+    examId: section.exam_id,
+    track: normalizeCoastGuardTrack(section.track),
+    subject: section.subject || "",
+    questionCount: Number(section.question_count) || 20,
+    totalScore: Number(section.total_score) || 100,
+    isActive: section.is_active !== false,
+    createdAt: section.created_at || "",
+  };
+}
+
+function mapExamAnswerFromRemote(answer) {
+  return {
+    id: answer.id,
+    examSectionId: answer.exam_section_id,
+    questionNumber: Number(answer.question_number) || 0,
+    correctAnswer: Number(answer.correct_answer) || 0,
+    points: Number(answer.points) || 0,
+  };
+}
+
+function mapExamSubmissionFromRemote(submission) {
+  return {
+    id: submission.id,
+    examSectionId: submission.exam_section_id,
+    studentId: submission.student_id,
+    studentName: submission.student_name || "",
+    track: normalizeCoastGuardTrack(submission.track),
+    status: submission.status || "submitted",
+    score: Number(submission.score) || 0,
+    correctCount: Number(submission.correct_count) || 0,
+    submittedAt: submission.submitted_at || "",
+    createdAt: submission.created_at || submission.submitted_at || "",
+  };
+}
+
+function mapSubmissionAnswerFromRemote(answer) {
+  return {
+    id: answer.id,
+    submissionId: answer.submission_id,
+    questionNumber: Number(answer.question_number) || 0,
+    selectedAnswer: answer.selected_answer === null || answer.selected_answer === undefined ? null : Number(answer.selected_answer),
+    isCorrect: answer.is_correct === true,
+    pointsAwarded: Number(answer.points_awarded) || 0,
+  };
+}
+
+function mapExamFileFromRemote(file) {
+  return {
+    id: file.id,
+    examSectionId: file.exam_section_id,
+    fileType: file.file_type || "",
+    filePath: file.file_path || "",
+    fileUrl: file.file_url || "",
+    originalName: file.original_name || "",
+    uploadedAt: file.uploaded_at || "",
+  };
+}
+
+function mapExamSubjectSettingFromRemote(setting) {
+  return {
+    id: setting.id,
+    track: normalizeCoastGuardTrack(setting.track),
+    subject: setting.subject || "",
+    questionCount: Number(setting.question_count) || 20,
+    totalScore: Number(setting.total_score) || 100,
+    isActive: setting.is_active !== false,
+    sortOrder: Number(setting.sort_order) || 0,
+    createdAt: setting.created_at || "",
+    updatedAt: setting.updated_at || setting.created_at || "",
+  };
+}
+
 function mapManagerFromRemote(manager) {
   return {
     id: manager.id,
@@ -1822,6 +1970,16 @@ function normalizeAttendanceHolidays(holidays) {
 
 function getCustomAttendanceHolidays() {
   return (state.attendanceHolidays || []).filter((holiday) => holiday.note !== ATTENDANCE_OPEN_OVERRIDE_NOTE);
+}
+
+function getDateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function isValidDateKey(value) {

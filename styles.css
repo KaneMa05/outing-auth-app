@@ -1119,6 +1119,415 @@ th {
   min-width: 760px;
 }
 
+.weekly-exam-admin .panel {
+  gap: 14px;
+}
+
+.weekly-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.check-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 10px;
+  font-weight: 800;
+}
+
+.selected-row td {
+  background: #eef7f3;
+}
+
+.weekly-unpublished-row td {
+  color: var(--muted);
+  background: #fbfcfd;
+}
+
+.link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weekly-answer-table .excel-table {
+  width: auto;
+  min-width: 680px;
+}
+
+.weekly-answer-form {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.weekly-lookup-filter,
+.weekly-answer-week-filter {
+  margin: 0;
+}
+
+.weekly-answer-actions {
+  margin: 0;
+}
+
+.weekly-answer-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.weekly-answer-header > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.weekly-answer-header strong {
+  font-size: 1.05rem;
+}
+
+.weekly-answer-header span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.weekly-question-count-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 150px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.weekly-question-count-row .field {
+  margin: 0;
+}
+
+.weekly-answer-table {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.weekly-answer-table .excel-table th,
+.weekly-answer-table .excel-table td {
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.weekly-answer-table .excel-table th:first-child,
+.weekly-answer-table .excel-table td:first-child {
+  width: 64px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.weekly-answer-question-row th {
+  background: var(--surface-soft);
+  white-space: nowrap;
+}
+
+.weekly-answer-input-row th {
+  color: var(--muted);
+}
+
+.info-modal-panel.weekly-subject-settings-modal {
+  width: calc(100vw - 16px);
+  max-width: none;
+  height: min(94dvh, 940px);
+  max-height: calc(100dvh - 16px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  overflow: hidden;
+  padding: 22px;
+}
+
+.weekly-subject-settings {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.weekly-subject-settings .table-wrap {
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.weekly-subject-settings .form-grid {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(120px, 0.55fr) minmax(120px, 0.55fr) auto;
+  align-items: end;
+}
+
+.weekly-subject-settings .excel-table,
+.weekly-subject-settings .responsive-table {
+  min-width: 920px;
+}
+
+.grade-management-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekly-answer-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekly-answer-picker.compact {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.weekly-answer-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 12px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.weekly-answer-chip strong {
+  font-size: 0.9rem;
+}
+
+.weekly-answer-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.weekly-bulk-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 640px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.weekly-bulk-row .field {
+  margin: 0;
+}
+
+.weekly-file-upload {
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.answer-key-input {
+  width: 56px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.answer-key-input:focus {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-soft);
+}
+
+.exam-file-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto minmax(180px, 260px) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.student-exam-tabs,
+.student-exam-files {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.student-grade-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.student-grade-card {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.student-grade-card strong {
+  font-size: 1.08rem;
+}
+
+.student-grade-card span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.student-exam-subjects {
+  display: grid;
+  gap: 10px;
+}
+
+.student-exam-subject {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.student-exam-subject > div:first-child,
+.student-exam-total,
+.student-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.student-exam-total {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+  font-weight: 900;
+}
+
+.student-score-line {
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+.student-answer-range {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.student-answer-list {
+  display: grid;
+  gap: 12px;
+}
+
+.student-answer-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.student-answer-card.locked {
+  background: #f8fbfa;
+}
+
+.student-answer-head strong {
+  font-size: 1.2rem;
+}
+
+.answer-choice-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.answer-choice {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.answer-choice.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.answer-choice:disabled {
+  opacity: 0.9;
+}
+
+.student-answer-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+}
+
+.answer-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.answer-sheet-cell {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-weight: 900;
+}
+
+.answer-sheet-cell.missing,
+.missing-warning {
+  border-color: #f04438;
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.missing-warning {
+  border: 1px solid #f04438;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 900;
+}
+
+.confirm-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+}
+
 .penalty-detail-table th,
 .penalty-detail-table td {
   padding: 12px 14px;
@@ -2883,6 +3292,24 @@ body:not([data-app-mode="teacher"]) .btn {
   .nav-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  .weekly-bulk-row,
+  .weekly-question-count-row,
+  .exam-file-row {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-answer-table {
+    width: 100%;
+  }
+
+  .weekly-answer-table .excel-table {
+    width: 100%;
+  }
+
+  .student-grade-card-grid {
+    grid-template-columns: 1fr;
   }
 
   body[data-app-mode="teacher"] .nav-list,

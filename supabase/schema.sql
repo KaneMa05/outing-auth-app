@@ -121,6 +121,143 @@ create table if not exists public.notices (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.exams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  week_number integer not null default 1,
+  start_at timestamptz,
+  end_at timestamptz,
+  target_tracks text[] not null default '{}',
+  is_published boolean not null default false,
+  score_release_mode text not null default 'after_all_submitted'
+    check (score_release_mode in ('hidden', 'after_submit', 'after_all_submitted')),
+  explanation_release_mode text not null default 'after_all_submitted'
+    check (explanation_release_mode in ('hidden', 'after_submit', 'after_all_submitted')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.exam_sections (
+  id uuid primary key default gen_random_uuid(),
+  exam_id uuid not null references public.exams(id) on delete cascade,
+  track text not null,
+  subject text not null,
+  question_count integer not null default 20 check (question_count > 0),
+  total_score numeric not null default 100 check (total_score > 0),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique (exam_id, track, subject)
+);
+
+create table if not exists public.exam_subject_settings (
+  id uuid primary key default gen_random_uuid(),
+  track text not null,
+  subject text not null,
+  question_count integer not null default 20 check (question_count > 0),
+  total_score numeric not null default 100 check (total_score > 0),
+  is_active boolean not null default true,
+  sort_order integer,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (track, subject)
+);
+
+create table if not exists public.exam_answers (
+  id uuid primary key default gen_random_uuid(),
+  exam_section_id uuid not null references public.exam_sections(id) on delete cascade,
+  question_number integer not null check (question_number > 0),
+  correct_answer integer check (correct_answer between 1 and 4),
+  points numeric not null default 5 check (points >= 0),
+  unique (exam_section_id, question_number)
+);
+
+create table if not exists public.exam_submissions (
+  id uuid primary key default gen_random_uuid(),
+  exam_section_id uuid not null references public.exam_sections(id) on delete cascade,
+  student_id text not null references public.students(id) on delete cascade,
+  student_name text not null,
+  track text not null,
+  status text not null default 'submitted'
+    check (status in ('draft', 'submitted', 'cancelled')),
+  score numeric not null default 0,
+  correct_count integer not null default 0,
+  submitted_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (student_id, exam_section_id)
+);
+
+create table if not exists public.submission_answers (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references public.exam_submissions(id) on delete cascade,
+  question_number integer not null check (question_number > 0),
+  selected_answer integer check (selected_answer between 1 and 4),
+  is_correct boolean not null default false,
+  points_awarded numeric not null default 0,
+  unique (submission_id, question_number)
+);
+
+create table if not exists public.exam_files (
+  id uuid primary key default gen_random_uuid(),
+  exam_section_id uuid not null references public.exam_sections(id) on delete cascade,
+  file_type text not null check (file_type = 'answer_pdf'),
+  file_path text,
+  file_url text,
+  original_name text,
+  uploaded_at timestamptz not null default now(),
+  unique (exam_section_id, file_type)
+);
+
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'exam_answers_correct_answer_check'
+      and conrelid = 'public.exam_answers'::regclass
+  ) then
+    alter table public.exam_answers drop constraint exam_answers_correct_answer_check;
+  end if;
+
+  alter table public.exam_answers
+  add constraint exam_answers_correct_answer_check
+  check (correct_answer is null or correct_answer between 1 and 4);
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'submission_answers_selected_answer_check'
+      and conrelid = 'public.submission_answers'::regclass
+  ) then
+    alter table public.submission_answers drop constraint submission_answers_selected_answer_check;
+  end if;
+
+  alter table public.submission_answers
+  add constraint submission_answers_selected_answer_check
+  check (selected_answer is null or selected_answer between 1 and 4);
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'exam_files_file_type_check'
+      and conrelid = 'public.exam_files'::regclass
+  ) then
+    alter table public.exam_files drop constraint exam_files_file_type_check;
+  end if;
+
+  alter table public.exam_files
+  add constraint exam_files_file_type_check
+  check (file_type = 'answer_pdf');
+exception
+  when duplicate_object then null;
+end $$;
+
 do $$
 begin
   if exists (
@@ -153,6 +290,13 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('exam-files', 'exam-files', true, 10485760, array['application/pdf'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 create index if not exists attendance_checks_check_date_created_at_idx
 on public.attendance_checks (check_date, created_at desc);
 
@@ -164,6 +308,21 @@ on public.penalties (student_id, created_at desc);
 
 create index if not exists notices_created_at_idx
 on public.notices (created_at desc);
+
+create index if not exists exams_week_created_at_idx
+on public.exams (week_number desc, created_at desc);
+
+create index if not exists exam_sections_exam_track_idx
+on public.exam_sections (exam_id, track);
+
+create index if not exists exam_subject_settings_track_idx
+on public.exam_subject_settings (track, sort_order, created_at);
+
+create index if not exists exam_submissions_section_idx
+on public.exam_submissions (exam_section_id, submitted_at desc);
+
+create index if not exists exam_submissions_student_idx
+on public.exam_submissions (student_id, created_at desc);
 
 delete from public.notices
 where id in ('attendance-guide', 'outing-guide');
@@ -214,6 +373,13 @@ alter table public.attendance_checks enable row level security;
 alter table public.attendance_holidays enable row level security;
 alter table public.penalties enable row level security;
 alter table public.notices enable row level security;
+alter table public.exams enable row level security;
+alter table public.exam_sections enable row level security;
+alter table public.exam_subject_settings enable row level security;
+alter table public.exam_answers enable row level security;
+alter table public.exam_submissions enable row level security;
+alter table public.submission_answers enable row level security;
+alter table public.exam_files enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -248,10 +414,34 @@ drop policy if exists "anon_notices_select" on public.notices;
 drop policy if exists "anon_notices_insert" on public.notices;
 drop policy if exists "anon_notices_update" on public.notices;
 drop policy if exists "anon_notices_delete" on public.notices;
+drop policy if exists "anon_exams_select" on public.exams;
+drop policy if exists "anon_exams_insert" on public.exams;
+drop policy if exists "anon_exams_update" on public.exams;
+drop policy if exists "anon_exam_sections_select" on public.exam_sections;
+drop policy if exists "anon_exam_sections_insert" on public.exam_sections;
+drop policy if exists "anon_exam_sections_update" on public.exam_sections;
+drop policy if exists "anon_exam_sections_delete" on public.exam_sections;
+drop policy if exists "anon_exam_subject_settings_select" on public.exam_subject_settings;
+drop policy if exists "anon_exam_subject_settings_insert" on public.exam_subject_settings;
+drop policy if exists "anon_exam_subject_settings_update" on public.exam_subject_settings;
+drop policy if exists "anon_exam_answers_select" on public.exam_answers;
+drop policy if exists "anon_exam_answers_insert" on public.exam_answers;
+drop policy if exists "anon_exam_answers_update" on public.exam_answers;
+drop policy if exists "anon_exam_submissions_select" on public.exam_submissions;
+drop policy if exists "anon_exam_submissions_insert" on public.exam_submissions;
+drop policy if exists "anon_exam_submissions_update" on public.exam_submissions;
+drop policy if exists "anon_submission_answers_select" on public.submission_answers;
+drop policy if exists "anon_submission_answers_insert" on public.submission_answers;
+drop policy if exists "anon_submission_answers_update" on public.submission_answers;
+drop policy if exists "anon_exam_files_select" on public.exam_files;
+drop policy if exists "anon_exam_files_insert" on public.exam_files;
+drop policy if exists "anon_exam_files_update" on public.exam_files;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 drop policy if exists "anon_outing_photo_select" on storage.objects;
 drop policy if exists "anon_outing_photo_insert" on storage.objects;
+drop policy if exists "anon_exam_file_select" on storage.objects;
+drop policy if exists "anon_exam_file_insert" on storage.objects;
 
 revoke all on public.students from anon;
 revoke all on public.outings from anon;
@@ -263,6 +453,13 @@ revoke all on public.attendance_checks from anon;
 revoke all on public.attendance_holidays from anon;
 revoke all on public.penalties from anon;
 revoke all on public.notices from anon;
+revoke all on public.exams from anon;
+revoke all on public.exam_sections from anon;
+revoke all on public.exam_subject_settings from anon;
+revoke all on public.exam_answers from anon;
+revoke all on public.exam_submissions from anon;
+revoke all on public.submission_answers from anon;
+revoke all on public.exam_files from anon;
 
 grant select (
   id,
@@ -519,6 +716,14 @@ grant update (
 ) on public.attendance_holidays to anon;
 
 grant delete on public.attendance_holidays to anon;
+
+grant select, insert, update on public.exams to anon;
+grant select, insert, update, delete on public.exam_sections to anon;
+grant select, insert, update on public.exam_subject_settings to anon;
+grant select, insert, update on public.exam_answers to anon;
+grant select, insert, update on public.exam_submissions to anon;
+grant select, insert, update on public.submission_answers to anon;
+grant select, insert, update on public.exam_files to anon;
 
 create policy "anon_students_select_active"
 on public.students
@@ -779,6 +984,145 @@ for delete
 to anon
 using (true);
 
+create policy "anon_exams_select"
+on public.exams
+for select
+to anon
+using (true);
+
+create policy "anon_exams_insert"
+on public.exams
+for insert
+to anon
+with check (name is not null and week_number > 0);
+
+create policy "anon_exams_update"
+on public.exams
+for update
+to anon
+using (true)
+with check (name is not null and week_number > 0);
+
+create policy "anon_exam_sections_select"
+on public.exam_sections
+for select
+to anon
+using (true);
+
+create policy "anon_exam_sections_insert"
+on public.exam_sections
+for insert
+to anon
+with check (track is not null and subject is not null and question_count > 0);
+
+create policy "anon_exam_sections_update"
+on public.exam_sections
+for update
+to anon
+using (true)
+with check (track is not null and subject is not null and question_count > 0);
+
+create policy "anon_exam_sections_delete"
+on public.exam_sections
+for delete
+to anon
+using (true);
+
+create policy "anon_exam_subject_settings_select"
+on public.exam_subject_settings
+for select
+to anon
+using (true);
+
+create policy "anon_exam_subject_settings_insert"
+on public.exam_subject_settings
+for insert
+to anon
+with check (track is not null and subject is not null and question_count > 0);
+
+create policy "anon_exam_subject_settings_update"
+on public.exam_subject_settings
+for update
+to anon
+using (true)
+with check (track is not null and subject is not null and question_count > 0);
+
+create policy "anon_exam_answers_select"
+on public.exam_answers
+for select
+to anon
+using (true);
+
+create policy "anon_exam_answers_insert"
+on public.exam_answers
+for insert
+to anon
+with check (question_number > 0 and (correct_answer is null or correct_answer between 1 and 4));
+
+create policy "anon_exam_answers_update"
+on public.exam_answers
+for update
+to anon
+using (true)
+with check (question_number > 0 and (correct_answer is null or correct_answer between 1 and 4));
+
+create policy "anon_exam_submissions_select"
+on public.exam_submissions
+for select
+to anon
+using (true);
+
+create policy "anon_exam_submissions_insert"
+on public.exam_submissions
+for insert
+to anon
+with check (student_id is not null and status in ('draft', 'submitted', 'cancelled'));
+
+create policy "anon_exam_submissions_update"
+on public.exam_submissions
+for update
+to anon
+using (true)
+with check (student_id is not null and status in ('draft', 'submitted', 'cancelled'));
+
+create policy "anon_submission_answers_select"
+on public.submission_answers
+for select
+to anon
+using (true);
+
+create policy "anon_submission_answers_insert"
+on public.submission_answers
+for insert
+to anon
+with check (question_number > 0 and (selected_answer is null or selected_answer between 1 and 4));
+
+create policy "anon_submission_answers_update"
+on public.submission_answers
+for update
+to anon
+using (true)
+with check (question_number > 0 and (selected_answer is null or selected_answer between 1 and 4));
+
+create policy "anon_exam_files_select"
+on public.exam_files
+for select
+to anon
+using (true);
+
+create policy "anon_exam_files_insert"
+on public.exam_files
+for insert
+to anon
+with check (file_type = 'answer_pdf');
+
+create policy "anon_exam_files_update"
+on public.exam_files
+for update
+to anon
+using (true)
+with check (file_type = 'answer_pdf');
+
 create policy "anon_attendance_photo_select"
 on storage.objects
 for select
@@ -808,3 +1152,15 @@ with check (
   bucket_id = 'outing-photos'
   and lower((storage.foldername(name))[1]) = to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD')
 );
+
+create policy "anon_exam_file_select"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'exam-files');
+
+create policy "anon_exam_file_insert"
+on storage.objects
+for insert
+to anon
+with check (bucket_id = 'exam-files');

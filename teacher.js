@@ -5,9 +5,17 @@
 let penaltySortMode = "id";
 let editingNoticeId = "";
 let trackOptionDraft = null;
+let gradeManagementMode = "weekly";
+let weeklyExamMode = "lookup";
+let weeklyExamSelectedId = "";
+let weeklyExamSelectedSectionId = "";
+let weeklyExamAnswerScoped = false;
+let weeklyExamGradeFilters = { examId: "", track: "", subject: "" };
 let attendanceHolidayCalendarMonth = "";
 let attendanceHolidayDraftOverrides = null;
 let attendanceHolidaySavedMessage = "";
+const WEEKLY_EXAM_TRACK_ALL = "전체";
+const WEEKLY_EXAM_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const penaltyPeriodFilter = {
   start: "",
   end: "",
@@ -2218,6 +2226,1086 @@ function upsertStudents(students, className, track = "") {
     }
   });
   return { created, updated };
+}
+
+function renderWeeklyExamManagement() {
+  if (!hasTeacherPermission("grades.read")) return renderForbidden();
+  const allAnswerSections = getWeeklyExamAnswerSections();
+  const answerExams = getWeeklyExams().filter((exam) => allAnswerSections.some((section) => section.examId === exam.id));
+  if (!weeklyExamSelectedId && answerExams[0]) weeklyExamSelectedId = answerExams[0].id;
+  const answerSections = weeklyExamMode === "answers" && !weeklyExamAnswerScoped && weeklyExamSelectedId
+    ? allAnswerSections.filter((section) => section.examId === weeklyExamSelectedId)
+    : allAnswerSections;
+  if (!weeklyExamSelectedSectionId && answerSections[0]) weeklyExamSelectedSectionId = answerSections[0].id;
+  const selectedSection = answerSections.find((section) => section.id === weeklyExamSelectedSectionId) || answerSections[0] || null;
+  if (selectedSection && weeklyExamSelectedSectionId !== selectedSection.id) weeklyExamSelectedSectionId = selectedSection.id;
+  if (weeklyExamAnswerScoped && selectedSection) weeklyExamSelectedId = selectedSection.examId;
+
+  if (weeklyExamMode === "lookup") {
+    return el("div", { className: "grid weekly-exam-admin" }, [renderWeeklyExamProblemLookupPanel()]);
+  }
+
+  if (weeklyExamMode === "create" || !allAnswerSections.length) {
+    return el("div", { className: "grid weekly-exam-admin" }, [renderWeeklyExamCreatePanel()]);
+  }
+
+  return el("div", { className: "grid weekly-exam-admin" }, [
+    weeklyExamMode === "answers" && !weeklyExamAnswerScoped ? renderWeeklyExamAnswerWeekPanel(answerExams) : null,
+    selectedSection ? renderWeeklyExamAnswerPanel(selectedSection, weeklyExamAnswerScoped ? [] : answerSections) : renderWeeklyExamAnswerPicker(answerSections, selectedSection),
+  ].filter(Boolean));
+}
+
+function openWeeklyExamCreateView() {
+  weeklyExamAnswerScoped = false;
+  weeklyExamMode = "create";
+  render();
+}
+
+function openWeeklyExamLookupView() {
+  const exams = getWeeklyExams();
+  if (!weeklyExamSelectedId && exams[0]) weeklyExamSelectedId = exams[0].id;
+  weeklyExamAnswerScoped = false;
+  weeklyExamMode = "lookup";
+  render();
+}
+
+function openWeeklyExamAnswerView() {
+  const sections = getWeeklyExamAnswerSections();
+  if (!sections.length) return notify("답안을 입력할 주간평가 과목이 없습니다.");
+  const exams = getWeeklyExams().filter((exam) => sections.some((section) => section.examId === exam.id));
+  if (!weeklyExamSelectedId && exams[0]) weeklyExamSelectedId = exams[0].id;
+  const weekSections = weeklyExamSelectedId ? sections.filter((section) => section.examId === weeklyExamSelectedId) : sections;
+  if (!weekSections.some((section) => section.id === weeklyExamSelectedSectionId)) weeklyExamSelectedSectionId = weekSections[0]?.id || sections[0].id;
+  weeklyExamAnswerScoped = false;
+  weeklyExamMode = "answers";
+  render();
+}
+
+function renderGradesManagement() {
+  if (!hasTeacherPermission("grades.read")) return renderForbidden();
+  const tabs = el("div", { className: "grade-management-tabs" }, [
+    button("주간평가 성적", gradeManagementMode === "weekly" ? "mini-btn active" : "mini-btn", "button", () => {
+      gradeManagementMode = "weekly";
+      render();
+    }),
+    button("파이널 성적", gradeManagementMode === "final" ? "mini-btn active" : "mini-btn", "button", () => {
+      gradeManagementMode = "final";
+      render();
+    }),
+  ]);
+  return el("div", { className: "grid grade-management" }, [
+    panel("성적 구분", [tabs]),
+    gradeManagementMode === "weekly"
+      ? renderWeeklyExamScoresPanel(null)
+      : panel("파이널 성적", [
+          el("div", { className: "empty management-empty" }, [
+            el("strong", {}, "파이널 성적 관리"),
+            el("p", {}, "파이널 성적 기능은 이번 작업 범위에서 제외되어 있습니다."),
+          ]),
+        ]),
+  ]);
+}
+
+function getWeeklyExams() {
+  return [...(state.exams || [])].sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function getExamSections(examId) {
+  return (state.examSections || []).filter((section) => section.examId === examId).sort((a, b) => {
+    const trackCompare = String(a.track || "").localeCompare(String(b.track || ""), "ko-KR");
+    return trackCompare || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR");
+  });
+}
+
+function getWeeklyExamAnswerSections() {
+  const examMap = new Map((state.exams || []).map((exam) => [exam.id, exam]));
+  const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
+  return (state.examSections || [])
+    .filter((section) => section.isActive !== false && examMap.has(section.examId))
+    .map((section) => ({ ...section, exam: examMap.get(section.examId) }))
+    .sort((a, b) => {
+      const weekCompare = Number(b.exam?.weekNumber || 0) - Number(a.exam?.weekNumber || 0);
+      if (weekCompare) return weekCompare;
+      const subjectCompare = (subjectOrder.get(a.subject) ?? 999) - (subjectOrder.get(b.subject) ?? 999);
+      if (subjectCompare) return subjectCompare;
+      return String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR");
+    });
+}
+
+function getTrackSubjectSuggestions(track) {
+  return getWeeklyExamSubjectSettings()
+    .filter((section) => !track || section.track === track)
+    .map((section) => section.subject)
+    .filter(Boolean)
+    .filter((subject, index, subjects) => subjects.indexOf(subject) === index);
+}
+
+function getWeeklyExamSubjectSettings() {
+  const saved = Array.isArray(state.examSubjectSettings) ? state.examSubjectSettings : [];
+  const source = saved.length
+    ? saved
+    : (state.examSections || []).map((section, index) => ({
+        id: `derived-${section.track}-${section.subject}`,
+        track: section.track,
+        subject: section.subject,
+        questionCount: section.questionCount || 20,
+        totalScore: section.totalScore || 100,
+        isActive: section.isActive !== false,
+        sortOrder: index + 1,
+        createdAt: section.createdAt || "",
+        updatedAt: section.createdAt || "",
+      }));
+  const map = new Map();
+  source.forEach((setting, index) => {
+    const track = normalizeCoastGuardTrack(setting.track);
+    const subject = String(setting.subject || "").trim();
+    if (!track || !subject) return;
+    const key = `${track}|||${subject}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        ...setting,
+        id: setting.id && !String(setting.id).startsWith("derived-") ? setting.id : createId(),
+        track,
+        subject,
+        questionCount: Number(setting.questionCount) || 20,
+        totalScore: Number(setting.totalScore) || 100,
+        isActive: setting.isActive !== false,
+        sortOrder: Number(setting.sortOrder) || index + 1,
+        createdAt: setting.createdAt || new Date().toISOString(),
+        updatedAt: setting.updatedAt || setting.createdAt || new Date().toISOString(),
+      });
+    }
+  });
+  return [...map.values()].sort((a, b) => {
+    const trackCompare = String(a.track).localeCompare(String(b.track), "ko-KR");
+    return trackCompare || Number(a.sortOrder) - Number(b.sortOrder) || String(a.subject).localeCompare(String(b.subject), "ko-KR");
+  });
+}
+
+function renderWeeklyExamCreatePanel() {
+  const weekInput = input("weekNumber", "number", "1", "1");
+  weekInput.min = "1";
+  const startInput = input("startAt", "datetime-local", "");
+  const endInput = input("endAt", "datetime-local", "");
+  const form = el("form", { className: "form-grid weekly-exam-form" }, [
+    field("주차", weekInput, "", "저장 시 1주차 주간평가처럼 자동 표시됩니다."),
+    field("응시 시작", startInput),
+    field("응시 마감", endInput),
+    el("div", { className: "field full" }, [button("주간평가 생성", "btn")]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const exam = {
+      id: createId(),
+      weekNumber: Number(data.weekNumber) || 1,
+      name: formatWeeklyExamName(Number(data.weekNumber) || 1),
+      startAt: data.startAt ? new Date(data.startAt).toISOString() : "",
+      endAt: data.endAt ? new Date(data.endAt).toISOString() : "",
+      targetTracks: [WEEKLY_EXAM_TRACK_ALL],
+      isPublished: true,
+      scoreReleaseMode: "after_all_submitted",
+      explanationReleaseMode: "after_all_submitted",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      state.exams = [exam, ...(state.exams || [])];
+      WEEKLY_EXAM_SUBJECTS.forEach((subject) => {
+        createLocalExamSection(exam, WEEKLY_EXAM_TRACK_ALL, subject, {
+          questionCount: 20,
+          totalScore: 100,
+          isActive: true,
+        });
+      });
+      weeklyExamSelectedId = exam.id;
+      const createdSections = getExamSections(exam.id);
+      weeklyExamSelectedSectionId = createdSections[0]?.id || "";
+      weeklyExamMode = "lookup";
+      saveState({ skipRemote: true });
+      await saveWeeklyExamToRemote(exam);
+      await saveExamSectionsToRemote(getExamSections(exam.id));
+      render();
+      notify("주간평가를 생성했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("주간평가 저장 중 오류가 발생했습니다. Supabase 스키마 적용 여부를 확인해주세요.");
+    }
+  });
+  return panel("주간평가 생성", [form]);
+}
+
+function formatWeeklyExamName(weekNumber) {
+  return `${Number(weekNumber) || 1}주차 주간평가`;
+}
+
+function renderWeeklyExamProblemLookupPanel() {
+  const exams = getWeeklyExams();
+  if (!exams.length) {
+    return panel("주간평가 문제 조회", [
+      el("div", { className: "empty" }, "조회할 주간평가가 없습니다. 주간평가를 먼저 생성해주세요."),
+    ]);
+  }
+  const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || exams[0];
+  weeklyExamSelectedId = selectedExam.id;
+  const examSelect = select("examId", exams.map((exam) => exam.id));
+  examSelect.querySelectorAll("option").forEach((option) => {
+    const exam = exams.find((item) => item.id === option.value);
+    if (exam) option.textContent = formatWeeklyExamName(exam.weekNumber);
+  });
+  examSelect.value = selectedExam.id;
+  examSelect.addEventListener("change", () => {
+    weeklyExamSelectedId = examSelect.value;
+    render();
+  });
+
+  const sections = getExamSections(selectedExam.id);
+  const rows = WEEKLY_EXAM_SUBJECTS.map((subject) => {
+    const section = sections.find((item) => item.subject === subject);
+    const submittedCount = section ? (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id).length : 0;
+    const answerCount = section ? countEnteredSectionAnswers(section) : 0;
+    const isPublished = Boolean(section && isWeeklyExamSectionPublished(section));
+    return el("tr", { className: isPublished ? "" : "weekly-unpublished-row" }, [
+      el("td", {}, subject),
+      el("td", {}, section && section.isActive === false
+        ? el("span", { className: "badge pending" }, "미사용")
+        : el("span", { className: isPublished ? "badge approved" : "badge pending" }, isPublished ? "출제됨" : "미출제")),
+      el("td", {}, section ? `${section.questionCount || 20}문항` : "-"),
+      el("td", {}, section ? `${answerCount}/${section.questionCount || 20}` : "-"),
+      el("td", {}, section ? `${submittedCount}건` : "-"),
+      el("td", { className: "action-cell" }, section ? [
+        button("답안 입력", "mini-btn", "button", () => {
+          weeklyExamSelectedSectionId = section.id;
+          weeklyExamAnswerScoped = true;
+          weeklyExamMode = "answers";
+          render();
+        }),
+        button("삭제", "mini-btn danger", "button", () => deleteWeeklyExamSection(section.id)),
+      ] : "-"),
+    ]);
+  });
+
+  return panel("주간평가 문제 조회", [
+    el("div", { className: "teacher-search weekly-lookup-filter" }, [field("주차", examSelect)]),
+    table(["과목", "출제 여부", "문항", "정답 입력", "제출", "관리"], rows),
+  ]);
+}
+
+function renderWeeklyExamAnswerWeekPanel(exams) {
+  const examSelect = select("examId", exams.map((exam) => exam.id));
+  examSelect.querySelectorAll("option").forEach((option) => {
+    const exam = exams.find((item) => item.id === option.value);
+    if (exam) option.textContent = formatWeeklyExamName(exam.weekNumber);
+  });
+  examSelect.value = weeklyExamSelectedId || exams[0]?.id || "";
+  examSelect.addEventListener("change", () => {
+    weeklyExamSelectedId = examSelect.value;
+    const firstSection = getWeeklyExamAnswerSections().find((section) => section.examId === weeklyExamSelectedId);
+    weeklyExamSelectedSectionId = firstSection?.id || "";
+    render();
+  });
+  return panel("답안 입력 주차 선택", [
+    el("div", { className: "teacher-search weekly-answer-week-filter" }, [field("주차", examSelect)]),
+  ]);
+}
+
+function countEnteredSectionAnswers(section) {
+  return getSectionAnswers(section.id).filter((answer) => answer.correctAnswer).length;
+}
+
+function isWeeklyExamSectionPublished(section) {
+  return section.isActive !== false && countEnteredSectionAnswers(section) >= (Number(section.questionCount) || 20);
+}
+
+function openWeeklyExamSubjectSettingsModal() {
+  openInfoModal({
+    title: "직렬별 과목 설정",
+    className: "weekly-subject-settings-modal",
+    content: renderWeeklyExamSubjectSettingsPanel({ modal: true }),
+  });
+}
+
+function renderWeeklyExamSubjectSettingsPanel(options = {}) {
+  const settings = getWeeklyExamSubjectSettings();
+  const trackSelect = select("track", getCoastGuardTrackOptions().filter((track) => track !== "기타"));
+  const subjectInput = input("subject", "text", "예: 형사법");
+  const questionInput = input("questionCount", "number", "20", "20");
+  const scoreInput = input("totalScore", "number", "100", "100");
+  questionInput.min = "1";
+  scoreInput.min = "1";
+  const form = el("form", { className: "form-grid" }, [
+    field("직렬", trackSelect),
+    field("과목", subjectInput),
+    field("문항 수", questionInput),
+    field("총점", scoreInput),
+    el("div", { className: "field" }, [el("span", {}, " "), button("과목 추가/수정", "btn secondary")]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const setting = upsertWeeklyExamSubjectSetting({
+      track: normalizeCoastGuardTrack(data.track),
+      subject: data.subject,
+      questionCount: data.questionCount,
+      totalScore: data.totalScore,
+      isActive: true,
+    });
+    if (!setting) return notify("직렬과 과목명을 입력해주세요.");
+    await saveExamSubjectSettingsToRemote([setting]);
+    saveState({ skipRemote: true });
+    if (options.modal) {
+      closeInfoModal();
+      openWeeklyExamSubjectSettingsModal();
+    } else {
+      render();
+    }
+    notify("직렬별 과목 설정을 저장했습니다.");
+  });
+
+  const rows = settings.map((setting) => el("tr", {}, [
+    el("td", {}, setting.track),
+    el("td", {}, setting.subject),
+    el("td", {}, `${setting.questionCount}문항`),
+    el("td", {}, `${setting.totalScore}점`),
+    el("td", {}, setting.isActive ? "사용" : "미사용"),
+    el("td", { className: "action-cell" }, [
+      button("수정", "mini-btn", "button", () => editWeeklyExamSubjectSetting(setting.id, options)),
+      button(setting.isActive ? "미사용" : "사용", "mini-btn", "button", async () => {
+        setting.isActive = !setting.isActive;
+        setting.updatedAt = new Date().toISOString();
+        state.examSubjectSettings = getWeeklyExamSubjectSettings().map((item) => item.id === setting.id ? setting : item);
+        saveState({ skipRemote: true });
+        await saveExamSubjectSettingsToRemote([setting]);
+        if (options.modal) {
+          closeInfoModal();
+          openWeeklyExamSubjectSettingsModal();
+        } else {
+          render();
+        }
+      }),
+    ]),
+  ]));
+
+  return el("div", { className: "weekly-subject-settings" }, [
+    el("p", { className: "subtle" }, "여기서 설정한 과목이 새 주간평가 생성 시 직렬별 시험 과목으로 자동 생성됩니다. 학생은 최초 등록한 본인 직렬의 과목만 봅니다."),
+    form,
+    table(["직렬", "과목", "문항", "총점", "상태", "관리"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 6 }, el("div", { className: "empty table-empty" }, "등록된 직렬별 과목이 없습니다."))])]),
+  ]);
+}
+
+function upsertWeeklyExamSubjectSetting(payload) {
+  const track = normalizeCoastGuardTrack(payload.track);
+  const subject = String(payload.subject || "").trim();
+  if (!track || !subject) return null;
+  const settings = getWeeklyExamSubjectSettings();
+  const existing = settings.find((setting) => setting.track === track && setting.subject === subject);
+  const now = new Date().toISOString();
+  const next = {
+    ...(existing || {}),
+    id: existing?.id || createId(),
+    track,
+    subject,
+    questionCount: Number(payload.questionCount) || existing?.questionCount || 20,
+    totalScore: Number(payload.totalScore) || existing?.totalScore || 100,
+    isActive: payload.isActive !== false,
+    sortOrder: existing?.sortOrder || settings.filter((setting) => setting.track === track).length + 1,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+  state.examSubjectSettings = [...settings.filter((setting) => setting.id !== next.id), next];
+  return next;
+}
+
+async function editWeeklyExamSubjectSetting(settingId, options = {}) {
+  const setting = getWeeklyExamSubjectSettings().find((item) => item.id === settingId);
+  if (!setting) return;
+  const subject = prompt("과목명", setting.subject);
+  if (subject === null) return;
+  const questionCount = prompt("문항 수", String(setting.questionCount));
+  if (questionCount === null) return;
+  const totalScore = prompt("총점", String(setting.totalScore));
+  if (totalScore === null) return;
+  const next = upsertWeeklyExamSubjectSetting({
+    ...setting,
+    subject,
+    questionCount,
+    totalScore,
+    isActive: setting.isActive,
+  });
+  if (!next) return notify("과목명을 입력해주세요.");
+  await saveExamSubjectSettingsToRemote([next]);
+  saveState({ skipRemote: true });
+  if (options.modal) {
+    closeInfoModal();
+    openWeeklyExamSubjectSettingsModal();
+  } else {
+    render();
+  }
+  notify("과목 설정을 수정했습니다.");
+}
+
+function mapReleaseMode(label) {
+  if (label === "비공개") return "hidden";
+  if (label === "과목 제출 즉시") return "after_submit";
+  return "after_all_submitted";
+}
+
+function formatReleaseMode(mode) {
+  if (mode === "hidden") return "비공개";
+  if (mode === "after_submit") return "과목 제출 즉시";
+  return "모든 과목 제출 후";
+}
+
+function createLocalExamSection(exam, track, subject, options = {}) {
+  const exists = (state.examSections || []).some((section) => section.examId === exam.id && section.track === track && section.subject === subject);
+  if (exists) return null;
+  const section = {
+    id: createId(),
+    examId: exam.id,
+    track,
+    subject,
+    questionCount: Number(options.questionCount) || 20,
+    totalScore: Number(options.totalScore) || 100,
+    isActive: options.isActive !== false,
+    createdAt: new Date().toISOString(),
+  };
+  state.examSections = [...(state.examSections || []), section];
+  state.examAnswers = [
+    ...(state.examAnswers || []),
+    ...Array.from({ length: section.questionCount }, (_, index) => ({
+      id: createId(),
+      examSectionId: section.id,
+      questionNumber: index + 1,
+      correctAnswer: 0,
+      points: 5,
+    })),
+  ];
+  return section;
+}
+
+function renderWeeklyExamListPanel(exams, selectedExam) {
+  const rows = exams.map((exam) => el("tr", { className: selectedExam?.id === exam.id ? "selected-row" : "" }, [
+    el("td", {}, button(formatWeeklyExamName(exam.weekNumber), "link-btn", "button", () => {
+      weeklyExamSelectedId = exam.id;
+      weeklyExamSelectedSectionId = "";
+      render();
+    })),
+    el("td", {}, `${exam.weekNumber}주차`),
+    el("td", {}, `${getExamSections(exam.id).length}개`),
+    el("td", {}, exam.isPublished ? el("span", { className: "badge approved" }, "공개") : el("span", { className: "badge pending" }, "비공개")),
+    el("td", {}, `${formatReleaseMode(exam.scoreReleaseMode)} / ${formatReleaseMode(exam.explanationReleaseMode)}`),
+    el("td", {}, button(exam.isPublished ? "비공개" : "공개", "mini-btn", "button", async () => {
+      exam.isPublished = !exam.isPublished;
+      exam.updatedAt = new Date().toISOString();
+      saveState({ skipRemote: true });
+      await saveWeeklyExamToRemote(exam);
+      render();
+    })),
+  ]));
+  return panel("주간평가 목록", [
+    table(["주간평가", "주차", "과목 수", "상태", "공개 방식", "관리"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 6 }, el("div", { className: "empty table-empty" }, "등록된 주간평가가 없습니다."))])]),
+  ]);
+}
+
+function renderWeeklyExamSectionPanel(exam, sections) {
+  const trackSelect = select("track", getCoastGuardTrackOptions().filter((track) => track !== "기타"));
+  const subjectInput = input("subject", "text", "과목명");
+  const questionInput = input("questionCount", "number", "20", "20");
+  const scoreInput = input("totalScore", "number", "100", "100");
+  const form = el("form", { className: "form-grid" }, [
+    field("직렬", trackSelect),
+    field("과목", subjectInput),
+    field("문항 수", questionInput),
+    field("총점", scoreInput),
+    el("div", { className: "field" }, [el("span", {}, " "), button("과목 추가", "btn secondary")]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const section = createLocalExamSection(exam, normalizeCoastGuardTrack(data.track), String(data.subject || "").trim());
+    if (!section) return notify("이미 같은 직렬/과목이 있습니다.");
+    section.questionCount = Number(data.questionCount) || 20;
+    section.totalScore = Number(data.totalScore) || 100;
+    resetSectionAnswerRows(section);
+    weeklyExamSelectedSectionId = section.id;
+    saveState({ skipRemote: true });
+    await saveExamSectionsToRemote([section]);
+    await saveExamAnswersToRemote(getSectionAnswers(section.id));
+    render();
+  });
+  const rows = sections.map((section) => el("tr", { className: weeklyExamSelectedSectionId === section.id ? "selected-row" : "" }, [
+    el("td", {}, button(section.subject, "link-btn", "button", () => {
+      weeklyExamSelectedSectionId = section.id;
+      render();
+    })),
+    el("td", {}, `${section.questionCount}문항`),
+    el("td", {}, `${section.totalScore}점`),
+    el("td", {}, section.isActive ? "사용" : "미사용"),
+    el("td", {}, button(section.isActive ? "미사용" : "사용", "mini-btn", "button", async () => {
+      section.isActive = !section.isActive;
+      saveState({ skipRemote: true });
+      await saveExamSectionsToRemote([section]);
+      render();
+    })),
+  ]));
+  return panel(`${formatWeeklyExamName(exam.weekNumber)} 과목 설정`, [form, table(["과목", "문항", "총점", "상태", "관리"], rows)]);
+}
+
+function renderWeeklyExamAnswerPicker(sections, selectedSection) {
+  if (!sections.length) {
+    return panel("주간평가 답안 입력", [
+      el("div", { className: "empty" }, "정답을 입력할 주간평가 과목이 없습니다. 주간평가를 먼저 생성해주세요."),
+    ]);
+  }
+  return panel("주간평가 답안 입력", [
+    el("div", { className: "weekly-answer-picker" }, sections.map((section) =>
+      button(
+        "",
+        section.id === selectedSection?.id ? "weekly-answer-chip active" : "weekly-answer-chip",
+        "button",
+        () => {
+          weeklyExamSelectedSectionId = section.id;
+          render();
+        },
+        [
+          el("strong", {}, `${Number(section.exam?.weekNumber) || 1}주차 ${section.subject}`),
+        ]
+      )
+    )),
+  ]);
+}
+
+function resetSectionAnswerRows(section) {
+  state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== section.id);
+  state.examAnswers.push(...Array.from({ length: section.questionCount }, (_, index) => ({
+    id: createId(),
+    examSectionId: section.id,
+    questionNumber: index + 1,
+    correctAnswer: 0,
+    points: 5,
+  })));
+}
+
+function getSectionAnswers(sectionId) {
+  const section = (state.examSections || []).find((item) => item.id === sectionId);
+  const answers = (state.examAnswers || []).filter((answer) => answer.examSectionId === sectionId);
+  if (section && answers.length < section.questionCount) {
+    const existing = new Set(answers.map((answer) => answer.questionNumber));
+    for (let i = 1; i <= section.questionCount; i += 1) {
+      if (!existing.has(i)) {
+        const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, points: 5 };
+        state.examAnswers.push(row);
+        answers.push(row);
+      }
+    }
+  }
+  return answers.sort((a, b) => a.questionNumber - b.questionNumber);
+}
+
+async function updateWeeklyExamSectionQuestionCount(section, nextCount) {
+  const targetSection = (state.examSections || []).find((item) => item.id === section.id);
+  if (!targetSection) return notify("문항 수를 변경할 과목을 찾을 수 없습니다.");
+  const questionCount = Number(nextCount) || 0;
+  if (questionCount < 1) return notify("문항 수는 1문항 이상이어야 합니다.");
+  const currentCount = Number(targetSection.questionCount) || 20;
+  if (questionCount === currentCount) return notify("변경된 문항 수가 없습니다.");
+  const existingAnswers = getSectionAnswers(targetSection.id);
+  const removedAnswers = existingAnswers.filter((answer) => answer.questionNumber > questionCount && answer.correctAnswer);
+  if (removedAnswers.length && !confirm(`${questionCount}문항으로 줄이면 ${removedAnswers.length}개 정답이 삭제됩니다. 변경할까요?`)) return;
+  targetSection.questionCount = questionCount;
+  targetSection.totalScore = questionCount * 5;
+  section.questionCount = questionCount;
+  section.totalScore = questionCount * 5;
+  state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== targetSection.id || answer.questionNumber <= questionCount);
+  const currentAnswers = getSectionAnswers(targetSection.id);
+  currentAnswers.forEach((answer) => {
+    answer.points = 5;
+  });
+  saveState({ skipRemote: true });
+  await saveExamSectionsToRemote([targetSection]);
+  await saveExamAnswersToRemote(currentAnswers);
+  render();
+  notify("문항 수를 변경했습니다.");
+}
+
+function renderWeeklyExamAnswerPanel(section, sections = []) {
+  const exam = section.exam || (state.exams || []).find((item) => item.id === section.examId) || null;
+  const answers = getSectionAnswers(section.id);
+  const questionCountInput = input("questionCount", "number", String(section.questionCount || 20), String(section.questionCount || 20));
+  questionCountInput.min = "1";
+  questionCountInput.max = "100";
+  const bulkInput = el("textarea", { name: "bulkAnswers", placeholder: "4 1 3 2 1 ... 또는 ④ ① ③ ② ① ...", rows: 3 });
+  const answerCells = answers.map((answer) => {
+    const answerInput = el("input", {
+      className: "answer-key-input",
+      name: `answer-${answer.questionNumber}`,
+      type: "text",
+      inputMode: "numeric",
+      pattern: "[1-4]",
+      maxLength: 1,
+      value: answer.correctAnswer ? String(answer.correctAnswer) : "",
+      autocomplete: "off",
+      ariaLabel: `${answer.questionNumber}번 정답`,
+    });
+    answerInput.addEventListener("input", () => {
+      answerInput.value = normalizeMultipleChoiceAnswer(answerInput.value);
+      if (answerInput.value) focusNextAnswerInput(answerInput);
+    });
+    answerInput.addEventListener("keydown", (event) => {
+      if (event.key === "Tab" && !event.shiftKey) {
+        const next = getNextAnswerInput(answerInput);
+        if (next) {
+          event.preventDefault();
+          next.focus();
+          next.select();
+        }
+      }
+    });
+    return { answer, answerInput };
+  });
+  const rows = [];
+  for (let index = 0; index < answerCells.length; index += 10) {
+    const group = answerCells.slice(index, index + 10);
+    rows.push(el("tr", { className: "weekly-answer-question-row" }, [
+      el("th", {}, "문항"),
+      ...group.map(({ answer }) => el("th", {}, `${answer.questionNumber}번`)),
+    ]));
+    rows.push(el("tr", { className: "weekly-answer-input-row" }, [
+      el("th", {}, "정답"),
+      ...group.map(({ answerInput }) => el("td", {}, answerInput)),
+    ]));
+  }
+  const picker = sections.length ? el("div", { className: "weekly-answer-picker compact" }, sections.map((item) =>
+    button(
+      "",
+      item.id === section.id ? "weekly-answer-chip active" : "weekly-answer-chip",
+      "button",
+      () => {
+        weeklyExamSelectedSectionId = item.id;
+        weeklyExamAnswerScoped = false;
+        render();
+      },
+      [
+        el("strong", {}, `${Number(item.exam?.weekNumber) || 1}주차 ${item.subject}`),
+      ]
+    )
+  )) : null;
+  let form;
+  const applyBulkButton = button("일괄 적용", "btn secondary", "button", () => {
+    const values = parseBulkAnswers(bulkInput.value);
+    values.slice(0, section.questionCount).forEach((value, index) => {
+      const selectNode = form.querySelector(`[name='answer-${index + 1}']`);
+      if (selectNode) selectNode.value = String(value);
+    });
+  });
+  const answerHeader = el("div", { className: "weekly-answer-header" }, [
+    el("div", {}, [
+      el("strong", {}, `${Number(exam?.weekNumber) || 1}주차 ${section.subject}`),
+      el("span", {}, "정답 입력"),
+    ]),
+    el("div", { className: "weekly-question-count-row" }, [
+      field("문항 수", questionCountInput),
+      button("문항 수 적용", "btn secondary", "button", () => updateWeeklyExamSectionQuestionCount(section, questionCountInput.value)),
+    ]),
+  ]);
+  form = el("form", { className: "weekly-answer-form" }, [
+    el("div", { className: "action-row weekly-answer-actions" }, [
+      button("정답 저장", "btn"),
+      button("다른 과목으로 복사", "btn secondary", "button", () => openCopyAnswersModal(section)),
+      button("전체 재채점", "btn secondary", "button", () => regradeSection(section)),
+    ]),
+    el("div", { className: "excel-table-wrap weekly-answer-table" }, [
+      el("table", { className: "excel-table" }, [
+        el("tbody", {}, rows),
+      ]),
+    ]),
+    el("div", { className: "weekly-bulk-row" }, [
+      field("일괄 입력", bulkInput, "full"),
+      applyBulkButton,
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    answers.forEach((answer) => {
+      answer.correctAnswer = Number(form.querySelector(`[name='answer-${answer.questionNumber}']`)?.value) || 0;
+      answer.points = 5;
+    });
+    saveState({ skipRemote: true });
+    await saveExamAnswersToRemote(answers);
+    notify("정답을 저장했습니다.");
+  });
+  return panel("정답 입력", [
+    answerHeader,
+    picker,
+    form,
+    renderWeeklyExamFileUploadContent(section),
+  ].filter(Boolean));
+}
+
+function parseBulkAnswers(value) {
+  const circled = { "①": 1, "②": 2, "③": 3, "④": 4 };
+  const normalized = String(value || "").replace(/[①②③④]/g, (char) => ` ${circled[char]} `);
+  return normalized.match(/[1-4]/g)?.map(Number) || [];
+}
+
+function normalizeMultipleChoiceAnswer(value) {
+  const circled = { "①": "1", "②": "2", "③": "3", "④": "4" };
+  const normalized = String(value || "").trim().replace(/[①②③④]/g, (char) => circled[char] || "");
+  const match = normalized.match(/[1-4]/);
+  return match ? match[0] : "";
+}
+
+function getNextAnswerInput(inputNode) {
+  const inputs = [...inputNode.form.querySelectorAll(".answer-key-input")];
+  const index = inputs.indexOf(inputNode);
+  return index >= 0 ? inputs[index + 1] || null : null;
+}
+
+function focusNextAnswerInput(inputNode) {
+  const next = getNextAnswerInput(inputNode);
+  if (!next) return;
+  next.focus();
+  next.select();
+}
+
+function openCopyAnswersModal(sourceSection) {
+  const targets = (state.examSections || []).filter((section) => section.examId === sourceSection.examId && section.id !== sourceSection.id);
+  const list = el("div", { className: "weekly-check-grid" }, targets.map((section) =>
+    el("label", { className: "check-chip" }, [el("input", { type: "checkbox", value: section.id }), el("span", {}, `${getSectionWeekLabel(section)} ${section.subject}`)])
+  ));
+  const run = button("복사", "btn", "button", async () => {
+    const targetIds = [...list.querySelectorAll("input:checked")].map((node) => node.value);
+    if (!targetIds.length) return notify("복사할 과목을 선택해주세요.");
+    const hasExisting = targetIds.some((id) => getSectionAnswers(id).some((answer) => answer.correctAnswer));
+    if (hasExisting && !confirm("기존 정답이 있는 과목이 있습니다. 덮어쓸까요?")) return;
+    const sourceAnswers = getSectionAnswers(sourceSection.id);
+    targetIds.forEach((id) => {
+      const target = (state.examSections || []).find((section) => section.id === id);
+      if (!target) return;
+      state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== id);
+      state.examAnswers.push(...sourceAnswers.slice(0, target.questionCount).map((answer) => ({
+        id: createId(),
+        examSectionId: id,
+        questionNumber: answer.questionNumber,
+        correctAnswer: answer.correctAnswer,
+        points: 5,
+      })));
+    });
+    saveState({ skipRemote: true });
+    await saveExamAnswersToRemote(targetIds.flatMap(getSectionAnswers));
+    closeInfoModal();
+    render();
+    notify("정답을 복사했습니다.");
+  });
+  openInfoModal({ title: "정답 복사", className: "weekly-copy-modal", content: el("div", {}, [list, el("div", { className: "attendance-modal-actions" }, [run])]) });
+}
+
+function renderWeeklyExamFilePanel(section) {
+  return panel(`답안지 PDF 업로드: ${getSectionWeekLabel(section)} ${section.subject}`, [
+    renderWeeklyExamFileUploadContent(section),
+  ]);
+}
+
+function renderWeeklyExamFileUploadContent(section) {
+  const typeLabels = { answer_pdf: "답안지 PDF" };
+  return el("div", { className: "weekly-file-upload" }, Object.entries(typeLabels).map(([type, label]) => {
+    const file = (state.examFiles || []).find((item) => item.examSectionId === section.id && item.fileType === type);
+    const inputNode = el("input", { type: "file", accept: "application/pdf" });
+    return el("div", { className: "exam-file-row" }, [
+      el("strong", {}, label),
+      el("span", {}, file?.originalName || "업로드된 파일 없음"),
+      file?.fileUrl ? el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, "열기") : null,
+      inputNode,
+      button("업로드", "mini-btn", "button", () => uploadExamFile(section, type, inputNode.files?.[0])),
+    ]);
+  }));
+}
+
+async function deleteWeeklyExamSection(sectionId) {
+  const section = (state.examSections || []).find((item) => item.id === sectionId);
+  if (!section) return notify("삭제할 과목을 찾을 수 없습니다.");
+  const submissionCount = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id).length;
+  const message = submissionCount
+    ? `${getSectionWeekLabel(section)} ${section.subject} 과목과 제출 기록 ${submissionCount}건이 함께 삭제됩니다. 삭제할까요?`
+    : `${getSectionWeekLabel(section)} ${section.subject} 과목을 삭제할까요?`;
+  if (!confirm(message)) return;
+  const submissionIds = new Set((state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id).map((submission) => submission.id));
+  try {
+    await deleteExamSectionFromRemote(section.id);
+    state.examSections = (state.examSections || []).filter((item) => item.id !== section.id);
+    state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== section.id);
+    state.examSubmissions = (state.examSubmissions || []).filter((submission) => submission.examSectionId !== section.id);
+    state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => !submissionIds.has(answer.submissionId));
+    state.examFiles = (state.examFiles || []).filter((file) => file.examSectionId !== section.id);
+    if (weeklyExamSelectedSectionId === section.id) weeklyExamSelectedSectionId = "";
+    saveState({ skipRemote: true });
+    render();
+    notify("주간평가 과목을 삭제했습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("원격 삭제 중 오류가 발생했습니다. Supabase 스키마의 삭제 권한을 확인해주세요.");
+  }
+}
+
+function getSectionWeekLabel(section) {
+  const exam = section.exam || (state.exams || []).find((item) => item.id === section.examId);
+  return `${Number(exam?.weekNumber) || 1}주차`;
+}
+
+async function uploadExamFile(section, fileType, file) {
+  if (!file) return notify("업로드할 PDF 파일을 선택해주세요.");
+  if (file.type !== "application/pdf") return notify("PDF 파일만 업로드할 수 있습니다.");
+  if (!remoteStore) {
+    const localRow = { id: createId(), examSectionId: section.id, fileType, filePath: "", fileUrl: "", originalName: file.name, uploadedAt: new Date().toISOString() };
+    state.examFiles = [...(state.examFiles || []).filter((item) => !(item.examSectionId === section.id && item.fileType === fileType)), localRow];
+    saveState({ skipRemote: true });
+    render();
+    return notify("로컬에는 파일명만 저장했습니다. Supabase 연결 후 실제 업로드가 가능합니다.");
+  }
+  const path = `${section.examId}/${section.id}/${fileType}-${Date.now()}.pdf`;
+  const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, file, { upsert: true, contentType: "application/pdf" });
+  if (uploadError) return notify("파일 업로드에 실패했습니다.");
+  const { data } = remoteStore.storage.from("exam-files").getPublicUrl(path);
+  const row = { id: createId(), examSectionId: section.id, fileType, filePath: path, fileUrl: data?.publicUrl || "", originalName: file.name, uploadedAt: new Date().toISOString() };
+  state.examFiles = [...(state.examFiles || []).filter((item) => !(item.examSectionId === section.id && item.fileType === fileType)), row];
+  await saveExamFilesToRemote([row]);
+  saveState({ skipRemote: true });
+  render();
+  notify("파일을 업로드했습니다.");
+}
+
+function renderWeeklyExamScoresPanel(selectedExam) {
+  const exams = getWeeklyExams();
+  const exam = selectedExam || exams[0];
+  const examSelect = select("examId", exams.map((item) => item.id));
+  examSelect.querySelectorAll("option").forEach((option) => {
+    const item = exams.find((candidate) => candidate.id === option.value);
+    if (item) option.textContent = item.name;
+  });
+  if (weeklyExamGradeFilters.examId) examSelect.value = weeklyExamGradeFilters.examId;
+  else if (exam) examSelect.value = exam.id;
+  const subjectInput = input("subject", "과목명", weeklyExamGradeFilters.subject || "");
+  const filterForm = el("form", { className: "teacher-search" }, [
+    field("시험", examSelect),
+    field("과목", subjectInput),
+    el("div", { className: "field" }, [el("span", {}, " "), button("조회", "btn secondary")]),
+  ]);
+  filterForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = formData(filterForm);
+    weeklyExamGradeFilters = { examId: data.examId, track: "", subject: data.subject };
+    render();
+  });
+  const targetExamId = weeklyExamGradeFilters.examId || exam?.id || "";
+  const sections = getExamSections(targetExamId).filter((section) => {
+    if (weeklyExamGradeFilters.track && section.track !== weeklyExamGradeFilters.track) return false;
+    if (weeklyExamGradeFilters.subject && !section.subject.includes(weeklyExamGradeFilters.subject)) return false;
+    return true;
+  });
+  const rows = [];
+  sections.forEach((section) => {
+    const submitted = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted");
+    submitted.forEach((submission) => rows.push(el("tr", {}, [
+      el("td", {}, section.subject),
+      el("td", {}, `${submission.studentName} (${submission.studentId})`),
+      el("td", {}, submission.score),
+      el("td", {}, `${submission.correctCount}/${section.questionCount}`),
+      el("td", {}, formatDateCompact(submission.submittedAt)),
+      el("td", {}, "제출 완료"),
+    ])));
+    getMissingExamStudents(section).forEach((student) => rows.push(el("tr", {}, [
+      el("td", {}, section.subject),
+      el("td", {}, `${student.name} (${student.id})`),
+      el("td", {}, "-"),
+      el("td", {}, "-"),
+      el("td", {}, "-"),
+      el("td", {}, "미제출"),
+    ])));
+  });
+  const accuracy = renderQuestionAccuracy(sections);
+  return panel("주간평가 성적 관리", [
+    filterForm,
+    table(["과목", "학생", "점수", "정답 수", "제출 시간", "상태"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 6 }, el("div", { className: "empty table-empty" }, "조회할 성적이 없습니다."))])]),
+    accuracy,
+  ]);
+}
+
+function getMissingExamStudents(section) {
+  const submitted = new Set((state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted").map((submission) => submission.studentId));
+  return (state.students || []).filter((student) => normalizeCoastGuardTrack(student.track) === section.track && !submitted.has(student.id));
+}
+
+function renderQuestionAccuracy(sections) {
+  const rows = [];
+  sections.forEach((section) => {
+    const submissions = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted");
+    const answers = (state.submissionAnswers || []).filter((answer) => submissions.some((submission) => submission.id === answer.submissionId));
+    for (let i = 1; i <= section.questionCount; i += 1) {
+      const items = answers.filter((answer) => answer.questionNumber === i);
+      if (!items.length) continue;
+      const correct = items.filter((answer) => answer.isCorrect).length;
+      rows.push(el("tr", {}, [el("td", {}, section.subject), el("td", {}, `${i}번`), el("td", {}, `${correct}/${items.length}`), el("td", {}, `${Math.round((correct / items.length) * 100)}%`)]));
+    }
+  });
+  return table(["과목", "문항", "정답", "정답률"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 4 }, el("div", { className: "empty table-empty" }, "문항별 정답률 데이터가 없습니다."))])]);
+}
+
+async function regradeSection(section) {
+  const submissions = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted");
+  submissions.forEach((submission) => gradeSubmission(section, submission, getSubmissionAnswers(submission.id).map((answer) => answer.selectedAnswer)));
+  saveState({ skipRemote: true });
+  if (remoteStore) {
+    await saveExamSubmissionsToRemote(submissions);
+    await saveSubmissionAnswersToRemote(submissions.flatMap((submission) => getSubmissionAnswers(submission.id)));
+  }
+  render();
+  notify("전체 재채점을 완료했습니다.");
+}
+
+function getSubmissionAnswers(submissionId) {
+  return (state.submissionAnswers || []).filter((answer) => answer.submissionId === submissionId).sort((a, b) => a.questionNumber - b.questionNumber);
+}
+
+function gradeSubmission(section, submission, selectedAnswers) {
+  const answers = getSectionAnswers(section.id);
+  let score = 0;
+  let correctCount = 0;
+  state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
+  answers.forEach((answer) => {
+    const selectedAnswer = Number(selectedAnswers[answer.questionNumber - 1]) || null;
+    const isCorrect = Boolean(selectedAnswer && answer.correctAnswer && selectedAnswer === answer.correctAnswer);
+    const pointsAwarded = isCorrect ? Number(answer.points) || 0 : 0;
+    if (isCorrect) correctCount += 1;
+    score += pointsAwarded;
+    state.submissionAnswers.push({
+      id: createId(),
+      submissionId: submission.id,
+      questionNumber: answer.questionNumber,
+      selectedAnswer,
+      isCorrect,
+      pointsAwarded,
+    });
+  });
+  submission.score = Math.round(score * 10) / 10;
+  submission.correctCount = correctCount;
+  return submission;
+}
+
+async function saveWeeklyExamToRemote(exam) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore.from("exams").upsert({
+    id: exam.id,
+    name: formatWeeklyExamName(exam.weekNumber),
+    week_number: exam.weekNumber,
+    start_at: exam.startAt || null,
+    end_at: exam.endAt || null,
+    target_tracks: exam.targetTracks,
+    is_published: exam.isPublished,
+    score_release_mode: exam.scoreReleaseMode,
+    explanation_release_mode: exam.explanationReleaseMode,
+    created_at: exam.createdAt,
+    updated_at: exam.updatedAt || new Date().toISOString(),
+  }, { onConflict: "id" });
+  if (error) throw error;
+}
+
+async function saveExamSectionsToRemote(sections) {
+  if (!remoteStore || !sections.length) return;
+  const rows = sections.map((section) => ({
+    id: section.id,
+    exam_id: section.examId,
+    track: section.track,
+    subject: section.subject,
+    question_count: section.questionCount,
+    total_score: section.totalScore,
+    is_active: section.isActive,
+    created_at: section.createdAt || new Date().toISOString(),
+  }));
+  const { error } = await remoteStore.from("exam_sections").upsert(rows, { onConflict: "id" });
+  if (error) throw error;
+}
+
+async function deleteExamSectionFromRemote(sectionId) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore.from("exam_sections").delete().eq("id", sectionId);
+  if (error) throw error;
+}
+
+async function saveExamAnswersToRemote(answers) {
+  if (!remoteStore || !answers.length) return;
+  const rows = answers.map((answer) => ({
+    id: answer.id,
+    exam_section_id: answer.examSectionId,
+    question_number: answer.questionNumber,
+    correct_answer: answer.correctAnswer || null,
+    points: 5,
+  }));
+  const { error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: "id" });
+  if (error) throw error;
+}
+
+async function saveExamFilesToRemote(files) {
+  if (!remoteStore || !files.length) return;
+  const rows = files.map((file) => ({
+    id: file.id,
+    exam_section_id: file.examSectionId,
+    file_type: file.fileType,
+    file_path: file.filePath || null,
+    file_url: file.fileUrl || null,
+    original_name: file.originalName || null,
+    uploaded_at: file.uploadedAt || new Date().toISOString(),
+  }));
+  const { error } = await remoteStore.from("exam_files").upsert(rows, { onConflict: "exam_section_id,file_type" });
+  if (error) throw error;
+}
+
+async function saveExamSubjectSettingsToRemote(settings) {
+  if (!remoteStore || !settings.length) return;
+  const rows = settings.map((setting) => ({
+    id: setting.id,
+    track: setting.track,
+    subject: setting.subject,
+    question_count: setting.questionCount,
+    total_score: setting.totalScore,
+    is_active: setting.isActive !== false,
+    sort_order: setting.sortOrder || null,
+    created_at: setting.createdAt || new Date().toISOString(),
+    updated_at: setting.updatedAt || new Date().toISOString(),
+  }));
+  const { error } = await remoteStore.from("exam_subject_settings").upsert(rows, { onConflict: "track,subject" });
+  if (error && !isMissingRelationError(error, "exam_subject_settings")) throw error;
+}
+
+async function saveExamSubmissionsToRemote(submissions) {
+  if (!remoteStore || !submissions.length) return;
+  const rows = submissions.map((submission) => ({
+    id: submission.id,
+    exam_section_id: submission.examSectionId,
+    student_id: submission.studentId,
+    student_name: submission.studentName,
+    track: submission.track,
+    status: submission.status,
+    score: submission.score,
+    correct_count: submission.correctCount,
+    submitted_at: submission.submittedAt || null,
+    created_at: submission.createdAt || new Date().toISOString(),
+  }));
+  const { error } = await remoteStore.from("exam_submissions").upsert(rows, { onConflict: "student_id,exam_section_id" });
+  if (error) throw error;
+}
+
+async function saveSubmissionAnswersToRemote(answers) {
+  if (!remoteStore || !answers.length) return;
+  const rows = answers.map((answer) => ({
+    id: answer.id,
+    submission_id: answer.submissionId,
+    question_number: answer.questionNumber,
+    selected_answer: answer.selectedAnswer || null,
+    is_correct: answer.isCorrect,
+    points_awarded: answer.pointsAwarded || 0,
+  }));
+  const { error } = await remoteStore.from("submission_answers").upsert(rows, { onConflict: "submission_id,question_number" });
+  if (error) throw error;
 }
 
 function parseStudentRoster(value, cohort) {
