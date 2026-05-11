@@ -550,6 +550,7 @@ function penaltySortControls() {
 }
 
 function renderPenaltySummaryTable(summaries) {
+  const headers = ["번호", "이름", "반", "누적점수", "상세"];
   const rows = summaries.map(({ student, total, count }) =>
     el("tr", {}, [
       el("td", {}, formatStudentNumber(student.id)),
@@ -559,17 +560,12 @@ function renderPenaltySummaryTable(summaries) {
       el("td", {}, count ? button("내역", "mini-btn", "button", () => openPenaltyHistoryModal(student.id)) : "-"),
     ])
   );
+  labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
     el("table", { className: "excel-table penalty-summary-table" }, [
       el("thead", {}, [
-        el("tr", {}, [
-          el("th", {}, "번호"),
-          el("th", {}, "이름"),
-          el("th", {}, "반"),
-          el("th", {}, "누적점수"),
-          el("th", {}, "상세"),
-        ]),
+        el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
       el("tbody", {}, rows),
     ]),
@@ -577,6 +573,7 @@ function renderPenaltySummaryTable(summaries) {
 }
 
 function renderPenaltyHistoryTable(penalties) {
+  const headers = ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(penalty.createdAt)),
@@ -587,18 +584,12 @@ function renderPenaltyHistoryTable(penalties) {
       el("td", {}, penalty.managerName || "-"),
     ])
   );
+  labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
     el("table", { className: "excel-table penalty-history-table" }, [
       el("thead", {}, [
-        el("tr", {}, [
-          el("th", {}, "부여일"),
-          el("th", {}, "번호"),
-          el("th", {}, "이름"),
-          el("th", {}, "상/벌점"),
-          el("th", {}, "사유"),
-          el("th", {}, "담당자"),
-        ]),
+        el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
       el("tbody", {}, rows),
     ]),
@@ -973,6 +964,7 @@ function attendanceDeadlineForm(options = {}) {
 }
 
 function renderAttendanceTable(checks) {
+  const headers = ["인증 시각", "번호", "이름", "반", "상태", "사유", "상세", "사진"];
   const rows = [...checks]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map((check) =>
@@ -987,20 +979,12 @@ function renderAttendanceTable(checks) {
         el("td", {}, attendancePhotoButton(check)),
       ])
     );
+  labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
     el("table", { className: "excel-table" }, [
       el("thead", {}, [
-        el("tr", {}, [
-          el("th", {}, "인증 시각"),
-          el("th", {}, "번호"),
-          el("th", {}, "이름"),
-          el("th", {}, "반"),
-          el("th", {}, "상태"),
-          el("th", {}, "사유"),
-          el("th", {}, "상세"),
-          el("th", {}, "사진"),
-        ]),
+        el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
       el("tbody", {}, rows),
     ]),
@@ -1083,6 +1067,7 @@ function sortOutingsByCreatedAtDesc(outings) {
 }
 
 function renderTeacherOutingTable(outings, options = {}) {
+  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "처리"];
   const rows = outings.map((outing) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(outing.createdAt)),
@@ -1098,23 +1083,12 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
     ])
   );
+  labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
     el("table", { className: "excel-table" }, [
       el("thead", {}, [
-        el("tr", {}, [
-          el("th", {}, "신청일"),
-          el("th", {}, "번호"),
-          el("th", {}, "이름"),
-          el("th", {}, "사유"),
-          el("th", {}, "상세"),
-          el("th", {}, "예상"),
-          el("th", {}, "인증"),
-          el("th", {}, "복귀"),
-          el("th", {}, "상태"),
-          el("th", {}, "사진"),
-          el("th", {}, "처리"),
-        ]),
+        el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
       el("tbody", {}, rows),
     ]),

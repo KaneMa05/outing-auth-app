@@ -130,6 +130,11 @@ function render() {
     history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute}`);
   }
 
+  if (APP_MODE === "teacher") {
+    document.body.classList.toggle("teacher-authenticated", Boolean(teacherAuth.authenticated));
+    document.body.classList.toggle("teacher-guest", !teacherAuth.authenticated);
+  }
+
   document.querySelectorAll("[data-route]").forEach((button) => {
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(button.dataset.route);
     button.hidden = !allowed;
@@ -784,28 +789,23 @@ function openStudentPenaltyHistoryModal(studentId) {
 }
 
 function renderPenaltyDetailTable(penalties) {
+  const headers = ["날짜", "상/벌점", "사유", "담당자"];
+  const rows = penalties.map((penalty) =>
+    el("tr", {}, [
+      el("td", {}, formatDateOnly(penalty.createdAt)),
+      el("td", {}, formatPenaltyPoints(penalty.points)),
+      el("td", { className: "wide-cell" }, penalty.reason || "-"),
+      el("td", {}, penalty.managerName || "-"),
+    ])
+  );
+  labelTableRows(headers, rows);
+
   return el("div", { className: "excel-table-wrap penalty-detail-table-wrap" }, [
     el("table", { className: "excel-table penalty-detail-table" }, [
       el("thead", {}, [
-        el("tr", {}, [
-          el("th", {}, "날짜"),
-          el("th", {}, "상/벌점"),
-          el("th", {}, "사유"),
-          el("th", {}, "담당자"),
-        ]),
+        el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
-      el(
-        "tbody",
-        {},
-        penalties.map((penalty) =>
-          el("tr", {}, [
-            el("td", {}, formatDateOnly(penalty.createdAt)),
-            el("td", {}, formatPenaltyPoints(penalty.points)),
-            el("td", { className: "wide-cell" }, penalty.reason || "-"),
-            el("td", {}, penalty.managerName || "-"),
-          ])
-        )
-      ),
+      el("tbody", {}, rows),
     ]),
   ]);
 }

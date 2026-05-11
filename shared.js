@@ -1522,12 +1522,23 @@ function button(text, className, type = "submit", onClick, children = null) {
 }
 
 function table(headers, rows) {
+  labelTableRows(headers, rows);
   return el("div", { className: "table-wrap" }, [
-    el("table", {}, [
+    el("table", { className: "responsive-table" }, [
       el("thead", {}, [el("tr", {}, headers.map((header) => el("th", {}, header)))]),
       el("tbody", {}, rows),
     ]),
   ]);
+}
+
+function labelTableRows(headers, rows) {
+  rows.forEach((row) => {
+    if (!row?.children) return;
+    [...row.children].forEach((cell, index) => {
+      if (!cell.dataset.label && headers[index]) cell.dataset.label = headers[index];
+    });
+  });
+  return rows;
 }
 
 function statusBadge(outing) {
