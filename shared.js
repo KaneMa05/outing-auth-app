@@ -192,6 +192,7 @@ function defaultState() {
       attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
       attendanceDeadlineEnabled: false,
       attendanceHolidayOverrides: [],
+      attendanceHolidaySavedAt: "",
     },
     students: [],
     managers: [],

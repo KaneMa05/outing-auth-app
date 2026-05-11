@@ -1632,13 +1632,34 @@ th {
   gap: 14px;
 }
 
+.attendance-modal-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attendance-modal-titlebar > strong {
+  font-size: 1rem;
+}
+
+.attendance-modal-close {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .attendance-holiday-modal {
-  width: min(860px, calc(100vw - 28px));
+  width: min(940px, calc(100vw - 28px));
 }
 
 .attendance-holiday-layout {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(220px, 0.55fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(280px, 0.64fr);
   align-items: start;
   gap: 16px;
 }
@@ -1646,6 +1667,25 @@ th {
 .attendance-holiday-calendar-form {
   display: grid;
   gap: 12px;
+}
+
+.attendance-save-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(37, 157, 116, 0.22);
+  border-radius: 8px;
+  background: #ecfdf6;
+  color: #087a55;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.attendance-save-status strong {
+  font-size: 0.78rem;
 }
 
 .attendance-calendar-head {
@@ -1751,6 +1791,29 @@ th {
   max-height: min(540px, calc(100vh - 220px));
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.attendance-holiday-settings .table-wrap {
+  overflow-x: auto;
+}
+
+.attendance-holiday-settings td:first-child {
+  min-width: 150px;
+  white-space: normal;
+}
+
+.attendance-holiday-settings td:last-child {
+  min-width: 92px;
+}
+
+.attendance-holiday-settings .student-admin-actions {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.attendance-holiday-settings .mini-btn {
+  min-width: 82px;
+  white-space: nowrap;
 }
 
 .attendance-holiday-settings > strong {

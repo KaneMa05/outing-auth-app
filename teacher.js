@@ -6,6 +6,8 @@ let penaltySortMode = "id";
 let editingNoticeId = "";
 let trackOptionDraft = null;
 let attendanceHolidayCalendarMonth = "";
+let attendanceHolidayDraftOverrides = null;
+let attendanceHolidaySavedMessage = "";
 const penaltyPeriodFilter = {
   start: "",
   end: "",
@@ -937,7 +939,10 @@ function openAttendanceHolidayModal() {
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "출석 휴일 설정 닫기" }),
     el("div", { className: "info-modal-panel attendance-settings-modal attendance-holiday-modal" }, [
-      el("strong", {}, "출석 휴일 설정"),
+      el("div", { className: "attendance-modal-titlebar" }, [
+        el("strong", {}, "출석 휴일 설정"),
+        button("×", "icon-btn attendance-modal-close", "button", closeInfoModal),
+      ]),
       el("div", { className: "attendance-holiday-layout" }, [
         attendanceHolidayCalendarForm(),
         attendanceHolidayList(),
@@ -952,7 +957,14 @@ function openAttendanceHolidayModal() {
 function attendanceHolidayCalendarForm() {
   const monthKey = getAttendanceHolidayCalendarMonth();
   const saveButton = button("저장", "btn");
+  const savedAt = attendanceHolidaySavedMessage ? state.settings.attendanceHolidaySavedAt : "";
   const form = el("form", { className: "attendance-holiday-calendar-form" }, [
+    attendanceHolidaySavedMessage
+      ? el("div", { className: "attendance-save-status", role: "status" }, [
+          el("span", {}, attendanceHolidaySavedMessage),
+          savedAt ? el("strong", {}, formatTimeOnly(savedAt)) : null,
+        ])
+      : null,
     el("div", { className: "attendance-calendar-head" }, [
       button("이전", "mini-btn", "button", () => moveAttendanceHolidayMonth(-1)),
       el("strong", {}, formatAttendanceHolidayMonth(monthKey)),
@@ -972,13 +984,17 @@ function attendanceHolidayCalendarForm() {
     const checkedDates = [...form.querySelectorAll("input[name='holidayDate']:checked")]
       .map((node) => node.value)
       .filter(isValidDateKey);
-    const openDefaultHolidayDates = [...form.querySelectorAll("input[name='openDefaultHolidayDate']:checked")]
+    const checkedDefaultHolidayDates = [...form.querySelectorAll("input[name='openDefaultHolidayDate']:checked")]
       .map((node) => node.value)
       .filter(isValidDateKey);
     saveButton.disabled = true;
     saveButton.textContent = "저장 중...";
     try {
-      await saveAttendanceHolidayMonth(monthKey, checkedDates, openDefaultHolidayDates);
+      await saveAttendanceHolidayMonth(monthKey, checkedDates, checkedDefaultHolidayDates);
+      state.settings.attendanceHolidaySavedAt = new Date().toISOString();
+      saveState({ skipRemote: true });
+      attendanceHolidaySavedMessage = "저장되었습니다.";
+      attendanceHolidayDraftOverrides = null;
       render();
       closeInfoModal();
       openAttendanceHolidayModal();
@@ -1040,7 +1056,7 @@ function renderAttendanceHolidayCalendar(monthKey) {
     const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
     const disabled = dateKey < todayKey;
     const rawDefaultHoliday = getDefaultAttendanceHoliday(dateKey);
-    const isOverridden = isAttendanceHolidayOverridden(dateKey);
+    const isOverridden = isAttendanceHolidayDraftOverridden(dateKey);
     const defaultHoliday = isOverridden ? null : rawDefaultHoliday;
     const checkbox = el("input", {
       name: rawDefaultHoliday ? "openDefaultHolidayDate" : "holidayDate",
@@ -1057,7 +1073,7 @@ function renderAttendanceHolidayCalendar(monthKey) {
     if (rawDefaultHoliday && !disabled) {
       dayCell.addEventListener("click", (event) => {
         event.preventDefault();
-        toggleDefaultHolidayOverride(dateKey);
+        toggleDefaultHolidayDraftOverride(dateKey);
       });
     }
     cells.push(dayCell);
@@ -1084,9 +1100,10 @@ function formatAttendanceHolidayMonth(monthKey) {
   return `${year}년 ${Number(month)}월`;
 }
 
-async function saveAttendanceHolidayMonth(monthKey, checkedDates, openDefaultHolidayDates = []) {
+async function saveAttendanceHolidayMonth(monthKey, checkedDates, checkedDefaultHolidayDates = []) {
   const checkedSet = new Set(checkedDates);
-  const openDefaultHolidaySet = new Set(openDefaultHolidayDates);
+  const checkedDefaultHolidaySet = new Set(checkedDefaultHolidayDates);
+  const draftOverrides = getAttendanceHolidayDraftOverrides();
   const todayKey = getTodayDateKey();
   const [year, month] = monthKey.split("-").map(Number);
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -1099,13 +1116,35 @@ async function saveAttendanceHolidayMonth(monthKey, checkedDates, openDefaultHol
   for (let day = 1; day <= daysInMonth; day += 1) {
     const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
     if (dateKey < todayKey || !getDefaultAttendanceHoliday(dateKey)) continue;
-    await setAttendanceHolidayOverride(dateKey, openDefaultHolidaySet.has(dateKey));
+    const shouldOpenAttendance = draftOverrides.has(dateKey) || !checkedDefaultHolidaySet.has(dateKey);
+    await setAttendanceHolidayOverride(dateKey, shouldOpenAttendance);
   }
 
   await Promise.all([
     ...datesToAdd.map((dateKey) => setAttendanceHoliday(dateKey, "")),
     ...datesToDelete.map((dateKey) => deleteAttendanceHoliday(dateKey)),
   ]);
+}
+
+function getAttendanceHolidayDraftOverrides() {
+  if (!attendanceHolidayDraftOverrides) {
+    attendanceHolidayDraftOverrides = new Set(normalizeDateKeyList(state.settings.attendanceHolidayOverrides));
+  }
+  return attendanceHolidayDraftOverrides;
+}
+
+function isAttendanceHolidayDraftOverridden(dateKey) {
+  return getAttendanceHolidayDraftOverrides().has(dateKey);
+}
+
+function toggleDefaultHolidayDraftOverride(dateKey) {
+  if (!isTeacherAdmin()) return notify("출석 휴일 설정 권한이 없습니다.");
+  const overrides = getAttendanceHolidayDraftOverrides();
+  if (overrides.has(dateKey)) overrides.delete(dateKey);
+  else overrides.add(dateKey);
+  attendanceHolidaySavedMessage = "";
+  closeInfoModal();
+  openAttendanceHolidayModal();
 }
 
 function getVisibleAttendanceHolidays() {
@@ -1126,28 +1165,14 @@ async function openAttendanceOnDefaultHoliday(dateKey) {
   if (!isTeacherAdmin()) return notify("출석 휴일 설정 권한이 없습니다.");
   if (!confirm(`${dateKey} 자동 휴일을 출석일로 열까요?`)) return;
   try {
-    await setAttendanceHolidayOverride(dateKey, true);
-    render();
+    const overrides = getAttendanceHolidayDraftOverrides();
+    overrides.add(dateKey);
+    attendanceHolidaySavedMessage = "";
     closeInfoModal();
     openAttendanceHolidayModal();
-    notify("자동 휴일을 출석일로 변경했습니다.");
   } catch (error) {
     console.error(error);
     notify("휴일 해제를 저장하지 못했습니다.");
-  }
-}
-
-async function toggleDefaultHolidayOverride(dateKey) {
-  if (!isTeacherAdmin()) return notify("출석 휴일 설정 권한이 없습니다.");
-  try {
-    await setAttendanceHolidayOverride(dateKey, !isAttendanceHolidayOverridden(dateKey));
-    render();
-    closeInfoModal();
-    openAttendanceHolidayModal();
-    notify(isAttendanceHolidayOverridden(dateKey) ? "자동 휴일을 출석일로 변경했습니다." : "자동 휴일로 되돌렸습니다.");
-  } catch (error) {
-    console.error(error);
-    notify("휴일 설정을 저장하지 못했습니다.");
   }
 }
 
@@ -1156,6 +1181,10 @@ async function removeAttendanceHoliday(dateKey) {
   if (!confirm(`${dateKey} 출석 휴일을 삭제할까요?`)) return;
   try {
     await deleteAttendanceHoliday(dateKey);
+    state.settings.attendanceHolidaySavedAt = new Date().toISOString();
+    saveState({ skipRemote: true });
+    attendanceHolidaySavedMessage = "삭제되었습니다.";
+    attendanceHolidayDraftOverrides = null;
     render();
     closeInfoModal();
     openAttendanceHolidayModal();
