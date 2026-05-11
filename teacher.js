@@ -1188,6 +1188,11 @@ function renderStudentsAdmin() {
   return el("div", { className: "grid" }, [teacherStudentForm()]);
 }
 
+function renderTrackOptionsAdmin() {
+  if (!hasTeacherPermission("students.read")) return renderForbidden();
+  return el("div", { className: "grid" }, [trackOptionAdminPanel()]);
+}
+
 function renderManagersAdmin() {
   if (!hasTeacherPermission("managers.read")) return renderForbidden();
   return el("div", { className: "grid" }, [managerAdminPanel()]);
@@ -1400,7 +1405,6 @@ function teacherStudentForm() {
 
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
-    trackOptionAdminPanel(),
     studentCountStatGroup(),
     table(
       ["번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
@@ -1426,7 +1430,7 @@ function trackOptionAdminPanel() {
     if (label === "기타") return notify("기타는 기본 항목으로 이미 포함되어 있습니다.");
     if (getCoastGuardTrackOptions().includes(label)) return notify("이미 등록된 직렬 항목입니다.");
 
-    state.settings.trackOptions = normalizeTrackOptionList([...(state.settings.trackOptions || []), label]);
+    state.settings.trackOptions = normalizeTrackOptionList([...getCoastGuardTrackOptions().filter((option) => option !== "기타"), label]);
     saveState();
     try {
       await flushRemoteSave();
@@ -1439,16 +1443,18 @@ function trackOptionAdminPanel() {
     }
   });
 
-  const baseOptions = getBaseTrackOptions();
-  const customOptions = getCustomTrackOptions();
+  const baseOptions = new Set(getBaseTrackOptions());
+  const options = getCoastGuardTrackOptions().filter((option) => option !== "기타");
   const optionList = el("div", { className: "track-option-list" }, [
-    ...baseOptions.map((option) => el("span", { className: "track-option-chip fixed" }, option)),
-    ...customOptions.map((option) =>
-      el("span", { className: "track-option-chip" }, [
+    ...options.map((option, index) => {
+      const isBaseOption = baseOptions.has(option);
+      return el("span", { className: isBaseOption ? "track-option-chip fixed" : "track-option-chip" }, [
         el("span", {}, option),
-        button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
-      ])
-    ),
+        button("위", "mini-btn", "button", () => moveTrackOption(option, -1)),
+        button("아래", "mini-btn", "button", () => moveTrackOption(option, 1)),
+        isBaseOption ? null : button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
+      ].filter(Boolean));
+    }),
     el("span", { className: "track-option-chip fixed" }, "기타"),
   ]);
 
@@ -1459,11 +1465,32 @@ function trackOptionAdminPanel() {
   ]);
 }
 
+async function moveTrackOption(option, direction) {
+  const label = normalizeCoastGuardTrack(option);
+  const options = getCoastGuardTrackOptions().filter((item) => item !== "기타");
+  const currentIndex = options.indexOf(label);
+  const nextIndex = currentIndex + direction;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= options.length) return;
+
+  const nextOptions = [...options];
+  [nextOptions[currentIndex], nextOptions[nextIndex]] = [nextOptions[nextIndex], nextOptions[currentIndex]];
+  state.settings.trackOptions = normalizeTrackOptionList(nextOptions);
+  saveState();
+  try {
+    await flushRemoteSave();
+    render();
+    notify("직렬 항목 순서를 변경했습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("직렬 항목 순서를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
+}
+
 async function deleteTrackOption(option) {
   const label = normalizeCoastGuardTrack(option);
   if (!label) return;
   if (!confirm(`${label} 직렬 항목을 삭제할까요? 이미 이 직렬로 저장된 학생 정보는 유지됩니다.`)) return;
-  state.settings.trackOptions = normalizeTrackOptionList(state.settings.trackOptions).filter((item) => item !== label);
+  state.settings.trackOptions = getCoastGuardTrackOptions().filter((item) => item !== "기타" && item !== label);
   saveState();
 
   if (remoteStore) {

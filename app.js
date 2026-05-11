@@ -12,6 +12,7 @@
   teacher: "외출 관리",
   managers: "담당자 등록",
   students: "학생 등록",
+  "track-options": "직렬 항목 관리",
   duplicates: "중복 사진",
   trash: "삭제 내역",
   notices: "공지 관리",
@@ -96,7 +97,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "notices", "managers", "students", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -165,6 +166,7 @@ function render() {
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
+          "track-options": renderTrackOptionsAdmin,
           duplicates: renderDuplicates,
           trash: renderTrash,
         }

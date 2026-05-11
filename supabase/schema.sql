@@ -66,9 +66,13 @@ create table if not exists public.managers (
 
 create table if not exists public.track_options (
   label text primary key,
+  sort_order integer,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table public.track_options
+add column if not exists sort_order integer;
 
 create table if not exists public.attendance_checks (
   id uuid primary key default gen_random_uuid(),
@@ -372,18 +376,21 @@ grant update (
 
 grant select (
   label,
+  sort_order,
   is_active,
   created_at
 ) on public.track_options to anon;
 
 grant insert (
   label,
+  sort_order,
   is_active,
   created_at
 ) on public.track_options to anon;
 
 grant update (
   label,
+  sort_order,
   is_active,
   created_at
 ) on public.track_options to anon;

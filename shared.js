@@ -55,6 +55,7 @@ const routePermissions = {
   notices: "notices.read",
   managers: "managers.read",
   students: "students.read",
+  "track-options": "students.read",
   duplicates: "outing.audit",
   trash: "outing.delete",
 };
@@ -71,7 +72,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "penalties", "attendance", "notices", "grades", "managers", "students", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "penalties", "attendance", "notices", "grades", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -132,7 +133,9 @@ function getCustomTrackOptions() {
 }
 
 function getCoastGuardTrackOptions() {
-  return [...getBaseTrackOptions(), ...getCustomTrackOptions(), "기타"];
+  const savedOptions = normalizeTrackOptionList(state.settings.trackOptions);
+  const orderedOptions = savedOptions.length ? normalizeTrackOptionList([...savedOptions, ...getBaseTrackOptions()]) : getBaseTrackOptions();
+  return [...orderedOptions, "기타"];
 }
 
 function loadState() {
@@ -646,7 +649,7 @@ function makeLocalDevSafeState() {
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
-  const trackOptionColumns = "label,is_active,created_at";
+  const trackOptionColumns = "label,is_active,sort_order,created_at";
   const managerColumns = "id,name,role,memo,is_active,created_at";
   const outingColumns = [
     "id",
@@ -717,7 +720,9 @@ async function loadStateFromRemote() {
     APP_MODE === "teacher"
       ? remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true })
       : Promise.resolve({ data: [], error: null });
-  const trackOptionRequest = remoteStore.from("track_options").select(trackOptionColumns).eq("is_active", true).order("created_at", { ascending: true });
+  const createTrackOptionRemoteRequest = (columns) =>
+    remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
+  let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
   const remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
@@ -733,7 +738,7 @@ async function loadStateFromRemote() {
   let attendanceResult = remoteResults[4];
   const penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
-  const trackOptionResult = remoteResults[7];
+  let trackOptionResult = remoteResults[7];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -764,6 +769,9 @@ async function loadStateFromRemote() {
     outingPhotos = photoResult.data || [];
   }
   if (photoResult.error) throw photoResult.error;
+  if (isMissingColumnError(trackOptionResult.error, "sort_order")) {
+    trackOptionResult = await remoteStore.from("track_options").select("label,is_active,created_at").eq("is_active", true).order("created_at", { ascending: true });
+  }
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
@@ -906,8 +914,9 @@ async function saveStateToRemote() {
       if (error && !isMissingRelationError(error, "managers")) throw error;
     }
 
-    const trackOptionRows = normalizeTrackOptionList(state.settings.trackOptions).map((label) => ({
+    const trackOptionRows = getCoastGuardTrackOptions().filter((label) => label !== "기타").map((label, index) => ({
       label,
+      sort_order: index + 1,
       is_active: true,
       created_at: new Date().toISOString(),
     }));
@@ -916,7 +925,15 @@ async function saveStateToRemote() {
       const { error } = await remoteStore
         .from("track_options")
         .upsert(trackOptionRows, { onConflict: "label" });
-      if (error && !isMissingRelationError(error, "track_options")) throw error;
+      if (isMissingColumnError(error, "sort_order")) {
+        const fallbackRows = trackOptionRows.map(({ sort_order, ...row }) => row);
+        const { error: fallbackError } = await remoteStore
+          .from("track_options")
+          .upsert(fallbackRows, { onConflict: "label" });
+        if (fallbackError && !isMissingRelationError(fallbackError, "track_options")) throw fallbackError;
+      } else if (error && !isMissingRelationError(error, "track_options")) {
+        throw error;
+      }
     }
 
     const noticeRows = (state.notices || [])
