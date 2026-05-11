@@ -1395,6 +1395,7 @@ function teacherStudentForm() {
         el("td", {}, student.name),
         el("td", {}, student.className),
         el("td", {}, profile ? el("span", { className: "badge approved" }, "완료") : el("span", { className: "badge" }, "미등록")),
+        el("td", {}, formatDateCompact(profile?.authedAt)),
         el("td", {}, normalizeCoastGuardTrack(profile?.track) || "-"),
         el("td", {}, profile?.gender || "-"),
         el("td", { className: "student-admin-actions" }, [
@@ -1408,8 +1409,8 @@ function teacherStudentForm() {
     panel("학생 등록", [form]),
     studentCountStatGroup(),
     table(
-      ["번호", "이름", "반", "앱 등록", "직렬", "성별", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
+      ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 8 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
 }
