@@ -2418,7 +2418,7 @@ body:not([data-app-mode="teacher"]) .student-view {
   z-index: 30;
   width: min(420px, calc(100% - 28px));
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
   border: 1px solid var(--line);

@@ -76,7 +76,6 @@ const routePermissions = {
   home: null,
   outing: "outing.read",
   "weekly-exams": "grades.read",
-  grades: "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
   notices: "notices.read",
@@ -103,7 +102,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -1984,8 +1983,9 @@ function getDateInputValue(value) {
 
 function isValidDateKey(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
-  const date = new Date(`${value}T00:00:00`);
-  return !Number.isNaN(date.getTime()) && value === getDateInputValue(date.toISOString());
+  const [year, month, day] = String(value).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
 function normalizeDateKeyList(dateKeys) {
