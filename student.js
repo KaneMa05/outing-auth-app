@@ -370,12 +370,15 @@ function renderStudentReturn() {
 function renderStudentAttendance() {
   const student = getAuthedStudent();
   const todayCheck = student ? getStudentAttendanceForDate(student.id) : null;
+  const holiday = getAttendanceHoliday();
   const isReasonMode = state.settings.attendanceMode === "pre-arrival-reason" && !todayCheck;
   const isOpen = isAttendanceCheckOpen();
   return el("div", { className: "grid student-view" }, [
     panel(isReasonMode ? "등원 전 사유신청" : "오늘 출석", [
       todayCheck
         ? renderStudentAttendanceComplete(todayCheck)
+        : holiday
+          ? renderStudentAttendanceHoliday(holiday)
         : isReasonMode
           ? createPreArrivalReasonForm(student)
           : createAttendanceForm(student, { showPreArrival: true }),
@@ -383,7 +386,14 @@ function renderStudentAttendance() {
   ]);
 }
 
+function renderStudentAttendanceHoliday(holiday) {
+  return el("div", { className: "attendance-complete" }, [
+    el("div", { className: "empty success-message" }, attendanceHolidayMessage(holiday?.dateKey || getTodayDateKey())),
+  ]);
+}
+
 function createAttendanceForm(student, options = {}) {
+  if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("출석 인증하기", "btn");
   submitButton.disabled = !isOpen;
@@ -422,6 +432,7 @@ function createAttendanceForm(student, options = {}) {
     if (!student) return notify("학생 등록 후 출석 체크를 이용할 수 있습니다.");
     const existingCheck = getStudentAttendanceForDate(student.id);
     if (existingCheck) return notify("오늘 출석은 이미 인증되었습니다.");
+    if (isAttendanceHoliday()) return notify("휴일은 출석체크를 하지 않습니다.");
     if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 인증할 수 없습니다.");
     const attendancePhoto = form.elements.attendancePhoto.files[0];
     if (!attendancePhoto) return notify("출석 확인 현장 사진을 촬영해주세요.");
@@ -445,6 +456,7 @@ function createAttendanceForm(student, options = {}) {
 }
 
 function createPreArrivalReasonForm(student) {
+  if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("사유 인증하기", "btn");
   submitButton.disabled = !isOpen;
@@ -476,6 +488,7 @@ function createPreArrivalReasonForm(student) {
     event.preventDefault();
     if (!student) return notify("학생 등록 후 사유신청을 이용할 수 있습니다.");
     if (getStudentAttendanceForDate(student.id)) return notify("오늘 출석 처리가 이미 완료되었습니다.");
+    if (isAttendanceHoliday()) return notify("휴일은 출석체크를 하지 않습니다.");
     if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
     const data = formData(form);
     const reasonPhoto = form.elements.reasonPhoto.files[0];

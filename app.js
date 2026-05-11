@@ -150,7 +150,7 @@ function render() {
         topActions.appendChild(el("span", { className: "auth-chip" }, "장학생 관리자"));
       }
       if (currentRoute === "attendance" && teacherAuth.user?.role !== "student_manager" && hasTeacherPermission("attendance.write")) {
-        topActions.appendChild(button("출석 시간 설정", "btn secondary", "button", openAttendanceDeadlineModal));
+        topActions.appendChild(button("출석 설정", "btn secondary", "button", openAttendanceDeadlineModal));
       }
       if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
         topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));
@@ -412,7 +412,8 @@ function renderStudentHome() {
   const student = getAuthedStudent();
   const activeOuting = student ? getActiveOuting(student.id) : null;
   const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
-  const needsAttendance = !todayAttendance;
+  const holiday = getAttendanceHoliday();
+  const needsAttendance = !todayAttendance && !holiday;
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
@@ -423,6 +424,14 @@ function renderStudentHome() {
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
     renderStudentImportantNoticeCard(),
+    holiday && !todayAttendance
+      ? el("section", { className: "student-summary-card" }, [
+          el("div", {}, [
+            el("strong", {}, "출석 인증"),
+            el("p", {}, attendanceHolidayMessage(holiday.dateKey)),
+          ]),
+        ])
+      : null,
     needsAttendance
       ? el("section", { className: "student-summary-card" }, [
           el("div", {}, [

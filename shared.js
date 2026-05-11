@@ -167,6 +167,7 @@ function defaultState() {
     outings: [],
     deletedOutings: [],
     attendanceChecks: [],
+    attendanceHolidays: [],
     penalties: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
@@ -188,6 +189,7 @@ function mergeDefaultState(nextState) {
     outings: Array.isArray(nextState?.outings) ? nextState.outings : defaults.outings,
     deletedOutings: Array.isArray(nextState?.deletedOutings) ? nextState.deletedOutings : defaults.deletedOutings,
     attendanceChecks: Array.isArray(nextState?.attendanceChecks) ? nextState.attendanceChecks : defaults.attendanceChecks,
+    attendanceHolidays: normalizeAttendanceHolidays(nextState?.attendanceHolidays || defaults.attendanceHolidays),
     penalties: Array.isArray(nextState?.penalties) ? nextState.penalties : defaults.penalties,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
@@ -630,6 +632,7 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.outings?.length ||
     snapshot?.deletedOutings?.length ||
     snapshot?.attendanceChecks?.length ||
+    snapshot?.attendanceHolidays?.length ||
     snapshot?.penalties?.length ||
     snapshot?.notices?.length
   );
@@ -641,6 +644,7 @@ function makeLocalDevSafeState() {
   snapshot.deletedOutings = (snapshot.deletedOutings || []).map(stripPhotoDataForLocalStorage);
   snapshot.managers = snapshot.managers || [];
   snapshot.attendanceChecks = snapshot.attendanceChecks || [];
+  snapshot.attendanceHolidays = snapshot.attendanceHolidays || [];
   snapshot.penalties = snapshot.penalties || [];
   snapshot.notices = snapshot.notices || [];
   return snapshot;
@@ -696,6 +700,7 @@ async function loadStateFromRemote() {
     "created_at",
   ].join(",");
   const noticeColumns = "id,title,body,is_published,created_at,updated_at";
+  const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
   const managerRequest =
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
@@ -732,6 +737,7 @@ async function loadStateFromRemote() {
     penaltyRequest,
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
     trackOptionRequest,
+    remoteStore.from("attendance_holidays").select(attendanceHolidayColumns).order("date_key", { ascending: false }).limit(120),
   ]);
   const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }] = remoteResults;
   let photoResult = remoteResults[3];
@@ -739,6 +745,7 @@ async function loadStateFromRemote() {
   const penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
+  const attendanceHolidayResult = remoteResults[8];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -776,6 +783,7 @@ async function loadStateFromRemote() {
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
+  if (attendanceHolidayResult.error && !isMissingRelationError(attendanceHolidayResult.error, "attendance_holidays")) throw attendanceHolidayResult.error;
   if (APP_MODE === "student" && (outings || []).length) {
     const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
@@ -852,6 +860,7 @@ async function loadStateFromRemote() {
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
   if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
   state.notices = removeLegacySampleNotices(state.notices);
+  if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
     if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {
@@ -942,6 +951,8 @@ async function saveStateToRemote() {
         .upsert(noticeRows, { onConflict: "id" });
       if (error && !isMissingRelationError(error, "notices")) throw error;
     }
+
+    await saveAttendanceHolidaysToRemote();
   }
 
   const registeredStudents = state.students
@@ -1598,6 +1609,15 @@ function mapPenaltyFromRemote(penalty) {
   };
 }
 
+function mapAttendanceHolidayFromRemote(holiday) {
+  return {
+    dateKey: holiday.date_key,
+    note: holiday.note || "",
+    createdAt: holiday.created_at || "",
+    updatedAt: holiday.updated_at || "",
+  };
+}
+
 function mapManagerFromRemote(manager) {
   return {
     id: manager.id,
@@ -1752,7 +1772,92 @@ function getStudentAttendanceForDate(studentId, dateKey = getTodayDateKey()) {
   return getAttendanceChecksForDate(dateKey).find((check) => check.studentId === String(studentId || "").trim());
 }
 
+function normalizeAttendanceHolidays(holidays) {
+  const map = new Map();
+  (Array.isArray(holidays) ? holidays : []).forEach((holiday) => {
+    const dateKey = String(holiday?.dateKey || holiday?.date_key || "").trim();
+    if (!isValidDateKey(dateKey)) return;
+    map.set(dateKey, {
+      dateKey,
+      note: String(holiday?.note || "").trim(),
+      createdAt: holiday?.createdAt || holiday?.created_at || new Date().toISOString(),
+      updatedAt: holiday?.updatedAt || holiday?.updated_at || holiday?.createdAt || holiday?.created_at || new Date().toISOString(),
+    });
+  });
+  return [...map.values()].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+function isValidDateKey(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const date = new Date(`${value}T00:00:00`);
+  return !Number.isNaN(date.getTime()) && value === getDateInputValue(date.toISOString());
+}
+
+function getAttendanceHoliday(dateKey = getTodayDateKey()) {
+  return (state.attendanceHolidays || []).find((holiday) => holiday.dateKey === dateKey) || null;
+}
+
+function isAttendanceHoliday(dateKey = getTodayDateKey()) {
+  return Boolean(getAttendanceHoliday(dateKey));
+}
+
+function attendanceHolidayMessage(dateKey = getTodayDateKey()) {
+  return "오늘은 학원 휴일이라 출석체크를 하지 않습니다.";
+}
+
+async function setAttendanceHoliday(dateKey, note = "") {
+  if (!isValidDateKey(dateKey)) throw new Error("invalid_holiday_date");
+  const now = new Date().toISOString();
+  const existing = getAttendanceHoliday(dateKey);
+  const holiday = {
+    dateKey,
+    note: String(note || "").trim(),
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+  state.attendanceHolidays = normalizeAttendanceHolidays([holiday, ...(state.attendanceHolidays || [])]);
+  saveState({ skipRemote: true });
+  await saveAttendanceHolidayToRemote(holiday);
+}
+
+async function deleteAttendanceHoliday(dateKey) {
+  state.attendanceHolidays = (state.attendanceHolidays || []).filter((holiday) => holiday.dateKey !== dateKey);
+  saveState({ skipRemote: true });
+  await deleteAttendanceHolidayFromRemote(dateKey);
+}
+
+async function saveAttendanceHolidaysToRemote() {
+  if (!remoteStore) return;
+  const rows = normalizeAttendanceHolidays(state.attendanceHolidays).map((holiday) => ({
+    date_key: holiday.dateKey,
+    note: holiday.note || null,
+    created_at: holiday.createdAt || new Date().toISOString(),
+    updated_at: holiday.updatedAt || new Date().toISOString(),
+  }));
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("attendance_holidays").upsert(rows, { onConflict: "date_key" });
+  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+}
+
+async function saveAttendanceHolidayToRemote(holiday) {
+  if (!remoteStore || !holiday) return;
+  const { error } = await remoteStore.from("attendance_holidays").upsert({
+    date_key: holiday.dateKey,
+    note: holiday.note || null,
+    created_at: holiday.createdAt || new Date().toISOString(),
+    updated_at: holiday.updatedAt || new Date().toISOString(),
+  }, { onConflict: "date_key" });
+  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+}
+
+async function deleteAttendanceHolidayFromRemote(dateKey) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore.from("attendance_holidays").delete().eq("date_key", dateKey);
+  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+}
+
 function isAttendanceCheckOpen(now = new Date()) {
+  if (isAttendanceHoliday(getTodayDateKey())) return false;
   if (!state.settings.attendanceDeadlineEnabled) return true;
   const [hour, minute] = getAttendanceDeadlineParts();
   const deadline = new Date(now);

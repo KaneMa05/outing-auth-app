@@ -94,6 +94,13 @@ create table if not exists public.attendance_checks (
   unique (student_id, check_date)
 );
 
+create table if not exists public.attendance_holidays (
+  date_key date primary key,
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.penalties (
   id uuid primary key default gen_random_uuid(),
   student_id text not null references public.students(id) on delete cascade,
@@ -149,6 +156,9 @@ set public = excluded.public,
 create index if not exists attendance_checks_check_date_created_at_idx
 on public.attendance_checks (check_date, created_at desc);
 
+create index if not exists attendance_holidays_date_key_idx
+on public.attendance_holidays (date_key desc);
+
 create index if not exists penalties_student_id_created_at_idx
 on public.penalties (student_id, created_at desc);
 
@@ -201,6 +211,7 @@ alter table public.manager_allowed_ips enable row level security;
 alter table public.managers enable row level security;
 alter table public.track_options enable row level security;
 alter table public.attendance_checks enable row level security;
+alter table public.attendance_holidays enable row level security;
 alter table public.penalties enable row level security;
 alter table public.notices enable row level security;
 
@@ -227,6 +238,10 @@ drop policy if exists "anon_managers_insert" on public.managers;
 drop policy if exists "anon_managers_update" on public.managers;
 drop policy if exists "anon_attendance_select" on public.attendance_checks;
 drop policy if exists "anon_attendance_insert" on public.attendance_checks;
+drop policy if exists "anon_attendance_holidays_select" on public.attendance_holidays;
+drop policy if exists "anon_attendance_holidays_insert" on public.attendance_holidays;
+drop policy if exists "anon_attendance_holidays_update" on public.attendance_holidays;
+drop policy if exists "anon_attendance_holidays_delete" on public.attendance_holidays;
 drop policy if exists "anon_penalties_select" on public.penalties;
 drop policy if exists "anon_penalties_insert" on public.penalties;
 drop policy if exists "anon_notices_select" on public.notices;
@@ -245,6 +260,7 @@ revoke all on public.manager_allowed_ips from anon;
 revoke all on public.managers from anon;
 revoke all on public.track_options from anon;
 revoke all on public.attendance_checks from anon;
+revoke all on public.attendance_holidays from anon;
 revoke all on public.penalties from anon;
 revoke all on public.notices from anon;
 
@@ -482,6 +498,28 @@ grant insert (
   created_at
 ) on public.attendance_checks to anon;
 
+grant select (
+  date_key,
+  note,
+  created_at,
+  updated_at
+) on public.attendance_holidays to anon;
+
+grant insert (
+  date_key,
+  note,
+  created_at,
+  updated_at
+) on public.attendance_holidays to anon;
+
+grant update (
+  note,
+  created_at,
+  updated_at
+) on public.attendance_holidays to anon;
+
+grant delete on public.attendance_holidays to anon;
+
 create policy "anon_students_select_active"
 on public.students
 for select
@@ -674,6 +712,31 @@ with check (
   and check_date = ((now() at time zone 'Asia/Seoul')::date)
   and photo_path is not null
 );
+
+create policy "anon_attendance_holidays_select"
+on public.attendance_holidays
+for select
+to anon
+using (true);
+
+create policy "anon_attendance_holidays_insert"
+on public.attendance_holidays
+for insert
+to anon
+with check (date_key is not null);
+
+create policy "anon_attendance_holidays_update"
+on public.attendance_holidays
+for update
+to anon
+using (true)
+with check (date_key is not null);
+
+create policy "anon_attendance_holidays_delete"
+on public.attendance_holidays
+for delete
+to anon
+using (true);
 
 create policy "anon_penalties_select"
 on public.penalties

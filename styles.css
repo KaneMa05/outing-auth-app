@@ -1611,6 +1611,21 @@ th {
   gap: 14px;
 }
 
+.attendance-holiday-settings {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(116, 135, 158, 0.22);
+}
+
+.attendance-holiday-settings > strong {
+  font-size: 0.95rem;
+}
+
+.attendance-holiday-form {
+  margin: 0;
+}
+
 .attendance-modal-actions {
   display: flex;
   flex-wrap: wrap;
