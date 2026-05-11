@@ -1335,27 +1335,57 @@ async function updateOutingDecisionToRemote(outing) {
   if (error) throw error;
 }
 
-function deleteOuting(id) {
+async function deleteOuting(id) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
   if (!confirm(String(outing.studentName) + " 학생의 외출 신청 기록을 삭제할까요?")) return;
-  outing.deletedAt = new Date().toISOString();
+
+  const deletedAt = new Date().toISOString();
+  if (remoteStore) {
+    try {
+      await updateRemoteOutingDeletedAt(id, deletedAt);
+    } catch (error) {
+      console.error(error);
+      notify("외출 신청 기록을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+  }
+
+  outing.deletedAt = deletedAt;
   state.outings = state.outings.filter((item) => item.id !== id);
   state.deletedOutings = [outing, ...(state.deletedOutings || [])];
-  saveState();
+  saveState({ skipRemote: true });
   render();
   notify("외출 신청 기록을 삭제 내역으로 이동했습니다.");
 }
 
-function restoreOuting(id) {
+async function restoreOuting(id) {
   const outing = (state.deletedOutings || []).find((item) => item.id === id);
   if (!outing) return;
+  if (remoteStore) {
+    try {
+      await updateRemoteOutingDeletedAt(id, null);
+    } catch (error) {
+      console.error(error);
+      notify("외출 신청 기록을 복구하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+  }
+
   outing.deletedAt = "";
   state.deletedOutings = (state.deletedOutings || []).filter((item) => item.id !== id);
   state.outings = [outing, ...state.outings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  saveState();
+  saveState({ skipRemote: true });
   render();
   notify("외출 신청 기록을 복구했습니다.");
+}
+
+async function updateRemoteOutingDeletedAt(id, deletedAt) {
+  const { error } = await remoteStore
+    .from("outings")
+    .update({ deleted_at: deletedAt })
+    .eq("id", id);
+  if (error) throw error;
 }
 function stat(label, value, unit = "") {
   return el("div", { className: "stat" }, [

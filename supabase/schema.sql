@@ -219,6 +219,7 @@ drop policy if exists "anon_outings_insert_request" on public.outings;
 drop policy if exists "anon_outings_update_student_status" on public.outings;
 drop policy if exists "anon_outings_update_teacher_decision" on public.outings;
 drop policy if exists "anon_outings_soft_delete" on public.outings;
+drop policy if exists "anon_outings_restore_deleted" on public.outings;
 drop policy if exists "anon_photos_select" on public.outing_photos;
 drop policy if exists "anon_photos_insert" on public.outing_photos;
 drop policy if exists "anon_managers_select_active" on public.managers;
@@ -556,7 +557,7 @@ create policy "anon_outings_select_not_deleted"
 on public.outings
 for select
 to anon
-using (deleted_at is null);
+using (true);
 
 create policy "anon_outings_insert_request"
 on public.outings
@@ -600,6 +601,15 @@ to anon
 using (deleted_at is null)
 with check (
   deleted_at is not null
+);
+
+create policy "anon_outings_restore_deleted"
+on public.outings
+for update
+to anon
+using (deleted_at is not null)
+with check (
+  deleted_at is null
 );
 
 create policy "anon_photos_select"
