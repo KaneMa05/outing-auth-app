@@ -137,12 +137,6 @@ function renderTeacher() {
   const completedOutings = visibleOutings.filter((outing) => !isActionRequired(outing));
 
   return el("div", { className: "grid" }, [
-    holiday
-      ? el("div", { className: "attendance-holiday-banner" }, [
-          el("strong", {}, "오늘은 휴일입니다."),
-          el("span", {}, attendanceHolidayMessage(todayKey)),
-        ])
-      : null,
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
       statGroup("외출 인원", [
@@ -181,6 +175,12 @@ function renderAttendanceManagement() {
   const absentStudents = visibleStudents.filter((student) => !checkedStudentIds.has(student.id));
 
   return el("div", { className: "grid" }, [
+    holiday
+      ? el("div", { className: "attendance-holiday-banner" }, [
+          el("strong", {}, "오늘은 휴일입니다."),
+          el("span", {}, attendanceHolidayMessage(todayKey)),
+        ])
+      : null,
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
       statGroup("오늘 출석", [
