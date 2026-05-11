@@ -1651,7 +1651,7 @@ function noticeAdminPanel() {
         isPublished: Boolean(data.isPublished),
       });
       const savedNotice = editingNotice?.id ? getImportantNoticeById(editingNotice.id) : state.notices[0];
-      await saveNoticeToRemote(savedNotice);
+      await saveNoticeToRemote(savedNotice, { update: Boolean(editingNotice?.id) });
       editingNoticeId = "";
       saveState({ skipRemote: true });
       render();
@@ -1740,17 +1740,22 @@ async function deleteNotice(id) {
   notify("공지글을 삭제했습니다.");
 }
 
-async function saveNoticeToRemote(notice) {
+async function saveNoticeToRemote(notice, options = {}) {
   if (!remoteStore || !notice) return;
-  const row = {
-    id: notice.id,
+  const payload = {
     title: String(notice.title || "").trim(),
     body: String(notice.body || "").trim(),
     is_published: notice.isPublished !== false,
-    created_at: notice.createdAt || new Date().toISOString(),
     updated_at: notice.updatedAt || new Date().toISOString(),
   };
-  const { error } = await remoteStore.from("notices").upsert(row, { onConflict: "id" });
+  const result = options.update
+    ? await remoteStore.from("notices").update(payload).eq("id", notice.id)
+    : await remoteStore.from("notices").insert({
+        id: notice.id,
+        ...payload,
+        created_at: notice.createdAt || new Date().toISOString(),
+      });
+  const { error } = result;
   if (error) throw error;
 }
 
