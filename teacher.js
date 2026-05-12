@@ -2247,7 +2247,10 @@ function upsertStudents(students, className, track = "") {
 
 function renderWeeklyExamManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
-  const cohortPanel = renderWeeklyExamCohortPanel();
+  const selectedLookupExam = weeklyExamMode === "lookup" && weeklyExamSelectedId
+    ? getWeeklyExams().find((exam) => exam.id === weeklyExamSelectedId)
+    : null;
+  const cohortPanel = selectedLookupExam ? null : renderWeeklyExamCohortPanel();
   const allAnswerSections = getWeeklyExamAnswerSections();
   const answerExams = getWeeklyExams().filter((exam) => allAnswerSections.some((section) => section.examId === exam.id));
   if (weeklyExamMode === "answers" && !weeklyExamSelectedId && answerExams[0]) weeklyExamSelectedId = answerExams[0].id;
@@ -2261,7 +2264,7 @@ function renderWeeklyExamManagement() {
   if (weeklyExamAnswerScoped && selectedSection) weeklyExamSelectedId = selectedSection.examId;
 
   if (weeklyExamMode === "lookup") {
-    return el("div", { className: "grid weekly-exam-admin" }, [cohortPanel, renderWeeklyExamProblemLookupPanel()]);
+    return el("div", { className: "grid weekly-exam-admin" }, [cohortPanel, renderWeeklyExamProblemLookupPanel()].filter(Boolean));
   }
 
   if (weeklyExamMode === "create" || !allAnswerSections.length) {
@@ -2349,21 +2352,18 @@ function renderWeeklyExamCohortPanel() {
     return panel("기수 선택", [el("div", { className: "empty" }, "등록된 학생 기수가 없습니다. 학생을 먼저 등록해주세요.")]);
   }
   const selected = getSelectedWeeklyExamCohort();
-  const selectNode = select("weeklyExamCohort", cohorts.map((cohort) => cohort.value));
-  selectNode.querySelectorAll("option").forEach((option) => {
-    const cohort = cohorts.find((item) => item.value === option.value);
-    if (cohort) option.textContent = cohort.label;
-  });
-  selectNode.value = selected;
-  selectNode.addEventListener("change", () => {
-    weeklyExamSelectedCohort = selectNode.value;
-    weeklyExamSelectedId = "";
-    weeklyExamSelectedSectionId = "";
-    weeklyExamAnswerScoped = false;
-    render();
-  });
+  const buttons = cohorts.map((cohort) =>
+    button(cohort.label, cohort.value === selected ? "mini-btn active" : "mini-btn", "button", () => {
+      if (weeklyExamSelectedCohort === cohort.value) return;
+      weeklyExamSelectedCohort = cohort.value;
+      weeklyExamSelectedId = "";
+      weeklyExamSelectedSectionId = "";
+      weeklyExamAnswerScoped = false;
+      render();
+    })
+  );
   return panel("기수 선택", [
-    el("div", { className: "teacher-search weekly-cohort-filter" }, [field("기수", selectNode)]),
+    el("div", { className: "weekly-cohort-tabs" }, buttons),
   ]);
 }
 
@@ -2515,12 +2515,11 @@ function renderWeeklyExamProblemLookupPanel() {
     const exam = exams.find((item) => Number(item.weekNumber) === weekNumber);
     const sections = exam ? getExamSections(exam.id) : [];
     const publishedCount = sections.filter(isWeeklyExamSectionPublished).length;
-    const submittedCount = exam ? (state.examSubmissions || []).filter((submission) => sections.some((section) => section.id === submission.examSectionId)).length : 0;
     return el("tr", { className: exam ? "" : "weekly-unpublished-row" }, [
       el("td", {}, `${weekNumber}주차 주간평가`),
       el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
       el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
-      el("td", {}, exam ? `${submittedCount}건` : "-"),
+      el("td", {}, exam ? renderWeeklyExamRoundFileUpload(exam, sections) : "-"),
       el("td", { className: "action-cell" }, exam
         ? button("들어가기", "mini-btn", "button", () => {
             weeklyExamSelectedId = exam.id;
@@ -2532,7 +2531,7 @@ function renderWeeklyExamProblemLookupPanel() {
   });
 
   return panel("주간평가 문제 조회", [
-    table(["주간평가", "출제 과목", "응시 기간", "제출", "관리"], rows),
+    table(["주간평가", "출제 과목", "응시 기간", "답안지", "관리"], rows),
   ]);
 }
 
@@ -2559,7 +2558,6 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
   const sections = getExamSections(selectedExam.id);
   const rows = WEEKLY_EXAM_SUBJECTS.map((subject) => {
     const section = sections.find((item) => item.subject === subject);
-    const submittedCount = section ? (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id).length : 0;
     const answerCount = section ? countEnteredSectionAnswers(section) : 0;
     const isPublished = Boolean(section && isWeeklyExamSectionPublished(section));
     return el("tr", { className: isPublished ? "" : "weekly-unpublished-row" }, [
@@ -2569,7 +2567,6 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
         : el("span", { className: isPublished ? "badge approved" : "badge pending" }, isPublished ? "출제됨" : "미출제")),
       el("td", {}, section ? `${section.questionCount || 20}문항` : "-"),
       el("td", {}, section ? `${answerCount}/${section.questionCount || 20}` : "-"),
-      el("td", {}, section ? `${submittedCount}건` : "-"),
       el("td", { className: "action-cell" }, section ? [
         button("답안 입력", "mini-btn", "button", () => {
           weeklyExamSelectedSectionId = section.id;
@@ -2582,8 +2579,9 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
     ]);
   });
 
-  return panel(formatWeeklyExamName(selectedExam.weekNumber, selectedExam.cohort), [
-    el("div", { className: "action-row weekly-detail-actions" }, [
+  return el("section", { className: "panel weekly-exam-detail-panel" }, [
+    el("div", { className: "panel-title-row weekly-detail-title-row" }, [
+      el("h2", {}, formatWeeklyExamName(selectedExam.weekNumber, selectedExam.cohort)),
       button("주간평가 목록", "btn secondary", "button", () => {
         weeklyExamSelectedId = "";
         weeklyExamSelectedSectionId = "";
@@ -2591,8 +2589,76 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
       }),
     ]),
     periodForm,
-    table(["과목", "출제 여부", "문항", "정답 입력", "제출", "관리"], rows),
+    table(["과목", "출제 여부", "문항", "정답 입력", "관리"], rows),
   ]);
+}
+
+function renderWeeklyExamRoundFileUpload(exam, sections) {
+  const activeSections = sections.filter((section) => section.isActive !== false);
+  const sectionIds = new Set(activeSections.map((section) => section.id));
+  const file = (state.examFiles || []).find((item) => sectionIds.has(item.examSectionId) && item.fileType === "answer_pdf");
+  const inputNode = el("input", { type: "file", accept: "application/pdf", className: "visually-hidden-file" });
+  const uploadButton = button(file ? "교체" : "업로드", "mini-btn", "button", () => inputNode.click());
+  inputNode.addEventListener("change", () => uploadWeeklyExamRoundAnswerFile(exam, activeSections, inputNode.files?.[0]));
+  return el("div", { className: "weekly-inline-file-upload" }, [
+    el("span", { title: file?.originalName || "" }, file?.originalName || "미업로드"),
+    el("div", { className: "weekly-inline-file-actions" }, [
+      file?.fileUrl ? el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, "열기") : null,
+      uploadButton,
+      inputNode,
+    ]),
+  ]);
+}
+
+async function uploadWeeklyExamRoundAnswerFile(exam, sections, file) {
+  if (!sections.length) return notify("답안지를 연결할 출제 과목이 없습니다.");
+  if (!file) return notify("업로드할 PDF 파일을 선택해주세요.");
+  if (file.type !== "application/pdf") return notify("PDF 파일만 업로드할 수 있습니다.");
+
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const uploadedAt = new Date().toISOString();
+
+  if (!remoteStore) {
+    const localRows = sections.map((section) => ({
+      id: createId(),
+      examSectionId: section.id,
+      fileType: "answer_pdf",
+      filePath: "",
+      fileUrl: "",
+      originalName: file.name,
+      uploadedAt,
+    }));
+    state.examFiles = [
+      ...(state.examFiles || []).filter((item) => !(sectionIds.has(item.examSectionId) && item.fileType === "answer_pdf")),
+      ...localRows,
+    ];
+    saveState({ skipRemote: true });
+    render();
+    return notify("로컬에는 파일명만 저장했습니다. Supabase 연결 후 실제 업로드가 가능합니다.");
+  }
+
+  const path = `${exam.id}/round-answer-${Date.now()}.pdf`;
+  const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, file, { upsert: true, contentType: "application/pdf" });
+  if (uploadError) return notify("파일 업로드에 실패했습니다.");
+
+  const { data } = remoteStore.storage.from("exam-files").getPublicUrl(path);
+  const rows = sections.map((section) => ({
+    id: createId(),
+    examSectionId: section.id,
+    fileType: "answer_pdf",
+    filePath: path,
+    fileUrl: data?.publicUrl || "",
+    originalName: file.name,
+    uploadedAt,
+  }));
+  state.examFiles = [
+    ...(state.examFiles || []).filter((item) => !(sectionIds.has(item.examSectionId) && item.fileType === "answer_pdf")),
+    ...rows,
+  ];
+  await saveExamFilesToRemote(rows);
+  saveState({ skipRemote: true });
+  render();
+  notify("회차 답안지를 업로드했습니다.");
 }
 
 function formatDateTimeLocalInput(value) {
@@ -3057,7 +3123,6 @@ function renderWeeklyExamAnswerPanel(section, sections = []) {
     answerHeader,
     picker,
     form,
-    renderWeeklyExamFileUploadContent(section),
   ].filter(Boolean));
 }
 
@@ -3119,27 +3184,6 @@ function openCopyAnswersModal(sourceSection) {
   openInfoModal({ title: "정답 복사", className: "weekly-copy-modal", content: el("div", {}, [list, el("div", { className: "attendance-modal-actions" }, [run])]) });
 }
 
-function renderWeeklyExamFilePanel(section) {
-  return panel(`답안지 PDF 업로드: ${getSectionWeekLabel(section)} ${section.subject}`, [
-    renderWeeklyExamFileUploadContent(section),
-  ]);
-}
-
-function renderWeeklyExamFileUploadContent(section) {
-  const typeLabels = { answer_pdf: "답안지 PDF" };
-  return el("div", { className: "weekly-file-upload" }, Object.entries(typeLabels).map(([type, label]) => {
-    const file = (state.examFiles || []).find((item) => item.examSectionId === section.id && item.fileType === type);
-    const inputNode = el("input", { type: "file", accept: "application/pdf" });
-    return el("div", { className: "exam-file-row" }, [
-      el("strong", {}, label),
-      el("span", {}, file?.originalName || "업로드된 파일 없음"),
-      file?.fileUrl ? el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, "열기") : null,
-      inputNode,
-      button("업로드", "mini-btn", "button", () => uploadExamFile(section, type, inputNode.files?.[0])),
-    ]);
-  }));
-}
-
 async function deleteWeeklyExamSection(sectionId) {
   const section = (state.examSections || []).find((item) => item.id === sectionId);
   if (!section) return notify("삭제할 과목을 찾을 수 없습니다.");
@@ -3169,28 +3213,6 @@ async function deleteWeeklyExamSection(sectionId) {
 function getSectionWeekLabel(section) {
   const exam = section.exam || (state.exams || []).find((item) => item.id === section.examId);
   return `${Number(exam?.weekNumber) || 1}주차`;
-}
-
-async function uploadExamFile(section, fileType, file) {
-  if (!file) return notify("업로드할 PDF 파일을 선택해주세요.");
-  if (file.type !== "application/pdf") return notify("PDF 파일만 업로드할 수 있습니다.");
-  if (!remoteStore) {
-    const localRow = { id: createId(), examSectionId: section.id, fileType, filePath: "", fileUrl: "", originalName: file.name, uploadedAt: new Date().toISOString() };
-    state.examFiles = [...(state.examFiles || []).filter((item) => !(item.examSectionId === section.id && item.fileType === fileType)), localRow];
-    saveState({ skipRemote: true });
-    render();
-    return notify("로컬에는 파일명만 저장했습니다. Supabase 연결 후 실제 업로드가 가능합니다.");
-  }
-  const path = `${section.examId}/${section.id}/${fileType}-${Date.now()}.pdf`;
-  const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, file, { upsert: true, contentType: "application/pdf" });
-  if (uploadError) return notify("파일 업로드에 실패했습니다.");
-  const { data } = remoteStore.storage.from("exam-files").getPublicUrl(path);
-  const row = { id: createId(), examSectionId: section.id, fileType, filePath: path, fileUrl: data?.publicUrl || "", originalName: file.name, uploadedAt: new Date().toISOString() };
-  state.examFiles = [...(state.examFiles || []).filter((item) => !(item.examSectionId === section.id && item.fileType === fileType)), row];
-  await saveExamFilesToRemote([row]);
-  saveState({ skipRemote: true });
-  render();
-  notify("파일을 업로드했습니다.");
 }
 
 function renderWeeklyExamScoresPanel(selectedExam) {

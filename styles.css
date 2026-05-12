@@ -1175,6 +1175,16 @@ th {
   margin: 0;
 }
 
+.weekly-cohort-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.weekly-cohort-tabs .mini-btn {
+  min-width: 76px;
+}
+
 .weekly-answer-actions {
   margin: 0;
 }
@@ -1182,6 +1192,74 @@ th {
 .weekly-detail-actions,
 .weekly-exam-period-form {
   margin: 0;
+}
+
+.weekly-exam-period-form {
+  grid-template-columns: repeat(3, max-content);
+  align-items: end;
+  gap: 8px;
+}
+
+.weekly-exam-period-form .field {
+  gap: 4px;
+  min-width: 0;
+}
+
+.weekly-exam-period-form .field span {
+  font-size: 0.78rem;
+}
+
+.weekly-exam-period-form input {
+  width: 190px;
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 0.86rem;
+}
+
+.weekly-exam-period-form .btn {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 11px;
+  font-size: 0.84rem;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-title-row h2 {
+  margin: 0;
+}
+
+.weekly-detail-title-row .btn {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.weekly-inline-file-upload {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.weekly-inline-file-upload > span {
+  max-width: 180px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weekly-inline-file-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .weekly-answer-header {
