@@ -156,12 +156,7 @@ function render() {
       if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
         topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));
       }
-      if (currentRoute === "weekly-exams" && hasTeacherPermission("grades.read")) {
-        topActions.appendChild(button("문제 조회", "btn secondary", "button", openWeeklyExamLookupView));
-        topActions.appendChild(button("답안 입력", "btn secondary", "button", openWeeklyExamAnswerView));
-        topActions.appendChild(button("새 주간평가 생성", "btn secondary", "button", openWeeklyExamCreateView));
-      }
-      topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
+      if (currentRoute !== "weekly-exams") topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
     topActions.hidden = !topActions.children.length;
   }

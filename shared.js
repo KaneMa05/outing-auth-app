@@ -733,6 +733,12 @@ async function loadStateFromRemote() {
     "photo_url",
     "thumbnail_path",
     "thumbnail_url",
+    "arrival_photo_path",
+    "arrival_photo_url",
+    "arrival_thumbnail_path",
+    "arrival_thumbnail_url",
+    "arrival_original_name",
+    "arrived_at",
     "original_name",
     "created_at",
   ].join(",");
@@ -748,7 +754,7 @@ async function loadStateFromRemote() {
   ].join(",");
   const noticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
-  const examColumns = "id,name,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
+  const examColumns = "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
   const examSectionColumns = "id,exam_id,track,subject,question_count,total_score,is_active,created_at";
   const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,points";
   const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
@@ -811,7 +817,7 @@ async function loadStateFromRemote() {
   const noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
   const attendanceHolidayResult = remoteResults[8];
-  const examResult = remoteResults[9];
+  let examResult = remoteResults[9];
   const examSectionResult = remoteResults[10];
   const examAnswerResult = remoteResults[11];
   let examSubmissionResult = remoteResults[12];
@@ -823,11 +829,24 @@ async function loadStateFromRemote() {
     isMissingColumnError(attendanceResult.error, "reason") ||
     isMissingColumnError(attendanceResult.error, "detail") ||
     isMissingColumnError(attendanceResult.error, "thumbnail_path") ||
-    isMissingColumnError(attendanceResult.error, "thumbnail_url")
+    isMissingColumnError(attendanceResult.error, "thumbnail_url") ||
+    isMissingColumnError(attendanceResult.error, "arrival_photo_path") ||
+    isMissingColumnError(attendanceResult.error, "arrived_at")
   ) {
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
-      .filter((column) => !["reason", "detail", "thumbnail_path", "thumbnail_url"].includes(column))
+      .filter((column) => ![
+        "reason",
+        "detail",
+        "thumbnail_path",
+        "thumbnail_url",
+        "arrival_photo_path",
+        "arrival_photo_url",
+        "arrival_thumbnail_path",
+        "arrival_thumbnail_url",
+        "arrival_original_name",
+        "arrived_at",
+      ].includes(column))
       .join(",");
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
@@ -856,6 +875,9 @@ async function loadStateFromRemote() {
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
   if (attendanceHolidayResult.error && !isMissingRelationError(attendanceHolidayResult.error, "attendance_holidays")) throw attendanceHolidayResult.error;
+  if (isMissingColumnError(examResult.error, "cohort")) {
+    examResult = await remoteStore.from("exams").select("id,name,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at").order("week_number", { ascending: false }).order("created_at", { ascending: false });
+  }
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
@@ -1195,6 +1217,12 @@ async function saveStateToRemote() {
         photo_url: check.photoUrl || null,
         thumbnail_path: check.thumbnailPath || null,
         thumbnail_url: check.thumbnailUrl || null,
+        arrival_photo_path: check.arrivalPhotoPath || null,
+        arrival_photo_url: check.arrivalPhotoUrl || null,
+        arrival_thumbnail_path: check.arrivalThumbnailPath || null,
+        arrival_thumbnail_url: check.arrivalThumbnailUrl || null,
+        arrival_original_name: check.arrivalOriginalName || null,
+        arrived_at: check.arrivedAt || null,
         photo_data_url: null,
         original_name: check.originalName || null,
         created_at: check.createdAt,
@@ -1223,6 +1251,17 @@ async function saveStateToRemote() {
         if (fallbackError && !isMissingRelationError(fallbackError, "attendance_checks")) throw fallbackError;
         return;
       }
+      if (
+        isMissingColumnError(error, "arrival_photo_path") ||
+        isMissingColumnError(error, "arrived_at")
+      ) {
+        const fallbackRows = attendanceRows.map(stripAttendanceArrivalColumnsFromRow);
+        const { error: fallbackError } = await remoteStore
+          .from("attendance_checks")
+          .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+        if (fallbackError && !isMissingRelationError(fallbackError, "attendance_checks")) throw fallbackError;
+        return;
+      }
       if (error && !isMissingRelationError(error, "attendance_checks")) throw error;
     }
   }
@@ -1236,6 +1275,19 @@ function stripAttendanceReasonColumnsFromRow(row) {
 
 function stripAttendanceThumbnailColumnsFromRow(row) {
   const { thumbnail_path, thumbnail_url, ...rest } = row;
+  return rest;
+}
+
+function stripAttendanceArrivalColumnsFromRow(row) {
+  const {
+    arrival_photo_path,
+    arrival_photo_url,
+    arrival_thumbnail_path,
+    arrival_thumbnail_url,
+    arrival_original_name,
+    arrived_at,
+    ...rest
+  } = row;
   return rest;
 }
 
@@ -1679,6 +1731,12 @@ function mapAttendanceCheckFromRemote(check) {
     photoUrl: check.photo_url || "",
     thumbnailPath: check.thumbnail_path || "",
     thumbnailUrl: check.thumbnail_url || "",
+    arrivalPhotoPath: check.arrival_photo_path || "",
+    arrivalPhotoUrl: check.arrival_photo_url || "",
+    arrivalThumbnailPath: check.arrival_thumbnail_path || "",
+    arrivalThumbnailUrl: check.arrival_thumbnail_url || "",
+    arrivalOriginalName: check.arrival_original_name || "",
+    arrivedAt: check.arrived_at || "",
     photoDataUrl: check.photo_data_url || "",
     originalName: check.original_name || "",
     createdAt: check.created_at,
@@ -1711,6 +1769,7 @@ function mapExamFromRemote(exam) {
   return {
     id: exam.id,
     name: exam.name || "",
+    cohort: String(exam.cohort || ""),
     weekNumber: Number(exam.week_number) || 1,
     startAt: exam.start_at || "",
     endAt: exam.end_at || "",
@@ -2141,6 +2200,14 @@ function getAttendanceThumbnailSrc(check) {
   return check?.thumbnailUrl || getAttendancePhotoSrc(check);
 }
 
+function getAttendanceArrivalPhotoSrc(check) {
+  return check?.arrivalPhotoUrl || "";
+}
+
+function getAttendanceArrivalThumbnailSrc(check) {
+  return check?.arrivalThumbnailUrl || getAttendanceArrivalPhotoSrc(check);
+}
+
 function getOutingPhotoSrc(photo) {
   return photo?.photoUrl || photo?.dataUrl || "";
 }
@@ -2267,41 +2334,7 @@ async function createAttendanceCheck(student, file, options = {}) {
       return existingCheck;
     }
   }
-  const compressedDataUrl = await compressImage(file, 900, 0.64, 180000);
-  const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
-  let photoPath = "";
-  let photoUrl = "";
-  let thumbnailPath = "";
-  let thumbnailUrl = "";
-  let photoDataUrl = compressedDataUrl;
-
-  if (remoteStore) {
-    const blob = dataUrlToBlob(compressedDataUrl);
-    const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
-    photoPath = createAttendancePhotoPath(student.id, id);
-    const { error: uploadError } = await remoteStore.storage
-      .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(photoPath, blob, {
-        cacheControl: "31536000",
-        contentType: blob.type || "image/jpeg",
-        upsert: false,
-      });
-    if (uploadError) throw uploadError;
-    thumbnailPath = createAttendancePhotoPath(student.id, id, "thumb");
-    const { error: thumbnailUploadError } = await remoteStore.storage
-      .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(thumbnailPath, thumbnailBlob, {
-        cacheControl: "31536000",
-        contentType: thumbnailBlob.type || "image/jpeg",
-        upsert: false,
-      });
-    if (thumbnailUploadError) throw thumbnailUploadError;
-    const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(photoPath);
-    const { data: thumbnailData } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(thumbnailPath);
-    photoUrl = data?.publicUrl || "";
-    thumbnailUrl = thumbnailData?.publicUrl || "";
-    photoDataUrl = "";
-  }
+  const photo = await uploadAttendancePhotoAssets(student.id, id, file);
 
   const check = {
     id,
@@ -2312,11 +2345,11 @@ async function createAttendanceCheck(student, file, options = {}) {
     status,
     reason: String(options.reason || "").trim(),
     detail: String(options.detail || "").trim(),
-    photoPath,
-    photoUrl,
-    thumbnailPath,
-    thumbnailUrl,
-    photoDataUrl,
+    photoPath: photo.photoPath,
+    photoUrl: photo.photoUrl,
+    thumbnailPath: photo.thumbnailPath,
+    thumbnailUrl: photo.thumbnailUrl,
+    photoDataUrl: photo.photoDataUrl,
     originalName: file.name || "",
     createdAt,
   };
@@ -2396,6 +2429,12 @@ async function fetchRemoteAttendanceCheck(studentId, checkDate) {
     "photo_url",
     "thumbnail_path",
     "thumbnail_url",
+    "arrival_photo_path",
+    "arrival_photo_url",
+    "arrival_thumbnail_path",
+    "arrival_thumbnail_url",
+    "arrival_original_name",
+    "arrived_at",
     "photo_data_url",
     "original_name",
     "created_at",
@@ -2411,11 +2450,24 @@ async function fetchRemoteAttendanceCheck(studentId, checkDate) {
     isMissingColumnError(result.error, "reason") ||
     isMissingColumnError(result.error, "detail") ||
     isMissingColumnError(result.error, "thumbnail_path") ||
-    isMissingColumnError(result.error, "thumbnail_url")
+    isMissingColumnError(result.error, "thumbnail_url") ||
+    isMissingColumnError(result.error, "arrival_photo_path") ||
+    isMissingColumnError(result.error, "arrived_at")
   ) {
     const fallbackColumns = columns
       .split(",")
-      .filter((column) => !["reason", "detail", "thumbnail_path", "thumbnail_url"].includes(column))
+      .filter((column) => ![
+        "reason",
+        "detail",
+        "thumbnail_path",
+        "thumbnail_url",
+        "arrival_photo_path",
+        "arrival_photo_url",
+        "arrival_thumbnail_path",
+        "arrival_thumbnail_url",
+        "arrival_original_name",
+        "arrived_at",
+      ].includes(column))
       .join(",");
     result = await remoteStore
       .from("attendance_checks")
@@ -2448,6 +2500,99 @@ function createPreArrivalReasonCheck(student, file, reason, detail) {
     reason,
     detail,
   });
+}
+
+async function completePreArrivalAttendanceCheck(student, check, file) {
+  if (!student) throw new Error("student_required");
+  if (!check || check.status !== "pre_arrival_reason") throw new Error("pre_arrival_check_required");
+  if (!file) throw new Error("photo_required");
+  const arrivedAt = new Date().toISOString();
+  const photo = await uploadAttendancePhotoAssets(student.id, `${check.id}-arrival`, file);
+  const nextCheck = {
+    ...check,
+    status: "pre_arrival_verified",
+    arrivalPhotoPath: photo.photoPath,
+    arrivalPhotoUrl: photo.photoUrl,
+    arrivalThumbnailPath: photo.thumbnailPath,
+    arrivalThumbnailUrl: photo.thumbnailUrl,
+    arrivalOriginalName: file.name || "",
+    arrivedAt,
+  };
+
+  if (remoteStore) {
+    const attendanceRow = {
+      status: nextCheck.status,
+      arrival_photo_path: nextCheck.arrivalPhotoPath || null,
+      arrival_photo_url: nextCheck.arrivalPhotoUrl || null,
+      arrival_thumbnail_path: nextCheck.arrivalThumbnailPath || null,
+      arrival_thumbnail_url: nextCheck.arrivalThumbnailUrl || null,
+      arrival_original_name: nextCheck.arrivalOriginalName || null,
+      arrived_at: nextCheck.arrivedAt || null,
+    };
+    const { error } = await remoteStore
+      .from("attendance_checks")
+      .update(attendanceRow)
+      .eq("id", nextCheck.id)
+      .eq("student_id", String(student.id || "").trim())
+      .eq("check_date", nextCheck.checkDate);
+    if (
+      isMissingColumnError(error, "arrival_photo_path") ||
+      isMissingColumnError(error, "arrived_at")
+    ) {
+      const { error: fallbackError } = await remoteStore
+        .from("attendance_checks")
+        .update({ status: "present" })
+        .eq("id", nextCheck.id)
+        .eq("student_id", String(student.id || "").trim())
+        .eq("check_date", nextCheck.checkDate);
+      if (fallbackError) throw fallbackError;
+      nextCheck.status = "present";
+    } else if (error) throw error;
+  }
+
+  upsertLocalAttendanceCheck(nextCheck);
+  saveState();
+  return nextCheck;
+}
+
+async function uploadAttendancePhotoAssets(studentId, checkId, file) {
+  const compressedDataUrl = await compressImage(file, 900, 0.64, 180000);
+  const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
+  let photoPath = "";
+  let photoUrl = "";
+  let thumbnailPath = "";
+  let thumbnailUrl = "";
+  let photoDataUrl = compressedDataUrl;
+
+  if (remoteStore) {
+    const blob = dataUrlToBlob(compressedDataUrl);
+    const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
+    photoPath = createAttendancePhotoPath(studentId, checkId);
+    const { error: uploadError } = await remoteStore.storage
+      .from(ATTENDANCE_PHOTO_BUCKET)
+      .upload(photoPath, blob, {
+        cacheControl: "31536000",
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
+    if (uploadError) throw uploadError;
+    thumbnailPath = createAttendancePhotoPath(studentId, checkId, "thumb");
+    const { error: thumbnailUploadError } = await remoteStore.storage
+      .from(ATTENDANCE_PHOTO_BUCKET)
+      .upload(thumbnailPath, thumbnailBlob, {
+        cacheControl: "31536000",
+        contentType: thumbnailBlob.type || "image/jpeg",
+        upsert: false,
+      });
+    if (thumbnailUploadError) throw thumbnailUploadError;
+    const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(photoPath);
+    const { data: thumbnailData } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(thumbnailPath);
+    photoUrl = data?.publicUrl || "";
+    thumbnailUrl = thumbnailData?.publicUrl || "";
+    photoDataUrl = "";
+  }
+
+  return { photoPath, photoUrl, thumbnailPath, thumbnailUrl, photoDataUrl };
 }
 
 function createAttendancePhotoPath(studentId, checkId, variant = "original") {

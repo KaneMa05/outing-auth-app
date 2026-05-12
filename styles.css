@@ -1170,11 +1170,17 @@ th {
 }
 
 .weekly-lookup-filter,
+.weekly-cohort-filter,
 .weekly-answer-week-filter {
   margin: 0;
 }
 
 .weekly-answer-actions {
+  margin: 0;
+}
+
+.weekly-detail-actions,
+.weekly-exam-period-form {
   margin: 0;
 }
 

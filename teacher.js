@@ -10,6 +10,7 @@ let weeklyExamMode = "lookup";
 let weeklyExamSelectedId = "";
 let weeklyExamSelectedSectionId = "";
 let weeklyExamAnswerScoped = false;
+let weeklyExamSelectedCohort = "";
 let weeklyExamGradeFilters = { examId: "", track: "", subject: "" };
 let attendanceHolidayCalendarMonth = "";
 let attendanceHolidayDraftOverrides = null;
@@ -177,7 +178,7 @@ function renderAttendanceManagement() {
   const selected = selectedStudentCohortCount();
   const visibleStudents = getStudentsInCohort(selected.value);
   const todayChecks = getAttendanceChecksForDate(todayKey).filter((check) => isAttendanceCheckInCohort(check, selected.value));
-  const presentChecks = todayChecks.filter((check) => check.status === "present");
+  const presentChecks = todayChecks.filter((check) => check.status === "present" || check.status === "pre_arrival_verified");
   const reasonChecks = todayChecks.filter((check) => check.status === "pre_arrival_reason");
   const checkedStudentIds = new Set(todayChecks.map((check) => check.studentId));
   const absentStudents = visibleStudents.filter((student) => !checkedStudentIds.has(student.id));
@@ -192,8 +193,8 @@ function renderAttendanceManagement() {
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
       statGroup("오늘 출석", [
-        stat("출석 인증", presentChecks.length, "명"),
-        stat("사유신청", reasonChecks.length, "명"),
+        stat("출석 완료", presentChecks.length, "명"),
+        stat("사유신청 후 미등원", reasonChecks.length, "명"),
         stat("미인증", absentStudents.length, "명"),
       ]),
     ]),
@@ -277,7 +278,7 @@ function openTeacherReasonAttendanceModal(student) {
     field("상세", detailInput, "full"),
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-modal-actions" }, [
-        button("출석 처리", "btn"),
+        button("사유신청 처리", "btn"),
         button("취소", "btn secondary", "button", closeInfoModal),
       ]),
     ]),
@@ -296,7 +297,7 @@ function openTeacherReasonAttendanceModal(student) {
     createTeacherReasonAttendanceCheck(student, reason, data.detail);
     closeInfoModal();
     render();
-    notify("사유 인증으로 출석 처리했습니다.");
+    notify("등원 전 사유신청으로 처리했습니다. 실제 등원 시 학생 인증이 필요합니다.");
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -1252,7 +1253,7 @@ function attendanceDeadlineForm(options = {}) {
 }
 
 function renderAttendanceTable(checks) {
-  const headers = ["인증 시각", "번호", "이름", "반", "상태", "사유", "상세", "사진"];
+  const headers = ["사유/출석 시각", "번호", "이름", "반", "상태", "사유", "상세", "사진"];
   const rows = [...checks]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map((check) =>
@@ -1281,21 +1282,37 @@ function renderAttendanceTable(checks) {
 
 function attendanceStatusBadge(check) {
   if (check.status === "pre_arrival_reason") return el("span", { className: "badge pending" }, "사유신청");
+  if (check.status === "pre_arrival_verified") return el("span", { className: "badge approved" }, "사유 후 등원");
   return el("span", { className: "badge approved" }, "출석");
 }
 
 function attendancePhotoButton(check) {
   const src = getAttendancePhotoSrc(check);
   const thumbnailSrc = getAttendanceThumbnailSrc(check);
-  if (!src) return "-";
-  return button("", "attendance-photo-thumb", "button", () => openPhotoModal({
-    type: check.status === "pre_arrival_reason" ? "등원 전 사유 인증" : "출석 인증",
-    photoUrl: src,
-    uploadedAt: check.createdAt,
-  }), [
-    el("img", { src: thumbnailSrc, alt: "출석 인증 사진", loading: "lazy" }),
-    el("span", {}, "크게 보기"),
-  ]);
+  const arrivalSrc = getAttendanceArrivalPhotoSrc(check);
+  const arrivalThumbnailSrc = getAttendanceArrivalThumbnailSrc(check);
+  const buttons = [];
+  if (src) {
+    buttons.push(button("", "attendance-photo-thumb", "button", () => openPhotoModal({
+      type: check.status === "present" ? "출석 인증" : "등원 전 사유 인증",
+      photoUrl: src,
+      uploadedAt: check.createdAt,
+    }), [
+      el("img", { src: thumbnailSrc, alt: "출석 인증 사진", loading: "lazy" }),
+      el("span", {}, check.status === "present" ? "출석" : "사유"),
+    ]));
+  }
+  if (arrivalSrc) {
+    buttons.push(button("", "attendance-photo-thumb", "button", () => openPhotoModal({
+      type: "등원 인증",
+      photoUrl: arrivalSrc,
+      uploadedAt: check.arrivedAt,
+    }), [
+      el("img", { src: arrivalThumbnailSrc, alt: "등원 인증 사진", loading: "lazy" }),
+      el("span", {}, "등원"),
+    ]));
+  }
+  return buttons.length ? el("div", { className: "attendance-photo-grid" }, buttons) : "-";
 }
 
 function isActionRequired(outing) {
@@ -2230,26 +2247,29 @@ function upsertStudents(students, className, track = "") {
 
 function renderWeeklyExamManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
+  const cohortPanel = renderWeeklyExamCohortPanel();
   const allAnswerSections = getWeeklyExamAnswerSections();
   const answerExams = getWeeklyExams().filter((exam) => allAnswerSections.some((section) => section.examId === exam.id));
-  if (!weeklyExamSelectedId && answerExams[0]) weeklyExamSelectedId = answerExams[0].id;
+  if (weeklyExamMode === "answers" && !weeklyExamSelectedId && answerExams[0]) weeklyExamSelectedId = answerExams[0].id;
   const answerSections = weeklyExamMode === "answers" && !weeklyExamAnswerScoped && weeklyExamSelectedId
     ? allAnswerSections.filter((section) => section.examId === weeklyExamSelectedId)
     : allAnswerSections;
-  if (!weeklyExamSelectedSectionId && answerSections[0]) weeklyExamSelectedSectionId = answerSections[0].id;
-  const selectedSection = answerSections.find((section) => section.id === weeklyExamSelectedSectionId) || answerSections[0] || null;
-  if (selectedSection && weeklyExamSelectedSectionId !== selectedSection.id) weeklyExamSelectedSectionId = selectedSection.id;
+  const shouldResolveAnswerSection = weeklyExamMode !== "lookup";
+  if (shouldResolveAnswerSection && !weeklyExamSelectedSectionId && answerSections[0]) weeklyExamSelectedSectionId = answerSections[0].id;
+  const selectedSection = shouldResolveAnswerSection ? answerSections.find((section) => section.id === weeklyExamSelectedSectionId) || answerSections[0] || null : null;
+  if (shouldResolveAnswerSection && selectedSection && weeklyExamSelectedSectionId !== selectedSection.id) weeklyExamSelectedSectionId = selectedSection.id;
   if (weeklyExamAnswerScoped && selectedSection) weeklyExamSelectedId = selectedSection.examId;
 
   if (weeklyExamMode === "lookup") {
-    return el("div", { className: "grid weekly-exam-admin" }, [renderWeeklyExamProblemLookupPanel()]);
+    return el("div", { className: "grid weekly-exam-admin" }, [cohortPanel, renderWeeklyExamProblemLookupPanel()]);
   }
 
   if (weeklyExamMode === "create" || !allAnswerSections.length) {
-    return el("div", { className: "grid weekly-exam-admin" }, [renderWeeklyExamCreatePanel()]);
+    return el("div", { className: "grid weekly-exam-admin" }, [cohortPanel, renderWeeklyExamCreatePanel()]);
   }
 
   return el("div", { className: "grid weekly-exam-admin" }, [
+    cohortPanel,
     weeklyExamMode === "answers" && !weeklyExamAnswerScoped ? renderWeeklyExamAnswerWeekPanel(answerExams) : null,
     selectedSection ? renderWeeklyExamAnswerPanel(selectedSection, weeklyExamAnswerScoped ? [] : answerSections) : renderWeeklyExamAnswerPicker(answerSections, selectedSection),
   ].filter(Boolean));
@@ -2262,8 +2282,8 @@ function openWeeklyExamCreateView() {
 }
 
 function openWeeklyExamLookupView() {
-  const exams = getWeeklyExams();
-  if (!weeklyExamSelectedId && exams[0]) weeklyExamSelectedId = exams[0].id;
+  weeklyExamSelectedId = "";
+  weeklyExamSelectedSectionId = "";
   weeklyExamAnswerScoped = false;
   weeklyExamMode = "lookup";
   render();
@@ -2307,7 +2327,44 @@ function renderGradesManagement() {
 }
 
 function getWeeklyExams() {
-  return [...(state.exams || [])].sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const cohort = getSelectedWeeklyExamCohort();
+  return [...(state.exams || [])]
+    .filter((exam) => !cohort || String(exam.cohort || "") === cohort)
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function getSelectedWeeklyExamCohort() {
+  const cohorts = getStudentCohortStats().filter((cohort) => cohort.value && cohort.value !== "미분류");
+  if (!cohorts.length) {
+    weeklyExamSelectedCohort = "";
+    return "";
+  }
+  if (!cohorts.some((cohort) => cohort.value === weeklyExamSelectedCohort)) weeklyExamSelectedCohort = cohorts[0].value;
+  return weeklyExamSelectedCohort;
+}
+
+function renderWeeklyExamCohortPanel() {
+  const cohorts = getStudentCohortStats().filter((cohort) => cohort.value && cohort.value !== "미분류");
+  if (!cohorts.length) {
+    return panel("기수 선택", [el("div", { className: "empty" }, "등록된 학생 기수가 없습니다. 학생을 먼저 등록해주세요.")]);
+  }
+  const selected = getSelectedWeeklyExamCohort();
+  const selectNode = select("weeklyExamCohort", cohorts.map((cohort) => cohort.value));
+  selectNode.querySelectorAll("option").forEach((option) => {
+    const cohort = cohorts.find((item) => item.value === option.value);
+    if (cohort) option.textContent = cohort.label;
+  });
+  selectNode.value = selected;
+  selectNode.addEventListener("change", () => {
+    weeklyExamSelectedCohort = selectNode.value;
+    weeklyExamSelectedId = "";
+    weeklyExamSelectedSectionId = "";
+    weeklyExamAnswerScoped = false;
+    render();
+  });
+  return panel("기수 선택", [
+    el("div", { className: "teacher-search weekly-cohort-filter" }, [field("기수", selectNode)]),
+  ]);
 }
 
 function getExamSections(examId) {
@@ -2383,50 +2440,54 @@ function getWeeklyExamSubjectSettings() {
 }
 
 function renderWeeklyExamCreatePanel() {
-  const weekInput = input("weekNumber", "number", "1", "1");
-  weekInput.min = "1";
-  const startInput = input("startAt", "datetime-local", "");
-  const endInput = input("endAt", "datetime-local", "");
+  const cohort = getSelectedWeeklyExamCohort();
   const form = el("form", { className: "form-grid weekly-exam-form" }, [
-    field("주차", weekInput, "", "저장 시 1주차 주간평가처럼 자동 표시됩니다."),
-    field("응시 시작", startInput),
-    field("응시 마감", endInput),
-    el("div", { className: "field full" }, [button("주간평가 생성", "btn")]),
+    el("div", { className: "field full" }, [button(`${cohort || ""}기 1~12주차 주간평가 생성`, "btn")]),
   ]);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = formData(form);
-    const exam = {
-      id: createId(),
-      weekNumber: Number(data.weekNumber) || 1,
-      name: formatWeeklyExamName(Number(data.weekNumber) || 1),
-      startAt: data.startAt ? new Date(data.startAt).toISOString() : "",
-      endAt: data.endAt ? new Date(data.endAt).toISOString() : "",
-      targetTracks: [WEEKLY_EXAM_TRACK_ALL],
-      isPublished: true,
-      scoreReleaseMode: "after_all_submitted",
-      explanationReleaseMode: "after_all_submitted",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const selectedCohort = getSelectedWeeklyExamCohort();
+    if (!selectedCohort) return notify("기수를 먼저 선택해주세요.");
     try {
-      state.exams = [exam, ...(state.exams || [])];
-      WEEKLY_EXAM_SUBJECTS.forEach((subject) => {
-        createLocalExamSection(exam, WEEKLY_EXAM_TRACK_ALL, subject, {
-          questionCount: 20,
-          totalScore: 100,
-          isActive: true,
+      const createdExams = [];
+      const createdSections = [];
+      for (let week = 1; week <= 12; week += 1) {
+        const existing = (state.exams || []).find((exam) => String(exam.cohort || "") === selectedCohort && Number(exam.weekNumber) === week);
+        if (existing) continue;
+        const exam = {
+          id: createId(),
+          cohort: selectedCohort,
+          weekNumber: week,
+          name: formatWeeklyExamName(week, selectedCohort),
+          startAt: "",
+          endAt: "",
+          targetTracks: [WEEKLY_EXAM_TRACK_ALL],
+          isPublished: true,
+          scoreReleaseMode: "after_all_submitted",
+          explanationReleaseMode: "after_all_submitted",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        state.exams = [exam, ...(state.exams || [])];
+        WEEKLY_EXAM_SUBJECTS.forEach((subject) => {
+          const section = createLocalExamSection(exam, WEEKLY_EXAM_TRACK_ALL, subject, {
+            questionCount: 20,
+            totalScore: 100,
+            isActive: true,
+          });
+          if (section) createdSections.push(section);
         });
-      });
-      weeklyExamSelectedId = exam.id;
-      const createdSections = getExamSections(exam.id);
-      weeklyExamSelectedSectionId = createdSections[0]?.id || "";
+        createdExams.push(exam);
+      }
+      if (!createdExams.length) return notify(`${selectedCohort}기는 이미 1~12주차 주간평가가 있습니다.`);
+      weeklyExamSelectedId = "";
+      weeklyExamSelectedSectionId = "";
       weeklyExamMode = "lookup";
       saveState({ skipRemote: true });
-      await saveWeeklyExamToRemote(exam);
-      await saveExamSectionsToRemote(getExamSections(exam.id));
+      for (const exam of createdExams) await saveWeeklyExamToRemote(exam);
+      await saveExamSectionsToRemote(createdSections);
       render();
-      notify("주간평가를 생성했습니다.");
+      notify(`${selectedCohort}기 주간평가 ${createdExams.length}개 주차를 생성했습니다.`);
     } catch (error) {
       console.error(error);
       notify("주간평가 저장 중 오류가 발생했습니다. Supabase 스키마 적용 여부를 확인해주세요.");
@@ -2435,8 +2496,8 @@ function renderWeeklyExamCreatePanel() {
   return panel("주간평가 생성", [form]);
 }
 
-function formatWeeklyExamName(weekNumber) {
-  return `${Number(weekNumber) || 1}주차 주간평가`;
+function formatWeeklyExamName(weekNumber, cohort = "") {
+  return `${cohort ? `${cohort}기 ` : ""}${Number(weekNumber) || 1}주차 주간평가`;
 }
 
 function renderWeeklyExamProblemLookupPanel() {
@@ -2446,17 +2507,53 @@ function renderWeeklyExamProblemLookupPanel() {
       el("div", { className: "empty" }, "조회할 주간평가가 없습니다. 주간평가를 먼저 생성해주세요."),
     ]);
   }
-  const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || exams[0];
-  weeklyExamSelectedId = selectedExam.id;
-  const examSelect = select("examId", exams.map((exam) => exam.id));
-  examSelect.querySelectorAll("option").forEach((option) => {
-    const exam = exams.find((item) => item.id === option.value);
-    if (exam) option.textContent = formatWeeklyExamName(exam.weekNumber);
+  const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || null;
+  if (selectedExam) return renderWeeklyExamProblemDetailPanel(selectedExam);
+
+  const rows = Array.from({ length: 12 }, (_, index) => {
+    const weekNumber = index + 1;
+    const exam = exams.find((item) => Number(item.weekNumber) === weekNumber);
+    const sections = exam ? getExamSections(exam.id) : [];
+    const publishedCount = sections.filter(isWeeklyExamSectionPublished).length;
+    const submittedCount = exam ? (state.examSubmissions || []).filter((submission) => sections.some((section) => section.id === submission.examSectionId)).length : 0;
+    return el("tr", { className: exam ? "" : "weekly-unpublished-row" }, [
+      el("td", {}, `${weekNumber}주차 주간평가`),
+      el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
+      el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
+      el("td", {}, exam ? `${submittedCount}건` : "-"),
+      el("td", { className: "action-cell" }, exam
+        ? button("들어가기", "mini-btn", "button", () => {
+            weeklyExamSelectedId = exam.id;
+            weeklyExamSelectedSectionId = "";
+            render();
+          })
+        : el("span", { className: "subtle" }, "미생성")),
+    ]);
   });
-  examSelect.value = selectedExam.id;
-  examSelect.addEventListener("change", () => {
-    weeklyExamSelectedId = examSelect.value;
+
+  return panel("주간평가 문제 조회", [
+    table(["주간평가", "출제 과목", "응시 기간", "제출", "관리"], rows),
+  ]);
+}
+
+function renderWeeklyExamProblemDetailPanel(selectedExam) {
+  const startInput = input("startAt", "datetime-local", "", formatDateTimeLocalInput(selectedExam.startAt));
+  const endInput = input("endAt", "datetime-local", "", formatDateTimeLocalInput(selectedExam.endAt));
+  const periodForm = el("form", { className: "form-grid weekly-exam-period-form" }, [
+    field("응시 시작", startInput),
+    field("응시 마감", endInput),
+    el("div", { className: "field" }, [el("span", {}, " "), button("응시 기간 저장", "btn secondary")]),
+  ]);
+  periodForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(periodForm);
+    selectedExam.startAt = data.startAt ? new Date(data.startAt).toISOString() : "";
+    selectedExam.endAt = data.endAt ? new Date(data.endAt).toISOString() : "";
+    selectedExam.updatedAt = new Date().toISOString();
+    saveState({ skipRemote: true });
+    await saveWeeklyExamToRemote(selectedExam);
     render();
+    notify("응시 기간을 저장했습니다.");
   });
 
   const sections = getExamSections(selectedExam.id);
@@ -2485,10 +2582,32 @@ function renderWeeklyExamProblemLookupPanel() {
     ]);
   });
 
-  return panel("주간평가 문제 조회", [
-    el("div", { className: "teacher-search weekly-lookup-filter" }, [field("주차", examSelect)]),
+  return panel(formatWeeklyExamName(selectedExam.weekNumber, selectedExam.cohort), [
+    el("div", { className: "action-row weekly-detail-actions" }, [
+      button("주간평가 목록", "btn secondary", "button", () => {
+        weeklyExamSelectedId = "";
+        weeklyExamSelectedSectionId = "";
+        render();
+      }),
+    ]),
+    periodForm,
     table(["과목", "출제 여부", "문항", "정답 입력", "제출", "관리"], rows),
   ]);
+}
+
+function formatDateTimeLocalInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function formatWeeklyExamPeriod(exam) {
+  if (!exam.startAt && !exam.endAt) return "미설정";
+  const start = exam.startAt ? formatDateCompact(exam.startAt) : "시작 미설정";
+  const end = exam.endAt ? formatDateCompact(exam.endAt) : "마감 미설정";
+  return `${start} ~ ${end}`;
 }
 
 function renderWeeklyExamAnswerWeekPanel(exams) {
@@ -3193,9 +3312,10 @@ function gradeSubmission(section, submission, selectedAnswers) {
 
 async function saveWeeklyExamToRemote(exam) {
   if (!remoteStore) return;
-  const { error } = await remoteStore.from("exams").upsert({
+  const row = {
     id: exam.id,
-    name: formatWeeklyExamName(exam.weekNumber),
+    name: formatWeeklyExamName(exam.weekNumber, exam.cohort),
+    cohort: exam.cohort || "",
     week_number: exam.weekNumber,
     start_at: exam.startAt || null,
     end_at: exam.endAt || null,
@@ -3205,7 +3325,12 @@ async function saveWeeklyExamToRemote(exam) {
     explanation_release_mode: exam.explanationReleaseMode,
     created_at: exam.createdAt,
     updated_at: exam.updatedAt || new Date().toISOString(),
-  }, { onConflict: "id" });
+  };
+  let { error } = await remoteStore.from("exams").upsert(row, { onConflict: "id" });
+  if (isMissingColumnError(error, "cohort")) {
+    const { cohort, ...fallbackRow } = row;
+    ({ error } = await remoteStore.from("exams").upsert(fallbackRow, { onConflict: "id" }));
+  }
   if (error) throw error;
 }
 

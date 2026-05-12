@@ -88,6 +88,12 @@ create table if not exists public.attendance_checks (
   photo_url text,
   thumbnail_path text,
   thumbnail_url text,
+  arrival_photo_path text,
+  arrival_photo_url text,
+  arrival_thumbnail_path text,
+  arrival_thumbnail_url text,
+  arrival_original_name text,
+  arrived_at timestamptz,
   photo_data_url text,
   original_name text,
   created_at timestamptz not null default now(),
@@ -124,6 +130,7 @@ create table if not exists public.notices (
 create table if not exists public.exams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  cohort text not null default '',
   week_number integer not null default 1,
   start_at timestamptz,
   end_at timestamptz,
@@ -136,6 +143,9 @@ create table if not exists public.exams (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.exams
+add column if not exists cohort text not null default '';
 
 create table if not exists public.exam_sections (
   id uuid primary key default gen_random_uuid(),
@@ -312,6 +322,9 @@ on public.notices (created_at desc);
 create index if not exists exams_week_created_at_idx
 on public.exams (week_number desc, created_at desc);
 
+create index if not exists exams_cohort_week_idx
+on public.exams (cohort, week_number);
+
 create index if not exists exam_sections_exam_track_idx
 on public.exam_sections (exam_id, track);
 
@@ -338,7 +351,13 @@ alter table public.attendance_checks
 add column if not exists reason text,
 add column if not exists detail text,
 add column if not exists thumbnail_path text,
-add column if not exists thumbnail_url text;
+add column if not exists thumbnail_url text,
+add column if not exists arrival_photo_path text,
+add column if not exists arrival_photo_url text,
+add column if not exists arrival_thumbnail_path text,
+add column if not exists arrival_thumbnail_url text,
+add column if not exists arrival_original_name text,
+add column if not exists arrived_at timestamptz;
 
 alter table public.outing_photos
 add column if not exists photo_path text,
@@ -361,7 +380,7 @@ end $$;
 
 alter table public.attendance_checks
 add constraint attendance_checks_status_check
-check (status in ('present', 'pre_arrival_reason'));
+check (status in ('present', 'pre_arrival_reason', 'pre_arrival_verified'));
 
 alter table public.students enable row level security;
 alter table public.outings enable row level security;
@@ -404,6 +423,7 @@ drop policy if exists "anon_managers_insert" on public.managers;
 drop policy if exists "anon_managers_update" on public.managers;
 drop policy if exists "anon_attendance_select" on public.attendance_checks;
 drop policy if exists "anon_attendance_insert" on public.attendance_checks;
+drop policy if exists "anon_attendance_update" on public.attendance_checks;
 drop policy if exists "anon_attendance_holidays_select" on public.attendance_holidays;
 drop policy if exists "anon_attendance_holidays_insert" on public.attendance_holidays;
 drop policy if exists "anon_attendance_holidays_update" on public.attendance_holidays;
@@ -622,6 +642,12 @@ grant select (
   photo_url,
   thumbnail_path,
   thumbnail_url,
+  arrival_photo_path,
+  arrival_photo_url,
+  arrival_thumbnail_path,
+  arrival_thumbnail_url,
+  arrival_original_name,
+  arrived_at,
   photo_data_url,
   original_name,
   created_at
@@ -690,9 +716,25 @@ grant insert (
   photo_url,
   thumbnail_path,
   thumbnail_url,
+  arrival_photo_path,
+  arrival_photo_url,
+  arrival_thumbnail_path,
+  arrival_thumbnail_url,
+  arrival_original_name,
+  arrived_at,
   photo_data_url,
   original_name,
   created_at
+) on public.attendance_checks to anon;
+
+grant update (
+  status,
+  arrival_photo_path,
+  arrival_photo_url,
+  arrival_thumbnail_path,
+  arrival_thumbnail_url,
+  arrival_original_name,
+  arrived_at
 ) on public.attendance_checks to anon;
 
 grant select (
@@ -916,6 +958,19 @@ with check (
   status in ('present', 'pre_arrival_reason')
   and check_date = ((now() at time zone 'Asia/Seoul')::date)
   and photo_path is not null
+);
+
+create policy "anon_attendance_update"
+on public.attendance_checks
+for update
+to anon
+using (
+  check_date = ((now() at time zone 'Asia/Seoul')::date)
+  and status = 'pre_arrival_reason'
+)
+with check (
+  check_date = ((now() at time zone 'Asia/Seoul')::date)
+  and status in ('pre_arrival_verified', 'present')
 );
 
 create policy "anon_attendance_holidays_select"

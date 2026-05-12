@@ -479,6 +479,9 @@ function createAttendanceForm(student, options = {}) {
     event.preventDefault();
     if (!student) return notify("학생 등록 후 출석 체크를 이용할 수 있습니다.");
     const existingCheck = getStudentAttendanceForDate(student.id);
+    if (existingCheck?.status === "pre_arrival_reason") {
+      return notify("등원 전 사유신청 후에는 아래 등원 인증하기 버튼으로 인증해주세요.");
+    }
     if (existingCheck) return notify("오늘 출석은 이미 인증되었습니다.");
     if (isAttendanceHoliday()) return notify("휴일은 출석체크를 하지 않습니다.");
     if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 인증할 수 없습니다.");
@@ -566,29 +569,79 @@ function createPreArrivalReasonForm(student) {
 function renderStudentAttendanceComplete(check) {
   const photoSrc = getAttendancePhotoSrc(check);
   const thumbnailSrc = getAttendanceThumbnailSrc(check);
+  const arrivalPhotoSrc = getAttendanceArrivalPhotoSrc(check);
+  const arrivalThumbnailSrc = getAttendanceArrivalThumbnailSrc(check);
   const isReason = check.status === "pre_arrival_reason";
+  const isReasonVerified = check.status === "pre_arrival_verified";
   return el("div", { className: "attendance-complete" }, [
-    el("div", { className: "empty success-message" }, isReason ? "등원 전 사유신청이 완료되었습니다." : "오늘 출석 인증이 완료되었습니다."),
+    el("div", { className: `empty ${isReason ? "" : "success-message"}` }, isReason ? "등원 전 사유신청이 접수되었습니다. 학원에 도착하면 등원 인증을 완료해주세요." : "오늘 출석 인증이 완료되었습니다."),
     el("div", { className: "detail-grid attendance-detail-grid" }, [
       el("div", { className: "detail-item" }, [el("span", {}, "인증 날짜"), el("strong", {}, check.checkDate || "-")]),
-      el("div", { className: "detail-item" }, [el("span", {}, "인증 시각"), el("strong", {}, formatTimeOnly(check.createdAt))]),
-      isReason ? el("div", { className: "detail-item" }, [el("span", {}, "사유"), el("strong", {}, check.reason || "-")]) : null,
-      isReason ? el("div", { className: "detail-item" }, [el("span", {}, "상세"), el("strong", {}, check.detail || "-")]) : null,
+      el("div", { className: "detail-item" }, [el("span", {}, isReason || isReasonVerified ? "사유 제출 시각" : "인증 시각"), el("strong", {}, formatTimeOnly(check.createdAt))]),
+      isReasonVerified ? el("div", { className: "detail-item" }, [el("span", {}, "등원 인증 시각"), el("strong", {}, formatTimeOnly(check.arrivedAt))]) : null,
+      isReason || isReasonVerified ? el("div", { className: "detail-item" }, [el("span", {}, "사유"), el("strong", {}, check.reason || "-")]) : null,
+      isReason || isReasonVerified ? el("div", { className: "detail-item" }, [el("span", {}, "상세"), el("strong", {}, check.detail || "-")]) : null,
     ]),
+    isReason ? createArrivalVerificationForm(check) : null,
     photoSrc
       ? el("div", { className: "photo-grid attendance-photo-grid" }, [
           button("", "photo-thumb attendance-photo-button", "button", () => openPhotoModal({
-            type: isReason ? "등원 전 사유 인증" : "출석 인증",
+            type: isReason || isReasonVerified ? "등원 전 사유 인증" : "출석 인증",
             photoUrl: photoSrc,
             uploadedAt: check.createdAt,
           }), [
-            el("img", { src: thumbnailSrc, alt: isReason ? "등원 전 사유 인증 사진" : "출석 인증 사진", loading: "lazy" }),
-            el("span", {}, isReason ? "사유 인증" : "출석 인증"),
+            el("img", { src: thumbnailSrc, alt: isReason || isReasonVerified ? "등원 전 사유 인증 사진" : "출석 인증 사진", loading: "lazy" }),
+            el("span", {}, isReason || isReasonVerified ? "사유 인증" : "출석 인증"),
             el("time", { dateTime: check.createdAt || "" }, formatTime(check.createdAt)),
           ]),
+          arrivalPhotoSrc
+            ? button("", "photo-thumb attendance-photo-button", "button", () => openPhotoModal({
+                type: "등원 인증",
+                photoUrl: arrivalPhotoSrc,
+                uploadedAt: check.arrivedAt,
+              }), [
+                el("img", { src: arrivalThumbnailSrc, alt: "등원 인증 사진", loading: "lazy" }),
+                el("span", {}, "등원 인증"),
+                el("time", { dateTime: check.arrivedAt || "" }, formatTime(check.arrivedAt)),
+              ])
+            : null,
         ])
       : null,
   ]);
+}
+
+function createArrivalVerificationForm(check) {
+  const student = getAuthedStudent();
+  const submitButton = button("등원 인증하기", "btn");
+  const form = el("form", { className: "form-grid attendance-form" }, [
+    field("등원 현장 사진", photoCaptureInput("arrivalPhoto"), "full"),
+    el("div", { className: "field full" }, [
+      submitButton,
+      el("p", { className: "subtle attendance-deadline-note" }, "사유신청은 접수 상태입니다. 학원에 도착한 뒤 현장 사진으로 등원 인증을 완료해주세요."),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!student) return notify("학생 등록 후 등원 인증을 이용할 수 있습니다.");
+    const arrivalPhoto = form.elements.arrivalPhoto.files[0];
+    if (!arrivalPhoto) return notify("등원 현장 사진을 촬영해주세요.");
+    submitButton.disabled = true;
+    setButtonLoading(submitButton, "등원 인증 중...");
+    try {
+      await completePreArrivalAttendanceCheck(student, check, arrivalPhoto);
+      form.reset();
+      render();
+      notify("등원 인증이 완료되었습니다.");
+    } catch (error) {
+      console.error(error);
+      notify(getPhotoSubmitErrorMessage(error));
+      submitButton.disabled = false;
+      submitButton.textContent = "등원 인증하기";
+    }
+  });
+
+  return form;
 }
 
 function createReturnForm() {
@@ -778,8 +831,10 @@ function renderStudentGradesBackPanel() {
 
 function getVisibleStudentExams(student) {
   const track = normalizeCoastGuardTrack(student.track);
+  const cohort = getStudentCohort(student);
   return (state.exams || [])
     .filter((exam) => exam.isPublished)
+    .filter((exam) => !exam.cohort || !cohort || String(exam.cohort) === cohort)
     .filter((exam) => (state.examSections || []).some((section) => section.examId === exam.id && isStudentSectionMatch(section, track)))
     .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber));
 }
