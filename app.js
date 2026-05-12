@@ -418,6 +418,7 @@ function renderStudentHome() {
   const activeOuting = student ? getActiveOuting(student.id) : null;
   const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
   const holiday = getAttendanceHoliday();
+  const needsArrivalVerification = todayAttendance?.status === "pre_arrival_reason";
   const needsAttendance = !todayAttendance && !holiday;
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
@@ -435,6 +436,19 @@ function renderStudentHome() {
             el("strong", {}, "출석 인증"),
             el("p", {}, attendanceHolidayMessage(holiday.dateKey)),
           ]),
+        ])
+      : null,
+    needsArrivalVerification
+      ? el("section", { className: "student-summary-card" }, [
+          el("div", {}, [
+            el("strong", {}, "등원 인증 대기"),
+            el("p", {}, "등원 전 사유신청이 접수되었습니다. 학원에 도착하면 등원 인증을 완료해주세요."),
+          ]),
+          button("등원 인증하기", "btn", "button", () => {
+            state.settings.attendanceMode = "";
+            saveState();
+            navigate("attendance");
+          }),
         ])
       : null,
     needsAttendance

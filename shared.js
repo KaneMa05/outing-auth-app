@@ -2556,8 +2556,10 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
 }
 
 async function uploadAttendancePhotoAssets(studentId, checkId, file) {
-  const compressedDataUrl = await compressImage(file, 900, 0.64, 180000);
-  const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
+  const [compressedDataUrl, thumbnailDataUrl] = await Promise.all([
+    compressImage(file, 720, 0.58, 95000),
+    compressImage(file, 180, 0.52, 14000),
+  ]);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
@@ -2568,22 +2570,24 @@ async function uploadAttendancePhotoAssets(studentId, checkId, file) {
     const blob = dataUrlToBlob(compressedDataUrl);
     const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
     photoPath = createAttendancePhotoPath(studentId, checkId);
-    const { error: uploadError } = await remoteStore.storage
-      .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(photoPath, blob, {
-        cacheControl: "31536000",
-        contentType: blob.type || "image/jpeg",
-        upsert: false,
-      });
-    if (uploadError) throw uploadError;
     thumbnailPath = createAttendancePhotoPath(studentId, checkId, "thumb");
-    const { error: thumbnailUploadError } = await remoteStore.storage
-      .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(thumbnailPath, thumbnailBlob, {
-        cacheControl: "31536000",
-        contentType: thumbnailBlob.type || "image/jpeg",
-        upsert: false,
-      });
+    const [{ error: uploadError }, { error: thumbnailUploadError }] = await Promise.all([
+      remoteStore.storage
+        .from(ATTENDANCE_PHOTO_BUCKET)
+        .upload(photoPath, blob, {
+          cacheControl: "31536000",
+          contentType: blob.type || "image/jpeg",
+          upsert: false,
+        }),
+      remoteStore.storage
+        .from(ATTENDANCE_PHOTO_BUCKET)
+        .upload(thumbnailPath, thumbnailBlob, {
+          cacheControl: "31536000",
+          contentType: thumbnailBlob.type || "image/jpeg",
+          upsert: false,
+        }),
+    ]);
+    if (uploadError) throw uploadError;
     if (thumbnailUploadError) throw thumbnailUploadError;
     const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(photoPath);
     const { data: thumbnailData } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(thumbnailPath);

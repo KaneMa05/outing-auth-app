@@ -81,7 +81,7 @@ create table if not exists public.attendance_checks (
   class_name text not null default '오프라인반',
   check_date date not null default ((now() at time zone 'Asia/Seoul')::date),
   status text not null default 'present'
-    check (status in ('present', 'pre_arrival_reason')),
+    check (status in ('present', 'pre_arrival_reason', 'pre_arrival_verified')),
   reason text,
   detail text,
   photo_path text not null,
