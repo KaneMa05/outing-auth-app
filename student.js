@@ -104,6 +104,57 @@ function createOutForm() {
       return;
     }
 
+    if (shouldConfirmPreAttendanceOuting(student)) {
+      openPreAttendanceOutingConfirmModal(() => submitOutingRequest(student, data, form));
+      return;
+    }
+
+    submitOutingRequest(student, data, form);
+  });
+
+  return form;
+}
+
+function shouldConfirmPreAttendanceOuting(student) {
+  return Boolean(
+    student &&
+    (!state.settings.attendanceDeadlineEnabled || isAttendanceCheckOpen()) &&
+    !isAttendanceHoliday() &&
+    !getStudentAttendanceForDate(student.id)
+  );
+}
+
+function openPreAttendanceOutingConfirmModal(onContinue) {
+  closeInfoModal();
+  const goToReason = () => {
+    closeInfoModal();
+    state.settings.attendanceMode = "pre-arrival-reason";
+    state.settings.earlyLeaveMode = false;
+    saveState();
+    navigate("attendance");
+  };
+  const continueOuting = () => {
+    closeInfoModal();
+    onContinue();
+  };
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "외출 신청 안내 닫기" }),
+    el("div", { className: "info-modal-panel pre-attendance-outing-modal" }, [
+      el("strong", {}, "아직 오늘 출석 처리가 없습니다"),
+      el("p", {}, "학원에 등원하기 전이라면 외출 신청이 아니라 등원 전 사유신청을 해주세요."),
+      el("p", {}, "이미 등원한 뒤 잠시 나가는 경우에만 외출 신청을 계속 진행하세요."),
+      el("div", { className: "attendance-action-row" }, [
+        button("등원 전 사유신청으로 이동", "btn", "button", goToReason),
+        button("외출 신청 계속하기", "btn secondary", "button", continueOuting),
+      ]),
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function submitOutingRequest(student, data, form) {
     state.outings.unshift({
       id: createId(),
       studentId: student.id,
@@ -128,9 +179,6 @@ function createOutForm() {
     form.reset();
     render();
     notify("외출 신청이 접수되었습니다. 사진 인증을 진행하세요.");
-  });
-
-  return form;
 }
 
 function createEarlyLeaveForm() {
