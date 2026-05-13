@@ -180,8 +180,12 @@ create table if not exists public.exam_answers (
   question_number integer not null check (question_number > 0),
   correct_answer integer check (correct_answer between 1 and 4),
   points numeric not null default 5 check (points >= 0),
+  target_tracks text[] not null default '{}',
   unique (exam_section_id, question_number)
 );
+
+alter table public.exam_answers
+add column if not exists target_tracks text[] not null default '{}';
 
 create table if not exists public.exam_submissions (
   id uuid primary key default gen_random_uuid(),
@@ -215,9 +219,19 @@ create table if not exists public.exam_files (
   file_path text,
   file_url text,
   original_name text,
-  uploaded_at timestamptz not null default now(),
-  unique (exam_section_id, file_type)
+  uploaded_at timestamptz not null default now()
 );
+
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'exam_files_exam_section_id_file_type_key'
+      and conrelid = 'public.exam_files'::regclass
+  ) then
+    alter table public.exam_files drop constraint exam_files_exam_section_id_file_type_key;
+  end if;
+end $$;
 
 do $$
 begin
@@ -326,6 +340,9 @@ on public.exams (week_number desc, created_at desc);
 
 create index if not exists exams_cohort_week_idx
 on public.exams (cohort, week_number);
+
+create index if not exists exam_files_section_type_uploaded_idx
+on public.exam_files (exam_section_id, file_type, uploaded_at desc);
 
 create index if not exists exam_sections_exam_track_idx
 on public.exam_sections (exam_id, track);
@@ -774,10 +791,12 @@ grant delete on public.attendance_holidays to anon;
 grant select, insert, update on public.exams to anon;
 grant select, insert, update, delete on public.exam_sections to anon;
 grant select, insert, update on public.exam_subject_settings to anon;
+grant delete on public.exam_subject_settings to anon;
 grant select, insert, update on public.exam_answers to anon;
 grant select, insert, update on public.exam_submissions to anon;
 grant select, insert, update on public.submission_answers to anon;
 grant select, insert, update on public.exam_files to anon;
+grant delete on public.exam_files to anon;
 
 create policy "anon_students_select_active"
 on public.students
@@ -1204,6 +1223,12 @@ to anon
 using (true)
 with check (file_type = 'answer_pdf');
 
+create policy "anon_exam_files_delete"
+on public.exam_files
+for delete
+to anon
+using (true);
+
 create policy "anon_attendance_photo_select"
 on storage.objects
 for select
@@ -1245,3 +1270,9 @@ on storage.objects
 for insert
 to anon
 with check (bucket_id = 'exam-files');
+
+create policy "anon_exam_file_delete"
+on storage.objects
+for delete
+to anon
+using (bucket_id = 'exam-files');

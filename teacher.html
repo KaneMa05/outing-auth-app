@@ -19,7 +19,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260513-student-attendance-exclude" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260513-attendance-manager" />
+    <link rel="stylesheet" href="./styles.css?v=20260513-pyramid-zone-fill" />
   </head>
   <body data-app-mode="teacher">
     <div class="app-frame">
@@ -36,6 +36,7 @@
           <button data-route="home">홈</button>
           <button data-route="outing">외출 관리</button>
           <button data-route="weekly-exams">주간평가</button>
+          <button data-route="grades">성적 관리</button>
           <button data-route="penalties">상/벌점 관리</button>
           <button data-route="attendance">출석 관리</button>
           <button data-route="notices">공지 관리</button>
@@ -43,6 +44,7 @@
           <button data-route="managers">담당자 등록</button>
           <button data-route="students">학생 등록</button>
           <button data-route="track-options">직렬 항목 관리</button>
+          <button data-route="track-subjects">직렬별 응시과목 관리</button>
           <button data-route="duplicates">중복 사진</button>
           <button data-route="trash">삭제 내역</button>
         </nav>
@@ -62,9 +64,9 @@
 
     <div id="toast" class="toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./config.js?v=20260513-manager-hide-admin"></script>
-    <script src="./shared.js?v=20260513-manager-hide-admin" defer></script>
-    <script src="./teacher.js?v=20260513-manager-hide-admin" defer></script>
-    <script src="./app.js?v=20260513-manager-hide-admin" defer></script>
+    <script src="./config.js?v=20260513-remove-grade-test"></script>
+    <script src="./shared.js?v=20260513-remove-grade-test" defer></script>
+    <script src="./teacher.js?v=20260513-remove-grade-test" defer></script>
+    <script src="./app.js?v=20260513-remove-grade-test" defer></script>
   </body>
 </html>

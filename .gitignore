@@ -6,3 +6,4 @@ config.js
 .local-dev-state.json
 
 .vercel
+.env*.local

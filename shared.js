@@ -76,6 +76,8 @@ const routePermissions = {
   home: null,
   outing: "outing.read",
   "weekly-exams": "grades.read",
+  grades: "grades.read",
+  "track-subjects": "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
   notices: "notices.read",
@@ -102,7 +104,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -125,7 +127,10 @@ if ("serviceWorker" in navigator) {
 
 function normalizeCoastGuardTrack(track) {
   const value = String(track || "").trim();
+  if (/^\?+$/.test(value)) return "전체";
   const aliases = {
+    "??": "전체",
+    전체: "전체",
     공채: "경찰직 - 공채(순경)",
     해경학과: "경찰직 - 해경학과 항해(경장)",
     함정요원: "경찰직 - 함정요원 항해(경장)",
@@ -138,6 +143,75 @@ function normalizeCoastGuardTrack(track) {
     기타: "기타",
   };
   return aliases[value] || value;
+}
+
+const WEEKLY_QUESTION_FIXED_TRACKS = [
+  "경찰직 - 공채(순경)",
+  "경찰직 - 함정요원 항해(경장)",
+  "경찰직 - 함정요원 기관(경장)",
+];
+const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
+  { key: "vts", label: "VTS", keywords: ["VTS"], tracks: ["경찰직 - 해상교통관제(VTS)(순경)", "일반직 - 선박교통관제(VTS)"] },
+  { key: "academy", label: "학과특채", keywords: ["해경학과"], tracks: ["경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
+];
+const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
+const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
+const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
+  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법", "해사영어"],
+  "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
+  "경찰직 - 해경학과 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
+  "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
+  "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
+  "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학", "해상교통관리"],
+  "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어", "해상교통관리"],
+};
+
+function getDefaultWeeklyQuestionTargetTracks() {
+  return [...WEEKLY_QUESTION_FIXED_TRACKS];
+}
+
+function normalizeWeeklyQuestionTargetTracks(tracks) {
+  const normalized = normalizeTrackOptionList(Array.isArray(tracks) ? tracks : []);
+  const source = normalized.length ? normalized : getDefaultWeeklyQuestionTargetTracks();
+  return normalizeTrackOptionList([...WEEKLY_QUESTION_FIXED_TRACKS, ...source]);
+}
+
+function isWeeklyQuestionForTrack(answer, track) {
+  const targetTracks = normalizeWeeklyQuestionTargetTracks(answer?.targetTracks);
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  if (targetTracks.includes(normalizedTrack)) return true;
+  return WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS.some((group) =>
+    group.tracks.some((groupTrack) => targetTracks.includes(normalizeCoastGuardTrack(groupTrack))) &&
+    group.keywords.some((keyword) => normalizedTrack.includes(keyword))
+  );
+}
+
+function isWeeklyQuestionTrackScopedSubject(subject) {
+  return WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS.includes(String(subject || "").trim());
+}
+
+function getDefaultWeeklySubjectsForTrack(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  return WEEKLY_DEFAULT_TRACK_SUBJECTS[normalized] || ["해양경찰학개론", "해사법규", "형사법"];
+}
+
+function hasSavedWeeklySubjectSettingsForTrack(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  return (state.examSubjectSettings || []).some((setting) => normalizeCoastGuardTrack(setting.track) === normalized);
+}
+
+function isWeeklySubjectAllowedForTrack(subject, track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const normalizedSubject = String(subject || "").trim();
+  if (!normalizedSubject || !normalizedTrack) return true;
+  if (hasSavedWeeklySubjectSettingsForTrack(normalizedTrack)) {
+    return (state.examSubjectSettings || []).some((setting) =>
+      normalizeCoastGuardTrack(setting.track) === normalizedTrack &&
+      String(setting.subject || "").trim() === normalizedSubject &&
+      setting.isActive !== false
+    );
+  }
+  return getDefaultWeeklySubjectsForTrack(normalizedTrack).includes(normalizedSubject);
 }
 
 function normalizeTrackOptionList(options) {
@@ -776,7 +850,7 @@ async function loadStateFromRemote() {
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
   const examColumns = "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
   const examSectionColumns = "id,exam_id,track,subject,question_count,total_score,is_active,created_at";
-  const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,points";
+  const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,points,target_tracks";
   const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
   const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
   const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
@@ -897,6 +971,11 @@ async function loadStateFromRemote() {
   }
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
+  if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
+    const fallbackExamAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true });
+    if (fallbackExamAnswerResult.error && !isMissingRelationError(fallbackExamAnswerResult.error, "exam_answers")) throw fallbackExamAnswerResult.error;
+    examAnswerResult = fallbackExamAnswerResult;
+  }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
@@ -1118,6 +1197,7 @@ async function saveStateToRemote() {
       const profile = getStudentProfile(student.id) || {};
       return {
         ...student,
+        initialTrack: profile.initialTrack || normalizeCoastGuardTrack(student.track || profile.track),
         track: normalizeCoastGuardTrack(student.track || profile.track),
         gender: student.gender || profile.gender || "",
         passwordHash: student.passwordHash || profile.passwordHash || "",
@@ -1910,6 +1990,7 @@ function mapExamAnswerFromRemote(answer) {
     questionNumber: Number(answer.question_number) || 0,
     correctAnswer: Number(answer.correct_answer) || 0,
     points: Number(answer.points) || 0,
+    targetTracks: Array.isArray(answer.target_tracks) ? answer.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
   };
 }
 

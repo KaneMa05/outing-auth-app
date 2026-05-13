@@ -59,8 +59,6 @@ module.exports = async function handler(req, res) {
       Prefer: "return=minimal",
     },
     body: JSON.stringify({
-      track: null,
-      gender: null,
       password_hash: null,
       device_token: null,
       app_registered_at: null,

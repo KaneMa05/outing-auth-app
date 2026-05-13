@@ -6,6 +6,7 @@
   "student-done": "복귀 완료",
   outing: "외출 관리",
   "weekly-exams": "주간평가",
+  grades: "성적 관리",
   penalties: "상/벌점 관리",
   attendance: "출석 관리",
   mypage: "마이페이지",
@@ -13,6 +14,7 @@
   managers: "담당자 등록",
   students: "학생 등록",
   "track-options": "직렬 항목 관리",
+  "track-subjects": "직렬별 응시과목 관리",
   duplicates: "중복 사진",
   trash: "삭제 내역",
   notices: "공지 관리",
@@ -97,11 +99,11 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "penalties", "attendance", "notices", "managers", "students", "track-options", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "mypage", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"];
   if (studentRoutes.includes(normalized) || normalized.startsWith("notice-")) return normalized;
   return "home";
 }
@@ -112,6 +114,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
+  if (APP_MODE !== "teacher" && nextRoute === "grades" && typeof resetStudentGradesView === "function") resetStudentGradesView();
   const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextRoute}`;
   location.hash = route;
   if (shouldScrollOnly) scrollAppToTop();
@@ -167,12 +170,14 @@ function render() {
           home: renderHome,
           outing: renderTeacher,
           "weekly-exams": renderWeeklyExamManagement,
+          grades: renderGradesManagement,
           penalties: renderPenaltyManagement,
           attendance: renderAttendanceManagement,
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
           "track-options": renderTrackOptionsAdmin,
+          "track-subjects": renderTrackSubjectManagement,
           duplicates: renderDuplicates,
           trash: renderTrash,
         }
@@ -183,6 +188,7 @@ function render() {
           "student-return": () => requireStudentAuth(renderStudentChecklist),
           "student-done": () => requireStudentAuth(renderStudentChecklist),
           attendance: () => requireStudentAuth(renderStudentAttendance),
+          grades: () => requireStudentAuth(renderStudentGrades),
           mypage: () => requireStudentAuth(renderStudentMypage),
           notices: () => requireStudentAuth(renderStudentNoticeList),
         };
@@ -199,6 +205,7 @@ function render() {
 function getRouteTitle(route) {
   if (APP_MODE !== "teacher") {
     if (route === "attendance") return "출석 체크";
+    if (route === "grades") return "성적";
     if (route === "notices" || route.startsWith("notice-")) return "중요 공지";
   }
   return routeTitles[route] || routeTitles.student;
@@ -372,6 +379,7 @@ function renderStudentAuth() {
     const authedAt = new Date().toISOString();
 
     profiles[studentId] = {
+      initialTrack: existingProfile?.deviceToken ? existingProfile?.initialTrack || finalTrack : finalTrack,
       track: finalTrack,
       gender: data.gender,
       passwordHash,
@@ -928,6 +936,7 @@ function renderHome() {
       el("div", { className: "module-grid" }, [
         hasTeacherPermission("outing.read") ? moduleCard("외출 관리", "외출 신청, 사진 인증, 복귀 확인을 관리합니다.", "outing", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("주간평가", "주차별 시험, 과목, 정답과 답안지 파일을 관리합니다.", "weekly-exams", "운영 중") : null,
+        hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "주간평가와 파이널 모의고사 성적을 학생별로 조회합니다.", "grades", "운영 중") : null,
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,

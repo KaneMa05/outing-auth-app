@@ -22,7 +22,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260513-attendance-manager" />
+    <link rel="stylesheet" href="./styles.css?v=20260513-pyramid-zone-fill" />
   </head>
   <body>
     <noscript>
@@ -43,6 +43,7 @@
           <p class="nav-section">학생용</p>
           <button data-route="home">홈</button>
           <button data-route="student">외출 신청</button>
+          <button data-route="grades">성적</button>
         </nav>
       </aside>
 
@@ -71,6 +72,10 @@
         <span class="footer-icon footer-icon-outing" aria-hidden="true"></span>
         <span>외출</span>
       </a>
+      <a href="#grades" data-route="grades" onclick="window.__studentNav && window.__studentNav('grades');">
+        <span class="footer-icon footer-icon-grades" aria-hidden="true"></span>
+        <span>성적</span>
+      </a>
       <a href="#mypage" data-route="mypage" onclick="window.__studentNav && window.__studentNav('mypage');">
         <span class="footer-icon footer-icon-mypage" aria-hidden="true"></span>
         <span>마이</span>
@@ -84,6 +89,7 @@
           home: "홈",
           student: "외출 신청",
           attendance: "출석 체크",
+          grades: "성적",
           mypage: "마이페이지",
           notices: "중요 공지"
         };
@@ -132,7 +138,7 @@
         }
         function currentRoute() {
           var route = String(location.hash || "").replace("#", "");
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
           return "home";
         }
         function shouldUseFallback() {
@@ -149,6 +155,7 @@
         }
         function navFallback(route) {
           var sameRoute = currentRoute() === route && location.hash === "#" + route;
+          if (route === "grades" && typeof window.resetStudentGradesView === "function") window.resetStudentGradesView();
           location.hash = route;
           if (shouldUseFallback()) renderFallback(route);
           if (sameRoute) scrollTop();
@@ -182,7 +189,7 @@
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
           if (!route) return;
-          if (route === "home" || route === "student" || route === "attendance" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) {
+          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) {
             if (shouldUseFallback()) {
               event.preventDefault();
               navFallback(route);
@@ -198,10 +205,10 @@
         }, 900);
       })();
     </script>
-    <script src="./config.js?v=20260513-manager-hide-admin"></script>
-    <script src="./supabase.js?v=20260513-manager-hide-admin" defer></script>
-    <script src="./shared.js?v=20260513-manager-hide-admin" defer></script>
-    <script src="./student.js?v=20260513-manager-hide-admin" defer></script>
-    <script src="./app.js?v=20260513-manager-hide-admin" defer></script>
+    <script src="./config.js?v=20260513-remove-grade-test"></script>
+    <script src="./supabase.js?v=20260513-remove-grade-test" defer></script>
+    <script src="./shared.js?v=20260513-remove-grade-test" defer></script>
+    <script src="./student.js?v=20260513-remove-grade-test" defer></script>
+    <script src="./app.js?v=20260513-remove-grade-test" defer></script>
   </body>
 </html>

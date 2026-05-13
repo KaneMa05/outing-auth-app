@@ -759,33 +759,272 @@ function studentLookup(buttonText) {
 }
 
 let selectedStudentExamId = "";
+let selectedStudentGradeLookupExamId = "";
+let studentGradeLookupType = "weekly";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+
+function resetStudentGradesView() {
+  selectedStudentExamId = "";
+  selectedStudentGradeLookupExamId = "";
+  studentGradeLookupType = "weekly";
+  studentGradesView = "";
+  studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+}
+
+function getStudentRegisteredTrack(student) {
+  const profile = getStudentProfile(student?.id);
+  return normalizeCoastGuardTrack(profile?.initialTrack || profile?.track || student?.track);
+}
 
 function renderStudentGrades() {
   const student = getAuthedStudent();
   if (!student) return renderStudentAuth();
-  if (studentGradesView !== "weekly") return renderStudentGradesHome();
+  if (studentGradesView === "lookup") return renderStudentGradeLookupComingSoon();
+  if (studentGradesView !== "entry") return renderStudentGradesHome();
   return renderStudentWeeklyGrades(student);
 }
 
 function renderStudentGradesHome() {
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적", [
-      el("div", { className: "student-grade-card-grid" }, [
-        button("", "student-grade-card", "button", () => {
-          studentGradesView = "weekly";
+      el("div", { className: "student-grade-action-list" }, [
+        renderStudentGradeAction("성적 조회", "제출한 주간평가 결과를 확인합니다.", "조회", () => {
+          studentGradesView = "lookup";
           render();
-        }, [
-          el("strong", {}, "주간평가"),
-          el("span", {}, "주차별 평가 목록과 과목별 제출 현황을 확인합니다."),
-        ]),
-        button("", "student-grade-card", "button", () => notify("파이널 성적은 아직 준비 중입니다."), [
-          el("strong", {}, "파이널"),
-          el("span", {}, "파이널 성적은 준비 중입니다."),
-        ]),
+        }),
+        renderStudentGradeAction("성적 입력", "공개된 주간평가 답안을 입력합니다.", "입력", () => {
+          studentGradesView = "entry";
+          render();
+        }),
       ]),
     ]),
+  ]);
+}
+
+function renderStudentGradeAction(title, copy, actionText, onClick) {
+  return el("section", { className: "student-grade-action-card" }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, title),
+      el("span", {}, copy),
+    ]),
+    button(actionText, "btn secondary", "button", onClick),
+  ]);
+}
+
+function renderStudentGradeLookupComingSoon() {
+  const student = getAuthedStudent();
+  if (!student) return renderStudentAuth();
+  const exams = getVisibleStudentExams(student);
+  const selectedExam = exams.find((exam) => exam.id === selectedStudentGradeLookupExamId) || exams[0] || null;
+  if (selectedExam) selectedStudentGradeLookupExamId = selectedExam.id;
+  const typeTabs = el("div", { className: "student-grade-type-tabs" }, [
+    button("주간평가 성적", studentGradeLookupType === "weekly" ? "mini-btn active" : "mini-btn", "button", () => {
+      studentGradeLookupType = "weekly";
+      render();
+    }),
+    button("파이널 성적", studentGradeLookupType === "final" ? "mini-btn active" : "mini-btn", "button", () => {
+      studentGradeLookupType = "final";
+      render();
+    }),
+  ]);
+  const examSelect = selectedExam ? select("examId", exams.map((exam) => exam.id)) : null;
+  if (examSelect) {
+    examSelect.querySelectorAll("option").forEach((option) => {
+      const exam = exams.find((item) => item.id === option.value);
+      if (exam) option.textContent = `${exam.weekNumber}주차`;
+    });
+    examSelect.value = selectedExam.id;
+    examSelect.addEventListener("change", () => {
+      selectedStudentGradeLookupExamId = examSelect.value;
+      render();
+    });
+  }
+  const summary = studentGradeLookupType === "weekly" && selectedExam
+    ? getStudentWeeklyGradeSummary(selectedExam, student)
+    : null;
+  return el("div", { className: "grid student-view student-grade-home" }, [
+    panel("성적 조회", [
+      typeTabs,
+      studentGradeLookupType === "weekly" && examSelect ? field("주차 선택", examSelect) : null,
+      studentGradeLookupType === "weekly"
+        ? renderStudentGradeResultPanel(summary)
+        : renderStudentGradeResultPanel(null, { title: "파이널 성적", emptyText: "파이널 성적은 준비 중입니다." }),
+      button("성적 메뉴", "mini-btn", "button", () => {
+        studentGradesView = "";
+        render();
+      }),
+    ]),
+  ]);
+}
+
+function getStudentWeeklyGradeSummary(exam, student) {
+  const sections = getStudentExamSections(exam, student);
+  const ownSubmissions = sections.map((section) => ({ section, submission: getStudentSubmission(student.id, section.id) }));
+  const submitted = ownSubmissions.filter((item) => item.submission);
+  const maxScore = sections.reduce((sum, section) => sum + getStudentVisibleSectionAnswers(section, student).length * 5, 0);
+  const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
+  const cohort = getStudentCohort(student);
+  const registeredTrack = getStudentRegisteredTrack(student);
+  const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
+  const peerScores = peers.map((peer) => {
+    const peerSections = getStudentExamSections(exam, peer);
+    const peerMax = peerSections.reduce((sum, section) => sum + getStudentVisibleSectionAnswers(section, peer).length * 5, 0);
+    const peerSubmitted = peerSections.map((section) => getStudentSubmission(peer.id, section.id)).filter(Boolean);
+    const peerScore = peerSubmitted.reduce((sum, submission) => sum + (Number(submission.score) || 0), 0);
+    return {
+      id: peer.id,
+      score: peerScore,
+      maxScore: peerMax,
+      percent: peerMax ? Math.round((peerScore / peerMax) * 1000) / 10 : 0,
+      submittedCount: peerSubmitted.length,
+    };
+  }).filter((item) => item.submittedCount > 0 && item.maxScore > 0);
+  const own = peerScores.find((item) => item.id === student.id);
+  const sorted = [...peerScores].sort((a, b) => b.percent - a.percent || b.score - a.score);
+  const rank = own ? sorted.findIndex((item) => item.id === student.id) + 1 : 0;
+  const topPercent = own && sorted.length ? calculateStudentTopPercent(rank, sorted.length) : 0;
+  const displayTopPercent = rank ? Math.max(1, Math.ceil(topPercent)) : 0;
+  const percentile = own ? Math.round((100 - topPercent) * 10) / 10 : 0;
+  const subjectSummaries = ownSubmissions.map((item) => getStudentSubjectGradeSummary(exam, student, item.section, item.submission, peers));
+  return {
+    title: formatStudentWeeklyExamName(exam.weekNumber),
+    score,
+    maxScore,
+    percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
+    submittedCount: submitted.length,
+    sectionCount: sections.length,
+    rank,
+    total: sorted.length,
+    topPercent,
+    displayTopPercent,
+    percentile,
+    subjectSummaries,
+  };
+}
+
+function getStudentSubjectGradeSummary(exam, student, section, submission, peers) {
+  const questionCount = getStudentVisibleSectionAnswers(section, student).length;
+  const score = submission ? Number(submission.score) || 0 : 0;
+  const correctCount = submission ? Number(submission.correctCount) || 0 : 0;
+  const maxScore = questionCount * 5;
+  const wrongCount = submission ? Math.max(0, questionCount - correctCount) : null;
+  const peerScores = peers.map((peer) => {
+    const peerSection = getStudentExamSections(exam, peer).find((item) => item.subject === section.subject);
+    if (!peerSection) return null;
+    const peerSubmission = getStudentSubmission(peer.id, peerSection.id);
+    if (!peerSubmission) return null;
+    const peerQuestionCount = getStudentVisibleSectionAnswers(peerSection, peer).length;
+    const peerScore = Number(peerSubmission.score) || 0;
+    return {
+      id: peer.id,
+      score: peerScore,
+      wrongCount: Math.max(0, peerQuestionCount - (Number(peerSubmission.correctCount) || 0)),
+      percent: peerQuestionCount ? Math.round((peerScore / (peerQuestionCount * 5)) * 1000) / 10 : 0,
+    };
+  }).filter(Boolean);
+  const sorted = [...peerScores].sort((a, b) => b.percent - a.percent || b.score - a.score || a.wrongCount - b.wrongCount);
+  const rank = submission ? sorted.findIndex((item) => item.id === student.id) + 1 : 0;
+  const topPercent = rank ? calculateStudentTopPercent(rank, sorted.length) : 0;
+  return {
+    subject: section.subject,
+    score,
+    maxScore,
+    wrongCount,
+    rank,
+    displayTopPercent: rank ? Math.max(1, Math.ceil(topPercent)) : 0,
+    submitted: Boolean(submission),
+  };
+}
+
+function calculateStudentTopPercent(rank, total) {
+  if (!rank || !total) return 0;
+  if (total <= 1) return 0;
+  return Math.round(((rank - 1) / (total - 1)) * 1000) / 10;
+}
+
+function renderStudentGradeResultPanel(summary, options = {}) {
+  if (!summary || !summary.submittedCount) {
+    return el("div", { className: "student-grade-result" }, [
+      renderStudentGradePyramid(null),
+      el("div", { className: "empty" }, options.emptyText || "아직 제출된 성적이 없습니다."),
+    ]);
+  }
+  return el("div", { className: "student-grade-result" }, [
+    renderStudentGradePyramid(summary),
+    el("div", { className: "student-grade-summary" }, [
+      el("strong", {}, summary.title),
+      el("div", { className: "detail-grid" }, [
+        el("div", { className: "detail-item" }, [el("span", {}, "총점"), el("strong", {}, `${summary.score}/${summary.maxScore}점`)]),
+        el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, `${summary.subjectSummaries.reduce((sum, item) => sum + (item.wrongCount ?? 0), 0)}개`)]),
+        el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, summary.rank ? `상위 ${summary.displayTopPercent}%` : "-")]),
+        el("div", { className: "detail-item" }, [el("span", {}, "제출"), el("strong", {}, `${summary.submittedCount}/${summary.sectionCount}과목`)]),
+      ]),
+    ]),
+    renderStudentSubjectGradeList(summary.subjectSummaries),
+  ]);
+}
+
+function renderStudentSubjectGradeList(subjectSummaries = []) {
+  return el("div", { className: "student-grade-subject-list" }, [
+    el("strong", {}, "과목별 성적"),
+    subjectSummaries.length
+      ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
+          el("h3", {}, item.subject),
+          el("div", { className: "detail-grid" }, [
+            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}/${item.maxScore}점` : "미제출")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, item.submitted ? `${item.wrongCount}개` : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? `상위 ${item.displayTopPercent}%` : "-")]),
+          ]),
+        ]))
+      : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
+  ]);
+}
+
+function renderStudentGradePyramid(summary) {
+  return renderPercentilePyramid({
+    percentile: summary?.rank ? summary.percentile : null,
+    label: summary?.rank ? `상위 ${summary.displayTopPercent}%` : "",
+    primaryColor: "var(--accent)",
+    baseBgColor: "#e6edf5",
+  });
+}
+
+function renderPercentilePyramid({ percentile = null, label = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5", levels = 5 } = {}) {
+  const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
+  const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
+  const fromTop = 100 - safePercentile;
+  const activeZone = hasMarker ? Math.min(levels - 1, Math.floor(fromTop / (100 / levels))) : -1;
+  const markerY = Math.round((8 + fromTop * 0.8) * 10) / 10;
+  const markerWidth = Math.round((12 + fromTop * 0.78) * 10) / 10;
+  const style = [
+    `--pyramid-primary:${primaryColor}`,
+    `--pyramid-base:${baseBgColor}`,
+    `--marker-y:${markerY}%`,
+    `--marker-width:${markerWidth}%`,
+  ].join(";");
+  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 시각화 피라미드" }, [
+    el("div", { className: "student-grade-pyramid-guide top" }, "상위 0%"),
+    el("div", { className: "student-grade-pyramid-guide bottom" }, "상위 100%"),
+    el("div", { className: "student-grade-pyramid-shape" }, [
+      el("div", { className: "student-grade-pyramid-fill" }),
+      el("div", { className: "student-grade-pyramid-zones" }, Array.from({ length: levels }, (_, index) =>
+        el("span", {
+          className: `student-grade-pyramid-zone${index === activeZone ? " active" : ""}`,
+          style: `top:${(index / levels) * 100}%;height:${100 / levels}%`,
+        })
+      )),
+      el("div", { className: "student-grade-pyramid-lines" }, Array.from({ length: Math.max(0, levels - 1) }, (_, index) =>
+        el("span", { style: `top:${((index + 1) / levels) * 100}%` })
+      )),
+      hasMarker ? el("span", { className: "student-grade-pyramid-marker-line" }) : null,
+    ]),
+    hasMarker
+      ? el("div", { className: "student-grade-pyramid-callout" }, [
+          el("span", {}, "내 위치"),
+          el("strong", {}, label || `백분위 ${safePercentile}%`),
+        ])
+      : null,
   ]);
 }
 
@@ -795,8 +1034,8 @@ function renderStudentWeeklyGrades(student) {
   if (selectedExam) selectedStudentExamId = selectedExam.id;
   if (!selectedExam) {
     return el("div", { className: "grid student-view" }, [
-      panel("주간평가", [
-        button("성적 선택으로 돌아가기", "mini-btn", "button", () => {
+      panel(studentGradesView === "entry" ? "성적 입력" : "성적 조회", [
+        button("성적 메뉴", "mini-btn", "button", () => {
           studentGradesView = "";
           render();
         }),
@@ -805,26 +1044,34 @@ function renderStudentWeeklyGrades(student) {
     ]);
   }
   const sections = getStudentExamSections(selectedExam, student);
+  const visibleSections = studentGradesView === "entry"
+    ? sections.filter((section) => !getStudentSubmission(student.id, section.id))
+    : sections;
   const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
+  if (selectedSection) {
+    return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
+      renderStudentExamAnswerEntry(selectedExam, selectedSection, student, sections),
+    ]);
+  }
   return el("div", { className: "grid student-view student-exam-view" }, [
-    renderStudentGradesBackPanel(),
     renderStudentExamList(exams, selectedExam),
-    selectedSection ? renderStudentExamAnswerEntry(selectedExam, selectedSection, student, sections) : renderStudentExamSubjectList(selectedExam, sections, student),
+    renderStudentExamEntrySubjectList(selectedExam, visibleSections, student),
   ]);
 }
 
 function renderStudentGradesBackPanel() {
   return panel("성적 구분", [
-    button("성적 선택으로 돌아가기", "mini-btn", "button", () => {
+    button("성적 메뉴", "mini-btn", "button", () => {
       studentGradesView = "";
       studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
       render();
     }),
+    el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
   ]);
 }
 
 function getVisibleStudentExams(student) {
-  const track = normalizeCoastGuardTrack(student.track);
+  const track = getStudentRegisteredTrack(student);
   const cohort = getStudentCohort(student);
   return (state.exams || [])
     .filter((exam) => exam.isPublished)
@@ -834,28 +1081,48 @@ function getVisibleStudentExams(student) {
 }
 
 function getStudentExamSections(exam, student) {
-  const track = normalizeCoastGuardTrack(student.track);
+  const track = getStudentRegisteredTrack(student);
   return (state.examSections || []).filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track));
 }
 
 function isStudentSectionMatch(section, studentTrack) {
-  return section.isActive !== false && isStudentSectionPublished(section) && (section.track === studentTrack || section.track === "전체");
+  const sectionTrack = normalizeCoastGuardTrack(section.track);
+  const trackMatched = sectionTrack === studentTrack || sectionTrack === "전체";
+  const subjectMatched = sectionTrack !== "전체" || isWeeklySubjectAllowedForTrack(section.subject, studentTrack);
+  return section.isActive !== false && trackMatched && subjectMatched && isStudentSectionPublished(section, studentTrack);
 }
 
-function isStudentSectionPublished(section) {
-  const answerCount = (state.examAnswers || []).filter((answer) => answer.examSectionId === section.id && answer.correctAnswer).length;
-  return answerCount >= (Number(section.questionCount) || 20);
+function isStudentSectionPublished(section, studentTrack = "") {
+  const answers = getStudentVisibleSectionAnswers(section, { track: studentTrack });
+  return answers.length > 0 && answers.every((answer) => answer.correctAnswer);
+}
+
+function getStudentVisibleSectionAnswers(section, student) {
+  const studentTrack = typeof student === "string"
+    ? normalizeCoastGuardTrack(student)
+    : student?.id
+      ? getStudentRegisteredTrack(student)
+      : normalizeCoastGuardTrack(student?.track);
+  return (state.examAnswers || [])
+    .filter((answer) => answer.examSectionId === section.id)
+    .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, studentTrack))
+    .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
 }
 
 function renderStudentExamList(exams, selectedExam) {
+  const examSelect = select("examId", exams.map((exam) => exam.id));
+  examSelect.querySelectorAll("option").forEach((option) => {
+    const exam = exams.find((item) => item.id === option.value);
+    if (exam) option.textContent = `${exam.weekNumber}주차`;
+  });
+  examSelect.value = selectedExam.id;
+  examSelect.addEventListener("change", () => {
+    studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+    selectedStudentExamId = examSelect.value;
+    render();
+  });
   return panel("주간평가 목록", [
-    el("div", { className: "student-exam-tabs" }, exams.map((exam) =>
-      button(`${exam.weekNumber}주차`, exam.id === selectedExam.id ? "mini-btn active" : "mini-btn", "button", () => {
-        studentExamDraft.sectionId = "";
-        selectedStudentExamId = exam.id;
-        render();
-      })
-    )),
+    field("주차 선택", examSelect),
     el("p", { className: "subtle" }, formatStudentWeeklyExamName(selectedExam.weekNumber)),
   ]);
 }
@@ -874,10 +1141,11 @@ function renderStudentExamSubjectList(exam, sections, student) {
 function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen) {
   const submission = getStudentSubmission(student.id, section.id);
   const status = getStudentSectionStatus(exam, section, submission);
+  const visibleQuestionCount = getStudentVisibleSectionAnswers(section, student).length;
   return el("article", { className: "student-exam-subject" }, [
     el("div", {}, [el("strong", {}, section.subject), el("span", { className: "badge" }, status)]),
-    el("p", { className: "subtle" }, `${section.questionCount}문항 · ${section.totalScore}점`),
-    submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${section.questionCount}`) : null,
+    el("p", { className: "subtle" }, `${visibleQuestionCount}문항 · ${visibleQuestionCount * 5}점`),
+    submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
     submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
     submission?.status === "submitted"
       ? renderStudentExamFiles(exam, section, canStudentSeeExplanation(exam, sections, student))
@@ -897,7 +1165,6 @@ function renderStudentExamFiles(exam, section, canOpen) {
 function getStudentSectionStatus(exam, section, submission) {
   if (submission?.status === "submitted") return "제출 완료";
   if (exam.startAt && Date.now() < new Date(exam.startAt).getTime()) return "기간 전";
-  if (exam.endAt && Date.now() > new Date(exam.endAt).getTime()) return "기간 종료";
   if (studentExamDraft.sectionId === section.id) return "입력 중";
   return "미제출";
 }
@@ -905,7 +1172,6 @@ function getStudentSectionStatus(exam, section, submission) {
 function isExamOpen(exam) {
   const now = Date.now();
   if (exam.startAt && now < new Date(exam.startAt).getTime()) return false;
-  if (exam.endAt && now > new Date(exam.endAt).getTime()) return false;
   return true;
 }
 
@@ -936,24 +1202,36 @@ function renderStudentExamAnswerEntry(exam, section, student, allSections) {
     return renderStudentExamSubjectList(exam, allSections, student);
   }
   if (studentExamDraft.review) return renderStudentExamReview(exam, section, student);
+  const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
+  if (!visibleAnswers.length) {
+    studentExamDraft.sectionId = "";
+    return renderStudentExamSubjectList(exam, allSections, student);
+  }
+  studentExamDraft.page = Math.min(studentExamDraft.page || 0, Math.max(0, Math.ceil(visibleAnswers.length / 10) - 1));
   const start = studentExamDraft.page * 10 + 1;
-  const end = Math.min(start + 9, section.questionCount);
+  const end = Math.min(start + 9, visibleAnswers.length);
   const cards = [];
-  for (let question = start; question <= end; question += 1) cards.push(renderStudentAnswerQuestion(question));
-  return panel(`${section.subject} ${section.questionCount}문제`, [
+  visibleAnswers.slice(start - 1, end).forEach((answer, index) => cards.push(renderStudentAnswerQuestion(answer.questionNumber, start + index)));
+  return panel(`${section.subject} ${visibleAnswers.length}문제`, [
     el("div", { className: "student-answer-range" }, `${start}~${end}번`),
     el("div", { className: "student-answer-list" }, cards),
-    renderStudentAnswerNav(section),
+    renderStudentAnswerNav(section, visibleAnswers.length),
   ]);
 }
 
-function renderStudentAnswerQuestion(questionNumber) {
+function renderStudentExamEntrySubjectList(exam, sections, student) {
+  return panel(formatStudentWeeklyExamName(exam.weekNumber), [
+    sections.length
+      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, false)))
+      : el("div", { className: "empty" }, "입력할 주간평가 과목이 없습니다."),
+  ]);
+}
+
+function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNumber) {
   const current = studentExamDraft.answers[questionNumber] || "";
-  const locked = studentExamDraft.locked[questionNumber] && !studentExamDraft.editing[questionNumber];
   const options = [1, 2, 3, 4].map((value) => {
     const selected = Number(current) === value;
     const node = button(`${toCircledAnswer(value)}${selected ? " ✓" : ""}`, selected ? "answer-choice selected" : "answer-choice", "button", () => {
-      if (locked) return;
       const previous = studentExamDraft.answers[questionNumber];
       studentExamDraft.answers[questionNumber] = value;
       studentExamDraft.locked[questionNumber] = true;
@@ -961,40 +1239,25 @@ function renderStudentAnswerQuestion(questionNumber) {
       render();
       if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
-    node.disabled = locked;
     return node;
   });
-  return el("article", { className: locked ? "student-answer-card locked" : "student-answer-card" }, [
-    el("div", { className: "student-answer-head" }, [el("strong", {}, `${questionNumber}번`), el("span", {}, current ? `선택 ${toCircledAnswer(current)}` : "미입력")]),
+  return el("article", { className: current ? "student-answer-card locked" : "student-answer-card" }, [
+    el("div", { className: "student-answer-head" }, [el("strong", {}, `${displayNumber}번`), el("span", {}, current ? `선택 ${toCircledAnswer(current)}` : "미입력")]),
     el("div", { className: "answer-choice-row" }, options),
-    locked ? el("p", { className: "subtle" }, "수정하려면 수정 버튼을 눌러주세요.") : null,
-    current
-      ? el("div", { className: "action-row" }, [
-          studentExamDraft.editing[questionNumber]
-            ? button("수정 취소", "mini-btn", "button", () => {
-                studentExamDraft.editing[questionNumber] = false;
-                render();
-              })
-            : button("수정", "mini-btn", "button", () => {
-                studentExamDraft.editing[questionNumber] = true;
-                render();
-              }),
-        ])
-      : null,
   ]);
 }
 
-function renderStudentAnswerNav(section) {
+function renderStudentAnswerNav(section, questionCount = section.questionCount) {
   const prev = button("이전 10문제", "btn secondary", "button", () => {
     studentExamDraft.page = Math.max(0, studentExamDraft.page - 1);
     render();
   });
   prev.disabled = studentExamDraft.page === 0;
   const next = button("다음 10문제", "btn secondary", "button", () => {
-    studentExamDraft.page = Math.min(Math.ceil(section.questionCount / 10) - 1, studentExamDraft.page + 1);
+    studentExamDraft.page = Math.min(Math.ceil(questionCount / 10) - 1, studentExamDraft.page + 1);
     render();
   });
-  next.disabled = studentExamDraft.page >= Math.ceil(section.questionCount / 10) - 1;
+  next.disabled = studentExamDraft.page >= Math.ceil(questionCount / 10) - 1;
   return el("div", { className: "student-answer-nav" }, [
     prev,
     button("답안표", "btn", "button", () => {
@@ -1009,17 +1272,20 @@ function renderStudentAnswerNav(section) {
 function renderStudentExamReview(exam, section, student) {
   const missing = [];
   const cells = [];
-  for (let question = 1; question <= section.questionCount; question += 1) {
+  const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
+  visibleAnswers.forEach((answerKey, index) => {
+    const question = answerKey.questionNumber;
+    const displayNumber = index + 1;
     const answer = studentExamDraft.answers[question];
-    if (!answer) missing.push(question);
-    cells.push(button(`${question}. ${answer ? toCircledAnswer(answer) : "미입력"}`, answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+    if (!answer) missing.push(displayNumber);
+    cells.push(button(`${displayNumber}. ${answer ? toCircledAnswer(answer) : "미입력"}`, answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
       studentExamDraft.review = false;
-      studentExamDraft.page = Math.floor((question - 1) / 10);
+      studentExamDraft.page = Math.floor(index / 10);
       render();
     }));
-  }
+  });
   const checkbox = el("input", { type: "checkbox" });
-  const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing));
+  const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing, visibleAnswers.length));
   submitButton.disabled = true;
   checkbox.addEventListener("change", () => {
     studentExamDraft.confirmed = checkbox.checked;
@@ -1039,10 +1305,10 @@ function renderStudentExamReview(exam, section, student) {
   ]);
 }
 
-function confirmStudentExamSubmit(section, student, missing) {
+function confirmStudentExamSubmit(section, student, missing, questionCount = section.questionCount) {
   const message = missing.length
-    ? `총 ${section.questionCount}문항 중 ${section.questionCount - missing.length}문항만 입력했습니다.\n미입력 문항: ${missing.join(", ")}번\n미입력 문항은 오답 처리됩니다.\n그래도 제출하시겠습니까?`
-    : `총 ${section.questionCount}문항 중 ${section.questionCount}문항을 모두 입력했습니다.\n제출 후에는 답안을 수정할 수 없습니다.\n최종 제출하시겠습니까?`;
+    ? `총 ${questionCount}문항 중 ${questionCount - missing.length}문항만 입력했습니다.\n미입력 문항: ${missing.join(", ")}번\n미입력 문항은 오답 처리됩니다.\n그래도 제출하시겠습니까?`
+    : `총 ${questionCount}문항 중 ${questionCount}문항을 모두 입력했습니다.\n제출 후에는 답안을 수정할 수 없습니다.\n최종 제출하시겠습니까?`;
   if (!confirm(message)) return;
   submitStudentSectionAnswers(section, student);
 }
@@ -1054,7 +1320,7 @@ async function submitStudentSectionAnswers(section, student) {
     examSectionId: section.id,
     studentId: student.id,
     studentName: student.name,
-    track: normalizeCoastGuardTrack(student.track),
+    track: getStudentRegisteredTrack(student),
     status: "submitted",
     score: 0,
     correctCount: 0,
@@ -1075,19 +1341,19 @@ async function submitStudentSectionAnswers(section, student) {
 }
 
 function gradeStudentSubmission(section, submission) {
-  const key = (state.examAnswers || []).filter((answer) => answer.examSectionId === section.id);
+  const key = getStudentVisibleSectionAnswers(section, { track: submission.track });
   let score = 0;
   let correctCount = 0;
   state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
-  for (let question = 1; question <= section.questionCount; question += 1) {
-    const answerKey = key.find((answer) => answer.questionNumber === question);
+  key.forEach((answerKey) => {
+    const question = answerKey.questionNumber;
     const selectedAnswer = Number(studentExamDraft.answers[question]) || null;
     const isCorrect = Boolean(answerKey?.correctAnswer && selectedAnswer === answerKey.correctAnswer);
     const pointsAwarded = isCorrect ? Number(answerKey.points) || 0 : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
-  }
+  });
   submission.score = Math.round(score * 10) / 10;
   submission.correctCount = correctCount;
 }
