@@ -174,6 +174,7 @@ function renderTeacher() {
 
 function renderAttendanceManagement() {
   if (!hasTeacherPermission("attendance.read")) return renderForbidden();
+  normalizeTeacherReasonAttendanceChecks();
   const todayKey = getTodayDateKey();
   const selectedDateKey = getSelectedAttendanceDateKey();
   const isTodayView = selectedDateKey === todayKey;
@@ -181,10 +182,15 @@ function renderAttendanceManagement() {
   const selected = selectedStudentCohortCount();
   const attendanceStudents = getAttendanceStudentsInCohort(selected.value);
   const dateChecks = getAttendanceChecksForDate(selectedDateKey).filter((check) => isAttendanceCheckInCohort(check, selected.value));
-  const presentChecks = dateChecks.filter((check) => check.status === "present" || check.status === "pre_arrival_verified");
-  const reasonChecks = dateChecks.filter((check) => check.status === "pre_arrival_reason");
-  const checkedStudentIds = new Set(dateChecks.map((check) => check.studentId));
-  const absentStudents = attendanceStudents.filter((student) => !checkedStudentIds.has(student.id));
+  const completeStudentIds = new Set(dateChecks.filter(isAttendanceCompleteCheck).map((check) => String(check.studentId || "").trim()));
+  const reasonChecks = dateChecks.filter((check) =>
+    check.status === "pre_arrival_reason"
+    && !isTeacherReasonAttendanceCheck(check)
+    && !completeStudentIds.has(String(check.studentId || "").trim())
+  );
+  const reasonStudentIds = new Set(reasonChecks.map((check) => String(check.studentId || "").trim()));
+  const checkedStudentIds = new Set([...completeStudentIds, ...reasonStudentIds]);
+  const absentStudents = attendanceStudents.filter((student) => !checkedStudentIds.has(String(student.id || "").trim()));
   const dateLabel = formatAttendanceDateLabel(selectedDateKey);
 
   return el("div", { className: "grid" }, [
@@ -198,7 +204,7 @@ function renderAttendanceManagement() {
     el("div", { className: "stat-groups" }, [
       attendanceStudentCountStatGroup(selected, attendanceStudents.length),
       statGroup(`${dateLabel} 출석`, [
-        stat("출석 완료", presentChecks.length, "명"),
+        stat("출석 완료", completeStudentIds.size, "명"),
         stat("사유신청 후 미등원", reasonChecks.length, "명"),
         stat("미인증", absentStudents.length, "명"),
       ]),
@@ -473,6 +479,26 @@ function formatStudentNumber(studentId) {
 
 function getStudentsInCohort(cohort = selectedStudentCohort) {
   return [...state.students].filter((student) => !cohort || getStudentCohort(student) === cohort);
+}
+
+function isTeacherReasonAttendanceCheck(check) {
+  return String(check?.photoPath || "").startsWith("teacher-reason/");
+}
+
+function isAttendanceCompleteCheck(check) {
+  return check?.status === "present"
+    || check?.status === "pre_arrival_verified"
+    || isTeacherReasonAttendanceCheck(check);
+}
+
+function normalizeTeacherReasonAttendanceChecks() {
+  let changed = false;
+  state.attendanceChecks = (state.attendanceChecks || []).map((check) => {
+    if (!isTeacherReasonAttendanceCheck(check) || check.status === "present") return check;
+    changed = true;
+    return { ...check, status: "present" };
+  });
+  if (changed) saveState();
 }
 
 function getAttendanceStudentsInCohort(cohort = selectedStudentCohort) {
@@ -1370,6 +1396,7 @@ function renderAttendanceTable(checks) {
 }
 
 function attendanceStatusBadge(check) {
+  if (isTeacherReasonAttendanceCheck(check)) return el("span", { className: "badge approved" }, "사유 인증 출석");
   if (check.status === "pre_arrival_reason") return el("span", { className: "badge pending" }, "사유신청");
   if (check.status === "pre_arrival_verified") return el("span", { className: "badge approved" }, "사유 후 등원");
   return el("span", { className: "badge approved" }, "출석");
