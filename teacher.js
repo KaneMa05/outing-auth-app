@@ -361,7 +361,7 @@ function openTeacherReasonAttendanceModal(student) {
     field("상세", detailInput, "full"),
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-modal-actions" }, [
-        button("사유신청 처리", "btn"),
+        button("출석 처리", "btn"),
         button("취소", "btn secondary", "button", closeInfoModal),
       ]),
     ]),
@@ -380,7 +380,7 @@ function openTeacherReasonAttendanceModal(student) {
     createTeacherReasonAttendanceCheck(student, reason, data.detail);
     closeInfoModal();
     render();
-    notify("등원 전 사유신청으로 처리했습니다. 실제 등원 시 학생 인증이 필요합니다.");
+    notify("사유 인증으로 출석 처리했습니다.");
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -404,7 +404,7 @@ function createTeacherReasonAttendanceCheck(student, reason, detail) {
     studentName: student.name,
     className: student.className || state.settings.className || "오프라인반",
     checkDate,
-    status: "pre_arrival_reason",
+    status: "present",
     reason: String(reason || "").trim(),
     detail: String(detail || "").trim(),
     photoPath: `teacher-reason/${checkDate}/${student.id}/${id}`,
