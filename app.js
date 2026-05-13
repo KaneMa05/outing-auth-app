@@ -817,14 +817,24 @@ function openStudentPenaltyHistoryModal(studentId) {
 }
 
 function renderPenaltyDetailTable(penalties) {
-  const headers = ["날짜", "상/벌점", "사유", "담당자"];
+  const showCancel = penalties.some((penalty) => typeof canCancelPenalty === "function" && canCancelPenalty(penalty));
+  const headers = showCancel ? ["날짜", "상/벌점", "사유", "담당자", "관리"] : ["날짜", "상/벌점", "사유", "담당자"];
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateOnly(penalty.createdAt)),
       el("td", {}, formatPenaltyPoints(penalty.points)),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
-    ])
+      showCancel
+        ? el(
+            "td",
+            { className: "student-admin-actions" },
+            typeof canCancelPenalty === "function" && canCancelPenalty(penalty)
+              ? button("취소", "mini-btn danger", "button", () => cancelPenalty(penalty.id))
+              : "-"
+          )
+        : null,
+    ].filter(Boolean))
   );
   labelTableRows(headers, rows);
 
@@ -896,7 +906,7 @@ function formatExamDate(dateString) {
 }
 
 function renderHome() {
-  const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const activeOutings = state.outings.filter(isActiveOuting);
   const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));

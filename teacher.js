@@ -138,7 +138,7 @@ async function logoutTeacher() {
 
 function renderTeacher() {
   applyAutoApprovalForReturnedOutings();
-  const activeOutings = state.outings.filter((outing) => outing.status !== "returned" && outing.decision !== "rejected");
+  const activeOutings = state.outings.filter(isActiveOuting);
   const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
@@ -683,7 +683,8 @@ function renderPenaltySummaryTable(summaries) {
 }
 
 function renderPenaltyHistoryTable(penalties) {
-  const headers = ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
+  const showCancel = penalties.some(canCancelPenalty);
+  const headers = showCancel ? ["부여일", "번호", "이름", "상/벌점", "사유", "담당자", "관리"] : ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(penalty.createdAt)),
@@ -692,7 +693,8 @@ function renderPenaltyHistoryTable(penalties) {
       el("td", {}, el("span", { className: getPenaltyPointClass(penalty.points) }, formatPenaltyPoints(penalty.points))),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
-    ])
+      showCancel ? el("td", { className: "student-admin-actions" }, canCancelPenalty(penalty) ? button("취소", "mini-btn danger", "button", () => cancelPenalty(penalty.id)) : "-") : null,
+    ].filter(Boolean))
   );
   labelTableRows(headers, rows);
 
@@ -1501,8 +1503,8 @@ function teacherRowActions(outing, options = {}) {
     }) : null,
     canGiveNotReturnedPenalty && !canDecide
       ? hasNotReturnedPenaltyForOuting(outing)
-        ? el("button", { className: "mini-btn", type: "button", disabled: true }, "벌점 완료")
-        : button("미복귀 벌점", "mini-btn danger", "button", () => openNotReturnedPenaltyModal(outing))
+        ? el("button", { className: "mini-btn", type: "button", disabled: true }, "미복귀 벌점 부여 완료")
+        : button("미복귀 벌점 부여", "mini-btn danger", "button", () => openNotReturnedPenaltyModal(outing))
       : null,
     hasTeacherPermission("outing.memo") ? button("메모", "mini-btn", "button", () => {
       const memo = prompt("교사용 메모", outing.teacherMemo || "");
@@ -1517,6 +1519,7 @@ function teacherRowActions(outing, options = {}) {
 
 function canGiveNotReturnedPenaltyForOuting(outing) {
   return hasTeacherPermission("penalties.write")
+    && outing?.decision !== "approved"
     && outing?.decision !== "rejected"
     && outing?.status !== "returned";
 }
@@ -1781,6 +1784,42 @@ function teacherStudentForm() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+function canCancelPenalty(penalty) {
+  return isTeacherAdmin() && Boolean(penalty?.id) && Boolean(String(penalty?.reason || "").trim());
+}
+
+async function cancelPenalty(id) {
+  const penalty = (state.penalties || []).find((item) => item.id === id);
+  if (!canCancelPenalty(penalty)) return notify("취소할 수 없는 상/벌점 내역입니다.");
+  if (!confirm(`${penalty.studentName || "학생"} ${formatPenaltyPoints(penalty.points)} 내역을 취소할까요?`)) return;
+
+  const beforePenalties = [...(state.penalties || [])];
+  try {
+    await deletePenaltyFromTeacherApi(id);
+    state.penalties = (state.penalties || []).filter((item) => item.id !== id);
+    saveState({ skipRemote: true });
+    closeInfoModal();
+    render();
+    notify("상/벌점 내역을 취소했습니다.");
+  } catch (error) {
+    console.error(error);
+    state.penalties = beforePenalties;
+    render();
+    notify("상/벌점 취소를 서버에 저장하지 못했습니다.");
+  }
+}
+
+async function deletePenaltyFromTeacherApi(id) {
+  const response = await fetch("/api/penalties", {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "penalty_delete_failed");
 }
 
 async function saveStudentsToRemote(studentIds) {
@@ -2242,11 +2281,10 @@ function getActiveManagers() {
 function managerNameControl() {
   const managers = getActiveManagers();
   const defaultName = String(teacherAuth.user?.username || "").trim();
-  const options = managers.length
-    ? managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name))
-    : defaultName
-      ? [el("option", { value: defaultName }, defaultName)]
-      : [];
+  const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
+  if (defaultName && !managers.some((manager) => manager.name === defaultName)) {
+    options.push(el("option", { value: defaultName }, defaultName));
+  }
   const node = el("select", { name: "managerName", required: true }, [
     el("option", { value: "" }, "담당자 선택"),
     ...options,

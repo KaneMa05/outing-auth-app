@@ -1743,12 +1743,17 @@ function isAttendanceExcludedStudent(student) {
   return student?.attendanceExcluded === true;
 }
 
+function isActiveOuting(outing) {
+  return outing?.status !== "returned"
+    && outing?.decision !== "approved"
+    && outing?.decision !== "rejected";
+}
+
 function getActiveOuting(studentId) {
   return state.outings.find(
     (outing) =>
       outing.studentId === String(studentId).trim() &&
-      outing.status !== "returned" &&
-      outing.decision !== "rejected"
+      isActiveOuting(outing)
   );
 }
 

@@ -9,6 +9,7 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "outing.memo",
   "penalties.read",
   "penalties.write",
+  "managers.read",
   "attendance.read",
   "attendance.write",
 ];
