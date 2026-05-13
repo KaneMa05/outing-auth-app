@@ -388,8 +388,10 @@ function openTeacherReasonAttendanceModal(student) {
   const reasonInput = textarea("reason", "사유를 입력하세요.");
   reasonInput.required = true;
   const detailInput = textarea("detail", "상세 내용 (선택)");
+  const managerInput = managerNameControl();
   const form = el("form", { className: "form-grid penalty-form" }, [
     field("학생", el("strong", {}, `${student.name || "-"} (${formatStudentNumber(student.id)})`)),
+    field("담당자", managerInput),
     field("사유", reasonInput, "full"),
     field("상세", detailInput, "full"),
     el("div", { className: "field full" }, [
@@ -400,7 +402,7 @@ function openTeacherReasonAttendanceModal(student) {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const reason = String(data.reason || "").trim();
@@ -410,10 +412,25 @@ function openTeacherReasonAttendanceModal(student) {
       render();
       return notify("이미 오늘 출석 처리가 완료된 학생입니다.");
     }
-    createTeacherReasonAttendanceCheck(student, reason, data.detail);
-    closeInfoModal();
-    render();
-    notify("사유 인증으로 출석 처리했습니다.");
+    const submitButton = form.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+      setButtonLoading(submitButton, "저장 중...");
+    }
+    try {
+      createTeacherReasonAttendanceCheck(student, reason, data.detail, data.managerName);
+      await flushRemoteSave();
+      closeInfoModal();
+      render();
+      notify("사유 인증으로 출석 처리했습니다.");
+    } catch (error) {
+      console.error(error);
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "출석 처리";
+      }
+      notify("사유 인증 출석을 서버에 저장하지 못했습니다. Supabase 스키마를 확인해주세요.");
+    }
   });
 
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
@@ -428,7 +445,7 @@ function openTeacherReasonAttendanceModal(student) {
   document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
-function createTeacherReasonAttendanceCheck(student, reason, detail) {
+function createTeacherReasonAttendanceCheck(student, reason, detail, managerName) {
   const id = createId();
   const checkDate = getTodayDateKey();
   const check = {
@@ -440,6 +457,7 @@ function createTeacherReasonAttendanceCheck(student, reason, detail) {
     status: "present",
     reason: String(reason || "").trim(),
     detail: String(detail || "").trim(),
+    managerName: String(managerName || "").trim(),
     photoPath: `teacher-reason/${checkDate}/${student.id}/${id}`,
     photoUrl: "",
     photoDataUrl: "",
@@ -1395,7 +1413,7 @@ function attendanceDeadlineForm(options = {}) {
 }
 
 function renderAttendanceTable(checks) {
-  const headers = ["사유/출석 시각", "번호", "이름", "반", "상태", "사유", "상세", "사진"];
+  const headers = ["사유/출석 시각", "번호", "이름", "반", "상태", "담당자", "사유", "상세", "사진"];
   const rows = [...checks]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map((check) =>
@@ -1405,6 +1423,7 @@ function renderAttendanceTable(checks) {
         el("td", {}, check.studentName || "-"),
         el("td", {}, check.className || "-"),
         el("td", {}, attendanceStatusBadge(check)),
+        el("td", {}, check.managerName || "-"),
         el("td", {}, check.reason || "-"),
         el("td", { className: "wide-cell" }, check.detail || "-"),
         el("td", {}, attendancePhotoButton(check)),

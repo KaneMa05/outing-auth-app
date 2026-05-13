@@ -729,6 +729,7 @@ async function loadStateFromRemote() {
     "status",
     "reason",
     "detail",
+    "manager_name",
     "photo_path",
     "photo_url",
     "thumbnail_path",
@@ -829,25 +830,16 @@ async function loadStateFromRemote() {
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
     isMissingColumnError(attendanceResult.error, "detail") ||
+    isMissingColumnError(attendanceResult.error, "manager_name") ||
     isMissingColumnError(attendanceResult.error, "thumbnail_path") ||
     isMissingColumnError(attendanceResult.error, "thumbnail_url") ||
     isMissingColumnError(attendanceResult.error, "arrival_photo_path") ||
     isMissingColumnError(attendanceResult.error, "arrived_at")
   ) {
+    const missingColumns = getMissingAttendanceColumns(attendanceResult.error);
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
-      .filter((column) => ![
-        "reason",
-        "detail",
-        "thumbnail_path",
-        "thumbnail_url",
-        "arrival_photo_path",
-        "arrival_photo_url",
-        "arrival_thumbnail_path",
-        "arrival_thumbnail_url",
-        "arrival_original_name",
-        "arrived_at",
-      ].includes(column))
+      .filter((column) => !missingColumns.includes(column))
       .join(",");
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
@@ -1248,6 +1240,7 @@ async function saveStateToRemote() {
         status: check.status || "present",
         reason: check.reason || null,
         detail: check.detail || null,
+        manager_name: check.managerName || null,
         photo_path: check.photoPath,
         photo_url: check.photoUrl || null,
         thumbnail_path: check.thumbnailPath || null,
@@ -1267,8 +1260,12 @@ async function saveStateToRemote() {
       const { error } = await remoteStore
         .from("attendance_checks")
         .upsert(attendanceRows, { onConflict: "id", ignoreDuplicates: true });
-      if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
-        const fallbackRows = attendanceRows.map(stripAttendanceReasonColumnsFromRow);
+      if (
+        isMissingColumnError(error, "reason") ||
+        isMissingColumnError(error, "detail") ||
+        isMissingColumnError(error, "manager_name")
+      ) {
+        const fallbackRows = attendanceRows.map((row) => stripAttendanceReasonColumnsFromRow(row, error));
         const { error: fallbackError } = await remoteStore
           .from("attendance_checks")
           .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
@@ -1303,9 +1300,33 @@ async function saveStateToRemote() {
 
 }
 
-function stripAttendanceReasonColumnsFromRow(row) {
-  const { reason, detail, ...rest } = row;
-  return rest;
+function stripAttendanceReasonColumnsFromRow(row, error = null) {
+  const missingColumns = getMissingAttendanceColumns(error).filter((column) =>
+    ["reason", "detail", "manager_name"].includes(column)
+  );
+  const columns = missingColumns.length ? missingColumns : ["reason", "detail", "manager_name"];
+  const next = { ...row };
+  columns.forEach((column) => {
+    delete next[column];
+  });
+  return next;
+}
+
+function getMissingAttendanceColumns(error) {
+  const knownColumns = [
+    "reason",
+    "detail",
+    "manager_name",
+    "thumbnail_path",
+    "thumbnail_url",
+    "arrival_photo_path",
+    "arrival_photo_url",
+    "arrival_thumbnail_path",
+    "arrival_thumbnail_url",
+    "arrival_original_name",
+    "arrived_at",
+  ];
+  return knownColumns.filter((column) => isMissingColumnError(error, column));
 }
 
 function stripAttendanceThumbnailColumnsFromRow(row) {
@@ -1774,6 +1795,7 @@ function mapAttendanceCheckFromRemote(check) {
     status: check.status || "present",
     reason: check.reason || "",
     detail: check.detail || "",
+    managerName: check.manager_name || "",
     photoPath: check.photo_path || "",
     photoUrl: check.photo_url || "",
     thumbnailPath: check.thumbnail_path || "",
@@ -2405,6 +2427,7 @@ async function createAttendanceCheck(student, file, options = {}) {
     status,
     reason: String(options.reason || "").trim(),
     detail: String(options.detail || "").trim(),
+    managerName: String(options.managerName || "").trim(),
     photoPath: photo.photoPath,
     photoUrl: photo.photoUrl,
     thumbnailPath: photo.thumbnailPath,
@@ -2424,6 +2447,7 @@ async function createAttendanceCheck(student, file, options = {}) {
       status: check.status,
       reason: check.reason || null,
       detail: check.detail || null,
+      manager_name: check.managerName || null,
       photo_path: check.photoPath,
       photo_url: check.photoUrl || null,
       thumbnail_path: check.thumbnailPath || null,
@@ -2433,8 +2457,12 @@ async function createAttendanceCheck(student, file, options = {}) {
       created_at: check.createdAt,
     };
     const { error } = await remoteStore.from("attendance_checks").insert(attendanceRow);
-    if (isMissingColumnError(error, "reason") || isMissingColumnError(error, "detail")) {
-      const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(attendanceRow));
+    if (
+      isMissingColumnError(error, "reason") ||
+      isMissingColumnError(error, "detail") ||
+      isMissingColumnError(error, "manager_name")
+    ) {
+      const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(attendanceRow, error));
       if (isDuplicateAttendanceError(fallbackError)) {
         const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
         if (existingCheck) {
@@ -2485,6 +2513,7 @@ async function fetchRemoteAttendanceCheck(studentId, checkDate) {
     "status",
     "reason",
     "detail",
+    "manager_name",
     "photo_path",
     "photo_url",
     "thumbnail_path",
@@ -2509,25 +2538,16 @@ async function fetchRemoteAttendanceCheck(studentId, checkDate) {
   if (
     isMissingColumnError(result.error, "reason") ||
     isMissingColumnError(result.error, "detail") ||
+    isMissingColumnError(result.error, "manager_name") ||
     isMissingColumnError(result.error, "thumbnail_path") ||
     isMissingColumnError(result.error, "thumbnail_url") ||
     isMissingColumnError(result.error, "arrival_photo_path") ||
     isMissingColumnError(result.error, "arrived_at")
   ) {
+    const missingColumns = getMissingAttendanceColumns(result.error);
     const fallbackColumns = columns
       .split(",")
-      .filter((column) => ![
-        "reason",
-        "detail",
-        "thumbnail_path",
-        "thumbnail_url",
-        "arrival_photo_path",
-        "arrival_photo_url",
-        "arrival_thumbnail_path",
-        "arrival_thumbnail_url",
-        "arrival_original_name",
-        "arrived_at",
-      ].includes(column))
+      .filter((column) => !missingColumns.includes(column))
       .join(",");
     result = await remoteStore
       .from("attendance_checks")
