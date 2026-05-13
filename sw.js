@@ -1,11 +1,10 @@
-const CACHE_NAME = "outing-auth-app-v95-attendance-manager";
+const CACHE_NAME = "outing-auth-app-v96-config-refresh";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/teacher",
   "/teacher.html",
   "/styles.css",
-  "/config.js",
   "/supabase.js",
   "/shared.js",
   "/student.js",
@@ -36,6 +35,10 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (url.pathname === "/config.js" || url.pathname === "/sw.js") {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
