@@ -311,6 +311,13 @@ function renderAppIfReady() {
   if (typeof render === "function") render();
 }
 
+function setButtonLoading(buttonNode, text) {
+  if (!buttonNode) return;
+  buttonNode.innerHTML = "";
+  buttonNode.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
+  buttonNode.appendChild(document.createTextNode(text));
+}
+
 function loadSupabaseSdk() {
   if (window.supabase && window.supabase.createClient) return Promise.resolve(true);
   if (window.__outingSupabaseSdkPromise) return window.__outingSupabaseSdkPromise;
@@ -843,12 +850,13 @@ async function loadStateFromRemote() {
     isMissingColumnError(attendanceResult.error, "reason") ||
     isMissingColumnError(attendanceResult.error, "detail") ||
     isMissingColumnError(attendanceResult.error, "manager_name") ||
+    isAttendanceManagerPermissionError(attendanceResult.error) ||
     isMissingColumnError(attendanceResult.error, "thumbnail_path") ||
     isMissingColumnError(attendanceResult.error, "thumbnail_url") ||
     isMissingColumnError(attendanceResult.error, "arrival_photo_path") ||
     isMissingColumnError(attendanceResult.error, "arrived_at")
   ) {
-    const missingColumns = getMissingAttendanceColumns(attendanceResult.error);
+    const missingColumns = getUnavailableAttendanceColumns(attendanceResult.error);
     const fallbackAttendanceColumns = attendanceColumns
       .split(",")
       .filter((column) => !missingColumns.includes(column))
@@ -1275,7 +1283,8 @@ async function saveStateToRemote() {
       if (
         isMissingColumnError(error, "reason") ||
         isMissingColumnError(error, "detail") ||
-        isMissingColumnError(error, "manager_name")
+        isMissingColumnError(error, "manager_name") ||
+        isAttendanceManagerPermissionError(error)
       ) {
         const fallbackRows = attendanceRows.map((row) => stripAttendanceReasonColumnsFromRow(row, error));
         const { error: fallbackError } = await remoteStore
@@ -1313,7 +1322,7 @@ async function saveStateToRemote() {
 }
 
 function stripAttendanceReasonColumnsFromRow(row, error = null) {
-  const missingColumns = getMissingAttendanceColumns(error).filter((column) =>
+  const missingColumns = getUnavailableAttendanceColumns(error).filter((column) =>
     ["reason", "detail", "manager_name"].includes(column)
   );
   const columns = missingColumns.length ? missingColumns : ["reason", "detail", "manager_name"];
@@ -1322,6 +1331,14 @@ function stripAttendanceReasonColumnsFromRow(row, error = null) {
     delete next[column];
   });
   return next;
+}
+
+function getUnavailableAttendanceColumns(error) {
+  const columns = getMissingAttendanceColumns(error);
+  if (isAttendanceManagerPermissionError(error) && !columns.includes("manager_name")) {
+    columns.push("manager_name");
+  }
+  return columns;
 }
 
 function getMissingAttendanceColumns(error) {
@@ -1363,6 +1380,16 @@ function isMissingColumnError(error, columnName) {
   if (!error) return false;
   const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
   return text.includes(columnName.toLowerCase()) && (text.includes("column") || text.includes("schema cache"));
+}
+
+function isAttendanceManagerPermissionError(error) {
+  if (!error) return false;
+  const text = [error.message, error.details, error.hint, error.code].filter(Boolean).join(" ").toLowerCase();
+  return (
+    text.includes("42501") &&
+    text.includes("permission denied") &&
+    text.includes("attendance_checks")
+  );
 }
 
 function isExpectedProfileRewriteError(error) {
@@ -2472,7 +2499,8 @@ async function createAttendanceCheck(student, file, options = {}) {
     if (
       isMissingColumnError(error, "reason") ||
       isMissingColumnError(error, "detail") ||
-      isMissingColumnError(error, "manager_name")
+      isMissingColumnError(error, "manager_name") ||
+      isAttendanceManagerPermissionError(error)
     ) {
       const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(attendanceRow, error));
       if (isDuplicateAttendanceError(fallbackError)) {
@@ -2551,12 +2579,13 @@ async function fetchRemoteAttendanceCheck(studentId, checkDate) {
     isMissingColumnError(result.error, "reason") ||
     isMissingColumnError(result.error, "detail") ||
     isMissingColumnError(result.error, "manager_name") ||
+    isAttendanceManagerPermissionError(result.error) ||
     isMissingColumnError(result.error, "thumbnail_path") ||
     isMissingColumnError(result.error, "thumbnail_url") ||
     isMissingColumnError(result.error, "arrival_photo_path") ||
     isMissingColumnError(result.error, "arrived_at")
   ) {
-    const missingColumns = getMissingAttendanceColumns(result.error);
+    const missingColumns = getUnavailableAttendanceColumns(result.error);
     const fallbackColumns = columns
       .split(",")
       .filter((column) => !missingColumns.includes(column))

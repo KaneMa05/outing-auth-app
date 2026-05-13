@@ -402,12 +402,6 @@ function setPhotoInputLoading(trigger, status, loading, text) {
   status.appendChild(document.createTextNode(text));
 }
 
-function setButtonLoading(buttonNode, text) {
-  buttonNode.innerHTML = "";
-  buttonNode.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
-  buttonNode.appendChild(document.createTextNode(text));
-}
-
 function renderStudentReturn() {
   return studentShell("학원 복귀 인증", "복귀 시간을 남기면 교사가 관리 화면에서 최종 상태를 확인할 수 있습니다.", [
     panel("복귀 처리", [createReturnForm()]),
