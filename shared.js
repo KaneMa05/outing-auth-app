@@ -2260,6 +2260,15 @@ function getOutingThumbnailSrc(photo) {
   return photo?.thumbnailUrl || getOutingPhotoSrc(photo);
 }
 
+function getPhotoModalSrc(photo) {
+  return photo?.thumbnailUrl
+    || photo?.arrivalThumbnailUrl
+    || photo?.photoUrl
+    || photo?.dataUrl
+    || photo?.photoDataUrl
+    || "";
+}
+
 async function createOutingPhoto(outing, file, type) {
   if (!outing) throw new Error("outing_required");
   if (!file) throw new Error("photo_required");
@@ -2356,6 +2365,10 @@ async function loadOutingPhotoForView(photo) {
 
 async function openLoadedOutingPhotoModal(photo) {
   try {
+    if (getOutingThumbnailSrc(photo)) {
+      openPhotoModal(photo);
+      return;
+    }
     openPhotoModal(await loadOutingPhotoForView(photo));
   } catch (error) {
     console.error(error);
@@ -2767,6 +2780,7 @@ function notify(message) {
 function openPhotoModal(photo) {
   closePhotoModal();
   const details = Array.isArray(photo.details) ? photo.details.filter(Boolean) : [];
+  const src = getPhotoModalSrc(photo);
   const modal = el("div", { className: "photo-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "photo-modal-backdrop", type: "button", ariaLabel: "사진 닫기" }),
     el("div", { className: "photo-modal-panel" }, [
@@ -2784,7 +2798,7 @@ function openPhotoModal(photo) {
             details.map((detail) => el("p", {}, detail))
           )
         : null,
-      el("img", { src: photo.dataUrl || photo.photoUrl || photo.photoDataUrl || "", alt: photo.type || "인증 사진" }),
+      el("img", { src, alt: photo.type || "인증 사진" }),
     ]),
   ]);
 

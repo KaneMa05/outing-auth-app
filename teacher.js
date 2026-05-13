@@ -1385,6 +1385,7 @@ function attendancePhotoButton(check) {
     buttons.push(button("", "attendance-photo-thumb", "button", () => openPhotoModal({
       type: check.status === "present" ? "출석 인증" : "등원 전 사유 인증",
       photoUrl: src,
+      thumbnailUrl: thumbnailSrc,
       uploadedAt: check.createdAt,
     }), [
       el("img", { src: thumbnailSrc, alt: "출석 인증 사진", loading: "lazy" }),
@@ -1395,6 +1396,7 @@ function attendancePhotoButton(check) {
     buttons.push(button("", "attendance-photo-thumb", "button", () => openPhotoModal({
       type: "등원 인증",
       photoUrl: arrivalSrc,
+      thumbnailUrl: arrivalThumbnailSrc,
       uploadedAt: check.arrivedAt,
     }), [
       el("img", { src: arrivalThumbnailSrc, alt: "등원 인증 사진", loading: "lazy" }),
