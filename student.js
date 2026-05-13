@@ -760,14 +760,14 @@ function studentLookup(buttonText) {
 
 let selectedStudentExamId = "";
 let selectedStudentGradeLookupExamId = "";
-let studentGradeLookupType = "weekly";
+let studentGradeLookupType = "final";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 
 function resetStudentGradesView() {
   selectedStudentExamId = "";
   selectedStudentGradeLookupExamId = "";
-  studentGradeLookupType = "weekly";
+  studentGradeLookupType = "final";
   studentGradesView = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 }
@@ -789,12 +789,9 @@ function renderStudentGradesHome() {
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
-        renderStudentGradeAction("성적 조회", "제출한 주간평가 결과를 확인합니다.", "조회", () => {
+        renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
           studentGradesView = "lookup";
-          render();
-        }),
-        renderStudentGradeAction("성적 입력", "공개된 주간평가 답안을 입력합니다.", "입력", () => {
-          studentGradesView = "entry";
+          studentGradeLookupType = "final";
           render();
         }),
       ]),
@@ -813,43 +810,14 @@ function renderStudentGradeAction(title, copy, actionText, onClick) {
 }
 
 function renderStudentGradeLookupComingSoon() {
-  const student = getAuthedStudent();
-  if (!student) return renderStudentAuth();
-  const exams = getVisibleStudentExams(student);
-  const selectedExam = exams.find((exam) => exam.id === selectedStudentGradeLookupExamId) || exams[0] || null;
-  if (selectedExam) selectedStudentGradeLookupExamId = selectedExam.id;
   const typeTabs = el("div", { className: "student-grade-type-tabs" }, [
-    button("주간평가 성적", studentGradeLookupType === "weekly" ? "mini-btn active" : "mini-btn", "button", () => {
-      studentGradeLookupType = "weekly";
-      render();
-    }),
-    button("파이널 성적", studentGradeLookupType === "final" ? "mini-btn active" : "mini-btn", "button", () => {
-      studentGradeLookupType = "final";
-      render();
-    }),
+    button("파이널 성적", "mini-btn active", "button", () => {}),
   ]);
-  const examSelect = selectedExam ? select("examId", exams.map((exam) => exam.id)) : null;
-  if (examSelect) {
-    examSelect.querySelectorAll("option").forEach((option) => {
-      const exam = exams.find((item) => item.id === option.value);
-      if (exam) option.textContent = `${exam.weekNumber}주차`;
-    });
-    examSelect.value = selectedExam.id;
-    examSelect.addEventListener("change", () => {
-      selectedStudentGradeLookupExamId = examSelect.value;
-      render();
-    });
-  }
-  const summary = studentGradeLookupType === "weekly" && selectedExam
-    ? getStudentWeeklyGradeSummary(selectedExam, student)
-    : null;
+
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적 조회", [
       typeTabs,
-      studentGradeLookupType === "weekly" && examSelect ? field("주차 선택", examSelect) : null,
-      studentGradeLookupType === "weekly"
-        ? renderStudentGradeResultPanel(summary)
-        : renderStudentGradeResultPanel(null, { title: "파이널 성적", emptyText: "파이널 성적은 준비 중입니다." }),
+      renderStudentGradeResultPanel(null, { title: "파이널 성적", emptyText: "파이널 성적은 준비 중입니다." }),
       button("성적 메뉴", "mini-btn", "button", () => {
         studentGradesView = "";
         render();
