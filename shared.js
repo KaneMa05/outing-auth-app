@@ -1560,10 +1560,13 @@ async function updateRemoteOutingDeletedAt(id, deletedAt) {
     .eq("id", id);
   if (error) throw error;
 }
-function stat(label, value, unit = "") {
+function stat(label, value, unit = "", options = {}) {
+  const valueNode = [String(value), unit ? el("small", {}, unit) : null].filter(Boolean);
   return el("div", { className: "stat" }, [
     el("span", {}, label),
-    el("strong", {}, [String(value), unit ? el("small", {}, unit) : null].filter(Boolean)),
+    options.onClick
+      ? el("button", { className: "stat-action", type: "button", onClick: options.onClick }, valueNode)
+      : el("strong", {}, valueNode),
   ]);
 }
 

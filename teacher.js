@@ -150,13 +150,23 @@ function renderTeacher() {
     el("div", { className: "stat-groups" }, [
       studentCountStatGroup(),
       statGroup("외출 인원", [
-        stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
-        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명"),
+        stat("외출 중 학생", countOutingStudents(activeOutings), "명", {
+          onClick: () => scrollToFirstOuting(activeOutings, "outing-pending-section"),
+        }),
+        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명", {
+          onClick: () => scrollToFirstOuting(activeEarlyLeaves, "outing-pending-section"),
+        }),
       ]),
       statGroup("외출 건수", [
-        stat("처리 대기", pendingOutingCases.length, "건"),
-        stat("외출 중", activeOutings.length, "건"),
-        stat("오늘 복귀", returnedTodayCases.length, "건"),
+        stat("처리 대기", pendingOutingCases.length, "건", {
+          onClick: () => scrollToPanel("outing-pending-section"),
+        }),
+        stat("외출 중", activeOutings.length, "건", {
+          onClick: () => scrollToFirstOuting(activeOutings, "outing-pending-section"),
+        }),
+        stat("오늘 복귀", returnedTodayCases.length, "건", {
+          onClick: () => scrollToFirstOuting(returnedTodayCases, "outing-completed-section"),
+        }),
       ]),
     ]),
     panel("외출 신청 전체 관리", [
@@ -164,8 +174,8 @@ function renderTeacher() {
       teacherFilterControls(),
       visibleOutings.length
         ? el("div", { className: "teacher-sections" }, [
-            teacherOutingSection("처리 필요", pendingOutings, { teacher: true }),
-            completedTeacherOutingSections(completedOutings, { teacher: true }),
+            teacherOutingSection("처리 필요", pendingOutings, { teacher: true }, "outing-pending-section"),
+            completedTeacherOutingSections(completedOutings, { teacher: true }, "outing-completed-section"),
           ])
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
@@ -204,14 +214,10 @@ function renderAttendanceManagement() {
     el("div", { className: "stat-groups" }, [
       attendanceStudentCountStatGroup(selected, attendanceStudents.length),
       statGroup(`${dateLabel} 출석`, [
-        stat("출석 완료", completeStudentIds.size, "명"),
-        stat("사유신청 후 미등원", reasonChecks.length, "명"),
-        stat("미인증", absentStudents.length, "명"),
+        stat("출석 완료", completeStudentIds.size, "명", { onClick: () => scrollToPanel("attendance-photos-panel") }),
+        stat("사유신청 후 미등원", reasonChecks.length, "명", { onClick: () => scrollToPanel("attendance-photos-panel") }),
+        stat("미인증", absentStudents.length, "명", { onClick: () => scrollToPanel("attendance-absent-panel") }),
       ]),
-    ]),
-    panel(`${dateLabel} 출석 사진`, [
-      el("p", { className: "subtle" }, holiday ? attendanceHolidayMessage(selectedDateKey) : "학생이 제출한 현장 사진과 사유를 확인해 선택한 날짜의 출석 상태를 관리합니다."),
-      dateChecks.length ? renderAttendanceTable(dateChecks) : el("div", { className: "empty" }, `${dateLabel} 출석 인증 내역이 없습니다.`),
     ]),
     panel("미인증 학생", [
       holiday
@@ -245,8 +251,29 @@ function renderAttendanceManagement() {
         : holiday
           ? null
           : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
-    ]),
+    ], "attendance-absent-panel"),
+    panel(`${dateLabel} 출석 사진`, [
+      el("p", { className: "subtle" }, holiday ? attendanceHolidayMessage(selectedDateKey) : "학생이 제출한 현장 사진과 사유를 확인해 선택한 날짜의 출석 상태를 관리합니다."),
+      dateChecks.length ? renderAttendanceTable(dateChecks) : el("div", { className: "empty" }, `${dateLabel} 출석 인증 내역이 없습니다.`),
+    ], "attendance-photos-panel"),
   ]);
+}
+
+function scrollToPanel(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function scrollToFirstOuting(outings, fallbackId) {
+  const target = outings
+    .map((outing) => document.getElementById(getOutingRowId(outing)))
+    .find(Boolean);
+  if (target) {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  scrollToPanel(fallbackId);
 }
 
 function attendanceStudentCountStatGroup(selected, count) {
@@ -1437,8 +1464,9 @@ function isActionRequired(outing) {
   return outing.decision === "pending";
 }
 
-function teacherOutingSection(titleText, outings, options) {
-  return el("section", { className: "teacher-section" }, [
+function teacherOutingSection(titleText, outings, options, id = "") {
+  const props = id ? { className: "teacher-section", id } : { className: "teacher-section" };
+  return el("section", props, [
     el("div", { className: "section-heading" }, [
       el("h3", {}, titleText),
       el("span", {}, String(outings.length) + "건"),
@@ -1447,9 +1475,10 @@ function teacherOutingSection(titleText, outings, options) {
   ]);
 }
 
-function completedTeacherOutingSections(outings, options) {
+function completedTeacherOutingSections(outings, options, id = "") {
   const sortedOutings = sortOutingsByCreatedAtDesc(outings);
-  return el("section", { className: "teacher-section" }, [
+  const props = id ? { className: "teacher-section", id } : { className: "teacher-section" };
+  return el("section", props, [
     el("div", { className: "section-heading" }, [
       el("h3", {}, "처리 완료"),
       el("span", {}, String(sortedOutings.length) + "건"),
@@ -1492,7 +1521,7 @@ function sortOutingsByCreatedAtDesc(outings) {
 function renderTeacherOutingTable(outings, options = {}) {
   const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "처리"];
   const rows = outings.map((outing) =>
-    el("tr", {}, [
+    el("tr", { id: getOutingRowId(outing) }, [
       el("td", {}, formatDateCompact(outing.createdAt)),
       el("td", {}, formatStudentNumber(outing.studentId)),
       el("td", {}, outing.studentName || "-"),
@@ -1551,6 +1580,10 @@ function canGiveNotReturnedPenaltyForOuting(outing) {
     && outing?.decision !== "approved"
     && outing?.decision !== "rejected"
     && outing?.status !== "returned";
+}
+
+function getOutingRowId(outing) {
+  return `outing-row-${outing.id || ""}`;
 }
 
 function hasNotReturnedPenaltyForOuting(outing) {

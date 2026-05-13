@@ -392,7 +392,34 @@ h1 {
   font-size: 2rem;
 }
 
-.stat strong small {
+.stat-action {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  width: fit-content;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 2rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.stat-action:hover {
+  color: var(--accent);
+}
+
+.stat-action:focus-visible {
+  outline: 3px solid rgba(37, 157, 116, 0.24);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.stat strong small,
+.stat-action small {
   font-size: 0.95rem;
   color: var(--muted);
 }
@@ -792,6 +819,7 @@ th {
 .teacher-section {
   display: grid;
   gap: 12px;
+  scroll-margin-top: 18px;
 }
 
 .teacher-date-sections {
@@ -1173,6 +1201,10 @@ th {
 .weekly-cohort-filter,
 .weekly-answer-week-filter {
   margin: 0;
+}
+
+.excel-table tr {
+  scroll-margin-top: 18px;
 }
 
 .weekly-cohort-tabs {
