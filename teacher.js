@@ -418,8 +418,7 @@ function openTeacherReasonAttendanceModal(student) {
       setButtonLoading(submitButton, "저장 중...");
     }
     try {
-      createTeacherReasonAttendanceCheck(student, reason, data.detail, data.managerName);
-      await flushRemoteSave();
+      await createTeacherReasonAttendanceCheck(student, reason, data.detail, data.managerName);
       closeInfoModal();
       render();
       notify("사유 인증으로 출석 처리했습니다.");
@@ -445,7 +444,7 @@ function openTeacherReasonAttendanceModal(student) {
   document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
-function createTeacherReasonAttendanceCheck(student, reason, detail, managerName) {
+async function createTeacherReasonAttendanceCheck(student, reason, detail, managerName) {
   const id = createId();
   const checkDate = getTodayDateKey();
   const check = {
@@ -464,11 +463,63 @@ function createTeacherReasonAttendanceCheck(student, reason, detail, managerName
     originalName: "",
     createdAt: new Date().toISOString(),
   };
+  if (remoteStore) {
+    const row = {
+      id: check.id,
+      student_id: check.studentId,
+      student_name: check.studentName,
+      class_name: check.className,
+      check_date: check.checkDate,
+      status: check.status,
+      reason: check.reason || null,
+      detail: check.detail || null,
+      manager_name: check.managerName || null,
+      photo_path: check.photoPath,
+      photo_url: null,
+      thumbnail_path: null,
+      thumbnail_url: null,
+      arrival_photo_path: null,
+      arrival_photo_url: null,
+      arrival_thumbnail_path: null,
+      arrival_thumbnail_url: null,
+      arrival_original_name: null,
+      arrived_at: null,
+      photo_data_url: null,
+      original_name: null,
+      created_at: check.createdAt,
+    };
+    const { error } = await remoteStore.from("attendance_checks").insert(row);
+    if (
+      isMissingColumnError(error, "manager_name") ||
+      isAttendanceManagerPermissionError(error)
+    ) {
+      const { error: fallbackError } = await remoteStore.from("attendance_checks").insert(stripAttendanceReasonColumnsFromRow(row, error));
+      if (isDuplicateAttendanceError(fallbackError)) {
+        const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+        if (existingCheck) {
+          upsertLocalAttendanceCheck(existingCheck);
+          saveState({ skipRemote: true });
+          return existingCheck;
+        }
+      }
+      if (fallbackError) throw fallbackError;
+    } else if (isDuplicateAttendanceError(error)) {
+      const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
+      if (existingCheck) {
+        upsertLocalAttendanceCheck(existingCheck);
+        saveState({ skipRemote: true });
+        return existingCheck;
+      }
+      throw error;
+    } else if (error) {
+      throw error;
+    }
+  }
   state.attendanceChecks = [
     check,
     ...(state.attendanceChecks || []).filter((item) => !(item.studentId === student.id && item.checkDate === checkDate)),
   ];
-  saveState();
+  saveState({ skipRemote: true });
   return check;
 }
 
