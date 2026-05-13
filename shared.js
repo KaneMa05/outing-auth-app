@@ -699,7 +699,7 @@ function makeLocalDevSafeState() {
 
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
-  const studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
+  let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   const managerColumns = "id,name,role,memo,is_active,created_at";
   const outingColumns = [
@@ -788,7 +788,7 @@ async function loadStateFromRemote() {
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
-  const remoteResults = await Promise.all([
+  let remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
     outingRequest,
@@ -810,7 +810,8 @@ async function loadStateFromRemote() {
     remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
-  const [{ data: students, error: studentsError }, managerResult, { data: outings, error: outingsError }] = remoteResults;
+  let studentResult = remoteResults[0];
+  const [managerResult, { data: outings, error: outingsError }] = [remoteResults[1], remoteResults[2]];
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
   const penaltyResult = remoteResults[5];
@@ -851,7 +852,11 @@ async function loadStateFromRemote() {
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
 
-  if (studentsError) throw studentsError;
+  if (isMissingColumnError(studentResult.error, "attendance_excluded")) {
+    studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
+  if (studentResult.error) throw studentResult.error;
   if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
   if (outingsError) throw outingsError;
   if (
@@ -911,7 +916,7 @@ async function loadStateFromRemote() {
     }
   }
 
-  state.students = (students || []).map((student) => ({
+  state.students = (studentResult.data || []).map((student) => ({
     id: student.id,
     name: student.name,
     className: student.class_name,
@@ -919,6 +924,7 @@ async function loadStateFromRemote() {
     gender: student.gender || "",
     passwordHash: "",
     appRegisteredAt: student.app_registered_at || "",
+    attendanceExcluded: student.attendance_excluded === true,
     createdAt: student.created_at,
   }));
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
@@ -988,6 +994,7 @@ async function saveStateToRemote() {
       name: student.name,
       class_name: student.className || state.settings.className || "오프라인반",
       track: normalizeCoastGuardTrack(student.track) || null,
+      attendance_excluded: student.attendanceExcluded === true,
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
@@ -996,7 +1003,21 @@ async function saveStateToRemote() {
     const { error } = await remoteStore
       .from("students")
       .upsert(rosterRows, { onConflict: "id", ignoreDuplicates: true });
-    if (isExpectedProfileRewriteError(error)) {
+    if (isMissingColumnError(error, "attendance_excluded")) {
+      const fallbackRows = rosterRows.map(({ attendance_excluded, ...row }) => row);
+      const { error: fallbackError } = await remoteStore
+        .from("students")
+        .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+      if (isExpectedProfileRewriteError(fallbackError)) {
+        const fallbackRowsWithoutTrack = fallbackRows.map(({ track, ...row }) => row);
+        const { error: finalError } = await remoteStore
+          .from("students")
+          .upsert(fallbackRowsWithoutTrack, { onConflict: "id", ignoreDuplicates: true });
+        if (finalError) throw finalError;
+      } else if (fallbackError) {
+        throw fallbackError;
+      }
+    } else if (isExpectedProfileRewriteError(error)) {
       const fallbackRows = rosterRows.map(({ track, ...row }) => row);
       const { error: fallbackError } = await remoteStore
         .from("students")
@@ -1015,8 +1036,22 @@ async function saveStateToRemote() {
           name: row.name,
           class_name: row.class_name,
           track: row.track,
+          attendance_excluded: row.attendance_excluded,
         })
         .eq("id", row.id);
+      if (isMissingColumnError(error, "attendance_excluded")) {
+        const { error: fallbackError } = await remoteStore
+          .from("students")
+          .update({
+            name: row.name,
+            class_name: row.class_name,
+            track: row.track,
+          })
+          .eq("id", row.id);
+        if (isExpectedProfileRewriteError(fallbackError)) continue;
+        if (fallbackError) throw fallbackError;
+        continue;
+      }
       if (isExpectedProfileRewriteError(error)) continue;
       if (error) throw error;
     }
@@ -1702,6 +1737,10 @@ function formData(form) {
 
 function findStudent(id) {
   return state.students.find((student) => student.id === String(id).trim());
+}
+
+function isAttendanceExcludedStudent(student) {
+  return student?.attendanceExcluded === true;
 }
 
 function getActiveOuting(studentId) {

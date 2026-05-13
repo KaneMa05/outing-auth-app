@@ -10,6 +10,7 @@ create table if not exists public.students (
   password_hash text,
   device_token text,
   app_registered_at timestamptz,
+  attendance_excluded boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -345,7 +346,8 @@ add column if not exists track text,
 add column if not exists gender text,
 add column if not exists password_hash text,
 add column if not exists device_token text,
-add column if not exists app_registered_at timestamptz;
+add column if not exists app_registered_at timestamptz,
+add column if not exists attendance_excluded boolean not null default false;
 
 alter table public.attendance_checks
 add column if not exists reason text,
@@ -407,6 +409,8 @@ drop policy if exists "anon_students_select_active" on public.students;
 drop policy if exists "anon_students_insert_roster" on public.students;
 drop policy if exists "anon_students_register_profile_once" on public.students;
 drop policy if exists "anon_students_update_roster_before_registration" on public.students;
+drop policy if exists "anon_students_update_attendance_excluded" on public.students;
+drop policy if exists "anon_students_deactivate" on public.students;
 drop policy if exists "anon_track_options_select_active" on public.track_options;
 drop policy if exists "anon_track_options_insert" on public.track_options;
 drop policy if exists "anon_track_options_update" on public.track_options;
@@ -488,6 +492,7 @@ grant select (
   track,
   gender,
   app_registered_at,
+  attendance_excluded,
   is_active,
   created_at
 ) on public.students to anon;
@@ -497,6 +502,7 @@ grant insert (
   name,
   class_name,
   track,
+  attendance_excluded,
   is_active,
   created_at
 ) on public.students to anon;
@@ -508,7 +514,9 @@ grant update (
   gender,
   password_hash,
   device_token,
-  app_registered_at
+  app_registered_at,
+  attendance_excluded,
+  is_active
 ) on public.students to anon;
 
 grant select (
@@ -818,6 +826,20 @@ with check (
   and password_hash is null
   and device_token is null
 );
+
+create policy "anon_students_update_attendance_excluded"
+on public.students
+for update
+to anon
+using (is_active = true)
+with check (is_active = true);
+
+create policy "anon_students_deactivate"
+on public.students
+for update
+to anon
+using (is_active = true)
+with check (is_active = false);
 
 create policy "anon_track_options_select_active"
 on public.track_options

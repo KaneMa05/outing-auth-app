@@ -15,6 +15,7 @@ let weeklyExamGradeFilters = { examId: "", track: "", subject: "" };
 let attendanceHolidayCalendarMonth = "";
 let attendanceHolidayDraftOverrides = null;
 let attendanceHolidaySavedMessage = "";
+let selectedAttendanceDateKey = "";
 const WEEKLY_EXAM_TRACK_ALL = "전체";
 const WEEKLY_EXAM_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const penaltyPeriodFilter = {
@@ -174,38 +175,42 @@ function renderTeacher() {
 function renderAttendanceManagement() {
   if (!hasTeacherPermission("attendance.read")) return renderForbidden();
   const todayKey = getTodayDateKey();
-  const holiday = getAttendanceHoliday(todayKey);
+  const selectedDateKey = getSelectedAttendanceDateKey();
+  const isTodayView = selectedDateKey === todayKey;
+  const holiday = getAttendanceHoliday(selectedDateKey);
   const selected = selectedStudentCohortCount();
-  const visibleStudents = getStudentsInCohort(selected.value);
-  const todayChecks = getAttendanceChecksForDate(todayKey).filter((check) => isAttendanceCheckInCohort(check, selected.value));
-  const presentChecks = todayChecks.filter((check) => check.status === "present" || check.status === "pre_arrival_verified");
-  const reasonChecks = todayChecks.filter((check) => check.status === "pre_arrival_reason");
-  const checkedStudentIds = new Set(todayChecks.map((check) => check.studentId));
-  const absentStudents = visibleStudents.filter((student) => !checkedStudentIds.has(student.id));
+  const attendanceStudents = getAttendanceStudentsInCohort(selected.value);
+  const dateChecks = getAttendanceChecksForDate(selectedDateKey).filter((check) => isAttendanceCheckInCohort(check, selected.value));
+  const presentChecks = dateChecks.filter((check) => check.status === "present" || check.status === "pre_arrival_verified");
+  const reasonChecks = dateChecks.filter((check) => check.status === "pre_arrival_reason");
+  const checkedStudentIds = new Set(dateChecks.map((check) => check.studentId));
+  const absentStudents = attendanceStudents.filter((student) => !checkedStudentIds.has(student.id));
+  const dateLabel = formatAttendanceDateLabel(selectedDateKey);
 
   return el("div", { className: "grid" }, [
     holiday
       ? el("div", { className: "attendance-holiday-banner" }, [
-          el("strong", {}, "오늘은 휴일입니다."),
-          el("span", {}, attendanceHolidayMessage(todayKey)),
+          el("strong", {}, isTodayView ? "오늘은 휴일입니다." : `${dateLabel}은 휴일입니다.`),
+          el("span", {}, attendanceHolidayMessage(selectedDateKey)),
         ])
       : null,
+    attendanceDateControls(selectedDateKey),
     el("div", { className: "stat-groups" }, [
-      studentCountStatGroup(),
-      statGroup("오늘 출석", [
+      attendanceStudentCountStatGroup(selected, attendanceStudents.length),
+      statGroup(`${dateLabel} 출석`, [
         stat("출석 완료", presentChecks.length, "명"),
         stat("사유신청 후 미등원", reasonChecks.length, "명"),
         stat("미인증", absentStudents.length, "명"),
       ]),
     ]),
-    panel("오늘 출석 사진", [
-      el("p", { className: "subtle" }, holiday ? attendanceHolidayMessage(todayKey) : "학생이 제출한 현장 사진과 사유를 확인해 오늘 출석 상태를 관리합니다."),
-      todayChecks.length ? renderAttendanceTable(todayChecks) : el("div", { className: "empty" }, "오늘 출석 인증 내역이 없습니다."),
+    panel(`${dateLabel} 출석 사진`, [
+      el("p", { className: "subtle" }, holiday ? attendanceHolidayMessage(selectedDateKey) : "학생이 제출한 현장 사진과 사유를 확인해 선택한 날짜의 출석 상태를 관리합니다."),
+      dateChecks.length ? renderAttendanceTable(dateChecks) : el("div", { className: "empty" }, `${dateLabel} 출석 인증 내역이 없습니다.`),
     ]),
     panel("미인증 학생", [
       holiday
-        ? el("div", { className: "empty success-message" }, "오늘은 휴일로 설정되어 미인증 학생을 처리하지 않습니다.")
-        : absentStudents.length && hasTeacherPermission("penalties.write")
+        ? el("div", { className: "empty success-message" }, "휴일로 설정되어 미인증 학생을 처리하지 않습니다.")
+        : absentStudents.length && isTodayView && hasTeacherPermission("penalties.write")
         ? el("div", { className: "attendance-bulk-actions" }, [
             button(
               "벌점 일괄 부여",
@@ -217,7 +222,7 @@ function renderAttendanceManagement() {
         : null,
       !holiday && absentStudents.length
         ? table(
-            hasTeacherPermission("attendance.write") ? ["번호", "이름", "반", "처리"] : ["번호", "이름", "반"],
+            isTodayView && hasTeacherPermission("attendance.write") ? ["번호", "이름", "반", "처리"] : ["번호", "이름", "반"],
             absentStudents
               .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
               .map((student) =>
@@ -225,7 +230,7 @@ function renderAttendanceManagement() {
                   el("td", {}, formatStudentNumber(student.id)),
                   el("td", {}, student.name),
                   el("td", {}, student.className || "-"),
-                  hasTeacherPermission("attendance.write")
+                  isTodayView && hasTeacherPermission("attendance.write")
                     ? el("td", { className: "action-cell" }, reasonAttendanceAction(student))
                     : null,
                 ])
@@ -236,6 +241,84 @@ function renderAttendanceManagement() {
           : el("div", { className: "empty success-message" }, "모든 학생이 오늘 출석 인증을 완료했습니다."),
     ]),
   ]);
+}
+
+function attendanceStudentCountStatGroup(selected, count) {
+  const cohorts = getStudentCohortStats();
+  const selectNode = el("select", { className: "cohort-select", ariaLabel: "출석 학생 기수 선택" }, [
+    cohorts.map((cohort) => el("option", { value: cohort.value }, cohort.label)),
+  ]);
+  selectNode.value = selectedStudentCohort;
+  selectNode.addEventListener("change", () => {
+    selectedStudentCohort = selectNode.value;
+    render();
+  });
+
+  return el("section", { className: "stat-group" }, [
+    el("div", { className: "stat-group-heading" }, [
+      el("h2", {}, "인원 현황"),
+      el("label", { className: "cohort-filter" }, [
+        el("span", {}, "기수"),
+        selectNode,
+      ]),
+    ]),
+    el("div", { className: "grid stats" }, [
+      stat(selected.label, count, "명"),
+    ]),
+  ]);
+}
+
+function getSelectedAttendanceDateKey() {
+  if (!isValidDateKey(selectedAttendanceDateKey)) selectedAttendanceDateKey = getTodayDateKey();
+  return selectedAttendanceDateKey;
+}
+
+function attendanceDateControls(dateKey) {
+  const dateInput = el("input", {
+    name: "attendanceDate",
+    type: "date",
+    value: dateKey,
+    max: getTodayDateKey(),
+  });
+  const form = el("form", { className: "teacher-search attendance-date-controls" }, [
+    field("조회 날짜", dateInput),
+    el("div", { className: "field attendance-date-actions" }, [
+      el("span", {}, " "),
+      el("div", { className: "action-row" }, [
+        button("이전날", "btn secondary", "button", () => moveAttendanceDate(-1)),
+        button("조회", "btn"),
+        button("다음날", "btn secondary", "button", () => moveAttendanceDate(1)),
+        button("오늘", "btn secondary", "button", () => setAttendanceDate(getTodayDateKey())),
+      ]),
+    ]),
+  ]);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const nextDate = String(formData(form).attendanceDate || "").trim();
+    if (!isValidDateKey(nextDate)) return notify("조회할 날짜를 선택해주세요.");
+    setAttendanceDate(nextDate);
+  });
+  return panel("출석 날짜 조회", [form]);
+}
+
+function setAttendanceDate(dateKey) {
+  if (!isValidDateKey(dateKey)) return;
+  selectedAttendanceDateKey = dateKey > getTodayDateKey() ? getTodayDateKey() : dateKey;
+  render();
+}
+
+function moveAttendanceDate(offset) {
+  const date = parseDateKeyAsLocalDate(getSelectedAttendanceDateKey());
+  date.setDate(date.getDate() + offset);
+  const nextDateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  setAttendanceDate(nextDateKey);
+}
+
+function formatAttendanceDateLabel(dateKey) {
+  if (dateKey === getTodayDateKey()) return "오늘";
+  const [year, month, day] = String(dateKey || "").split("-");
+  if (!year || !month || !day) return "선택일";
+  return `${Number(month)}월 ${Number(day)}일`;
 }
 
 function reasonAttendanceAction(student) {
@@ -390,6 +473,10 @@ function formatStudentNumber(studentId) {
 
 function getStudentsInCohort(cohort = selectedStudentCohort) {
   return [...state.students].filter((student) => !cohort || getStudentCohort(student) === cohort);
+}
+
+function getAttendanceStudentsInCohort(cohort = selectedStudentCohort) {
+  return getStudentsInCohort(cohort).filter((student) => !isAttendanceExcludedStudent(student));
 }
 
 function isAttendanceCheckInCohort(check, cohort = selectedStudentCohort) {
@@ -1677,8 +1764,10 @@ function teacherStudentForm() {
         el("td", {}, formatDateCompact(profile?.authedAt)),
         el("td", {}, normalizeCoastGuardTrack(profile?.track) || "-"),
         el("td", {}, profile?.gender || "-"),
+        el("td", {}, isAttendanceExcludedStudent(student) ? el("span", { className: "badge rejected" }, "제외") : el("span", { className: "badge approved" }, "포함")),
         el("td", { className: "student-admin-actions" }, [
           profile ? button("등록 초기화", "mini-btn", "button", () => resetStudentAppRegistration(student.id)) : null,
+          button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "mini-btn", "button", () => toggleStudentAttendanceExcluded(student.id)),
           button("삭제", "mini-btn danger", "button", () => deleteStudent(student.id)),
         ]),
       ]);
@@ -1688,8 +1777,8 @@ function teacherStudentForm() {
     panel("학생 등록", [form]),
     studentCountStatGroup(),
     table(
-      ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 8 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
+      ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
     ),
   ]);
 }
@@ -1709,12 +1798,17 @@ async function saveStudentsToRemote(studentIds) {
       class_name: student.className || state.settings.className || "오프라인반",
       track: normalizeCoastGuardTrack(student.track) || null,
       is_active: true,
+      attendance_excluded: student.attendanceExcluded === true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
 
   if (!rows.length) return;
   const { error } = await remoteStore.from("students").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
-  if (isExpectedProfileRewriteError(error)) {
+  if (isMissingColumnError(error, "attendance_excluded")) {
+    const fallbackRows = rows.map(({ attendance_excluded, ...row }) => row);
+    const { error: fallbackError } = await remoteStore.from("students").upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
+    if (fallbackError) throw fallbackError;
+  } else if (isExpectedProfileRewriteError(error)) {
     const fallbackRows = rows.map(({ track, ...row }) => row);
     const { error: fallbackError } = await remoteStore.from("students").upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
     if (fallbackError) throw fallbackError;
@@ -1729,8 +1823,22 @@ async function saveStudentsToRemote(studentIds) {
         name: row.name,
         class_name: row.class_name,
         track: row.track,
+        attendance_excluded: row.attendance_excluded,
       })
       .eq("id", row.id);
+    if (isMissingColumnError(updateError, "attendance_excluded")) {
+      const { error: fallbackError } = await remoteStore
+        .from("students")
+        .update({
+          name: row.name,
+          class_name: row.class_name,
+          track: row.track,
+        })
+        .eq("id", row.id);
+      if (isExpectedProfileRewriteError(fallbackError)) continue;
+      if (fallbackError) throw fallbackError;
+      continue;
+    }
     if (isExpectedProfileRewriteError(updateError)) continue;
     if (updateError) throw updateError;
   }
@@ -2232,6 +2340,7 @@ function upsertStudents(students, className, track = "") {
       passwordHash: existing?.passwordHash || "",
       deviceToken: existing?.deviceToken || "",
       appRegisteredAt: existing?.appRegisteredAt || "",
+      attendanceExcluded: existing?.attendanceExcluded === true,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
     if (existing) {
@@ -3478,16 +3587,78 @@ function buildStudentId(cohort, studentNumber) {
   return String(cohort).trim() + String(studentNumber).padStart(3, "0");
 }
 
-function deleteStudent(id) {
+async function toggleStudentAttendanceExcluded(id) {
+  const student = findStudent(id);
+  if (!student) return;
+  const nextValue = !isAttendanceExcludedStudent(student);
+  const message = nextValue
+    ? `${student.name} (${student.id}) 학생을 출석 미인증/벌점 대상에서 제외할까요?`
+    : `${student.name} (${student.id}) 학생을 다시 출석 대상에 포함할까요?`;
+  if (!confirm(message)) return;
+  const previousValue = student.attendanceExcluded === true;
+  student.attendanceExcluded = nextValue;
+  try {
+    await updateStudentAttendanceExcludedRemote(student.id, nextValue);
+    saveState({ skipRemote: true });
+    render();
+    notify(nextValue ? "출석 제외로 변경했습니다." : "출석 포함으로 변경했습니다.");
+  } catch (error) {
+    console.error(error);
+    student.attendanceExcluded = previousValue;
+    render();
+    notify("출석 제외 설정을 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
+  }
+}
+
+async function updateStudentAttendanceExcludedRemote(id, excluded) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("students")
+    .update({ attendance_excluded: excluded })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteStudent(id) {
   const student = findStudent(id);
   if (!student) return;
   if (!confirm(student.name + " (" + student.id + ") 학생을 삭제할까요? 기존 외출 기록은 유지됩니다.")) return;
+  const beforeStudents = [...state.students];
+  const beforeProfiles = state.settings.studentProfiles ? { ...state.settings.studentProfiles } : null;
+  const beforeAuthId = state.settings.studentAuthId;
   state.students = state.students.filter((item) => item.id !== student.id);
   if (state.settings.studentProfiles) delete state.settings.studentProfiles[student.id];
   if (state.settings.studentAuthId === student.id) state.settings.studentAuthId = "";
-  saveState();
-  render();
-  notify("학생을 삭제했습니다.");
+  try {
+    await deactivateStudentRemote(student.id);
+    saveState({ skipRemote: true });
+    render();
+    notify("학생을 삭제했습니다.");
+  } catch (error) {
+    console.error(error);
+    state.students = beforeStudents;
+    if (beforeProfiles) state.settings.studentProfiles = beforeProfiles;
+    state.settings.studentAuthId = beforeAuthId;
+    render();
+    notify("학생 삭제를 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
+  }
+}
+
+async function deactivateStudentRemote(id) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("students")
+    .update({ is_active: false })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 async function resetStudentAppRegistration(id) {

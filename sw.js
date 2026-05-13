@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v78-weekly-detail-flow";
+const CACHE_NAME = "outing-auth-app-v81-attendance-target-count";
 const APP_SHELL = [
   "/",
   "/index.html",
