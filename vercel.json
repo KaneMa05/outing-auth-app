@@ -24,6 +24,15 @@
       ]
     },
     {
+      "source": "/:file(shared|student|teacher|app|supabase).js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
