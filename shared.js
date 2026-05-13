@@ -914,7 +914,7 @@ async function loadStateFromRemote() {
   const attendanceHolidayResult = remoteResults[8];
   let examResult = remoteResults[9];
   const examSectionResult = remoteResults[10];
-  const examAnswerResult = remoteResults[11];
+  let examAnswerResult = remoteResults[11];
   let examSubmissionResult = remoteResults[12];
   const submissionAnswerResult = remoteResults[13];
   const examFileResult = remoteResults[14];
