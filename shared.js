@@ -292,7 +292,19 @@ function createRemoteStore() {
   const hasConfig = Boolean(config.supabaseUrl && config.supabaseAnonKey);
   const hasSdk = Boolean(window.supabase && window.supabase.createClient);
   if (!hasConfig || !hasSdk) return null;
-  return window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+  return window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: "outing-app-disabled-auth-session",
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${config.supabaseAnonKey}`,
+      },
+    },
+  });
 }
 
 function renderAppIfReady() {
