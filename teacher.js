@@ -2415,7 +2415,7 @@ function getActiveManagers() {
 }
 
 function managerNameControl() {
-  const managers = getActiveManagers();
+  const managers = getActiveManagers().filter((manager) => isTeacherAdmin() || !isAdminManagerOption(manager));
   const defaultName = String(teacherAuth.user?.username || "").trim();
   const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
   if (defaultName && !managers.some((manager) => manager.name === defaultName)) {
@@ -2427,6 +2427,12 @@ function managerNameControl() {
   ]);
   if (options.some((option) => option.value === defaultName)) node.value = defaultName;
   return node;
+}
+
+function isAdminManagerOption(manager) {
+  const name = String(manager?.name || "").trim().toLowerCase();
+  const role = String(manager?.role || "").trim().toLowerCase();
+  return name === "admin" || role === "admin" || role === "관리자";
 }
 
 function upsertManager(data) {
