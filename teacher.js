@@ -736,8 +736,8 @@ function renderPenaltySummaryTable(summaries) {
 }
 
 function renderPenaltyHistoryTable(penalties) {
-  const showCancel = penalties.some(canCancelPenalty);
-  const headers = showCancel ? ["부여일", "번호", "이름", "상/벌점", "사유", "담당자", "관리"] : ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
+  const showDeleteColumn = canManagePenaltyDeletes();
+  const headers = showDeleteColumn ? ["부여일", "번호", "이름", "상/벌점", "사유", "담당자", "관리"] : ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(penalty.createdAt)),
@@ -746,7 +746,7 @@ function renderPenaltyHistoryTable(penalties) {
       el("td", {}, el("span", { className: getPenaltyPointClass(penalty.points) }, formatPenaltyPoints(penalty.points))),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
-      showCancel ? el("td", { className: "student-admin-actions" }, canCancelPenalty(penalty) ? button("취소", "mini-btn danger", "button", () => cancelPenalty(penalty.id)) : "-") : null,
+      showDeleteColumn ? el("td", { className: "student-admin-actions" }, canCancelPenalty(penalty) ? button("삭제", "mini-btn danger", "button", () => cancelPenalty(penalty.id)) : "-") : null,
     ].filter(Boolean))
   );
   labelTableRows(headers, rows);
@@ -1849,13 +1849,17 @@ function teacherStudentForm() {
 }
 
 function canCancelPenalty(penalty) {
-  return isTeacherAdmin() && Boolean(penalty?.id) && Boolean(String(penalty?.reason || "").trim());
+  return canManagePenaltyDeletes() && Boolean(penalty?.id) && Boolean(String(penalty?.reason || "").trim());
+}
+
+function canManagePenaltyDeletes() {
+  return isTeacherAdmin();
 }
 
 async function cancelPenalty(id) {
   const penalty = (state.penalties || []).find((item) => item.id === id);
-  if (!canCancelPenalty(penalty)) return notify("취소할 수 없는 상/벌점 내역입니다.");
-  if (!confirm(`${penalty.studentName || "학생"} ${formatPenaltyPoints(penalty.points)} 내역을 취소할까요?`)) return;
+  if (!canCancelPenalty(penalty)) return notify("삭제할 수 없는 상/벌점 내역입니다.");
+  if (!confirm(`${penalty.studentName || "학생"} ${formatPenaltyPoints(penalty.points)} 내역을 삭제할까요?`)) return;
 
   const beforePenalties = [...(state.penalties || [])];
   try {
@@ -1864,12 +1868,12 @@ async function cancelPenalty(id) {
     saveState({ skipRemote: true });
     closeInfoModal();
     render();
-    notify("상/벌점 내역을 취소했습니다.");
+    notify("상/벌점 내역을 삭제했습니다.");
   } catch (error) {
     console.error(error);
     state.penalties = beforePenalties;
     render();
-    notify("상/벌점 취소를 서버에 저장하지 못했습니다.");
+    notify("상/벌점 삭제를 서버에 저장하지 못했습니다.");
   }
 }
 
