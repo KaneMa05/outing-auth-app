@@ -854,16 +854,16 @@ function renderStudentGradeLookupComingSoon() {
     button("파이널 성적", "mini-btn active", "button", () => {}),
   ]);
   const student = getAuthedStudent();
-  const roundOptions = getStudentFinalRoundOptions();
-  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 1;
-  const summary = student ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
+  const roundOptions = student ? getStudentFinalRoundOptions(student) : [];
+  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 0;
+  const summary = student && selectedStudentFinalRound ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
 
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적 조회", [
       typeTabs,
       renderStudentGradeResultPanel(summary, {
         title: "성적 요약",
-        headerControl: renderStudentFinalRoundSelect(roundOptions),
+        headerControl: roundOptions.length ? renderStudentFinalRoundSelect(roundOptions) : null,
         emptyText: "파이널 성적은 준비 중입니다.",
       }),
       button("성적 메뉴", "mini-btn", "button", () => {
@@ -874,13 +874,38 @@ function renderStudentGradeLookupComingSoon() {
   ]);
 }
 
-function getStudentFinalRoundOptions() {
+function getStudentFinalRoundOptions(student) {
+  const studentId = String(student?.id || "").trim();
+  if (!studentId) return [];
   const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
-  const rounds = sources.flat().map((record) =>
-    Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0)
-  ).filter((round) => Number.isFinite(round) && round > 0);
+  const rounds = sources.flat()
+    .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
+    .filter(hasStudentFinalScoreRecord)
+    .map(getStudentFinalRecordRound)
+    .filter((round) => Number.isFinite(round) && round > 0);
   const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => a - b);
-  return uniqueRounds.length ? uniqueRounds : [1];
+  return uniqueRounds;
+}
+
+function getStudentFinalRecordRound(record) {
+  return Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0);
+}
+
+function hasStudentFinalScoreRecord(record) {
+  const directValues = [
+    record.score,
+    record.totalScore,
+    record.total_score,
+    record.maxScore,
+    record.max_score,
+    record.totalPossible,
+    record.wrongCount,
+    record.wrong_count,
+    record.incorrectCount,
+    record.incorrect_count,
+  ];
+  if (directValues.some((value) => value !== "" && value !== null && value !== undefined)) return true;
+  return Object.values(normalizeStudentFinalSubjectScores(record)).some((subjectScore) => subjectScore.status !== "empty");
 }
 
 function renderStudentFinalRoundSelect(roundOptions = [1]) {

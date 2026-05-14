@@ -129,21 +129,28 @@ if ("serviceWorker" in navigator) {
 function normalizeCoastGuardTrack(track) {
   const value = String(track || "").trim();
   if (/^\?+$/.test(value)) return "전체";
+  const compactValue = value.replace(/\s+/g, "");
   const aliases = {
     "??": "전체",
     전체: "전체",
     공채: "경찰직 - 공채(순경)",
+    공개채용: "경찰직 - 공채(순경)",
     해경학과: "경찰직 - 해경학과 항해(경장)",
+    학과특채항해: "경찰직 - 해경학과 항해(경장)",
+    학과특채기관: "경찰직 - 해경학과 기관(경장)",
     함정요원: "경찰직 - 함정요원 항해(경장)",
     구조: "경찰직 - 구조(순경)",
     구급: "경찰직 - 구급(순경)",
     선박교통관제: "일반직 - 선박교통관제(VTS)",
     선박관제: "일반직 - 선박교통관제(VTS)",
+    일반직VTS: "일반직 - 선박교통관제(VTS)",
     VTS: "경찰직 - 해상교통관제(VTS)(순경)",
     해상교통관제: "경찰직 - 해상교통관제(VTS)(순경)",
+    간부후보기관: "간부해양",
+    간부후보항해: "간부해양",
     기타: "기타",
   };
-  return aliases[value] || value;
+  return aliases[value] || aliases[compactValue] || value;
 }
 
 const WEEKLY_QUESTION_FIXED_TRACKS = [

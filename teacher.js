@@ -2,6 +2,9 @@
   query: "",
   sort: "name",
 };
+const studentAdminFilters = {
+  query: "",
+};
 let penaltySortMode = "id";
 let editingNoticeId = "";
 let trackOptionDraft = null;
@@ -581,6 +584,19 @@ function formatStudentNumber(studentId) {
 
 function getStudentsInCohort(cohort = selectedStudentCohort) {
   return [...state.students].filter((student) => !cohort || getStudentCohort(student) === cohort);
+}
+
+function getFilteredStudentAdminStudents(students) {
+  const query = studentAdminFilters.query.trim().toLowerCase();
+  if (!query) return students;
+  return students.filter((student) => {
+    const id = String(student.id || "").trim();
+    const displayNumber = formatStudentNumber(id);
+    const numberWithoutLeadingZero = displayNumber.replace(/^0+/, "") || displayNumber;
+    return [id, displayNumber, numberWithoutLeadingZero, student.name]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
 }
 
 function isTeacherReasonAttendanceCheck(check) {
@@ -1835,6 +1851,7 @@ function renderTrash() {
 function teacherStudentForm() {
   const selected = selectedStudentCohortCount();
   const visibleStudents = getStudentsInCohort(selected.value);
+  const filteredStudents = getFilteredStudentAdminStudents(visibleStudents);
   const cohortInput = input("cohort", "number", "18", selected.value || "18");
   const trackSelect = el("select", { name: "track" }, [
     el("option", { value: "" }, "선택 안 함"),
@@ -1893,7 +1910,7 @@ function teacherStudentForm() {
     }
   });
 
-  const rows = [...visibleStudents]
+  const rows = [...filteredStudents]
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }))
     .map((student) => {
       const profile = getStudentProfileForTeacher(student.id);
@@ -1917,10 +1934,36 @@ function teacherStudentForm() {
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
     studentCountStatGroup(),
+    studentAdminSearchControls(visibleStudents.length, filteredStudents.length),
     table(
       ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "등록된 학생이 없습니다."))])]
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
     ),
+  ]);
+}
+
+function studentAdminSearchControls(totalCount, filteredCount) {
+  const search = input("studentAdminSearch", "search", "번호 또는 이름 검색", studentAdminFilters.query);
+  const form = el("form", { className: "teacher-search student-admin-search" }, [
+    field("학생 검색", search),
+    el("div", { className: "field" }, [
+      el("span", {}, " "),
+      button("검색", "btn secondary"),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    studentAdminFilters.query = search.value;
+    render();
+  });
+
+  return el("div", { className: "teacher-tools student-admin-tools" }, [
+    form,
+    el("div", { className: "field student-admin-result" }, [
+      el("span", {}, "검색 결과"),
+      el("strong", {}, `${filteredCount}/${totalCount}명`),
+    ]),
   ]);
 }
 
@@ -3993,6 +4036,7 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
   const nextRecords = [];
   const unmatched = [];
   parsed.rows.forEach((row) => {
+    if (!String(row.name || "").trim()) return;
     const student = matchFinalBulkStudent(row, studentById, studentsByName);
     if (!student) {
       unmatched.push(row.name || row.id || "이름 없음");
@@ -4043,7 +4087,7 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
 }
 
 function parseFinalBulkScoreRows(rawText = "") {
-  const lines = String(rawText || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = String(rawText || "").split(/\r?\n/).filter((line) => line.trim());
   if (!lines.length) return { rows: [] };
   const delimiter = lines.some((line) => line.includes("\t")) ? "\t" : ",";
   const splitLine = (line) => line.split(delimiter).map((cell) => String(cell || "").trim());
