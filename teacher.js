@@ -145,7 +145,7 @@ async function logoutTeacher() {
 function renderTeacher() {
   applyAutoApprovalForReturnedOutings();
   const activeOutings = state.outings.filter(isActiveOuting);
-  const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
+  const todayEarlyLeaves = state.outings.filter(isTodayEarlyLeave);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
   const visibleOutings = getFilteredTeacherOutings();
@@ -159,8 +159,8 @@ function renderTeacher() {
         stat("외출 중 학생", countOutingStudents(activeOutings), "명", {
           onClick: () => scrollToFirstOuting(activeOutings, "outing-pending-section"),
         }),
-        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명", {
-          onClick: () => scrollToFirstOuting(activeEarlyLeaves, "outing-pending-section"),
+        stat("조퇴 인원", countOutingStudents(todayEarlyLeaves), "명", {
+          onClick: () => scrollToFirstOuting(todayEarlyLeaves, "outing-pending-section"),
         }),
       ]),
       statGroup("외출 건수", [

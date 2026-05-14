@@ -1899,6 +1899,12 @@ function isActiveOuting(outing) {
     && outing?.decision !== "rejected";
 }
 
+function isTodayEarlyLeave(outing) {
+  return Boolean(outing?.earlyLeaveReason)
+    && outing?.decision !== "rejected"
+    && isToday(outing?.createdAt);
+}
+
 function getActiveOuting(studentId) {
   return state.outings.find(
     (outing) =>

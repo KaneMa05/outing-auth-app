@@ -915,7 +915,7 @@ function formatExamDate(dateString) {
 
 function renderHome() {
   const activeOutings = state.outings.filter(isActiveOuting);
-  const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
+  const todayEarlyLeaves = state.outings.filter(isTodayEarlyLeave);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
   const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
 
@@ -924,7 +924,7 @@ function renderHome() {
       studentCountStatGroup(),
       statGroup("외출 인원", [
         stat("외출 중 학생", countOutingStudents(activeOutings), "명"),
-        stat("조퇴 인원", countOutingStudents(activeEarlyLeaves), "명"),
+        stat("조퇴 인원", countOutingStudents(todayEarlyLeaves), "명"),
       ]),
       statGroup("외출 건수", [
         stat("승인 대기", pendingOutingCases.length, "건"),
