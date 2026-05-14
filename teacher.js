@@ -147,7 +147,7 @@ function renderTeacher() {
   const activeOutings = state.outings.filter(isActiveOuting);
   const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
-  const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
+  const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
   const visibleOutings = getFilteredTeacherOutings();
   const pendingOutings = visibleOutings.filter(isActionRequired);
   const completedOutings = visibleOutings.filter((outing) => !isActionRequired(outing));
@@ -570,7 +570,7 @@ function applyAutoApprovalForReturnedOutings() {
 
 function isReturnPhotoCompleted(outing) {
   return outing?.status === "returned"
-    && Boolean(outing.returnedAt)
+    && Boolean(getOutingReturnedAt(outing))
     && (outing.photos || []).some((photo) => photo.type === "복귀 인증");
 }
 
@@ -1605,7 +1605,7 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", { className: "wide-cell" }, outing.earlyLeaveReason || outing.detail || "-"),
       el("td", {}, formatExpectedReturn(outing.expectedReturn)),
       el("td", {}, formatTime(outing.verifiedAt)),
-      el("td", {}, formatTime(outing.returnedAt)),
+      el("td", {}, formatTime(getOutingReturnedAt(outing))),
       el("td", {}, statusBadge(outing)),
       el("td", {}, photoMiniList(outing.photos)),
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),

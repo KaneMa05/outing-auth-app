@@ -792,7 +792,7 @@ function openStudentOutingHistoryModal(studentId) {
               historyRow("날짜", formatDateOnly(outing.createdAt)),
               historyRow("사유", outing.reason || "-"),
               historyRow("외출 시간", formatTimeOnly(outing.createdAt)),
-              historyRow("복귀 시간", outing.returnedAt ? formatTimeOnly(outing.returnedAt) : "-"),
+              historyRow("복귀 시간", getOutingReturnedAt(outing) ? formatTimeOnly(getOutingReturnedAt(outing)) : "-"),
             ])
           )
         )
@@ -917,7 +917,7 @@ function renderHome() {
   const activeOutings = state.outings.filter(isActiveOuting);
   const activeEarlyLeaves = activeOutings.filter((outing) => outing.earlyLeaveReason);
   const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
-  const returnedTodayCases = state.outings.filter((outing) => isToday(outing.returnedAt));
+  const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
 
   return el("div", { className: "grid" }, [
     el("div", { className: "stat-groups" }, [

@@ -1024,20 +1024,8 @@ async function loadStateFromRemote() {
     if (apiManagers) state.managers = apiManagers;
   }
 
-  const mappedOutings = (outings || []).map((outing) => ({
-    id: outing.id,
-    studentId: outing.student_id,
-    studentName: outing.student_name || "",
-    className: outing.class_name || "",
-    reason: outing.reason,
-    detail: outing.detail || "",
-    expectedReturn: outing.expected_return || "",
-    status: outing.status,
-    decision: outing.decision,
-    teacherMemo: "",
-    earlyLeaveReason: outing.early_leave_reason || "",
-    receiptNote: outing.receipt_note || "",
-    photos: outingPhotos
+  const mappedOutings = (outings || []).map((outing) => {
+    const photos = outingPhotos
       .filter((photo) => photo.outing_id === outing.id)
       .map((photo) => ({
         id: photo.id,
@@ -1049,12 +1037,28 @@ async function loadStateFromRemote() {
         thumbnailPath: photo.thumbnail_path || "",
         thumbnailUrl: photo.thumbnail_url || "",
         uploadedAt: photo.uploaded_at,
-      })),
-    createdAt: outing.created_at,
-    verifiedAt: outing.verified_at,
-    returnedAt: outing.returned_at,
-    deletedAt: outing.deleted_at || "",
-  }));
+      }));
+    const returnPhotoUploadedAt = getReturnPhotoUploadedAt({ photos });
+    return {
+      id: outing.id,
+      studentId: outing.student_id,
+      studentName: outing.student_name || "",
+      className: outing.class_name || "",
+      reason: outing.reason,
+      detail: outing.detail || "",
+      expectedReturn: outing.expected_return || "",
+      status: outing.status,
+      decision: outing.decision,
+      teacherMemo: "",
+      earlyLeaveReason: outing.early_leave_reason || "",
+      receiptNote: outing.receipt_note || "",
+      photos,
+      createdAt: outing.created_at,
+      verifiedAt: outing.verified_at,
+      returnedAt: outing.returned_at || (outing.status === "returned" ? returnPhotoUploadedAt : ""),
+      deletedAt: outing.deleted_at || "",
+    };
+  });
   state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
@@ -1526,7 +1530,7 @@ function outingCard(outing, options = {}) {
           metaChip("신청", formatTime(outing.createdAt)),
           metaChip("예상 복귀", formatExpectedReturn(outing.expectedReturn)),
           outing.verifiedAt ? metaChip("인증", formatTime(outing.verifiedAt)) : null,
-          outing.returnedAt ? metaChip("복귀", formatTime(outing.returnedAt)) : null,
+          getOutingReturnedAt(outing) ? metaChip("복귀", formatTime(getOutingReturnedAt(outing))) : null,
         ]),
       ]),
       statusBadge(outing),
@@ -2882,6 +2886,17 @@ function formatTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function getReturnPhotoUploadedAt(outing) {
+  const returnPhotos = (outing?.photos || [])
+    .filter((photo) => photo.type === "복귀 인증" && photo.uploadedAt)
+    .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+  return returnPhotos[0]?.uploadedAt || "";
+}
+
+function getOutingReturnedAt(outing) {
+  return outing?.returnedAt || getReturnPhotoUploadedAt(outing);
 }
 
 function formatDateKey(value) {
