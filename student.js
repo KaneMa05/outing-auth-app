@@ -694,7 +694,38 @@ function getPhotoSubmitErrorMessage(error) {
   if (isStorageQuotaError(error)) {
     return "기기 저장공간이 부족해 임시 저장을 줄였습니다. 다시 한 번 제출해주세요.";
   }
+  if (isPhotoPermissionError(error)) {
+    return "사진 저장 권한 문제로 처리하지 못했습니다. 화면을 닫지 말고 선생님께 Supabase 스토리지 정책 적용 여부를 확인해주세요.";
+  }
+  if (isPhotoPayloadError(error)) {
+    return "사진 용량이 커서 처리하지 못했습니다. 카메라로 새로 촬영하거나 더 작은 사진으로 다시 시도해주세요.";
+  }
+  if (isPhotoDecodeError(error)) {
+    return "이 사진 형식을 읽지 못했습니다. 카메라로 새로 촬영해서 다시 제출해주세요.";
+  }
   return "사진 처리 중 오류가 발생했습니다. 다른 사진으로 다시 시도해주세요.";
+}
+
+function isPhotoPermissionError(error) {
+  const text = getErrorText(error);
+  return text.includes("row-level security") || text.includes("violates row-level security") || text.includes("permission denied") || text.includes("403") || text.includes("42501");
+}
+
+function isPhotoPayloadError(error) {
+  const text = getErrorText(error);
+  return text.includes("payload too large") || text.includes("file size") || text.includes("too large") || text.includes("413");
+}
+
+function isPhotoDecodeError(error) {
+  const text = getErrorText(error);
+  return text.includes("decode") || text.includes("image") || text.includes("load") || error instanceof Event;
+}
+
+function getErrorText(error) {
+  return [error?.message, error?.details, error?.hint, error?.code, error?.error, error?.statusCode, error?.name]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 function renderDoneState() {

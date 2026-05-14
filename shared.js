@@ -2457,9 +2457,14 @@ async function createOutingPhoto(outing, file, type) {
         contentType: thumbnailBlob.type || "image/jpeg",
         upsert: false,
       });
-    if (thumbnailUploadError) throw thumbnailUploadError;
+    if (thumbnailUploadError && !isDuplicateStorageObjectError(thumbnailUploadError)) {
+      console.warn("Outing photo thumbnail upload failed; continuing with original photo.", thumbnailUploadError);
+      thumbnailPath = "";
+    }
     const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(photoPath);
-    const { data: thumbnailData } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(thumbnailPath);
+    const { data: thumbnailData } = thumbnailPath
+      ? remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(thumbnailPath)
+      : { data: null };
     photoUrl = data?.publicUrl || "";
     thumbnailUrl = thumbnailData?.publicUrl || "";
     dataUrl = "";
