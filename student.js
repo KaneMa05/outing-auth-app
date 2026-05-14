@@ -830,9 +830,7 @@ function renderStudentGradesHome() {
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
         renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
-          studentGradesView = "lookup";
-          studentGradeLookupType = "final";
-          render();
+          notify("성적 조회는 준비중입니다.");
         }),
       ]),
     ]),
