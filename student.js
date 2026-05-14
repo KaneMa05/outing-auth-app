@@ -1136,6 +1136,7 @@ function getStudentSubjectGradeSummary(exam, student, section, submission, peers
     maxScore,
     wrongCount,
     rank,
+    topPercent,
     displayTopPercent: rank ? Math.max(1, Math.ceil(topPercent)) : 0,
     submitted: Boolean(submission),
   };
@@ -1178,7 +1179,7 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
           el("div", { className: "detail-grid" }, [
             el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
             el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatStudentWrongCount(item.wrongCount) : "-")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? `상위 ${item.displayTopPercent}%` : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? formatTopPercentLabel(item.topPercent ?? item.displayTopPercent) : "-")]),
           ]),
         ]))
       : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
@@ -1190,7 +1191,7 @@ function renderStudentGradePyramid(summary) {
   const trackText = student ? getStudentRegisteredTrack(student) : "";
   return renderPercentilePyramid({
     percentile: summary?.rank ? summary.percentile : null,
-    label: summary?.rank ? `상위 ${summary.displayTopPercent}%` : "",
+    label: summary?.rank ? formatTopPercentLabel(summary.topPercent) : "",
     metaText: summary?.rank && summary?.total ? `응시자 ${summary.total}명 중 ${summary.rank}등` : "",
     scoreValue: summary ? `${summary.score}/${summary.maxScore}점` : "",
     wrongValue: summary ? formatStudentWrongCount(summary.wrongCount) : "",
@@ -1205,7 +1206,7 @@ function renderPercentilePyramid({ percentile = null, label = "", metaText = "",
   const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
   const topPercent = hasMarker ? Math.max(0, Math.min(100, 100 - safePercentile)) : 0;
   const visualPosition = hasMarker ? 100 - topPercent : 0;
-  const displayLabel = hasMarker ? label || `상위 ${Math.ceil(topPercent)}%` : "준비 중";
+  const displayLabel = hasMarker ? label || formatTopPercentLabel(topPercent) : "준비 중";
   const style = [
     `--pyramid-primary:${primaryColor}`,
     `--pyramid-base:${baseBgColor}`,

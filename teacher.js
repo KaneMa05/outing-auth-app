@@ -5,6 +5,7 @@
 const studentAdminFilters = {
   query: "",
 };
+let previewStudentId = "";
 let penaltySortMode = "id";
 let editingNoticeId = "";
 let trackOptionDraft = null;
@@ -1924,6 +1925,7 @@ function teacherStudentForm() {
         el("td", {}, profile?.gender || "-"),
         el("td", {}, isAttendanceExcludedStudent(student) ? el("span", { className: "badge rejected" }, "제외") : el("span", { className: "badge approved" }, "포함")),
         el("td", { className: "student-admin-actions" }, [
+          button("미리보기", "mini-btn", "button", () => openStudentPreview(student.id)),
           profile ? button("등록 초기화", "mini-btn", "button", () => resetStudentAppRegistration(student.id)) : null,
           button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "mini-btn", "button", () => toggleStudentAttendanceExcluded(student.id)),
           button("삭제", "mini-btn danger", "button", () => deleteStudent(student.id)),
@@ -1963,6 +1965,267 @@ function studentAdminSearchControls(totalCount, filteredCount) {
     el("div", { className: "field student-admin-result" }, [
       el("span", {}, "검색 결과"),
       el("strong", {}, `${filteredCount}/${totalCount}명`),
+    ]),
+  ]);
+}
+
+function openStudentPreview(studentId) {
+  previewStudentId = String(studentId || "").trim();
+  navigate("student-preview");
+}
+
+function renderStudentPreviewAdmin() {
+  if (!hasTeacherPermission("students.read")) return renderForbidden();
+  const student = findStudent(previewStudentId);
+  if (!student) {
+    return el("div", { className: "grid" }, [
+      panel("학생 미리보기", [
+        el("div", { className: "empty" }, "학생 등록 목록에서 미리보기할 학생을 선택해주세요."),
+        button("학생 등록으로", "btn secondary", "button", () => navigate("students")),
+      ]),
+    ]);
+  }
+
+  return el("div", { className: "grid student-preview-admin" }, [
+    panel("학생 미리보기", [
+      el("div", { className: "student-preview-header" }, [
+        el("div", {}, [
+          el("strong", {}, `${student.name} (${student.id})`),
+          el("p", { className: "subtle" }, "학생 등록이나 기기 인증 정보를 변경하지 않는 읽기 전용 화면입니다."),
+        ]),
+        button("학생 등록으로", "btn secondary", "button", () => navigate("students")),
+      ]),
+    ]),
+    renderStudentPreviewProfile(student),
+    renderStudentPreviewHome(student),
+    renderStudentPreviewGrades(student),
+    renderStudentPreviewHistory(student),
+  ]);
+}
+
+function renderStudentPreviewProfile(student) {
+  const profile = getStudentProfileForTeacher(student.id) || {};
+  return panel("마이페이지", [
+    el("section", { className: "student-profile-card" }, [
+      el("div", { className: "student-profile-head" }, [
+        el("div", { className: "student-avatar" }, String(student.name || "?").slice(0, 1)),
+        el("div", {}, [
+          el("span", {}, "학생 정보"),
+          el("h2", {}, student.name || "-"),
+        ]),
+      ]),
+      el("div", { className: "student-profile-list" }, [
+        profileItem("학생 고유번호", student.id),
+        profileItem("반", student.className || state.settings.className || "오프라인반"),
+        profileItem("직렬", normalizeCoastGuardTrack(profile.initialTrack || profile.track || student.track) || "-"),
+        profileItem("성별", profile.gender || student.gender || "-"),
+        profileItem("앱 등록", profile.deviceToken ? "완료" : "미등록"),
+      ]),
+    ]),
+  ]);
+}
+
+function renderStudentPreviewHome(student) {
+  const activeOuting = getActiveOuting(student.id);
+  const todayAttendance = getStudentAttendanceForDate(student.id);
+  const holiday = getAttendanceHoliday();
+  const attendanceText = holiday && !todayAttendance
+    ? attendanceHolidayMessage(holiday.dateKey)
+    : todayAttendance
+      ? studentPreviewAttendanceText(todayAttendance)
+      : "오늘 출석 인증 전입니다.";
+  const homeStatus = getStudentHomeStatus(activeOuting);
+
+  return panel("학생 홈", [
+    el("section", { className: "student-dday-card" }, [
+      el("div", {}, [
+        el("span", {}, COAST_GUARD_EXAM_LABEL),
+        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
+      ]),
+      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
+    ]),
+    el("section", { className: "student-summary-card" }, [
+      el("div", {}, [
+        el("strong", {}, "출석 인증"),
+        el("p", {}, attendanceText),
+      ]),
+    ]),
+    el("section", { className: "student-summary-card" }, [
+      el("div", {}, [
+        el("strong", {}, homeStatus.title),
+        homeStatus.copy ? el("p", {}, homeStatus.copy) : null,
+      ]),
+    ]),
+  ]);
+}
+
+function studentPreviewAttendanceText(check) {
+  if (check.status === "present") return `출석 완료 (${formatTimeOnly(check.createdAt)})`;
+  if (check.status === "pre_arrival_reason") return "등원 전 사유신청 접수";
+  if (check.status === "pre_arrival_verified") return "사유신청 후 등원 완료";
+  return "출석 상태 확인 중";
+}
+
+function renderStudentPreviewGrades(student) {
+  const roundOptions = getTeacherPreviewFinalRoundOptions(student);
+  const round = roundOptions[roundOptions.length - 1] || 0;
+  const summary = round ? getTeacherPreviewFinalSummary(student, round) : null;
+  return panel("성적", [
+    renderStudentGradePreviewPanel(summary, roundOptions),
+  ]);
+}
+
+function getTeacherPreviewFinalRoundOptions(student) {
+  const studentId = String(student?.id || "").trim();
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  return Array.from(new Set(sources.flat()
+    .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
+    .filter((record) => hasTeacherPreviewFinalScore({
+      score: record.score ?? record.totalScore ?? record.total_score ?? "",
+      maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
+      wrongCount: record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count ?? "",
+      subjectScores: normalizeFinalMockSubjectScores(record),
+    }))
+    .map((record) => Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0))
+    .filter((round) => Number.isFinite(round) && round > 0)))
+    .sort((a, b) => a - b);
+}
+
+function hasTeacherPreviewFinalScore(record) {
+  if (!record) return false;
+  if ([record.score, record.maxScore, record.wrongCount].some((value) => value !== "" && value !== null && value !== undefined)) return true;
+  return Object.values(record.subjectScores || {}).some((score) => score?.status !== "empty");
+}
+
+function getTeacherPreviewFinalSummary(student, round) {
+  const students = getGradeManagementStudents(getStudentCohort(student));
+  const records = getFinalMockScoreRecords(round);
+  const summaries = applyGradeRanksByTrack(students.map((item) => getFinalMockGradeStudentSummary(item, records)));
+  const summary = summaries.find((item) => String(item.student.id) === String(student.id)) || null;
+  if (!summary) return null;
+  const track = getTeacherStudentRegisteredTrack(student) || "미분류";
+  summary.round = round;
+  summary.total = summaries.filter((item) =>
+    item.hasScore &&
+    getTeacherStudentRegisteredTrack(item.student) === track
+  ).length;
+  return summary;
+}
+
+function renderStudentGradePreviewPanel(summary, roundOptions) {
+  if (!summary || !summary.hasScore) {
+    return el("div", { className: "student-grade-result" }, [
+      renderTeacherPreviewPyramid({ trackText: summary?.student ? getTeacherStudentRegisteredTrack(summary.student) : "" }),
+      el("div", { className: "empty" }, "입력된 파이널 성적이 없습니다."),
+    ]);
+  }
+  const subjectSummaries = getGradeSubjectHeaders().map((subject) => {
+    const subjectScore = summary.subjectScores[subject] || {};
+    const score = Number(subjectScore.score) || 0;
+    const maxScore = Number(subjectScore.maxScore) || 0;
+    return {
+      subject,
+      submitted: subjectScore.status !== "empty",
+      score,
+      wrongCount: "-",
+      rank: 0,
+      displayTopPercent: 0,
+      maxScore,
+    };
+  });
+  return el("div", { className: "student-grade-result" }, [
+    el("div", { className: "student-grade-result-title" }, [
+      el("strong", {}, `${Number(summary.round) || roundOptions[roundOptions.length - 1]}회차 파이널 성적`),
+    ]),
+    renderTeacherPreviewPyramid({
+      percentile: summary.rank ? Math.round((100 - Number(summary.topPercent || 0)) * 10) / 10 : null,
+      label: summary.rank ? formatTopPercentLabel(summary.topPercent) : "",
+      metaText: summary.rank ? `응시자 ${summary.total || 0}명 중 ${summary.rank}등` : "",
+      scoreValue: `${summary.score}/${summary.maxScore}점`,
+      wrongValue: formatTeacherPreviewWrongCount(summary.wrongCount),
+      trackText: getTeacherStudentRegisteredTrack(summary.student),
+      primaryColor: "var(--accent)",
+      baseBgColor: "#e6edf5",
+    }),
+    renderTeacherPreviewSubjectGradeList(subjectSummaries),
+  ]);
+}
+
+function renderTeacherPreviewPyramid({ percentile = null, label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5" } = {}) {
+  const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
+  const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
+  const topPercent = hasMarker ? Math.max(0, Math.min(100, 100 - safePercentile)) : 0;
+  const visualPosition = hasMarker ? 100 - topPercent : 0;
+  const displayLabel = hasMarker ? label || formatTopPercentLabel(topPercent) : "준비 중";
+  const style = [
+    `--pyramid-primary:${primaryColor}`,
+    `--pyramid-base:${baseBgColor}`,
+    `--grade-position:${roundTeacherPreviewValue(visualPosition)}%`,
+  ].join(";");
+  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 성적 요약" }, [
+    el("div", { className: "student-grade-card-head" }, [
+      el("span", { className: "student-grade-rank-badge" }, "내 위치"),
+      trackText ? el("span", { className: "student-grade-rank-track" }, trackText) : null,
+    ]),
+    el("strong", { className: "student-grade-rank-value" }, displayLabel),
+    metaText ? el("span", { className: "student-grade-rank-meta" }, metaText) : null,
+    el("div", { className: "student-grade-position-meter", ariaLabel: hasMarker ? `${displayLabel} 위치 표시` : "성적 준비 중" }, [
+      el("span", { className: "student-grade-position-fill" }),
+      hasMarker ? el("span", { className: "student-grade-position-marker" }) : null,
+    ]),
+    el("div", { className: "student-grade-position-labels" }, [
+      el("span", {}, "전체 구간"),
+      el("span", {}, "상위권"),
+    ]),
+    scoreValue || wrongValue ? el("div", { className: "student-grade-metrics" }, [
+      renderTeacherPreviewGradeMetric("총점", scoreValue || "-"),
+      renderTeacherPreviewGradeMetric("오답", wrongValue || "-"),
+    ]) : null,
+  ]);
+}
+
+function roundTeacherPreviewValue(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function renderTeacherPreviewGradeMetric(label, value) {
+  return el("div", { className: "student-grade-metric" }, [
+    el("span", {}, label),
+    el("strong", {}, value),
+  ]);
+}
+
+function renderTeacherPreviewSubjectGradeList(subjectSummaries = []) {
+  return el("div", { className: "student-grade-subject-list" }, [
+    el("strong", {}, "과목별 성적"),
+    subjectSummaries.length
+      ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
+          el("h3", {}, item.subject),
+          el("div", { className: "detail-grid" }, [
+            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatTeacherPreviewWrongCount(item.wrongCount) : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, "-")]),
+          ]),
+        ]))
+      : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
+  ]);
+}
+
+function formatTeacherPreviewWrongCount(value) {
+  if (value === "" || value === null || value === undefined || value === "-") return "-";
+  const count = Number(value);
+  return Number.isFinite(count) ? `${count}개` : "-";
+}
+
+function renderStudentPreviewHistory(student) {
+  const outingCount = state.outings.filter((outing) => outing.studentId === String(student.id)).length;
+  const penaltyCount = getPenaltiesForStudent(student.id).length;
+  const penaltyTotal = getPenaltyTotal(student.id);
+  return panel("내역", [
+    el("div", { className: "detail-grid" }, [
+      el("div", { className: "detail-item" }, [el("span", {}, "외출 내역"), el("strong", {}, `${outingCount}건`)]),
+      el("div", { className: "detail-item" }, [el("span", {}, "상/벌점 내역"), el("strong", {}, `${penaltyCount}건`)]),
+      el("div", { className: "detail-item" }, [el("span", {}, "상/벌점 합계"), el("strong", {}, formatPenaltyPoints(penaltyTotal))]),
     ]),
   ]);
 }
@@ -3945,7 +4208,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     ...WEEKLY_EXAM_SUBJECTS.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
     el("td", {}, summary.maxCorrect ? String(summary.wrongCount) : "-"),
     el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
-    el("td", {}, summary.rank ? `${summary.topPercent}%` : "-"),
+    el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
     el("td", {}, previousRank ? `${previousRank}등` : "-"),
     el("td", {}, formatRankDelta(summary.rank, previousRank)),
   ]);
@@ -3993,7 +4256,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
       ...getGradeSubjectHeaders().map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
       el("td", {}, summary.hasScore && summary.wrongCount !== "" ? String(summary.wrongCount) : "-"),
       el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
-      el("td", {}, summary.rank ? `${summary.topPercent}%` : "-"),
+      el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
       el("td", {}, previousRank ? `${previousRank}등` : "-"),
       el("td", {}, formatRankDelta(summary.rank, previousRank)),
       el("td", {}, button("수정", "mini-btn", "button", () => openFinalScoreEditModal(round, summary.student, record))),

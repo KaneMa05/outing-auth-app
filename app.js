@@ -13,6 +13,7 @@
   teacher: "외출 관리",
   managers: "담당자 등록",
   students: "학생 등록",
+  "student-preview": "학생 미리보기",
   "track-options": "직렬 항목 관리",
   "track-subjects": "직렬별 응시과목 관리",
   duplicates: "중복 사진",
@@ -100,7 +101,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -177,6 +178,7 @@ function render() {
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
+          "student-preview": renderStudentPreviewAdmin,
           "track-options": renderTrackOptionsAdmin,
           "track-subjects": renderTrackSubjectManagement,
           duplicates: renderDuplicates,

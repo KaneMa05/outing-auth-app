@@ -2411,6 +2411,13 @@ th {
   margin: 14px 0;
 }
 
+.student-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .teacher-search {
   grid-template-columns: minmax(220px, 1fr) auto;
   align-items: end;
