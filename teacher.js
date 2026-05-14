@@ -4475,7 +4475,12 @@ async function deleteStudent(id) {
   if (state.settings.studentProfiles) delete state.settings.studentProfiles[student.id];
   if (state.settings.studentAuthId === student.id) state.settings.studentAuthId = "";
   try {
-    await deactivateStudentRemote(student.id);
+    try {
+      await deleteStudentFromTeacherApi(student.id);
+    } catch (error) {
+      if (error?.message !== "service_role_not_configured") throw error;
+      await deactivateStudentRemote(student.id);
+    }
     saveState({ skipRemote: true });
     render();
     notify("학생을 삭제했습니다.");
@@ -4486,6 +4491,21 @@ async function deleteStudent(id) {
     state.settings.studentAuthId = beforeAuthId;
     render();
     notify("학생 삭제를 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
+  }
+}
+
+async function deleteStudentFromTeacherApi(id) {
+  const response = await fetch("/api/students", {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) {
+    const error = new Error(data.error || "student_delete_failed");
+    error.status = response.status;
+    throw error;
   }
 }
 
