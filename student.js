@@ -485,7 +485,9 @@ function createAttendanceForm(student, options = {}) {
     submitButton.disabled = true;
     setButtonLoading(submitButton, "출석 인증 중...");
     try {
-      await createAttendanceCheck(student, attendancePhoto);
+      await createAttendanceCheck(student, attendancePhoto, {
+        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+      });
       form.reset();
       render();
       notify("오늘 출석이 인증되었습니다.");
@@ -543,7 +545,9 @@ function createPreArrivalReasonForm(student) {
     cancelButton.disabled = true;
     setButtonLoading(submitButton, "사유 인증 중...");
     try {
-      await createPreArrivalReasonCheck(student, reasonPhoto, data.reason, data.detail);
+      await createPreArrivalReasonCheck(student, reasonPhoto, data.reason, data.detail, {
+        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+      });
       state.settings.attendanceMode = "";
       form.reset();
       render();
@@ -684,6 +688,9 @@ function createReturnForm() {
 }
 
 function getPhotoSubmitErrorMessage(error) {
+  if (error?.attendanceSaved) {
+    return "출석은 접수됐지만 사진 저장이 완료되지 않았습니다. 화면을 닫지 말고 다시 시도해주세요.";
+  }
   if (isStorageQuotaError(error)) {
     return "기기 저장공간이 부족해 임시 저장을 줄였습니다. 다시 한 번 제출해주세요.";
   }

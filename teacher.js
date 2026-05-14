@@ -2421,17 +2421,14 @@ function getActiveManagers() {
 }
 
 function managerNameControl() {
-  const managers = getActiveManagers().filter((manager) => isTeacherAdmin() || !isAdminManagerOption(manager));
+  const managers = getActiveManagers();
   const defaultName = String(teacherAuth.user?.username || "").trim();
   const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
-  if (defaultName && !managers.some((manager) => manager.name === defaultName)) {
-    options.push(el("option", { value: defaultName }, defaultName));
-  }
   const node = el("select", { name: "managerName", required: true }, [
     el("option", { value: "" }, "담당자 선택"),
     ...options,
   ]);
-  if (options.some((option) => option.value === defaultName)) node.value = defaultName;
+  if (defaultName && managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
   return node;
 }
 

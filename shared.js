@@ -2386,19 +2386,25 @@ function setAttendanceDeadline(value, enabled) {
 }
 
 function getAttendancePhotoSrc(check) {
-  return check?.photoUrl || check?.photoDataUrl || "";
+  return check?._localPhotoUrl || check?.photoUrl || check?.photoDataUrl || getAttendancePublicPhotoUrl(check?.photoPath) || "";
 }
 
 function getAttendanceThumbnailSrc(check) {
-  return check?.thumbnailUrl || getAttendancePhotoSrc(check);
+  return check?.thumbnailUrl || getAttendancePublicPhotoUrl(check?.thumbnailPath) || getAttendancePhotoSrc(check);
 }
 
 function getAttendanceArrivalPhotoSrc(check) {
-  return check?.arrivalPhotoUrl || "";
+  return check?.arrivalPhotoUrl || getAttendancePublicPhotoUrl(check?.arrivalPhotoPath) || "";
 }
 
 function getAttendanceArrivalThumbnailSrc(check) {
-  return check?.arrivalThumbnailUrl || getAttendanceArrivalPhotoSrc(check);
+  return check?.arrivalThumbnailUrl || getAttendancePublicPhotoUrl(check?.arrivalThumbnailPath) || getAttendanceArrivalPhotoSrc(check);
+}
+
+function getAttendancePublicPhotoUrl(path) {
+  if (!path || !remoteStore) return "";
+  const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(path);
+  return data?.publicUrl || "";
 }
 
 function getOutingPhotoSrc(photo) {
@@ -2532,15 +2538,20 @@ async function createAttendanceCheck(student, file, options = {}) {
   const createdAt = new Date().toISOString();
   const checkDate = getTodayDateKey();
   const status = options.status || "present";
+  const photo = createAttendancePhotoAssetPlaceholders(student.id, id);
   if (remoteStore) {
     const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
     if (existingCheck) {
+      attachAttendanceLocalPreview(existingCheck, file);
       upsertLocalAttendanceCheck(existingCheck);
       saveState();
-      return existingCheck;
+      if (typeof options.onAttendanceSaved === "function") options.onAttendanceSaved(existingCheck);
+      return finishAttendancePhotoUpload(existingCheck, file);
     }
   }
-  const photo = await uploadAttendancePhotoAssets(student.id, id, file);
+  if (!remoteStore) {
+    Object.assign(photo, await uploadAttendancePhotoAssets(student.id, id, file));
+  }
 
   const check = {
     id,
@@ -2560,6 +2571,7 @@ async function createAttendanceCheck(student, file, options = {}) {
     originalName: file.name || "",
     createdAt,
   };
+  attachAttendanceLocalPreview(check, file);
 
   if (remoteStore) {
     const attendanceRow = {
@@ -2580,6 +2592,7 @@ async function createAttendanceCheck(student, file, options = {}) {
       original_name: check.originalName || null,
       created_at: check.createdAt,
     };
+    let inserted = false;
     const { error } = await remoteStore.from("attendance_checks").insert(attendanceRow);
     if (
       isMissingColumnError(error, "reason") ||
@@ -2591,12 +2604,15 @@ async function createAttendanceCheck(student, file, options = {}) {
       if (isDuplicateAttendanceError(fallbackError)) {
         const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
         if (existingCheck) {
+          attachAttendanceLocalPreview(existingCheck, file);
           upsertLocalAttendanceCheck(existingCheck);
           saveState();
-          return existingCheck;
+          if (typeof options.onAttendanceSaved === "function") options.onAttendanceSaved(existingCheck);
+          return finishAttendancePhotoUpload(existingCheck, file);
         }
       }
       if (fallbackError) throw fallbackError;
+      inserted = true;
     } else if (
       isMissingColumnError(error, "thumbnail_path") ||
       isMissingColumnError(error, "thumbnail_url")
@@ -2605,21 +2621,34 @@ async function createAttendanceCheck(student, file, options = {}) {
       if (isDuplicateAttendanceError(fallbackError)) {
         const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
         if (existingCheck) {
+          attachAttendanceLocalPreview(existingCheck, file);
           upsertLocalAttendanceCheck(existingCheck);
           saveState();
-          return existingCheck;
+          if (typeof options.onAttendanceSaved === "function") options.onAttendanceSaved(existingCheck);
+          return finishAttendancePhotoUpload(existingCheck, file);
         }
       }
       if (fallbackError) throw fallbackError;
+      inserted = true;
     } else if (isDuplicateAttendanceError(error)) {
       const existingCheck = await fetchRemoteAttendanceCheck(student.id, checkDate);
       if (existingCheck) {
+        attachAttendanceLocalPreview(existingCheck, file);
         upsertLocalAttendanceCheck(existingCheck);
         saveState();
-        return existingCheck;
+        if (typeof options.onAttendanceSaved === "function") options.onAttendanceSaved(existingCheck);
+        return finishAttendancePhotoUpload(existingCheck, file);
       }
       throw error;
     } else if (error) throw error;
+    else inserted = true;
+
+    if (inserted) {
+      upsertLocalAttendanceCheck(check);
+      saveState();
+      if (typeof options.onAttendanceSaved === "function") options.onAttendanceSaved(check);
+      return finishAttendancePhotoUpload(check, file);
+    }
   }
 
   upsertLocalAttendanceCheck(check);
@@ -2700,12 +2729,61 @@ function isDuplicateAttendanceError(error) {
   return text.includes("23505") || text.includes("duplicate key") || text.includes("attendance_checks_student_id_check_date");
 }
 
-function createPreArrivalReasonCheck(student, file, reason, detail) {
+function createPreArrivalReasonCheck(student, file, reason, detail, options = {}) {
   return createAttendanceCheck(student, file, {
     status: "pre_arrival_reason",
     reason,
     detail,
+    ...options,
   });
+}
+
+function createAttendancePhotoAssetPlaceholders(studentId, checkId) {
+  return {
+    photoPath: createAttendancePhotoPath(studentId, checkId),
+    photoUrl: "",
+    thumbnailPath: "",
+    thumbnailUrl: "",
+    photoDataUrl: "",
+  };
+}
+
+function attachAttendanceLocalPreview(check, file) {
+  if (!check || !file || !window.URL?.createObjectURL) return;
+  const previewUrl = window.URL.createObjectURL(file);
+  Object.defineProperties(check, {
+    _localPhotoUrl: { value: previewUrl, configurable: true },
+  });
+}
+
+function clearAttendanceLocalPreview(check) {
+  if (!check?._localPhotoUrl || !window.URL?.revokeObjectURL) return;
+  window.URL.revokeObjectURL(check._localPhotoUrl);
+  delete check._localPhotoUrl;
+}
+
+async function finishAttendancePhotoUpload(check, file) {
+  if (!remoteStore || !check || !file) return check;
+  try {
+    const photo = await uploadAttendancePhotoAssets(check.studentId, check.id, file, {
+      photoPath: check.photoPath,
+      thumbnailPath: check.thumbnailPath,
+    });
+    const current = (state.attendanceChecks || []).find((item) => item.id === check.id) || check;
+    current.photoPath = photo.photoPath || current.photoPath || "";
+    current.photoUrl = photo.photoUrl || current.photoUrl || "";
+    current.thumbnailPath = photo.thumbnailPath || current.thumbnailPath || "";
+    current.thumbnailUrl = photo.thumbnailUrl || current.thumbnailUrl || "";
+    current.photoDataUrl = "";
+    clearAttendanceLocalPreview(current);
+    upsertLocalAttendanceCheck(current);
+    saveState();
+    return current;
+  } catch (error) {
+    error.attendanceSaved = true;
+    error.attendanceCheck = check;
+    throw error;
+  }
 }
 
 async function completePreArrivalAttendanceCheck(student, check, file) {
@@ -2761,11 +2839,8 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
   return nextCheck;
 }
 
-async function uploadAttendancePhotoAssets(studentId, checkId, file) {
-  const [compressedDataUrl, thumbnailDataUrl] = await Promise.all([
-    compressImage(file, 720, 0.58, 95000),
-    compressImage(file, 180, 0.52, 14000),
-  ]);
+async function uploadAttendancePhotoAssets(studentId, checkId, file, options = {}) {
+  const compressedDataUrl = await compressImage(file, 720, 0.58, 95000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
@@ -2774,35 +2849,29 @@ async function uploadAttendancePhotoAssets(studentId, checkId, file) {
 
   if (remoteStore) {
     const blob = dataUrlToBlob(compressedDataUrl);
-    const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
-    photoPath = createAttendancePhotoPath(studentId, checkId);
-    thumbnailPath = createAttendancePhotoPath(studentId, checkId, "thumb");
-    const [{ error: uploadError }, { error: thumbnailUploadError }] = await Promise.all([
-      remoteStore.storage
-        .from(ATTENDANCE_PHOTO_BUCKET)
-        .upload(photoPath, blob, {
-          cacheControl: "31536000",
-          contentType: blob.type || "image/jpeg",
-          upsert: false,
-        }),
-      remoteStore.storage
-        .from(ATTENDANCE_PHOTO_BUCKET)
-        .upload(thumbnailPath, thumbnailBlob, {
-          cacheControl: "31536000",
-          contentType: thumbnailBlob.type || "image/jpeg",
-          upsert: false,
-        }),
-    ]);
-    if (uploadError) throw uploadError;
-    if (thumbnailUploadError) throw thumbnailUploadError;
+    photoPath = options.photoPath || createAttendancePhotoPath(studentId, checkId);
+    thumbnailPath = options.thumbnailPath || "";
+    const { error: uploadError } = await remoteStore.storage
+      .from(ATTENDANCE_PHOTO_BUCKET)
+      .upload(photoPath, blob, {
+        cacheControl: "31536000",
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
+    if (uploadError && !isDuplicateStorageObjectError(uploadError)) throw uploadError;
     const { data } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(photoPath);
-    const { data: thumbnailData } = remoteStore.storage.from(ATTENDANCE_PHOTO_BUCKET).getPublicUrl(thumbnailPath);
     photoUrl = data?.publicUrl || "";
-    thumbnailUrl = thumbnailData?.publicUrl || "";
+    thumbnailUrl = "";
     photoDataUrl = "";
   }
 
   return { photoPath, photoUrl, thumbnailPath, thumbnailUrl, photoDataUrl };
+}
+
+function isDuplicateStorageObjectError(error) {
+  if (!error) return false;
+  const text = [error.message, error.error, error.statusCode, error.name].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("duplicate") || text.includes("already exists") || text.includes("409");
 }
 
 function createAttendancePhotoPath(studentId, checkId, variant = "original") {
