@@ -979,6 +979,7 @@ function getStudentSubjectGradeSummary(exam, student, section, submission, peers
     maxScore,
     wrongCount,
     rank,
+    topPercent,
     displayTopPercent: rank ? Math.max(1, Math.ceil(topPercent)) : 0,
     submitted: Boolean(submission),
   };

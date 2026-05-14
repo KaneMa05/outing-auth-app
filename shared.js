@@ -83,6 +83,7 @@ const routePermissions = {
   notices: "notices.read",
   managers: "managers.read",
   students: "students.read",
+  "student-preview": "students.read",
   "track-options": "students.read",
   duplicates: "outing.audit",
   trash: "outing.delete",
@@ -99,12 +100,19 @@ function isTeacherAdmin() {
   return APP_MODE === "teacher" && teacherAuth.user?.role === "admin";
 }
 
+function formatTopPercentLabel(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return "-";
+  if (percent <= 0) return "상위 1% 미만";
+  return `상위 ${Math.max(1, Math.ceil(percent))}%`;
+}
+
 function canUseRoute(route) {
   return hasTeacherPermission(routePermissions[route]);
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
