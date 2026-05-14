@@ -798,6 +798,7 @@ function studentLookup(buttonText) {
 
 let selectedStudentExamId = "";
 let selectedStudentGradeLookupExamId = "";
+let selectedStudentFinalRound = 1;
 let studentGradeLookupType = "final";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
@@ -805,6 +806,7 @@ let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editin
 function resetStudentGradesView() {
   selectedStudentExamId = "";
   selectedStudentGradeLookupExamId = "";
+  selectedStudentFinalRound = 1;
   studentGradeLookupType = "final";
   studentGradesView = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
@@ -851,17 +853,188 @@ function renderStudentGradeLookupComingSoon() {
   const typeTabs = el("div", { className: "student-grade-type-tabs" }, [
     button("파이널 성적", "mini-btn active", "button", () => {}),
   ]);
+  const student = getAuthedStudent();
+  const roundOptions = getStudentFinalRoundOptions();
+  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 1;
+  const summary = student ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
 
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적 조회", [
       typeTabs,
-      renderStudentGradeResultPanel(null, { title: "파이널 성적", emptyText: "파이널 성적은 준비 중입니다." }),
+      renderStudentGradeResultPanel(summary, {
+        title: "성적 요약",
+        headerControl: renderStudentFinalRoundSelect(roundOptions),
+        emptyText: "파이널 성적은 준비 중입니다.",
+      }),
       button("성적 메뉴", "mini-btn", "button", () => {
         studentGradesView = "";
         render();
       }),
     ]),
   ]);
+}
+
+function getStudentFinalRoundOptions() {
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  const rounds = sources.flat().map((record) =>
+    Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0)
+  ).filter((round) => Number.isFinite(round) && round > 0);
+  const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => a - b);
+  return uniqueRounds.length ? uniqueRounds : [1];
+}
+
+function renderStudentFinalRoundSelect(roundOptions = [1]) {
+  const node = el("select", {
+    className: "student-grade-round-select",
+    ariaLabel: "파이널 성적 회차 선택",
+  }, roundOptions.map((round) => el("option", { value: String(round) }, `${round}회차`)));
+  node.value = String(selectedStudentFinalRound);
+  node.addEventListener("change", () => {
+    selectedStudentFinalRound = Number(node.value) || 1;
+    render();
+  });
+  return node;
+}
+
+function getStudentFinalGradeSummary(student, round = 1) {
+  const records = getStudentFinalScoreRecords(round);
+  const cohort = getStudentCohort(student);
+  const registeredTrack = getStudentRegisteredTrack(student);
+  const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
+  const summaries = peers.map((peer) => {
+    const record = records.find((item) => String(item.studentId || "").trim() === String(peer.id || "").trim());
+    if (!record) return { student: peer, hasScore: false, submittedCount: 0, score: 0, maxScore: 0, wrongCount: "", subjectSummaries: [] };
+    const score = Number(record.score) || 0;
+    const maxScore = Number(record.maxScore) || 0;
+    const subjectSummaries = getFinalGradeSubjectHeaders().map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject]));
+    return {
+      student: peer,
+      hasScore: true,
+      submittedCount: 1,
+      sectionCount: 1,
+      title: `${Number(round) || 1}회차 파이널 성적`,
+      score,
+      maxScore,
+      percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
+      wrongCount: record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
+        ? Number(record.wrongCount) || 0
+        : maxScore
+          ? Math.max(0, Math.round((maxScore - score) / 5))
+          : 0,
+      subjectSummaries,
+      explicitRank: record.rank,
+      explicitTotal: record.total,
+      explicitTopPercent: record.topPercent,
+    };
+  }).filter((summary) => summary.hasScore);
+  const sorted = [...summaries].sort((a, b) => {
+    const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreCompare) return scoreCompare;
+    const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
+    if (wrongCompare) return wrongCompare;
+    return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
+  });
+  let previousScore = null;
+  let previousWrong = null;
+  let previousRank = 0;
+  sorted.forEach((summary, index) => {
+    const score = Number(summary.score) || 0;
+    const wrong = Number(summary.wrongCount) || 0;
+    const rank = score === previousScore && wrong === previousWrong ? previousRank : index + 1;
+    summary.rank = rank;
+    summary.topPercent = calculateStudentTopPercent(rank, sorted.length);
+    summary.displayTopPercent = rank ? Math.max(1, Math.ceil(summary.topPercent)) : 0;
+    summary.percentile = Math.round((100 - summary.topPercent) * 10) / 10;
+    previousScore = score;
+    previousWrong = wrong;
+    previousRank = rank;
+  });
+  const own = sorted.find((summary) => String(summary.student.id) === String(student.id));
+  if (own && own.explicitRank) {
+    const explicitRank = Number(own.explicitRank) || 0;
+    const explicitTotal = Number(own.explicitTotal) || sorted.length;
+    const explicitTopPercent = own.explicitTopPercent !== "" && own.explicitTopPercent !== null && own.explicitTopPercent !== undefined
+      ? Number(own.explicitTopPercent) || 0
+      : calculateStudentTopPercent(explicitRank, explicitTotal);
+    own.rank = explicitRank;
+    own.total = explicitTotal;
+    own.topPercent = Math.round(explicitTopPercent * 10) / 10;
+    own.displayTopPercent = Math.max(1, Math.ceil(own.topPercent));
+    own.percentile = Math.round((100 - own.topPercent) * 10) / 10;
+  }
+  return own || null;
+}
+
+function getStudentFinalScoreRecords(round) {
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  return sources.flat().filter((record) => {
+    const value = Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0);
+    return value === Number(round);
+  }).map((record) => ({
+    studentId: record.studentId || record.student_id || record.studentNumber || "",
+    score: record.score ?? record.totalScore ?? record.total_score ?? "",
+    maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
+    wrongCount: record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count ?? "",
+    rank: record.rank ?? "",
+    total: record.total ?? record.totalStudents ?? record.total_students ?? "",
+    topPercent: record.topPercent ?? record.top_percent ?? "",
+    subjectScores: normalizeStudentFinalSubjectScores(record),
+  }));
+}
+
+function getFinalGradeSubjectHeaders() {
+  return Array.isArray(FINAL_GRADE_SUBJECTS) ? FINAL_GRADE_SUBJECTS : Array.from({ length: 8 }, (_, index) => `과목${index + 1}`);
+}
+
+function normalizeStudentFinalSubjectScores(record) {
+  const subjectScores = {};
+  const source = record.subjectScores || record.subject_scores || record.scoresBySubject || record.subjects || null;
+  if (Array.isArray(source)) {
+    source.slice(0, 8).forEach((value, index) => {
+      subjectScores[`과목${index + 1}`] = normalizeStudentFinalSubjectValue(value);
+    });
+  } else if (source && typeof source === "object") {
+    getFinalGradeSubjectHeaders().forEach((subject, index) => {
+      const value = source[subject] ?? source[`subject${index + 1}`] ?? source[`과목${index + 1}`];
+      if (value !== undefined) subjectScores[subject] = normalizeStudentFinalSubjectValue(value);
+    });
+  }
+  getFinalGradeSubjectHeaders().forEach((subject, index) => {
+    const direct = record[`subject${index + 1}`] ?? record[`subject_${index + 1}`] ?? record[`score${index + 1}`] ?? record[`score_${index + 1}`];
+    if (direct !== undefined) subjectScores[subject] = normalizeStudentFinalSubjectValue(direct);
+  });
+  return subjectScores;
+}
+
+function normalizeStudentFinalSubjectValue(value) {
+  if (value && typeof value === "object") {
+    return {
+      score: value.score ?? value.total ?? value.value ?? "",
+      maxScore: value.maxScore ?? value.max_score ?? value.max ?? "",
+      wrongCount: value.wrongCount ?? value.wrong_count ?? value.incorrectCount ?? value.incorrect_count ?? "",
+      status: value.status || "submitted",
+    };
+  }
+  if (value === "" || value === null || value === undefined) return { status: "empty" };
+  return { score: value, maxScore: "", status: "submitted" };
+}
+
+function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}) {
+  const score = Number(subjectScore.score) || 0;
+  const maxScore = Number(subjectScore.maxScore) || 0;
+  return {
+    subject,
+    score,
+    maxScore,
+    wrongCount: subjectScore.wrongCount !== "" && subjectScore.wrongCount !== null && subjectScore.wrongCount !== undefined
+      ? Number(subjectScore.wrongCount) || 0
+      : maxScore
+        ? Math.max(0, Math.round((maxScore - score) / 5))
+        : "-",
+    rank: 0,
+    displayTopPercent: 0,
+    submitted: subjectScore.status !== "empty",
+  };
 }
 
 function getStudentWeeklyGradeSummary(exam, student) {
@@ -950,23 +1123,23 @@ function calculateStudentTopPercent(rank, total) {
 }
 
 function renderStudentGradeResultPanel(summary, options = {}) {
+  const headerTitle = summary?.title || options.title;
+  const header = headerTitle
+    ? el("div", { className: "student-grade-result-title" }, [
+        el("strong", {}, headerTitle),
+        options.headerControl || null,
+      ])
+    : null;
   if (!summary || !summary.submittedCount) {
     return el("div", { className: "student-grade-result" }, [
+      header,
       renderStudentGradePyramid(null),
       el("div", { className: "empty" }, options.emptyText || "아직 제출된 성적이 없습니다."),
     ]);
   }
   return el("div", { className: "student-grade-result" }, [
+    header,
     renderStudentGradePyramid(summary),
-    el("div", { className: "student-grade-summary" }, [
-      el("strong", {}, summary.title),
-      el("div", { className: "detail-grid" }, [
-        el("div", { className: "detail-item" }, [el("span", {}, "총점"), el("strong", {}, `${summary.score}/${summary.maxScore}점`)]),
-        el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, `${summary.subjectSummaries.reduce((sum, item) => sum + (item.wrongCount ?? 0), 0)}개`)]),
-        el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, summary.rank ? `상위 ${summary.displayTopPercent}%` : "-")]),
-        el("div", { className: "detail-item" }, [el("span", {}, "제출"), el("strong", {}, `${summary.submittedCount}/${summary.sectionCount}과목`)]),
-      ]),
-    ]),
     renderStudentSubjectGradeList(summary.subjectSummaries),
   ]);
 }
@@ -978,8 +1151,8 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
           el("h3", {}, item.subject),
           el("div", { className: "detail-grid" }, [
-            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}/${item.maxScore}점` : "미제출")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, item.submitted ? `${item.wrongCount}개` : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatStudentWrongCount(item.wrongCount) : "-")]),
             el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? `상위 ${item.displayTopPercent}%` : "-")]),
           ]),
         ]))
@@ -988,50 +1161,68 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
 }
 
 function renderStudentGradePyramid(summary) {
+  const student = summary?.student || getAuthedStudent();
+  const trackText = student ? getStudentRegisteredTrack(student) : "";
   return renderPercentilePyramid({
     percentile: summary?.rank ? summary.percentile : null,
     label: summary?.rank ? `상위 ${summary.displayTopPercent}%` : "",
+    metaText: summary?.rank && summary?.total ? `응시자 ${summary.total}명 중 ${summary.rank}등` : "",
+    scoreValue: summary ? `${summary.score}/${summary.maxScore}점` : "",
+    wrongValue: summary ? formatStudentWrongCount(summary.wrongCount) : "",
+    trackText,
     primaryColor: "var(--accent)",
     baseBgColor: "#e6edf5",
   });
 }
 
-function renderPercentilePyramid({ percentile = null, label = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5", levels = 5 } = {}) {
+function renderPercentilePyramid({ percentile = null, label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5", levels = 4 } = {}) {
   const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
   const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
-  const fromTop = 100 - safePercentile;
-  const activeZone = hasMarker ? Math.min(levels - 1, Math.floor(fromTop / (100 / levels))) : -1;
-  const markerY = Math.round((8 + fromTop * 0.8) * 10) / 10;
-  const markerWidth = Math.round((12 + fromTop * 0.78) * 10) / 10;
+  const topPercent = hasMarker ? Math.max(0, Math.min(100, 100 - safePercentile)) : 0;
+  const visualPosition = hasMarker ? 100 - topPercent : 0;
+  const displayLabel = hasMarker ? label || `상위 ${Math.ceil(topPercent)}%` : "준비 중";
   const style = [
     `--pyramid-primary:${primaryColor}`,
     `--pyramid-base:${baseBgColor}`,
-    `--marker-y:${markerY}%`,
-    `--marker-width:${markerWidth}%`,
+    `--grade-position:${roundSvg(visualPosition)}%`,
   ].join(";");
-  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 시각화 피라미드" }, [
-    el("div", { className: "student-grade-pyramid-guide top" }, "상위 0%"),
-    el("div", { className: "student-grade-pyramid-guide bottom" }, "상위 100%"),
-    el("div", { className: "student-grade-pyramid-shape" }, [
-      el("div", { className: "student-grade-pyramid-fill" }),
-      el("div", { className: "student-grade-pyramid-zones" }, Array.from({ length: levels }, (_, index) =>
-        el("span", {
-          className: `student-grade-pyramid-zone${index === activeZone ? " active" : ""}`,
-          style: `top:${(index / levels) * 100}%;height:${100 / levels}%`,
-        })
-      )),
-      el("div", { className: "student-grade-pyramid-lines" }, Array.from({ length: Math.max(0, levels - 1) }, (_, index) =>
-        el("span", { style: `top:${((index + 1) / levels) * 100}%` })
-      )),
-      hasMarker ? el("span", { className: "student-grade-pyramid-marker-line" }) : null,
+  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 성적 요약" }, [
+    el("div", { className: "student-grade-card-head" }, [
+      el("span", { className: "student-grade-rank-badge" }, "내 위치"),
+      trackText ? el("span", { className: "student-grade-rank-track" }, trackText) : null,
     ]),
-    hasMarker
-      ? el("div", { className: "student-grade-pyramid-callout" }, [
-          el("span", {}, "내 위치"),
-          el("strong", {}, label || `백분위 ${safePercentile}%`),
-        ])
-      : null,
+    el("strong", { className: "student-grade-rank-value" }, displayLabel),
+    metaText ? el("span", { className: "student-grade-rank-meta" }, metaText) : null,
+    el("div", { className: "student-grade-position-meter", ariaLabel: hasMarker ? `${displayLabel} 위치 표시` : "성적 준비 중" }, [
+      el("span", { className: "student-grade-position-fill" }),
+      hasMarker ? el("span", { className: "student-grade-position-marker" }) : null,
+    ]),
+    el("div", { className: "student-grade-position-labels" }, [
+      el("span", {}, "전체 구간"),
+      el("span", {}, "상위권"),
+    ]),
+    scoreValue || wrongValue ? el("div", { className: "student-grade-metrics" }, [
+      renderStudentGradeMetric("총점", scoreValue || "-"),
+      renderStudentGradeMetric("오답", wrongValue || "-"),
+    ]) : null,
   ]);
+}
+
+function renderStudentGradeMetric(label, value) {
+  return el("div", { className: "student-grade-metric" }, [
+    el("span", {}, label),
+    el("strong", {}, value),
+  ]);
+}
+
+function formatStudentWrongCount(value) {
+  if (value === "" || value === null || value === undefined || value === "-") return "-";
+  const count = Number(value);
+  return Number.isFinite(count) ? `${count}개` : "-";
+}
+
+function roundSvg(value) {
+  return Math.round(Number(value) * 10) / 10;
 }
 
 function renderStudentWeeklyGrades(student) {

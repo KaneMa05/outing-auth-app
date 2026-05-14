@@ -2,6 +2,7 @@
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_IMPORTANT_NOTICES = [];
+const FINAL_GRADE_SUBJECTS = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
 const ATTENDANCE_OPEN_OVERRIDE_NOTE = "__open_attendance_day__";
 const KOREA_PUBLIC_HOLIDAYS = {
@@ -282,6 +283,7 @@ function defaultState() {
     submissionAnswers: [],
     examFiles: [],
     examSubjectSettings: [],
+    finalExamScores: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
 }
@@ -312,6 +314,7 @@ function mergeDefaultState(nextState) {
     submissionAnswers: Array.isArray(nextState?.submissionAnswers) ? nextState.submissionAnswers : defaults.submissionAnswers,
     examFiles: Array.isArray(nextState?.examFiles) ? nextState.examFiles : defaults.examFiles,
     examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
+    finalExamScores: Array.isArray(nextState?.finalExamScores) ? nextState.finalExamScores : defaults.finalExamScores,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
 }
