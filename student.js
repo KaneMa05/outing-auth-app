@@ -703,16 +703,19 @@ function createReturnForm() {
     setButtonLoading(submitButton, "복귀 처리 중...");
     setPhotoSubmitStatus(uploadStatus, "복귀 사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
     try {
-      await flushRemoteSave();
+      await ensureOutingRequestSaved(outing);
       outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
-      outing.photos.push(await createOutingPhoto(outing, returnPhoto, "복귀 인증"));
+      const savedPhoto = await createOutingPhoto(outing, returnPhoto, "복귀 인증");
+      await saveOutingPhotoToRemote(outing, savedPhoto);
+      outing.photos.push(savedPhoto);
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();
+      await saveOutingReturnToRemote(outing);
       state.settings.lastStudentId = outing.studentId;
       setStudentStep("done");
       state.settings.completionType = "return";
-      saveState();
+      saveState({ skipRemote: true });
       form.reset();
       render();
       notify("복귀 완료되었습니다.");

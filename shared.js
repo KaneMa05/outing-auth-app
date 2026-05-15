@@ -2491,6 +2491,72 @@ async function createOutingPhoto(outing, file, type) {
   };
 }
 
+async function ensureOutingRequestSaved(outing) {
+  if (!remoteStore || !outing?.id) return;
+  const row = {
+    id: outing.id,
+    student_id: outing.studentId,
+    student_name: outing.studentName,
+    class_name: outing.className,
+    reason: outing.reason,
+    detail: outing.detail || null,
+    expected_return: outing.expectedReturn || null,
+    status: "requested",
+    decision: "pending",
+    receipt_note: outing.receiptNote || null,
+    early_leave_reason: outing.earlyLeaveReason || null,
+    created_at: outing.createdAt,
+    verified_at: null,
+    returned_at: null,
+  };
+  const { error } = await remoteStore
+    .from("outings")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+async function saveOutingPhotoToRemote(outing, photo) {
+  if (!remoteStore || !outing?.id || !photo?.id) return;
+  const row = {
+    id: photo.id,
+    outing_id: outing.id,
+    photo_type: photo.type,
+    data_url: photo.dataUrl || null,
+    photo_path: photo.photoPath || null,
+    photo_url: photo.photoUrl || null,
+    thumbnail_path: photo.thumbnailPath || null,
+    thumbnail_url: photo.thumbnailUrl || null,
+    original_name: photo.name || null,
+    uploaded_at: photo.uploadedAt,
+  };
+  const { error } = await remoteStore
+    .from("outing_photos")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  if (
+    isMissingColumnError(error, "thumbnail_path") ||
+    isMissingColumnError(error, "thumbnail_url")
+  ) {
+    const { thumbnail_path, thumbnail_url, ...fallbackRow } = row;
+    const { error: fallbackError } = await remoteStore
+      .from("outing_photos")
+      .upsert(fallbackRow, { onConflict: "id", ignoreDuplicates: true });
+    if (fallbackError) throw fallbackError;
+  } else if (error) throw error;
+}
+
+async function saveOutingReturnToRemote(outing) {
+  if (!remoteStore || !outing?.id) return;
+  const { error } = await remoteStore
+    .from("outings")
+    .update({
+      status: "returned",
+      decision: outing.decision,
+      returned_at: outing.returnedAt,
+    })
+    .eq("id", outing.id);
+  if (error) throw error;
+}
+
 function createOutingPhotoPath(studentId, outingId, photoId, variant = "original") {
   const suffix = variant === "thumb" ? "-thumb" : "";
   return `${getTodayDateKey()}/${String(studentId || "student")}/${String(outingId || "outing")}/${String(photoId || createId())}${suffix}.jpg`;
