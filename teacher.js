@@ -2421,7 +2421,7 @@ function getActiveManagers() {
 }
 
 function managerNameControl() {
-  const managers = getActiveManagers();
+  const managers = getVisibleManagerOptions();
   const defaultName = String(teacherAuth.user?.username || "").trim();
   const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
   const node = el("select", { name: "managerName", required: true }, [
@@ -2430,6 +2430,13 @@ function managerNameControl() {
   ]);
   if (defaultName && managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
   return node;
+}
+
+function getVisibleManagerOptions() {
+  const managers = getActiveManagers();
+  if (!isTeacherAdmin()) return managers.filter((manager) => !isAdminManagerOption(manager));
+  if (managers.some(isAdminManagerOption)) return managers;
+  return [{ id: "admin", name: "admin", role: "관리자", memo: "", isActive: true }, ...managers];
 }
 
 function isAdminManagerOption(manager) {
