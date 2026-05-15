@@ -624,6 +624,35 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
   object-fit: cover;
 }
 
+.photo-submit-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid #b9d6f0;
+  border-radius: 8px;
+  background: #eef7ff;
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.photo-submit-status.error {
+  border-color: #f0c7bf;
+  background: #fff4f1;
+  color: var(--danger);
+}
+
+.photo-submit-status .loading-spinner {
+  flex: 0 0 auto;
+  inline-size: 16px;
+  block-size: 16px;
+  border-color: rgba(7, 93, 164, 0.22);
+  border-top-color: var(--accent);
+}
+
 .loading-spinner {
   inline-size: 16px;
   block-size: 16px;

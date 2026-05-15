@@ -279,6 +279,7 @@ function renderStudentVerify() {
 
 function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
+  const uploadStatus = createPhotoSubmitStatus();
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
   const form = el("form", { className: "form-grid" }, [
@@ -290,6 +291,7 @@ function createVerifyForm() {
       "full",
       isReceiptRequired ? "병원 외출은 영수증 인증 사진을 함께 제출해야 합니다." : ""
     ),
+    uploadStatus,
     el("div", { className: "field full" }, [submitButton]),
   ]);
 
@@ -305,12 +307,15 @@ function createVerifyForm() {
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "사진 업로드 중...");
+    setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
 
     try {
       await flushRemoteSave();
+      setPhotoSubmitStatus(uploadStatus, "현장 인증 사진을 저장 중입니다. 화면을 닫지 마세요.");
       outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
       outing.photos.push(await createOutingPhoto(outing, sitePhoto, "현장 인증"));
       if (receiptPhoto) {
+        setPhotoSubmitStatus(uploadStatus, "영수증 인증 사진을 저장 중입니다. 화면을 닫지 마세요.");
         outing.photos.push(await createOutingPhoto(outing, receiptPhoto, "영수증 인증"));
       }
       outing.receiptNote = "";
@@ -326,6 +331,7 @@ function createVerifyForm() {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
+      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
     }
@@ -402,6 +408,19 @@ function setPhotoInputLoading(trigger, status, loading, text) {
   status.appendChild(document.createTextNode(text));
 }
 
+function createPhotoSubmitStatus() {
+  return el("div", { className: "photo-submit-status full", role: "status", ariaLive: "polite", hidden: true });
+}
+
+function setPhotoSubmitStatus(statusNode, text, tone = "loading") {
+  if (!statusNode) return;
+  statusNode.hidden = false;
+  statusNode.className = `photo-submit-status full ${tone}`;
+  statusNode.innerHTML = "";
+  if (tone === "loading") statusNode.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
+  statusNode.appendChild(document.createTextNode(text));
+}
+
 function renderStudentReturn() {
   return studentShell("학원 복귀 인증", "복귀 시간을 남기면 교사가 관리 화면에서 최종 상태를 확인할 수 있습니다.", [
     panel("복귀 처리", [createReturnForm()]),
@@ -438,6 +457,7 @@ function createAttendanceForm(student, options = {}) {
   if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("출석 인증하기", "btn");
+  const uploadStatus = createPhotoSubmitStatus();
   submitButton.disabled = !isOpen;
   const preArrivalButton = options.showPreArrival
     ? button("등원 전 사유신청", "btn", "button", () => {
@@ -451,6 +471,7 @@ function createAttendanceForm(student, options = {}) {
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("출석 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
     field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen }), "full"),
+    uploadStatus,
     el("div", { className: "field full" }, [
       submitButton,
       preArrivalButton,
@@ -484,9 +505,13 @@ function createAttendanceForm(student, options = {}) {
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "출석 인증 중...");
+    setPhotoSubmitStatus(uploadStatus, "출석 기록을 접수하고 사진을 준비 중입니다. 화면을 닫지 마세요.");
     try {
       await createAttendanceCheck(student, attendancePhoto, {
-        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+        onAttendanceSaved: () => {
+          setButtonLoading(submitButton, "사진 저장 중...");
+          setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+        },
       });
       form.reset();
       render();
@@ -494,6 +519,7 @@ function createAttendanceForm(student, options = {}) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
+      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "출석 인증하기";
     }
@@ -506,6 +532,7 @@ function createPreArrivalReasonForm(student) {
   if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("사유 인증하기", "btn");
+  const uploadStatus = createPhotoSubmitStatus();
   submitButton.disabled = !isOpen;
   const cancelButton = button("출석 체크로 돌아가기", "btn secondary", "button", () => {
     state.settings.attendanceMode = "";
@@ -517,6 +544,7 @@ function createPreArrivalReasonForm(student) {
     field("사유", select("reason", ["병원", "교통 지연", "개인 사유 인증", "기타"])),
     field("상세 사유", textarea("detail", "필요한 내용을 입력하세요."), "full"),
     field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen }), "full"),
+    uploadStatus,
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-action-row" }, [submitButton, cancelButton]),
       el(
@@ -544,9 +572,13 @@ function createPreArrivalReasonForm(student) {
     submitButton.disabled = true;
     cancelButton.disabled = true;
     setButtonLoading(submitButton, "사유 인증 중...");
+    setPhotoSubmitStatus(uploadStatus, "사유신청을 접수하고 사진을 준비 중입니다. 화면을 닫지 마세요.");
     try {
       await createPreArrivalReasonCheck(student, reasonPhoto, data.reason, data.detail, {
-        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+        onAttendanceSaved: () => {
+          setButtonLoading(submitButton, "사진 저장 중...");
+          setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+        },
       });
       state.settings.attendanceMode = "";
       form.reset();
@@ -555,6 +587,7 @@ function createPreArrivalReasonForm(student) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
+      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       cancelButton.disabled = false;
       submitButton.textContent = "사유 인증하기";
@@ -611,8 +644,10 @@ function renderStudentAttendanceComplete(check) {
 function createArrivalVerificationForm(check) {
   const student = getAuthedStudent();
   const submitButton = button("등원 인증하기", "btn");
+  const uploadStatus = createPhotoSubmitStatus();
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("등원 현장 사진", photoCaptureInput("arrivalPhoto"), "full"),
+    uploadStatus,
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle attendance-deadline-note" }, "사유신청은 접수 상태입니다. 학원에 도착한 뒤 현장 사진으로 등원 인증을 완료해주세요."),
@@ -626,6 +661,7 @@ function createArrivalVerificationForm(check) {
     if (!arrivalPhoto) return notify("등원 현장 사진을 촬영해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "등원 인증 중...");
+    setPhotoSubmitStatus(uploadStatus, "등원 사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
     try {
       await completePreArrivalAttendanceCheck(student, check, arrivalPhoto);
       form.reset();
@@ -634,6 +670,7 @@ function createArrivalVerificationForm(check) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
+      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "등원 인증하기";
     }
@@ -645,8 +682,10 @@ function createArrivalVerificationForm(check) {
 function createReturnForm() {
   const student = getAuthedStudent();
   const submitButton = button("복귀 완료", "btn");
+  const uploadStatus = createPhotoSubmitStatus();
   const form = el("form", { className: "form-grid" }, [
     field("복귀 현장 사진", photoCaptureInput("returnPhoto"), "full"),
+    uploadStatus,
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),
@@ -662,6 +701,7 @@ function createReturnForm() {
     if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "복귀 처리 중...");
+    setPhotoSubmitStatus(uploadStatus, "복귀 사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
     try {
       await flushRemoteSave();
       outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
@@ -679,6 +719,7 @@ function createReturnForm() {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
+      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "복귀 완료";
     }
@@ -692,7 +733,7 @@ function getPhotoSubmitErrorMessage(error) {
     return "출석은 접수됐지만 사진 저장이 완료되지 않았습니다. 화면을 닫지 말고 다시 시도해주세요.";
   }
   if (isStorageQuotaError(error)) {
-    return "기기 저장공간이 부족해 임시 저장을 줄였습니다. 다시 한 번 제출해주세요.";
+    return "사진 처리 중 기기 저장공간이 부족했습니다. 저장공간을 확보한 뒤 새 사진으로 다시 인증해주세요.";
   }
   if (isPhotoPermissionError(error)) {
     return "사진 저장 권한 문제로 처리하지 못했습니다. 화면을 닫지 말고 선생님께 Supabase 스토리지 정책 적용 여부를 확인해주세요.";
