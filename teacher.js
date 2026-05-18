@@ -1723,7 +1723,9 @@ function renderDeviceHistoryAdmin() {
   const rows = events.map(({ event, student }) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(event.createdAt)),
-      el("td", {}, student ? `${formatStudentNumber(student.id)} ${student.name || ""}` : `${event.studentId || "-"} ${event.studentName || ""}`.trim()),
+      el("td", {}, student ? getStudentCohort(student) || "-" : getCohortFromStudentId(event.studentId)),
+      el("td", {}, student ? formatStudentNumber(student.id) : formatStudentNumber(event.studentId)),
+      el("td", {}, student?.name || event.studentName || "-"),
       el("td", {}, studentRegistrationEventLabel(event.eventType)),
       el("td", {}, studentRegistrationActorLabel(event.actor)),
       el("td", {}, event.reason || "-"),
@@ -1741,8 +1743,8 @@ function renderDeviceHistoryAdmin() {
       el("p", { className: "subtle" }, "학생 앱 기기 등록과 초기화 기록을 시간순으로 확인합니다."),
       deviceHistorySearchControls(events.length),
       table(
-        ["일시", "학생", "내용", "처리자", "사유", "환경", "브라우저", "기기 토큰", "관리"],
-        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "조회할 기기 등록 이력이 없습니다."))])]
+        ["일시", "기수", "번호", "이름", "내용", "처리자", "사유", "환경", "브라우저", "기기 토큰", "관리"],
+        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 11 }, el("div", { className: "empty table-empty" }, "조회할 기기 등록 이력이 없습니다."))])]
       ),
     ]),
   ]);
@@ -2038,6 +2040,12 @@ function formatDeviceTokenPreview(token) {
   const value = String(token || "");
   if (!value) return "-";
   return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+}
+
+function getCohortFromStudentId(studentId) {
+  const id = String(studentId || "").trim();
+  if (!/^\d{4,}$/.test(id)) return "-";
+  return id.slice(0, -3);
 }
 
 function getAllDeviceHistoryEvents() {
