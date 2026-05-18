@@ -377,6 +377,13 @@ function photoCaptureInput(name, options = {}) {
     }
 
     setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
+    if (shouldSkipPhotoPreview(file)) {
+      preview.hidden = true;
+      status.textContent = "사진이 선택되었습니다.";
+      status.className = "photo-input-status selected";
+      trigger.disabled = false;
+      return;
+    }
     previewUrl = URL.createObjectURL(file);
     const previewImage = el("img", { alt: "선택한 사진 미리보기" });
     previewImage.addEventListener("load", () => {
@@ -392,6 +399,10 @@ function photoCaptureInput(name, options = {}) {
   });
 
   return el("div", { className: "photo-input-control" }, [inputNode, trigger, status, preview]);
+}
+
+function shouldSkipPhotoPreview(file) {
+  return !file || file.size > 1024 * 1024;
 }
 
 function setPhotoInputLoading(trigger, status, loading, text) {
@@ -713,7 +724,7 @@ function isPhotoPermissionError(error) {
 
 function isPhotoPayloadError(error) {
   const text = getErrorText(error);
-  return text.includes("payload too large") || text.includes("file size") || text.includes("too large") || text.includes("413");
+  return text.includes("payload too large") || text.includes("file size") || text.includes("too large") || text.includes("out of memory") || text.includes("memory") || text.includes("413");
 }
 
 function isPhotoDecodeError(error) {

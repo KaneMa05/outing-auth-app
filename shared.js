@@ -2869,22 +2869,21 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
 }
 
 async function uploadAttendancePhotoAssets(studentId, checkId, file, options = {}) {
-  const compressedDataUrl = await compressImage(file, 720, 0.58, 95000);
+  const compressedBlob = await compressImageBlob(file, 720, 0.58, 95000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
   let thumbnailUrl = "";
-  let photoDataUrl = compressedDataUrl;
+  let photoDataUrl = remoteStore ? "" : await blobToDataUrl(compressedBlob);
 
   if (remoteStore) {
-    const blob = dataUrlToBlob(compressedDataUrl);
     photoPath = options.photoPath || createAttendancePhotoPath(studentId, checkId);
     thumbnailPath = options.thumbnailPath || "";
     const { error: uploadError } = await remoteStore.storage
       .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(photoPath, blob, {
+      .upload(photoPath, compressedBlob, {
         cacheControl: "31536000",
-        contentType: blob.type || "image/jpeg",
+        contentType: compressedBlob.type || "image/jpeg",
         upsert: false,
       });
     if (uploadError && !isDuplicateStorageObjectError(uploadError)) throw uploadError;
@@ -2929,28 +2928,64 @@ function readFile(file) {
 async function compressImage(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
   if (!file.type.startsWith("image/")) return readFile(file);
 
-  const dataUrl = await readFile(file);
-  const image = await loadImage(dataUrl);
+  const blob = await compressImageBlob(file, maxSize, quality, targetBytes);
+  return blobToDataUrl(blob);
+}
+
+async function compressImageBlob(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
+  if (!file.type.startsWith("image/")) return file;
+
+  const sourceUrl = URL.createObjectURL(file);
+  const canvas = document.createElement("canvas");
   let currentMaxSize = maxSize;
   let currentQuality = quality;
-  let output = "";
+  let output = file;
+  let image = null;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const scale = Math.min(1, currentMaxSize / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * scale));
-    const height = Math.max(1, Math.round(image.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0, width, height);
-    output = canvas.toDataURL("image/jpeg", currentQuality);
-    if (estimateDataUrlBytes(output) <= targetBytes) return output;
-    currentQuality = Math.max(0.42, currentQuality - 0.08);
-    if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
+  try {
+    image = await loadImage(sourceUrl);
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const scale = Math.min(1, currentMaxSize / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("photo_canvas_unavailable");
+      context.drawImage(image, 0, 0, width, height);
+      output = await canvasToBlob(canvas, currentQuality);
+      if (output.size <= targetBytes) return output;
+      currentQuality = Math.max(0.42, currentQuality - 0.08);
+      if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
+    }
+    return output;
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    if (image) image.src = "";
+    URL.revokeObjectURL(sourceUrl);
   }
+}
 
-  return output;
+function canvasToBlob(canvas, quality) {
+  if (!canvas.toBlob) {
+    return Promise.resolve(dataUrlToBlob(canvas.toDataURL("image/jpeg", quality)));
+  }
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("photo_encode_failed"));
+    }, "image/jpeg", quality);
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 function estimateDataUrlBytes(dataUrl) {
