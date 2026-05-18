@@ -2508,19 +2508,7 @@ function renderTeacherPreviewSubjectGradeList(subjectSummaries = []) {
 
 function getTeacherPreviewFinalSubjectHeadersForTrack(track) {
   const finalSubjects = getGradeSubjectHeaders();
-  const subjectMap = {
-    해양경찰학개론: "개론",
-    해사법규: "법규",
-    형사법: "형사",
-    해사영어: "영어",
-    항해학: "항해",
-    기관학: "기관",
-    "형사법(공판)": "형소법(공판)",
-  };
-  const mapped = getDefaultWeeklySubjectsForTrack(track)
-    .map((subject) => subjectMap[subject])
-    .filter((subject) => subject && finalSubjects.includes(subject));
-  return mapped.length ? mapped : finalSubjects;
+  return getFinalGradeSubjectsForTrack(track, finalSubjects);
 }
 
 function formatTeacherPreviewFinalSubjectName(subject) {
@@ -4013,7 +4001,7 @@ function renderTrackSubjectManagement() {
     notify("직렬별 응시과목을 저장했습니다.");
   });
   return panel("직렬별 응시과목 관리", [
-    el("p", { className: "subtle" }, "학생에게 보일 주간평가 과목을 직렬별로 설정합니다. 저장 전에는 기본 매칭값이 적용됩니다."),
+    el("p", { className: "subtle" }, "학생에게 보일 과목을 직렬별로 설정합니다. 저장 전에는 기본 매칭값이 적용됩니다."),
     form,
   ]);
 }
@@ -4676,17 +4664,14 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "", cohort = se
       return;
     }
     const subjectScores = {};
-    let score = 0;
-    let maxScore = 0;
     getGradeSubjectHeaders().forEach((subject) => {
       const raw = row.subjectScores[subject];
       if (raw === "" || raw === "-" || raw === undefined || raw === null) return;
       const value = Number(raw);
       if (!Number.isFinite(value)) return;
       subjectScores[subject] = { score: value, maxScore: 100, status: "submitted" };
-      score += value;
-      maxScore += 100;
     });
+    const totals = calculateFinalSubjectTotalsForTrack(subjectScores, getTeacherStudentRegisteredTrack(student));
     const wrongCount = row.wrongCount === "" || row.wrongCount === "-" ? "" : Math.max(0, Number(row.wrongCount) || 0);
     if (!Object.keys(subjectScores).length && wrongCount === "") return;
     nextRecords.push({
@@ -4697,9 +4682,9 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "", cohort = se
       track: getTeacherStudentRegisteredTrack(student) || "",
       cohort: String(cohort || ""),
       isExternalFinalScore: student.isExternalFinalScore === true,
-      score: Math.round(score * 10) / 10,
-      maxScore,
-      wrongCount,
+      score: Math.round(totals.score * 10) / 10,
+      maxScore: totals.maxScore,
+      wrongCount: totals.submittedCount ? totals.wrongCount : wrongCount,
       subjectScores,
       status: "등록 완료",
       updatedAt: new Date().toISOString(),
@@ -4829,17 +4814,14 @@ function openFinalScoreEditModal(round, student, record) {
 
 function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
   const subjectScores = {};
-  let score = 0;
-  let maxScore = 0;
   subjectInputs.forEach((node, subject) => {
     const raw = String(node.value || "").trim();
     if (raw === "") return;
     const value = Number(raw);
     if (!Number.isFinite(value)) return;
     subjectScores[subject] = { score: value, maxScore: 100, status: "submitted" };
-    score += value;
-    maxScore += 100;
   });
+  const totals = calculateFinalSubjectTotalsForTrack(subjectScores, getTeacherStudentRegisteredTrack(student));
   const wrongRaw = String(wrongInput.value || "").trim();
   const wrongCount = wrongRaw === "" ? "" : Math.max(0, Number(wrongRaw) || 0);
   if (!Object.keys(subjectScores).length && wrongRaw === "") return notify("점수 또는 오답 수를 입력해주세요.");
@@ -4851,9 +4833,9 @@ function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
     track: getTeacherStudentRegisteredTrack(student) || "",
     cohort: student.finalScoreCohort || selectedStudentCohort || "",
     isExternalFinalScore: student.isExternalFinalScore === true,
-    score: Math.round(score * 10) / 10,
-    maxScore,
-    wrongCount,
+    score: Math.round(totals.score * 10) / 10,
+    maxScore: totals.maxScore,
+    wrongCount: totals.submittedCount ? totals.wrongCount : wrongCount,
     subjectScores,
     status: "등록 완료",
     updatedAt: new Date().toISOString(),
@@ -4907,8 +4889,6 @@ function saveFinalScoreInputs(round, students = []) {
   const nextRecords = [];
   students.forEach((student) => {
     const subjectScores = {};
-    let score = 0;
-    let maxScore = 0;
     getGradeSubjectHeaders().forEach((subject) => {
       const selector = `.grade-score-input[data-student-id="${escapeCssValue(student.id)}"][data-subject="${escapeCssValue(subject)}"]`;
       const node = document.querySelector(selector);
@@ -4917,9 +4897,8 @@ function saveFinalScoreInputs(round, students = []) {
       const value = Number(raw);
       if (!Number.isFinite(value)) return;
       subjectScores[subject] = { score: value, maxScore: 100, status: "submitted" };
-      score += value;
-      maxScore += 100;
     });
+    const totals = calculateFinalSubjectTotalsForTrack(subjectScores, getTeacherStudentRegisteredTrack(student));
     const wrongNode = document.querySelector(`.grade-score-input[data-student-id="${escapeCssValue(student.id)}"][data-role="wrongCount"]`);
     const wrongRaw = String(wrongNode?.value || "").trim();
     const wrongCount = wrongRaw === "" ? "" : Math.max(0, Number(wrongRaw) || 0);
@@ -4932,9 +4911,9 @@ function saveFinalScoreInputs(round, students = []) {
       track: getTeacherStudentRegisteredTrack(student) || "",
       cohort: String(selectedStudentCohort || ""),
       isExternalFinalScore: false,
-      score: Math.round(score * 10) / 10,
-      maxScore,
-      wrongCount,
+      score: Math.round(totals.score * 10) / 10,
+      maxScore: totals.maxScore,
+      wrongCount: totals.submittedCount ? totals.wrongCount : wrongCount,
       subjectScores,
       status: "등록 완료",
       updatedAt: new Date().toISOString(),
@@ -5235,17 +5214,20 @@ function getFinalMockGradeStudentSummary(student, records) {
       status: "미등록",
     };
   }
-  const score = Number(record.score) || 0;
-  const maxScore = Number(record.maxScore) || 0;
   const subjectScores = {};
   getGradeSubjectHeaders().forEach((subject) => {
     subjectScores[subject] = record.subjectScores[subject] || { status: "empty" };
   });
+  const totals = calculateFinalSubjectTotalsForTrack(subjectScores, getTeacherStudentRegisteredTrack(student));
+  const score = totals.submittedCount ? totals.score : Number(record.score) || 0;
+  const maxScore = totals.submittedCount ? totals.maxScore : Number(record.maxScore) || 0;
   return {
     student,
     score,
     maxScore,
-    wrongCount: record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
+    wrongCount: totals.submittedCount
+      ? totals.wrongCount
+      : record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
       ? Number(record.wrongCount) || 0
       : maxScore
         ? Math.max(0, Math.round((maxScore - score) / 5))
@@ -5255,6 +5237,21 @@ function getFinalMockGradeStudentSummary(student, records) {
     submittedCount: 1,
     status: record.status || "등록 완료",
   };
+}
+
+function calculateFinalSubjectTotalsForTrack(subjectScores = {}, track = "") {
+  const subjects = getTeacherPreviewFinalSubjectHeadersForTrack(track);
+  return subjects.reduce((totals, subject) => {
+    const subjectScore = subjectScores[subject];
+    if (!subjectScore || subjectScore.status === "empty") return totals;
+    const score = Number(subjectScore.score) || 0;
+    const maxScore = Number(subjectScore.maxScore) || 100;
+    totals.score += score;
+    totals.maxScore += maxScore;
+    totals.wrongCount += Math.max(0, Math.round((maxScore - score) / 5));
+    totals.submittedCount += 1;
+    return totals;
+  }, { score: 0, maxScore: 0, wrongCount: 0, submittedCount: 0 });
 }
 
 function normalizeFinalMockSubjectScores(record) {

@@ -962,10 +962,16 @@ function getStudentFinalGradeSummary(student, round = 1) {
   const summaries = [...peers, ...externalPeers].map((peer) => {
     const record = records.find((item) => String(item.studentId || "").trim() === String(peer.id || "").trim());
     if (!record) return { student: peer, hasScore: false, submittedCount: 0, score: 0, maxScore: 0, wrongCount: "", subjectSummaries: [] };
-    const score = Number(record.score) || 0;
-    const maxScore = Number(record.maxScore) || 0;
     const subjectSummaries = getFinalGradeSubjectHeadersForTrack(getStudentRegisteredTrack(peer))
       .map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject]));
+    const submittedSubjectSummaries = subjectSummaries.filter((item) => item.submitted);
+    const score = submittedSubjectSummaries.length
+      ? submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
+      : Number(record.score) || 0;
+    const maxScore = submittedSubjectSummaries.length
+      ? submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.maxScore) || 0), 0)
+      : Number(record.maxScore) || 0;
+    const subjectWrongCount = submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.wrongCount) || 0), 0);
     return {
       student: peer,
       hasScore: true,
@@ -975,7 +981,9 @@ function getStudentFinalGradeSummary(student, round = 1) {
       score,
       maxScore,
       percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
-      wrongCount: record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
+      wrongCount: submittedSubjectSummaries.length
+        ? subjectWrongCount
+        : record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
         ? Number(record.wrongCount) || 0
         : maxScore
           ? Math.max(0, Math.round((maxScore - score) / 5))
@@ -1098,19 +1106,7 @@ function getFinalGradeSubjectHeaders() {
 
 function getFinalGradeSubjectHeadersForTrack(track) {
   const finalSubjects = getFinalGradeSubjectHeaders();
-  const subjectMap = {
-    해양경찰학개론: "개론",
-    해사법규: "법규",
-    형사법: "형사",
-    해사영어: "영어",
-    항해학: "항해",
-    기관학: "기관",
-    "형사법(공판)": "형소법(공판)",
-  };
-  const mapped = getDefaultWeeklySubjectsForTrack(track)
-    .map((subject) => subjectMap[subject])
-    .filter((subject) => subject && finalSubjects.includes(subject));
-  return mapped.length ? mapped : finalSubjects;
+  return getFinalGradeSubjectsForTrack(track, finalSubjects);
 }
 
 function normalizeStudentFinalSubjectScores(record) {

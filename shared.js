@@ -234,6 +234,42 @@ function getDefaultWeeklySubjectsForTrack(track) {
   return WEEKLY_DEFAULT_TRACK_SUBJECTS[normalized] || ["해양경찰학개론", "해사법규", "형사법"];
 }
 
+function getConfiguredWeeklySubjectsForTrack(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  if (!normalized) return [];
+  const saved = (state.examSubjectSettings || [])
+    .filter((setting) => normalizeCoastGuardTrack(setting.track) === normalized)
+    .sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR"));
+  if (saved.length) {
+    return saved
+      .filter((setting) => setting.isActive !== false)
+      .map((setting) => String(setting.subject || "").trim())
+      .filter(Boolean);
+  }
+  return getDefaultWeeklySubjectsForTrack(normalized);
+}
+
+function mapWeeklySubjectToFinalGradeSubject(subject) {
+  const subjectMap = {
+    해양경찰학개론: "개론",
+    해사법규: "법규",
+    형사법: "형사",
+    해사영어: "영어",
+    항해학: "항해",
+    기관학: "기관",
+    "형사법(공판)": "형소법(공판)",
+  };
+  return subjectMap[String(subject || "").trim()] || "";
+}
+
+function getFinalGradeSubjectsForTrack(track, finalSubjects) {
+  const subjects = Array.isArray(finalSubjects) ? finalSubjects : [];
+  const mapped = getConfiguredWeeklySubjectsForTrack(track)
+    .map(mapWeeklySubjectToFinalGradeSubject)
+    .filter((subject) => subject && subjects.includes(subject));
+  return mapped.length ? mapped : subjects;
+}
+
 function hasSavedWeeklySubjectSettingsForTrack(track) {
   const normalized = normalizeCoastGuardTrack(track);
   return (state.examSubjectSettings || []).some((setting) => normalizeCoastGuardTrack(setting.track) === normalized);
