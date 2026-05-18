@@ -9,6 +9,10 @@
   if (activeOuting?.earlyLeaveReason) return el("div", { className: "grid student-view" }, [panel("조퇴 신청 완료", [renderEarlyLeaveDoneState(activeOuting)])]);
   if (step === "verify") return studentStepView("사진 인증", createVerifyForm(), "photo-step");
   if (step === "return") {
+    if (activeOuting?.status === "requested") {
+      state.settings.studentStep = "verify";
+      return studentStepView("사진 인증", createVerifyForm(), "photo-step");
+    }
     return el("div", { className: "grid student-view" }, [
       panel("학원 복귀 인증", [
         el("p", { className: "subtle" }, "사무실에 있는 복귀 사진을 찍어주세요."),
@@ -670,6 +674,11 @@ function createReturnForm() {
     if (!student) return notify("학생 등록 후 복귀 인증을 이용할 수 있습니다.");
     const outing = getActiveOuting(student.id);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
+    if (outing.status === "requested") {
+      setStudentStep("verify");
+      render();
+      return notify("현장 사진과 영수증 사진을 먼저 인증해주세요.");
+    }
     const returnPhoto = form.elements.returnPhoto.files[0];
     if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
     submitButton.disabled = true;
