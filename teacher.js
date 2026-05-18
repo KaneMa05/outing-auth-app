@@ -1961,25 +1961,35 @@ function teacherStudentForm() {
         el("td", {}, normalizeCoastGuardTrack(profile?.track) || "-"),
         el("td", {}, profile?.gender || "-"),
         el("td", {}, isAttendanceExcludedStudent(student) ? el("span", { className: "badge rejected" }, "제외") : el("span", { className: "badge approved" }, "포함")),
-        el("td", { className: "student-admin-actions" }, [
-          button("미리보기", "mini-btn", "button", () => openStudentPreview(student.id)),
-          button("직렬 변경", "mini-btn", "button", () => openStudentTrackEditModal(student.id)),
-          button("기기 이력", "mini-btn", "button", () => openStudentRegistrationHistory(student.id)),
-          profile ? button("등록 초기화", "mini-btn", "button", () => resetStudentAppRegistration(student.id)) : null,
-          button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "mini-btn", "button", () => toggleStudentAttendanceExcluded(student.id)),
-          button("삭제", "mini-btn danger", "button", () => deleteStudent(student.id)),
-        ]),
+        el("td", { className: "student-admin-actions" }, renderStudentAdminActionMenu(student, profile)),
       ]);
     });
+
+  const studentTable = table(
+    ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
+    rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
+  );
+  studentTable.classList.add("student-admin-table-wrap");
 
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
     studentCountStatGroup(),
     studentAdminSearchControls(visibleStudents.length, filteredStudents.length),
-    table(
-      ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
-    ),
+    studentTable,
+  ]);
+}
+
+function renderStudentAdminActionMenu(student, profile) {
+  return el("details", { className: "student-action-menu" }, [
+    el("summary", { className: "mini-btn student-action-menu-trigger" }, "관리"),
+    el("div", { className: "student-action-menu-list" }, [
+      button("미리보기", "student-action-menu-item", "button", () => openStudentPreview(student.id)),
+      button("직렬 변경", "student-action-menu-item", "button", () => openStudentTrackEditModal(student.id)),
+      button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
+      profile ? button("등록 초기화", "student-action-menu-item", "button", () => resetStudentAppRegistration(student.id)) : null,
+      button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "student-action-menu-item", "button", () => toggleStudentAttendanceExcluded(student.id)),
+      button("삭제", "student-action-menu-item danger", "button", () => deleteStudent(student.id)),
+    ]),
   ]);
 }
 

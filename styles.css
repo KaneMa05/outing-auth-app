@@ -2354,10 +2354,83 @@ th {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+  position: relative;
 }
 
 .student-admin-actions .mini-btn {
   min-width: 74px;
+}
+
+.student-admin-table-wrap {
+  overflow: visible;
+}
+
+.student-action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.student-action-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  list-style: none;
+  cursor: pointer;
+}
+
+.student-action-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.student-action-menu-trigger::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+.student-action-menu[open] .student-action-menu-trigger {
+  background: #e4f0ff;
+}
+
+.student-action-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 132px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+}
+
+.student-action-menu-item {
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: left;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.student-action-menu-item:hover {
+  background: var(--surface-soft);
+}
+
+.student-action-menu-item.danger {
+  color: var(--danger);
 }
 
 .info-modal-panel.student-registration-history-modal {
