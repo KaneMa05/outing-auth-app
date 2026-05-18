@@ -320,6 +320,7 @@ function createVerifyForm() {
       setStudentStep("return");
       state.settings.earlyLeaveMode = false;
       saveState();
+      await flushRemoteSave();
       form.reset();
       render();
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
@@ -684,6 +685,7 @@ function createReturnForm() {
       setStudentStep("done");
       state.settings.completionType = "return";
       saveState();
+      await flushRemoteSave();
       form.reset();
       render();
       notify("복귀 완료되었습니다.");

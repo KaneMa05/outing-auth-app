@@ -953,24 +953,33 @@ th {
 
 .photo-mini-list {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .photo-mini-button,
 .photo-mini-list img {
-  display: block;
-  width: 38px;
-  height: 38px;
+  width: 52px;
 }
 
 .photo-mini-button {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
   border: 0;
   border-radius: 5px;
-  background: var(--surface-soft);
+  background: transparent;
   padding: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .photo-mini-list img {
+  display: block;
+  height: 42px;
   border: 1px solid var(--line);
   border-radius: 5px;
   object-fit: cover;
@@ -983,13 +992,21 @@ th {
 .photo-mini-placeholder {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 52px;
+  height: 42px;
   border: 1px solid var(--line);
   border-radius: 5px;
   color: var(--accent-strong);
   font-size: 0.7rem;
   font-weight: 800;
+}
+
+.photo-mini-label {
+  display: block;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attendance-photo-thumb {

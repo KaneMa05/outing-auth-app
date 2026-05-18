@@ -2608,17 +2608,24 @@ function getAttendancePublicPhotoUrl(path) {
 }
 
 function getOutingPhotoSrc(photo) {
-  return photo?.photoUrl || photo?.dataUrl || "";
+  return photo?.photoUrl || getOutingPublicPhotoUrl(photo?.photoPath) || photo?.dataUrl || "";
 }
 
 function getOutingThumbnailSrc(photo) {
-  return photo?.thumbnailUrl || getOutingPhotoSrc(photo);
+  return photo?.thumbnailUrl || getOutingPublicPhotoUrl(photo?.thumbnailPath) || getOutingPhotoSrc(photo);
+}
+
+function getOutingPublicPhotoUrl(path) {
+  if (!path || !remoteStore) return "";
+  const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(path);
+  return data?.publicUrl || "";
 }
 
 function getPhotoModalSrc(photo) {
   return photo?.thumbnailUrl
     || photo?.arrivalThumbnailUrl
     || photo?.photoUrl
+    || getOutingPublicPhotoUrl(photo?.photoPath)
     || photo?.dataUrl
     || photo?.photoDataUrl
     || "";

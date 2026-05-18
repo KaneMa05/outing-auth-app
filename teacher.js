@@ -1704,11 +1704,16 @@ function photoMiniList(photos = []) {
     { className: "photo-mini-list" },
     photos.map((photo) => {
       const thumbnailSrc = getOutingThumbnailSrc(photo);
-      return button("", "photo-mini-button", "button", () => openLoadedOutingPhotoModal(photo), [
+      const label = photo.type || "인증 사진";
+      const photoButton = button("", "photo-mini-button", "button", () => openLoadedOutingPhotoModal(photo), [
         thumbnailSrc
-          ? el("img", { src: thumbnailSrc, alt: photo.type || "외출 인증 사진", loading: "lazy" })
+          ? el("img", { src: thumbnailSrc, alt: label, loading: "lazy" })
           : el("span", { className: "photo-mini-placeholder" }, "보기"),
+        el("span", { className: "photo-mini-label" }, label.replace(" 인증", "")),
       ]);
+      photoButton.title = label;
+      photoButton.ariaLabel = label + " 보기";
+      return photoButton;
     })
   );
 }
