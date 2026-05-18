@@ -19,7 +19,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260513-student-attendance-exclude" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260518-grade-summary" />
+    <link rel="stylesheet" href="./styles.css?v=20260518-device-history" />
   </head>
   <body data-app-mode="teacher">
     <div class="app-frame">
@@ -43,6 +43,7 @@
           <p class="nav-section">운영 도구</p>
           <button data-route="managers">담당자 등록</button>
           <button data-route="students">학생 등록</button>
+          <button data-route="device-history">기기 등록 이력</button>
           <button data-route="track-options">직렬 항목 관리</button>
           <button data-route="track-subjects">직렬별 응시과목 관리</button>
           <button data-route="duplicates">중복 사진</button>
@@ -65,8 +66,8 @@
     <div id="toast" class="toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./config.js?v=20260514-return-photo-time"></script>
-    <script src="./shared.js?v=20260514-return-photo-time" defer></script>
-    <script src="./teacher.js?v=20260518-grade-summary" defer></script>
-    <script src="./app.js?v=20260514-return-photo-time" defer></script>
+    <script src="./shared.js?v=20260518-device-history" defer></script>
+    <script src="./teacher.js?v=20260518-device-history" defer></script>
+    <script src="./app.js?v=20260518-device-history" defer></script>
   </body>
 </html>

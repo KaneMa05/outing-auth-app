@@ -2286,6 +2286,20 @@ th {
   min-width: 74px;
 }
 
+.info-modal-panel.student-registration-history-modal {
+  width: min(860px, 100%);
+}
+
+.student-registration-history .table-wrap {
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.student-registration-history td:last-child {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+}
+
 .mini-btn {
   min-height: 28px;
   border: 0;

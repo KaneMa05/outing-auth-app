@@ -5,6 +5,10 @@
 const studentAdminFilters = {
   query: "",
 };
+const deviceHistoryFilters = {
+  query: "",
+  eventType: "all",
+};
 let previewStudentId = "";
 let penaltySortMode = "id";
 let editingNoticeId = "";
@@ -1713,6 +1717,37 @@ function renderStudentsAdmin() {
   return el("div", { className: "grid" }, [teacherStudentForm()]);
 }
 
+function renderDeviceHistoryAdmin() {
+  if (!hasTeacherPermission("students.read")) return renderForbidden();
+  const events = getFilteredDeviceHistoryEvents();
+  const rows = events.map(({ event, student }) =>
+    el("tr", {}, [
+      el("td", {}, formatDateCompact(event.createdAt)),
+      el("td", {}, student ? `${formatStudentNumber(student.id)} ${student.name || ""}` : `${event.studentId || "-"} ${event.studentName || ""}`.trim()),
+      el("td", {}, studentRegistrationEventLabel(event.eventType)),
+      el("td", {}, studentRegistrationActorLabel(event.actor)),
+      el("td", {}, event.reason || "-"),
+      el("td", {}, event.clientDisplayMode || "-"),
+      el("td", { title: event.clientUserAgent || "" }, formatUserAgentPreview(event.clientUserAgent)),
+      el("td", { title: event.deviceToken || "" }, formatDeviceTokenPreview(event.deviceToken)),
+      el("td", { className: "student-admin-actions" }, [
+        student ? button("학생별 보기", "mini-btn", "button", () => openStudentRegistrationHistory(student.id)) : null,
+      ]),
+    ])
+  );
+
+  return el("div", { className: "grid device-history-admin" }, [
+    panel("기기 등록 이력", [
+      el("p", { className: "subtle" }, "학생 앱 기기 등록과 초기화 기록을 시간순으로 확인합니다."),
+      deviceHistorySearchControls(events.length),
+      table(
+        ["일시", "학생", "내용", "처리자", "사유", "환경", "브라우저", "기기 토큰", "관리"],
+        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "조회할 기기 등록 이력이 없습니다."))])]
+      ),
+    ]),
+  ]);
+}
+
 function renderTrackOptionsAdmin() {
   if (!hasTeacherPermission("students.read")) return renderForbidden();
   return el("div", { className: "grid" }, [trackOptionAdminPanel()]);
@@ -1926,6 +1961,7 @@ function teacherStudentForm() {
         el("td", {}, isAttendanceExcludedStudent(student) ? el("span", { className: "badge rejected" }, "제외") : el("span", { className: "badge approved" }, "포함")),
         el("td", { className: "student-admin-actions" }, [
           button("미리보기", "mini-btn", "button", () => openStudentPreview(student.id)),
+          button("기기 이력", "mini-btn", "button", () => openStudentRegistrationHistory(student.id)),
           profile ? button("등록 초기화", "mini-btn", "button", () => resetStudentAppRegistration(student.id)) : null,
           button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "mini-btn", "button", () => toggleStudentAttendanceExcluded(student.id)),
           button("삭제", "mini-btn danger", "button", () => deleteStudent(student.id)),
@@ -1942,6 +1978,156 @@ function teacherStudentForm() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+function openStudentRegistrationHistory(studentId) {
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  const events = getStudentRegistrationHistoryRows(student);
+  const rows = events.map((event) =>
+    el("tr", {}, [
+      el("td", {}, formatDateCompact(event.createdAt)),
+      el("td", {}, studentRegistrationEventLabel(event.eventType)),
+      el("td", {}, studentRegistrationActorLabel(event.actor)),
+      el("td", {}, event.reason || "-"),
+      el("td", {}, event.clientDisplayMode || "-"),
+      el("td", { title: event.deviceToken || "" }, formatDeviceTokenPreview(event.deviceToken)),
+    ])
+  );
+
+  openInfoModal({
+    title: `${student.name || "학생"} 기기 등록 이력`,
+    className: "student-registration-history-modal",
+    content: el("div", { className: "student-registration-history" }, [
+      rows.length
+        ? table(["일시", "내용", "처리자", "사유", "환경", "기기 토큰"], rows)
+        : el("div", { className: "empty" }, "기기 등록 이력이 없습니다."),
+    ]),
+  });
+}
+
+function getStudentRegistrationHistoryRows(student) {
+  const events = getStudentRegistrationEvents(student.id);
+  if (events.length || !student.appRegisteredAt) return events;
+  return [{
+    id: `current-${student.id}`,
+    studentId: student.id,
+    studentName: student.name || "",
+    eventType: "registered",
+    deviceToken: student.deviceToken || "",
+    reason: "현재 등록 상태",
+    actor: "student",
+    clientDisplayMode: "",
+    createdAt: student.appRegisteredAt,
+  }];
+}
+
+function studentRegistrationEventLabel(type) {
+  if (type === "reset") return "등록 초기화";
+  if (type === "registered") return "기기 등록";
+  return type || "-";
+}
+
+function studentRegistrationActorLabel(actor) {
+  if (actor === "teacher") return "관리자";
+  if (actor === "student") return "학생";
+  return actor || "-";
+}
+
+function formatDeviceTokenPreview(token) {
+  const value = String(token || "");
+  if (!value) return "-";
+  return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+}
+
+function getAllDeviceHistoryEvents() {
+  const events = [...(state.studentRegistrationEvents || [])];
+  const knownCurrentRegistrations = new Set(
+    events
+      .filter((event) => event.eventType === "registered")
+      .map((event) => `${event.studentId}:${event.createdAt}`)
+  );
+  (state.students || []).forEach((student) => {
+    if (!student.appRegisteredAt) return;
+    const key = `${student.id}:${student.appRegisteredAt}`;
+    if (knownCurrentRegistrations.has(key)) return;
+    events.push({
+      id: `current-${student.id}`,
+      studentId: student.id,
+      studentName: student.name || "",
+      eventType: "registered",
+      deviceToken: student.deviceToken || "",
+      reason: "현재 등록 상태",
+      actor: "student",
+      clientDisplayMode: "",
+      clientUserAgent: "",
+      createdAt: student.appRegisteredAt,
+    });
+  });
+  return events.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function getFilteredDeviceHistoryEvents() {
+  const query = String(deviceHistoryFilters.query || "").trim().toLowerCase();
+  const eventType = deviceHistoryFilters.eventType || "all";
+  return getAllDeviceHistoryEvents()
+    .map((event) => ({ event, student: findStudent(event.studentId) }))
+    .filter(({ event, student }) => {
+      if (eventType !== "all" && event.eventType !== eventType) return false;
+      if (!query) return true;
+      return [
+        event.studentId,
+        event.studentName,
+        student?.name,
+        student?.id,
+        event.reason,
+        event.actor,
+        event.clientDisplayMode,
+        event.clientUserAgent,
+        event.deviceToken,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+}
+
+function deviceHistorySearchControls(filteredCount) {
+  const search = input("deviceHistorySearch", "search", "학생, 사유, 처리자, 기기 토큰 검색", deviceHistoryFilters.query);
+  const eventType = select("deviceHistoryEventType", ["전체", "기기 등록", "등록 초기화"]);
+  eventType.value = deviceHistoryFilters.eventType === "registered"
+    ? "기기 등록"
+    : deviceHistoryFilters.eventType === "reset"
+      ? "등록 초기화"
+      : "전체";
+  const form = el("form", { className: "teacher-search device-history-search" }, [
+    field("검색", search),
+    field("구분", eventType),
+    el("div", { className: "field" }, [
+      el("span", {}, " "),
+      button("검색", "btn secondary"),
+    ]),
+  ]);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    deviceHistoryFilters.query = search.value;
+    deviceHistoryFilters.eventType = eventType.value === "기기 등록" ? "registered" : eventType.value === "등록 초기화" ? "reset" : "all";
+    render();
+  });
+
+  return el("div", { className: "teacher-tools device-history-tools" }, [
+    form,
+    el("div", { className: "field student-admin-result" }, [
+      el("span", {}, "검색 결과"),
+      el("strong", {}, `${filteredCount}건`),
+    ]),
+  ]);
+}
+
+function formatUserAgentPreview(userAgent) {
+  const value = String(userAgent || "");
+  if (!value) return "-";
+  return value.length > 28 ? `${value.slice(0, 28)}...` : value;
 }
 
 function studentAdminSearchControls(totalCount, filteredCount) {
@@ -5124,9 +5310,15 @@ async function resetStudentAppRegistration(id) {
     closeLoadingModal();
   }
 
+  const previousDeviceToken = student.deviceToken || "";
   student.passwordHash = "";
   student.deviceToken = "";
   student.appRegisteredAt = "";
+  addStudentRegistrationEvent(student, "reset", {
+    deviceToken: previousDeviceToken,
+    actor: "teacher",
+    reason: "관리자 등록 초기화",
+  });
   if (state.settings.studentProfiles?.[student.id]) {
     const profile = state.settings.studentProfiles[student.id];
     state.settings.studentProfiles[student.id] = {

@@ -129,6 +129,19 @@ create table if not exists public.notices (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.student_registration_events (
+  id uuid primary key default gen_random_uuid(),
+  student_id text not null references public.students(id) on delete cascade,
+  student_name text,
+  event_type text not null check (event_type in ('registered', 'reset')),
+  device_token text,
+  reason text,
+  actor text,
+  client_display_mode text,
+  client_user_agent text,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.exams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -335,6 +348,9 @@ on public.penalties (student_id, created_at desc);
 create index if not exists notices_created_at_idx
 on public.notices (created_at desc);
 
+create index if not exists student_registration_events_student_created_idx
+on public.student_registration_events (student_id, created_at desc);
+
 create index if not exists exams_week_created_at_idx
 on public.exams (week_number desc, created_at desc);
 
@@ -413,6 +429,7 @@ alter table public.attendance_checks enable row level security;
 alter table public.attendance_holidays enable row level security;
 alter table public.penalties enable row level security;
 alter table public.notices enable row level security;
+alter table public.student_registration_events enable row level security;
 alter table public.exams enable row level security;
 alter table public.exam_sections enable row level security;
 alter table public.exam_subject_settings enable row level security;
@@ -457,6 +474,9 @@ drop policy if exists "anon_notices_select" on public.notices;
 drop policy if exists "anon_notices_insert" on public.notices;
 drop policy if exists "anon_notices_update" on public.notices;
 drop policy if exists "anon_notices_delete" on public.notices;
+drop policy if exists "anon_student_registration_events_select" on public.student_registration_events;
+drop policy if exists "anon_student_registration_events_insert" on public.student_registration_events;
+drop policy if exists "anon_student_registration_events_update" on public.student_registration_events;
 drop policy if exists "anon_exams_select" on public.exams;
 drop policy if exists "anon_exams_insert" on public.exams;
 drop policy if exists "anon_exams_update" on public.exams;
@@ -496,6 +516,7 @@ revoke all on public.attendance_checks from anon;
 revoke all on public.attendance_holidays from anon;
 revoke all on public.penalties from anon;
 revoke all on public.notices from anon;
+revoke all on public.student_registration_events from anon;
 revoke all on public.exams from anon;
 revoke all on public.exam_sections from anon;
 revoke all on public.exam_subject_settings from anon;
@@ -708,6 +729,44 @@ grant update (
 ) on public.notices to anon;
 
 grant delete on public.notices to anon;
+
+grant select (
+  id,
+  student_id,
+  student_name,
+  event_type,
+  device_token,
+  reason,
+  actor,
+  client_display_mode,
+  client_user_agent,
+  created_at
+) on public.student_registration_events to anon;
+
+grant insert (
+  id,
+  student_id,
+  student_name,
+  event_type,
+  device_token,
+  reason,
+  actor,
+  client_display_mode,
+  client_user_agent,
+  created_at
+) on public.student_registration_events to anon;
+
+grant update (
+  student_id,
+  student_name,
+  event_type,
+  device_token,
+  reason,
+  actor,
+  client_display_mode,
+  client_user_agent,
+  created_at
+) on public.student_registration_events to anon;
 
 grant select (
   id,
@@ -1083,6 +1142,31 @@ on public.notices
 for delete
 to anon
 using (true);
+
+create policy "anon_student_registration_events_select"
+on public.student_registration_events
+for select
+to anon
+using (true);
+
+create policy "anon_student_registration_events_insert"
+on public.student_registration_events
+for insert
+to anon
+with check (
+  student_id is not null
+  and event_type in ('registered', 'reset')
+);
+
+create policy "anon_student_registration_events_update"
+on public.student_registration_events
+for update
+to anon
+using (true)
+with check (
+  student_id is not null
+  and event_type in ('registered', 'reset')
+);
 
 create policy "anon_exams_select"
 on public.exams

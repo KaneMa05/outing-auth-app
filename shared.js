@@ -84,6 +84,7 @@ const routePermissions = {
   notices: "notices.read",
   managers: "managers.read",
   students: "students.read",
+  "device-history": "students.read",
   "student-preview": "students.read",
   "track-options": "students.read",
   duplicates: "outing.audit",
@@ -113,7 +114,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -299,6 +300,7 @@ function defaultState() {
     examFiles: [],
     examSubjectSettings: [],
     finalExamScores: [],
+    studentRegistrationEvents: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
 }
@@ -330,6 +332,7 @@ function mergeDefaultState(nextState) {
     examFiles: Array.isArray(nextState?.examFiles) ? nextState.examFiles : defaults.examFiles,
     examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
     finalExamScores: Array.isArray(nextState?.finalExamScores) ? nextState.finalExamScores : defaults.finalExamScores,
+    studentRegistrationEvents: Array.isArray(nextState?.studentRegistrationEvents) ? nextState.studentRegistrationEvents : defaults.studentRegistrationEvents,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
 }
@@ -873,6 +876,7 @@ async function loadStateFromRemote() {
   const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
   const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
   const examSubjectSettingColumns = "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at";
+  const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
   const managerRequest =
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
@@ -921,6 +925,9 @@ async function loadStateFromRemote() {
       : Promise.resolve({ data: [], error: null }),
     remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    APP_MODE === "teacher"
+      ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   let studentResult = remoteResults[0];
   const [managerResult, { data: outings, error: outingsError }] = [remoteResults[1], remoteResults[2]];
@@ -937,6 +944,7 @@ async function loadStateFromRemote() {
   const submissionAnswerResult = remoteResults[13];
   const examFileResult = remoteResults[14];
   const examSubjectSettingResult = remoteResults[15];
+  const studentRegistrationEventResult = remoteResults[16];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -999,6 +1007,7 @@ async function loadStateFromRemote() {
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
+  if (studentRegistrationEventResult.error && !isMissingRelationError(studentRegistrationEventResult.error, "student_registration_events")) throw studentRegistrationEventResult.error;
   if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
     examSubmissionResult.data = (examSubmissionResult.data || []).filter((submission) => String(submission.student_id) === scopedStudentId);
   }
@@ -1091,6 +1100,7 @@ async function loadStateFromRemote() {
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
+  if (!studentRegistrationEventResult.error) state.studentRegistrationEvents = (studentRegistrationEventResult.data || []).map(mapStudentRegistrationEventFromRemote);
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
     if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {
@@ -1213,6 +1223,8 @@ async function saveStateToRemote() {
 
     await saveAttendanceHolidaysToRemote();
   }
+
+  await saveStudentRegistrationEventsToRemote();
 
   const registeredStudents = state.students
     .map((student) => {
@@ -1904,6 +1916,31 @@ function findStudent(id) {
   return state.students.find((student) => student.id === String(id).trim());
 }
 
+function addStudentRegistrationEvent(student, eventType, options = {}) {
+  if (!student?.id) return null;
+  const event = {
+    id: options.id || createId(),
+    studentId: String(student.id),
+    studentName: student.name || "",
+    eventType,
+    deviceToken: options.deviceToken || student.deviceToken || "",
+    reason: String(options.reason || "").trim(),
+    actor: options.actor || "",
+    clientDisplayMode: options.clientDisplayMode || "",
+    clientUserAgent: options.clientUserAgent || "",
+    createdAt: options.createdAt || new Date().toISOString(),
+  };
+  state.studentRegistrationEvents = [event, ...(state.studentRegistrationEvents || [])];
+  return event;
+}
+
+function getStudentRegistrationEvents(studentId) {
+  const id = String(studentId || "").trim();
+  return (state.studentRegistrationEvents || [])
+    .filter((event) => String(event.studentId) === id)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
 function isAttendanceExcludedStudent(student) {
   return student?.attendanceExcluded === true;
 }
@@ -2071,6 +2108,21 @@ function mapExamSubjectSettingFromRemote(setting) {
     sortOrder: Number(setting.sort_order) || 0,
     createdAt: setting.created_at || "",
     updatedAt: setting.updated_at || setting.created_at || "",
+  };
+}
+
+function mapStudentRegistrationEventFromRemote(event) {
+  return {
+    id: event.id,
+    studentId: event.student_id,
+    studentName: event.student_name || "",
+    eventType: event.event_type || "registered",
+    deviceToken: event.device_token || "",
+    reason: event.reason || "",
+    actor: event.actor || "",
+    clientDisplayMode: event.client_display_mode || "",
+    clientUserAgent: event.client_user_agent || "",
+    createdAt: event.created_at || "",
   };
 }
 
@@ -2349,6 +2401,27 @@ async function deleteAttendanceHoliday(dateKey) {
   state.attendanceHolidays = (state.attendanceHolidays || []).filter((holiday) => holiday.dateKey !== dateKey);
   saveState({ skipRemote: true });
   await deleteAttendanceHolidayFromRemote(dateKey);
+}
+
+async function saveStudentRegistrationEventsToRemote() {
+  if (!remoteStore || !(state.studentRegistrationEvents || []).length) return;
+  const rows = (state.studentRegistrationEvents || [])
+    .filter((event) => event.id && event.studentId && event.eventType)
+    .map((event) => ({
+      id: event.id,
+      student_id: event.studentId,
+      student_name: event.studentName || "",
+      event_type: event.eventType,
+      device_token: event.deviceToken || null,
+      reason: event.reason || null,
+      actor: event.actor || null,
+      client_display_mode: event.clientDisplayMode || null,
+      client_user_agent: event.clientUserAgent || null,
+      created_at: event.createdAt || new Date().toISOString(),
+    }));
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("student_registration_events").upsert(rows, { onConflict: "id" });
+  if (error && !isMissingRelationError(error, "student_registration_events")) throw error;
 }
 
 async function saveAttendanceHolidaysToRemote() {

@@ -13,6 +13,7 @@
   teacher: "외출 관리",
   managers: "담당자 등록",
   students: "학생 등록",
+  "device-history": "기기 등록 이력",
   "student-preview": "학생 미리보기",
   "track-options": "직렬 항목 관리",
   "track-subjects": "직렬별 응시과목 관리",
@@ -101,7 +102,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[route] || route;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -178,6 +179,7 @@ function render() {
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
+          "device-history": renderDeviceHistoryAdmin,
           "student-preview": renderStudentPreviewAdmin,
           "track-options": renderTrackOptionsAdmin,
           "track-subjects": renderTrackSubjectManagement,
@@ -423,6 +425,13 @@ function renderStudentAuth() {
     selectedStudent.passwordHash = passwordHash;
     selectedStudent.deviceToken = deviceToken;
     selectedStudent.appRegisteredAt = authedAt;
+    addStudentRegistrationEvent(selectedStudent, "registered", {
+      deviceToken,
+      actor: "student",
+      clientDisplayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+      clientUserAgent: navigator.userAgent || "",
+      createdAt: authedAt,
+    });
     state.settings.studentAuthId = studentId;
     state.settings.lastStudentId = studentId;
     saveState();
@@ -1052,6 +1061,7 @@ function renderHome() {
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
+        hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,
       ].filter(Boolean)),
     ]),
   ]);
