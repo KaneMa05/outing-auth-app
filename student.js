@@ -1157,13 +1157,13 @@ function renderStudentGradeResultPanel(summary, options = {}) {
   if (!summary || !summary.submittedCount) {
     return el("div", { className: "student-grade-result" }, [
       header,
-      renderStudentGradePyramid(null),
+      renderStudentGradeSummaryCard(null),
       el("div", { className: "empty" }, options.emptyText || "아직 제출된 성적이 없습니다."),
     ]);
   }
   return el("div", { className: "student-grade-result" }, [
     header,
-    renderStudentGradePyramid(summary),
+    renderStudentGradeSummaryCard(summary),
     renderStudentSubjectGradeList(summary.subjectSummaries),
   ]);
 }
@@ -1184,56 +1184,27 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
   ]);
 }
 
-function renderStudentGradePyramid(summary) {
+function renderStudentGradeSummaryCard(summary) {
   const student = summary?.student || getAuthedStudent();
   const trackText = student ? getStudentRegisteredTrack(student) : "";
-  return renderPercentilePyramid({
-    percentile: summary?.rank ? summary.percentile : null,
-    label: summary?.rank ? formatTopPercentLabel(summary.topPercent) : "",
-    metaText: summary?.rank && summary?.total ? `응시자 ${summary.total}명 중 ${summary.rank}등` : "",
-    scoreValue: summary ? `${summary.score}/${summary.maxScore}점` : "",
-    wrongValue: summary ? formatStudentWrongCount(summary.wrongCount) : "",
-    trackText,
-    primaryColor: "var(--accent)",
-    baseBgColor: "#e6edf5",
-  });
-}
-
-function renderPercentilePyramid({ percentile = null, label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5", levels = 4 } = {}) {
-  const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
-  const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
-  const topPercent = hasMarker ? Math.max(0, Math.min(100, 100 - safePercentile)) : 0;
-  const visualPosition = hasMarker ? 100 - topPercent : 0;
-  const displayLabel = hasMarker ? label || formatTopPercentLabel(topPercent) : "준비 중";
-  const style = [
-    `--pyramid-primary:${primaryColor}`,
-    `--pyramid-base:${baseBgColor}`,
-    `--grade-position:${roundSvg(visualPosition)}%`,
-  ].join(";");
-  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 성적 요약" }, [
-    el("div", { className: "student-grade-card-head" }, [
-      el("span", { className: "student-grade-rank-badge" }, "내 위치"),
-      trackText ? el("span", { className: "student-grade-rank-track" }, trackText) : null,
+  const rankLabel = summary?.rank ? formatTopPercentLabel(summary.topPercent) : "준비 중";
+  const metaText = summary?.rank && summary?.total ? `응시자 ${summary.total}명 중 ${summary.rank}등` : "성적 집계 후 표시됩니다.";
+  return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
+    el("div", { className: "student-grade-overview-head" }, [
+      el("span", { className: "student-grade-overview-label" }, "내 위치"),
+      trackText ? el("span", { className: "student-grade-overview-track" }, trackText) : null,
     ]),
-    el("strong", { className: "student-grade-rank-value" }, displayLabel),
-    metaText ? el("span", { className: "student-grade-rank-meta" }, metaText) : null,
-    el("div", { className: "student-grade-position-meter", ariaLabel: hasMarker ? `${displayLabel} 위치 표시` : "성적 준비 중" }, [
-      el("span", { className: "student-grade-position-fill" }),
-      hasMarker ? el("span", { className: "student-grade-position-marker" }) : null,
+    el("strong", { className: "student-grade-overview-value" }, rankLabel),
+    el("span", { className: "student-grade-overview-meta" }, metaText),
+    el("div", { className: "detail-grid student-grade-overview-grid" }, [
+      renderStudentGradeMetric("총점", summary ? `${summary.score}/${summary.maxScore}점` : "-"),
+      renderStudentGradeMetric("오답", summary ? formatStudentWrongCount(summary.wrongCount) : "-"),
     ]),
-    el("div", { className: "student-grade-position-labels" }, [
-      el("span", {}, "전체 구간"),
-      el("span", {}, "상위권"),
-    ]),
-    scoreValue || wrongValue ? el("div", { className: "student-grade-metrics" }, [
-      renderStudentGradeMetric("총점", scoreValue || "-"),
-      renderStudentGradeMetric("오답", wrongValue || "-"),
-    ]) : null,
   ]);
 }
 
 function renderStudentGradeMetric(label, value) {
-  return el("div", { className: "student-grade-metric" }, [
+  return el("div", { className: "detail-item" }, [
     el("span", {}, label),
     el("strong", {}, value),
   ]);
@@ -1243,10 +1214,6 @@ function formatStudentWrongCount(value) {
   if (value === "" || value === null || value === undefined || value === "-") return "-";
   const count = Number(value);
   return Number.isFinite(count) ? `${count}개` : "-";
-}
-
-function roundSvg(value) {
-  return Math.round(Number(value) * 10) / 10;
 }
 
 function renderStudentWeeklyGrades(student) {

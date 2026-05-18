@@ -1808,33 +1808,29 @@ th {
   font-size: 0.98rem;
 }
 
-.student-grade-pyramid {
+.student-grade-overview {
   position: relative;
   width: min(100%, 520px);
-  min-height: 184px;
   margin: 2px auto 0;
   display: grid;
   align-content: center;
-  gap: 13px;
+  gap: 12px;
   padding: 21px 24px 18px;
   border: 1px solid #c8dff4;
-  border-radius: 16px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #ffffff 0%, #f6faff 100%);
   box-shadow: 0 12px 28px rgba(0, 60, 120, 0.06);
   overflow: hidden;
-  --pyramid-primary: var(--accent);
-  --pyramid-base: #bdcbd8;
-  --grade-position: 0%;
 }
 
-.student-grade-card-head {
+.student-grade-overview-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.student-grade-rank-badge {
+.student-grade-overview-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1847,21 +1843,14 @@ th {
   font-weight: 900;
 }
 
-.student-grade-rank-caption {
-  color: #5f7895;
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-align: right;
-}
-
-.student-grade-rank-track {
+.student-grade-overview-track {
   color: #005bac;
   font-size: 0.78rem;
   font-weight: 900;
   text-align: right;
 }
 
-.student-grade-rank-value {
+.student-grade-overview-value {
   display: block;
   color: #003b73;
   font-size: clamp(1.9rem, 8vw, 2.5rem);
@@ -1870,96 +1859,16 @@ th {
   line-height: 1.05;
 }
 
-.student-grade-position-meter {
-  position: relative;
-  height: 8px;
-  border-radius: 999px;
-  background: #e6f0fa;
-  box-shadow: inset 0 1px 2px rgba(0, 43, 85, 0.07);
-}
-
-.student-grade-position-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--grade-position);
-  min-width: 0;
-  border-radius: 999px;
-  background: #005bac;
-}
-
-.student-grade-position-marker {
-  position: absolute;
-  top: 50%;
-  left: clamp(8px, var(--grade-position), calc(100% - 8px));
-  width: 16px;
-  height: 16px;
-  border: 3px solid #005bac;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 3px 8px rgba(0, 91, 172, 0.18);
-  transform: translate(-50%, -50%);
-}
-
-.student-grade-position-labels {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: -8px;
-  color: #6b7f95;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.student-grade-position-labels span:last-child {
-  color: #005bac;
-  font-weight: 900;
-}
-
-.student-grade-rank-meta {
+.student-grade-overview-meta {
   display: block;
-  margin-top: -8px;
   color: #5f7895;
   font-size: 0.82rem;
   font-weight: 800;
 }
 
-.student-grade-metrics {
-  display: grid;
+.student-grade-overview-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 4px;
-  padding-top: 14px;
-  border-top: 1px solid #d6e6f5;
-}
-
-.student-grade-metric {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  border: 1px solid #d6e6f5;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  padding: 12px 14px;
-}
-
-.student-grade-metric span {
-  color: #6b7f95;
-  font-size: 0.74rem;
-  font-weight: 800;
-}
-
-.student-grade-metric strong {
-  color: #003b73;
-  font-size: 0.95rem;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-@media (max-width: 420px) {
-  .student-grade-pyramid {
-    min-height: 230px;
-    padding: 22px 20px;
-  }
+  margin-top: 0;
 }
 
 .student-exam-subjects {

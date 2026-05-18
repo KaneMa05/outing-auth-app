@@ -2115,7 +2115,7 @@ function getTeacherPreviewFinalSummary(student, round) {
 function renderStudentGradePreviewPanel(summary, roundOptions) {
   if (!summary || !summary.hasScore) {
     return el("div", { className: "student-grade-result" }, [
-      renderTeacherPreviewPyramid({ trackText: summary?.student ? getTeacherStudentRegisteredTrack(summary.student) : "" }),
+      renderTeacherPreviewGradeSummary({ trackText: summary?.student ? getTeacherStudentRegisteredTrack(summary.student) : "" }),
       el("div", { className: "empty" }, "입력된 파이널 성적이 없습니다."),
     ]);
   }
@@ -2137,59 +2137,34 @@ function renderStudentGradePreviewPanel(summary, roundOptions) {
     el("div", { className: "student-grade-result-title" }, [
       el("strong", {}, `${Number(summary.round) || roundOptions[roundOptions.length - 1]}회차 파이널 성적`),
     ]),
-    renderTeacherPreviewPyramid({
-      percentile: summary.rank ? Math.round((100 - Number(summary.topPercent || 0)) * 10) / 10 : null,
+    renderTeacherPreviewGradeSummary({
       label: summary.rank ? formatTopPercentLabel(summary.topPercent) : "",
       metaText: summary.rank ? `응시자 ${summary.total || 0}명 중 ${summary.rank}등` : "",
       scoreValue: `${summary.score}/${summary.maxScore}점`,
       wrongValue: formatTeacherPreviewWrongCount(summary.wrongCount),
       trackText: getTeacherStudentRegisteredTrack(summary.student),
-      primaryColor: "var(--accent)",
-      baseBgColor: "#e6edf5",
     }),
     renderTeacherPreviewSubjectGradeList(subjectSummaries),
   ]);
 }
 
-function renderTeacherPreviewPyramid({ percentile = null, label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5" } = {}) {
-  const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
-  const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
-  const topPercent = hasMarker ? Math.max(0, Math.min(100, 100 - safePercentile)) : 0;
-  const visualPosition = hasMarker ? 100 - topPercent : 0;
-  const displayLabel = hasMarker ? label || formatTopPercentLabel(topPercent) : "준비 중";
-  const style = [
-    `--pyramid-primary:${primaryColor}`,
-    `--pyramid-base:${baseBgColor}`,
-    `--grade-position:${roundTeacherPreviewValue(visualPosition)}%`,
-  ].join(";");
-  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 성적 요약" }, [
-    el("div", { className: "student-grade-card-head" }, [
-      el("span", { className: "student-grade-rank-badge" }, "내 위치"),
-      trackText ? el("span", { className: "student-grade-rank-track" }, trackText) : null,
+function renderTeacherPreviewGradeSummary({ label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "" } = {}) {
+  return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
+    el("div", { className: "student-grade-overview-head" }, [
+      el("span", { className: "student-grade-overview-label" }, "내 위치"),
+      trackText ? el("span", { className: "student-grade-overview-track" }, trackText) : null,
     ]),
-    el("strong", { className: "student-grade-rank-value" }, displayLabel),
-    metaText ? el("span", { className: "student-grade-rank-meta" }, metaText) : null,
-    el("div", { className: "student-grade-position-meter", ariaLabel: hasMarker ? `${displayLabel} 위치 표시` : "성적 준비 중" }, [
-      el("span", { className: "student-grade-position-fill" }),
-      hasMarker ? el("span", { className: "student-grade-position-marker" }) : null,
-    ]),
-    el("div", { className: "student-grade-position-labels" }, [
-      el("span", {}, "전체 구간"),
-      el("span", {}, "상위권"),
-    ]),
-    scoreValue || wrongValue ? el("div", { className: "student-grade-metrics" }, [
+    el("strong", { className: "student-grade-overview-value" }, label || "준비 중"),
+    el("span", { className: "student-grade-overview-meta" }, metaText || "성적 집계 후 표시됩니다."),
+    el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderTeacherPreviewGradeMetric("총점", scoreValue || "-"),
       renderTeacherPreviewGradeMetric("오답", wrongValue || "-"),
-    ]) : null,
+    ]),
   ]);
 }
 
-function roundTeacherPreviewValue(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
 function renderTeacherPreviewGradeMetric(label, value) {
-  return el("div", { className: "student-grade-metric" }, [
+  return el("div", { className: "detail-item" }, [
     el("span", {}, label),
     el("strong", {}, value),
   ]);
