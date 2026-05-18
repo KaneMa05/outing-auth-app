@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v146-student-action-menu";
+const CACHE_NAME = "outing-auth-app-v147-officer-track-spacing";
 const APP_SHELL = [
   "/",
   "/index.html",
