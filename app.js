@@ -40,7 +40,8 @@ const COAST_GUARD_TRACK_OPTIONS = [
   "일반직 - 해양오염방제 화공",
   "일반직 - 해양오염방제 항해",
   "일반직 - 해양오염방제 기관",
-  "간부해양",
+  "경위 공채(해양)-기관",
+  "경위 공채(해양)-항해",
   "기타",
 ];
 
@@ -91,6 +92,7 @@ if (APP_MODE === "teacher") {
 }
 
 function normalizeRoute(route) {
+  const routeName = String(route || "").split("?")[0];
   const legacy = {
     dashboard: "home",
     teacher: "outing",
@@ -98,9 +100,10 @@ function normalizeRoute(route) {
     verify: "student-verify",
     return: "student-return",
     "student-out": "student",
+    "grades-final": "grades",
     settings: "home",
   };
-  const normalized = legacy[route] || route;
+  const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
     const teacherRoutes = ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
@@ -119,7 +122,7 @@ function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
   if (APP_MODE !== "teacher" && nextRoute === "grades" && typeof resetStudentGradesView === "function") resetStudentGradesView();
   const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextRoute}`;
-  location.hash = route;
+  location.hash = nextRoute;
   if (shouldScrollOnly) scrollAppToTop();
 }
 

@@ -105,7 +105,7 @@ function isTeacherAdmin() {
 function formatTopPercentLabel(value) {
   const percent = Number(value);
   if (!Number.isFinite(percent)) return "-";
-  if (percent <= 0) return "상위 1% 미만";
+  if (percent <= 1) return "상위 1% 이내";
   return `상위 ${Math.max(1, Math.ceil(percent))}%`;
 }
 
@@ -139,6 +139,7 @@ function normalizeCoastGuardTrack(track) {
   const value = String(track || "").trim();
   if (/^\?+$/.test(value)) return "전체";
   const compactValue = value.replace(/\s+/g, "");
+  const aliasKey = value.replace(/[\s()（）\-_·]+/g, "");
   const aliases = {
     "??": "전체",
     전체: "전체",
@@ -155,11 +156,24 @@ function normalizeCoastGuardTrack(track) {
     일반직VTS: "일반직 - 선박교통관제(VTS)",
     VTS: "경찰직 - 해상교통관제(VTS)(순경)",
     해상교통관제: "경찰직 - 해상교통관제(VTS)(순경)",
-    간부후보기관: "간부해양",
-    간부후보항해: "간부해양",
+    간부후보기관: "경위 공채(해양)-기관",
+    간부후보항해: "경위 공채(해양)-항해",
+    "간부해양-기관": "경위 공채(해양)-기관",
+    "간부해양-항해": "경위 공채(해양)-항해",
+    간부해양기관: "경위 공채(해양)-기관",
+    간부해양항해: "경위 공채(해양)-항해",
     기타: "기타",
   };
-  return aliases[value] || aliases[compactValue] || value;
+  return aliases[value] || aliases[compactValue] || aliases[aliasKey] || value;
+}
+
+function expandTrackOptionAlias(option) {
+  const value = String(option || "").trim();
+  const compactValue = value.replace(/\s+/g, "");
+  if (value === "간부해양" || compactValue === "간부해양") {
+    return ["경위 공채(해양)-기관", "경위 공채(해양)-항해"];
+  }
+  return [option];
 }
 
 const WEEKLY_QUESTION_FIXED_TRACKS = [
@@ -174,13 +188,15 @@ const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
 const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
-  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법", "해사영어"],
+  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
   "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 해경학과 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
   "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
   "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학", "해상교통관리"],
   "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어", "해상교통관리"],
+  "경위 공채(해양)-기관": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
+  "경위 공채(해양)-항해": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
 };
 
 function getDefaultWeeklyQuestionTargetTracks() {
@@ -234,6 +250,7 @@ function isWeeklySubjectAllowedForTrack(subject, track) {
 function normalizeTrackOptionList(options) {
   const seen = new Set();
   return (Array.isArray(options) ? options : [])
+    .flatMap((option) => expandTrackOptionAlias(option))
     .map((option) => normalizeCoastGuardTrack(option))
     .filter((option) => option && option !== "기타")
     .filter((option) => {
@@ -335,6 +352,31 @@ function mergeDefaultState(nextState) {
     studentRegistrationEvents: Array.isArray(nextState?.studentRegistrationEvents) ? nextState.studentRegistrationEvents : defaults.studentRegistrationEvents,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
+}
+
+function getLocalStudentAuthSettings() {
+  if (APP_MODE !== "student") return null;
+  const studentAuthId = String(state.settings?.studentAuthId || "").trim();
+  const studentProfiles = state.settings?.studentProfiles || {};
+  if (!studentAuthId && !Object.keys(studentProfiles).length) return null;
+  return {
+    studentAuthId,
+    lastStudentId: state.settings?.lastStudentId || "",
+    studentProfiles: JSON.parse(JSON.stringify(studentProfiles)),
+  };
+}
+
+function restoreLocalStudentAuthSettings(authSettings) {
+  if (APP_MODE !== "student" || !authSettings) return;
+  const profiles = {
+    ...(state.settings.studentProfiles || {}),
+    ...(authSettings.studentProfiles || {}),
+  };
+  state.settings.studentProfiles = profiles;
+  if (authSettings.studentAuthId && profiles[authSettings.studentAuthId]) {
+    state.settings.studentAuthId = authSettings.studentAuthId;
+  }
+  if (authSettings.lastStudentId) state.settings.lastStudentId = authSettings.lastStudentId;
 }
 
 function saveState(options = {}) {
@@ -470,7 +512,9 @@ async function initLocalDevStore() {
     const response = await fetch(localDevStoreUrl, { credentials: "same-origin" });
     const data = response.ok ? await response.json() : { ok: false };
     if (data.ok && data.exists && data.state) {
+      const localStudentAuth = getLocalStudentAuthSettings();
       Object.assign(state, mergeDefaultState(data.state));
+      restoreLocalStudentAuthSettings(localStudentAuth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       render();
       return;

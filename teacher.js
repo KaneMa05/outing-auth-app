@@ -1963,6 +1963,7 @@ function teacherStudentForm() {
         el("td", {}, isAttendanceExcludedStudent(student) ? el("span", { className: "badge rejected" }, "제외") : el("span", { className: "badge approved" }, "포함")),
         el("td", { className: "student-admin-actions" }, [
           button("미리보기", "mini-btn", "button", () => openStudentPreview(student.id)),
+          button("직렬 변경", "mini-btn", "button", () => openStudentTrackEditModal(student.id)),
           button("기기 이력", "mini-btn", "button", () => openStudentRegistrationHistory(student.id)),
           profile ? button("등록 초기화", "mini-btn", "button", () => resetStudentAppRegistration(student.id)) : null,
           button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "mini-btn", "button", () => toggleStudentAttendanceExcluded(student.id)),
@@ -1980,6 +1981,81 @@ function teacherStudentForm() {
       rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
     ),
   ]);
+}
+
+function openStudentTrackEditModal(studentId) {
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  const currentTrack = getTeacherStudentRegisteredTrack(student);
+  const trackSelect = select("track", getCoastGuardTrackOptions());
+  const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
+  const customTrackField = field("기타 직렬", customTrackInput);
+  customTrackField.hidden = true;
+  if (getCoastGuardTrackOptions().includes(currentTrack)) {
+    trackSelect.value = currentTrack;
+  } else if (currentTrack) {
+    trackSelect.value = "기타";
+    customTrackInput.value = currentTrack;
+    customTrackField.hidden = false;
+  }
+  trackSelect.addEventListener("change", () => {
+    customTrackField.hidden = trackSelect.value !== "기타";
+    if (customTrackField.hidden) customTrackInput.value = "";
+  });
+
+  const form = el("form", { className: "form-grid" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${student.id})`)),
+    field("현재 직렬", el("span", {}, currentTrack || "-")),
+    field("변경 직렬", trackSelect),
+    customTrackField,
+    el("div", { className: "attendance-modal-actions field full" }, [
+      button("취소", "btn secondary", "button", closeInfoModal),
+      button("저장", "btn"),
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const nextTrack = resolveStudentTrack(data.track, data.customTrack);
+    if (!nextTrack) return notify("변경할 직렬을 선택해주세요.");
+    await updateStudentTrack(student.id, nextTrack);
+  });
+
+  openInfoModal({
+    title: "학생 직렬 변경",
+    content: form,
+  });
+}
+
+async function updateStudentTrack(studentId, nextTrack) {
+  const student = findStudent(studentId);
+  const track = normalizeCoastGuardTrack(nextTrack);
+  if (!student || !track) return notify("학생 또는 직렬 정보를 확인해주세요.");
+  const previousStudent = { ...student };
+  const previousProfile = state.settings.studentProfiles?.[student.id]
+    ? { ...state.settings.studentProfiles[student.id] }
+    : null;
+  try {
+    student.track = track;
+    const profiles = state.settings.studentProfiles || {};
+    if (profiles[student.id]) {
+      profiles[student.id] = {
+        ...profiles[student.id],
+        track,
+        initialTrack: track,
+      };
+    }
+    await saveStudentsToRemote([student.id]);
+    saveState({ skipRemote: true });
+    closeInfoModal();
+    render();
+    notify(`${student.name || student.id} 학생의 직렬을 변경했습니다.`);
+  } catch (error) {
+    console.error(error);
+    Object.assign(student, previousStudent);
+    if (previousProfile) state.settings.studentProfiles[student.id] = previousProfile;
+    notify("직렬 변경을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
 }
 
 function openStudentRegistrationHistory(studentId) {
@@ -2294,7 +2370,9 @@ function hasTeacherPreviewFinalScore(record) {
 function getTeacherPreviewFinalSummary(student, round) {
   const students = getGradeManagementStudents(getStudentCohort(student));
   const records = getFinalMockScoreRecords(round);
-  const summaries = applyGradeRanksByTrack(students.map((item) => getFinalMockGradeStudentSummary(item, records)));
+  const participants = getFinalMockGradeParticipants(getStudentCohort(student), students, records);
+  const summaries = applyGradeRanksByTrack(participants.map((item) => getFinalMockGradeStudentSummary(item, records)));
+  applyTeacherPreviewFinalSubjectRanks(summaries);
   const summary = summaries.find((item) => String(item.student.id) === String(student.id)) || null;
   if (!summary) return null;
   const track = getTeacherStudentRegisteredTrack(student) || "미분류";
@@ -2313,17 +2391,19 @@ function renderStudentGradePreviewPanel(summary, roundOptions) {
       el("div", { className: "empty" }, "입력된 파이널 성적이 없습니다."),
     ]);
   }
-  const subjectSummaries = getGradeSubjectHeaders().map((subject) => {
+  const subjectSummaries = getTeacherPreviewFinalSubjectHeadersForTrack(getTeacherStudentRegisteredTrack(summary.student)).map((subject) => {
     const subjectScore = summary.subjectScores[subject] || {};
     const score = Number(subjectScore.score) || 0;
-    const maxScore = Number(subjectScore.maxScore) || 0;
+    const submitted = subjectScore.status !== "empty";
+    const maxScore = Number(subjectScore.maxScore) || (submitted ? 100 : 0);
     return {
       subject,
-      submitted: subjectScore.status !== "empty",
+      submitted,
       score,
-      wrongCount: "-",
-      rank: 0,
-      displayTopPercent: 0,
+      wrongCount: maxScore ? Math.max(0, Math.round((maxScore - score) / 5)) : "-",
+      rank: Number(subjectScore.rank) || 0,
+      topPercent: Number(subjectScore.topPercent) || 0,
+      displayTopPercent: subjectScore.rank ? Math.max(1, Math.ceil(Number(subjectScore.topPercent) || 0)) : 0,
       maxScore,
     };
   });
@@ -2336,13 +2416,15 @@ function renderStudentGradePreviewPanel(summary, roundOptions) {
       metaText: summary.rank ? `응시자 ${summary.total || 0}명 중 ${summary.rank}등` : "",
       scoreValue: `${summary.score}/${summary.maxScore}점`,
       wrongValue: formatTeacherPreviewWrongCount(summary.wrongCount),
+      rankValue: summary.rank ? `${summary.rank}등` : "-",
+      topPercent: summary.topPercent,
       trackText: getTeacherStudentRegisteredTrack(summary.student),
     }),
     renderTeacherPreviewSubjectGradeList(subjectSummaries),
   ]);
 }
 
-function renderTeacherPreviewGradeSummary({ label = "", metaText = "", scoreValue = "", wrongValue = "", trackText = "" } = {}) {
+function renderTeacherPreviewGradeSummary({ label = "", metaText = "", scoreValue = "", wrongValue = "", rankValue = "", topPercent = 0, trackText = "" } = {}) {
   return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
     el("div", { className: "student-grade-overview-head" }, [
       el("span", { className: "student-grade-overview-label" }, "내 위치"),
@@ -2350,10 +2432,27 @@ function renderTeacherPreviewGradeSummary({ label = "", metaText = "", scoreValu
     ]),
     el("strong", { className: "student-grade-overview-value" }, label || "준비 중"),
     el("span", { className: "student-grade-overview-meta" }, metaText || "성적 집계 후 표시됩니다."),
+    renderTeacherPreviewGradeProgress(rankValue && rankValue !== "-" ? topPercent : null),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderTeacherPreviewGradeMetric("총점", scoreValue || "-"),
       renderTeacherPreviewGradeMetric("오답", wrongValue || "-"),
+      renderTeacherPreviewGradeMetric("등수", rankValue || "-"),
     ]),
+  ]);
+}
+
+function renderTeacherPreviewGradeProgress(topPercent) {
+  const rawPercent = topPercent === null ? 0 : Number(topPercent) || 0;
+  const percent = topPercent === null ? 0 : Math.max(1, Math.min(100, Math.ceil(100 - rawPercent)));
+  return el("div", {
+    className: "student-grade-progress",
+    role: "meter",
+    ariaLabel: "내 위치 백분율",
+    ariaValueMin: "0",
+    ariaValueMax: "100",
+    ariaValueNow: String(percent),
+  }, [
+    el("span", { className: "student-grade-progress-fill", style: `width: ${percent}%` }),
   ]);
 }
 
@@ -2369,15 +2468,51 @@ function renderTeacherPreviewSubjectGradeList(subjectSummaries = []) {
     el("strong", {}, "과목별 성적"),
     subjectSummaries.length
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
-          el("h3", {}, item.subject),
+          el("h3", {}, formatTeacherPreviewFinalSubjectName(item.subject)),
           el("div", { className: "detail-grid" }, [
             el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
             el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatTeacherPreviewWrongCount(item.wrongCount) : "-")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? formatTeacherPreviewSubjectPositionLabel(item.topPercent ?? item.displayTopPercent) : "-")]),
           ]),
         ]))
       : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
   ]);
+}
+
+function getTeacherPreviewFinalSubjectHeadersForTrack(track) {
+  const finalSubjects = getGradeSubjectHeaders();
+  const subjectMap = {
+    해양경찰학개론: "개론",
+    해사법규: "법규",
+    형사법: "형사",
+    해사영어: "영어",
+    항해학: "항해",
+    기관학: "기관",
+    "형사법(공판)": "형소법(공판)",
+  };
+  const mapped = getDefaultWeeklySubjectsForTrack(track)
+    .map((subject) => subjectMap[subject])
+    .filter((subject) => subject && finalSubjects.includes(subject));
+  return mapped.length ? mapped : finalSubjects;
+}
+
+function formatTeacherPreviewFinalSubjectName(subject) {
+  const names = {
+    법규: "해사법규",
+    개론: "해양경찰학개론",
+    형사: "형사법",
+    영어: "해사영어",
+    항해: "항해학",
+    기관: "기관학",
+    "형소법(공판)": "형사법(공판)",
+  };
+  return names[subject] || subject;
+}
+
+function formatTeacherPreviewSubjectPositionLabel(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return "-";
+  return `상위 ${Math.max(1, Math.ceil(percent))}%`;
 }
 
 function formatTeacherPreviewWrongCount(value) {
@@ -2998,7 +3133,7 @@ function getStudentProfileForTeacher(studentId) {
 
 function getTeacherStudentRegisteredTrack(student) {
   const profile = getStudentProfileForTeacher(student?.id);
-  return normalizeCoastGuardTrack(profile?.initialTrack || profile?.track || student?.track);
+  return normalizeCoastGuardTrack(student?.track || profile?.track || profile?.initialTrack);
 }
 
 function upsertStudents(students, className, track = "") {
@@ -3131,12 +3266,27 @@ function getGradeManagementTrackOptions(cohort = selectedStudentCohort) {
   const tracks = [
     ...getCoastGuardTrackOptions().filter((track) => track !== "기타"),
     ...getStudentsInCohort(cohort).map((student) => getTeacherStudentRegisteredTrack(student)),
+    ...getFinalMockExternalTracks(cohort),
   ]
     .map((track) => normalizeCoastGuardTrack(track))
     .filter((track) => track && track !== "기타")
     .filter((track, index, list) => list.indexOf(track) === index)
     .sort((a, b) => a.localeCompare(b, "ko-KR"));
   return ["", ...tracks];
+}
+
+function getFinalMockExternalTracks(cohort = selectedStudentCohort) {
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  return sources.flat()
+    .filter((record) => {
+      const studentId = String(record.studentId || record.student_id || record.studentNumber || "").trim();
+      const exists = (state.students || []).some((student) => String(student.id) === studentId);
+      if (exists) return false;
+      const recordCohort = String(record.cohort || record.studentCohort || record.student_cohort || "");
+      return !recordCohort || recordCohort === String(cohort || "");
+    })
+    .map((record) => normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || ""))
+    .filter(Boolean);
 }
 
 function getGradeManagementStudents(cohort = selectedStudentCohort) {
@@ -3172,14 +3322,13 @@ function renderWeeklyExamCohortPanel() {
     cohorts.map((cohort) => el("option", { value: cohort.value }, cohort.label)),
   ]);
   selectNode.value = selected;
-  selectNode.addEventListener("change", async () => {
+  selectNode.addEventListener("change", () => {
     const nextCohort = selectNode.value;
     weeklyExamSelectedCohort = nextCohort;
     weeklyExamSelectedId = "";
     weeklyExamSelectedSectionId = "";
     weeklyExamAnswerScoped = false;
     render();
-    await ensureWeeklyExamWeeksForCohort(nextCohort);
   });
   return panel("주간평가 필터", [
     el("div", { className: "teacher-search weekly-cohort-filter compact-filter" }, [
@@ -3320,9 +3469,13 @@ async function ensureWeeklyExamWeeksForCohort(cohort, options = {}) {
 }
 
 function renderWeeklyExamCreatePanel() {
+  return panel("주간평가 생성", [renderWeeklyExamCreateForm()]);
+}
+
+function renderWeeklyExamCreateForm() {
   const cohort = getSelectedWeeklyExamCohort();
   const form = el("form", { className: "form-grid weekly-exam-form" }, [
-    el("div", { className: "field full" }, [button(`${cohort || ""}기 1~${WEEKLY_EXAM_WEEK_COUNT}주차 주간평가 생성`, "btn")]),
+    el("div", { className: "field full" }, [button(`${cohort || ""}기 1~${WEEKLY_EXAM_WEEK_COUNT}주차 주간평가 생성하기`, "btn")]),
   ]);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -3330,7 +3483,7 @@ function renderWeeklyExamCreatePanel() {
     if (!selectedCohort) return notify("기수를 먼저 선택해주세요.");
     await ensureWeeklyExamWeeksForCohort(selectedCohort);
   });
-  return panel("주간평가 생성", [form]);
+  return form;
 }
 
 function formatWeeklyExamName(weekNumber, cohort = "") {
@@ -3342,6 +3495,7 @@ function renderWeeklyExamProblemLookupPanel() {
   if (!exams.length) {
     return panel("주간평가 문제 조회", [
       el("div", { className: "empty" }, "조회할 주간평가가 없습니다. 주간평가를 먼저 생성해주세요."),
+      renderWeeklyExamCreateForm(),
     ]);
   }
   const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || null;
@@ -4381,7 +4535,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const previousSummaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["이름", "직렬", ...WEEKLY_EXAM_SUBJECTS, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락"];
-  const rows = summaries.map((summary) => {
+  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return el("tr", {}, [
     el("td", {}, summary.student.name || "-"),
@@ -4423,16 +4577,19 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   const records = getFinalMockScoreRecords(round);
   const previousRecords = getFinalMockScoreRecords(round - 1);
   const recordByStudent = new Map(records.map((record) => [String(record.studentId || "").trim(), record]));
-  const previousSummaries = applyGradeRanksByTrack(students.map((student) => getFinalMockGradeStudentSummary(student, previousRecords)));
+  const participants = getFinalMockGradeParticipants(cohort, students, records);
+  const previousParticipants = getFinalMockGradeParticipants(cohort, students, previousRecords);
+  const previousSummaries = applyGradeRanksByTrack(previousParticipants.map((student) => getFinalMockGradeStudentSummary(student, previousRecords)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
-  const summaries = applyGradeRanksByTrack(students.map((student) => getFinalMockGradeStudentSummary(student, records)));
-  const registered = students.map((student) => recordByStudent.get(String(student.id))).filter(Boolean);
-  const headers = ["이름", "직렬", ...getGradeSubjectHeaders(), "오답", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
-  const rows = summaries.map((summary) => {
+  const summaries = applyGradeRanksByTrack(participants.map((student) => getFinalMockGradeStudentSummary(student, records)));
+  const registered = participants.map((student) => recordByStudent.get(String(student.id))).filter(Boolean);
+  const headers = ["이름", "구분", "직렬", ...getGradeSubjectHeaders(), "오답", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
+  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
     return el("tr", {}, [
       el("td", {}, summary.student.name || "-"),
+      el("td", {}, summary.student.isExternalFinalScore ? "미등록" : "등록"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
       ...getGradeSubjectHeaders().map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
       el("td", {}, summary.hasScore && summary.wrongCount !== "" ? String(summary.wrongCount) : "-"),
@@ -4448,7 +4605,8 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     placeholder: "엑셀 표를 그대로 붙여넣으세요.\n예: 이름\t직렬\t법규\t개론\t형사\t영어\t항해\t기관\t형소법(공판)\t개수",
     rows: 5,
   });
-  const bulkSaveButton = button("일괄 저장", "btn", "button", () => saveFinalBulkScoreInput(round, students, bulkTextarea.value));
+  const bulkSaveButton = button("일괄 저장", "btn", "button", () => saveFinalBulkScoreInput(round, students, bulkTextarea.value, cohort));
+  const bulkDeleteButton = button("일괄 삭제", "mini-btn danger", "button", () => deleteFinalBulkScores(round, participants));
 
   return panel("파이널 모의고사 성적", [
     el("div", { className: "teacher-search grade-management-filter" }, [
@@ -4456,17 +4614,20 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     ]),
     el("div", { className: "grade-bulk-input" }, [
       el("div", { className: "grade-input-actions" }, [
-        el("p", { className: "subtle" }, "엑셀에서 성적 표를 복사해 붙여넣으면 이름/직렬 기준으로 일괄 저장됩니다."),
-        bulkSaveButton,
+        el("p", { className: "subtle" }, "엑셀에서 성적 표를 복사해 붙여넣으면 등록 학생은 자동 매칭되고, 매칭되지 않은 행도 미등록 응시자로 석차에 반영됩니다."),
+        el("div", { className: "grade-bulk-action-buttons" }, [
+          bulkDeleteButton,
+          bulkSaveButton,
+        ]),
       ]),
       bulkTextarea,
     ]),
     table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])]),
-    registered.length ? null : el("p", { className: "subtle" }, "파이널 모의고사 성적 데이터가 등록되면 이 표에 학생별 성적이 표시됩니다."),
+    registered.length ? null : el("p", { className: "subtle" }, "파이널 모의고사 성적 데이터가 등록되면 이 표에 응시자별 성적이 표시됩니다."),
   ]);
 }
 
-function saveFinalBulkScoreInput(round, students = [], rawText = "") {
+function saveFinalBulkScoreInput(round, students = [], rawText = "", cohort = selectedStudentCohort) {
   const parsed = parseFinalBulkScoreRows(rawText);
   if (!parsed.rows.length) return notify("붙여넣은 성적 데이터가 없습니다.");
   const studentById = new Map(students.map((student) => [String(student.id), student]));
@@ -4478,12 +4639,13 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
     studentsByName.get(key).push(student);
   });
   const nextRecords = [];
-  const unmatched = [];
+  let externalCount = 0;
   parsed.rows.forEach((row) => {
-    if (!String(row.name || "").trim()) return;
-    const student = matchFinalBulkStudent(row, studentById, studentsByName);
+    if (!String(row.name || row.id || "").trim()) return;
+    const matchedStudent = matchFinalBulkStudent(row, studentById, studentsByName);
+    const student = matchedStudent || createFinalExternalStudentFromRow(row, cohort);
+    if (!matchedStudent) externalCount += 1;
     if (!student) {
-      unmatched.push(row.name || row.id || "이름 없음");
       return;
     }
     const subjectScores = {};
@@ -4504,6 +4666,10 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
       id: `final-${round}-${student.id}`,
       round,
       studentId: student.id,
+      studentName: student.name || "",
+      track: getTeacherStudentRegisteredTrack(student) || "",
+      cohort: String(cohort || ""),
+      isExternalFinalScore: student.isExternalFinalScore === true,
       score: Math.round(score * 10) / 10,
       maxScore,
       wrongCount,
@@ -4513,7 +4679,7 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
     });
   });
   if (!nextRecords.length) {
-    return notify(unmatched.length ? `매칭된 학생이 없습니다. 확인 필요: ${unmatched.slice(0, 3).join(", ")}` : "저장할 성적 데이터가 없습니다.");
+    return notify("저장할 성적 데이터가 없습니다.");
   }
   const targetIds = new Set(nextRecords.map((record) => String(record.studentId)));
   state.finalExamScores = [
@@ -4524,9 +4690,29 @@ function saveFinalBulkScoreInput(round, students = [], rawText = "") {
     ...nextRecords,
   ];
   saveState({ skipRemote: true });
-  notify(unmatched.length
-    ? `${nextRecords.length}명 저장, ${unmatched.length}명 매칭 실패`
+  notify(externalCount
+    ? `${nextRecords.length}명 저장, 미등록 응시자 ${externalCount}명도 석차에 반영했습니다.`
     : `${nextRecords.length}명의 파이널 성적을 일괄 저장했습니다.`);
+  render();
+}
+
+function deleteFinalBulkScores(round, participants = []) {
+  const targetIds = new Set(participants.map((student) => String(student.id)).filter(Boolean));
+  if (!targetIds.size) return notify("삭제할 파이널 성적이 없습니다.");
+  const currentRound = Number(round) || 1;
+  const deleteCount = (state.finalExamScores || []).filter((record) =>
+    Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0) === currentRound &&
+    targetIds.has(String(record.studentId || record.student_id || record.studentNumber || ""))
+  ).length;
+  if (!deleteCount) return notify("삭제할 파이널 성적이 없습니다.");
+  const scopeText = gradeManagementTrackFilter ? `${gradeManagementTrackFilter} 직렬 ` : "";
+  if (!confirm(`${currentRound}회차 ${scopeText}파이널 성적 ${deleteCount}건을 일괄 삭제할까요?`)) return;
+  state.finalExamScores = (state.finalExamScores || []).filter((record) =>
+    Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0) !== currentRound ||
+    !targetIds.has(String(record.studentId || record.student_id || record.studentNumber || ""))
+  );
+  saveState({ skipRemote: true });
+  notify(`${deleteCount}건의 파이널 성적을 삭제했습니다.`);
   render();
 }
 
@@ -4596,7 +4782,7 @@ function openFinalScoreEditModal(round, student, record) {
     ariaLabel: `${student.name || student.id} 오답 수`,
   });
   const form = el("form", { className: "final-score-modal-form" }, [
-    el("p", { className: "subtle" }, `${student.name || "-"} / ${getTeacherStudentRegisteredTrack(student) || "-"} / ${round}회차`),
+    el("p", { className: "subtle" }, `${student.name || "-"} / ${student.isExternalFinalScore ? "미등록" : "등록"} / ${getTeacherStudentRegisteredTrack(student) || "-"} / ${round}회차`),
     el("div", { className: "detail-grid" }, [...subjectFields, field("오답", wrongInput)]),
     el("div", { className: "attendance-modal-actions" }, [
       button("취소", "btn secondary", "button", closeInfoModal),
@@ -4634,6 +4820,10 @@ function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
     id: `final-${round}-${student.id}`,
     round,
     studentId: student.id,
+    studentName: student.name || "",
+    track: getTeacherStudentRegisteredTrack(student) || "",
+    cohort: student.finalScoreCohort || selectedStudentCohort || "",
+    isExternalFinalScore: student.isExternalFinalScore === true,
     score: Math.round(score * 10) / 10,
     maxScore,
     wrongCount,
@@ -4711,6 +4901,10 @@ function saveFinalScoreInputs(round, students = []) {
       id: `final-${round}-${student.id}`,
       round,
       studentId: student.id,
+      studentName: student.name || "",
+      track: getTeacherStudentRegisteredTrack(student) || "",
+      cohort: String(selectedStudentCohort || ""),
+      isExternalFinalScore: false,
       score: Math.round(score * 10) / 10,
       maxScore,
       wrongCount,
@@ -4838,6 +5032,52 @@ function applyGradeRanksByTrack(summaries) {
   return summaries;
 }
 
+function applyTeacherPreviewFinalSubjectRanks(summaries = []) {
+  const groups = new Map();
+  summaries.forEach((summary) => {
+    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    const subjects = getTeacherPreviewFinalSubjectHeadersForTrack(track);
+    subjects.forEach((subject) => {
+      const subjectScore = summary.subjectScores?.[subject];
+      if (!subjectScore || subjectScore.status === "empty") return;
+      const key = `${track}::${subject}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ summary, subjectScore });
+    });
+  });
+  groups.forEach((items) => {
+    const sorted = [...items].sort((a, b) => {
+      const scoreCompare = (Number(b.subjectScore.score) || 0) - (Number(a.subjectScore.score) || 0);
+      if (scoreCompare) return scoreCompare;
+      return String(a.summary.student.id).localeCompare(String(b.summary.student.id), "ko-KR", { numeric: true });
+    });
+    let previousScore = null;
+    let previousRank = 0;
+    sorted.forEach((item, index) => {
+      const score = Number(item.subjectScore.score) || 0;
+      const rank = score === previousScore ? previousRank : index + 1;
+      item.subjectScore.rank = rank;
+      item.subjectScore.topPercent = calculateGradePercentile(rank, sorted.length);
+      previousScore = score;
+      previousRank = rank;
+    });
+  });
+}
+
+function sortGradeSummariesForDisplay(summaries = []) {
+  return [...summaries].sort((a, b) => {
+    const rankA = Number(a.rank) || 0;
+    const rankB = Number(b.rank) || 0;
+    if (rankA && rankB && rankA !== rankB) return rankA - rankB;
+    if (rankA !== rankB) return rankA ? -1 : 1;
+    const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreCompare) return scoreCompare;
+    const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
+    if (wrongCompare) return wrongCompare;
+    return String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true });
+  });
+}
+
 function calculateGradePercentile(rank, total) {
   if (!rank || !total) return 0;
   if (total <= 1) return 0;
@@ -4849,8 +5089,7 @@ function formatSubjectScoreCell(subjectScore) {
   if (subjectScore.status === "missing") return "미제출";
   if (subjectScore.status === "empty") return "-";
   const score = Number(subjectScore.score) || 0;
-  const maxScore = Number(subjectScore.maxScore) || 0;
-  return maxScore ? `${score}/${maxScore}` : String(score);
+  return String(score);
 }
 
 function formatRankDelta(currentRank, previousRank) {
@@ -4896,6 +5135,10 @@ function getFinalMockScoreRecords(round) {
     return value === Number(round);
   }).map((record) => ({
     studentId: record.studentId || record.student_id || record.studentNumber || "",
+    studentName: record.studentName || record.student_name || record.name || "",
+    track: normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || ""),
+    cohort: String(record.cohort || record.studentCohort || record.student_cohort || ""),
+    isExternalFinalScore: record.isExternalFinalScore === true || record.is_external_final_score === true || record.external === true,
     score: record.score ?? record.totalScore ?? record.total_score ?? "",
     maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
     percent: record.percent ?? record.percentage ?? "",
@@ -4905,6 +5148,50 @@ function getFinalMockScoreRecords(round) {
     submittedAt: record.submittedAt || record.createdAt || record.updatedAt || record.submitted_at || "",
     status: record.status || "",
   }));
+}
+
+function getFinalMockGradeParticipants(cohort, students = [], records = []) {
+  const registeredIds = new Set(students.map((student) => String(student.id)));
+  const allStudentIds = new Set((state.students || []).map((student) => String(student.id)));
+  const participants = [...students];
+  records.forEach((record) => {
+    const studentId = String(record.studentId || "").trim();
+    if (!studentId || registeredIds.has(studentId)) return;
+    if (allStudentIds.has(studentId)) return;
+    if (record.cohort && String(record.cohort) !== String(cohort || "")) return;
+    const track = normalizeCoastGuardTrack(record.track);
+    if (gradeManagementTrackFilter && track !== gradeManagementTrackFilter) return;
+    participants.push({
+      id: studentId,
+      name: record.studentName || studentId,
+      track,
+      className: "",
+      finalScoreCohort: record.cohort || String(cohort || ""),
+      isExternalFinalScore: true,
+    });
+    registeredIds.add(studentId);
+  });
+  return participants;
+}
+
+function createFinalExternalStudentFromRow(row, cohort = selectedStudentCohort) {
+  const track = normalizeCoastGuardTrack(row.track);
+  const label = String(row.name || row.id || "미등록 응시자").trim();
+  const sourceId = String(row.id || label).trim();
+  return {
+    id: `external-${String(cohort || "all").trim() || "all"}-${slugFinalExternalValue(sourceId)}-${slugFinalExternalValue(track || "none")}`,
+    name: label,
+    track,
+    className: "",
+    finalScoreCohort: String(cohort || ""),
+    isExternalFinalScore: true,
+  };
+}
+
+function slugFinalExternalValue(value) {
+  const text = String(value || "").trim().toLowerCase();
+  const ascii = text.replace(/[^a-z0-9가-힣]+/gi, "-").replace(/^-+|-+$/g, "");
+  return ascii || "unknown";
 }
 
 function getFinalMockGradeStudentSummary(student, records) {

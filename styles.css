@@ -1559,15 +1559,34 @@ th {
 }
 
 .grade-input-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .grade-input-actions .subtle {
   margin: 0;
+  line-height: 1.45;
+}
+
+.grade-bulk-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.grade-bulk-action-buttons .btn {
+  width: auto;
+  min-height: 36px;
+  margin-top: 0;
+  padding: 0 14px;
+}
+
+.grade-bulk-action-buttons .mini-btn {
+  min-height: 32px;
 }
 
 .grade-bulk-input {
@@ -1808,6 +1827,31 @@ th {
   font-size: 0.98rem;
 }
 
+.student-grade-subject-card .detail-grid {
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.student-grade-subject-card .detail-item,
+.student-grade-overview .detail-item {
+  min-width: 0;
+  padding: 11px 10px;
+}
+
+.student-grade-subject-card .detail-item strong,
+.student-grade-overview .detail-item strong {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.student-grade-subject-card .detail-item:nth-child(3) strong {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  line-height: 1.25;
+}
+
 .student-grade-overview {
   position: relative;
   width: min(100%, 520px);
@@ -1866,9 +1910,39 @@ th {
   font-weight: 800;
 }
 
-.student-grade-overview-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.student-grade-progress {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: #dcecff;
+  overflow: hidden;
+}
+
+.student-grade-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #005bac 0%, #4aa3ff 100%);
+}
+
+.student-grade-overview .student-grade-overview-grid {
+  width: 100%;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: start;
+  gap: 8px;
   margin-top: 0;
+}
+
+.student-grade-overview .student-grade-overview-grid .detail-item strong {
+  font-size: 0.95rem;
+}
+
+.student-grade-subject-card .detail-item,
+.student-grade-overview .student-grade-overview-grid .detail-item {
+  align-items: center;
+  text-align: center;
 }
 
 .student-exam-subjects {
@@ -3875,6 +3949,15 @@ body:not([data-app-mode="teacher"]) .btn {
     width: 100%;
   }
 
+  .grade-input-actions {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .grade-bulk-action-buttons {
+    justify-content: flex-start;
+  }
+
   .student-grade-card-grid {
     grid-template-columns: 1fr;
   }
@@ -4248,5 +4331,26 @@ body:not([data-app-mode="teacher"]) .btn {
 
   body:not([data-app-mode="teacher"]) .time-field {
     max-width: 160px;
+  }
+
+  .student-grade-overview {
+    padding: 18px 16px 16px;
+  }
+
+  .student-grade-overview .student-grade-overview-grid {
+    width: 100%;
+  }
+
+  .student-grade-subject-card {
+    padding: 10px;
+  }
+
+  .student-grade-subject-card .detail-grid {
+    gap: 7px;
+  }
+
+  .student-grade-subject-card .detail-item,
+  .student-grade-overview .detail-item {
+    padding: 10px 9px;
   }
 }

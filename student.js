@@ -823,15 +823,21 @@ function resetStudentGradesView() {
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 }
 
+function isStudentFinalGradeTestLink() {
+  const params = new URLSearchParams(location.search || "");
+  const hash = String(location.hash || "");
+  return params.get("finalGradeTest") === "1" || hash === "#grades-final" || hash.includes("finalGradeTest=1");
+}
+
 function getStudentRegisteredTrack(student) {
   const profile = getStudentProfile(student?.id);
-  return normalizeCoastGuardTrack(profile?.initialTrack || profile?.track || student?.track);
+  return normalizeCoastGuardTrack(student?.track || profile?.track || profile?.initialTrack);
 }
 
 function renderStudentGrades() {
   const student = getAuthedStudent();
   if (!student) return renderStudentAuth();
-  if (studentGradesView === "lookup") return renderStudentGradeLookupComingSoon();
+  if (studentGradesView === "lookup" || isStudentFinalGradeTestLink()) return renderStudentGradeLookupComingSoon();
   if (studentGradesView !== "entry") return renderStudentGradesHome();
   return renderStudentWeeklyGrades(student);
 }
@@ -841,7 +847,9 @@ function renderStudentGradesHome() {
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
         renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
-          notify("성적 조회는 준비중입니다.");
+          if (!isStudentFinalGradeTestLink()) return notify("성적 조회는 준비중입니다.");
+          studentGradesView = "lookup";
+          render();
         }),
       ]),
     ]),
@@ -935,12 +943,29 @@ function getStudentFinalGradeSummary(student, round = 1) {
   const cohort = getStudentCohort(student);
   const registeredTrack = getStudentRegisteredTrack(student);
   const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
-  const summaries = peers.map((peer) => {
+  const peerIds = new Set(peers.map((peer) => String(peer.id)));
+  const externalPeers = records
+    .filter((record) => {
+      const studentId = String(record.studentId || "").trim();
+      if (!studentId || peerIds.has(studentId)) return false;
+      if ((state.students || []).some((item) => String(item.id) === studentId)) return false;
+      const recordCohort = String(record.cohort || "");
+      const recordTrack = normalizeCoastGuardTrack(record.track || "");
+      return (!recordCohort || recordCohort === cohort) && recordTrack === registeredTrack;
+    })
+    .map((record) => ({
+      id: record.studentId,
+      name: record.studentName || record.studentId,
+      track: record.track || registeredTrack,
+      isExternalFinalScore: true,
+    }));
+  const summaries = [...peers, ...externalPeers].map((peer) => {
     const record = records.find((item) => String(item.studentId || "").trim() === String(peer.id || "").trim());
     if (!record) return { student: peer, hasScore: false, submittedCount: 0, score: 0, maxScore: 0, wrongCount: "", subjectSummaries: [] };
     const score = Number(record.score) || 0;
     const maxScore = Number(record.maxScore) || 0;
-    const subjectSummaries = getFinalGradeSubjectHeaders().map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject]));
+    const subjectSummaries = getFinalGradeSubjectHeadersForTrack(getStudentRegisteredTrack(peer))
+      .map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject]));
     return {
       student: peer,
       hasScore: true,
@@ -976,6 +1001,7 @@ function getStudentFinalGradeSummary(student, round = 1) {
     const wrong = Number(summary.wrongCount) || 0;
     const rank = score === previousScore && wrong === previousWrong ? previousRank : index + 1;
     summary.rank = rank;
+    summary.total = sorted.length;
     summary.topPercent = calculateStudentTopPercent(rank, sorted.length);
     summary.displayTopPercent = rank ? Math.max(1, Math.ceil(summary.topPercent)) : 0;
     summary.percentile = Math.round((100 - summary.topPercent) * 10) / 10;
@@ -983,6 +1009,7 @@ function getStudentFinalGradeSummary(student, round = 1) {
     previousWrong = wrong;
     previousRank = rank;
   });
+  applyStudentFinalSubjectRanks(summaries);
   const own = sorted.find((summary) => String(summary.student.id) === String(student.id));
   if (own && own.explicitRank) {
     const explicitRank = Number(own.explicitRank) || 0;
@@ -996,7 +1023,53 @@ function getStudentFinalGradeSummary(student, round = 1) {
     own.displayTopPercent = Math.max(1, Math.ceil(own.topPercent));
     own.percentile = Math.round((100 - own.topPercent) * 10) / 10;
   }
+  if (own && Number(round) > 1) {
+    const previousOwn = getStudentFinalGradeSummary(student, Number(round) - 1);
+    if (previousOwn?.rank) {
+      own.previousRank = previousOwn.rank;
+      own.rankDelta = Number(previousOwn.rank) - Number(own.rank);
+    }
+  }
   return own || null;
+}
+
+function applyStudentFinalSubjectRanks(summaries = []) {
+  const subjectNames = Array.from(new Set(summaries.flatMap((summary) =>
+    (summary.subjectSummaries || []).map((subjectSummary) => subjectSummary.subject)
+  )));
+  subjectNames.forEach((subject) => {
+    const ranked = summaries
+      .map((summary) => {
+        const subjectSummary = (summary.subjectSummaries || []).find((item) => item.subject === subject);
+        if (!subjectSummary || !subjectSummary.submitted) return null;
+        return { summary, subjectSummary };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const scoreCompare = (Number(b.subjectSummary.score) || 0) - (Number(a.subjectSummary.score) || 0);
+        if (scoreCompare) return scoreCompare;
+        const wrongA = Number(a.subjectSummary.wrongCount);
+        const wrongB = Number(b.subjectSummary.wrongCount);
+        const wrongCompare = (Number.isFinite(wrongA) ? wrongA : 9999) - (Number.isFinite(wrongB) ? wrongB : 9999);
+        if (wrongCompare) return wrongCompare;
+        return String(a.summary.student.id).localeCompare(String(b.summary.student.id), "ko-KR", { numeric: true });
+      });
+    let previousScore = null;
+    let previousWrong = null;
+    let previousRank = 0;
+    ranked.forEach((item, index) => {
+      const score = Number(item.subjectSummary.score) || 0;
+      const wrong = Number(item.subjectSummary.wrongCount);
+      const normalizedWrong = Number.isFinite(wrong) ? wrong : null;
+      const rank = score === previousScore && normalizedWrong === previousWrong ? previousRank : index + 1;
+      item.subjectSummary.rank = rank;
+      item.subjectSummary.topPercent = calculateStudentTopPercent(rank, ranked.length);
+      item.subjectSummary.displayTopPercent = rank ? Math.max(1, Math.ceil(item.subjectSummary.topPercent)) : 0;
+      previousScore = score;
+      previousWrong = normalizedWrong;
+      previousRank = rank;
+    });
+  });
 }
 
 function getStudentFinalScoreRecords(round) {
@@ -1006,6 +1079,9 @@ function getStudentFinalScoreRecords(round) {
     return value === Number(round);
   }).map((record) => ({
     studentId: record.studentId || record.student_id || record.studentNumber || "",
+    studentName: record.studentName || record.student_name || record.name || "",
+    track: normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || ""),
+    cohort: String(record.cohort || record.studentCohort || record.student_cohort || ""),
     score: record.score ?? record.totalScore ?? record.total_score ?? "",
     maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
     wrongCount: record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count ?? "",
@@ -1018,6 +1094,23 @@ function getStudentFinalScoreRecords(round) {
 
 function getFinalGradeSubjectHeaders() {
   return Array.isArray(FINAL_GRADE_SUBJECTS) ? FINAL_GRADE_SUBJECTS : Array.from({ length: 8 }, (_, index) => `과목${index + 1}`);
+}
+
+function getFinalGradeSubjectHeadersForTrack(track) {
+  const finalSubjects = getFinalGradeSubjectHeaders();
+  const subjectMap = {
+    해양경찰학개론: "개론",
+    해사법규: "법규",
+    형사법: "형사",
+    해사영어: "영어",
+    항해학: "항해",
+    기관학: "기관",
+    "형사법(공판)": "형소법(공판)",
+  };
+  const mapped = getDefaultWeeklySubjectsForTrack(track)
+    .map((subject) => subjectMap[subject])
+    .filter((subject) => subject && finalSubjects.includes(subject));
+  return mapped.length ? mapped : finalSubjects;
 }
 
 function normalizeStudentFinalSubjectScores(record) {
@@ -1055,7 +1148,8 @@ function normalizeStudentFinalSubjectValue(value) {
 
 function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}) {
   const score = Number(subjectScore.score) || 0;
-  const maxScore = Number(subjectScore.maxScore) || 0;
+  const submitted = subjectScore.status !== "empty";
+  const maxScore = Number(subjectScore.maxScore) || (submitted ? 100 : 0);
   return {
     subject,
     score,
@@ -1067,7 +1161,7 @@ function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}) {
         : "-",
     rank: 0,
     displayTopPercent: 0,
-    submitted: subjectScore.status !== "empty",
+    submitted,
   };
 }
 
@@ -1184,22 +1278,44 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
     el("strong", {}, "과목별 성적"),
     subjectSummaries.length
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
-          el("h3", {}, item.subject),
+          el("h3", {}, formatFinalGradeSubjectName(item.subject)),
           el("div", { className: "detail-grid" }, [
             el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
             el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatStudentWrongCount(item.wrongCount) : "-")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? formatTopPercentLabel(item.topPercent ?? item.displayTopPercent) : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? formatStudentSubjectPositionLabel(item.topPercent ?? item.displayTopPercent) : "-")]),
           ]),
         ]))
       : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
   ]);
 }
 
+function formatFinalGradeSubjectName(subject) {
+  const names = {
+    법규: "해사법규",
+    개론: "해양경찰학개론",
+    형사: "형사법",
+    영어: "해사영어",
+    항해: "항해학",
+    기관: "기관학",
+    "형소법(공판)": "형사법(공판)",
+  };
+  return names[subject] || subject;
+}
+
+function formatStudentSubjectPositionLabel(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return "-";
+  return `상위 ${Math.max(1, Math.ceil(percent))}%`;
+}
+
 function renderStudentGradeSummaryCard(summary) {
   const student = summary?.student || getAuthedStudent();
   const trackText = student ? getStudentRegisteredTrack(student) : "";
   const rankLabel = summary?.rank ? formatTopPercentLabel(summary.topPercent) : "준비 중";
-  const metaText = summary?.rank && summary?.total ? `응시자 ${summary.total}명 중 ${summary.rank}등` : "성적 집계 후 표시됩니다.";
+  const rankDeltaText = formatStudentRankDelta(summary?.rankDelta);
+  const metaText = summary?.rank && summary?.total
+    ? [`응시자 ${summary.total}명 중 ${summary.rank}등`, rankDeltaText ? `전회차 대비 ${rankDeltaText}` : ""].filter(Boolean).join(" · ")
+    : "성적 집계 후 표시됩니다.";
   return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
     el("div", { className: "student-grade-overview-head" }, [
       el("span", { className: "student-grade-overview-label" }, "내 위치"),
@@ -1207,10 +1323,27 @@ function renderStudentGradeSummaryCard(summary) {
     ]),
     el("strong", { className: "student-grade-overview-value" }, rankLabel),
     el("span", { className: "student-grade-overview-meta" }, metaText),
+    renderStudentGradeProgress(summary),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderStudentGradeMetric("총점", summary ? `${summary.score}/${summary.maxScore}점` : "-"),
       renderStudentGradeMetric("오답", summary ? formatStudentWrongCount(summary.wrongCount) : "-"),
+      renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
     ]),
+  ]);
+}
+
+function renderStudentGradeProgress(summary) {
+  const rawPercent = summary?.rank ? Number(summary.topPercent) || 0 : 0;
+  const percent = summary?.rank ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
+  return el("div", {
+    className: "student-grade-progress",
+    role: "meter",
+    ariaLabel: "내 위치 백분율",
+    ariaValueMin: "0",
+    ariaValueMax: "100",
+    ariaValueNow: String(percent),
+  }, [
+    el("span", { className: "student-grade-progress-fill", style: `width: ${percent}%` }),
   ]);
 }
 
@@ -1225,6 +1358,14 @@ function formatStudentWrongCount(value) {
   if (value === "" || value === null || value === undefined || value === "-") return "-";
   const count = Number(value);
   return Number.isFinite(count) ? `${count}개` : "-";
+}
+
+function formatStudentRankDelta(delta) {
+  if (delta === "" || delta === null || delta === undefined) return "";
+  const value = Number(delta);
+  if (!Number.isFinite(value)) return "";
+  if (!value) return "변동 없음";
+  return value > 0 ? `▲ ${value}` : `▼ ${Math.abs(value)}`;
 }
 
 function renderStudentWeeklyGrades(student) {
