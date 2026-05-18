@@ -3183,6 +3183,15 @@ body:not([data-app-mode="teacher"]) .student-home {
   color: var(--danger);
 }
 
+.student-auth-reset-request[hidden] {
+  display: none;
+}
+
+.student-auth-reset-request .btn {
+  width: 100%;
+  margin-top: 0;
+}
+
 .student-auth-profile {
   display: grid;
   gap: 13px;
@@ -3205,6 +3214,38 @@ body:not([data-app-mode="teacher"]) .student-home {
 body:not([data-app-mode="teacher"]) input[readonly] {
   background: #f5f8fb;
   color: var(--muted);
+}
+
+.info-modal-panel.student-reset-request-modal {
+  width: min(480px, 100%);
+}
+
+.student-reset-request-content {
+  display: grid;
+  gap: 12px;
+}
+
+.student-reset-request-content textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.student-forgot-password-btn {
+  justify-self: start;
+  min-height: 32px;
+  margin-top: -6px;
+}
+
+.student-forgot-password-notice[hidden] {
+  display: none;
+}
+
+.student-forgot-password-notice {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f5f8fb;
+  padding: 10px 12px;
+  font-size: 0.86rem;
 }
 
 .student-dday-card,

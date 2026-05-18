@@ -282,9 +282,35 @@ function getStudentProfile(studentId) {
 function renderStudentAuth() {
   const idInput = input("studentId", "text", "예: 18004", state.settings.studentAuthId || "");
   const lookupResult = el("div", { className: "student-auth-result", ariaLive: "polite" });
+  const resetRequestArea = el("div", { className: "student-auth-reset-request", hidden: true });
   const profileArea = el("div", { className: "student-auth-profile", hidden: true });
   const studentNameNode = el("strong", { className: "student-auth-name" }, "-");
   let selectedStudent = null;
+
+  const showResetRequestButton = (student) => {
+    resetRequestArea.innerHTML = "";
+    resetRequestArea.hidden = false;
+    resetRequestArea.appendChild(
+      button("등록기기 초기화", "btn secondary", "button", () =>
+        openStudentRegistrationResetModal(student, () => {
+          student.passwordHash = "";
+          student.deviceToken = "";
+          student.appRegisteredAt = "";
+          if (state.settings.studentProfiles?.[student.id]) delete state.settings.studentProfiles[student.id];
+          saveState({ skipRemote: true });
+          hideResetRequestButton();
+          profileArea.hidden = true;
+          lookupResult.className = "student-auth-result success";
+          lookupResult.textContent = "등록기기가 초기화되었습니다. 다시 조회한 뒤 새 기기로 등록해주세요.";
+        })
+      )
+    );
+  };
+
+  const hideResetRequestButton = () => {
+    resetRequestArea.innerHTML = "";
+    resetRequestArea.hidden = true;
+  };
 
   const lookupButton = button("조회", "btn secondary", "button", async () => {
     selectedStudent = findStudent(idInput.value);
@@ -293,6 +319,7 @@ function renderStudentAuth() {
       selectedStudent = findStudent(idInput.value);
     }
     lookupResult.innerHTML = "";
+    hideResetRequestButton();
     profileArea.hidden = true;
 
     if (!selectedStudent) {
@@ -305,6 +332,7 @@ function renderStudentAuth() {
     if (selectedStudent.appRegisteredAt && !profile.deviceToken) {
       lookupResult.className = "student-auth-result error";
       lookupResult.textContent = "이미 다른 기기에서 앱 등록이 완료된 학생입니다. 사무실에 문의해주세요.";
+      showResetRequestButton(selectedStudent);
       return;
     }
     const normalizedTrack = normalizeCoastGuardTrack(profile.track || selectedStudent.track);
@@ -350,6 +378,7 @@ function renderStudentAuth() {
     ]),
     field("학생 고유번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "예: 18기 4번 -> 18004"),
     lookupResult,
+    resetRequestArea,
     profileArea,
     button("시작하기", "btn"),
   ]);
@@ -405,6 +434,85 @@ function renderStudentAuth() {
 
   return el("div", { className: "grid student-view" }, [form, renderStudentAuthInstallCard()].filter(Boolean));
 }
+
+function openStudentRegistrationResetModal(student, onSuccess) {
+  const passwordInput = input("password", "password", "본인 비밀번호");
+  const reasonInput = textarea("reason", "예: 앱으로만 사용했는데 등록된 기기라고 표시됩니다.");
+  const forgotPasswordNotice = el(
+    "p",
+    { className: "student-forgot-password-notice", hidden: true },
+    "비밀번호를 잊은 경우 본인 확인이 필요합니다. 사무실 또는 담당자에게 학생번호와 이름을 알려주세요."
+  );
+  const forgotPasswordButton = button("비밀번호를 잊었나요?", "mini-btn student-forgot-password-btn", "button", () => {
+    forgotPasswordNotice.hidden = false;
+  });
+  const resetButton = button("초기화하기", "btn", "button", async () => {
+    const passwordHash = await hashStudentPassword(passwordInput.value);
+    const reason = String(reasonInput.value || "").trim();
+    if (!passwordInput.value || !reason) {
+      notify("본인 비밀번호와 초기화 사유를 입력해주세요.");
+      return;
+    }
+
+    setButtonLoading(resetButton, "초기화 중");
+    resetButton.disabled = true;
+    try {
+      const response = await fetch("/api/student-reset-registration", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: student.id,
+          passwordHash,
+          reason,
+          client: {
+            href: location.href,
+            displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+            userAgent: navigator.userAgent || "",
+          },
+        }),
+      });
+      const data = response.ok ? await response.json() : { ok: false };
+      if (!data.ok) {
+        if (data.error === "password_mismatch") notify("비밀번호가 일치하지 않습니다.");
+        else if (data.error === "student_not_found") notify("학생 정보를 찾을 수 없습니다.");
+        else notify("등록기기 초기화에 실패했습니다.");
+        return;
+      }
+      closeInfoModal();
+      onSuccess?.();
+      notify("등록기기를 초기화했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("등록기기 초기화 중 오류가 발생했습니다.");
+    } finally {
+      resetButton.disabled = false;
+      resetButton.textContent = "초기화하기";
+    }
+  });
+
+  openInfoModal({
+    title: "등록기기 초기화",
+    className: "student-reset-request-modal",
+    content: el("div", { className: "student-reset-request-content" }, [
+      el("p", {}, "본인 확인 후 기존 등록기기를 해제하고 이 기기에서 다시 등록할 수 있습니다."),
+      field("본인 비밀번호", passwordInput),
+      forgotPasswordButton,
+      forgotPasswordNotice,
+      field("초기화 사유", reasonInput),
+      resetButton,
+    ]),
+  });
+}
+
+function isStandaloneStudentApp() {
+  return Boolean(
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator.standalone ||
+      document.referrer.startsWith("android-app://")
+  );
+}
+
 async function hashStudentPassword(password) {
   const value = String(password || "");
   if (window.crypto?.subtle) {
