@@ -2531,6 +2531,7 @@ function trackOptionAdminPanel() {
       const isBaseOption = baseOptions.has(option);
       const upButton = button("↑", "mini-btn", "button", () => moveTrackOption(option, -1));
       const downButton = button("↓", "mini-btn", "button", () => moveTrackOption(option, 1));
+      const deleteButton = button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option));
       upButton.disabled = index === 0;
       downButton.disabled = index === draftOptions.length - 1;
       return el("div", { className: "track-option-row" }, [
@@ -2542,8 +2543,8 @@ function trackOptionAdminPanel() {
         el("div", { className: "track-option-actions" }, [
           upButton,
           downButton,
-          isBaseOption ? null : button("삭제", "mini-btn danger", "button", () => deleteTrackOption(option)),
-        ].filter(Boolean)),
+          deleteButton,
+        ]),
       ]);
     }),
     el("div", { className: "track-option-row fixed" }, [
@@ -2552,6 +2553,7 @@ function trackOptionAdminPanel() {
         el("strong", {}, "기타"),
         el("span", {}, "맨 아래 고정"),
       ]),
+      renderDisabledTrackOptionActions(),
     ]),
   ]);
   const saveButton = button("저장", "btn", "button", saveTrackOptionDraft);
@@ -2561,7 +2563,7 @@ function trackOptionAdminPanel() {
 
   return panel("직렬 항목 관리", [
     form,
-    el("p", { className: "subtle" }, "이 순서대로 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기본 항목은 삭제할 수 없고, 기타는 항상 맨 아래에 고정됩니다."),
+    el("p", { className: "subtle" }, "이 순서대로 학생 등록 화면의 직렬 드롭다운에 표시됩니다. 기타는 항상 맨 아래에 고정됩니다."),
     optionList,
     el("div", { className: "track-option-savebar" }, [
       el("span", { className: isDirty ? "badge pending" : "badge approved" }, isDirty ? "저장 전 변경사항 있음" : "저장됨"),
@@ -2569,6 +2571,16 @@ function trackOptionAdminPanel() {
       resetButton,
     ]),
   ]);
+}
+
+function renderDisabledTrackOptionActions() {
+  const upButton = button("↑", "mini-btn", "button");
+  const downButton = button("↓", "mini-btn", "button");
+  const deleteButton = button("삭제", "mini-btn danger", "button");
+  upButton.disabled = true;
+  downButton.disabled = true;
+  deleteButton.disabled = true;
+  return el("div", { className: "track-option-actions" }, [upButton, downButton, deleteButton]);
 }
 
 function ensureTrackOptionDraft() {
@@ -2613,15 +2625,15 @@ function resetTrackOptionDraft() {
 
 async function saveTrackOptionDraft() {
   const nextOptions = normalizeTrackOptionList(ensureTrackOptionDraft());
-  const previousCustomOptions = getCustomTrackOptions();
+  const previousOptions = getCoastGuardTrackOptions().filter((option) => option !== "기타");
   const nextSet = new Set(nextOptions);
-  const deletedCustomOptions = previousCustomOptions.filter((option) => !nextSet.has(option));
+  const deletedOptions = previousOptions.filter((option) => !nextSet.has(option));
   state.settings.trackOptions = nextOptions;
   saveState({ skipRemote: true });
 
   if (remoteStore) {
     try {
-      await saveTrackOptionsToRemote(nextOptions, deletedCustomOptions);
+      await saveTrackOptionsToRemote(nextOptions, deletedOptions);
     } catch (error) {
       console.error(error);
       notify("직렬 항목을 로컬에 저장했지만 서버 저장에 실패했습니다. Supabase 설정을 확인해주세요.");

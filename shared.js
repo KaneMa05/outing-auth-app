@@ -255,7 +255,7 @@ function getCustomTrackOptions() {
 
 function getCoastGuardTrackOptions() {
   const savedOptions = normalizeTrackOptionList(state.settings.trackOptions);
-  const orderedOptions = savedOptions.length ? normalizeTrackOptionList([...savedOptions, ...getBaseTrackOptions()]) : getBaseTrackOptions();
+  const orderedOptions = savedOptions.length ? savedOptions : getBaseTrackOptions();
   return [...orderedOptions, "기타"];
 }
 
