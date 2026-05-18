@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v149-track-subject-grades";
+const CACHE_NAME = "outing-auth-app-v150-vts-law-label";
 const APP_SHELL = [
   "/",
   "/index.html",

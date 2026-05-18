@@ -809,7 +809,7 @@ function studentLookup(buttonText) {
 
 let selectedStudentExamId = "";
 let selectedStudentGradeLookupExamId = "";
-let selectedStudentFinalRound = 1;
+let selectedStudentFinalRound = 0;
 let studentGradeLookupType = "final";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
@@ -817,7 +817,7 @@ let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editin
 function resetStudentGradesView() {
   selectedStudentExamId = "";
   selectedStudentGradeLookupExamId = "";
-  selectedStudentFinalRound = 1;
+  selectedStudentFinalRound = 0;
   studentGradeLookupType = "final";
   studentGradesView = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
@@ -900,7 +900,7 @@ function getStudentFinalRoundOptions(student) {
     .filter(hasStudentFinalScoreRecord)
     .map(getStudentFinalRecordRound)
     .filter((round) => Number.isFinite(round) && round > 0);
-  const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => a - b);
+  const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => b - a);
   return uniqueRounds;
 }
 
@@ -956,14 +956,15 @@ function getStudentFinalGradeSummary(student, round = 1) {
     .map((record) => ({
       id: record.studentId,
       name: record.studentName || record.studentId,
-      track: record.track || registeredTrack,
+      track: normalizeCoastGuardTrack(record.track || registeredTrack),
       isExternalFinalScore: true,
     }));
   const summaries = [...peers, ...externalPeers].map((peer) => {
     const record = records.find((item) => String(item.studentId || "").trim() === String(peer.id || "").trim());
     if (!record) return { student: peer, hasScore: false, submittedCount: 0, score: 0, maxScore: 0, wrongCount: "", subjectSummaries: [] };
-    const subjectSummaries = getFinalGradeSubjectHeadersForTrack(getStudentRegisteredTrack(peer))
-      .map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject]));
+    const peerTrack = getStudentRegisteredTrack(peer);
+    const subjectSummaries = getFinalGradeSubjectHeadersForTrack(peerTrack)
+      .map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject], peerTrack));
     const submittedSubjectSummaries = subjectSummaries.filter((item) => item.submitted);
     const score = submittedSubjectSummaries.length
       ? submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
@@ -1142,12 +1143,13 @@ function normalizeStudentFinalSubjectValue(value) {
   return { score: value, maxScore: "", status: "submitted" };
 }
 
-function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}) {
+function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}, track = "") {
   const score = Number(subjectScore.score) || 0;
   const submitted = subjectScore.status !== "empty";
   const maxScore = Number(subjectScore.maxScore) || (submitted ? 100 : 0);
   return {
     subject,
+    track,
     score,
     maxScore,
     wrongCount: subjectScore.wrongCount !== "" && subjectScore.wrongCount !== null && subjectScore.wrongCount !== undefined
@@ -1274,7 +1276,7 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
     el("strong", {}, "과목별 성적"),
     subjectSummaries.length
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
-          el("h3", {}, formatFinalGradeSubjectName(item.subject)),
+          el("h3", {}, formatFinalGradeSubjectName(item.subject, item.track)),
           el("div", { className: "detail-grid" }, [
             el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
             el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatStudentWrongCount(item.wrongCount) : "-")]),
@@ -1285,17 +1287,8 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
   ]);
 }
 
-function formatFinalGradeSubjectName(subject) {
-  const names = {
-    법규: "해사법규",
-    개론: "해양경찰학개론",
-    형사: "형사법",
-    영어: "해사영어",
-    항해: "항해학",
-    기관: "기관학",
-    "형소법(공판)": "형사법(공판)",
-  };
-  return names[subject] || subject;
+function formatFinalGradeSubjectName(subject, track = "") {
+  return formatFinalGradeSubjectDisplayName(subject, track);
 }
 
 function formatStudentSubjectPositionLabel(value) {

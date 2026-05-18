@@ -2424,6 +2424,7 @@ function renderStudentGradePreviewPanel(summary, roundOptions) {
     const maxScore = Number(subjectScore.maxScore) || (submitted ? 100 : 0);
     return {
       subject,
+      track: getTeacherStudentRegisteredTrack(summary.student),
       submitted,
       score,
       wrongCount: maxScore ? Math.max(0, Math.round((maxScore - score) / 5)) : "-",
@@ -2495,7 +2496,7 @@ function renderTeacherPreviewSubjectGradeList(subjectSummaries = []) {
     el("strong", {}, "과목별 성적"),
     subjectSummaries.length
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
-          el("h3", {}, formatTeacherPreviewFinalSubjectName(item.subject)),
+          el("h3", {}, formatTeacherPreviewFinalSubjectName(item.subject, item.track)),
           el("div", { className: "detail-grid" }, [
             el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
             el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatTeacherPreviewWrongCount(item.wrongCount) : "-")]),
@@ -2511,17 +2512,8 @@ function getTeacherPreviewFinalSubjectHeadersForTrack(track) {
   return getFinalGradeSubjectsForTrack(track, finalSubjects);
 }
 
-function formatTeacherPreviewFinalSubjectName(subject) {
-  const names = {
-    법규: "해사법규",
-    개론: "해양경찰학개론",
-    형사: "형사법",
-    영어: "해사영어",
-    항해: "항해학",
-    기관: "기관학",
-    "형소법(공판)": "형사법(공판)",
-  };
-  return names[subject] || subject;
+function formatTeacherPreviewFinalSubjectName(subject, track = "") {
+  return formatFinalGradeSubjectDisplayName(subject, track);
 }
 
 function formatTeacherPreviewSubjectPositionLabel(value) {
@@ -4598,7 +4590,18 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const summaries = applyGradeRanksByTrack(participants.map((student) => getFinalMockGradeStudentSummary(student, records)));
   const registered = participants.map((student) => recordByStudent.get(String(student.id))).filter(Boolean);
-  const headers = ["이름", "구분", "직렬", ...getGradeSubjectHeaders(), "오답", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
+  const headers = [
+    "이름",
+    "구분",
+    "직렬",
+    ...getGradeSubjectHeaders().map((subject) => formatFinalGradeTableSubjectHeader(subject, gradeManagementTrackFilter)),
+    "오답",
+    "이번 등수",
+    "백분율",
+    "전회차 등수",
+    "전회차 대비 등수 등락",
+    "관리",
+  ];
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
@@ -5096,6 +5099,10 @@ function formatSubjectScoreCell(subjectScore) {
   if (subjectScore.status === "empty") return "-";
   const score = Number(subjectScore.score) || 0;
   return String(score);
+}
+
+function formatFinalGradeTableSubjectHeader(subject, track = "") {
+  return formatFinalGradeSubjectDisplayName(subject, normalizeCoastGuardTrack(track));
 }
 
 function formatRankDelta(currentRank, previousRank) {

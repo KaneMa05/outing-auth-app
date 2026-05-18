@@ -270,6 +270,23 @@ function getFinalGradeSubjectsForTrack(track, finalSubjects) {
   return mapped.length ? mapped : subjects;
 }
 
+function formatFinalGradeSubjectDisplayName(subject, track = "") {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  if (subject === "법규" && normalizedTrack === "일반직 - 선박교통관제(VTS)") {
+    return "해사법규(해상교통관리)";
+  }
+  const names = {
+    법규: "해사법규",
+    개론: "해양경찰학개론",
+    형사: "형사법",
+    영어: "해사영어",
+    항해: "항해학",
+    기관: "기관학",
+    "형소법(공판)": "형사법(공판)",
+  };
+  return names[subject] || subject;
+}
+
 function hasSavedWeeklySubjectSettingsForTrack(track) {
   const normalized = normalizeCoastGuardTrack(track);
   return (state.examSubjectSettings || []).some((setting) => normalizeCoastGuardTrack(setting.track) === normalized);
