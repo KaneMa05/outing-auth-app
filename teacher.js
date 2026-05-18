@@ -16,6 +16,7 @@ let trackOptionDraft = null;
 let gradeManagementMode = "weekly";
 let gradeManagementTrackFilter = "";
 let finalExamGradeFilters = { round: "1" };
+let studentPreviewFinalRoundByStudent = {};
 let weeklyExamMode = "lookup";
 let weeklyExamSelectedId = "";
 let weeklyExamSelectedSectionId = "";
@@ -2348,11 +2349,26 @@ function studentPreviewAttendanceText(check) {
 
 function renderStudentPreviewGrades(student) {
   const roundOptions = getTeacherPreviewFinalRoundOptions(student);
-  const round = roundOptions[roundOptions.length - 1] || 0;
+  const selectedRound = Number(studentPreviewFinalRoundByStudent[student.id]) || 0;
+  const round = roundOptions.includes(selectedRound) ? selectedRound : roundOptions[roundOptions.length - 1] || 0;
+  if (round) studentPreviewFinalRoundByStudent[student.id] = round;
   const summary = round ? getTeacherPreviewFinalSummary(student, round) : null;
   return panel("성적", [
     renderStudentGradePreviewPanel(summary, roundOptions),
   ]);
+}
+
+function renderTeacherPreviewFinalRoundSelect(studentId, roundOptions = []) {
+  const node = el("select", {
+    className: "student-grade-round-select",
+    ariaLabel: "파이널 성적 회차 선택",
+  }, roundOptions.map((round) => el("option", { value: String(round) }, `${round}회차`)));
+  node.value = String(studentPreviewFinalRoundByStudent[studentId] || roundOptions[roundOptions.length - 1] || "");
+  node.addEventListener("change", () => {
+    studentPreviewFinalRoundByStudent[studentId] = Number(node.value) || 0;
+    render();
+  });
+  return node;
 }
 
 function getTeacherPreviewFinalRoundOptions(student) {
@@ -2420,6 +2436,7 @@ function renderStudentGradePreviewPanel(summary, roundOptions) {
   return el("div", { className: "student-grade-result" }, [
     el("div", { className: "student-grade-result-title" }, [
       el("strong", {}, `${Number(summary.round) || roundOptions[roundOptions.length - 1]}회차 파이널 성적`),
+      roundOptions.length ? renderTeacherPreviewFinalRoundSelect(summary.student.id, roundOptions) : null,
     ]),
     renderTeacherPreviewGradeSummary({
       label: summary.rank ? formatTopPercentLabel(summary.topPercent) : "",
