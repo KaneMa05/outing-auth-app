@@ -936,7 +936,7 @@ async function loadStateFromRemote() {
     "returned_at",
     "deleted_at",
   ].join(",");
-  const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
+  const photoColumns = "id,outing_id,photo_type,data_url,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
   const attendanceColumns = [
     "id",
     "student_id",
@@ -1080,7 +1080,7 @@ async function loadStateFromRemote() {
     isMissingColumnError(photoResult.error, "thumbnail_path") ||
     isMissingColumnError(photoResult.error, "thumbnail_url")
   ) {
-    const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+    const fallbackPhotoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
     photoResult = APP_MODE === "teacher"
       ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).order("uploaded_at", { ascending: true })
       : { data: [], error: null };
@@ -1125,7 +1125,7 @@ async function loadStateFromRemote() {
       isMissingColumnError(scopedPhotoResult.error, "thumbnail_path") ||
       isMissingColumnError(scopedPhotoResult.error, "thumbnail_url")
     ) {
-      const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+      const fallbackPhotoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
       const fallbackPhotoResult = outingIds.length
         ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
         : { data: [], error: null };
@@ -1161,7 +1161,7 @@ async function loadStateFromRemote() {
         id: photo.id,
         type: photo.photo_type,
         name: photo.original_name || "",
-        dataUrl: "",
+        dataUrl: photo.data_url || "",
         photoPath: photo.photo_path || "",
         photoUrl: photo.photo_url || "",
         thumbnailPath: photo.thumbnail_path || "",
