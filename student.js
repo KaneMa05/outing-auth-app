@@ -778,7 +778,7 @@ function createReturnForm() {
   const student = getAuthedStudent();
   const submitButton = button("복귀 완료", "btn");
   const form = el("form", { className: "form-grid" }, [
-    field("복귀 현장 사진", photoCaptureInput("returnPhoto"), "full"),
+    field("복귀 현장 사진", photoCaptureInput("returnPhoto", { thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),
