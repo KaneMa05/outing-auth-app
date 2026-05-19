@@ -1172,7 +1172,7 @@ async function loadStateFromRemote() {
     return {
       id: outing.id,
       studentId: outing.student_id,
-      studentName: outing.student_name || "",
+      studentName: getCanonicalStudentName(outing.student_id, outing.student_name || ""),
       className: outing.class_name || "",
       reason: outing.reason,
       detail: outing.detail || "",
@@ -2045,6 +2045,10 @@ function findStudent(id) {
   return state.students.find((student) => student.id === String(id).trim());
 }
 
+function getCanonicalStudentName(studentId, fallback = "") {
+  return findStudent(studentId)?.name || fallback || "";
+}
+
 function addStudentRegistrationEvent(student, eventType, options = {}) {
   if (!student?.id) return null;
   const event = {
@@ -2102,7 +2106,7 @@ function mapAttendanceCheckFromRemote(check) {
   return {
     id: check.id,
     studentId: check.student_id,
-    studentName: check.student_name || "",
+    studentName: getCanonicalStudentName(check.student_id, check.student_name || ""),
     className: check.class_name || "",
     checkDate: check.check_date,
     status: check.status || "present",
@@ -2129,7 +2133,7 @@ function mapPenaltyFromRemote(penalty) {
   return {
     id: penalty.id,
     studentId: penalty.student_id,
-    studentName: penalty.student_name || "",
+    studentName: getCanonicalStudentName(penalty.student_id, penalty.student_name || ""),
     className: penalty.class_name || "",
     points: Number(penalty.points) || 0,
     reason: penalty.reason || "",
@@ -2193,7 +2197,7 @@ function mapExamSubmissionFromRemote(submission) {
     id: submission.id,
     examSectionId: submission.exam_section_id,
     studentId: submission.student_id,
-    studentName: submission.student_name || "",
+    studentName: getCanonicalStudentName(submission.student_id, submission.student_name || ""),
     track: normalizeCoastGuardTrack(submission.track),
     status: submission.status || "submitted",
     score: Number(submission.score) || 0,
@@ -2244,7 +2248,7 @@ function mapStudentRegistrationEventFromRemote(event) {
   return {
     id: event.id,
     studentId: event.student_id,
-    studentName: event.student_name || "",
+    studentName: getCanonicalStudentName(event.student_id, event.student_name || ""),
     eventType: event.event_type || "registered",
     deviceToken: event.device_token || "",
     reason: event.reason || "",
