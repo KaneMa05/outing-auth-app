@@ -2646,7 +2646,7 @@ function getPhotoModalSrc(photo) {
     || "";
 }
 
-async function createOutingPhoto(outing, file, type) {
+async function createOutingPhoto(outing, file, type, options = {}) {
   if (!outing) throw new Error("outing_required");
   if (!file) throw new Error("photo_required");
   const id = createId();
@@ -2658,7 +2658,12 @@ async function createOutingPhoto(outing, file, type) {
   let dataUrl = "";
 
   if (remoteStore) {
-    const blob = await compressImageBlob(file, 640, 0.58, 120000);
+    const blob = await compressImageBlob(
+      file,
+      options.maxSize || 640,
+      options.quality || 0.58,
+      options.targetBytes || 120000
+    );
     photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
     const { error: uploadError } = await remoteStore.storage
       .from(OUTING_PHOTO_BUCKET)
