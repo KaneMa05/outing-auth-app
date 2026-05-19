@@ -1694,7 +1694,7 @@ function outingCard(outing, options = {}) {
   }
 
   if (options.teacher) {
-    const canDecide = outing.decision === "pending";
+    const canDecide = outing.decision === "pending" && outing.status !== "returned";
     nodes.push(
       el("div", { className: "action-row" }, [
         canDecide ? button("승인", "btn secondary", "button", () => decideOuting(outing.id, "approved")) : null,
@@ -1756,19 +1756,29 @@ function metaChip(label, value) {
 async function decideOuting(id, decision) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
-  const previousDecision = outing.decision;
+  const previous = {
+    decision: outing.decision,
+    status: outing.status,
+    returnedAt: outing.returnedAt,
+  };
   outing.decision = decision;
+  if (decision === "approved" && !outing.earlyLeaveReason) {
+    outing.status = "returned";
+    outing.returnedAt = outing.returnedAt || new Date().toISOString();
+  }
   saveState({ skipRemote: true });
   render();
   try {
     await updateOutingDecisionToRemote(outing);
-    notify(decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
+    notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 처리했습니다." : decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
   } catch (error) {
     console.error(error);
-    outing.decision = previousDecision;
+    outing.decision = previous.decision;
+    outing.status = previous.status;
+    outing.returnedAt = previous.returnedAt;
     saveState({ skipRemote: true });
     render();
-    notify(decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
+    notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 저장 중 오류가 발생했습니다." : decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
   }
 }
 
@@ -1780,7 +1790,11 @@ async function updateOutingDecisionToRemote(outing) {
   if (!remoteStore) return;
   const { error } = await remoteStore
     .from("outings")
-    .update({ decision: outing.decision })
+    .update({
+      decision: outing.decision,
+      status: outing.status,
+      returned_at: outing.returnedAt || null,
+    })
     .eq("id", outing.id);
   if (error) throw error;
 }
@@ -1995,8 +2009,9 @@ function labelTableRows(headers, rows) {
 }
 
 function statusBadge(outing) {
-  if (outing.decision === "approved") return el("span", { className: "badge approved" }, "승인");
   if (outing.decision === "rejected") return el("span", { className: "badge rejected" }, "반려");
+  if (outing.status === "returned") return el("span", { className: "badge returned" }, "복귀 완료");
+  if (outing.decision === "approved") return el("span", { className: "badge approved" }, "승인");
   const labels = {
     requested: "신청 대기",
     verified: "인증 제출",
@@ -2050,6 +2065,7 @@ function isAttendanceExcludedStudent(student) {
 
 function isActiveOuting(outing) {
   return outing?.status !== "returned"
+    && outing?.decision !== "approved"
     && outing?.decision !== "rejected";
 }
 

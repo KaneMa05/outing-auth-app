@@ -155,7 +155,7 @@ function renderTeacher() {
   applyAutoApprovalForReturnedOutings();
   const activeOutings = state.outings.filter(isActiveOuting);
   const todayEarlyLeaves = state.outings.filter(isTodayEarlyLeave);
-  const pendingOutingCases = state.outings.filter((outing) => outing.decision === "pending");
+  const activeOutingCases = state.outings.filter(isActiveOuting);
   const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
   const visibleOutings = getFilteredTeacherOutings();
   const pendingOutings = visibleOutings.filter(isActionRequired);
@@ -173,7 +173,7 @@ function renderTeacher() {
         }),
       ]),
       statGroup("외출 건수", [
-        stat("처리 대기", pendingOutingCases.length, "건", {
+        stat("진행 중", activeOutingCases.length, "건", {
           onClick: () => scrollToPanel("outing-pending-section"),
         }),
         stat("외출 중", activeOutings.length, "건", {
@@ -565,7 +565,6 @@ async function giveLatePenaltyToAbsentStudents(students) {
 }
 
 function applyAutoApprovalForReturnedOutings() {
-  if (!hasTeacherPermission("outing.approve")) return;
   let changed = false;
   state.outings.forEach((outing) => {
     if (outing.decision === "pending" && isReturnPhotoCompleted(outing)) {
@@ -1559,7 +1558,7 @@ function attendancePhotoButton(check) {
 }
 
 function isActionRequired(outing) {
-  return outing.decision === "pending";
+  return isActiveOuting(outing);
 }
 
 function teacherOutingSection(titleText, outings, options, id = "") {
@@ -1647,7 +1646,7 @@ function renderTeacherOutingTable(outings, options = {}) {
 
 function teacherRowActions(outing, options = {}) {
   if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
-  const canDecide = outing.decision === "pending" && hasTeacherPermission("outing.approve");
+  const canDecide = outing.decision === "pending" && outing.status !== "returned" && hasTeacherPermission("outing.approve");
   const canGiveNotReturnedPenalty = canGiveNotReturnedPenaltyForOuting(outing);
   const canRejectWithPenalty = canDecide && hasTeacherPermission("penalties.write");
 

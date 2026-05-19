@@ -69,7 +69,7 @@ function renderStudentRequestStep() {
 }
 
 function renderStudentOut() {
-  return studentShell("외출 신청", "학생은 고유번호로 신청만 남깁니다. 승인/반려는 교사용 화면에서 처리합니다.", [
+  return studentShell("외출 신청", "외출 신청 후 사진 인증과 복귀 인증까지 완료해주세요.", [
     panel("신청 정보", [createOutForm()]),
     panel("내 진행 상태 확인", [studentLookup("신청 상태 보기")]),
   ]);
@@ -453,13 +453,8 @@ function hasOutingPhotoType(outing, type) {
   return (outing?.photos || []).some((photo) => photo?.type === type);
 }
 
-function isOutingApprovedForReturn(outing) {
-  return outing?.decision === "approved";
-}
-
 function isOutingReadyForReturn(outing) {
   if (!outing) return false;
-  if (isOutingApprovedForReturn(outing)) return true;
   return Boolean(
     outing.status !== "requested" &&
       hasOutingPhotoType(outing, "현장 인증") &&
