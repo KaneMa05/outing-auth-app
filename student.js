@@ -300,7 +300,11 @@ function createVerifyForm() {
     submitButton.disabled = true;
     try {
       await flushRemoteSave();
-      const photo = await createOutingPhoto(outing, file, type);
+      const photo = await createOutingPhoto(outing, file, type, {
+        fastEncode: true,
+        maxSize: 520,
+        quality: 0.56,
+      });
       outing.photos = outing.photos.filter((item) => item.type !== type);
       outing.photos.push(photo);
       state.settings.lastStudentId = outing.studentId;
