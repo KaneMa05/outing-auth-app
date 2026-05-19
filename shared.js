@@ -1414,7 +1414,18 @@ async function saveStateToRemote() {
         returned_at: outing.returned_at,
       })
       .eq("id", outing.id);
-    if (error) throw error;
+    if (error) {
+      const { error: fallbackError } = await remoteStore
+        .from("outings")
+        .update({
+          status: outing.status,
+          receipt_note: outing.receipt_note,
+          verified_at: outing.verified_at,
+          returned_at: outing.returned_at,
+        })
+        .eq("id", outing.id);
+      if (fallbackError) throw fallbackError;
+    }
   }
 
   const deletedRows = (state.deletedOutings || [])
