@@ -2663,26 +2663,22 @@ async function createOutingPhoto(outing, file, type) {
     const blob = dataUrlToBlob(compressedDataUrl);
     const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
     photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
-    thumbnailPath = createOutingPhotoPath(outing.studentId, outing.id, id, "thumb");
-    const [photoUploadResult, thumbnailUploadResult] = await Promise.all([
-      remoteStore.storage
-        .from(OUTING_PHOTO_BUCKET)
-        .upload(photoPath, blob, {
-          cacheControl: "31536000",
-          contentType: blob.type || "image/jpeg",
-          upsert: false,
-        }),
-      remoteStore.storage
-        .from(OUTING_PHOTO_BUCKET)
-        .upload(thumbnailPath, thumbnailBlob, {
-          cacheControl: "31536000",
-          contentType: thumbnailBlob.type || "image/jpeg",
-          upsert: false,
-        }),
-    ]);
-    const uploadError = photoUploadResult.error;
+    const { error: uploadError } = await remoteStore.storage
+      .from(OUTING_PHOTO_BUCKET)
+      .upload(photoPath, blob, {
+        cacheControl: "31536000",
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
     if (uploadError) throw uploadError;
-    const thumbnailUploadError = thumbnailUploadResult.error;
+    thumbnailPath = createOutingPhotoPath(outing.studentId, outing.id, id, "thumb");
+    const { error: thumbnailUploadError } = await remoteStore.storage
+      .from(OUTING_PHOTO_BUCKET)
+      .upload(thumbnailPath, thumbnailBlob, {
+        cacheControl: "31536000",
+        contentType: thumbnailBlob.type || "image/jpeg",
+        upsert: false,
+      });
     if (thumbnailUploadError && !isDuplicateStorageObjectError(thumbnailUploadError)) {
       console.warn("Outing photo thumbnail upload failed; continuing with original photo.", thumbnailUploadError);
       thumbnailPath = "";
