@@ -289,6 +289,8 @@ function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
+  const savedSitePhoto = getOutingPhotoByType(activeOuting, "현장 인증");
+  const savedReceiptPhoto = getOutingPhotoByType(activeOuting, "영수증 인증");
   const savedTypes = new Set((activeOuting?.photos || []).map((photo) => photo.type));
   const savingTypes = new Set();
   const saveVerificationPhoto = async (file, type) => {
@@ -315,6 +317,7 @@ function createVerifyForm() {
     field("현장 인증 사진", photoCaptureInput("sitePhoto", {
       thumbnailPreview: true,
       initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료" : "",
+      initialPreviewSrc: getOutingThumbnailSrc(savedSitePhoto),
       onFileSelected: (file) => saveVerificationPhoto(file, "현장 인증"),
       savingText: "현장 사진 저장 중...",
       savedText: "현장 사진 저장 완료",
@@ -324,6 +327,7 @@ function createVerifyForm() {
       photoCaptureInput("receiptPhoto", {
         thumbnailPreview: true,
         initialStatus: savedTypes.has("영수증 인증") ? "영수증 사진 저장 완료" : "",
+        initialPreviewSrc: getOutingThumbnailSrc(savedReceiptPhoto),
         onFileSelected: (file) => saveVerificationPhoto(file, "영수증 인증"),
         savingText: "영수증 사진 저장 중...",
         savedText: "영수증 사진 저장 완료",
@@ -374,6 +378,10 @@ function createVerifyForm() {
   return form;
 }
 
+function getOutingPhotoByType(outing, type) {
+  return (outing?.photos || []).find((photo) => photo?.type === type) || null;
+}
+
 function photoCaptureInput(name, options = {}) {
   const disabled = Boolean(options.disabled);
   const skipPreview = Boolean(options.skipPreview);
@@ -384,6 +392,10 @@ function photoCaptureInput(name, options = {}) {
   inputNode.className = "visually-hidden-file";
   const status = el("span", { className: `photo-input-status ${options.initialStatus ? "selected" : ""}` }, disabled ? "인증 가능 시간이 지났습니다." : options.initialStatus || "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
+  if (options.initialPreviewSrc) {
+    preview.appendChild(el("img", { src: options.initialPreviewSrc, alt: "저장된 사진 미리보기", loading: "lazy" }));
+    preview.hidden = false;
+  }
   let pickerResetTimer = null;
   let pickerInProgress = false;
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
