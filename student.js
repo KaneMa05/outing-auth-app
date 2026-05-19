@@ -363,24 +363,45 @@ function createVerifyForm() {
       "인증 내역 저장 중...",
     ]);
 
+    const previousOuting = {
+      receiptNote: outing.receiptNote,
+      status: outing.status,
+      verifiedAt: outing.verifiedAt,
+    };
+    const previousSettings = {
+      lastStudentId: state.settings.lastStudentId,
+      earlyLeaveMode: state.settings.earlyLeaveMode,
+      studentStep: state.settings.studentStep,
+    };
+
+    let isStatusSavePhase = false;
     try {
       await flushRemoteSave();
+      isStatusSavePhase = true;
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
       outing.verifiedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
-      setStudentStep("return");
       state.settings.earlyLeaveMode = false;
       saveState();
       await flushRemoteSave();
       loadingProgress.stop();
-      form.reset();
-      render();
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
+      form.reset();
+      setStudentStep("return");
+      saveState();
+      render();
     } catch (error) {
       console.error(error);
+      outing.receiptNote = previousOuting.receiptNote;
+      outing.status = previousOuting.status;
+      outing.verifiedAt = previousOuting.verifiedAt;
+      state.settings.lastStudentId = previousSettings.lastStudentId;
+      state.settings.earlyLeaveMode = previousSettings.earlyLeaveMode;
+      state.settings.studentStep = previousSettings.studentStep;
+      saveState();
       loadingProgress.stop();
-      notify(getPhotoSubmitErrorMessage(error));
+      notify(isStatusSavePhase ? "사진은 저장됐지만 인증 완료 상태 저장이 끝나지 않았습니다. 잠시 후 다시 인증 제출을 눌러주세요." : getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
     }
@@ -879,8 +900,8 @@ function createReturnForm() {
       outing.photos = outing.photos.filter((item) => item.type !== "복귀 인증");
       outing.photos.push(photo);
       state.settings.lastStudentId = outing.studentId;
-      saveState();
-      await flushRemoteSave();
+      saveState({ skipRemote: true });
+      await saveOutingPhotoMetadataToRemote(outing, photo);
     } finally {
       savingReturnPhoto = false;
       submitButton.disabled = false;
@@ -921,22 +942,43 @@ function createReturnForm() {
     if (!hasOutingPhotoType(outing, "복귀 인증")) return notify("복귀 현장 사진을 먼저 저장해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "복귀 처리 중...");
+    const previousOuting = {
+      status: outing.status,
+      decision: outing.decision,
+      returnedAt: outing.returnedAt,
+    };
+    const previousSettings = {
+      lastStudentId: state.settings.lastStudentId,
+      completionType: state.settings.completionType,
+      studentStep: state.settings.studentStep,
+    };
+
+    let isStatusSavePhase = false;
     try {
       await flushRemoteSave();
+      isStatusSavePhase = true;
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
-      setStudentStep("done");
       state.settings.completionType = "return";
       saveState();
       await flushRemoteSave();
-      form.reset();
-      render();
       notify("복귀 완료되었습니다.");
+      form.reset();
+      setStudentStep("done");
+      saveState();
+      render();
     } catch (error) {
       console.error(error);
-      notify(getPhotoSubmitErrorMessage(error));
+      outing.status = previousOuting.status;
+      outing.decision = previousOuting.decision;
+      outing.returnedAt = previousOuting.returnedAt;
+      state.settings.lastStudentId = previousSettings.lastStudentId;
+      state.settings.completionType = previousSettings.completionType;
+      state.settings.studentStep = previousSettings.studentStep;
+      saveState();
+      notify(isStatusSavePhase ? "복귀 사진은 저장됐지만 복귀 완료 상태 저장이 끝나지 않았습니다. 잠시 후 다시 복귀 완료를 눌러주세요." : getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "복귀 완료";
     }
@@ -962,6 +1004,37 @@ function getPhotoSubmitErrorMessage(error) {
     return "이 사진 형식을 읽지 못했습니다. 카메라로 새로 촬영해서 다시 제출해주세요.";
   }
   return "사진 처리 중 오류가 발생했습니다. 다른 사진으로 다시 시도해주세요.";
+}
+
+async function saveOutingPhotoMetadataToRemote(outing, photo) {
+  if (!remoteStore || !outing || !photo) return;
+  const row = {
+    id: photo.id,
+    outing_id: outing.id,
+    photo_type: photo.type,
+    data_url: photo.dataUrl || null,
+    photo_path: photo.photoPath || null,
+    photo_url: photo.photoUrl || null,
+    thumbnail_path: photo.thumbnailPath || null,
+    thumbnail_url: photo.thumbnailUrl || null,
+    original_name: photo.name || null,
+    uploaded_at: photo.uploadedAt,
+  };
+  const { error } = await remoteStore
+    .from("outing_photos")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  if (
+    isMissingColumnError(error, "thumbnail_path") ||
+    isMissingColumnError(error, "thumbnail_url")
+  ) {
+    const { thumbnail_path, thumbnail_url, ...fallbackRow } = row;
+    const { error: fallbackError } = await remoteStore
+      .from("outing_photos")
+      .upsert(fallbackRow, { onConflict: "id", ignoreDuplicates: true });
+    if (fallbackError) throw fallbackError;
+    return;
+  }
+  if (error) throw error;
 }
 
 function isPhotoPermissionError(error) {
@@ -1094,7 +1167,6 @@ function renderStudentGradesHome() {
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
         renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
-          if (!isStudentFinalGradeTestLink()) return notify("성적 조회는 준비중입니다.");
           studentGradesView = "lookup";
           render();
         }),
@@ -1142,11 +1214,16 @@ function getStudentFinalRoundOptions(student) {
   const studentId = String(student?.id || "").trim();
   if (!studentId) return [];
   const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
-  const rounds = sources.flat()
+  const records = sources.flat().filter(hasStudentFinalScoreRecord);
+  const studentRounds = records
     .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
-    .filter(hasStudentFinalScoreRecord)
     .map(getStudentFinalRecordRound)
     .filter((round) => Number.isFinite(round) && round > 0);
+  const rounds = studentRounds.length
+    ? studentRounds
+    : records
+      .map(getStudentFinalRecordRound)
+      .filter((round) => Number.isFinite(round) && round > 0);
   const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => b - a);
   return uniqueRounds;
 }

@@ -135,7 +135,7 @@ function scrollAppToTop() {
 }
 
 function render() {
-  if (location.hash !== `#${currentRoute}`) {
+  if (normalizeRoute(location.hash.replace("#", "") || defaultRoute()) !== currentRoute) {
     history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute}`);
   }
 

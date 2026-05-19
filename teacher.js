@@ -2256,12 +2256,21 @@ function studentAdminSearchControls(totalCount, filteredCount) {
 
 function openStudentPreview(studentId) {
   previewStudentId = String(studentId || "").trim();
-  navigate("student-preview");
+  const nextHash = `student-preview?student=${encodeURIComponent(previewStudentId)}`;
+  if (location.hash === `#${nextHash}`) {
+    currentRoute = "student-preview";
+    render();
+    scrollAppToTop();
+    return;
+  }
+  location.hash = nextHash;
 }
 
 function renderStudentPreviewAdmin() {
   if (!hasTeacherPermission("students.read")) return renderForbidden();
-  const student = findStudent(previewStudentId);
+  const studentId = previewStudentId || getStudentPreviewHashStudentId();
+  if (studentId) previewStudentId = studentId;
+  const student = findStudent(studentId);
   if (!student) {
     return el("div", { className: "grid" }, [
       panel("학생 미리보기", [
@@ -2286,6 +2295,14 @@ function renderStudentPreviewAdmin() {
     renderStudentPreviewGrades(student),
     renderStudentPreviewHistory(student),
   ]);
+}
+
+function getStudentPreviewHashStudentId() {
+  const hash = String(location.hash || "").replace(/^#/, "");
+  const queryStart = hash.indexOf("?");
+  if (queryStart < 0) return "";
+  const params = new URLSearchParams(hash.slice(queryStart + 1));
+  return String(params.get("student") || "").trim();
 }
 
 function renderStudentPreviewProfile(student) {
@@ -2378,16 +2395,23 @@ function renderTeacherPreviewFinalRoundSelect(studentId, roundOptions = []) {
 function getTeacherPreviewFinalRoundOptions(student) {
   const studentId = String(student?.id || "").trim();
   const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
-  return Array.from(new Set(sources.flat()
-    .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
+  const records = sources.flat()
     .filter((record) => hasTeacherPreviewFinalScore({
       score: record.score ?? record.totalScore ?? record.total_score ?? "",
       maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
       wrongCount: record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count ?? "",
       subjectScores: normalizeFinalMockSubjectScores(record),
-    }))
+    }));
+  const studentRounds = records
+    .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
     .map((record) => Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0))
-    .filter((round) => Number.isFinite(round) && round > 0)))
+    .filter((round) => Number.isFinite(round) && round > 0);
+  const rounds = studentRounds.length
+    ? studentRounds
+    : records
+      .map((record) => Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0))
+      .filter((round) => Number.isFinite(round) && round > 0);
+  return Array.from(new Set(rounds))
     .sort((a, b) => a - b);
 }
 
