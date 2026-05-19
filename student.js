@@ -312,15 +312,23 @@ function createVerifyForm() {
     if (String(outing.reason || "").trim() === "병원" && !receiptPhoto) return notify("병원 외출은 영수증 인증 사진을 업로드해주세요.");
 
     submitButton.disabled = true;
-    setButtonLoading(submitButton, "사진 업로드 중...");
+    const loadingProgress = startButtonLoadingProgress(submitButton, [
+      "사진 준비 중...",
+      "사진 용량 줄이는 중...",
+      "사진 업로드 중...",
+      "인증 내역 저장 중...",
+    ]);
 
     try {
       await flushRemoteSave();
       outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
+      loadingProgress.set("현장 사진 처리 중...");
       outing.photos.push(await createOutingPhoto(outing, sitePhoto, "현장 인증"));
       if (receiptPhoto) {
+        loadingProgress.set("영수증 사진 처리 중...");
         outing.photos.push(await createOutingPhoto(outing, receiptPhoto, "영수증 인증"));
       }
+      loadingProgress.set("인증 내역 저장 중...");
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
       outing.verifiedAt = new Date().toISOString();
@@ -329,11 +337,13 @@ function createVerifyForm() {
       state.settings.earlyLeaveMode = false;
       saveState();
       await flushRemoteSave();
+      loadingProgress.stop();
       form.reset();
       render();
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
     } catch (error) {
       console.error(error);
+      loadingProgress.stop();
       notify(getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
@@ -505,6 +515,23 @@ function setPhotoInputLoading(trigger, status, loading, text) {
   status.innerHTML = "";
   if (loading) status.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
   status.appendChild(document.createTextNode(text));
+}
+
+function startButtonLoadingProgress(buttonNode, messages, intervalMs = 2400) {
+  let index = 0;
+  setButtonLoading(buttonNode, messages[index] || "처리 중...");
+  const timer = window.setInterval(() => {
+    index = Math.min(index + 1, messages.length - 1);
+    setButtonLoading(buttonNode, messages[index] || messages[messages.length - 1]);
+  }, intervalMs);
+  return {
+    set(text) {
+      setButtonLoading(buttonNode, text);
+    },
+    stop() {
+      window.clearInterval(timer);
+    },
+  };
 }
 
 function renderStudentReturn() {
