@@ -303,8 +303,8 @@ function createVerifyForm() {
       outing.photos = outing.photos.filter((item) => item.type !== type);
       outing.photos.push(photo);
       state.settings.lastStudentId = outing.studentId;
-      saveState();
-      await flushRemoteSave();
+      saveState({ skipRemote: true });
+      await saveOutingPhotoMetadataToRemote(outing, photo);
       savedTypes.add(type);
     } finally {
       savingTypes.delete(type);
@@ -315,7 +315,7 @@ function createVerifyForm() {
     el("p", { className: "subtle full" }, "외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요."),
     field("현장 인증 사진", photoCaptureInput("sitePhoto", {
       thumbnailPreview: true,
-      initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료" : "",
+      initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요." : "",
       initialPreviewSrc: getOutingThumbnailSrc(savedSitePhoto),
       onFileSelected: (file) => saveVerificationPhoto(file, "현장 인증"),
       savingText: "현장 사진 저장 중...",
@@ -323,15 +323,15 @@ function createVerifyForm() {
         "현장 사진 저장 중...",
         "사진 용량을 줄이는 중이에요.",
         "서버로 전송하고 있어요.",
-        "거의 완료됐어요.",
+        "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
       ],
-      savedText: "현장 사진 저장 완료",
+      savedText: "현장 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요.",
     }), "full"),
     field(
       isReceiptRequired ? "영수증 인증 사진 (필수)" : "영수증 인증 사진 (선택)",
       photoCaptureInput("receiptPhoto", {
         thumbnailPreview: true,
-        initialStatus: savedTypes.has("영수증 인증") ? "영수증 사진 저장 완료" : "",
+        initialStatus: savedTypes.has("영수증 인증") ? "영수증 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요." : "",
         initialPreviewSrc: getOutingThumbnailSrc(savedReceiptPhoto),
         onFileSelected: (file) => saveVerificationPhoto(file, "영수증 인증"),
         savingText: "영수증 사진 저장 중...",
@@ -339,14 +339,17 @@ function createVerifyForm() {
           "영수증 사진 저장 중...",
           "사진 용량을 줄이는 중이에요.",
           "서버로 전송하고 있어요.",
-          "거의 완료됐어요.",
+          "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
         ],
-        savedText: "영수증 사진 저장 완료",
+        savedText: "영수증 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요.",
       }),
       "full",
       isReceiptRequired ? "병원 외출은 영수증 인증 사진을 함께 제출해야 합니다." : ""
     ),
-    el("div", { className: "field full" }, [submitButton]),
+    el("div", { className: "field full" }, [
+      submitButton,
+      el("p", { className: "subtle" }, "사진 저장 완료 후 인증 제출이 안 되면 사진을 다시 찍지 말고 이 버튼만 다시 눌러주세요."),
+    ]),
   ]);
 
   form.addEventListener("submit", async (event) => {
@@ -361,6 +364,8 @@ function createVerifyForm() {
     submitButton.disabled = true;
     const loadingProgress = startButtonLoadingProgress(submitButton, [
       "인증 내역 저장 중...",
+      "서버에 인증 상태를 저장하고 있어요.",
+      "조금 걸려도 사진을 다시 찍지 말고 기다려주세요.",
     ]);
 
     const previousOuting = {
@@ -374,22 +379,19 @@ function createVerifyForm() {
       studentStep: state.settings.studentStep,
     };
 
-    let isStatusSavePhase = false;
     try {
-      await flushRemoteSave();
-      isStatusSavePhase = true;
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
       outing.verifiedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
       state.settings.earlyLeaveMode = false;
-      saveState();
-      await flushRemoteSave();
+      saveState({ skipRemote: true });
+      await saveOutingVerificationStatusToRemote(outing);
       loadingProgress.stop();
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
       form.reset();
       setStudentStep("return");
-      saveState();
+      saveState({ skipRemote: true });
       render();
     } catch (error) {
       console.error(error);
@@ -399,9 +401,9 @@ function createVerifyForm() {
       state.settings.lastStudentId = previousSettings.lastStudentId;
       state.settings.earlyLeaveMode = previousSettings.earlyLeaveMode;
       state.settings.studentStep = previousSettings.studentStep;
-      saveState();
+      saveState({ skipRemote: true });
       loadingProgress.stop();
-      notify(isStatusSavePhase ? "사진은 저장됐지만 인증 완료 상태 저장이 끝나지 않았습니다. 잠시 후 다시 인증 제출을 눌러주세요." : getPhotoSubmitErrorMessage(error));
+      notify("사진은 저장되어 있습니다. 다시 촬영하지 말고 잠시 후 사진 인증 제출 버튼만 다시 눌러주세요.");
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
     }
@@ -910,7 +912,7 @@ function createReturnForm() {
   const form = el("form", { className: "form-grid" }, [
     field("복귀 현장 사진", photoCaptureInput("returnPhoto", {
       thumbnailPreview: true,
-      initialStatus: savedReturnPhoto ? "복귀 사진 저장 완료" : "",
+      initialStatus: savedReturnPhoto ? "복귀 사진 저장 완료. 아래 복귀 완료 버튼을 눌러주세요." : "",
       initialPreviewSrc: getOutingThumbnailSrc(savedReturnPhoto),
       onFileSelected: saveReturnPhoto,
       savingText: "복귀 사진 저장 중...",
@@ -918,13 +920,13 @@ function createReturnForm() {
         "복귀 사진 저장 중...",
         "사진 용량을 줄이는 중이에요.",
         "서버로 전송하고 있어요.",
-        "거의 완료됐어요.",
+        "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
       ],
-      savedText: "복귀 사진 저장 완료",
+      savedText: "복귀 사진 저장 완료. 아래 복귀 완료 버튼을 눌러주세요.",
     }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
-      el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),
+      el("p", { className: "subtle" }, "복귀 사진 저장 완료 후 복귀 처리가 안 되면 사진을 다시 찍지 말고 이 버튼만 다시 눌러주세요."),
     ]),
   ]);
 
@@ -941,7 +943,11 @@ function createReturnForm() {
     if (savingReturnPhoto) return notify("복귀 사진 저장이 끝난 뒤 복귀 완료를 눌러주세요.");
     if (!hasOutingPhotoType(outing, "복귀 인증")) return notify("복귀 현장 사진을 먼저 저장해주세요.");
     submitButton.disabled = true;
-    setButtonLoading(submitButton, "복귀 처리 중...");
+    const loadingProgress = startButtonLoadingProgress(submitButton, [
+      "복귀 처리 중...",
+      "서버에 복귀 상태를 저장하고 있어요.",
+      "조금 걸려도 사진을 다시 찍지 말고 기다려주세요.",
+    ]);
     const previousOuting = {
       status: outing.status,
       decision: outing.decision,
@@ -953,21 +959,19 @@ function createReturnForm() {
       studentStep: state.settings.studentStep,
     };
 
-    let isStatusSavePhase = false;
     try {
-      await flushRemoteSave();
-      isStatusSavePhase = true;
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
       state.settings.completionType = "return";
-      saveState();
-      await flushRemoteSave();
+      saveState({ skipRemote: true });
+      await saveOutingReturnStatusToRemote(outing);
+      loadingProgress.stop();
       notify("복귀 완료되었습니다.");
       form.reset();
       setStudentStep("done");
-      saveState();
+      saveState({ skipRemote: true });
       render();
     } catch (error) {
       console.error(error);
@@ -977,14 +981,51 @@ function createReturnForm() {
       state.settings.lastStudentId = previousSettings.lastStudentId;
       state.settings.completionType = previousSettings.completionType;
       state.settings.studentStep = previousSettings.studentStep;
-      saveState();
-      notify(isStatusSavePhase ? "복귀 사진은 저장됐지만 복귀 완료 상태 저장이 끝나지 않았습니다. 잠시 후 다시 복귀 완료를 눌러주세요." : getPhotoSubmitErrorMessage(error));
+      saveState({ skipRemote: true });
+      loadingProgress.stop();
+      notify("복귀 사진은 저장되어 있습니다. 다시 촬영하지 말고 잠시 후 복귀 완료 버튼만 다시 눌러주세요.");
       submitButton.disabled = false;
       submitButton.textContent = "복귀 완료";
     }
   });
 
   return form;
+}
+
+async function saveOutingVerificationStatusToRemote(outing) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("outings")
+    .update({
+      status: outing.status === "returned" ? "returned" : "verified",
+      receipt_note: outing.receiptNote || null,
+      verified_at: outing.verifiedAt || new Date().toISOString(),
+    })
+    .eq("id", outing.id);
+  if (error) throw error;
+}
+
+async function saveOutingReturnStatusToRemote(outing) {
+  if (!remoteStore) return;
+  const returnedAt = outing.returnedAt || new Date().toISOString();
+  const { error } = await remoteStore
+    .from("outings")
+    .update({
+      status: "returned",
+      decision: outing.decision === "pending" ? "approved" : outing.decision,
+      returned_at: returnedAt,
+    })
+    .eq("id", outing.id);
+  if (!error) return;
+
+  const { error: fallbackError } = await remoteStore
+    .from("outings")
+    .update({
+      status: "returned",
+      returned_at: returnedAt,
+    })
+    .eq("id", outing.id);
+  if (fallbackError) throw fallbackError;
 }
 
 function getPhotoSubmitErrorMessage(error) {

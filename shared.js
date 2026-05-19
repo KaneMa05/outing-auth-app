@@ -1155,7 +1155,7 @@ async function loadStateFromRemote() {
   }
 
   const mappedOutings = (outings || []).map((outing) => {
-    const photos = outingPhotos
+    const photos = normalizeOutingPhotosByType(outingPhotos
       .filter((photo) => photo.outing_id === outing.id)
       .map((photo) => ({
         id: photo.id,
@@ -1167,7 +1167,7 @@ async function loadStateFromRemote() {
         thumbnailPath: photo.thumbnail_path || "",
         thumbnailUrl: photo.thumbnail_url || "",
         uploadedAt: photo.uploaded_at,
-      }));
+      })));
     const returnPhotoUploadedAt = getReturnPhotoUploadedAt({ photos });
     return {
       id: outing.id,
@@ -3227,6 +3227,18 @@ function getReturnPhotoUploadedAt(outing) {
 
 function getOutingReturnedAt(outing) {
   return outing?.returnedAt || getReturnPhotoUploadedAt(outing);
+}
+
+function normalizeOutingPhotosByType(photos = []) {
+  const latestByType = new Map();
+  photos.forEach((photo) => {
+    const key = photo?.type ? `type:${photo.type}` : `id:${photo?.id || createId()}`;
+    const current = latestByType.get(key);
+    if (!current || new Date(photo?.uploadedAt || 0) >= new Date(current?.uploadedAt || 0)) {
+      latestByType.set(key, photo);
+    }
+  });
+  return [...latestByType.values()].sort((a, b) => new Date(a?.uploadedAt || 0) - new Date(b?.uploadedAt || 0));
 }
 
 function formatDateKey(value) {

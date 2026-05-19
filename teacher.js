@@ -1171,6 +1171,7 @@ function notReturnedPenaltyReasonLabel(outing) {
 }
 
 function photoMiniList(photos = []) {
+  photos = normalizeOutingPhotosByType(photos);
   if (!photos.length) return "-";
   return el(
     "div",
