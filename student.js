@@ -289,12 +289,45 @@ function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
+  const savedTypes = new Set((activeOuting?.photos || []).map((photo) => photo.type));
+  const savingTypes = new Set();
+  const saveVerificationPhoto = async (file, type) => {
+    const outing = getActiveOuting(state.settings.lastStudentId);
+    if (!outing) throw new Error("outing_required");
+    savingTypes.add(type);
+    submitButton.disabled = true;
+    try {
+      await flushRemoteSave();
+      const photo = await createOutingPhoto(outing, file, type);
+      outing.photos = outing.photos.filter((item) => item.type !== type);
+      outing.photos.push(photo);
+      state.settings.lastStudentId = outing.studentId;
+      saveState();
+      await flushRemoteSave();
+      savedTypes.add(type);
+    } finally {
+      savingTypes.delete(type);
+      submitButton.disabled = Boolean(savingTypes.size);
+    }
+  };
   const form = el("form", { className: "form-grid" }, [
     el("p", { className: "subtle full" }, "외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요."),
-    field("현장 인증 사진", photoCaptureInput("sitePhoto", { thumbnailPreview: true }), "full"),
+    field("현장 인증 사진", photoCaptureInput("sitePhoto", {
+      thumbnailPreview: true,
+      initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료" : "",
+      onFileSelected: (file) => saveVerificationPhoto(file, "현장 인증"),
+      savingText: "현장 사진 저장 중...",
+      savedText: "현장 사진 저장 완료",
+    }), "full"),
     field(
       isReceiptRequired ? "영수증 인증 사진 (필수)" : "영수증 인증 사진 (선택)",
-      photoCaptureInput("receiptPhoto", { thumbnailPreview: true }),
+      photoCaptureInput("receiptPhoto", {
+        thumbnailPreview: true,
+        initialStatus: savedTypes.has("영수증 인증") ? "영수증 사진 저장 완료" : "",
+        onFileSelected: (file) => saveVerificationPhoto(file, "영수증 인증"),
+        savingText: "영수증 사진 저장 중...",
+        savedText: "영수증 사진 저장 완료",
+      }),
       "full",
       isReceiptRequired ? "병원 외출은 영수증 인증 사진을 함께 제출해야 합니다." : ""
     ),
@@ -306,29 +339,17 @@ function createVerifyForm() {
     const outing = getActiveOuting(state.settings.lastStudentId);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
 
-    const sitePhoto = form.elements.sitePhoto.files[0];
-    const receiptPhoto = form.elements.receiptPhoto.files[0];
-    if (!sitePhoto) return notify("현장 인증 사진을 업로드해주세요.");
-    if (String(outing.reason || "").trim() === "병원" && !receiptPhoto) return notify("병원 외출은 영수증 인증 사진을 업로드해주세요.");
+    if (savingTypes.size) return notify("사진 저장이 끝난 뒤 인증 제출을 눌러주세요.");
+    if (!hasOutingPhotoType(outing, "현장 인증")) return notify("현장 인증 사진을 먼저 저장해주세요.");
+    if (String(outing.reason || "").trim() === "병원" && !hasOutingPhotoType(outing, "영수증 인증")) return notify("병원 외출은 영수증 인증 사진을 먼저 저장해주세요.");
 
     submitButton.disabled = true;
     const loadingProgress = startButtonLoadingProgress(submitButton, [
-      "사진 준비 중...",
-      "사진 용량 줄이는 중...",
-      "사진 업로드 중...",
       "인증 내역 저장 중...",
     ]);
 
     try {
       await flushRemoteSave();
-      outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
-      loadingProgress.set("현장 사진 처리 중...");
-      outing.photos.push(await createOutingPhoto(outing, sitePhoto, "현장 인증"));
-      if (receiptPhoto) {
-        loadingProgress.set("영수증 사진 처리 중...");
-        outing.photos.push(await createOutingPhoto(outing, receiptPhoto, "영수증 인증"));
-      }
-      loadingProgress.set("인증 내역 저장 중...");
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
       outing.verifiedAt = new Date().toISOString();
@@ -357,10 +378,11 @@ function photoCaptureInput(name, options = {}) {
   const disabled = Boolean(options.disabled);
   const skipPreview = Boolean(options.skipPreview);
   const thumbnailPreview = Boolean(options.thumbnailPreview);
+  const onFileSelected = typeof options.onFileSelected === "function" ? options.onFileSelected : null;
   const inputNode = fileInput(name);
   inputNode.disabled = disabled;
   inputNode.className = "visually-hidden-file";
-  const status = el("span", { className: "photo-input-status" }, disabled ? "인증 가능 시간이 지났습니다." : "사진을 촬영해주세요.");
+  const status = el("span", { className: `photo-input-status ${options.initialStatus ? "selected" : ""}` }, disabled ? "인증 가능 시간이 지났습니다." : options.initialStatus || "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
   let pickerResetTimer = null;
   let pickerInProgress = false;
@@ -409,9 +431,7 @@ function photoCaptureInput(name, options = {}) {
 
     if (skipPreview || (!thumbnailPreview && shouldSkipPhotoPreview(file))) {
       preview.hidden = true;
-      status.textContent = "사진이 선택되었습니다.";
-      status.className = "photo-input-status selected";
-      trigger.disabled = false;
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
       return;
     }
     setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
@@ -425,25 +445,19 @@ function photoCaptureInput(name, options = {}) {
         } else {
           preview.hidden = true;
         }
-        status.textContent = "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
-        status.className = "photo-input-status selected";
-        trigger.disabled = false;
+        await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
       } catch (error) {
         console.warn("Photo thumbnail preview failed; continuing without preview.", error);
         if (currentPreviewRequestId !== previewRequestId) return;
         preview.hidden = true;
-        status.textContent = "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
-        status.className = "photo-input-status selected";
-        trigger.disabled = false;
+        await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
       }
       return;
     }
     previewUrl = URL.createObjectURL(file);
     const previewImage = el("img", { alt: "선택한 사진 미리보기" });
-    previewImage.addEventListener("load", () => {
-      status.textContent = "사진이 선택되었습니다.";
-      status.className = "photo-input-status selected";
-      trigger.disabled = false;
+    previewImage.addEventListener("load", async () => {
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
     });
     previewImage.addEventListener("error", () => {
       setPhotoInputLoading(trigger, status, false, "사진을 다시 선택해주세요.");
@@ -515,6 +529,33 @@ function setPhotoInputLoading(trigger, status, loading, text) {
   status.innerHTML = "";
   if (loading) status.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
   status.appendChild(document.createTextNode(text));
+}
+
+async function finishPhotoSelection(file, isCurrentSelection, trigger, status, onFileSelected, options = {}) {
+  if (!file) return;
+  if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+  if (!onFileSelected) {
+    status.textContent = options.selectedText || "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
+    status.className = "photo-input-status selected";
+    trigger.disabled = false;
+    return;
+  }
+
+  setPhotoInputLoading(trigger, status, true, options.savingText || "사진 저장 중...");
+  try {
+    await onFileSelected(file);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    status.textContent = options.savedText || "사진 저장 완료";
+    status.className = "photo-input-status selected";
+  } catch (error) {
+    console.error(error);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    status.textContent = "사진 저장 실패. 다시 촬영해주세요.";
+    status.className = "photo-input-status";
+    notify(getPhotoSubmitErrorMessage(error));
+  } finally {
+    trigger.disabled = false;
+  }
 }
 
 function startButtonLoadingProgress(buttonNode, messages, intervalMs = 2400) {
