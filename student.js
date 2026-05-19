@@ -321,9 +321,9 @@ function createVerifyForm() {
       savingText: "현장 사진 저장 중...",
       savingMessages: [
         "현장 사진 저장 중...",
-        "사진 용량을 줄이고 있어요.",
-        "서버에 안전하게 저장하고 있어요.",
-        "네트워크 상태에 따라 조금 걸릴 수 있어요.",
+        "사진 용량을 줄이는 중이에요.",
+        "서버로 전송하고 있어요.",
+        "거의 완료됐어요.",
       ],
       savedText: "현장 사진 저장 완료",
     }), "full"),
@@ -337,9 +337,9 @@ function createVerifyForm() {
         savingText: "영수증 사진 저장 중...",
         savingMessages: [
           "영수증 사진 저장 중...",
-          "사진 용량을 줄이고 있어요.",
-          "서버에 안전하게 저장하고 있어요.",
-          "네트워크 상태에 따라 조금 걸릴 수 있어요.",
+          "사진 용량을 줄이는 중이에요.",
+          "서버로 전송하고 있어요.",
+          "거의 완료됐어요.",
         ],
         savedText: "영수증 사진 저장 완료",
       }),
@@ -584,7 +584,7 @@ async function finishPhotoSelection(file, isCurrentSelection, trigger, status, o
   }
 }
 
-function startInlineStatusProgress(status, messages, intervalMs = 3500) {
+function startInlineStatusProgress(status, messages, intervalMs = 1800) {
   let index = 0;
   const renderMessage = () => {
     status.className = "photo-input-status loading";
