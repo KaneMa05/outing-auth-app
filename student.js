@@ -319,6 +319,12 @@ function createVerifyForm() {
       initialPreviewSrc: getOutingThumbnailSrc(savedSitePhoto),
       onFileSelected: (file) => saveVerificationPhoto(file, "현장 인증"),
       savingText: "현장 사진 저장 중...",
+      savingMessages: [
+        "현장 사진 저장 중...",
+        "사진 용량을 줄이고 있어요.",
+        "서버에 안전하게 저장하고 있어요.",
+        "네트워크 상태에 따라 조금 걸릴 수 있어요.",
+      ],
       savedText: "현장 사진 저장 완료",
     }), "full"),
     field(
@@ -329,6 +335,12 @@ function createVerifyForm() {
         initialPreviewSrc: getOutingThumbnailSrc(savedReceiptPhoto),
         onFileSelected: (file) => saveVerificationPhoto(file, "영수증 인증"),
         savingText: "영수증 사진 저장 중...",
+        savingMessages: [
+          "영수증 사진 저장 중...",
+          "사진 용량을 줄이고 있어요.",
+          "서버에 안전하게 저장하고 있어요.",
+          "네트워크 상태에 따라 조금 걸릴 수 있어요.",
+        ],
         savedText: "영수증 사진 저장 완료",
       }),
       "full",
@@ -552,14 +564,17 @@ async function finishPhotoSelection(file, isCurrentSelection, trigger, status, o
     return;
   }
 
-  setPhotoInputLoading(trigger, status, true, options.savingText || "사진 저장 중...");
+  const savingProgress = startInlineStatusProgress(status, options.savingMessages || [options.savingText || "사진 저장 중..."]);
+  trigger.disabled = true;
   try {
     await onFileSelected(file);
+    savingProgress.stop();
     if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
     status.textContent = options.savedText || "사진 저장 완료";
     status.className = "photo-input-status selected";
   } catch (error) {
     console.error(error);
+    savingProgress.stop();
     if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
     status.textContent = "사진 저장 실패. 다시 촬영해주세요.";
     status.className = "photo-input-status";
@@ -567,6 +582,26 @@ async function finishPhotoSelection(file, isCurrentSelection, trigger, status, o
   } finally {
     trigger.disabled = false;
   }
+}
+
+function startInlineStatusProgress(status, messages, intervalMs = 3500) {
+  let index = 0;
+  const renderMessage = () => {
+    status.className = "photo-input-status loading";
+    status.innerHTML = "";
+    status.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
+    status.appendChild(document.createTextNode(messages[index] || messages[messages.length - 1] || "저장 중..."));
+  };
+  renderMessage();
+  const timer = window.setInterval(() => {
+    index = Math.min(index + 1, messages.length - 1);
+    renderMessage();
+  }, intervalMs);
+  return {
+    stop() {
+      window.clearInterval(timer);
+    },
+  };
 }
 
 function startButtonLoadingProgress(buttonNode, messages, intervalMs = 2400) {
