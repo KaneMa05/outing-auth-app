@@ -938,6 +938,21 @@ th {
   border-right: 0;
 }
 
+.teacher-outing-table {
+  min-width: 1180px;
+}
+
+.teacher-outing-table .outing-name-cell,
+.teacher-outing-table .outing-reason-cell {
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+.teacher-outing-table .outing-photo-cell {
+  min-width: 122px;
+  width: 122px;
+}
+
 .wide-cell {
   min-width: 180px;
   max-width: 260px;
@@ -4347,6 +4362,14 @@ body:not([data-app-mode="teacher"]) .btn {
   body[data-app-mode="teacher"] .wide-cell {
     min-width: 0;
     max-width: none;
+  }
+
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-name-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-reason-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-photo-cell {
+    min-width: 0;
+    width: auto;
+    white-space: normal;
   }
 
   body[data-app-mode="teacher"] .action-cell,

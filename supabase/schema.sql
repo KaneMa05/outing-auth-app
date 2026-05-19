@@ -499,12 +499,14 @@ drop policy if exists "anon_submission_answers_update" on public.submission_answ
 drop policy if exists "anon_exam_files_select" on public.exam_files;
 drop policy if exists "anon_exam_files_insert" on public.exam_files;
 drop policy if exists "anon_exam_files_update" on public.exam_files;
+drop policy if exists "anon_exam_files_delete" on public.exam_files;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 drop policy if exists "anon_outing_photo_select" on storage.objects;
 drop policy if exists "anon_outing_photo_insert" on storage.objects;
 drop policy if exists "anon_exam_file_select" on storage.objects;
 drop policy if exists "anon_exam_file_insert" on storage.objects;
+drop policy if exists "anon_exam_file_delete" on storage.objects;
 
 revoke all on public.students from anon;
 revoke all on public.outings from anon;

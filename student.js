@@ -864,8 +864,43 @@ function createArrivalVerificationForm(check) {
 function createReturnForm() {
   const student = getAuthedStudent();
   const submitButton = button("복귀 완료", "btn");
+  const activeOuting = getActiveOuting(student?.id);
+  const savedReturnPhoto = getOutingPhotoByType(activeOuting, "복귀 인증");
+  let savingReturnPhoto = false;
+  const saveReturnPhoto = async (file) => {
+    const outing = getActiveOuting(student?.id);
+    if (!student) throw new Error("student_required");
+    if (!outing) throw new Error("outing_required");
+    if (!isOutingReadyForReturn(outing)) throw new Error(getReturnBlockedMessage(outing));
+    savingReturnPhoto = true;
+    submitButton.disabled = true;
+    try {
+      const photo = await createOutingPhoto(outing, file, "복귀 인증");
+      outing.photos = outing.photos.filter((item) => item.type !== "복귀 인증");
+      outing.photos.push(photo);
+      state.settings.lastStudentId = outing.studentId;
+      saveState();
+      await flushRemoteSave();
+    } finally {
+      savingReturnPhoto = false;
+      submitButton.disabled = false;
+    }
+  };
   const form = el("form", { className: "form-grid" }, [
-    field("복귀 현장 사진", photoCaptureInput("returnPhoto", { thumbnailPreview: true }), "full"),
+    field("복귀 현장 사진", photoCaptureInput("returnPhoto", {
+      thumbnailPreview: true,
+      initialStatus: savedReturnPhoto ? "복귀 사진 저장 완료" : "",
+      initialPreviewSrc: getOutingThumbnailSrc(savedReturnPhoto),
+      onFileSelected: saveReturnPhoto,
+      savingText: "복귀 사진 저장 중...",
+      savingMessages: [
+        "복귀 사진 저장 중...",
+        "사진 용량을 줄이는 중이에요.",
+        "서버로 전송하고 있어요.",
+        "거의 완료됐어요.",
+      ],
+      savedText: "복귀 사진 저장 완료",
+    }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),
@@ -882,14 +917,12 @@ function createReturnForm() {
       render();
       return notify(getReturnBlockedMessage(outing));
     }
-    const returnPhoto = form.elements.returnPhoto.files[0];
-    if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
+    if (savingReturnPhoto) return notify("복귀 사진 저장이 끝난 뒤 복귀 완료를 눌러주세요.");
+    if (!hasOutingPhotoType(outing, "복귀 인증")) return notify("복귀 현장 사진을 먼저 저장해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "복귀 처리 중...");
     try {
       await flushRemoteSave();
-      outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
-      outing.photos.push(await createOutingPhoto(outing, returnPhoto, "복귀 인증"));
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();

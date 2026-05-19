@@ -1621,21 +1621,21 @@ function renderTeacherOutingTable(outings, options = {}) {
     el("tr", { id: getOutingRowId(outing) }, [
       el("td", {}, formatDateCompact(outing.createdAt)),
       el("td", {}, formatStudentNumber(outing.studentId)),
-      el("td", {}, outing.studentName || "-"),
-      el("td", {}, outing.reason || "-"),
+      el("td", { className: "outing-name-cell" }, outing.studentName || "-"),
+      el("td", { className: "outing-reason-cell" }, outing.reason || "-"),
       el("td", { className: "wide-cell" }, outing.earlyLeaveReason || outing.detail || "-"),
       el("td", {}, formatExpectedReturn(outing.expectedReturn)),
       el("td", {}, formatTime(outing.verifiedAt)),
       el("td", {}, formatTime(getOutingReturnedAt(outing))),
       el("td", {}, statusBadge(outing)),
-      el("td", {}, photoMiniList(outing.photos)),
+      el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
     ])
   );
   labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
-    el("table", { className: "excel-table" }, [
+    el("table", { className: "excel-table teacher-outing-table" }, [
       el("thead", {}, [
         el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),
