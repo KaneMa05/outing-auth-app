@@ -2658,14 +2658,12 @@ async function createOutingPhoto(outing, file, type, options = {}) {
   let dataUrl = "";
 
   if (remoteStore) {
-    const blob = options.fastEncode
-      ? await compressImageBlobOnce(file, options.maxSize || 520, options.quality || 0.56)
-      : await compressImageBlob(
-          file,
-          options.maxSize || 640,
-          options.quality || 0.58,
-          options.targetBytes || 120000
-        );
+    const blob = await compressImageBlob(
+      file,
+      options.maxSize || 640,
+      options.quality || 0.58,
+      options.targetBytes || 120000
+    );
     photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
     const { error: uploadError } = await remoteStore.storage
       .from(OUTING_PHOTO_BUCKET)
@@ -3147,32 +3145,6 @@ async function compressImageBlob(file, maxSize = 960, quality = 0.68, targetByte
       if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
     }
     return output;
-  } finally {
-    canvas.width = 0;
-    canvas.height = 0;
-    if (image) image.src = "";
-    URL.revokeObjectURL(sourceUrl);
-  }
-}
-
-async function compressImageBlobOnce(file, maxSize = 520, quality = 0.56) {
-  if (!file.type.startsWith("image/")) return file;
-
-  const sourceUrl = URL.createObjectURL(file);
-  const canvas = document.createElement("canvas");
-  let image = null;
-
-  try {
-    image = await loadImage(sourceUrl);
-    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * scale));
-    const height = Math.max(1, Math.round(image.height * scale));
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("photo_canvas_unavailable");
-    context.drawImage(image, 0, 0, width, height);
-    return canvasToBlob(canvas, quality);
   } finally {
     canvas.width = 0;
     canvas.height = 0;
