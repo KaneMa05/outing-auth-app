@@ -2050,7 +2050,6 @@ function isAttendanceExcludedStudent(student) {
 
 function isActiveOuting(outing) {
   return outing?.status !== "returned"
-    && outing?.decision !== "approved"
     && outing?.decision !== "rejected";
 }
 

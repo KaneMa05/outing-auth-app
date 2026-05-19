@@ -9,7 +9,11 @@
   if (activeOuting?.earlyLeaveReason) return el("div", { className: "grid student-view" }, [panel("조퇴 신청 완료", [renderEarlyLeaveDoneState(activeOuting)])]);
   if (step === "verify") return studentStepView("사진 인증", createVerifyForm(), "photo-step");
   if (step === "return") {
-    if (activeOuting?.status === "requested") {
+    if (!activeOuting) {
+      setStudentStep("request");
+      return renderStudentRequestStep();
+    }
+    if (!isOutingReadyForReturn(activeOuting)) {
       state.settings.studentStep = "verify";
       return studentStepView("사진 인증", createVerifyForm(), "photo-step");
     }
@@ -28,7 +32,7 @@ function getStudentStepFromRoute() {
   if (currentRoute === "student") {
     const student = getAuthedStudent();
     const activeOuting = getActiveOuting(student?.id || state.settings.lastStudentId);
-    if (activeOuting) return activeOuting.status === "requested" ? "verify" : "return";
+    if (activeOuting) return isOutingReadyForReturn(activeOuting) ? "return" : "verify";
     return "request";
   }
   const routeSteps = {
@@ -441,6 +445,34 @@ function photoCaptureInput(name, options = {}) {
   return el("div", { className: "photo-input-control" }, [inputNode, trigger, status, preview]);
 }
 
+function isOutingReceiptRequired(outing) {
+  return String(outing?.reason || "").trim() === "병원";
+}
+
+function hasOutingPhotoType(outing, type) {
+  return (outing?.photos || []).some((photo) => photo?.type === type);
+}
+
+function isOutingApprovedForReturn(outing) {
+  return outing?.decision === "approved";
+}
+
+function isOutingReadyForReturn(outing) {
+  if (!outing) return false;
+  if (isOutingApprovedForReturn(outing)) return true;
+  return Boolean(
+    outing.status !== "requested" &&
+      hasOutingPhotoType(outing, "현장 인증") &&
+      (!isOutingReceiptRequired(outing) || hasOutingPhotoType(outing, "영수증 인증"))
+  );
+}
+
+function getReturnBlockedMessage(outing) {
+  if (!hasOutingPhotoType(outing, "현장 인증")) return "현장 사진 인증을 먼저 완료해주세요.";
+  if (isOutingReceiptRequired(outing) && !hasOutingPhotoType(outing, "영수증 인증")) return "병원 외출은 영수증 사진 인증을 먼저 완료해주세요.";
+  return "현장 사진과 영수증 사진을 먼저 인증해주세요.";
+}
+
 function shouldSkipPhotoPreview(file) {
   return !file || file.size > 1024 * 1024;
 }
@@ -736,10 +768,10 @@ function createReturnForm() {
     if (!student) return notify("학생 등록 후 복귀 인증을 이용할 수 있습니다.");
     const outing = getActiveOuting(student.id);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
-    if (outing.status === "requested") {
+    if (!isOutingReadyForReturn(outing)) {
       setStudentStep("verify");
       render();
-      return notify("현장 사진과 영수증 사진을 먼저 인증해주세요.");
+      return notify(getReturnBlockedMessage(outing));
     }
     const returnPhoto = form.elements.returnPhoto.files[0];
     if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
