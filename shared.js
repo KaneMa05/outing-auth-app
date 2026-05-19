@@ -2651,17 +2651,15 @@ async function createOutingPhoto(outing, file, type) {
   if (!file) throw new Error("photo_required");
   const id = createId();
   const uploadedAt = new Date().toISOString();
-  const compressedDataUrl = await compressImage(file);
-  const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
   let thumbnailUrl = "";
-  let dataUrl = compressedDataUrl;
+  let dataUrl = "";
 
   if (remoteStore) {
-    const blob = dataUrlToBlob(compressedDataUrl);
-    const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
+    const blob = await compressImageBlob(file, 820, 0.64, 180000);
+    const thumbnailBlob = await compressImageBlob(file, 220, 0.58, 28000);
     photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
     const { error: uploadError } = await remoteStore.storage
       .from(OUTING_PHOTO_BUCKET)
@@ -2690,6 +2688,8 @@ async function createOutingPhoto(outing, file, type) {
     photoUrl = data?.publicUrl || "";
     thumbnailUrl = thumbnailData?.publicUrl || "";
     dataUrl = "";
+  } else {
+    dataUrl = await compressImage(file);
   }
 
   return {
