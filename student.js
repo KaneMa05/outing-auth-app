@@ -341,36 +341,48 @@ function createVerifyForm() {
 
 function photoCaptureInput(name, options = {}) {
   const disabled = Boolean(options.disabled);
+  const skipPreview = Boolean(options.skipPreview);
+  const thumbnailPreview = Boolean(options.thumbnailPreview);
   const inputNode = fileInput(name);
   inputNode.disabled = disabled;
   inputNode.className = "visually-hidden-file";
   const status = el("span", { className: "photo-input-status" }, disabled ? "인증 가능 시간이 지났습니다." : "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
   let pickerResetTimer = null;
+  let pickerInProgress = false;
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
     if (disabled) return;
+    pickerInProgress = true;
     markStudentFilePickerOpen();
     setPhotoInputLoading(trigger, status, true, "사진 선택 중...");
     inputNode.click();
   });
   trigger.disabled = disabled;
   let previewUrl = "";
+  let previewRequestId = 0;
 
   window.addEventListener("focus", () => {
     window.clearTimeout(pickerResetTimer);
     pickerResetTimer = window.setTimeout(() => {
-      if (!inputNode.files?.length) setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+      if (pickerInProgress && !inputNode.files?.length) {
+        pickerInProgress = false;
+        setPhotoInputLoading(trigger, status, false, "사진이 선택되지 않았습니다. 다시 촬영해주세요.");
+      }
     }, 700);
   });
 
   inputNode.addEventListener("cancel", () => {
+    pickerInProgress = false;
     markStudentFilePickerClosed();
-    setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+    setPhotoInputLoading(trigger, status, false, "사진이 선택되지 않았습니다. 다시 촬영해주세요.");
   });
 
   inputNode.addEventListener("change", async () => {
     window.clearTimeout(pickerResetTimer);
+    pickerInProgress = false;
     markStudentFilePickerClosed();
+    previewRequestId += 1;
+    const currentPreviewRequestId = previewRequestId;
     const file = inputNode.files[0];
     preview.innerHTML = "";
     preview.hidden = !file;
@@ -381,12 +393,35 @@ function photoCaptureInput(name, options = {}) {
       return;
     }
 
-    setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
-    if (shouldSkipPhotoPreview(file)) {
+    if (skipPreview || (!thumbnailPreview && shouldSkipPhotoPreview(file))) {
       preview.hidden = true;
       status.textContent = "사진이 선택되었습니다.";
       status.className = "photo-input-status selected";
       trigger.disabled = false;
+      return;
+    }
+    setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
+    if (thumbnailPreview) {
+      try {
+        const thumbnailDataUrl = await createPhotoThumbnailPreview(file);
+        if (currentPreviewRequestId !== previewRequestId) return;
+        if (thumbnailDataUrl) {
+          preview.appendChild(el("img", { src: thumbnailDataUrl, alt: "선택한 사진 미리보기" }));
+          preview.hidden = false;
+        } else {
+          preview.hidden = true;
+        }
+        status.textContent = "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
+        status.className = "photo-input-status selected";
+        trigger.disabled = false;
+      } catch (error) {
+        console.warn("Photo thumbnail preview failed; continuing without preview.", error);
+        if (currentPreviewRequestId !== previewRequestId) return;
+        preview.hidden = true;
+        status.textContent = "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
+        status.className = "photo-input-status selected";
+        trigger.disabled = false;
+      }
       return;
     }
     previewUrl = URL.createObjectURL(file);
@@ -408,6 +443,33 @@ function photoCaptureInput(name, options = {}) {
 
 function shouldSkipPhotoPreview(file) {
   return !file || file.size > 1024 * 1024;
+}
+
+async function createPhotoThumbnailPreview(file, maxSize = 160) {
+  if (!file?.type?.startsWith("image/")) return "";
+
+  const canvas = document.createElement("canvas");
+  let image = null;
+  let objectUrl = "";
+
+  try {
+    objectUrl = URL.createObjectURL(file);
+    image = await loadImage(objectUrl);
+    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return "";
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.5);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    if (image) image.src = "";
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function setPhotoInputLoading(trigger, status, loading, text) {
@@ -466,7 +528,7 @@ function createAttendanceForm(student, options = {}) {
   if (preArrivalButton) preArrivalButton.disabled = !isOpen;
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("출석 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
-    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen }), "full"),
+    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen, thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       preArrivalButton,
@@ -532,7 +594,7 @@ function createPreArrivalReasonForm(student) {
     field("신청 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
     field("사유", select("reason", ["병원", "교통 지연", "개인 사유 인증", "기타"])),
     field("상세 사유", textarea("detail", "필요한 내용을 입력하세요."), "full"),
-    field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen }), "full"),
+    field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen, thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-action-row" }, [submitButton, cancelButton]),
       el(
@@ -628,7 +690,7 @@ function createArrivalVerificationForm(check) {
   const student = getAuthedStudent();
   const submitButton = button("등원 인증하기", "btn");
   const form = el("form", { className: "form-grid attendance-form" }, [
-    field("등원 현장 사진", photoCaptureInput("arrivalPhoto"), "full"),
+    field("등원 현장 사진", photoCaptureInput("arrivalPhoto", { thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle attendance-deadline-note" }, "사유신청은 접수 상태입니다. 학원에 도착한 뒤 현장 사진으로 등원 인증을 완료해주세요."),

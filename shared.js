@@ -3052,7 +3052,7 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
 }
 
 async function uploadAttendancePhotoAssets(studentId, checkId, file, options = {}) {
-  const compressedBlob = await compressImageBlob(file, 720, 0.58, 95000);
+  const compressedBlob = await compressImageBlob(file, 560, 0.52, 60000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
