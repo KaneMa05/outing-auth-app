@@ -49,6 +49,7 @@ const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
 const OUTING_PHOTO_BUCKET = "outing-photos";
+const ORIGINAL_PHOTO_FALLBACK_MAX_BYTES = 8 * 1024 * 1024;
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
@@ -2673,7 +2674,7 @@ async function createOutingPhoto(outing, file, type, options = {}) {
   let dataUrl = "";
 
   if (remoteStore) {
-    const blob = await compressImageBlob(
+    const blob = await preparePhotoBlobForUpload(
       file,
       options.maxSize || 640,
       options.quality || 0.58,
@@ -3070,7 +3071,7 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
 }
 
 async function uploadAttendancePhotoAssets(studentId, checkId, file, options = {}) {
-  const compressedBlob = await compressImageBlob(file, 560, 0.52, 60000);
+  const compressedBlob = await preparePhotoBlobForUpload(file, 560, 0.52, 60000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
@@ -3131,6 +3132,42 @@ async function compressImage(file, maxSize = 960, quality = 0.68, targetBytes = 
 
   const blob = await compressImageBlob(file, maxSize, quality, targetBytes);
   return blobToDataUrl(blob);
+}
+
+async function preparePhotoBlobForUpload(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
+  try {
+    return await compressImageBlob(file, maxSize, quality, targetBytes);
+  } catch (error) {
+    if (canUploadOriginalPhotoAfterCompressionFailure(file, error)) return file;
+    throw error;
+  }
+}
+
+function canUploadOriginalPhotoAfterCompressionFailure(file, error) {
+  return (
+    remoteStore &&
+    file instanceof Blob &&
+    file.size > 0 &&
+    file.size <= ORIGINAL_PHOTO_FALLBACK_MAX_BYTES &&
+    (isPhotoCompressionMemoryError(error) || isPhotoCompressionDecodeError(error))
+  );
+}
+
+function isPhotoCompressionMemoryError(error) {
+  const text = getSharedErrorText(error);
+  return text.includes("memory") || text.includes("allocation") || text.includes("out of memory");
+}
+
+function isPhotoCompressionDecodeError(error) {
+  const text = getSharedErrorText(error);
+  return text.includes("decode") || text.includes("image") || text.includes("load") || text.includes("photo_decode_timeout") || error instanceof Event;
+}
+
+function getSharedErrorText(error) {
+  return [error?.message, error?.details, error?.hint, error?.code, error?.error, error?.statusCode, error?.name]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 async function compressImageBlob(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
@@ -3194,11 +3231,23 @@ function estimateDataUrlBytes(dataUrl) {
   return Math.ceil((base64.length * 3) / 4);
 }
 
-function loadImage(src) {
+function loadImage(src, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
+    const timer = window.setTimeout(() => {
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
+      reject(new Error("photo_decode_timeout"));
+    }, timeoutMs);
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve(image);
+    };
+    image.onerror = (error) => {
+      window.clearTimeout(timer);
+      reject(error);
+    };
     image.src = src;
   });
 }

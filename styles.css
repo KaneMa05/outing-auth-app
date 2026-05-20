@@ -574,6 +574,12 @@ h1 {
   align-items: center;
 }
 
+.photo-input-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .photo-input-button {
   min-width: 96px;
 }

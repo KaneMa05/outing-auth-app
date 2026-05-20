@@ -432,11 +432,40 @@ function photoCaptureInput(name, options = {}) {
   }
   let pickerResetTimer = null;
   let pickerInProgress = false;
+  const fallbackTrigger = button("사진 선택", "btn secondary photo-input-button", "button", () => {
+    if (disabled) return;
+    pickerInProgress = true;
+    markStudentFilePickerOpen();
+    inputNode.value = "";
+    inputNode.removeAttribute("capture");
+    setPhotoInputLoading(fallbackTrigger, status, true, "사진 선택 중...");
+    inputNode.click();
+  });
+  fallbackTrigger.hidden = true;
+  fallbackTrigger.disabled = disabled;
+  const showFallbackPicker = (message) => {
+    pickerInProgress = false;
+    markStudentFilePickerClosed();
+    fallbackTrigger.hidden = false;
+    fallbackTrigger.disabled = disabled;
+    setPhotoInputLoading(trigger, status, false, message || "카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
+  };
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
     if (disabled) return;
     pickerInProgress = true;
     markStudentFilePickerOpen();
     setPhotoInputLoading(trigger, status, true, "사진 선택 중...");
+    inputNode.value = "";
+    inputNode.setAttribute("capture", "environment");
+    if (shouldSimulatePhotoPickerFailure()) {
+      window.clearTimeout(pickerResetTimer);
+      pickerResetTimer = window.setTimeout(() => {
+        if (pickerInProgress && !inputNode.files?.length) {
+          showFallbackPicker("카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
+        }
+      }, 900);
+      return;
+    }
     inputNode.click();
   });
   trigger.disabled = disabled;
@@ -447,16 +476,16 @@ function photoCaptureInput(name, options = {}) {
     window.clearTimeout(pickerResetTimer);
     pickerResetTimer = window.setTimeout(() => {
       if (pickerInProgress && !inputNode.files?.length) {
-        pickerInProgress = false;
-        setPhotoInputLoading(trigger, status, false, "사진이 선택되지 않았습니다. 다시 촬영해주세요.");
+        showFallbackPicker("카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
       }
     }, 700);
   });
 
   inputNode.addEventListener("cancel", () => {
+    window.clearTimeout(pickerResetTimer);
     pickerInProgress = false;
     markStudentFilePickerClosed();
-    setPhotoInputLoading(trigger, status, false, "사진이 선택되지 않았습니다. 다시 촬영해주세요.");
+    setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
   });
 
   inputNode.addEventListener("change", async () => {
@@ -471,9 +500,14 @@ function photoCaptureInput(name, options = {}) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = "";
     if (!file) {
+      pickerInProgress = false;
+      markStudentFilePickerClosed();
       setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
       return;
     }
+    fallbackTrigger.hidden = true;
+    fallbackTrigger.disabled = disabled;
+    trigger.disabled = disabled;
 
     if (skipPreview || (!thumbnailPreview && shouldSkipPhotoPreview(file))) {
       preview.hidden = true;
@@ -482,22 +516,8 @@ function photoCaptureInput(name, options = {}) {
     }
     setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
     if (thumbnailPreview) {
-      try {
-        const thumbnailDataUrl = await createPhotoThumbnailPreview(file);
-        if (currentPreviewRequestId !== previewRequestId) return;
-        if (thumbnailDataUrl) {
-          preview.appendChild(el("img", { src: thumbnailDataUrl, alt: "선택한 사진 미리보기" }));
-          preview.hidden = false;
-        } else {
-          preview.hidden = true;
-        }
-        await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
-      } catch (error) {
-        console.warn("Photo thumbnail preview failed; continuing without preview.", error);
-        if (currentPreviewRequestId !== previewRequestId) return;
-        preview.hidden = true;
-        await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
-      }
+      renderPhotoThumbnailPreview(file, preview, () => currentPreviewRequestId === previewRequestId);
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
       return;
     }
     previewUrl = URL.createObjectURL(file);
@@ -512,7 +532,7 @@ function photoCaptureInput(name, options = {}) {
     preview.appendChild(previewImage);
   });
 
-  return el("div", { className: "photo-input-control" }, [inputNode, trigger, status, preview]);
+  return el("div", { className: "photo-input-control" }, [inputNode, el("div", { className: "photo-input-actions" }, [trigger, fallbackTrigger]), status, preview]);
 }
 
 function isOutingReceiptRequired(outing) {
@@ -540,6 +560,30 @@ function getReturnBlockedMessage(outing) {
 
 function shouldSkipPhotoPreview(file) {
   return !file || file.size > 1024 * 1024;
+}
+
+function shouldSimulatePhotoPickerFailure() {
+  if (!["localhost", "127.0.0.1"].includes(location.hostname)) return false;
+  return new URLSearchParams(location.search).get("simulatePhotoFailure") === "memory";
+}
+
+async function renderPhotoThumbnailPreview(file, preview, isCurrentSelection) {
+  try {
+    const thumbnailDataUrl = await createPhotoThumbnailPreview(file);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    preview.innerHTML = "";
+    if (thumbnailDataUrl) {
+      preview.appendChild(el("img", { src: thumbnailDataUrl, alt: "선택한 사진 미리보기" }));
+      preview.hidden = false;
+    } else {
+      preview.hidden = true;
+    }
+  } catch (error) {
+    console.warn("Photo thumbnail preview failed; continuing without preview.", error);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    preview.innerHTML = "";
+    preview.hidden = true;
+  }
 }
 
 async function createPhotoThumbnailPreview(file, maxSize = 160) {
