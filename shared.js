@@ -2658,11 +2658,11 @@ function normalizeAttendanceDeadlineValue(value) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_ATTENDANCE_DEADLINE;
 }
 
-function setAttendanceDeadline(value, enabled) {
+function setAttendanceDeadline(value, enabled, options = {}) {
   const nextValue = normalizeAttendanceDeadlineValue(value);
   state.settings.attendanceDeadline = nextValue;
   state.settings.attendanceDeadlineEnabled = Boolean(enabled);
-  saveState();
+  saveState({ skipRemote: options.skipRemote === true });
 }
 
 function getAttendancePhotoSrc(check) {

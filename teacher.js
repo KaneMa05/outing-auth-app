@@ -956,8 +956,8 @@ function attendanceDeadlineForm(options = {}) {
     if (!isTeacherAdmin()) return notify("출석 시간 설정 권한이 없습니다.");
     const data = formData(form);
     try {
-      setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked);
-      await flushRemoteSave();
+      setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked, { skipRemote: true });
+      await saveAppSettingsToRemote();
       if (options.modal) closeInfoModal();
       render();
       notify("출석 시간 설정을 저장했습니다.");
