@@ -1200,6 +1200,7 @@ async function loadStateFromRemote() {
     applyRemoteAppSettingsFromNotices(remoteNotices);
     state.notices = remoteNotices;
   }
+  await loadAppSettingsFromApi();
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
@@ -2329,32 +2330,43 @@ function applyRemoteAppSettingsFromNotices(notices) {
   if (!settingsNotice) return;
   try {
     const payload = JSON.parse(settingsNotice.body || "{}");
-    const deadline = normalizeAttendanceDeadlineValue(payload.attendanceDeadline);
-    state.settings.attendanceDeadline = deadline;
-    state.settings.attendanceDeadlineEnabled = payload.attendanceDeadlineEnabled === true;
+    applyRemoteAppSettings(payload);
   } catch (error) {
     console.warn("Unable to read remote app settings.", error);
   }
 }
 
 async function saveAppSettingsToRemote() {
-  if (!remoteStore) return;
-  const now = new Date().toISOString();
-  const { error } = await remoteStore
-    .from("notices")
-    .upsert({
-      id: APP_SETTINGS_NOTICE_ID,
-      title: APP_SETTINGS_NOTICE_ID,
-      body: JSON.stringify({
+  const response = await fetch("/api/app-settings", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      settings: {
         attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
         attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
-        updatedAt: now,
-      }),
-      is_published: false,
-      created_at: now,
-      updated_at: now,
-    }, { onConflict: "id" });
-  if (error && !isMissingRelationError(error, "notices")) throw error;
+      },
+    }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "app_settings_save_failed");
+  applyRemoteAppSettings(data.settings);
+}
+
+async function loadAppSettingsFromApi() {
+  try {
+    const response = await fetch("/api/app-settings", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (response.ok && data.ok) applyRemoteAppSettings(data.settings);
+  } catch (error) {
+    console.warn("Unable to load remote app settings.", error);
+  }
+}
+
+function applyRemoteAppSettings(settings) {
+  if (!settings) return;
+  state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
+  state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
 }
 
 function getImportantNotices({ publishedOnly = false } = {}) {
