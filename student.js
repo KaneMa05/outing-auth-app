@@ -746,12 +746,9 @@ function createAttendanceForm(student, options = {}) {
         state.settings.attendanceDeadlineEnabled
           ? isOpen
             ? `출석 인정은 오전 ${formatAttendanceDeadline()}까지입니다.`
-            : `오전 ${formatAttendanceDeadline()} 이후에는 출석 인증을 할 수 없습니다.`
+            : `오전 ${formatAttendanceDeadline()} 이후에는 인증이 불가합니다.`
           : "테스트 중에는 출석 인증 시간 제한이 꺼져 있습니다."
       ),
-      preArrivalButton && !isOpen && state.settings.attendanceDeadlineEnabled
-        ? el("p", { className: "subtle attendance-deadline-note" }, `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`)
-        : null,
     ]),
   ]);
 
