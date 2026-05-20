@@ -951,14 +951,20 @@ function attendanceDeadlineForm(options = {}) {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!isTeacherAdmin()) return notify("출석 시간 설정 권한이 없습니다.");
     const data = formData(form);
-    setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked);
-    if (options.modal) closeInfoModal();
-    render();
-    notify("출석 시간 설정을 저장했습니다.");
+    try {
+      setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked);
+      await flushRemoteSave();
+      if (options.modal) closeInfoModal();
+      render();
+      notify("출석 시간 설정을 저장했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("출석 시간 설정을 서버에 저장하지 못했습니다.");
+    }
   });
 
   return form;

@@ -4,6 +4,7 @@ const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_IMPORTANT_NOTICES = [];
 const FINAL_GRADE_SUBJECTS = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
+const APP_SETTINGS_NOTICE_ID = "__app_settings__";
 const ATTENDANCE_OPEN_OVERRIDE_NOTE = "__open_attendance_day__";
 const KOREA_PUBLIC_HOLIDAYS = {
   2026: {
@@ -1194,7 +1195,11 @@ async function loadStateFromRemote() {
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
-  if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
+  if (!noticeResult.error) {
+    const remoteNotices = (noticeResult.data || []).map(mapNoticeFromRemote);
+    applyRemoteAppSettingsFromNotices(remoteNotices);
+    state.notices = remoteNotices;
+  }
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
@@ -1307,8 +1312,11 @@ async function saveStateToRemote() {
       }
     }
 
+    await saveAppSettingsToRemote();
+
     const noticeRows = (state.notices || [])
       .filter((notice) => notice.id && String(notice.title || "").trim())
+      .filter((notice) => String(notice.id) !== APP_SETTINGS_NOTICE_ID)
       .map((notice) => ({
         id: notice.id,
         title: String(notice.title || "").trim(),
@@ -2316,6 +2324,39 @@ function mapNoticeFromRemote(notice) {
   };
 }
 
+function applyRemoteAppSettingsFromNotices(notices) {
+  const settingsNotice = (notices || []).find((notice) => String(notice?.id || "") === APP_SETTINGS_NOTICE_ID);
+  if (!settingsNotice) return;
+  try {
+    const payload = JSON.parse(settingsNotice.body || "{}");
+    const deadline = normalizeAttendanceDeadlineValue(payload.attendanceDeadline);
+    state.settings.attendanceDeadline = deadline;
+    state.settings.attendanceDeadlineEnabled = payload.attendanceDeadlineEnabled === true;
+  } catch (error) {
+    console.warn("Unable to read remote app settings.", error);
+  }
+}
+
+async function saveAppSettingsToRemote() {
+  if (!remoteStore) return;
+  const now = new Date().toISOString();
+  const { error } = await remoteStore
+    .from("notices")
+    .upsert({
+      id: APP_SETTINGS_NOTICE_ID,
+      title: APP_SETTINGS_NOTICE_ID,
+      body: JSON.stringify({
+        attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
+        attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
+        updatedAt: now,
+      }),
+      is_published: false,
+      created_at: now,
+      updated_at: now,
+    }, { onConflict: "id" });
+  if (error && !isMissingRelationError(error, "notices")) throw error;
+}
+
 function getImportantNotices({ publishedOnly = false } = {}) {
   return removeLegacySampleNotices(state.notices || [])
     .filter((notice) => String(notice.title || "").trim())
@@ -2328,7 +2369,10 @@ function getImportantNoticeById(id, options = {}) {
 }
 
 function removeLegacySampleNotices(notices) {
-  return (notices || []).filter((notice) => !LEGACY_SAMPLE_NOTICE_IDS.has(String(notice?.id || "")));
+  return (notices || []).filter((notice) => {
+    const id = String(notice?.id || "");
+    return id !== APP_SETTINGS_NOTICE_ID && !LEGACY_SAMPLE_NOTICE_IDS.has(id);
+  });
 }
 
 function getPenaltiesForStudent(studentId) {
@@ -2603,14 +2647,19 @@ function formatAttendanceDeadline() {
 }
 
 function getAttendanceDeadlineParts() {
-  const value = String(state.settings.attendanceDeadline || DEFAULT_ATTENDANCE_DEADLINE);
+  const value = normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline);
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
   if (!match) return [8, 50];
   return [Number(match[1]), Number(match[2])];
 }
 
+function normalizeAttendanceDeadlineValue(value) {
+  const text = String(value || "");
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_ATTENDANCE_DEADLINE;
+}
+
 function setAttendanceDeadline(value, enabled) {
-  const nextValue = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")) ? String(value) : DEFAULT_ATTENDANCE_DEADLINE;
+  const nextValue = normalizeAttendanceDeadlineValue(value);
   state.settings.attendanceDeadline = nextValue;
   state.settings.attendanceDeadlineEnabled = Boolean(enabled);
   saveState();
