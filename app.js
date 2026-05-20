@@ -550,7 +550,7 @@ function renderStudentHome() {
   const todayAttendance = student ? getStudentAttendanceForDate(student.id) : null;
   const holiday = getAttendanceHoliday();
   const needsArrivalVerification = todayAttendance?.status === "pre_arrival_reason";
-  const needsAttendance = !todayAttendance && !holiday;
+  const needsAttendance = !todayAttendance && !holiday && isAttendanceCheckOpen();
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
     el("section", { className: "student-dday-card" }, [
