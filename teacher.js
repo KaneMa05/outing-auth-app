@@ -1061,6 +1061,7 @@ function attendanceStatusBadge(check) {
 }
 
 function attendancePhotoButton(check) {
+  if (isTeacherReasonAttendanceCheck(check)) return el("span", {}, "사유 인증");
   const src = getAttendancePhotoSrc(check);
   const thumbnailSrc = getAttendanceThumbnailSrc(check);
   const arrivalSrc = getAttendanceArrivalPhotoSrc(check);
