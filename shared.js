@@ -971,6 +971,8 @@ async function loadStateFromRemote() {
     "reason",
     "manager_name",
     "created_at",
+    "deleted_at",
+    "deleted_by",
   ].join(",");
   const noticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
@@ -1038,7 +1040,7 @@ async function loadStateFromRemote() {
   const [managerResult, { data: outings, error: outingsError }] = [remoteResults[1], remoteResults[2]];
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
-  const penaltyResult = remoteResults[5];
+  let penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
   const attendanceHolidayResult = remoteResults[8];
@@ -1093,6 +1095,18 @@ async function loadStateFromRemote() {
     trackOptionResult = await remoteStore.from("track_options").select("label,is_active,created_at").eq("is_active", true).order("created_at", { ascending: true });
   }
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
+  if (
+    isMissingColumnError(penaltyResult.error, "deleted_at") ||
+    isMissingColumnError(penaltyResult.error, "deleted_by")
+  ) {
+    const fallbackPenaltyColumns = penaltyColumns
+      .split(",")
+      .filter((column) => !["deleted_at", "deleted_by"].includes(column))
+      .join(",");
+    penaltyResult = remoteStore.from("penalties").select(fallbackPenaltyColumns).order("created_at", { ascending: false });
+    if (scopedStudentId) penaltyResult = await penaltyResult.eq("student_id", scopedStudentId).limit(100);
+    else penaltyResult = await penaltyResult;
+  }
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
@@ -2149,6 +2163,8 @@ function mapPenaltyFromRemote(penalty) {
     reason: penalty.reason || "",
     managerName: penalty.manager_name || "",
     createdAt: penalty.created_at,
+    deletedAt: penalty.deleted_at || "",
+    deletedBy: penalty.deleted_by || "",
   };
 }
 
@@ -2389,8 +2405,12 @@ function removeLegacySampleNotices(notices) {
 
 function getPenaltiesForStudent(studentId) {
   return (state.penalties || [])
-    .filter((penalty) => penalty.studentId === String(studentId || "").trim())
+    .filter((penalty) => penalty.studentId === String(studentId || "").trim() && !isPenaltyDeleted(penalty))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function isPenaltyDeleted(penalty) {
+  return Boolean(String(penalty?.deletedAt || "").trim());
 }
 
 function getPenaltyTotal(studentId) {

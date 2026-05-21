@@ -677,43 +677,91 @@ function renderStudentPreviewHistory(student) {
 }
 
 function canCancelPenalty(penalty) {
-  return canManagePenaltyDeletes() && Boolean(penalty?.id) && Boolean(String(penalty?.reason || "").trim());
+  return canManagePenaltyDeletes() && Boolean(penalty?.id) && Boolean(String(penalty?.reason || "").trim()) && !isPenaltyDeleted(penalty);
 }
 
 function canManagePenaltyDeletes() {
   return isTeacherAdmin();
 }
 
-async function cancelPenalty(id) {
+function cancelPenalty(id) {
   const penalty = (state.penalties || []).find((item) => item.id === id);
   if (!canCancelPenalty(penalty)) return notify("삭제할 수 없는 상/벌점 내역입니다.");
-  if (!confirm(`${penalty.studentName || "학생"} ${formatPenaltyPoints(penalty.points)} 내역을 삭제할까요?`)) return;
-
-  const beforePenalties = [...(state.penalties || [])];
-  try {
-    await deletePenaltyFromTeacherApi(id);
-    state.penalties = (state.penalties || []).filter((item) => item.id !== id);
-    saveState({ skipRemote: true });
-    closeInfoModal();
-    render();
-    notify("상/벌점 내역을 삭제했습니다.");
-  } catch (error) {
-    console.error(error);
-    state.penalties = beforePenalties;
-    render();
-    notify("상/벌점 삭제를 서버에 저장하지 못했습니다.");
-  }
+  openPenaltyDeletePasswordModal(penalty);
 }
 
-async function deletePenaltyFromTeacherApi(id) {
+function openPenaltyDeletePasswordModal(penalty) {
+  closeInfoModal();
+  const passwordInput = input("adminPassword", "password", "관리자 패스워드");
+  passwordInput.required = true;
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", el("strong", {}, `${penalty.studentName || "학생"} (${formatStudentNumber(penalty.studentId)})`)),
+    field("내역", el("span", {}, `${formatPenaltyPoints(penalty.points)} · ${penalty.reason || "-"}`), "full"),
+    field("관리자 패스워드", passwordInput, "full"),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("삭제 처리", "btn danger"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const adminPassword = String(data.adminPassword || "");
+    if (!adminPassword) return notify("관리자 패스워드를 입력해주세요.");
+
+    const submitButton = form.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+      setButtonLoading(submitButton, "삭제 중...");
+    }
+    const beforePenalties = [...(state.penalties || [])];
+    try {
+      const deletedPenalty = await deletePenaltyFromTeacherApi(penalty.id, adminPassword);
+      state.penalties = (state.penalties || []).map((item) =>
+        item.id === penalty.id ? (deletedPenalty || { ...item, deletedAt: new Date().toISOString(), deletedBy: teacherAuth.user?.username || "admin" }) : item
+      );
+      saveState({ skipRemote: true });
+      closeInfoModal();
+      render();
+      notify("상/벌점 내역을 삭제 처리했습니다.");
+    } catch (error) {
+      console.error(error);
+      state.penalties = beforePenalties;
+      render();
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "삭제 처리";
+      }
+      notify(error.message === "invalid_admin_password" ? "관리자 패스워드가 일치하지 않습니다." : "상/벌점 삭제를 서버에 저장하지 못했습니다.");
+    }
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "상/벌점 삭제 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "상/벌점 삭제 확인"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+  passwordInput.focus();
+}
+
+async function deletePenaltyFromTeacherApi(id, adminPassword) {
   const response = await fetch("/api/penalties", {
     method: "DELETE",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
+    body: JSON.stringify({ id, adminPassword }),
   });
   const data = await response.json().catch(() => ({ ok: false }));
   if (!response.ok || !data.ok) throw new Error(data.error || "penalty_delete_failed");
+  return data.penalty ? mapPenaltyFromRemote(data.penalty) : null;
 }
 
 async function saveStudentsToRemote(studentIds) {

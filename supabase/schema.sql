@@ -142,6 +142,10 @@ create table if not exists public.student_registration_events (
   created_at timestamptz not null default now()
 );
 
+alter table public.penalties
+add column if not exists deleted_at timestamptz,
+add column if not exists deleted_by text;
+
 create table if not exists public.exams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -778,7 +782,9 @@ grant select (
   points,
   reason,
   manager_name,
-  created_at
+  created_at,
+  deleted_at,
+  deleted_by
 ) on public.penalties to anon;
 
 grant insert (

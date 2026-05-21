@@ -1,10 +1,11 @@
 function renderPenaltyManagement() {
   if (!hasTeacherPermission("penalties.read")) return renderForbidden();
   const selected = selectedStudentCohortCount();
-  const visiblePenalties = getFilteredPenalties(selected.value);
-  const summaries = getPenaltySummaries(visiblePenalties, selected.value);
+  const visiblePenalties = getFilteredPenaltyHistory(selected.value);
+  const activePenalties = getFilteredPenalties(selected.value);
+  const summaries = getPenaltySummaries(activePenalties, selected.value);
   const penalizedStudents = summaries.filter((item) => item.total > 0).length;
-  const latestPenalties = [...visiblePenalties].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const latestPenalties = [...visiblePenalties].sort((a, b) => new Date(getPenaltyActivityAt(b)) - new Date(getPenaltyActivityAt(a)));
 
   return el("div", { className: "grid" }, [
     el("div", { className: "stat-groups" }, [
@@ -33,7 +34,11 @@ function renderPenaltyManagement() {
 }
 
 function getFilteredPenalties(cohort = selectedStudentCohort) {
-  return (state.penalties || []).filter((penalty) => isPenaltyInSelectedPeriod(penalty) && isPenaltyInSelectedCohort(penalty, cohort));
+  return (state.penalties || []).filter((penalty) => !isPenaltyDeleted(penalty) && isPenaltyInSelectedPeriod(penalty) && isPenaltyInSelectedCohort(penalty, cohort));
+}
+
+function getFilteredPenaltyHistory(cohort = selectedStudentCohort) {
+  return (state.penalties || []).filter((penalty) => isPenaltyInSelectedHistoryPeriod(penalty) && isPenaltyInSelectedCohort(penalty, cohort));
 }
 
 function isPenaltyInSelectedPeriod(penalty) {
@@ -42,6 +47,20 @@ function isPenaltyInSelectedPeriod(penalty) {
   if (penaltyPeriodFilter.start && dateKey < penaltyPeriodFilter.start) return false;
   if (penaltyPeriodFilter.end && dateKey > penaltyPeriodFilter.end) return false;
   return true;
+}
+
+function isPenaltyInSelectedHistoryPeriod(penalty) {
+  if (isPenaltyInSelectedPeriod(penalty)) return true;
+  if (!isPenaltyDeleted(penalty)) return false;
+  const deletedDateKey = getDateInputValue(penalty.deletedAt);
+  if (!deletedDateKey) return false;
+  if (penaltyPeriodFilter.start && deletedDateKey < penaltyPeriodFilter.start) return false;
+  if (penaltyPeriodFilter.end && deletedDateKey > penaltyPeriodFilter.end) return false;
+  return true;
+}
+
+function getPenaltyActivityAt(penalty) {
+  return penalty?.deletedAt || penalty?.createdAt || "";
 }
 
 function isPenaltyInSelectedCohort(penalty, cohort = selectedStudentCohort) {
@@ -198,13 +217,14 @@ function renderPenaltySummaryTable(summaries) {
 
 function renderPenaltyHistoryTable(penalties) {
   const showDeleteColumn = canManagePenaltyDeletes();
-  const headers = showDeleteColumn ? ["부여일", "번호", "이름", "상/벌점", "사유", "담당자", "관리"] : ["부여일", "번호", "이름", "상/벌점", "사유", "담당자"];
+  const headers = showDeleteColumn ? ["부여일", "번호", "이름", "상/벌점", "상태", "사유", "담당자", "관리"] : ["부여일", "번호", "이름", "상/벌점", "상태", "사유", "담당자"];
   const rows = penalties.map((penalty) =>
     el("tr", {}, [
       el("td", {}, formatDateCompact(penalty.createdAt)),
       el("td", {}, formatStudentNumber(penalty.studentId)),
       el("td", {}, penalty.studentName || "-"),
       el("td", {}, el("span", { className: getPenaltyPointClass(penalty.points) }, formatPenaltyPoints(penalty.points))),
+      el("td", {}, penaltyStatusBadge(penalty)),
       el("td", { className: "wide-cell" }, penalty.reason || "-"),
       el("td", {}, penalty.managerName || "-"),
       showDeleteColumn ? el("td", { className: "student-admin-actions" }, canCancelPenalty(penalty) ? button("삭제", "mini-btn danger", "button", () => cancelPenalty(penalty.id)) : "-") : null,
@@ -219,6 +239,16 @@ function renderPenaltyHistoryTable(penalties) {
       ]),
       el("tbody", {}, rows),
     ]),
+  ]);
+}
+
+function penaltyStatusBadge(penalty) {
+  if (!isPenaltyDeleted(penalty)) return el("span", { className: "badge approved" }, "부여");
+  const deletedAt = formatDateCompact(penalty.deletedAt);
+  const deletedBy = penalty.deletedBy ? ` · ${penalty.deletedBy}` : "";
+  return el("div", { title: `${deletedAt}${deletedBy}` }, [
+    el("span", { className: "badge rejected" }, "삭제"),
+    el("small", {}, `${deletedAt}${deletedBy}`),
   ]);
 }
 

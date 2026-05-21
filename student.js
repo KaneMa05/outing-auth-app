@@ -300,11 +300,11 @@ function createVerifyForm() {
     submitButton.disabled = true;
     try {
       const photo = await createOutingPhoto(outing, file, type);
+      await saveOutingPhotoMetadataToRemote(outing, photo);
       outing.photos = outing.photos.filter((item) => item.type !== type);
       outing.photos.push(photo);
       state.settings.lastStudentId = outing.studentId;
       saveState({ skipRemote: true });
-      await saveOutingPhotoMetadataToRemote(outing, photo);
       savedTypes.add(type);
     } finally {
       savingTypes.delete(type);
@@ -940,11 +940,11 @@ function createReturnForm() {
     submitButton.disabled = true;
     try {
       const photo = await createOutingPhoto(outing, file, "복귀 인증");
+      await saveOutingPhotoMetadataToRemote(outing, photo);
       outing.photos = outing.photos.filter((item) => item.type !== "복귀 인증");
       outing.photos.push(photo);
       state.settings.lastStudentId = outing.studentId;
       saveState({ skipRemote: true });
-      await saveOutingPhotoMetadataToRemote(outing, photo);
     } finally {
       savingReturnPhoto = false;
       submitButton.disabled = false;

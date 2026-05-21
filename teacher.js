@@ -385,6 +385,7 @@ function hasLateAttendancePenaltyForToday(studentId) {
   const todayKey = getTodayDateKey();
   return (state.penalties || []).some((penalty) =>
     String(penalty.studentId || "").trim() === String(studentId || "").trim()
+    && !isPenaltyDeleted(penalty)
     && getDateInputValue(penalty.createdAt) === todayKey
     && Number(penalty.points) === LATE_ATTENDANCE_PENALTY_POINTS
     && penalty.reason === LATE_ATTENDANCE_PENALTY_REASON
@@ -547,21 +548,74 @@ async function giveLatePenaltyToAbsentStudents(students) {
     render();
     return;
   }
-  const confirmed = confirm(`미인증 학생 ${targets.length}명에게 지각 벌점 ${LATE_ATTENDANCE_PENALTY_POINTS}점을 일괄 부여할까요?`);
-  if (!confirmed) return;
-  try {
-    await Promise.all(
-      targets.map((student) =>
-        createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, teacherAuth.user?.username || "teacher")
-      )
-    );
-    render();
-    notify(skipped ? `${targets.length}명에게 지각 벌점을 부여했습니다. 이미 부여된 ${skipped}명은 제외했습니다.` : `${targets.length}명에게 지각 벌점을 부여했습니다.`);
-  } catch (error) {
-    console.error(error);
-    render();
-    notify("벌점 저장 중 오류가 발생했습니다.");
-  }
+  openLateAttendancePenaltyModal(targets, skipped);
+}
+
+function openLateAttendancePenaltyModal(targets, skipped = 0) {
+  closeInfoModal();
+  const managerInput = managerNameControl();
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("대상", el("strong", {}, `미인증 학생 ${targets.length}명`)),
+    field("벌점", el("strong", {}, `${LATE_ATTENDANCE_PENALTY_POINTS}점`)),
+    field("사유", el("span", {}, LATE_ATTENDANCE_PENALTY_REASON), "full"),
+    field("담당자", managerInput),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("벌점 부여", "btn danger"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const managerName = String(data.managerName || "").trim();
+    if (!managerName) return notify("담당자를 선택해주세요.");
+
+    const freshTargets = targets.filter((student) => !hasLateAttendancePenaltyForToday(student.id));
+    const freshSkipped = skipped + targets.length - freshTargets.length;
+    if (!freshTargets.length) {
+      closeInfoModal();
+      render();
+      return notify("오늘 지각 벌점이 모두 이미 부여되었습니다.");
+    }
+
+    const submitButton = form.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+      setButtonLoading(submitButton, "저장 중...");
+    }
+    try {
+      await Promise.all(
+        freshTargets.map((student) =>
+          createPenalty(student, LATE_ATTENDANCE_PENALTY_POINTS, LATE_ATTENDANCE_PENALTY_REASON, managerName)
+        )
+      );
+      closeInfoModal();
+      render();
+      notify(freshSkipped ? `${freshTargets.length}명에게 지각 벌점을 부여했습니다. 이미 부여된 ${freshSkipped}명은 제외했습니다.` : `${freshTargets.length}명에게 지각 벌점을 부여했습니다.`);
+    } catch (error) {
+      console.error(error);
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "벌점 부여";
+      }
+      render();
+      notify("벌점 저장 중 오류가 발생했습니다.");
+    }
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "지각 벌점 부여 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "지각 벌점 일괄 부여"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
 function applyAutoApprovalForReturnedOutings() {
@@ -1167,6 +1221,7 @@ function hasNotReturnedPenaltyForOuting(outing) {
   const label = notReturnedPenaltyReasonLabel(outing);
   return (state.penalties || []).some((penalty) =>
     String(penalty.studentId || "").trim() === String(outing?.studentId || "").trim()
+    && !isPenaltyDeleted(penalty)
     && Number(penalty.points) > 0
     && String(penalty.reason || "").startsWith(label)
   );
