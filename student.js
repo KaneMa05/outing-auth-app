@@ -767,9 +767,13 @@ function createAttendanceForm(student, options = {}) {
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "출석 인증 중...");
+    openLoadingModal("출석 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await createAttendanceCheck(student, attendancePhoto, {
-        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+        onAttendanceSaved: () => {
+          setButtonLoading(submitButton, "사진 저장 중...");
+          openLoadingModal("사진 저장 중", "출석은 접수됐고 사진을 저장하고 있습니다. 잠시만 기다려주세요.");
+        },
       });
       form.reset();
       render();
@@ -779,6 +783,8 @@ function createAttendanceForm(student, options = {}) {
       notify(getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "출석 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
@@ -827,9 +833,13 @@ function createPreArrivalReasonForm(student) {
     submitButton.disabled = true;
     cancelButton.disabled = true;
     setButtonLoading(submitButton, "사유 인증 중...");
+    openLoadingModal("사유 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await createPreArrivalReasonCheck(student, reasonPhoto, data.reason, data.detail, {
-        onAttendanceSaved: () => setButtonLoading(submitButton, "사진 저장 중..."),
+        onAttendanceSaved: () => {
+          setButtonLoading(submitButton, "사진 저장 중...");
+          openLoadingModal("사진 저장 중", "사유신청은 접수됐고 사진을 저장하고 있습니다. 잠시만 기다려주세요.");
+        },
       });
       state.settings.attendanceMode = "";
       form.reset();
@@ -841,6 +851,8 @@ function createPreArrivalReasonForm(student) {
       submitButton.disabled = false;
       cancelButton.disabled = false;
       submitButton.textContent = "사유 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
@@ -909,6 +921,7 @@ function createArrivalVerificationForm(check) {
     if (!arrivalPhoto) return notify("등원 현장 사진을 촬영해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "등원 인증 중...");
+    openLoadingModal("등원 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await completePreArrivalAttendanceCheck(student, check, arrivalPhoto);
       form.reset();
@@ -919,6 +932,8 @@ function createArrivalVerificationForm(check) {
       notify(getPhotoSubmitErrorMessage(error));
       submitButton.disabled = false;
       submitButton.textContent = "등원 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
