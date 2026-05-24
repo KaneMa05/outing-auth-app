@@ -2344,25 +2344,59 @@ async function saveAttendanceHolidaysToRemote() {
     updated_at: holiday.updatedAt || new Date().toISOString(),
   }));
   if (!rows.length) return;
+  if (APP_MODE === "teacher") {
+    await saveAttendanceHolidayRowsToTeacherApi(rows);
+    return;
+  }
   const { error } = await remoteStore.from("attendance_holidays").upsert(rows, { onConflict: "date_key" });
   if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
 }
 
 async function saveAttendanceHolidayToRemote(holiday) {
-  if (!remoteStore || !holiday) return;
-  const { error } = await remoteStore.from("attendance_holidays").upsert({
+  if (!holiday) return;
+  const row = {
     date_key: holiday.dateKey,
     note: holiday.note || null,
     created_at: holiday.createdAt || new Date().toISOString(),
     updated_at: holiday.updatedAt || new Date().toISOString(),
-  }, { onConflict: "date_key" });
+  };
+  if (APP_MODE === "teacher") {
+    await saveAttendanceHolidayRowsToTeacherApi([row]);
+    return;
+  }
+  if (!remoteStore) return;
+  const { error } = await remoteStore.from("attendance_holidays").upsert(row, { onConflict: "date_key" });
   if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
 }
 
 async function deleteAttendanceHolidayFromRemote(dateKey) {
+  if (APP_MODE === "teacher") {
+    await deleteAttendanceHolidayFromTeacherApi(dateKey);
+    return;
+  }
   if (!remoteStore) return;
   const { error } = await remoteStore.from("attendance_holidays").delete().eq("date_key", dateKey);
   if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+}
+
+async function saveAttendanceHolidayRowsToTeacherApi(rows) {
+  const response = await fetch("/api/attendance-holidays", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ holidays: rows }),
+  });
+  if (!response.ok) throw new Error(`attendance_holidays_api_${response.status}`);
+}
+
+async function deleteAttendanceHolidayFromTeacherApi(dateKey) {
+  const response = await fetch("/api/attendance-holidays", {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dateKey }),
+  });
+  if (!response.ok) throw new Error(`attendance_holidays_api_${response.status}`);
 }
 
 function isAttendanceCheckOpen(now = new Date()) {
