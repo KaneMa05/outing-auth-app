@@ -239,6 +239,23 @@ create table if not exists public.exam_files (
   uploaded_at timestamptz not null default now()
 );
 
+create table if not exists public.final_exam_scores (
+  id text primary key,
+  round integer not null default 1 check (round > 0),
+  student_id text not null,
+  student_name text,
+  track text,
+  cohort text not null default '',
+  is_external_final_score boolean not null default false,
+  score numeric,
+  max_score numeric,
+  wrong_count numeric,
+  subject_scores jsonb not null default '{}'::jsonb,
+  status text,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
 do $$
 begin
   if exists (
@@ -376,6 +393,9 @@ on public.exam_submissions (exam_section_id, submitted_at desc);
 create index if not exists exam_submissions_student_idx
 on public.exam_submissions (student_id, created_at desc);
 
+create index if not exists final_exam_scores_round_student_idx
+on public.final_exam_scores (round, student_id);
+
 delete from public.notices
 where id in ('attendance-guide', 'outing-guide');
 
@@ -441,6 +461,7 @@ alter table public.exam_answers enable row level security;
 alter table public.exam_submissions enable row level security;
 alter table public.submission_answers enable row level security;
 alter table public.exam_files enable row level security;
+alter table public.final_exam_scores enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -504,6 +525,10 @@ drop policy if exists "anon_exam_files_select" on public.exam_files;
 drop policy if exists "anon_exam_files_insert" on public.exam_files;
 drop policy if exists "anon_exam_files_update" on public.exam_files;
 drop policy if exists "anon_exam_files_delete" on public.exam_files;
+drop policy if exists "anon_final_exam_scores_select" on public.final_exam_scores;
+drop policy if exists "anon_final_exam_scores_insert" on public.final_exam_scores;
+drop policy if exists "anon_final_exam_scores_update" on public.final_exam_scores;
+drop policy if exists "anon_final_exam_scores_delete" on public.final_exam_scores;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 drop policy if exists "anon_outing_photo_select" on storage.objects;
@@ -530,6 +555,7 @@ revoke all on public.exam_answers from anon;
 revoke all on public.exam_submissions from anon;
 revoke all on public.submission_answers from anon;
 revoke all on public.exam_files from anon;
+revoke all on public.final_exam_scores from anon;
 
 grant select (
   id,
@@ -864,6 +890,7 @@ grant select, insert, update on public.exam_submissions to anon;
 grant select, insert, update on public.submission_answers to anon;
 grant select, insert, update on public.exam_files to anon;
 grant delete on public.exam_files to anon;
+grant select, insert, update, delete on public.final_exam_scores to anon;
 
 create policy "anon_students_select_active"
 on public.students
@@ -1317,6 +1344,31 @@ with check (file_type = 'answer_pdf');
 
 create policy "anon_exam_files_delete"
 on public.exam_files
+for delete
+to anon
+using (true);
+
+create policy "anon_final_exam_scores_select"
+on public.final_exam_scores
+for select
+to anon
+using (true);
+
+create policy "anon_final_exam_scores_insert"
+on public.final_exam_scores
+for insert
+to anon
+with check (id is not null and student_id is not null and round > 0);
+
+create policy "anon_final_exam_scores_update"
+on public.final_exam_scores
+for update
+to anon
+using (true)
+with check (id is not null and student_id is not null and round > 0);
+
+create policy "anon_final_exam_scores_delete"
+on public.final_exam_scores
 for delete
 to anon
 using (true);
