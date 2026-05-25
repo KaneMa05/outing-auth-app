@@ -292,6 +292,10 @@ function createVerifyForm() {
   const savedSitePhoto = getOutingPhotoByType(activeOuting, "현장 인증");
   const savedReceiptPhoto = getOutingPhotoByType(activeOuting, "영수증 인증");
   const savedTypes = new Set((activeOuting?.photos || []).map((photo) => photo.type));
+  const hasRequiredPhotos =
+    savedTypes.has("현장 인증") &&
+    (!isReceiptRequired || savedTypes.has("영수증 인증"));
+  const isPendingFinalSubmit = Boolean(activeOuting && activeOuting.status === "requested" && hasRequiredPhotos);
   const savingTypes = new Set();
   const saveVerificationPhoto = async (file, type) => {
     const outing = getActiveOuting(state.settings.lastStudentId);
@@ -313,6 +317,12 @@ function createVerifyForm() {
   };
   const form = el("form", { className: "form-grid" }, [
     el("p", { className: "subtle full" }, "외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요."),
+    isPendingFinalSubmit
+      ? el("div", { className: "pending-verification-notice full" }, [
+          el("strong", {}, "사진은 저장됐고, 아직 최종 제출 전입니다."),
+          el("span", {}, "사진을 바꾸려면 다시 촬영하고, 이 사진으로 확정하려면 아래 사진 인증 제출 버튼을 눌러주세요."),
+        ])
+      : null,
     field("현장 인증 사진", photoCaptureInput("sitePhoto", {
       thumbnailPreview: true,
       initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요." : "",

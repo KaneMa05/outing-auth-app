@@ -918,6 +918,7 @@ function makeLocalDevSafeState() {
 
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
+  const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   const managerColumns = "id,name,role,memo,is_active,created_at";
@@ -1205,7 +1206,10 @@ async function loadStateFromRemote() {
       deletedAt: outing.deleted_at || "",
     };
   });
-  state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
+  state.outings = mergePendingOutingPhotoDrafts(
+    mappedOutings.filter((outing) => !outing.deletedAt),
+    pendingPhotoDrafts
+  );
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
@@ -1815,6 +1819,49 @@ async function decideOuting(id, decision) {
     render();
     notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 저장 중 오류가 발생했습니다." : decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
   }
+}
+
+function collectStudentPendingOutingPhotoDrafts(scopedStudentId = "") {
+  if (APP_MODE !== "student") return [];
+  const studentId = String(scopedStudentId || state.settings.lastStudentId || "").trim();
+  if (!studentId) return [];
+  return (state.outings || [])
+    .filter((outing) => String(outing.studentId || "").trim() === studentId)
+    .filter((outing) => outing.status !== "returned" && !outing.deletedAt)
+    .map((outing) => ({
+      ...outing,
+      photos: (outing.photos || [])
+        .filter(hasPersistedOutingPhotoSource)
+        .map((photo) => ({ ...photo })),
+    }))
+    .filter((outing) => outing.id && outing.photos.length);
+}
+
+function mergePendingOutingPhotoDrafts(outings, drafts) {
+  if (!drafts.length) return outings;
+  const draftsByOutingId = new Map(drafts.map((draft) => [draft.id, draft]));
+  const mergedOutings = outings.map((outing) => {
+    const draft = draftsByOutingId.get(outing.id);
+    if (!draft || outing.status === "returned" || outing.deletedAt) return outing;
+    const photos = [...(outing.photos || [])];
+    draft.photos.forEach((draftPhoto) => {
+      if (!hasPersistedOutingPhotoSource(draftPhoto)) return;
+      const existingIndex = photos.findIndex((photo) => photo.id === draftPhoto.id || photo.type === draftPhoto.type);
+      if (existingIndex === -1) photos.push(draftPhoto);
+      else if (!hasPersistedOutingPhotoSource(photos[existingIndex])) photos[existingIndex] = draftPhoto;
+    });
+    return { ...outing, photos: normalizeOutingPhotosByType(photos) };
+  });
+  drafts.forEach((draft) => {
+    if (!mergedOutings.some((outing) => outing.id === draft.id)) {
+      mergedOutings.push({ ...draft, photos: normalizeOutingPhotosByType(draft.photos || []) });
+    }
+  });
+  return mergedOutings;
+}
+
+function hasPersistedOutingPhotoSource(photo) {
+  return Boolean(photo?.photoPath || photo?.photoUrl || photo?.thumbnailPath || photo?.thumbnailUrl || photo?.dataUrl);
 }
 
 async function updateOutingDecisionToRemote(outing) {

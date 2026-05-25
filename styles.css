@@ -613,6 +613,27 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
   border-top-color: var(--accent);
 }
 
+.pending-verification-notice {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #f0c46b;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #7a4d00;
+}
+
+.pending-verification-notice strong {
+  font-size: 0.96rem;
+}
+
+.pending-verification-notice span {
+  color: #8a620f;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .photo-input-preview {
   grid-column: 1 / -1;
   inline-size: 92px;
