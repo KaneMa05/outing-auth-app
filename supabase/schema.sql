@@ -27,6 +27,9 @@ create table if not exists public.outings (
     check (status in ('requested', 'verified', 'returned')),
   decision text not null default 'pending'
     check (decision in ('pending', 'approved', 'rejected')),
+  approved_by text,
+  approved_at timestamptz,
+  approval_reason text,
   receipt_note text,
   teacher_memo text,
   early_leave_reason text,
@@ -35,6 +38,10 @@ create table if not exists public.outings (
   returned_at timestamptz,
   deleted_at timestamptz
 );
+
+alter table public.outings add column if not exists approved_by text;
+alter table public.outings add column if not exists approved_at timestamptz;
+alter table public.outings add column if not exists approval_reason text;
 
 create table if not exists public.outing_photos (
   id uuid primary key default gen_random_uuid(),
@@ -601,6 +608,9 @@ grant select (
   expected_return,
   status,
   decision,
+  approved_by,
+  approved_at,
+  approval_reason,
   receipt_note,
   early_leave_reason,
   created_at,
@@ -619,6 +629,9 @@ grant insert (
   expected_return,
   status,
   decision,
+  approved_by,
+  approved_at,
+  approval_reason,
   receipt_note,
   early_leave_reason,
   created_at,
@@ -629,6 +642,9 @@ grant insert (
 grant update (
   status,
   decision,
+  approved_by,
+  approved_at,
+  approval_reason,
   receipt_note,
   teacher_memo,
   verified_at,

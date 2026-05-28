@@ -932,6 +932,9 @@ async function loadStateFromRemote() {
     "expected_return",
     "status",
     "decision",
+    "approved_by",
+    "approved_at",
+    "approval_reason",
     "receipt_note",
     "early_leave_reason",
     "created_at",
@@ -1081,7 +1084,25 @@ async function loadStateFromRemote() {
   }
   if (studentResult.error) throw studentResult.error;
   if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
-  if (outingsError) throw outingsError;
+  let loadedOutings = outings || [];
+  if (
+    isMissingColumnError(outingsError, "approved_by") ||
+    isMissingColumnError(outingsError, "approved_at") ||
+    isMissingColumnError(outingsError, "approval_reason")
+  ) {
+    const fallbackOutingColumns = outingColumns
+      .split(",")
+      .filter((column) => !["approved_by", "approved_at", "approval_reason"].includes(column))
+      .join(",");
+    let fallbackOutingRequest = remoteStore.from("outings").select(fallbackOutingColumns).order("created_at", { ascending: false });
+    if (scopedStudentId) fallbackOutingRequest = fallbackOutingRequest.eq("student_id", scopedStudentId);
+    else if (APP_MODE === "student") fallbackOutingRequest = Promise.resolve({ data: [], error: null });
+    const fallbackOutingResult = await fallbackOutingRequest;
+    if (fallbackOutingResult.error) throw fallbackOutingResult.error;
+    loadedOutings = fallbackOutingResult.data || [];
+  } else if (outingsError) {
+    throw outingsError;
+  }
   if (
     isMissingColumnError(photoResult.error, "photo_path") ||
     isMissingColumnError(photoResult.error, "photo_url") ||
@@ -1135,8 +1156,8 @@ async function loadStateFromRemote() {
   if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
     examSubmissionResult.data = (examSubmissionResult.data || []).filter((submission) => String(submission.student_id) === scopedStudentId);
   }
-  if (APP_MODE === "student" && (outings || []).length) {
-    const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
+  if (APP_MODE === "student" && loadedOutings.length) {
+    const outingIds = loadedOutings.map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
       ? await remoteStore.from("outing_photos").select(photoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
       : { data: [], error: null };
@@ -1175,7 +1196,7 @@ async function loadStateFromRemote() {
     if (apiManagers) state.managers = apiManagers;
   }
 
-  const mappedOutings = (outings || []).map((outing) => {
+  const mappedOutings = loadedOutings.map((outing) => {
     const photos = normalizeOutingPhotosByType(outingPhotos
       .filter((photo) => photo.outing_id === outing.id)
       .map((photo) => ({
@@ -1200,6 +1221,9 @@ async function loadStateFromRemote() {
       expectedReturn: outing.expected_return || "",
       status: outing.status,
       decision: outing.decision,
+      approvedBy: outing.approved_by || "",
+      approvedAt: outing.approved_at || "",
+      approvalReason: outing.approval_reason || "",
       teacherMemo: "",
       earlyLeaveReason: outing.early_leave_reason || "",
       receiptNote: outing.receipt_note || "",
@@ -1430,6 +1454,9 @@ async function saveStateToRemote() {
       id: outing.id,
       status: outing.status,
       decision: outing.decision,
+      approved_by: outing.approvedBy || null,
+      approved_at: outing.approvedAt || null,
+      approval_reason: outing.approvalReason || null,
       teacher_memo: outing.teacherMemo || null,
       receipt_note: outing.receiptNote || null,
       verified_at: outing.verifiedAt,
@@ -1442,6 +1469,9 @@ async function saveStateToRemote() {
       .update({
         status: outing.status,
         decision: outing.decision,
+        approved_by: outing.approved_by,
+        approved_at: outing.approved_at,
+        approval_reason: outing.approval_reason,
         teacher_memo: outing.teacher_memo,
         receipt_note: outing.receipt_note,
         verified_at: outing.verified_at,
@@ -1449,6 +1479,24 @@ async function saveStateToRemote() {
       })
       .eq("id", outing.id);
     if (error) {
+      if (
+        isMissingColumnError(error, "approved_by") ||
+        isMissingColumnError(error, "approved_at") ||
+        isMissingColumnError(error, "approval_reason")
+      ) {
+        const { error: approvalFallbackError } = await remoteStore
+          .from("outings")
+          .update({
+            status: outing.status,
+            decision: outing.decision,
+            teacher_memo: outing.teacher_memo,
+            receipt_note: outing.receipt_note,
+            verified_at: outing.verified_at,
+            returned_at: outing.returned_at,
+          })
+          .eq("id", outing.id);
+        if (!approvalFallbackError) continue;
+      }
       const { error: fallbackError } = await remoteStore
         .from("outings")
         .update({
@@ -1798,15 +1846,27 @@ function metaChip(label, value) {
   return el("span", { className: "meta-chip" }, [el("em", {}, label), String(value || "-")]);
 }
 
-async function decideOuting(id, decision) {
+async function decideOuting(id, decision, options = {}) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
   const previous = {
     decision: outing.decision,
     status: outing.status,
     returnedAt: outing.returnedAt,
+    approvedBy: outing.approvedBy,
+    approvedAt: outing.approvedAt,
+    approvalReason: outing.approvalReason,
   };
   outing.decision = decision;
+  if (decision === "approved") {
+    outing.approvedBy = String(options.approvalManagerName || options.approvedBy || teacherAuth.user?.username || "").trim();
+    outing.approvedAt = options.approvedAt || new Date().toISOString();
+    outing.approvalReason = String(options.approvalReason || "").trim();
+  } else {
+    outing.approvedBy = "";
+    outing.approvedAt = "";
+    outing.approvalReason = "";
+  }
   if (decision === "approved" && !outing.earlyLeaveReason) {
     outing.status = "returned";
     outing.returnedAt = outing.returnedAt || new Date().toISOString();
@@ -1821,9 +1881,13 @@ async function decideOuting(id, decision) {
     outing.decision = previous.decision;
     outing.status = previous.status;
     outing.returnedAt = previous.returnedAt;
+    outing.approvedBy = previous.approvedBy;
+    outing.approvedAt = previous.approvedAt;
+    outing.approvalReason = previous.approvalReason;
     saveState({ skipRemote: true });
     render();
     notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 저장 중 오류가 발생했습니다." : decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
+    if (options.throwOnError) throw error;
   }
 }
 
@@ -1882,8 +1946,27 @@ async function updateOutingDecisionToRemote(outing) {
       decision: outing.decision,
       status: outing.status,
       returned_at: outing.returnedAt || null,
+      approved_by: outing.approvedBy || null,
+      approved_at: outing.approvedAt || null,
+      approval_reason: outing.approvalReason || null,
     })
     .eq("id", outing.id);
+  if (
+    isMissingColumnError(error, "approved_by") ||
+    isMissingColumnError(error, "approved_at") ||
+    isMissingColumnError(error, "approval_reason")
+  ) {
+    const { error: fallbackError } = await remoteStore
+      .from("outings")
+      .update({
+        decision: outing.decision,
+        status: outing.status,
+        returned_at: outing.returnedAt || null,
+      })
+      .eq("id", outing.id);
+    if (fallbackError) throw fallbackError;
+    return;
+  }
   if (error) throw error;
 }
 

@@ -2361,6 +2361,26 @@ th {
   flex-wrap: wrap;
 }
 
+.approval-history-cell {
+  min-width: 150px;
+}
+
+.approval-history {
+  display: grid;
+  gap: 3px;
+  line-height: 1.35;
+}
+
+.approval-history span:first-child {
+  font-weight: 800;
+  color: var(--accent-strong);
+}
+
+.approval-history small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .mini-status {
   display: inline-flex;
   align-items: center;

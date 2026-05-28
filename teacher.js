@@ -623,6 +623,9 @@ function applyAutoApprovalForReturnedOutings() {
   state.outings.forEach((outing) => {
     if (outing.decision === "pending" && isReturnPhotoCompleted(outing)) {
       outing.decision = "approved";
+      outing.approvedBy = outing.approvedBy || "복귀 사진 자동승인";
+      outing.approvedAt = outing.approvedAt || getOutingReturnedAt(outing) || new Date().toISOString();
+      outing.approvalReason = outing.approvalReason || "복귀 인증 사진 확인";
       changed = true;
       updateOutingDecisionToRemote(outing).catch((error) => console.error(error));
     }
@@ -1151,7 +1154,7 @@ function sortOutingsByCreatedAtDesc(outings) {
 }
 
 function renderTeacherOutingTable(outings, options = {}) {
-  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "처리"];
+  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "승인 내역", "사진", "처리"];
   const rows = outings.map((outing) =>
     el("tr", { id: getOutingRowId(outing) }, [
       el("td", {}, formatDateCompact(outing.createdAt)),
@@ -1163,6 +1166,7 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", {}, formatTime(outing.verifiedAt)),
       el("td", {}, formatTime(getOutingReturnedAt(outing))),
       el("td", {}, statusBadge(outing)),
+      el("td", { className: "approval-history-cell" }, approvalHistorySummary(outing)),
       el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
     ])
@@ -1186,7 +1190,7 @@ function teacherRowActions(outing, options = {}) {
   const canRejectWithPenalty = canDecide && hasTeacherPermission("penalties.write");
 
   return [
-    canDecide ? button("승인", "mini-btn", "button", () => decideOuting(outing.id, "approved")) : null,
+    canDecide ? button("승인", "mini-btn", "button", () => approveOutingFromTeacher(outing)) : null,
     canDecide ? button("반려", "mini-btn danger", "button", () => {
       if (canRejectWithPenalty) openRejectOutingPenaltyModal(outing);
       else decideOuting(outing.id, "rejected");
@@ -1205,6 +1209,84 @@ function teacherRowActions(outing, options = {}) {
     }) : null,
     hasTeacherPermission("outing.delete") ? button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)) : null,
   ].filter(Boolean);
+}
+
+function approveOutingFromTeacher(outing) {
+  if (!outing || !hasTeacherPermission("outing.approve")) return;
+  if (!isReturnPhotoCompleted(outing)) {
+    openApprovalWithoutReturnPhotoModal(outing);
+    return;
+  }
+  decideOuting(outing.id, "approved", {
+    approvedBy: teacherAuth.user?.username || "",
+    approvalReason: "복귀 인증 사진 확인",
+  });
+}
+
+function openApprovalWithoutReturnPhotoModal(outing) {
+  closeInfoModal();
+  const managerInput = managerNameControl();
+  const reasonInput = textarea("approvalReason", "복귀 사진 없이 승인하는 사유를 입력하세요.");
+  reasonInput.required = true;
+  const form = el("form", { className: "form-grid penalty-form" }, [
+    field("학생", el("strong", {}, `${outing.studentName || "-"} (${formatStudentNumber(outing.studentId)})`)),
+    field("신청일", el("span", {}, formatDateCompact(outing.createdAt))),
+    field("예상 복귀", el("span", {}, formatExpectedReturn(outing.expectedReturn))),
+    field("담당자", managerInput),
+    field("승인 사유", reasonInput, "full"),
+    el("div", { className: "field full" }, [
+      el("div", { className: "attendance-modal-actions" }, [
+        button("승인 처리", "btn"),
+        button("취소", "btn secondary", "button", closeInfoModal),
+      ]),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    const managerName = String(data.managerName || "").trim();
+    const approvalReason = String(data.approvalReason || "").trim();
+    if (!managerName) return notify("담당자를 선택해주세요.");
+    if (!approvalReason) return notify("승인 사유를 입력해주세요.");
+
+    const submitButton = form.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+      setButtonLoading(submitButton, "저장 중...");
+    }
+    try {
+      await decideOuting(outing.id, "approved", { approvalManagerName: managerName, approvalReason, throwOnError: true });
+      closeInfoModal();
+    } catch (error) {
+      console.error(error);
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "승인 처리";
+      }
+    }
+  });
+
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "승인 사유 입력 닫기" }),
+    el("div", { className: "info-modal-panel penalty-modal" }, [
+      el("strong", {}, "복귀 사진 없이 승인"),
+      form,
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+}
+
+function approvalHistorySummary(outing) {
+  if (outing.decision !== "approved") return "-";
+  const items = [
+    outing.approvedBy ? el("span", {}, outing.approvedBy) : null,
+    outing.approvedAt ? el("span", {}, formatDateCompact(outing.approvedAt)) : null,
+    outing.approvalReason ? el("small", {}, outing.approvalReason) : null,
+  ].filter(Boolean);
+  return items.length ? el("div", { className: "approval-history" }, items) : "-";
 }
 
 function canGiveNotReturnedPenaltyForOuting(outing) {
