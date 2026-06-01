@@ -966,7 +966,7 @@ th {
 }
 
 .teacher-outing-table {
-  min-width: 1180px;
+  min-width: 1320px;
 }
 
 .teacher-outing-table .outing-name-cell,
@@ -978,6 +978,11 @@ th {
 .teacher-outing-table .outing-photo-cell {
   min-width: 122px;
   width: 122px;
+}
+
+.teacher-outing-table .action-cell {
+  min-width: 86px;
+  width: 86px;
 }
 
 .wide-cell {
@@ -2351,7 +2356,22 @@ th {
 }
 
 .action-cell {
-  min-width: 160px;
+  min-width: 86px;
+}
+
+.teacher-action-stack {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.teacher-action-stack .mini-btn {
+  margin: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+  text-align: center;
+  line-height: 1.25;
 }
 
 .attendance-action-stack {
@@ -4428,6 +4448,13 @@ body:not([data-app-mode="teacher"]) .btn {
     display: flex;
     justify-content: flex-start;
     align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  body[data-app-mode="teacher"] .teacher-action-stack {
+    display: flex;
+    flex: 1 1 160px;
     gap: 6px;
     flex-wrap: wrap;
   }

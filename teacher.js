@@ -1186,13 +1186,17 @@ function renderTeacherOutingTable(outings, options = {}) {
 }
 
 function teacherRowActions(outing, options = {}) {
-  if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
+  if (options.trash) {
+    return hasTeacherPermission("outing.delete")
+      ? el("div", { className: "teacher-action-stack" }, [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))])
+      : [];
+  }
   const canDecide = outing.decision === "pending" && outing.status !== "returned" && hasTeacherPermission("outing.approve");
   const canCancelApproval = outing.decision === "approved" && !isReturnPhotoCompleted(outing) && hasTeacherPermission("outing.approve");
   const canGiveNotReturnedPenalty = canGiveNotReturnedPenaltyForOuting(outing);
   const canRejectWithPenalty = canDecide && hasTeacherPermission("penalties.write");
 
-  return [
+  const actions = [
     canDecide ? button("승인", "mini-btn", "button", () => approveOutingFromTeacher(outing)) : null,
     canDecide ? button("반려", "mini-btn danger", "button", () => {
       if (canRejectWithPenalty) openRejectOutingPenaltyModal(outing);
@@ -1213,6 +1217,8 @@ function teacherRowActions(outing, options = {}) {
     }) : null,
     hasTeacherPermission("outing.delete") ? button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)) : null,
   ].filter(Boolean);
+
+  return actions.length ? el("div", { className: "teacher-action-stack" }, actions) : [];
 }
 
 async function cancelOutingApproval(outing) {
