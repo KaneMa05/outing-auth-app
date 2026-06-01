@@ -2362,7 +2362,11 @@ th {
 }
 
 .approval-history-cell {
-  min-width: 150px;
+  min-width: 110px;
+}
+
+.approval-reason-cell {
+  min-width: 170px;
 }
 
 .approval-history {

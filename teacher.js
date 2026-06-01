@@ -1154,7 +1154,7 @@ function sortOutingsByCreatedAtDesc(outings) {
 }
 
 function renderTeacherOutingTable(outings, options = {}) {
-  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "승인 내역", "사진", "처리"];
+  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "승인 담당자", "승인 시간", "승인 사유", "사진", "처리"];
   const rows = outings.map((outing) =>
     el("tr", { id: getOutingRowId(outing) }, [
       el("td", {}, formatDateCompact(outing.createdAt)),
@@ -1166,7 +1166,9 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", {}, formatTime(outing.verifiedAt)),
       el("td", {}, formatTime(getOutingReturnedAt(outing))),
       el("td", {}, statusBadge(outing)),
-      el("td", { className: "approval-history-cell" }, approvalHistorySummary(outing)),
+      el("td", { className: "approval-history-cell" }, approvalManagerSummary(outing)),
+      el("td", { className: "approval-history-cell" }, approvalTimeSummary(outing)),
+      el("td", { className: "approval-reason-cell" }, approvalReasonSummary(outing)),
       el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
     ])
@@ -1186,6 +1188,7 @@ function renderTeacherOutingTable(outings, options = {}) {
 function teacherRowActions(outing, options = {}) {
   if (options.trash) return hasTeacherPermission("outing.delete") ? [button("복구", "mini-btn", "button", () => restoreOuting(outing.id))] : [];
   const canDecide = outing.decision === "pending" && outing.status !== "returned" && hasTeacherPermission("outing.approve");
+  const canCancelApproval = outing.decision === "approved" && !isReturnPhotoCompleted(outing) && hasTeacherPermission("outing.approve");
   const canGiveNotReturnedPenalty = canGiveNotReturnedPenaltyForOuting(outing);
   const canRejectWithPenalty = canDecide && hasTeacherPermission("penalties.write");
 
@@ -1200,6 +1203,7 @@ function teacherRowActions(outing, options = {}) {
         ? el("button", { className: "mini-btn", type: "button", disabled: true }, "미복귀 벌점 부여 완료")
         : button("미복귀 벌점 부여", "mini-btn danger", "button", () => openNotReturnedPenaltyModal(outing))
       : null,
+    canCancelApproval ? button("승인 취소", "mini-btn danger", "button", () => cancelOutingApproval(outing)) : null,
     hasTeacherPermission("outing.memo") ? button("메모", "mini-btn", "button", () => {
       const memo = prompt("교사용 메모", outing.teacherMemo || "");
       if (memo === null) return;
@@ -1209,6 +1213,71 @@ function teacherRowActions(outing, options = {}) {
     }) : null,
     hasTeacherPermission("outing.delete") ? button("삭제", "mini-btn danger", "button", () => deleteOuting(outing.id)) : null,
   ].filter(Boolean);
+}
+
+async function cancelOutingApproval(outing) {
+  if (!outing || !hasTeacherPermission("outing.approve")) return;
+  if (isReturnPhotoCompleted(outing)) {
+    notify("복귀 인증 사진이 있는 건은 승인 취소할 수 없습니다.");
+    return;
+  }
+  const nextStatus = getApprovalCancelStatus(outing);
+  const nextStepLabel = nextStatus === "verified" ? "복귀 인증 단계" : "사진 인증 단계";
+  if (!confirm(`승인을 취소하고 학생을 ${nextStepLabel}로 되돌릴까요?`)) return;
+
+  const previous = {
+    decision: outing.decision,
+    status: outing.status,
+    returnedAt: outing.returnedAt,
+    approvedBy: outing.approvedBy,
+    approvedAt: outing.approvedAt,
+    approvalReason: outing.approvalReason,
+  };
+
+  outing.decision = "pending";
+  outing.status = nextStatus;
+  outing.returnedAt = "";
+  outing.approvedBy = "";
+  outing.approvedAt = "";
+  outing.approvalReason = "";
+  saveState({ skipRemote: true });
+  render();
+
+  try {
+    await updateOutingDecisionToRemote(outing);
+    notify(`승인을 취소하고 ${nextStepLabel}로 되돌렸습니다.`);
+  } catch (error) {
+    console.error(error);
+    outing.decision = previous.decision;
+    outing.status = previous.status;
+    outing.returnedAt = previous.returnedAt;
+    outing.approvedBy = previous.approvedBy;
+    outing.approvedAt = previous.approvedAt;
+    outing.approvalReason = previous.approvalReason;
+    saveState({ skipRemote: true });
+    render();
+    notify("승인 취소 저장 중 오류가 발생했습니다.");
+  }
+}
+
+function getApprovalCancelStatus(outing) {
+  return isOutingReadyForReturnAfterApprovalCancel(outing) ? "verified" : "requested";
+}
+
+function isOutingReadyForReturnAfterApprovalCancel(outing) {
+  return Boolean(
+    outing &&
+      hasTeacherOutingPhotoType(outing, "현장 인증") &&
+      (!isTeacherOutingReceiptRequired(outing) || hasTeacherOutingPhotoType(outing, "영수증 인증"))
+  );
+}
+
+function isTeacherOutingReceiptRequired(outing) {
+  return String(outing?.reason || "").trim() === "병원";
+}
+
+function hasTeacherOutingPhotoType(outing, type) {
+  return (outing?.photos || []).some((photo) => photo?.type === type);
 }
 
 function approveOutingFromTeacher(outing) {
@@ -1287,6 +1356,21 @@ function approvalHistorySummary(outing) {
     outing.approvalReason ? el("small", {}, outing.approvalReason) : null,
   ].filter(Boolean);
   return items.length ? el("div", { className: "approval-history" }, items) : "-";
+}
+
+function approvalManagerSummary(outing) {
+  if (outing.decision !== "approved") return "-";
+  return outing.approvedBy || "-";
+}
+
+function approvalTimeSummary(outing) {
+  if (outing.decision !== "approved") return "-";
+  return outing.approvedAt ? formatDateCompact(outing.approvedAt) : "-";
+}
+
+function approvalReasonSummary(outing) {
+  if (outing.decision !== "approved") return "-";
+  return outing.approvalReason || "-";
 }
 
 function canGiveNotReturnedPenaltyForOuting(outing) {
