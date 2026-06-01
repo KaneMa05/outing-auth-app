@@ -1154,7 +1154,7 @@ function sortOutingsByCreatedAtDesc(outings) {
 }
 
 function renderTeacherOutingTable(outings, options = {}) {
-  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "승인 담당자", "승인 시간", "승인 사유", "사진", "처리"];
+  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "승인 담당자", "승인 시간", "승인 사유", "처리"];
   const rows = outings.map((outing) =>
     el("tr", { id: getOutingRowId(outing) }, [
       el("td", { className: "outing-date-cell" }, formatDateCompact(outing.createdAt)),
@@ -1166,10 +1166,10 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", { className: "outing-time-cell" }, formatTime(outing.verifiedAt)),
       el("td", { className: "outing-time-cell" }, formatTime(getOutingReturnedAt(outing))),
       el("td", { className: "outing-status-cell" }, statusBadge(outing)),
+      el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
       el("td", { className: "approval-history-cell" }, approvalManagerSummary(outing)),
       el("td", { className: "approval-history-cell" }, approvalTimeSummary(outing)),
       el("td", { className: "approval-reason-cell" }, approvalReasonSummary(outing)),
-      el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
     ])
   );
