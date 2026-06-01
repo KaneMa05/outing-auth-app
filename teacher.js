@@ -189,7 +189,7 @@ function renderTeacher() {
       teacherFilterControls(),
       visibleOutings.length
         ? el("div", { className: "teacher-sections" }, [
-            teacherOutingSection("처리 필요", pendingOutings, { teacher: true }, "outing-pending-section"),
+            teacherOutingSection("처리 필요", pendingOutings, { teacher: true, approvalColumns: false }, "outing-pending-section"),
             completedTeacherOutingSections(completedOutings, { teacher: true }, "outing-completed-section"),
           ])
         : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
@@ -1154,7 +1154,10 @@ function sortOutingsByCreatedAtDesc(outings) {
 }
 
 function renderTeacherOutingTable(outings, options = {}) {
-  const headers = ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "승인 담당자", "승인 시간", "승인 사유", "처리"];
+  const showApprovalColumns = options.approvalColumns !== false;
+  const headers = showApprovalColumns
+    ? ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "승인 담당자", "승인 시간", "승인 사유", "처리"]
+    : ["신청일", "번호", "이름", "사유", "상세", "예상", "인증", "복귀", "상태", "사진", "처리"];
   const rows = outings.map((outing) =>
     el("tr", { id: getOutingRowId(outing) }, [
       el("td", { className: "outing-date-cell" }, formatDateCompact(outing.createdAt)),
@@ -1167,16 +1170,16 @@ function renderTeacherOutingTable(outings, options = {}) {
       el("td", { className: "outing-time-cell" }, formatTime(getOutingReturnedAt(outing))),
       el("td", { className: "outing-status-cell" }, statusBadge(outing)),
       el("td", { className: "outing-photo-cell" }, photoMiniList(outing.photos)),
-      el("td", { className: "approval-history-cell" }, approvalManagerSummary(outing)),
-      el("td", { className: "approval-history-cell" }, approvalTimeSummary(outing)),
-      el("td", { className: "approval-reason-cell" }, approvalReasonSummary(outing)),
+      showApprovalColumns ? el("td", { className: "approval-history-cell" }, approvalManagerSummary(outing)) : null,
+      showApprovalColumns ? el("td", { className: "approval-history-cell" }, approvalTimeSummary(outing)) : null,
+      showApprovalColumns ? el("td", { className: "approval-reason-cell" }, approvalReasonSummary(outing)) : null,
       el("td", { className: "action-cell" }, teacherRowActions(outing, options)),
-    ])
+    ].filter(Boolean))
   );
   labelTableRows(headers, rows);
 
   return el("div", { className: "excel-table-wrap" }, [
-    el("table", { className: "excel-table teacher-outing-table" }, [
+    el("table", { className: `excel-table teacher-outing-table${showApprovalColumns ? "" : " no-approval-columns"}` }, [
       el("thead", {}, [
         el("tr", {}, headers.map((header) => el("th", {}, header))),
       ]),

@@ -969,6 +969,10 @@ th {
   min-width: 1420px;
 }
 
+.teacher-outing-table.no-approval-columns {
+  min-width: 1100px;
+}
+
 .teacher-outing-table .outing-date-cell {
   min-width: 102px;
   width: 102px;
