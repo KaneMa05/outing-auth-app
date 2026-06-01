@@ -966,7 +966,25 @@ th {
 }
 
 .teacher-outing-table {
-  min-width: 1320px;
+  min-width: 1420px;
+}
+
+.teacher-outing-table .outing-date-cell {
+  min-width: 102px;
+  width: 102px;
+  white-space: nowrap;
+}
+
+.teacher-outing-table .outing-expected-cell {
+  min-width: 62px;
+  width: 62px;
+  white-space: nowrap;
+}
+
+.teacher-outing-table .outing-time-cell {
+  min-width: 86px;
+  width: 86px;
+  white-space: nowrap;
 }
 
 .teacher-outing-table .outing-name-cell,
@@ -978,6 +996,16 @@ th {
 .teacher-outing-table .outing-photo-cell {
   min-width: 122px;
   width: 122px;
+}
+
+.teacher-outing-table .outing-status-cell {
+  min-width: 82px;
+  width: 82px;
+  text-align: center;
+}
+
+.teacher-outing-table .outing-status-cell .badge {
+  white-space: nowrap;
 }
 
 .teacher-outing-table .action-cell {
@@ -4437,7 +4465,11 @@ body:not([data-app-mode="teacher"]) .btn {
 
   body[data-app-mode="teacher"] .teacher-outing-table .outing-name-cell,
   body[data-app-mode="teacher"] .teacher-outing-table .outing-reason-cell,
-  body[data-app-mode="teacher"] .teacher-outing-table .outing-photo-cell {
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-photo-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-date-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-expected-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-time-cell,
+  body[data-app-mode="teacher"] .teacher-outing-table .outing-status-cell {
     min-width: 0;
     width: auto;
     white-space: normal;
