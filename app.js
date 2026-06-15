@@ -21,7 +21,7 @@
   trash: "삭제 내역",
   notices: "공지 관리",
 };
-const COAST_GUARD_EXAM_DATE = "2026-06-13";
+const COAST_GUARD_EXAM_DATE = "2026-10-24";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
 const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
