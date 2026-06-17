@@ -27,6 +27,8 @@ const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 해경학과 항해(경장)",
   "경찰직 - 해경학과 기관(경장)",
+  "경찰직 - 함정요원 항해(순경)",
+  "경찰직 - 함정요원 기관(순경)",
   "경찰직 - 함정요원 항해(경장)",
   "경찰직 - 함정요원 기관(경장)",
   "경찰직 - 해상교통관제(VTS)(순경)",
@@ -396,6 +398,10 @@ function renderStudentAuth() {
 
     if (!selectedStudent) {
       return notify("먼저 관리자가 등록한 고유번호를 조회해주세요.");
+    }
+    if (!isStandaloneStudentApp()) {
+      openInstallGuideModal();
+      return notify("홈화면에 추가한 뒤 홈화면 아이콘으로 다시 열어 등록해주세요.");
     }
     const finalTrack = resolveStudentTrack(data.track, data.customTrack);
     if (!finalTrack || !data.gender || !data.password) {

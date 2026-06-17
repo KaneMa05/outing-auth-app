@@ -1273,6 +1273,10 @@ function renderStudentGradesHome() {
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
+        renderStudentGradeAction("주간평가 답안 입력", "공개된 주간평가 과목의 답안을 입력합니다.", "입력", () => {
+          studentGradesView = "entry";
+          render();
+        }),
         renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
           studentGradesView = "lookup";
           render();
@@ -1795,10 +1799,7 @@ function renderStudentWeeklyGrades(student) {
   if (!selectedExam) {
     return el("div", { className: "grid student-view" }, [
       panel(studentGradesView === "entry" ? "성적 입력" : "성적 조회", [
-        button("성적 메뉴", "mini-btn", "button", () => {
-          studentGradesView = "";
-          render();
-        }),
+        renderStudentGradesBackButton(),
         el("div", { className: "empty" }, "현재 공개된 주간평가가 없습니다."),
       ]),
     ]);
@@ -1810,24 +1811,35 @@ function renderStudentWeeklyGrades(student) {
   const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
   if (selectedSection) {
     return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
+      renderStudentGradesBackPanel(),
       renderStudentExamAnswerEntry(selectedExam, selectedSection, student, sections),
     ]);
   }
   return el("div", { className: "grid student-view student-exam-view" }, [
+    renderStudentGradesBackPanel(),
     renderStudentExamList(exams, selectedExam),
     renderStudentExamEntrySubjectList(selectedExam, visibleSections, student),
   ]);
 }
 
 function renderStudentGradesBackPanel() {
-  return panel("성적 구분", [
-    button("성적 메뉴", "mini-btn", "button", () => {
-      studentGradesView = "";
-      studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
-      render();
-    }),
-    el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
+  return el("section", { className: "panel student-weekly-back-panel" }, [
+    el("div", { className: "panel-title-row student-weekly-back-title" }, [
+      el("div", {}, [
+        el("h2", {}, "주간평가"),
+        el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
+      ]),
+      renderStudentGradesBackButton(),
+    ]),
   ]);
+}
+
+function renderStudentGradesBackButton() {
+  return button("돌아가기", "mini-btn student-weekly-back-button", "button", () => {
+    studentGradesView = "";
+    studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+    render();
+  });
 }
 
 function getVisibleStudentExams(student) {
@@ -1972,10 +1984,24 @@ function renderStudentExamAnswerEntry(exam, section, student, allSections) {
   const end = Math.min(start + 9, visibleAnswers.length);
   const cards = [];
   visibleAnswers.slice(start - 1, end).forEach((answer, index) => cards.push(renderStudentAnswerQuestion(answer.questionNumber, start + index)));
+  const answeredCount = visibleAnswers.filter((answer) => studentExamDraft.answers[answer.questionNumber]).length;
   return panel(`${section.subject} ${visibleAnswers.length}문제`, [
-    el("div", { className: "student-answer-range" }, `${start}~${end}번`),
+    renderStudentAnswerProgress(answeredCount, visibleAnswers.length, start, end),
     el("div", { className: "student-answer-list" }, cards),
     renderStudentAnswerNav(section, visibleAnswers.length),
+  ]);
+}
+
+function renderStudentAnswerProgress(answeredCount, questionCount, start, end) {
+  const percent = questionCount ? Math.round((answeredCount / questionCount) * 100) : 0;
+  return el("div", { className: "student-answer-progress" }, [
+    el("div", { className: "student-answer-progress-top" }, [
+      el("strong", {}, `${answeredCount}/${questionCount} 입력`),
+      el("span", {}, `${start}~${end}번`),
+    ]),
+    el("div", { className: "student-answer-progress-track" }, [
+      el("span", { style: `width: ${percent}%` }),
+    ]),
   ]);
 }
 
@@ -1991,7 +2017,7 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
   const current = studentExamDraft.answers[questionNumber] || "";
   const options = [1, 2, 3, 4].map((value) => {
     const selected = Number(current) === value;
-    const node = button(`${toCircledAnswer(value)}${selected ? " ✓" : ""}`, selected ? "answer-choice selected" : "answer-choice", "button", () => {
+    const node = button(String(value), selected ? "answer-choice selected" : "answer-choice", "button", () => {
       const previous = studentExamDraft.answers[questionNumber];
       studentExamDraft.answers[questionNumber] = value;
       studentExamDraft.locked[questionNumber] = true;
@@ -1999,10 +2025,15 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
       render();
       if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
+    node.setAttribute("aria-label", `${displayNumber}번 ${value}번 선택`);
+    node.setAttribute("aria-pressed", selected ? "true" : "false");
     return node;
   });
-  return el("article", { className: current ? "student-answer-card locked" : "student-answer-card" }, [
-    el("div", { className: "student-answer-head" }, [el("strong", {}, `${displayNumber}번`), el("span", {}, current ? `선택 ${toCircledAnswer(current)}` : "미입력")]),
+  return el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
+    el("div", { className: "student-answer-head" }, [
+      el("strong", {}, `${displayNumber}`),
+      el("span", {}, current ? toCircledAnswer(current) : "-"),
+    ]),
     el("div", { className: "answer-choice-row" }, options),
   ]);
 }

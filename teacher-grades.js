@@ -138,10 +138,10 @@ function getWeeklyExams() {
 function getSelectedWeeklyExamCohort() {
   const cohorts = getStudentCohortStats().filter((cohort) => cohort.value && cohort.value !== "미분류");
   if (!cohorts.length) {
-    weeklyExamSelectedCohort = "";
+    weeklyExamSelectedCohort = DEFAULT_STUDENT_COHORT;
     return "";
   }
-  if (!cohorts.some((cohort) => cohort.value === weeklyExamSelectedCohort)) weeklyExamSelectedCohort = cohorts[0].value;
+  if (!cohorts.some((cohort) => cohort.value === weeklyExamSelectedCohort)) weeklyExamSelectedCohort = getDefaultStudentCohortValue(cohorts);
   return weeklyExamSelectedCohort;
 }
 
@@ -341,6 +341,7 @@ function renderWeeklyExamProblemLookupPanel() {
     const publishedCount = sections.filter(isWeeklyExamSectionPublished).length;
     return el("tr", { className: exam ? "" : "weekly-unpublished-row" }, [
       el("td", {}, `${weekNumber}주차 주간평가`),
+      el("td", {}, exam ? renderWeeklyExamPublishControl(exam) : "-"),
       el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
       el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
       el("td", {}, exam ? renderWeeklyExamRoundFileUpload(exam, sections) : "-"),
@@ -354,7 +355,22 @@ function renderWeeklyExamProblemLookupPanel() {
     el("div", { className: "action-row weekly-lookup-actions" }, [
       button("주간평가 과목 설정", "btn secondary", "button", openWeeklyExamSubjectSettingsModal),
     ]),
-    table(["주간평가", "출제 현황", "응시 시작", "답안지 업로드", "관리"], rows),
+    table(["주간평가", "공개 여부", "출제 현황", "응시 시작", "답안지 업로드", "관리"], rows),
+  ]);
+}
+
+function renderWeeklyExamPublishControl(exam) {
+  const label = exam.isPublished ? "공개 중" : "비공개";
+  const nextLabel = exam.isPublished ? "비공개로 전환" : "공개로 전환";
+  return el("div", { className: exam.isPublished ? "weekly-publish-control published" : "weekly-publish-control hidden" }, [
+    el("span", { className: exam.isPublished ? "badge approved" : "badge pending" }, label),
+    button(nextLabel, exam.isPublished ? "mini-btn" : "mini-btn weekly-publish-primary", "button", async () => {
+      exam.isPublished = !exam.isPublished;
+      exam.updatedAt = new Date().toISOString();
+      saveState({ skipRemote: true });
+      await saveWeeklyExamToRemote(exam);
+      render();
+    }),
   ]);
 }
 
@@ -449,9 +465,15 @@ function renderWeeklyExamRoundFileUpload(exam, sections) {
   const activeSections = sections.filter((section) => section.isActive !== false);
   const sectionIds = new Set(activeSections.map((section) => section.id));
   const files = getWeeklyExamRoundFiles(sectionIds);
-  const inputNode = el("input", { type: "file", accept: "application/pdf", multiple: true, className: "visually-hidden-file" });
+  const remainingFileCount = Math.max(0, WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT - files.length);
+  const inputNode = el("input", { type: "file", accept: "application/pdf", multiple: remainingFileCount > 1, className: "visually-hidden-file" });
   const uploadButton = button(files.length ? "추가" : "업로드", "mini-btn", "button", () => inputNode.click());
-  inputNode.addEventListener("change", () => uploadWeeklyExamRoundAnswerFiles(exam, activeSections, inputNode.files));
+  uploadButton.disabled = remainingFileCount <= 0;
+  if (uploadButton.disabled) uploadButton.title = `PDF ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다.`;
+  inputNode.addEventListener("change", async () => {
+    await uploadWeeklyExamRoundAnswerFiles(exam, activeSections, inputNode.files);
+    inputNode.value = "";
+  });
   return el("div", { className: "weekly-inline-file-upload" }, [
     files.length
       ? el("div", { className: "weekly-inline-file-list" }, files.map((file) =>
@@ -486,6 +508,11 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return notify("업로드할 PDF 파일을 선택해주세요.");
   if (files.some((file) => file.type !== "application/pdf")) return notify("PDF 파일만 업로드할 수 있습니다.");
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const existingFiles = getWeeklyExamRoundFiles(sectionIds);
+  const remainingFileCount = WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT - existingFiles.length;
+  if (remainingFileCount <= 0) return notify(`PDF는 ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다.`);
+  if (files.length > remainingFileCount) return notify(`PDF는 최대 ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다. ${remainingFileCount}개만 더 선택해주세요.`);
 
   const createdRows = [];
 

@@ -1273,6 +1273,23 @@ th {
   background: #fbfcfd;
 }
 
+.weekly-publish-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekly-publish-control .badge {
+  min-width: 64px;
+  justify-content: center;
+}
+
+.weekly-publish-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
 .link-btn {
   border: 0;
   background: transparent;
@@ -1797,6 +1814,30 @@ th {
   flex-wrap: wrap;
 }
 
+.student-weekly-back-panel {
+  padding: 14px 16px;
+}
+
+.student-weekly-back-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.student-weekly-back-title > div {
+  display: grid;
+  gap: 3px;
+}
+
+.student-weekly-back-button {
+  justify-self: end;
+  width: auto;
+  min-height: 34px;
+  padding: 7px 10px;
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+}
+
 .student-grade-card-grid,
 .student-grade-action-list {
   display: grid;
@@ -2077,53 +2118,107 @@ th {
   font-weight: 900;
 }
 
-.student-answer-range {
-  color: var(--muted);
+.student-answer-progress {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.student-answer-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-weight: 900;
+}
+
+.student-answer-progress-top span {
+  color: var(--muted);
+}
+
+.student-answer-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef2f6;
+}
+
+.student-answer-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
 }
 
 .student-answer-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
-.student-answer-card {
+.student-answer-row {
   display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
-  padding: 14px;
+  padding: 8px;
 }
 
-.student-answer-card.locked {
-  background: #f8fbfa;
+.student-answer-row.answered {
+  border-color: rgba(0, 91, 172, 0.34);
+  background: #f8fbff;
+}
+
+.student-answer-head {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  text-align: center;
 }
 
 .student-answer-head strong {
-  font-size: 1.2rem;
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.student-answer-head span {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .answer-choice-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(42px, 1fr));
+  gap: 6px;
 }
 
 .answer-choice {
+  position: relative;
   min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
 .answer-choice.selected {
   border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 91, 172, 0.12);
 }
 
 .answer-choice:disabled {
@@ -4571,6 +4666,15 @@ body:not([data-app-mode="teacher"]) .btn {
     border-radius: 12px;
   }
 
+  body:not([data-app-mode="teacher"]) .student-weekly-back-panel {
+    padding: 14px 16px;
+  }
+
+  body:not([data-app-mode="teacher"]) .student-weekly-back-button {
+    width: auto;
+    justify-self: end;
+  }
+
   body:not([data-app-mode="teacher"]) .time-field {
     max-width: 160px;
   }
@@ -4594,5 +4698,33 @@ body:not([data-app-mode="teacher"]) .btn {
   .student-grade-subject-card .detail-item,
   .student-grade-overview .detail-item {
     padding: 10px 9px;
+  }
+
+  .student-answer-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .student-answer-head {
+    min-height: 44px;
+  }
+
+  .answer-choice-row {
+    gap: 5px;
+  }
+
+  .answer-choice {
+    min-height: 44px;
+  }
+
+  .student-answer-nav {
+    gap: 6px;
+  }
+
+  .student-answer-nav .btn {
+    min-height: 42px;
+    padding-inline: 8px;
+    font-size: 0.84rem;
   }
 }

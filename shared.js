@@ -1,6 +1,7 @@
 ﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
+const DEFAULT_STUDENT_COHORT = "18";
 const DEFAULT_IMPORTANT_NOTICES = [];
 const FINAL_GRADE_SUBJECTS = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
@@ -34,7 +35,7 @@ const KOREA_PUBLIC_HOLIDAYS = {
 
 const state = loadState();
 let currentRoute = "";
-let selectedStudentCohort = "";
+let selectedStudentCohort = DEFAULT_STUDENT_COHORT;
 
 const app = document.querySelector("#app");
 const title = document.querySelector("#page-title");
@@ -151,6 +152,18 @@ function normalizeCoastGuardTrack(track) {
     학과특채항해: "경찰직 - 해경학과 항해(경장)",
     학과특채기관: "경찰직 - 해경학과 기관(경장)",
     함정요원: "경찰직 - 함정요원 항해(경장)",
+    함정요원순경항해: "경찰직 - 함정요원 항해(순경)",
+    함정요원항해순경: "경찰직 - 함정요원 항해(순경)",
+    함정항해순경: "경찰직 - 함정요원 항해(순경)",
+    함정요원순경기관: "경찰직 - 함정요원 기관(순경)",
+    함정요원기관순경: "경찰직 - 함정요원 기관(순경)",
+    함정기관순경: "경찰직 - 함정요원 기관(순경)",
+    함정요원경장항해: "경찰직 - 함정요원 항해(경장)",
+    함정요원항해경장: "경찰직 - 함정요원 항해(경장)",
+    함정항해경장: "경찰직 - 함정요원 항해(경장)",
+    함정요원경장기관: "경찰직 - 함정요원 기관(경장)",
+    함정요원기관경장: "경찰직 - 함정요원 기관(경장)",
+    함정기관경장: "경찰직 - 함정요원 기관(경장)",
     구조: "경찰직 - 구조(순경)",
     구급: "경찰직 - 구급(순경)",
     선박교통관제: "일반직 - 선박교통관제(VTS)",
@@ -186,6 +199,8 @@ function expandTrackOptionAlias(option) {
 
 const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
+  "경찰직 - 함정요원 항해(순경)",
+  "경찰직 - 함정요원 기관(순경)",
   "경찰직 - 함정요원 항해(경장)",
   "경찰직 - 함정요원 기관(경장)",
 ];
@@ -199,12 +214,14 @@ const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
   "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 해경학과 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
+  "경찰직 - 함정요원 항해(순경)": ["해양경찰학개론", "해사법규", "해사영어", "항해학"],
+  "경찰직 - 함정요원 기관(순경)": ["해양경찰학개론", "해사법규", "해사영어", "기관학"],
   "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
   "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학", "해상교통관리"],
   "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어", "해상교통관리"],
-  "경찰직 - 경위 공채(해양-기관)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
-  "경찰직 - 경위 공채(해양-항해)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
+  "경찰직 - 경위 공채(해양-기관)": ["해양경찰학개론", "해사법규", "형사법", "기관학", "형사법(공판)"],
+  "경찰직 - 경위 공채(해양-항해)": ["해양경찰학개론", "해사법규", "형사법", "항해학", "형사법(공판)"],
 };
 
 function getDefaultWeeklyQuestionTargetTracks() {
@@ -333,7 +350,14 @@ function getCustomTrackOptions() {
 
 function getCoastGuardTrackOptions() {
   const savedOptions = normalizeTrackOptionList(state.settings.trackOptions);
-  const orderedOptions = savedOptions.length ? savedOptions : getBaseTrackOptions();
+  const baseOptions = getBaseTrackOptions();
+  const requiredOptions = baseOptions.filter((option) =>
+    option === "경찰직 - 함정요원 항해(순경)" ||
+    option === "경찰직 - 함정요원 기관(순경)"
+  );
+  const orderedOptions = savedOptions.length
+    ? [...savedOptions, ...requiredOptions.filter((option) => !savedOptions.includes(option))]
+    : baseOptions;
   return [...orderedOptions, "기타"];
 }
 
@@ -2070,11 +2094,15 @@ function getStudentCohortStats() {
 function selectedStudentCohortCount() {
   const cohorts = getStudentCohortStats();
   if (!cohorts.length) {
-    selectedStudentCohort = "";
+    selectedStudentCohort = DEFAULT_STUDENT_COHORT;
     return { label: "선택 기수", count: 0 };
   }
-  if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = cohorts[0].value;
+  if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = getDefaultStudentCohortValue(cohorts);
   return cohorts.find((cohort) => cohort.value === selectedStudentCohort) || cohorts[0];
+}
+
+function getDefaultStudentCohortValue(cohorts = []) {
+  return cohorts.find((cohort) => cohort.value === DEFAULT_STUDENT_COHORT)?.value || cohorts[0]?.value || DEFAULT_STUDENT_COHORT;
 }
 
 function statGroup(titleText, stats) {
