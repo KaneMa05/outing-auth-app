@@ -21,7 +21,13 @@ module.exports = async function handler(req, res) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
-      const managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=id,name,role,memo,is_active,created_at&order=created_at.asc`);
+      let managers;
+      try {
+        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=id,name,cohort,role,memo,is_active,created_at&order=created_at.asc`);
+      } catch (error) {
+        if (!isMissingCohortColumnError(error)) throw error;
+        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=id,name,role,memo,is_active,created_at&order=created_at.asc`);
+      }
       res.status(200).json({ ok: true, managers });
       return;
     }
@@ -37,9 +43,19 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ ok: false, error: "missing_managers" });
         return;
       }
-      await requestSupabase("POST", `${TABLE}?on_conflict=id`, managers.map(normalizeManager), {
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      });
+      try {
+        await requestSupabase("POST", `${TABLE}?on_conflict=id`, managers.map(normalizeManager), {
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        });
+      } catch (error) {
+        if (!isMissingCohortColumnError(error)) throw error;
+        await requestSupabase("POST", `${TABLE}?on_conflict=id`, managers.map((manager) => {
+          const { cohort, ...row } = normalizeManager(manager);
+          return row;
+        }), {
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        });
+      }
       res.status(200).json({ ok: true });
       return;
     }
@@ -85,11 +101,16 @@ function normalizeManager(manager) {
   return {
     id: String(manager.id || "").trim(),
     name: String(manager.name || "").trim(),
+    cohort: String(manager.cohort || "18").trim(),
     role: String(manager.role || "").trim() || null,
     memo: String(manager.memo || "").trim() || null,
     is_active: manager.is_active !== false,
     created_at: manager.created_at || new Date().toISOString(),
   };
+}
+
+function isMissingCohortColumnError(error) {
+  return String(error?.message || "").includes("cohort") || String(error?.details || "").includes("cohort");
 }
 
 async function requestSupabase(method, path, body, extraHeaders = {}) {
@@ -113,7 +134,9 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   });
 
   if (!response.ok) {
-    const error = new Error(`supabase_${response.status}`);
+    const details = await response.text().catch(() => "");
+    const error = new Error(`supabase_${response.status}${details ? `: ${details}` : ""}`);
+    error.details = details;
     error.status = 502;
     throw error;
   }

@@ -145,6 +145,8 @@ function render() {
     document.body.classList.toggle("teacher-authenticated", Boolean(teacherAuth.authenticated));
     document.body.classList.toggle("teacher-guest", !teacherAuth.authenticated);
   }
+  const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp();
+  document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
 
   document.querySelectorAll("[data-route]").forEach((button) => {
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(button.dataset.route);
@@ -170,6 +172,14 @@ function render() {
       if (currentRoute !== "weekly-exams") topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
     topActions.hidden = !topActions.children.length;
+  }
+
+  if (studentBrowserInstallOnly) {
+    app.innerHTML = "";
+    app.appendChild(renderStudentBrowserInstallOnly());
+    app.removeAttribute("data-loading-shell");
+    if (APP_MODE !== "teacher" && typeof window.__studentAppReady === "function") window.__studentAppReady();
+    return;
   }
 
   const routes =
@@ -531,6 +541,12 @@ function isStandaloneStudentApp() {
   );
 }
 
+function renderStudentBrowserInstallOnly() {
+  return el("div", { className: "student-browser-install-only-view" }, [
+    button("앱으로 이용하기", "btn student-browser-install-button", "button", installToHomeScreen),
+  ]);
+}
+
 async function hashStudentPassword(password) {
   const value = String(password || "");
   if (window.crypto?.subtle) {
@@ -650,11 +666,11 @@ function openInstallGuideModal() {
     ? [
         "카카오톡 오른쪽 위 메뉴를 누릅니다.",
         isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
-        "브라우저에서 공유 또는 메뉴를 누른 뒤 홈 화면에 추가를 선택합니다.",
+        "브라우저에서 공유 또는 메뉴를 눌러 홈 화면에 추가합니다.",
       ]
     : isIos
-      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누르면 앱처럼 실행할 수 있습니다."]
-      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치를 누르면 앱처럼 실행할 수 있습니다."];
+      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누릅니다."]
+      : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치 또는 추가를 누릅니다."];
 
   const actions = [
     button("주소 복사", "btn secondary", "button", async () => {
@@ -674,8 +690,8 @@ function openInstallGuideModal() {
         "p",
         {},
         isKakao
-          ? "카카오톡 안에서는 앱 설치가 바로 열리지 않을 수 있습니다. 먼저 기본 브라우저에서 열면 홈 화면에 추가할 수 있습니다."
-          : "설치 창이 자동으로 뜨지 않는 브라우저에서는 아래 순서로 홈 화면에 추가해주세요."
+          ? "카카오톡 안에서는 홈 화면 추가가 잘 안 될 수 있습니다. 먼저 기본 브라우저로 열어주세요."
+          : "자동 안내가 보이지 않으면 아래 순서대로 직접 추가해주세요."
       ),
       el(
         "ol",

@@ -945,7 +945,7 @@ async function loadStateFromRemote() {
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
-  const managerColumns = "id,name,role,memo,is_active,created_at";
+  let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
   const outingColumns = [
     "id",
     "student_id",
@@ -1013,7 +1013,7 @@ async function loadStateFromRemote() {
   const examSubjectSettingColumns = "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at";
   const finalExamScoreColumns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
   const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
-  const managerRequest =
+  let managerRequest =
     APP_MODE === "teacher"
       ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
       : Promise.resolve({ data: state.managers || [], error: null });
@@ -1067,7 +1067,8 @@ async function loadStateFromRemote() {
       : Promise.resolve({ data: [], error: null }),
   ]);
   let studentResult = remoteResults[0];
-  const [managerResult, { data: outings, error: outingsError }] = [remoteResults[1], remoteResults[2]];
+  let managerResult = remoteResults[1];
+  const [{ data: outings, error: outingsError }] = [remoteResults[2]];
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
   let penaltyResult = remoteResults[5];
@@ -1107,6 +1108,10 @@ async function loadStateFromRemote() {
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
   }
   if (studentResult.error) throw studentResult.error;
+  if (isMissingColumnError(managerResult.error, "cohort")) {
+    managerColumns = "id,name,role,memo,is_active,created_at";
+    managerResult = await remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true });
+  }
   if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
   let loadedOutings = outings || [];
   if (
@@ -2472,6 +2477,7 @@ function mapManagerFromRemote(manager) {
   return {
     id: manager.id,
     name: manager.name || "",
+    cohort: String(manager.cohort || DEFAULT_STUDENT_COHORT),
     role: manager.role || "",
     memo: manager.memo || "",
     isActive: manager.is_active !== false,

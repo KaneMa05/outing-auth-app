@@ -1285,14 +1285,15 @@ th {
 }
 
 .weekly-publish-select.published {
-  border-color: rgba(0, 91, 172, 0.32);
-  background: var(--accent-soft);
+  border-color: rgba(0, 91, 172, 0.24);
+  background: #fbfdff;
   color: var(--accent-strong);
 }
 
 .weekly-publish-select.hidden {
-  background: #fff8e7;
-  color: #9a6700;
+  border-color: rgba(154, 103, 0, 0.22);
+  background: #fffdf8;
+  color: #7a5300;
 }
 
 .link-btn {
@@ -3523,6 +3524,34 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
 
 body:not([data-app-mode="teacher"]) .student-home {
   gap: 10px;
+}
+
+body.student-browser-install-only .sidebar,
+body.student-browser-install-only .student-footer-menu {
+  display: none;
+}
+
+body.student-browser-install-only .app-frame {
+  display: block;
+  min-height: 100svh;
+}
+
+body.student-browser-install-only .main-shell {
+  min-height: 100svh;
+  padding: 24px;
+}
+
+.student-browser-install-only-view {
+  min-height: calc(100svh - 48px);
+  display: grid;
+  place-items: center;
+}
+
+.student-browser-install-button {
+  width: min(320px, 100%);
+  min-height: 56px;
+  margin: 0;
+  font-size: 1rem;
 }
 
 .student-auth-card {

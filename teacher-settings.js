@@ -175,9 +175,11 @@ async function saveTrackOptionsToRemote(options, deletedOptions = []) {
 function managerAdminPanel() {
   const nameInput = input("name", "text", "담당자 이름");
   nameInput.required = true;
+  const cohortInput = input("cohort", "number", "18", selectedStudentCohort || DEFAULT_STUDENT_COHORT);
   const roleInput = input("role", "text", "예: 데스크, 담임, 장학생");
   const memoInput = textarea("memo", "메모 (선택)");
   const form = el("form", { className: "form-grid" }, [
+    field("기수", cohortInput),
     field("이름", nameInput),
     field("역할", roleInput),
     field("메모", memoInput, "full"),
@@ -216,9 +218,10 @@ function managerAdminPanel() {
     }
   });
 
-  const rows = getActiveManagers().map((manager) =>
+  const rows = getAllActiveManagers().map((manager) =>
     el("tr", {}, [
       el("td", {}, manager.name),
+      el("td", {}, manager.cohort ? `${manager.cohort}기` : `${DEFAULT_STUDENT_COHORT}기`),
       el("td", {}, manager.role || "-"),
       el("td", {}, manager.memo || "-"),
       el("td", {}, formatDateCompact(manager.createdAt)),
@@ -231,8 +234,8 @@ function managerAdminPanel() {
   return el("div", { className: "grid" }, [
     panel("담당자 등록", [form]),
     table(
-      ["이름", "역할", "메모", "등록일", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "등록된 담당자가 없습니다."))])]
+      ["이름", "기수", "역할", "메모", "등록일", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 6 }, el("div", { className: "empty table-empty" }, "등록된 담당자가 없습니다."))])]
     ),
   ]);
 }
@@ -399,7 +402,13 @@ async function deleteNoticeFromRemote(id) {
   if (error) throw error;
 }
 
-function getActiveManagers() {
+function getActiveManagers(cohort = "") {
+  const selectedCohort = String(cohort || selectedStudentCohort || DEFAULT_STUDENT_COHORT).trim();
+  return getAllActiveManagers()
+    .filter((manager) => !selectedCohort || String(manager.cohort || DEFAULT_STUDENT_COHORT) === selectedCohort);
+}
+
+function getAllActiveManagers() {
   return (state.managers || [])
     .filter((manager) => manager.isActive !== false && String(manager.name || "").trim())
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ko-KR"));
@@ -410,7 +419,7 @@ function managerNameControl() {
   const defaultName = String(teacherAuth.user?.username || "").trim();
   const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
   const node = el("select", { name: "managerName", required: true }, [
-    el("option", { value: "" }, "담당자 선택"),
+    el("option", { value: "" }, `${selectedStudentCohort || DEFAULT_STUDENT_COHORT}기 담당자 선택`),
     ...options,
   ]);
   if (defaultName && managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
@@ -425,11 +434,17 @@ function isAdminManagerOption(manager) {
 
 function upsertManager(data) {
   const name = String(data.name || "").trim();
+  const cohort = String(data.cohort || DEFAULT_STUDENT_COHORT).trim();
   const role = String(data.role || "").trim();
   const memo = String(data.memo || "").trim();
   state.managers = state.managers || [];
-  const existing = state.managers.find((manager) => manager.isActive !== false && manager.name === name);
+  const existing = state.managers.find((manager) =>
+    manager.isActive !== false &&
+    manager.name === name &&
+    String(manager.cohort || DEFAULT_STUDENT_COHORT) === cohort
+  );
   if (existing) {
+    existing.cohort = cohort;
     existing.role = role;
     existing.memo = memo;
     return { created: false, manager: existing };
@@ -437,6 +452,7 @@ function upsertManager(data) {
   const manager = {
     id: createId(),
     name,
+    cohort,
     role,
     memo,
     isActive: true,
@@ -450,6 +466,7 @@ function managerToRemoteRow(manager) {
   return {
     id: manager.id,
     name: manager.name,
+    cohort: manager.cohort || DEFAULT_STUDENT_COHORT,
     role: manager.role || null,
     memo: manager.memo || null,
     is_active: manager.isActive !== false,

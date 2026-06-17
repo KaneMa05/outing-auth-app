@@ -262,7 +262,7 @@ async function ensureWeeklyExamWeeksForCohort(cohort, options = {}) {
         startAt: "",
         endAt: "",
         targetTracks: [WEEKLY_EXAM_TRACK_ALL],
-        isPublished: true,
+        isPublished: false,
         scoreReleaseMode: "after_all_submitted",
         explanationReleaseMode: "after_all_submitted",
         createdAt: now,
