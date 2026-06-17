@@ -662,9 +662,12 @@ function openInstallGuideModal() {
   const isAndroid = userAgent.includes("android");
   const pageUrl = location.href;
   const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
+  const guideMessage = isKakao
+    ? "카카오톡 안에서는 홈 화면 추가가 잘 안 될 수 있습니다. 먼저 기본 브라우저로 열어주세요."
+    : "현재 브라우저에서 아래 순서대로 홈 화면에 추가해주세요.";
   const steps = isKakao
     ? [
-        "카카오톡 오른쪽 위 메뉴를 누릅니다.",
+        "카카오톡 오른쪽 아래 점 세 개 또는 공유 버튼을 누릅니다.",
         isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
         "브라우저에서 공유 또는 메뉴를 눌러 홈 화면에 추가합니다.",
       ]
@@ -689,9 +692,7 @@ function openInstallGuideModal() {
       el(
         "p",
         {},
-        isKakao
-          ? "카카오톡 안에서는 홈 화면 추가가 잘 안 될 수 있습니다. 먼저 기본 브라우저로 열어주세요."
-          : "자동 안내가 보이지 않으면 아래 순서대로 직접 추가해주세요."
+        guideMessage
       ),
       el(
         "ol",
