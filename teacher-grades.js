@@ -360,18 +360,30 @@ function renderWeeklyExamProblemLookupPanel() {
 }
 
 function renderWeeklyExamPublishControl(exam) {
-  const label = exam.isPublished ? "공개 중" : "비공개";
-  const nextLabel = exam.isPublished ? "비공개로 전환" : "공개로 전환";
-  return el("div", { className: exam.isPublished ? "weekly-publish-control published" : "weekly-publish-control hidden" }, [
-    el("span", { className: exam.isPublished ? "badge approved" : "badge pending" }, label),
-    button(nextLabel, exam.isPublished ? "mini-btn" : "mini-btn weekly-publish-primary", "button", async () => {
-      exam.isPublished = !exam.isPublished;
+  const selectNode = el("select", { className: exam.isPublished ? "weekly-publish-select published" : "weekly-publish-select hidden", ariaLabel: `${formatWeeklyExamName(exam.weekNumber, exam.cohort)} 공개 여부` }, [
+    el("option", { value: "published" }, "공개"),
+    el("option", { value: "hidden" }, "비공개"),
+  ]);
+  selectNode.value = exam.isPublished ? "published" : "hidden";
+  selectNode.addEventListener("change", async () => {
+    const nextPublished = selectNode.value === "published";
+    if (exam.isPublished === nextPublished) return;
+    selectNode.disabled = true;
+    try {
+      exam.isPublished = nextPublished;
       exam.updatedAt = new Date().toISOString();
       saveState({ skipRemote: true });
       await saveWeeklyExamToRemote(exam);
       render();
-    }),
-  ]);
+      notify(nextPublished ? "주간평가를 공개로 변경했습니다." : "주간평가를 비공개로 변경했습니다.");
+    } catch (error) {
+      console.error(error);
+      selectNode.disabled = false;
+      selectNode.value = exam.isPublished ? "published" : "hidden";
+      notify("공개 여부 저장 중 오류가 발생했습니다.");
+    }
+  });
+  return selectNode;
 }
 
 function openWeeklyExamProblemDetail(examId, options = {}) {
@@ -446,7 +458,6 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
         button("답안 입력", "mini-btn", "button", () => {
           openWeeklyExamAnswerModal(section.id);
         }),
-        button("삭제", "mini-btn danger", "button", () => deleteWeeklyExamSection(section.id)),
       ].filter(Boolean) : "-"),
     ]);
   });
@@ -912,13 +923,11 @@ function renderWeeklyExamListPanel(exams, selectedExam) {
     })),
     el("td", {}, `${exam.weekNumber}주차`),
     el("td", {}, `${getExamSections(exam.id).length}개`),
-    el("td", {}, exam.isPublished ? el("span", { className: "badge approved" }, "공개") : el("span", { className: "badge pending" }, "비공개")),
+    el("td", {}, renderWeeklyExamPublishControl(exam)),
     el("td", {}, `${formatReleaseMode(exam.scoreReleaseMode)} / ${formatReleaseMode(exam.explanationReleaseMode)}`),
-    el("td", {}, button(exam.isPublished ? "비공개" : "공개", "mini-btn", "button", async () => {
-      exam.isPublished = !exam.isPublished;
-      exam.updatedAt = new Date().toISOString();
-      saveState({ skipRemote: true });
-      await saveWeeklyExamToRemote(exam);
+    el("td", {}, button("관리", "mini-btn", "button", () => {
+      weeklyExamSelectedId = exam.id;
+      weeklyExamSelectedSectionId = "";
       render();
     })),
   ]));

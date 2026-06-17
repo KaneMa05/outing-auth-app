@@ -1273,21 +1273,26 @@ th {
   background: #fbfcfd;
 }
 
-.weekly-publish-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.weekly-publish-select {
+  min-width: 96px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 900;
+  padding: 6px 9px;
 }
 
-.weekly-publish-control .badge {
-  min-width: 64px;
-  justify-content: center;
+.weekly-publish-select.published {
+  border-color: rgba(0, 91, 172, 0.32);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
-.weekly-publish-primary {
-  background: var(--accent);
-  color: #fff;
+.weekly-publish-select.hidden {
+  background: #fff8e7;
+  color: #9a6700;
 }
 
 .link-btn {
