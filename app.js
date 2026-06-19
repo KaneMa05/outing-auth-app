@@ -23,6 +23,7 @@
 };
 const COAST_GUARD_EXAM_DATE = "2026-10-24";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
+const STUDENT_GRADES_LOCK_MESSAGE = "성적은 시험 이후에 활성화됩니다.";
 const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 해경학과 항해(경장)",
@@ -48,7 +49,10 @@ const COAST_GUARD_TRACK_OPTIONS = [
 ];
 
 document.querySelectorAll("[data-route]").forEach((button) => {
-  button.addEventListener("click", () => navigate(button.dataset.route));
+  button.addEventListener("click", (event) => {
+    if (isLockedStudentGradesRoute(button.dataset.route)) event.preventDefault();
+    navigate(button.dataset.route);
+  });
 });
 
 document.querySelectorAll("[data-unreleased]").forEach((button) => {
@@ -74,6 +78,11 @@ if (resetButton) {
 }
 
 window.addEventListener("hashchange", () => {
+  const requestedRoute = location.hash.replace("#", "") || defaultRoute();
+  if (isLockedStudentGradesRoute(requestedRoute)) {
+    notify(STUDENT_GRADES_LOCK_MESSAGE);
+    history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute || defaultRoute()}`);
+  }
   currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
   render();
   scrollAppToTop();
@@ -85,6 +94,9 @@ window.addEventListener("popstate", () => {
   scrollAppToTop();
 });
 
+if (isLockedStudentGradesRoute(location.hash.replace("#", ""))) {
+  history.replaceState(null, "", `${location.href.split("#")[0]}#${defaultRoute()}`);
+}
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
 render();
 if (APP_MODE === "teacher") {
@@ -112,6 +124,7 @@ function normalizeRoute(route) {
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"];
+  if (normalized === "grades") return "home";
   if (studentRoutes.includes(normalized) || normalized.startsWith("notice-")) return normalized;
   return "home";
 }
@@ -120,7 +133,16 @@ function defaultRoute() {
   return "home";
 }
 
+function isLockedStudentGradesRoute(route) {
+  return APP_MODE !== "teacher" && String(route || "").split("?")[0] === "grades";
+}
+
 function navigate(route) {
+  if (isLockedStudentGradesRoute(route)) {
+    notify(STUDENT_GRADES_LOCK_MESSAGE);
+    if (location.hash === "#grades") history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute || defaultRoute()}`);
+    return;
+  }
   const nextRoute = normalizeRoute(route || defaultRoute());
   if (APP_MODE !== "teacher" && nextRoute === "grades" && typeof resetStudentGradesView === "function") resetStudentGradesView();
   const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextRoute}`;
