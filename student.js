@@ -1805,9 +1805,8 @@ function renderStudentWeeklyGrades(student) {
     ]);
   }
   const sections = getStudentExamSections(selectedExam, student);
-  const visibleSections = studentGradesView === "entry"
-    ? sections.filter((section) => !getStudentSubmission(student.id, section.id))
-    : sections;
+  const remainingSections = sections.filter((section) => !getStudentSubmission(student.id, section.id));
+  const visibleSections = studentGradesView === "entry" && remainingSections.length ? remainingSections : sections;
   const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
   if (selectedSection) {
     return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
@@ -1895,7 +1894,6 @@ function renderStudentExamList(exams, selectedExam) {
   });
   return panel("주간평가 목록", [
     field("주차 선택", examSelect),
-    el("p", { className: "subtle" }, formatStudentWeeklyExamName(selectedExam.weekNumber)),
   ]);
 }
 
@@ -1985,11 +1983,46 @@ function renderStudentExamAnswerEntry(exam, section, student, allSections) {
   const cards = [];
   visibleAnswers.slice(start - 1, end).forEach((answer, index) => cards.push(renderStudentAnswerQuestion(answer.questionNumber, start + index)));
   const answeredCount = visibleAnswers.filter((answer) => studentExamDraft.answers[answer.questionNumber]).length;
-  return panel(`${section.subject} ${visibleAnswers.length}문제`, [
+  return panel("답안 입력", [
+    renderStudentAnswerSubjectTabs(exam, section, student, allSections),
+    el("div", { className: "student-answer-title" }, [
+      el("div", {}, [
+        el("strong", {}, section.subject),
+        el("span", {}, `${visibleAnswers.length}문항 · ${visibleAnswers.length * 5}점`),
+      ]),
+      el("span", { className: "badge pending" }, `${start}~${end}번`),
+    ]),
     renderStudentAnswerProgress(answeredCount, visibleAnswers.length, start, end),
     el("div", { className: "student-answer-list" }, cards),
     renderStudentAnswerNav(section, visibleAnswers.length),
   ]);
+}
+
+function renderStudentAnswerSubjectTabs(exam, currentSection, student, sections) {
+  return el("div", { className: "student-answer-subject-tabs" }, sections.map((section) => {
+    const submission = getStudentSubmission(student.id, section.id);
+    const isCurrent = section.id === currentSection.id;
+    const className = [
+      "student-answer-subject-tab",
+      isCurrent ? "active" : "",
+      submission ? "submitted" : "",
+    ].filter(Boolean).join(" ");
+    const node = button("", className, "button", () => switchStudentAnswerSection(section, currentSection, student));
+    node.disabled = isCurrent || Boolean(submission) || !isExamOpen(exam);
+    node.append(
+      el("strong", {}, section.subject),
+      el("span", {}, submission ? "제출 완료" : isCurrent ? "입력 중" : "미제출")
+    );
+    return node;
+  }));
+}
+
+function switchStudentAnswerSection(nextSection, currentSection, student) {
+  if (!nextSection || nextSection.id === currentSection.id) return;
+  if (getStudentSubmission(student.id, nextSection.id)?.status === "submitted") return notify("이미 제출한 과목입니다.");
+  const hasDraft = Object.values(studentExamDraft.answers || {}).some(Boolean);
+  if (hasDraft && !confirm("현재 과목에서 입력 중인 답안이 사라질 수 있습니다. 다른 과목으로 이동할까요?")) return;
+  startStudentSectionAnswer(nextSection);
 }
 
 function renderStudentAnswerProgress(answeredCount, questionCount, start, end) {
@@ -2031,8 +2064,8 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
   });
   return el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
     el("div", { className: "student-answer-head" }, [
-      el("strong", {}, `${displayNumber}`),
-      el("span", {}, current ? toCircledAnswer(current) : "-"),
+      el("strong", {}, `${displayNumber}번`),
+      el("span", {}, current ? "입력됨" : "미입력"),
     ]),
     el("div", { className: "answer-choice-row" }, options),
   ]);
@@ -2050,13 +2083,15 @@ function renderStudentAnswerNav(section, questionCount = section.questionCount) 
   });
   next.disabled = studentExamDraft.page >= Math.ceil(questionCount / 10) - 1;
   return el("div", { className: "student-answer-nav" }, [
-    prev,
-    button("답안표", "btn", "button", () => {
+    el("div", { className: "student-answer-page-nav" }, [
+      prev,
+      next,
+    ]),
+    button("검토 후 제출", "btn student-answer-review-button", "button", () => {
       studentExamDraft.review = true;
       studentExamDraft.confirmed = false;
       render();
     }),
-    next,
   ]);
 }
 
@@ -2069,11 +2104,14 @@ function renderStudentExamReview(exam, section, student) {
     const displayNumber = index + 1;
     const answer = studentExamDraft.answers[question];
     if (!answer) missing.push(displayNumber);
-    cells.push(button(`${displayNumber}. ${answer ? toCircledAnswer(answer) : "미입력"}`, answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+    cells.push(button("", answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
       studentExamDraft.review = false;
       studentExamDraft.page = Math.floor(index / 10);
       render();
-    }));
+    }, [
+      el("span", {}, `${displayNumber}번`),
+      el("strong", {}, answer ? toCircledAnswer(answer) : "-"),
+    ]));
   });
   const checkbox = el("input", { type: "checkbox" });
   const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing, visibleAnswers.length));
@@ -2084,7 +2122,7 @@ function renderStudentExamReview(exam, section, student) {
   });
   return panel(`${section.subject} 답안표 확인`, [
     el("div", { className: "answer-sheet-grid" }, cells),
-    missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "subtle" }, "모든 문항을 입력했습니다."),
+    missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "answer-complete-message" }, "모든 문항을 입력했습니다."),
     el("label", { className: "confirm-check" }, [checkbox, el("span", {}, "위 답안을 모두 확인했습니다.")]),
     el("div", { className: "student-answer-nav" }, [
       button("답안 수정", "btn secondary", "button", () => {

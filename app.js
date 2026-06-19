@@ -630,7 +630,10 @@ function renderStudentHome() {
 function renderHomeScreenInstallCard() {
   if (isRunningStandalone()) return null;
   return el("section", { className: "student-install-card" }, [
-    el("strong", {}, "앱처럼 사용하기"),
+    el("div", {}, [
+      el("strong", {}, "앱처럼 사용하기"),
+      el("p", {}, "iPhone은 Safari와 Chrome의 공유 버튼 위치가 다릅니다."),
+    ]),
     button("홈화면 추가", "btn secondary", "button", installToHomeScreen),
   ]);
 }
@@ -638,7 +641,10 @@ function renderHomeScreenInstallCard() {
 function renderStudentAuthInstallCard() {
   if (isRunningStandalone()) return null;
   return el("section", { className: "student-install-card student-auth-install-card" }, [
-    el("strong", {}, "앱처럼 이용하기"),
+    el("div", {}, [
+      el("strong", {}, "앱처럼 이용하기"),
+      el("p", {}, "iPhone은 Safari와 Chrome의 공유 버튼 위치가 다릅니다."),
+    ]),
     button("앱으로 이용하기", "btn secondary", "button", installToHomeScreen),
   ]);
 }
@@ -659,20 +665,28 @@ function openInstallGuideModal() {
   const userAgent = navigator.userAgent.toLowerCase();
   const isKakao = userAgent.includes("kakaotalk");
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isChromeIos = isIos && userAgent.includes("crios");
+  const isSafariIos = isIos && userAgent.includes("safari") && !userAgent.includes("crios") && !userAgent.includes("fxios") && !userAgent.includes("edgios");
   const isAndroid = userAgent.includes("android");
   const pageUrl = location.href;
   const title = isKakao ? "브라우저에서 열어주세요" : "홈 화면에 추가하기";
   const guideMessage = isKakao
     ? "카카오톡 안에서는 홈 화면 추가가 잘 안 될 수 있습니다. 먼저 기본 브라우저로 열어주세요."
-    : "현재 브라우저에서 아래 순서대로 홈 화면에 추가해주세요.";
+    : isIos
+      ? "iPhone에서는 브라우저마다 공유 버튼 위치가 다릅니다. 현재 브라우저에 맞춰 진행해주세요."
+      : "현재 브라우저에서 아래 순서대로 홈 화면에 추가해주세요.";
   const steps = isKakao
     ? [
         "카카오톡 오른쪽 아래 점 세 개 또는 공유 버튼을 누릅니다.",
         isIos ? "Safari로 열기를 선택합니다." : "다른 브라우저로 열기를 선택합니다.",
         "브라우저에서 공유 또는 메뉴를 눌러 홈 화면에 추가합니다.",
       ]
-    : isIos
-      ? ["하단 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다.", "추가를 누릅니다."]
+    : isChromeIos
+      ? ["주소창 오른쪽의 공유 버튼을 누릅니다. 보이지 않으면 오른쪽 아래 점 세 개 메뉴에서 공유를 선택합니다.", "홈 화면에 추가를 선택합니다."]
+      : isSafariIos
+        ? ["하단 도구막대 또는 주소창 옆의 공유 버튼을 누릅니다.", "홈 화면에 추가를 선택합니다."]
+        : isIos
+          ? ["브라우저의 공유 버튼 또는 메뉴를 누릅니다.", "홈 화면에 추가를 선택합니다."]
       : ["브라우저 오른쪽 위 메뉴를 누릅니다.", "앱 설치 또는 홈 화면에 추가를 선택합니다.", "설치 또는 추가를 누릅니다."];
 
   const actions = [
