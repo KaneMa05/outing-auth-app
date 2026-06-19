@@ -1015,9 +1015,9 @@ async function loadStateFromRemote() {
   const finalExamScoreColumns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
   const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
   let managerRequest =
-    APP_MODE === "teacher"
-      ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
-      : Promise.resolve({ data: state.managers || [], error: null });
+    APP_MODE === "student"
+      ? Promise.resolve({ data: state.managers || [], error: null })
+      : Promise.resolve({ data: [], error: null });
   let outingRequest = remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false });
   const createAttendanceRemoteRequest = (columns) => {
     let request = remoteStore.from("attendance_checks").select(columns).order("created_at", { ascending: false });

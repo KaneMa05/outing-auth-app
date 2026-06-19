@@ -2315,12 +2315,34 @@ async function saveExamFilesToRemote(files) {
     original_name: file.originalName || null,
     uploaded_at: file.uploadedAt || new Date().toISOString(),
   }));
+  if (APP_MODE === "teacher") {
+    const response = await fetch("/api/exam-files", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: rows }),
+    });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) throw new Error(data.error || "exam_file_save_failed");
+    return;
+  }
   const { error } = await remoteStore.from("exam_files").upsert(rows, { onConflict: "id" });
   if (error) throw error;
 }
 
 async function deleteExamFilesFromRemote(fileIds) {
   if (!remoteStore || !fileIds.length) return;
+  if (APP_MODE === "teacher") {
+    const response = await fetch("/api/exam-files", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: fileIds }),
+    });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) throw new Error(data.error || "exam_file_delete_failed");
+    return;
+  }
   const { error } = await remoteStore.from("exam_files").delete().in("id", fileIds);
   if (error) throw error;
 }
