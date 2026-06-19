@@ -1982,17 +1982,7 @@ function renderStudentExamAnswerEntry(exam, section, student, allSections) {
   const end = Math.min(start + 9, visibleAnswers.length);
   const cards = [];
   visibleAnswers.slice(start - 1, end).forEach((answer, index) => cards.push(renderStudentAnswerQuestion(answer.questionNumber, start + index)));
-  const answeredCount = visibleAnswers.filter((answer) => studentExamDraft.answers[answer.questionNumber]).length;
   return panel("답안 입력", [
-    renderStudentAnswerSubjectTabs(exam, section, student, allSections),
-    el("div", { className: "student-answer-title" }, [
-      el("div", {}, [
-        el("strong", {}, section.subject),
-        el("span", {}, `${visibleAnswers.length}문항 · ${visibleAnswers.length * 5}점`),
-      ]),
-      el("span", { className: "badge pending" }, `${start}~${end}번`),
-    ]),
-    renderStudentAnswerProgress(answeredCount, visibleAnswers.length, start, end),
     el("div", { className: "student-answer-list" }, cards),
     renderStudentAnswerNav(section, visibleAnswers.length),
   ]);
@@ -2039,9 +2029,10 @@ function renderStudentAnswerProgress(answeredCount, questionCount, start, end) {
 }
 
 function renderStudentExamEntrySubjectList(exam, sections, student) {
+  const scoreOpen = canStudentSeeScore(exam, sections, student);
   return panel(formatStudentWeeklyExamName(exam.weekNumber), [
     sections.length
-      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, false)))
+      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "입력할 주간평가 과목이 없습니다."),
   ]);
 }
@@ -2065,7 +2056,6 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
   return el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
     el("div", { className: "student-answer-head" }, [
       el("strong", {}, `${displayNumber}번`),
-      el("span", {}, current ? "입력됨" : "미입력"),
     ]),
     el("div", { className: "answer-choice-row" }, options),
   ]);

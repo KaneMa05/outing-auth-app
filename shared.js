@@ -210,6 +210,7 @@ const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
 ];
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
 const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
+const WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],

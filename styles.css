@@ -2244,7 +2244,7 @@ th {
 
 .student-answer-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
@@ -2262,7 +2262,6 @@ th {
   min-height: 48px;
   display: grid;
   place-items: center;
-  gap: 2px;
   border-radius: 8px;
   background: var(--surface-soft);
   text-align: center;
@@ -2324,6 +2323,10 @@ th {
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
   padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+}
+
+body:not([data-app-mode="teacher"]) .student-answer-nav {
+  bottom: calc(var(--student-footer-bottom) + 92px);
 }
 
 .student-answer-page-nav {
@@ -3381,6 +3384,7 @@ th {
 
 .toast {
   position: fixed;
+  z-index: 80;
   right: 18px;
   bottom: 18px;
   max-width: min(360px, calc(100% - 36px));
@@ -3414,11 +3418,24 @@ body:not([data-app-mode="teacher"]) .toast.show {
 }
 
 body:not([data-app-mode="teacher"]) {
+  --student-safe-top: env(safe-area-inset-top, 0px);
   --student-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
   --student-footer-bottom: max(18px, calc(var(--student-footer-safe-bottom) + 12px));
   --student-content-bottom: calc(104px + var(--student-footer-safe-bottom));
-  --student-toast-bottom: calc(var(--student-footer-bottom) + 80px);
+  --student-toast-bottom: calc(var(--student-footer-bottom) + 104px);
   background: #f4f6f8;
+}
+
+body:not([data-app-mode="teacher"])::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  width: 100%;
+  height: calc(var(--student-safe-top) + 2px);
+  background: #f4f6f8;
+  pointer-events: none;
 }
 
 body:not([data-app-mode="teacher"]) .app-frame {
@@ -4876,7 +4893,7 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   .student-answer-row {
-    grid-template-columns: 54px minmax(0, 1fr);
+    grid-template-columns: 46px minmax(0, 1fr);
     gap: 7px;
     padding: 7px;
   }

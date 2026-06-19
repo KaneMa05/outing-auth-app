@@ -518,7 +518,9 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
   if (!sections.length) return notify("답안지를 연결할 출제 과목이 없습니다.");
   const files = Array.from(fileList || []);
   if (!files.length) return notify("업로드할 PDF 파일을 선택해주세요.");
-  if (files.some((file) => file.type !== "application/pdf")) return notify("PDF 파일만 업로드할 수 있습니다.");
+  if (files.some((file) => !isWeeklyExamAnswerPdfFile(file))) return notify("PDF 파일만 업로드할 수 있습니다.");
+  const oversizedFile = files.find((file) => file.size > WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES);
+  if (oversizedFile) return notify(`${oversizedFile.name || "PDF 파일"}은 10MB 이하로 업로드해주세요.`);
   const sectionIds = new Set(sections.map((section) => section.id));
   const existingFiles = getWeeklyExamRoundFiles(sectionIds);
   const remainingFileCount = WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT - existingFiles.length;
@@ -551,8 +553,12 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
   for (const [index, file] of files.entries()) {
     const uploadedAt = new Date().toISOString();
     const path = `${exam.id}/round-answer-${Date.now()}-${index}-${sanitizeStorageFileName(file.name)}`;
-    const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, file, { upsert: true, contentType: "application/pdf" });
-    if (uploadError) return notify("파일 업로드에 실패했습니다.");
+    const uploadBody = file.type === "application/pdf" ? file : new Blob([file], { type: "application/pdf" });
+    const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, uploadBody, { contentType: "application/pdf" });
+    if (uploadError) {
+      console.error(uploadError);
+      return notify(`파일 업로드에 실패했습니다. ${formatStorageUploadError(uploadError)}`);
+    }
     const { data } = remoteStore.storage.from("exam-files").getPublicUrl(path);
     sections.forEach((section) => {
       createdRows.push({
@@ -584,6 +590,21 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
 
 function sanitizeStorageFileName(name) {
   return String(name || "answer.pdf").replace(/[^\w.\-가-힣]/g, "_").slice(0, 120) || "answer.pdf";
+}
+
+function isWeeklyExamAnswerPdfFile(file) {
+  const type = String(file?.type || "").toLowerCase();
+  const name = String(file?.name || "").toLowerCase();
+  return type === "application/pdf" || (!type && name.endsWith(".pdf"));
+}
+
+function formatStorageUploadError(error) {
+  const message = String(error?.message || "").trim();
+  const statusCode = error?.statusCode || error?.status || "";
+  if (message && statusCode) return `(${statusCode}: ${message})`;
+  if (message) return `(${message})`;
+  if (statusCode) return `(${statusCode})`;
+  return "파일 크기와 Storage 권한을 확인해주세요.";
 }
 
 async function deleteWeeklyExamRoundAnswerFile(file, sections) {
