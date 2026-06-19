@@ -101,7 +101,7 @@ function normalizeManager(manager) {
   return {
     id: String(manager.id || "").trim(),
     name: String(manager.name || "").trim(),
-    cohort: String(manager.cohort || "18").trim(),
+    cohort: String(manager.cohort || "").trim(),
     role: String(manager.role || "").trim() || null,
     memo: String(manager.memo || "").trim() || null,
     is_active: manager.is_active !== false,

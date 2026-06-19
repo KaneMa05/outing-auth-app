@@ -209,6 +209,7 @@ const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
   { key: "academy", label: "학과특채", keywords: ["해경학과"], tracks: ["경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
 ];
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
+const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
 const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
@@ -2477,7 +2478,7 @@ function mapManagerFromRemote(manager) {
   return {
     id: manager.id,
     name: manager.name || "",
-    cohort: String(manager.cohort || DEFAULT_STUDENT_COHORT),
+    cohort: String(manager.cohort || ""),
     role: manager.role || "",
     memo: manager.memo || "",
     isActive: manager.is_active !== false,

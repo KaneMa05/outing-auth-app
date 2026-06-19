@@ -221,7 +221,7 @@ function managerAdminPanel() {
   const rows = getAllActiveManagers().map((manager) =>
     el("tr", {}, [
       el("td", {}, manager.name),
-      el("td", {}, manager.cohort ? `${manager.cohort}기` : `${DEFAULT_STUDENT_COHORT}기`),
+      el("td", {}, manager.cohort ? `${manager.cohort}기` : "미지정"),
       el("td", {}, manager.role || "-"),
       el("td", {}, manager.memo || "-"),
       el("td", {}, formatDateCompact(manager.createdAt)),
@@ -405,7 +405,7 @@ async function deleteNoticeFromRemote(id) {
 function getActiveManagers(cohort = "") {
   const selectedCohort = String(cohort || selectedStudentCohort || DEFAULT_STUDENT_COHORT).trim();
   return getAllActiveManagers()
-    .filter((manager) => !selectedCohort || String(manager.cohort || DEFAULT_STUDENT_COHORT) === selectedCohort);
+    .filter((manager) => !selectedCohort || String(manager.cohort || "") === selectedCohort);
 }
 
 function getAllActiveManagers() {
@@ -466,7 +466,7 @@ function managerToRemoteRow(manager) {
   return {
     id: manager.id,
     name: manager.name,
-    cohort: manager.cohort || DEFAULT_STUDENT_COHORT,
+    cohort: String(manager.cohort || ""),
     role: manager.role || null,
     memo: manager.memo || null,
     is_active: manager.isActive !== false,

@@ -566,11 +566,20 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
       });
     });
   }
-  state.examFiles = [...(state.examFiles || []), ...createdRows];
-  await saveExamFilesToRemote(createdRows);
-  saveState({ skipRemote: true });
-  render();
-  notify(`회차 답안지 ${files.length}개를 업로드했습니다.`);
+  const previousFiles = [...(state.examFiles || [])];
+  state.examFiles = [...previousFiles, ...createdRows];
+  try {
+    await saveExamFilesToRemote(createdRows);
+    saveState({ skipRemote: true });
+    render();
+    notify(`회차 답안지 ${files.length}개를 업로드했습니다.`);
+  } catch (error) {
+    console.error(error);
+    state.examFiles = previousFiles;
+    const paths = [...new Set(createdRows.map((row) => row.filePath).filter(Boolean))];
+    if (paths.length) await remoteStore.storage.from("exam-files").remove(paths).catch((removeError) => console.error(removeError));
+    notify("답안지 기록 저장에 실패했습니다. Supabase exam_files 스키마와 권한을 확인해주세요.");
+  }
 }
 
 function sanitizeStorageFileName(name) {

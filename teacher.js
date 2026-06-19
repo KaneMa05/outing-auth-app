@@ -154,11 +154,13 @@ async function logoutTeacher() {
 
 function renderTeacher() {
   applyAutoApprovalForReturnedOutings();
-  const activeOutings = state.outings.filter(isActiveOuting);
-  const todayEarlyLeaves = state.outings.filter(isTodayEarlyLeave);
-  const activeOutingCases = state.outings.filter(isActiveOuting);
-  const returnedTodayCases = state.outings.filter((outing) => isToday(getOutingReturnedAt(outing)));
-  const visibleOutings = getFilteredTeacherOutings();
+  const selected = selectedStudentCohortCount();
+  const cohortOutings = getTeacherOutingsInCohort(selected.value);
+  const activeOutings = cohortOutings.filter(isActiveOuting);
+  const todayEarlyLeaves = cohortOutings.filter(isTodayEarlyLeave);
+  const activeOutingCases = cohortOutings.filter(isActiveOuting);
+  const returnedTodayCases = cohortOutings.filter((outing) => isToday(getOutingReturnedAt(outing)));
+  const visibleOutings = getFilteredTeacherOutings(selected.value);
   const pendingOutings = visibleOutings.filter(isActionRequired);
   const completedOutings = visibleOutings.filter((outing) => !isActionRequired(outing));
 
@@ -193,7 +195,7 @@ function renderTeacher() {
             teacherOutingSection("처리 필요", pendingOutings, { teacher: true, approvalColumns: false }, "outing-pending-section"),
             completedTeacherOutingSections(completedOutings, { teacher: true }, "outing-completed-section"),
           ])
-        : el("div", { className: "empty" }, state.outings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
+        : el("div", { className: "empty" }, cohortOutings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
   ]);
 }
@@ -1515,9 +1517,18 @@ function teacherFilterControls() {
   return el("div", { className: "teacher-tools" }, [form, field("정렬", sort)]);
 }
 
-function getFilteredTeacherOutings() {
+function getTeacherOutingsInCohort(cohort = selectedStudentCohort) {
+  return (state.outings || []).filter((outing) => isTeacherOutingInCohort(outing, cohort));
+}
+
+function isTeacherOutingInCohort(outing, cohort = selectedStudentCohort) {
+  if (!cohort) return true;
+  return getStudentCohort({ id: outing.studentId }) === cohort;
+}
+
+function getFilteredTeacherOutings(cohort = selectedStudentCohort) {
   const query = teacherFilters.query.trim().toLowerCase();
-  const filtered = state.outings.filter((outing) => {
+  const filtered = getTeacherOutingsInCohort(cohort).filter((outing) => {
     if (!query) return true;
     return [outing.studentName, outing.studentId, outing.reason, outing.detail, outing.className, outing.earlyLeaveReason]
       .filter(Boolean)
