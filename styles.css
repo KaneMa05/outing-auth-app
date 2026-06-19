@@ -3445,7 +3445,6 @@ body:not([data-app-mode="teacher"]) .toast.show {
 
 body:not([data-app-mode="teacher"]) {
   --student-safe-top: env(safe-area-inset-top, 0px);
-  --student-top-mask-height: max(72px, calc(var(--student-safe-top) + 50px));
   --student-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
   --student-footer-bottom: max(18px, calc(var(--student-footer-safe-bottom) + 12px));
   --student-content-bottom: calc(104px + var(--student-footer-safe-bottom));
@@ -3460,7 +3459,7 @@ body:not([data-app-mode="teacher"])::before {
   left: 0;
   z-index: 70;
   width: 100%;
-  height: var(--student-top-mask-height);
+  height: var(--student-safe-top);
   background: #fff;
   pointer-events: none;
 }

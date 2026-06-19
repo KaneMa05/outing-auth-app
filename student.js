@@ -1805,8 +1805,6 @@ function renderStudentWeeklyGrades(student) {
     ]);
   }
   const sections = getStudentExamSections(selectedExam, student);
-  const remainingSections = sections.filter((section) => !getStudentSubmission(student.id, section.id));
-  const visibleSections = studentGradesView === "entry" && remainingSections.length ? remainingSections : sections;
   const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
   if (selectedSection) {
     return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
@@ -1817,7 +1815,7 @@ function renderStudentWeeklyGrades(student) {
   return el("div", { className: "grid student-view student-exam-view" }, [
     renderStudentGradesBackPanel(),
     renderStudentExamList(exams, selectedExam),
-    renderStudentExamEntrySubjectList(selectedExam, visibleSections, student),
+    renderStudentExamEntrySubjectList(selectedExam, sections, student),
   ]);
 }
 
