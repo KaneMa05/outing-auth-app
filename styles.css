@@ -2275,16 +2275,21 @@ th {
 
 .student-answer-head {
   min-height: 48px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8px;
   background: var(--surface-soft);
   text-align: center;
 }
 
 .student-answer-head strong {
+  display: block;
+  width: 100%;
   font-size: 0.98rem;
   line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .student-answer-head span {
@@ -2341,7 +2346,13 @@ th {
 }
 
 body:not([data-app-mode="teacher"]) .student-answer-nav {
-  bottom: calc(var(--student-footer-bottom) + 92px);
+  position: static;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  padding: 8px;
 }
 
 .student-answer-page-nav {
@@ -3434,6 +3445,7 @@ body:not([data-app-mode="teacher"]) .toast.show {
 
 body:not([data-app-mode="teacher"]) {
   --student-safe-top: env(safe-area-inset-top, 0px);
+  --student-top-mask-height: max(72px, calc(var(--student-safe-top) + 50px));
   --student-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
   --student-footer-bottom: max(18px, calc(var(--student-footer-safe-bottom) + 12px));
   --student-content-bottom: calc(104px + var(--student-footer-safe-bottom));
@@ -3448,8 +3460,8 @@ body:not([data-app-mode="teacher"])::before {
   left: 0;
   z-index: 70;
   width: 100%;
-  height: calc(var(--student-safe-top) + 2px);
-  background: #f4f6f8;
+  height: var(--student-top-mask-height);
+  background: #fff;
   pointer-events: none;
 }
 
