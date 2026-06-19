@@ -66,7 +66,7 @@ create table if not exists public.manager_allowed_ips (
 create table if not exists public.managers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  cohort text not null default '18',
+  cohort text not null default '',
   role text,
   memo text,
   is_active boolean not null default true,
@@ -74,7 +74,10 @@ create table if not exists public.managers (
 );
 
 alter table public.managers
-add column if not exists cohort text not null default '18';
+add column if not exists cohort text not null default '';
+
+alter table public.managers
+alter column cohort set default '';
 
 create table if not exists public.track_options (
   label text primary key,

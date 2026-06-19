@@ -2111,6 +2111,11 @@ function getDefaultStudentCohortValue(cohorts = []) {
   return cohorts.find((cohort) => cohort.value === DEFAULT_STUDENT_COHORT)?.value || cohorts[0]?.value || DEFAULT_STUDENT_COHORT;
 }
 
+function getCurrentStudentCohort() {
+  const selected = selectedStudentCohortCount();
+  return String(selected.value || selectedStudentCohort || DEFAULT_STUDENT_COHORT).trim();
+}
+
 function statGroup(titleText, stats) {
   return el("section", { className: "stat-group" }, [
     el("h2", {}, titleText),

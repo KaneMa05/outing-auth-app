@@ -173,9 +173,10 @@ async function saveTrackOptionsToRemote(options, deletedOptions = []) {
 }
 
 function managerAdminPanel() {
+  const currentCohort = getCurrentStudentCohort();
   const nameInput = input("name", "text", "담당자 이름");
   nameInput.required = true;
-  const cohortInput = input("cohort", "number", "18", selectedStudentCohort || DEFAULT_STUDENT_COHORT);
+  const cohortInput = input("cohort", "number", currentCohort, currentCohort);
   const roleInput = input("role", "text", "예: 데스크, 담임, 장학생");
   const memoInput = textarea("memo", "메모 (선택)");
   const form = el("form", { className: "form-grid" }, [
@@ -403,7 +404,7 @@ async function deleteNoticeFromRemote(id) {
 }
 
 function getActiveManagers(cohort = "") {
-  const selectedCohort = String(cohort || selectedStudentCohort || DEFAULT_STUDENT_COHORT).trim();
+  const selectedCohort = String(cohort || getCurrentStudentCohort()).trim();
   return getAllActiveManagers()
     .filter((manager) => !selectedCohort || String(manager.cohort || "") === selectedCohort);
 }
@@ -415,11 +416,12 @@ function getAllActiveManagers() {
 }
 
 function managerNameControl() {
+  const currentCohort = getCurrentStudentCohort();
   const managers = getActiveManagers();
   const defaultName = String(teacherAuth.user?.username || "").trim();
   const options = managers.map((manager) => el("option", { value: manager.name }, manager.role ? `${manager.name} (${manager.role})` : manager.name));
   const node = el("select", { name: "managerName", required: true }, [
-    el("option", { value: "" }, `${selectedStudentCohort || DEFAULT_STUDENT_COHORT}기 담당자 선택`),
+    el("option", { value: "" }, `${currentCohort}기 담당자 선택`),
     ...options,
   ]);
   if (defaultName && managers.some((manager) => manager.name === defaultName)) node.value = defaultName;
@@ -433,15 +435,16 @@ function isAdminManagerOption(manager) {
 }
 
 function upsertManager(data) {
+  const currentCohort = getCurrentStudentCohort();
   const name = String(data.name || "").trim();
-  const cohort = String(data.cohort || DEFAULT_STUDENT_COHORT).trim();
+  const cohort = String(data.cohort || currentCohort).trim();
   const role = String(data.role || "").trim();
   const memo = String(data.memo || "").trim();
   state.managers = state.managers || [];
   const existing = state.managers.find((manager) =>
     manager.isActive !== false &&
     manager.name === name &&
-    String(manager.cohort || DEFAULT_STUDENT_COHORT) === cohort
+    String(manager.cohort || currentCohort) === cohort
   );
   if (existing) {
     existing.cohort = cohort;
