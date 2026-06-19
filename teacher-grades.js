@@ -589,7 +589,15 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
 }
 
 function sanitizeStorageFileName(name) {
-  return String(name || "answer.pdf").replace(/[^\w.\-가-힣]/g, "_").slice(0, 120) || "answer.pdf";
+  const rawName = String(name || "answer.pdf").trim();
+  const withoutExtension = rawName.replace(/\.pdf$/i, "");
+  const safeBase = withoutExtension
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 80);
+  return `${safeBase || "answer"}.pdf`;
 }
 
 function isWeeklyExamAnswerPdfFile(file) {
