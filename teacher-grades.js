@@ -1063,7 +1063,7 @@ function openWeeklyExamAnswerModal(sectionId, sectionIds = []) {
         el("strong", {}, "정답 입력"),
         button("×", "icon-btn attendance-modal-close", "button", closeInfoModal),
       ]),
-      renderWeeklyExamAnswerPanel(section, [], { modal: true }),
+      renderWeeklyExamAnswerPanel(section, modalSections, { modal: true, sectionIds: sectionIds.length ? sectionIds : modalSections.map((item) => item.id) }),
     ]),
   ]);
   modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
@@ -1204,15 +1204,18 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
   const answerHeader = el("div", { className: "weekly-answer-header" }, [
     el("div", {}, [
       el("strong", {}, `${Number(exam?.weekNumber) || 1}주차 ${section.subject}`),
-      el("span", {}, "숫자를 키보드로 입력해주세요"),
+      el("span", {}, `${answers.length}문항 · 숫자를 키보드로 입력해주세요`),
       trackScoped ? el("small", {}, "공채와 함정요원은 기본 적용됩니다. VTS와 학과특채만 문항별로 선택해주세요.") : null,
     ]),
-    trackScoped
-      ? el("div", { className: "weekly-track-bulk-actions" }, [
-          renderWeeklyTrackBulkButton(section, answers, "vts"),
-          renderWeeklyTrackBulkButton(section, answers, "academy"),
-        ])
-      : null,
+    el("div", { className: "weekly-answer-header-actions" }, [
+      renderWeeklyQuestionCountControls(section, answers, options),
+      trackScoped
+        ? el("div", { className: "weekly-track-bulk-actions" }, [
+            renderWeeklyTrackBulkButton(section, answers, "vts"),
+            renderWeeklyTrackBulkButton(section, answers, "academy"),
+          ])
+        : null,
+    ]),
   ]);
   form = el("form", { className: "weekly-answer-form" }, [
     el("div", { className: "excel-table-wrap weekly-answer-table" }, [
@@ -1242,6 +1245,31 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     picker,
     form,
   ].filter(Boolean));
+}
+
+function renderWeeklyQuestionCountControls(section, answers, options = {}) {
+  const countInput = input("questionCount", "number", "문항 수", String(answers.length || section.questionCount || 20));
+  countInput.min = "1";
+  countInput.step = "1";
+  const sectionIds = options.sectionIds || [];
+  const applyCount = async (nextCount) => {
+    await updateWeeklyExamSectionQuestionCount(section, nextCount, {
+      modal: options.modal,
+      sectionIds,
+    });
+  };
+  const countForm = el("form", { className: "weekly-question-count-row" }, [
+    field("문항 수", countInput),
+    button("적용", "mini-btn"),
+  ]);
+  countForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await applyCount(countInput.value);
+  });
+  return el("div", { className: "weekly-question-count-tools" }, [
+    countForm,
+    button("+1 문항", "mini-btn secondary", "button", () => applyCount((Number(section.questionCount) || answers.length || 20) + 1)),
+  ]);
 }
 
 function applyWeeklyQuestionTrackGroupToAll(section, answers, groupKey) {
