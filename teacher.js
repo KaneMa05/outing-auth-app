@@ -2255,12 +2255,20 @@ async function deletePenaltyFromTeacherApi(id) {
   if (!response.ok || !data.ok) throw new Error(data.error || "penalty_delete_failed");
 }
 
+async function saveStudentsToTeacherApi(students) {
+  const response = await fetch("/api/students", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ students }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (response.status === 503 && data.error === "service_role_not_configured") return false;
+  if (!response.ok || !data.ok) throw new Error(data.error || "student_save_failed");
+  return true;
+}
+
 async function saveStudentsToRemote(studentIds) {
-  if (!remoteStore) {
-    await loadSupabaseSdk();
-    remoteStore = createRemoteStore();
-  }
-  if (!remoteStore) return;
   const idSet = new Set(studentIds.map((id) => String(id || "").trim()).filter(Boolean));
   const rows = state.students
     .filter((student) => idSet.has(String(student.id || "").trim()) && student.id && student.name)
@@ -2275,6 +2283,14 @@ async function saveStudentsToRemote(studentIds) {
     }));
 
   if (!rows.length) return;
+  if (APP_MODE === "teacher" && await saveStudentsToTeacherApi(rows)) return;
+
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+
   const { error } = await remoteStore.from("students").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
   if (isMissingColumnError(error, "attendance_excluded")) {
     const fallbackRows = rows.map(({ attendance_excluded, ...row }) => row);
