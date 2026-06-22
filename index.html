@@ -22,7 +22,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260513-pyramid-zone-fill" />
+    <link rel="stylesheet" href="./styles.css?v=20260619-student-notch-mask" />
   </head>
   <body>
     <noscript>
@@ -84,6 +84,12 @@
 
     <div id="toast" class="toast" role="status"></div>
     <script>
+      window.va = window.va || function () {
+        (window.vaq = window.vaq || []).push(arguments);
+      };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script>
       (function () {
         var routeTitles = {
           home: "홈",
@@ -138,7 +144,10 @@
         }
         function currentRoute() {
           var route = String(location.hash || "").replace("#", "");
-          if (route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          route = String(route || "").split("?")[0];
+          if (route === "grades-final") return "grades";
+          if (route === "grades") return "home";
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
           return "home";
         }
         function shouldUseFallback() {
@@ -154,8 +163,11 @@
           });
         }
         function navFallback(route) {
+          if (route === "grades") {
+            showToast("성적은 시험 이후에 활성화됩니다.");
+            return;
+          }
           var sameRoute = currentRoute() === route && location.hash === "#" + route;
-          if (route === "grades" && typeof window.resetStudentGradesView === "function") window.resetStudentGradesView();
           location.hash = route;
           if (shouldUseFallback()) renderFallback(route);
           if (sameRoute) scrollTop();
@@ -205,10 +217,10 @@
         }, 900);
       })();
     </script>
-    <script src="./config.js?v=20260515-return-photo-save"></script>
-    <script src="./supabase.js?v=20260515-return-photo-save" defer></script>
-    <script src="./shared.js?v=20260515-return-photo-save" defer></script>
-    <script src="./student.js?v=20260515-return-photo-save" defer></script>
-    <script src="./app.js?v=20260515-return-photo-save" defer></script>
+    <script src="./config.js?v=20260514-return-photo-time"></script>
+    <script src="./supabase.js?v=20260514-return-photo-time" defer></script>
+    <script src="./shared.js?v=20260520-attendance-settings-sync" defer></script>
+    <script src="./student.js?v=20260619-keep-submitted-weekly-subjects" defer></script>
+    <script src="./app.js?v=20260619-lock-student-grades-menu" defer></script>
   </body>
 </html>

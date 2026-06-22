@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>파이널 성적 테스트 데이터</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f5f7f6;
+        color: #16231f;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(520px, calc(100vw - 32px));
+        padding: 24px;
+        border: 1px solid #dce5e1;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 18px 60px rgba(30, 50, 43, 0.1);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      p {
+        margin: 0 0 16px;
+        line-height: 1.6;
+        color: #5f6f68;
+      }
+
+      a,
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #1f6f5b;
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .secondary {
+        background: #eef5f2;
+        color: #1f6f5b;
+      }
+
+      #result {
+        margin-top: 16px;
+        color: #1f6f5b;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>파이널 성적 테스트 데이터</h1>
+      <p>
+        18기 공채 학생으로 자동 로그인되고, 1회차/2회차 파이널 성적이 등록됩니다.
+        학생 앱 성적 조회에서 2회차를 선택하면 과목별 위치와 전회차 대비 등락을 확인할 수 있습니다.
+      </p>
+      <div class="actions">
+        <button type="button" id="seed">테스트 데이터 넣기</button>
+        <a class="secondary" href="./index.html#grades">학생 앱 열기</a>
+        <a class="secondary" href="./teacher.html#grades">관리자 성적관리 열기</a>
+      </div>
+      <p id="result">로컬 테스트 데이터를 준비하는 중입니다.</p>
+    </main>
+
+    <script>
+      const STORAGE_KEY = "ronpark_outing_auth_v2";
+      const now = new Date().toISOString();
+      const subjects = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
+      const publicTrack = "경찰직 - 공채(순경)";
+      const navTrack = "경찰직 - 함정요원 항해(경장)";
+      const engineTrack = "경찰직 - 함정요원 기관(경장)";
+
+      const students = [
+        ["18001", "강서준", publicTrack],
+        ["18002", "박민재", publicTrack],
+        ["18003", "이하늘", publicTrack],
+        ["18004", "김도윤", publicTrack],
+        ["18005", "정유나", publicTrack],
+        ["18006", "최지호", publicTrack],
+        ["18007", "오세린", publicTrack],
+        ["18008", "문태준", publicTrack],
+        ["18021", "한바다", navTrack],
+        ["18022", "송나래", navTrack],
+        ["18031", "임기관", engineTrack],
+        ["18032", "윤해준", engineTrack],
+      ].map(([id, name, track]) => ({
+        id,
+        name,
+        track,
+        className: "오프라인반",
+        gender: "",
+        passwordHash: id === "18004" ? "local-demo-password" : "",
+        deviceToken: id === "18004" ? "local-demo-device" : "",
+        appRegisteredAt: id === "18004" ? now : "",
+        attendanceExcluded: false,
+        createdAt: now,
+      }));
+
+      const roundScores = {
+        1: {
+          "18001": [82, 88, 84, 85],
+          "18002": [78, 86, 80, 84],
+          "18003": [90, 91, 88, 87],
+          "18004": [80, 84, 82, 81],
+          "18005": [75, 78, 79, 80],
+          "18006": [86, 82, 85, 83],
+          "18007": [71, 76, 74, 77],
+          "18008": [88, 87, 86, 89],
+          "18021": [85, 82, 84, 91],
+          "18022": [79, 81, 80, 86],
+          "18031": [83, 82, 84, 90],
+          "18032": [77, 80, 79, 85],
+        },
+        2: {
+          "18001": [83, 86, 84, 84],
+          "18002": [81, 85, 83, 82],
+          "18003": [91, 92, 89, 90],
+          "18004": [88, 89, 87, 90],
+          "18005": [76, 80, 78, 81],
+          "18006": [84, 83, 85, 84],
+          "18007": [73, 75, 76, 78],
+          "18008": [87, 88, 86, 88],
+          "18021": [87, 84, 85, 92],
+          "18022": [80, 82, 81, 87],
+          "18031": [84, 83, 85, 91],
+          "18032": [78, 81, 80, 86],
+        },
+      };
+
+      const externalScores = {
+        1: [
+          { id: "external-18-guest-a-public", name: "외부응시A", track: publicTrack, scores: [84, 87, 83, 86] },
+        ],
+        2: [
+          { id: "external-18-guest-a-public", name: "외부응시A", track: publicTrack, scores: [86, 88, 85, 87] },
+          { id: "external-18-guest-b-public", name: "외부응시B", track: publicTrack, scores: [79, 84, 82, 85] },
+        ],
+      };
+
+      function subjectListForTrack(track) {
+        if (track.includes("기관")) return ["법규", "개론", "형사", "기관"];
+        if (track.includes("항해")) return ["법규", "개론", "형사", "항해"];
+        return ["법규", "개론", "형사"];
+      }
+
+      function makeRecord(round, studentId, name, track, scores, isExternalFinalScore) {
+        const subjectScores = {};
+        const trackSubjects = subjectListForTrack(track);
+        trackSubjects.forEach((subject, index) => {
+          const score = scores[index] || 0;
+          subjectScores[subject] = { score, maxScore: 100, status: "submitted" };
+        });
+        subjects.forEach((subject) => {
+          if (!subjectScores[subject]) subjectScores[subject] = { status: "empty" };
+        });
+        const total = trackSubjects.reduce((sum, subject) => sum + Number(subjectScores[subject].score || 0), 0);
+        return {
+          id: `final-${round}-${studentId}`,
+          round,
+          studentId,
+          studentName: name,
+          track,
+          cohort: "18",
+          isExternalFinalScore,
+          score: total,
+          maxScore: trackSubjects.length * 100,
+          wrongCount: Math.max(0, Math.round((trackSubjects.length * 100 - total) / 5)),
+          subjectScores,
+          status: "등록 완료",
+          updatedAt: now,
+        };
+      }
+
+      function buildState() {
+        const profiles = {
+          18004: {
+            track: publicTrack,
+            initialTrack: publicTrack,
+            gender: "male",
+            passwordHash: "local-demo-password",
+            deviceToken: "local-demo-device",
+            authedAt: now,
+          },
+        };
+        const finalExamScores = [];
+        [1, 2].forEach((round) => {
+          students.forEach((student) => {
+            const scores = roundScores[round][student.id];
+            if (!scores) return;
+            finalExamScores.push(makeRecord(round, student.id, student.name, student.track, scores, false));
+          });
+          (externalScores[round] || []).forEach((item) => {
+            finalExamScores.push(makeRecord(round, item.id, item.name, item.track, item.scores, true));
+          });
+        });
+        return {
+          settings: {
+            appName: "론박스터디 외출 인증",
+            className: "오프라인반",
+            lastStudentId: "18004",
+            studentAuthId: "18004",
+            studentProfiles: profiles,
+            trackOptions: [publicTrack, navTrack, engineTrack],
+            studentStep: "request",
+            earlyLeaveMode: false,
+            completionType: "",
+            attendanceDeadline: "08:50",
+            attendanceDeadlineEnabled: false,
+            attendanceHolidayOverrides: [],
+            attendanceHolidaySavedAt: "",
+          },
+          students,
+          managers: [],
+          outings: [],
+          deletedOutings: [],
+          attendanceChecks: [],
+          attendanceHolidays: [],
+          penalties: [],
+          exams: [],
+          examSections: [],
+          examAnswers: [],
+          examSubmissions: [],
+          submissionAnswers: [],
+          examFiles: [],
+          examSubjectSettings: [],
+          finalExamScores,
+          studentRegistrationEvents: [],
+          notices: [],
+        };
+      }
+
+      async function seed() {
+        const state = buildState();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        try {
+          await fetch("/api/local-state", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ state }),
+          });
+        } catch (error) {
+          console.warn(error);
+        }
+        document.querySelector("#result").textContent = "테스트 데이터가 들어갔습니다. 학생 앱을 열어 성적 > 조회 > 2회차를 확인하세요.";
+      }
+
+      document.querySelector("#seed").addEventListener("click", seed);
+      seed();
+    </script>
+  </body>
+</html>

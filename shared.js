@@ -1,8 +1,11 @@
 ﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
+const DEFAULT_STUDENT_COHORT = "18";
 const DEFAULT_IMPORTANT_NOTICES = [];
+const FINAL_GRADE_SUBJECTS = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
+const APP_SETTINGS_NOTICE_ID = "__app_settings__";
 const ATTENDANCE_OPEN_OVERRIDE_NOTE = "__open_attendance_day__";
 const KOREA_PUBLIC_HOLIDAYS = {
   2026: {
@@ -32,7 +35,7 @@ const KOREA_PUBLIC_HOLIDAYS = {
 
 const state = loadState();
 let currentRoute = "";
-let selectedStudentCohort = "";
+let selectedStudentCohort = DEFAULT_STUDENT_COHORT;
 
 const app = document.querySelector("#app");
 const title = document.querySelector("#page-title");
@@ -48,6 +51,7 @@ const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
 const OUTING_PHOTO_BUCKET = "outing-photos";
+const ORIGINAL_PHOTO_FALLBACK_MAX_BYTES = 8 * 1024 * 1024;
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
@@ -83,6 +87,7 @@ const routePermissions = {
   notices: "notices.read",
   managers: "managers.read",
   students: "students.read",
+  "device-history": "students.read",
   "student-preview": "students.read",
   "track-options": "students.read",
   duplicates: "outing.audit",
@@ -103,7 +108,7 @@ function isTeacherAdmin() {
 function formatTopPercentLabel(value) {
   const percent = Number(value);
   if (!Number.isFinite(percent)) return "-";
-  if (percent <= 0) return "상위 1% 미만";
+  if (percent <= 1) return "상위 1% 이내";
   return `상위 ${Math.max(1, Math.ceil(percent))}%`;
 }
 
@@ -112,7 +117,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -136,25 +141,66 @@ if ("serviceWorker" in navigator) {
 function normalizeCoastGuardTrack(track) {
   const value = String(track || "").trim();
   if (/^\?+$/.test(value)) return "전체";
+  const compactValue = value.replace(/\s+/g, "");
+  const aliasKey = value.replace(/[\s()（）\-_·]+/g, "");
   const aliases = {
     "??": "전체",
     전체: "전체",
     공채: "경찰직 - 공채(순경)",
+    공개채용: "경찰직 - 공채(순경)",
     해경학과: "경찰직 - 해경학과 항해(경장)",
+    학과특채항해: "경찰직 - 해경학과 항해(경장)",
+    학과특채기관: "경찰직 - 해경학과 기관(경장)",
     함정요원: "경찰직 - 함정요원 항해(경장)",
+    함정요원순경항해: "경찰직 - 함정요원 항해(순경)",
+    함정요원항해순경: "경찰직 - 함정요원 항해(순경)",
+    함정항해순경: "경찰직 - 함정요원 항해(순경)",
+    함정요원순경기관: "경찰직 - 함정요원 기관(순경)",
+    함정요원기관순경: "경찰직 - 함정요원 기관(순경)",
+    함정기관순경: "경찰직 - 함정요원 기관(순경)",
+    함정요원경장항해: "경찰직 - 함정요원 항해(경장)",
+    함정요원항해경장: "경찰직 - 함정요원 항해(경장)",
+    함정항해경장: "경찰직 - 함정요원 항해(경장)",
+    함정요원경장기관: "경찰직 - 함정요원 기관(경장)",
+    함정요원기관경장: "경찰직 - 함정요원 기관(경장)",
+    함정기관경장: "경찰직 - 함정요원 기관(경장)",
     구조: "경찰직 - 구조(순경)",
     구급: "경찰직 - 구급(순경)",
     선박교통관제: "일반직 - 선박교통관제(VTS)",
     선박관제: "일반직 - 선박교통관제(VTS)",
+    일반직VTS: "일반직 - 선박교통관제(VTS)",
     VTS: "경찰직 - 해상교통관제(VTS)(순경)",
     해상교통관제: "경찰직 - 해상교통관제(VTS)(순경)",
+    간부후보기관: "경찰직 - 경위 공채(해양-기관)",
+    간부후보항해: "경찰직 - 경위 공채(해양-항해)",
+    "간부해양-기관": "경찰직 - 경위 공채(해양-기관)",
+    "간부해양-항해": "경찰직 - 경위 공채(해양-항해)",
+    간부해양기관: "경찰직 - 경위 공채(해양-기관)",
+    간부해양항해: "경찰직 - 경위 공채(해양-항해)",
+    "경위 공채(해양)-기관": "경찰직 - 경위 공채(해양-기관)",
+    "경위 공채(해양)-항해": "경찰직 - 경위 공채(해양-항해)",
+    경위공채해양기관: "경찰직 - 경위 공채(해양-기관)",
+    경위공채해양항해: "경찰직 - 경위 공채(해양-항해)",
+    경찰직경위공채해양기관: "경찰직 - 경위 공채(해양-기관)",
+    경찰직경위공채해양항해: "경찰직 - 경위 공채(해양-항해)",
     기타: "기타",
   };
-  return aliases[value] || value;
+  return aliases[value] || aliases[compactValue] || aliases[aliasKey] || value;
+}
+
+function expandTrackOptionAlias(option) {
+  const value = String(option || "").trim();
+  const compactValue = value.replace(/\s+/g, "");
+  if (value === "간부해양" || compactValue === "간부해양") {
+    return ["경찰직 - 경위 공채(해양-기관)", "경찰직 - 경위 공채(해양-항해)"];
+  }
+  return [option];
 }
 
 const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
+  "경찰직 - 함정요원 항해(순경)",
+  "경찰직 - 함정요원 기관(순경)",
   "경찰직 - 함정요원 항해(경장)",
   "경찰직 - 함정요원 기관(경장)",
 ];
@@ -163,15 +209,21 @@ const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
   { key: "academy", label: "학과특채", keywords: ["해경학과"], tracks: ["경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
 ];
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
+const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
+const WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
-  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법", "해사영어"],
+  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
   "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 해경학과 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
+  "경찰직 - 함정요원 항해(순경)": ["해양경찰학개론", "해사법규", "해사영어", "항해학"],
+  "경찰직 - 함정요원 기관(순경)": ["해양경찰학개론", "해사법규", "해사영어", "기관학"],
   "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
   "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학", "해상교통관리"],
   "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어", "해상교통관리"],
+  "경찰직 - 경위 공채(해양-기관)": ["해양경찰학개론", "해사법규", "형사법", "기관학", "형사법(공판)"],
+  "경찰직 - 경위 공채(해양-항해)": ["해양경찰학개론", "해사법규", "형사법", "항해학", "형사법(공판)"],
 };
 
 function getDefaultWeeklyQuestionTargetTracks() {
@@ -203,6 +255,59 @@ function getDefaultWeeklySubjectsForTrack(track) {
   return WEEKLY_DEFAULT_TRACK_SUBJECTS[normalized] || ["해양경찰학개론", "해사법규", "형사법"];
 }
 
+function getConfiguredWeeklySubjectsForTrack(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  if (!normalized) return [];
+  const saved = (state.examSubjectSettings || [])
+    .filter((setting) => normalizeCoastGuardTrack(setting.track) === normalized)
+    .sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR"));
+  if (saved.length) {
+    return saved
+      .filter((setting) => setting.isActive !== false)
+      .map((setting) => String(setting.subject || "").trim())
+      .filter(Boolean);
+  }
+  return getDefaultWeeklySubjectsForTrack(normalized);
+}
+
+function mapWeeklySubjectToFinalGradeSubject(subject) {
+  const subjectMap = {
+    해양경찰학개론: "개론",
+    해사법규: "법규",
+    형사법: "형사",
+    해사영어: "영어",
+    항해학: "항해",
+    기관학: "기관",
+    "형사법(공판)": "형소법(공판)",
+  };
+  return subjectMap[String(subject || "").trim()] || "";
+}
+
+function getFinalGradeSubjectsForTrack(track, finalSubjects) {
+  const subjects = Array.isArray(finalSubjects) ? finalSubjects : [];
+  const mapped = getConfiguredWeeklySubjectsForTrack(track)
+    .map(mapWeeklySubjectToFinalGradeSubject)
+    .filter((subject) => subject && subjects.includes(subject));
+  return mapped.length ? mapped : subjects;
+}
+
+function formatFinalGradeSubjectDisplayName(subject, track = "") {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  if (subject === "법규" && normalizedTrack === "일반직 - 선박교통관제(VTS)") {
+    return "해사법규(해상교통관리)";
+  }
+  const names = {
+    법규: "해사법규",
+    개론: "해양경찰학개론",
+    형사: "형사법",
+    영어: "해사영어",
+    항해: "항해학",
+    기관: "기관학",
+    "형소법(공판)": "형사법(공판)",
+  };
+  return names[subject] || subject;
+}
+
 function hasSavedWeeklySubjectSettingsForTrack(track) {
   const normalized = normalizeCoastGuardTrack(track);
   return (state.examSubjectSettings || []).some((setting) => normalizeCoastGuardTrack(setting.track) === normalized);
@@ -225,6 +330,7 @@ function isWeeklySubjectAllowedForTrack(subject, track) {
 function normalizeTrackOptionList(options) {
   const seen = new Set();
   return (Array.isArray(options) ? options : [])
+    .flatMap((option) => expandTrackOptionAlias(option))
     .map((option) => normalizeCoastGuardTrack(option))
     .filter((option) => option && option !== "기타")
     .filter((option) => {
@@ -246,7 +352,14 @@ function getCustomTrackOptions() {
 
 function getCoastGuardTrackOptions() {
   const savedOptions = normalizeTrackOptionList(state.settings.trackOptions);
-  const orderedOptions = savedOptions.length ? normalizeTrackOptionList([...savedOptions, ...getBaseTrackOptions()]) : getBaseTrackOptions();
+  const baseOptions = getBaseTrackOptions();
+  const requiredOptions = baseOptions.filter((option) =>
+    option === "경찰직 - 함정요원 항해(순경)" ||
+    option === "경찰직 - 함정요원 기관(순경)"
+  );
+  const orderedOptions = savedOptions.length
+    ? [...savedOptions, ...requiredOptions.filter((option) => !savedOptions.includes(option))]
+    : baseOptions;
   return [...orderedOptions, "기타"];
 }
 
@@ -290,6 +403,8 @@ function defaultState() {
     submissionAnswers: [],
     examFiles: [],
     examSubjectSettings: [],
+    finalExamScores: [],
+    studentRegistrationEvents: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
 }
@@ -320,8 +435,35 @@ function mergeDefaultState(nextState) {
     submissionAnswers: Array.isArray(nextState?.submissionAnswers) ? nextState.submissionAnswers : defaults.submissionAnswers,
     examFiles: Array.isArray(nextState?.examFiles) ? nextState.examFiles : defaults.examFiles,
     examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
+    finalExamScores: Array.isArray(nextState?.finalExamScores) ? nextState.finalExamScores : defaults.finalExamScores,
+    studentRegistrationEvents: Array.isArray(nextState?.studentRegistrationEvents) ? nextState.studentRegistrationEvents : defaults.studentRegistrationEvents,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
+}
+
+function getLocalStudentAuthSettings() {
+  if (APP_MODE !== "student") return null;
+  const studentAuthId = String(state.settings?.studentAuthId || "").trim();
+  const studentProfiles = state.settings?.studentProfiles || {};
+  if (!studentAuthId && !Object.keys(studentProfiles).length) return null;
+  return {
+    studentAuthId,
+    lastStudentId: state.settings?.lastStudentId || "",
+    studentProfiles: JSON.parse(JSON.stringify(studentProfiles)),
+  };
+}
+
+function restoreLocalStudentAuthSettings(authSettings) {
+  if (APP_MODE !== "student" || !authSettings) return;
+  const profiles = {
+    ...(state.settings.studentProfiles || {}),
+    ...(authSettings.studentProfiles || {}),
+  };
+  state.settings.studentProfiles = profiles;
+  if (authSettings.studentAuthId && profiles[authSettings.studentAuthId]) {
+    state.settings.studentAuthId = authSettings.studentAuthId;
+  }
+  if (authSettings.lastStudentId) state.settings.lastStudentId = authSettings.lastStudentId;
 }
 
 function saveState(options = {}) {
@@ -457,7 +599,9 @@ async function initLocalDevStore() {
     const response = await fetch(localDevStoreUrl, { credentials: "same-origin" });
     const data = response.ok ? await response.json() : { ok: false };
     if (data.ok && data.exists && data.state) {
+      const localStudentAuth = getLocalStudentAuthSettings();
       Object.assign(state, mergeDefaultState(data.state));
+      restoreLocalStudentAuthSettings(localStudentAuth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       render();
       return;
@@ -800,9 +944,10 @@ function makeLocalDevSafeState() {
 
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
+  const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
-  const managerColumns = "id,name,role,memo,is_active,created_at";
+  let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
   const outingColumns = [
     "id",
     "student_id",
@@ -813,6 +958,9 @@ async function loadStateFromRemote() {
     "expected_return",
     "status",
     "decision",
+    "approved_by",
+    "approved_at",
+    "approval_reason",
     "receipt_note",
     "early_leave_reason",
     "created_at",
@@ -820,7 +968,7 @@ async function loadStateFromRemote() {
     "returned_at",
     "deleted_at",
   ].join(",");
-  const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
+  const photoColumns = "id,outing_id,photo_type,data_url,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
   const attendanceColumns = [
     "id",
     "student_id",
@@ -853,6 +1001,8 @@ async function loadStateFromRemote() {
     "reason",
     "manager_name",
     "created_at",
+    "deleted_at",
+    "deleted_by",
   ].join(",");
   const noticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
@@ -863,10 +1013,12 @@ async function loadStateFromRemote() {
   const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
   const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
   const examSubjectSettingColumns = "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at";
-  const managerRequest =
-    APP_MODE === "teacher"
-      ? remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true })
-      : Promise.resolve({ data: state.managers || [], error: null });
+  const finalExamScoreColumns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
+  const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
+  let managerRequest =
+    APP_MODE === "student"
+      ? Promise.resolve({ data: state.managers || [], error: null })
+      : Promise.resolve({ data: [], error: null });
   let outingRequest = remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false });
   const createAttendanceRemoteRequest = (columns) => {
     let request = remoteStore.from("attendance_checks").select(columns).order("created_at", { ascending: false });
@@ -911,12 +1063,17 @@ async function loadStateFromRemote() {
       : Promise.resolve({ data: [], error: null }),
     remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false }),
+    APP_MODE === "teacher"
+      ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   let studentResult = remoteResults[0];
-  const [managerResult, { data: outings, error: outingsError }] = [remoteResults[1], remoteResults[2]];
+  let managerResult = remoteResults[1];
+  const [{ data: outings, error: outingsError }] = [remoteResults[2]];
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
-  const penaltyResult = remoteResults[5];
+  let penaltyResult = remoteResults[5];
   const noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
   const attendanceHolidayResult = remoteResults[8];
@@ -927,6 +1084,8 @@ async function loadStateFromRemote() {
   const submissionAnswerResult = remoteResults[13];
   const examFileResult = remoteResults[14];
   const examSubjectSettingResult = remoteResults[15];
+  const finalExamScoreResult = remoteResults[16];
+  const studentRegistrationEventResult = remoteResults[17];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -951,15 +1110,37 @@ async function loadStateFromRemote() {
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
   }
   if (studentResult.error) throw studentResult.error;
+  if (isMissingColumnError(managerResult.error, "cohort")) {
+    managerColumns = "id,name,role,memo,is_active,created_at";
+    managerResult = await remoteStore.from("managers").select(managerColumns).order("created_at", { ascending: true });
+  }
   if (managerResult.error && !isMissingRelationError(managerResult.error, "managers")) throw managerResult.error;
-  if (outingsError) throw outingsError;
+  let loadedOutings = outings || [];
+  if (
+    isMissingColumnError(outingsError, "approved_by") ||
+    isMissingColumnError(outingsError, "approved_at") ||
+    isMissingColumnError(outingsError, "approval_reason")
+  ) {
+    const fallbackOutingColumns = outingColumns
+      .split(",")
+      .filter((column) => !["approved_by", "approved_at", "approval_reason"].includes(column))
+      .join(",");
+    let fallbackOutingRequest = remoteStore.from("outings").select(fallbackOutingColumns).order("created_at", { ascending: false });
+    if (scopedStudentId) fallbackOutingRequest = fallbackOutingRequest.eq("student_id", scopedStudentId);
+    else if (APP_MODE === "student") fallbackOutingRequest = Promise.resolve({ data: [], error: null });
+    const fallbackOutingResult = await fallbackOutingRequest;
+    if (fallbackOutingResult.error) throw fallbackOutingResult.error;
+    loadedOutings = fallbackOutingResult.data || [];
+  } else if (outingsError) {
+    throw outingsError;
+  }
   if (
     isMissingColumnError(photoResult.error, "photo_path") ||
     isMissingColumnError(photoResult.error, "photo_url") ||
     isMissingColumnError(photoResult.error, "thumbnail_path") ||
     isMissingColumnError(photoResult.error, "thumbnail_url")
   ) {
-    const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+    const fallbackPhotoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
     photoResult = APP_MODE === "teacher"
       ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).order("uploaded_at", { ascending: true })
       : { data: [], error: null };
@@ -970,6 +1151,18 @@ async function loadStateFromRemote() {
     trackOptionResult = await remoteStore.from("track_options").select("label,is_active,created_at").eq("is_active", true).order("created_at", { ascending: true });
   }
   if (attendanceResult.error && !isMissingRelationError(attendanceResult.error, "attendance_checks")) throw attendanceResult.error;
+  if (
+    isMissingColumnError(penaltyResult.error, "deleted_at") ||
+    isMissingColumnError(penaltyResult.error, "deleted_by")
+  ) {
+    const fallbackPenaltyColumns = penaltyColumns
+      .split(",")
+      .filter((column) => !["deleted_at", "deleted_by"].includes(column))
+      .join(",");
+    penaltyResult = remoteStore.from("penalties").select(fallbackPenaltyColumns).order("created_at", { ascending: false });
+    if (scopedStudentId) penaltyResult = await penaltyResult.eq("student_id", scopedStudentId).limit(100);
+    else penaltyResult = await penaltyResult;
+  }
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
@@ -989,11 +1182,13 @@ async function loadStateFromRemote() {
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
+  if (finalExamScoreResult.error && !isMissingRelationError(finalExamScoreResult.error, "final_exam_scores")) throw finalExamScoreResult.error;
+  if (studentRegistrationEventResult.error && !isMissingRelationError(studentRegistrationEventResult.error, "student_registration_events")) throw studentRegistrationEventResult.error;
   if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
     examSubmissionResult.data = (examSubmissionResult.data || []).filter((submission) => String(submission.student_id) === scopedStudentId);
   }
-  if (APP_MODE === "student" && (outings || []).length) {
-    const outingIds = (outings || []).map((outing) => outing.id).filter(Boolean);
+  if (APP_MODE === "student" && loadedOutings.length) {
+    const outingIds = loadedOutings.map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
       ? await remoteStore.from("outing_photos").select(photoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
       : { data: [], error: null };
@@ -1003,7 +1198,7 @@ async function loadStateFromRemote() {
       isMissingColumnError(scopedPhotoResult.error, "thumbnail_path") ||
       isMissingColumnError(scopedPhotoResult.error, "thumbnail_url")
     ) {
-      const fallbackPhotoColumns = "id,outing_id,photo_type,original_name,uploaded_at";
+      const fallbackPhotoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
       const fallbackPhotoResult = outingIds.length
         ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
         : { data: [], error: null };
@@ -1032,31 +1227,34 @@ async function loadStateFromRemote() {
     if (apiManagers) state.managers = apiManagers;
   }
 
-  const mappedOutings = (outings || []).map((outing) => {
-    const photos = outingPhotos
+  const mappedOutings = loadedOutings.map((outing) => {
+    const photos = normalizeOutingPhotosByType(outingPhotos
       .filter((photo) => photo.outing_id === outing.id)
       .map((photo) => ({
         id: photo.id,
         type: photo.photo_type,
         name: photo.original_name || "",
-        dataUrl: "",
+        dataUrl: photo.data_url || "",
         photoPath: photo.photo_path || "",
         photoUrl: photo.photo_url || "",
         thumbnailPath: photo.thumbnail_path || "",
         thumbnailUrl: photo.thumbnail_url || "",
         uploadedAt: photo.uploaded_at,
-      }));
+      })));
     const returnPhotoUploadedAt = getReturnPhotoUploadedAt({ photos });
     return {
       id: outing.id,
       studentId: outing.student_id,
-      studentName: outing.student_name || "",
+      studentName: getCanonicalStudentName(outing.student_id, outing.student_name || ""),
       className: outing.class_name || "",
       reason: outing.reason,
       detail: outing.detail || "",
       expectedReturn: outing.expected_return || "",
       status: outing.status,
       decision: outing.decision,
+      approvedBy: outing.approved_by || "",
+      approvedAt: outing.approved_at || "",
+      approvalReason: outing.approval_reason || "",
       teacherMemo: "",
       earlyLeaveReason: outing.early_leave_reason || "",
       receiptNote: outing.receipt_note || "",
@@ -1067,11 +1265,19 @@ async function loadStateFromRemote() {
       deletedAt: outing.deleted_at || "",
     };
   });
-  state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
+  state.outings = mergePendingOutingPhotoDrafts(
+    mappedOutings.filter((outing) => !outing.deletedAt),
+    pendingPhotoDrafts
+  );
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
-  if (!noticeResult.error) state.notices = (noticeResult.data || []).map(mapNoticeFromRemote);
+  if (!noticeResult.error) {
+    const remoteNotices = (noticeResult.data || []).map(mapNoticeFromRemote);
+    applyRemoteAppSettingsFromNotices(remoteNotices);
+    state.notices = remoteNotices;
+  }
+  await loadAppSettingsFromApi();
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
@@ -1081,6 +1287,8 @@ async function loadStateFromRemote() {
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
+  if (!finalExamScoreResult.error) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
+  if (!studentRegistrationEventResult.error) state.studentRegistrationEvents = (studentRegistrationEventResult.data || []).map(mapStudentRegistrationEventFromRemote);
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
     if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {
@@ -1183,8 +1391,11 @@ async function saveStateToRemote() {
       }
     }
 
+    await saveAppSettingsToRemote();
+
     const noticeRows = (state.notices || [])
       .filter((notice) => notice.id && String(notice.title || "").trim())
+      .filter((notice) => String(notice.id) !== APP_SETTINGS_NOTICE_ID)
       .map((notice) => ({
         id: notice.id,
         title: String(notice.title || "").trim(),
@@ -1202,7 +1413,10 @@ async function saveStateToRemote() {
     }
 
     await saveAttendanceHolidaysToRemote();
+    await saveFinalExamScoresToRemote();
   }
+
+  await saveStudentRegistrationEventsToRemote();
 
   const registeredStudents = state.students
     .map((student) => {
@@ -1271,6 +1485,9 @@ async function saveStateToRemote() {
       id: outing.id,
       status: outing.status,
       decision: outing.decision,
+      approved_by: outing.approvedBy || null,
+      approved_at: outing.approvedAt || null,
+      approval_reason: outing.approvalReason || null,
       teacher_memo: outing.teacherMemo || null,
       receipt_note: outing.receiptNote || null,
       verified_at: outing.verifiedAt,
@@ -1283,13 +1500,45 @@ async function saveStateToRemote() {
       .update({
         status: outing.status,
         decision: outing.decision,
+        approved_by: outing.approved_by,
+        approved_at: outing.approved_at,
+        approval_reason: outing.approval_reason,
         teacher_memo: outing.teacher_memo,
         receipt_note: outing.receipt_note,
         verified_at: outing.verified_at,
         returned_at: outing.returned_at,
       })
       .eq("id", outing.id);
-    if (error) throw error;
+    if (error) {
+      if (
+        isMissingColumnError(error, "approved_by") ||
+        isMissingColumnError(error, "approved_at") ||
+        isMissingColumnError(error, "approval_reason")
+      ) {
+        const { error: approvalFallbackError } = await remoteStore
+          .from("outings")
+          .update({
+            status: outing.status,
+            decision: outing.decision,
+            teacher_memo: outing.teacher_memo,
+            receipt_note: outing.receipt_note,
+            verified_at: outing.verified_at,
+            returned_at: outing.returned_at,
+          })
+          .eq("id", outing.id);
+        if (!approvalFallbackError) continue;
+      }
+      const { error: fallbackError } = await remoteStore
+        .from("outings")
+        .update({
+          status: outing.status,
+          receipt_note: outing.receipt_note,
+          verified_at: outing.verified_at,
+          returned_at: outing.returned_at,
+        })
+        .eq("id", outing.id);
+      if (fallbackError) throw fallbackError;
+    }
   }
 
   const deletedRows = (state.deletedOutings || [])
@@ -1569,7 +1818,7 @@ function outingCard(outing, options = {}) {
   }
 
   if (options.teacher) {
-    const canDecide = outing.decision === "pending";
+    const canDecide = outing.decision === "pending" && outing.status !== "returned";
     nodes.push(
       el("div", { className: "action-row" }, [
         canDecide ? button("승인", "btn secondary", "button", () => decideOuting(outing.id, "approved")) : null,
@@ -1628,23 +1877,92 @@ function metaChip(label, value) {
   return el("span", { className: "meta-chip" }, [el("em", {}, label), String(value || "-")]);
 }
 
-async function decideOuting(id, decision) {
+async function decideOuting(id, decision, options = {}) {
   const outing = state.outings.find((item) => item.id === id);
   if (!outing) return;
-  const previousDecision = outing.decision;
+  const previous = {
+    decision: outing.decision,
+    status: outing.status,
+    returnedAt: outing.returnedAt,
+    approvedBy: outing.approvedBy,
+    approvedAt: outing.approvedAt,
+    approvalReason: outing.approvalReason,
+  };
   outing.decision = decision;
+  if (decision === "approved") {
+    outing.approvedBy = String(options.approvalManagerName || options.approvedBy || teacherAuth.user?.username || "").trim();
+    outing.approvedAt = options.approvedAt || new Date().toISOString();
+    outing.approvalReason = String(options.approvalReason || "").trim();
+  } else {
+    outing.approvedBy = "";
+    outing.approvedAt = "";
+    outing.approvalReason = "";
+  }
+  if (decision === "approved" && !outing.earlyLeaveReason) {
+    outing.status = "returned";
+    outing.returnedAt = outing.returnedAt || new Date().toISOString();
+  }
   saveState({ skipRemote: true });
   render();
   try {
     await updateOutingDecisionToRemote(outing);
-    notify(decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
+    notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 처리했습니다." : decision === "approved" ? "승인 처리했습니다." : "반려 처리했습니다.");
   } catch (error) {
     console.error(error);
-    outing.decision = previousDecision;
+    outing.decision = previous.decision;
+    outing.status = previous.status;
+    outing.returnedAt = previous.returnedAt;
+    outing.approvedBy = previous.approvedBy;
+    outing.approvedAt = previous.approvedAt;
+    outing.approvalReason = previous.approvalReason;
     saveState({ skipRemote: true });
     render();
-    notify(decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
+    notify(decision === "approved" && !outing.earlyLeaveReason ? "정상 복귀 저장 중 오류가 발생했습니다." : decision === "approved" ? "승인 저장 중 오류가 발생했습니다." : "반려 저장 중 오류가 발생했습니다.");
+    if (options.throwOnError) throw error;
   }
+}
+
+function collectStudentPendingOutingPhotoDrafts(scopedStudentId = "") {
+  if (APP_MODE !== "student") return [];
+  const studentId = String(scopedStudentId || state.settings.lastStudentId || "").trim();
+  if (!studentId) return [];
+  return (state.outings || [])
+    .filter((outing) => String(outing.studentId || "").trim() === studentId)
+    .filter((outing) => outing.status !== "returned" && !outing.deletedAt)
+    .map((outing) => ({
+      ...outing,
+      photos: (outing.photos || [])
+        .filter(hasPersistedOutingPhotoSource)
+        .map((photo) => ({ ...photo })),
+    }))
+    .filter((outing) => outing.id && outing.photos.length);
+}
+
+function mergePendingOutingPhotoDrafts(outings, drafts) {
+  if (!drafts.length) return outings;
+  const draftsByOutingId = new Map(drafts.map((draft) => [draft.id, draft]));
+  const mergedOutings = outings.map((outing) => {
+    const draft = draftsByOutingId.get(outing.id);
+    if (!draft || outing.status === "returned" || outing.deletedAt) return outing;
+    const photos = [...(outing.photos || [])];
+    draft.photos.forEach((draftPhoto) => {
+      if (!hasPersistedOutingPhotoSource(draftPhoto)) return;
+      const existingIndex = photos.findIndex((photo) => photo.id === draftPhoto.id || photo.type === draftPhoto.type);
+      if (existingIndex === -1) photos.push(draftPhoto);
+      else if (!hasPersistedOutingPhotoSource(photos[existingIndex])) photos[existingIndex] = draftPhoto;
+    });
+    return { ...outing, photos: normalizeOutingPhotosByType(photos) };
+  });
+  drafts.forEach((draft) => {
+    if (!mergedOutings.some((outing) => outing.id === draft.id)) {
+      mergedOutings.push({ ...draft, photos: normalizeOutingPhotosByType(draft.photos || []) });
+    }
+  });
+  return mergedOutings;
+}
+
+function hasPersistedOutingPhotoSource(photo) {
+  return Boolean(photo?.photoPath || photo?.photoUrl || photo?.thumbnailPath || photo?.thumbnailUrl || photo?.dataUrl);
 }
 
 async function updateOutingDecisionToRemote(outing) {
@@ -1655,8 +1973,31 @@ async function updateOutingDecisionToRemote(outing) {
   if (!remoteStore) return;
   const { error } = await remoteStore
     .from("outings")
-    .update({ decision: outing.decision })
+    .update({
+      decision: outing.decision,
+      status: outing.status,
+      returned_at: outing.returnedAt || null,
+      approved_by: outing.approvedBy || null,
+      approved_at: outing.approvedAt || null,
+      approval_reason: outing.approvalReason || null,
+    })
     .eq("id", outing.id);
+  if (
+    isMissingColumnError(error, "approved_by") ||
+    isMissingColumnError(error, "approved_at") ||
+    isMissingColumnError(error, "approval_reason")
+  ) {
+    const { error: fallbackError } = await remoteStore
+      .from("outings")
+      .update({
+        decision: outing.decision,
+        status: outing.status,
+        returned_at: outing.returnedAt || null,
+      })
+      .eq("id", outing.id);
+    if (fallbackError) throw fallbackError;
+    return;
+  }
   if (error) throw error;
 }
 
@@ -1760,11 +2101,20 @@ function getStudentCohortStats() {
 function selectedStudentCohortCount() {
   const cohorts = getStudentCohortStats();
   if (!cohorts.length) {
-    selectedStudentCohort = "";
+    selectedStudentCohort = DEFAULT_STUDENT_COHORT;
     return { label: "선택 기수", count: 0 };
   }
-  if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = cohorts[0].value;
+  if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = getDefaultStudentCohortValue(cohorts);
   return cohorts.find((cohort) => cohort.value === selectedStudentCohort) || cohorts[0];
+}
+
+function getDefaultStudentCohortValue(cohorts = []) {
+  return cohorts.find((cohort) => cohort.value === DEFAULT_STUDENT_COHORT)?.value || cohorts[0]?.value || DEFAULT_STUDENT_COHORT;
+}
+
+function getCurrentStudentCohort() {
+  const selected = selectedStudentCohortCount();
+  return String(selected.value || selectedStudentCohort || DEFAULT_STUDENT_COHORT).trim();
 }
 
 function statGroup(titleText, stats) {
@@ -1870,8 +2220,9 @@ function labelTableRows(headers, rows) {
 }
 
 function statusBadge(outing) {
-  if (outing.decision === "approved") return el("span", { className: "badge approved" }, "승인");
   if (outing.decision === "rejected") return el("span", { className: "badge rejected" }, "반려");
+  if (outing.status === "returned") return el("span", { className: "badge returned" }, "복귀 완료");
+  if (outing.decision === "approved") return el("span", { className: "badge approved" }, "승인");
   const labels = {
     requested: "신청 대기",
     verified: "인증 제출",
@@ -1894,6 +2245,35 @@ function findStudent(id) {
   return state.students.find((student) => student.id === String(id).trim());
 }
 
+function getCanonicalStudentName(studentId, fallback = "") {
+  return findStudent(studentId)?.name || fallback || "";
+}
+
+function addStudentRegistrationEvent(student, eventType, options = {}) {
+  if (!student?.id) return null;
+  const event = {
+    id: options.id || createId(),
+    studentId: String(student.id),
+    studentName: student.name || "",
+    eventType,
+    deviceToken: options.deviceToken || student.deviceToken || "",
+    reason: String(options.reason || "").trim(),
+    actor: options.actor || "",
+    clientDisplayMode: options.clientDisplayMode || "",
+    clientUserAgent: options.clientUserAgent || "",
+    createdAt: options.createdAt || new Date().toISOString(),
+  };
+  state.studentRegistrationEvents = [event, ...(state.studentRegistrationEvents || [])];
+  return event;
+}
+
+function getStudentRegistrationEvents(studentId) {
+  const id = String(studentId || "").trim();
+  return (state.studentRegistrationEvents || [])
+    .filter((event) => String(event.studentId) === id)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
 function isAttendanceExcludedStudent(student) {
   return student?.attendanceExcluded === true;
 }
@@ -1902,6 +2282,12 @@ function isActiveOuting(outing) {
   return outing?.status !== "returned"
     && outing?.decision !== "approved"
     && outing?.decision !== "rejected";
+}
+
+function isTodayEarlyLeave(outing) {
+  return Boolean(outing?.earlyLeaveReason)
+    && outing?.decision !== "rejected"
+    && isToday(outing?.createdAt);
 }
 
 function getActiveOuting(studentId) {
@@ -1920,7 +2306,7 @@ function mapAttendanceCheckFromRemote(check) {
   return {
     id: check.id,
     studentId: check.student_id,
-    studentName: check.student_name || "",
+    studentName: getCanonicalStudentName(check.student_id, check.student_name || ""),
     className: check.class_name || "",
     checkDate: check.check_date,
     status: check.status || "present",
@@ -1947,12 +2333,14 @@ function mapPenaltyFromRemote(penalty) {
   return {
     id: penalty.id,
     studentId: penalty.student_id,
-    studentName: penalty.student_name || "",
+    studentName: getCanonicalStudentName(penalty.student_id, penalty.student_name || ""),
     className: penalty.class_name || "",
     points: Number(penalty.points) || 0,
     reason: penalty.reason || "",
     managerName: penalty.manager_name || "",
     createdAt: penalty.created_at,
+    deletedAt: penalty.deleted_at || "",
+    deletedBy: penalty.deleted_by || "",
   };
 }
 
@@ -2011,7 +2399,7 @@ function mapExamSubmissionFromRemote(submission) {
     id: submission.id,
     examSectionId: submission.exam_section_id,
     studentId: submission.student_id,
-    studentName: submission.student_name || "",
+    studentName: getCanonicalStudentName(submission.student_id, submission.student_name || ""),
     track: normalizeCoastGuardTrack(submission.track),
     status: submission.status || "submitted",
     score: Number(submission.score) || 0,
@@ -2058,10 +2446,45 @@ function mapExamSubjectSettingFromRemote(setting) {
   };
 }
 
+function mapFinalExamScoreFromRemote(record) {
+  return {
+    id: record.id,
+    round: Number(record.round) || 1,
+    studentId: record.student_id || "",
+    studentName: record.student_name || "",
+    track: normalizeCoastGuardTrack(record.track || ""),
+    cohort: String(record.cohort || ""),
+    isExternalFinalScore: record.is_external_final_score === true,
+    score: record.score === null || record.score === undefined ? "" : Number(record.score) || 0,
+    maxScore: record.max_score === null || record.max_score === undefined ? "" : Number(record.max_score) || 0,
+    wrongCount: record.wrong_count === null || record.wrong_count === undefined ? "" : Number(record.wrong_count) || 0,
+    subjectScores: record.subject_scores && typeof record.subject_scores === "object" ? record.subject_scores : {},
+    status: record.status || "",
+    updatedAt: record.updated_at || record.created_at || "",
+    createdAt: record.created_at || record.updated_at || "",
+  };
+}
+
+function mapStudentRegistrationEventFromRemote(event) {
+  return {
+    id: event.id,
+    studentId: event.student_id,
+    studentName: getCanonicalStudentName(event.student_id, event.student_name || ""),
+    eventType: event.event_type || "registered",
+    deviceToken: event.device_token || "",
+    reason: event.reason || "",
+    actor: event.actor || "",
+    clientDisplayMode: event.client_display_mode || "",
+    clientUserAgent: event.client_user_agent || "",
+    createdAt: event.created_at || "",
+  };
+}
+
 function mapManagerFromRemote(manager) {
   return {
     id: manager.id,
     name: manager.name || "",
+    cohort: String(manager.cohort || ""),
     role: manager.role || "",
     memo: manager.memo || "",
     isActive: manager.is_active !== false,
@@ -2114,6 +2537,50 @@ function mapNoticeFromRemote(notice) {
   };
 }
 
+function applyRemoteAppSettingsFromNotices(notices) {
+  const settingsNotice = (notices || []).find((notice) => String(notice?.id || "") === APP_SETTINGS_NOTICE_ID);
+  if (!settingsNotice) return;
+  try {
+    const payload = JSON.parse(settingsNotice.body || "{}");
+    applyRemoteAppSettings(payload);
+  } catch (error) {
+    console.warn("Unable to read remote app settings.", error);
+  }
+}
+
+async function saveAppSettingsToRemote() {
+  const response = await fetch("/api/app-settings", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      settings: {
+        attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
+        attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
+      },
+    }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "app_settings_save_failed");
+  applyRemoteAppSettings(data.settings);
+}
+
+async function loadAppSettingsFromApi() {
+  try {
+    const response = await fetch("/api/app-settings", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (response.ok && data.ok) applyRemoteAppSettings(data.settings);
+  } catch (error) {
+    console.warn("Unable to load remote app settings.", error);
+  }
+}
+
+function applyRemoteAppSettings(settings) {
+  if (!settings) return;
+  state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
+  state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
+}
+
 function getImportantNotices({ publishedOnly = false } = {}) {
   return removeLegacySampleNotices(state.notices || [])
     .filter((notice) => String(notice.title || "").trim())
@@ -2126,13 +2593,20 @@ function getImportantNoticeById(id, options = {}) {
 }
 
 function removeLegacySampleNotices(notices) {
-  return (notices || []).filter((notice) => !LEGACY_SAMPLE_NOTICE_IDS.has(String(notice?.id || "")));
+  return (notices || []).filter((notice) => {
+    const id = String(notice?.id || "");
+    return id !== APP_SETTINGS_NOTICE_ID && !LEGACY_SAMPLE_NOTICE_IDS.has(id);
+  });
 }
 
 function getPenaltiesForStudent(studentId) {
   return (state.penalties || [])
-    .filter((penalty) => penalty.studentId === String(studentId || "").trim())
+    .filter((penalty) => penalty.studentId === String(studentId || "").trim() && !isPenaltyDeleted(penalty))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function isPenaltyDeleted(penalty) {
+  return Boolean(String(penalty?.deletedAt || "").trim());
 }
 
 function getPenaltyTotal(studentId) {
@@ -2335,6 +2809,27 @@ async function deleteAttendanceHoliday(dateKey) {
   await deleteAttendanceHolidayFromRemote(dateKey);
 }
 
+async function saveStudentRegistrationEventsToRemote() {
+  if (!remoteStore || !(state.studentRegistrationEvents || []).length) return;
+  const rows = (state.studentRegistrationEvents || [])
+    .filter((event) => event.id && event.studentId && event.eventType)
+    .map((event) => ({
+      id: event.id,
+      student_id: event.studentId,
+      student_name: event.studentName || "",
+      event_type: event.eventType,
+      device_token: event.deviceToken || null,
+      reason: event.reason || null,
+      actor: event.actor || null,
+      client_display_mode: event.clientDisplayMode || null,
+      client_user_agent: event.clientUserAgent || null,
+      created_at: event.createdAt || new Date().toISOString(),
+    }));
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("student_registration_events").upsert(rows, { onConflict: "id" });
+  if (error && !isMissingRelationError(error, "student_registration_events")) throw error;
+}
+
 async function saveAttendanceHolidaysToRemote() {
   if (!remoteStore) return;
   const rows = normalizeAttendanceHolidays(state.attendanceHolidays).map((holiday) => ({
@@ -2399,6 +2894,48 @@ async function deleteAttendanceHolidayFromTeacherApi(dateKey) {
   if (!response.ok) throw new Error(`attendance_holidays_api_${response.status}`);
 }
 
+async function saveFinalExamScoresToRemote() {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const toNullableNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const rows = (state.finalExamScores || [])
+    .filter((record) => record.id && record.studentId)
+    .map((record) => ({
+      id: record.id,
+      round: Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 1),
+      student_id: String(record.studentId || record.student_id || record.studentNumber || "").trim(),
+      student_name: record.studentName || record.student_name || record.name || null,
+      track: normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || "") || null,
+      cohort: String(record.cohort || record.studentCohort || record.student_cohort || ""),
+      is_external_final_score: record.isExternalFinalScore === true || record.is_external_final_score === true || record.external === true,
+      score: toNullableNumber(record.score ?? record.totalScore ?? record.total_score),
+      max_score: toNullableNumber(record.maxScore ?? record.max_score ?? record.totalPossible),
+      wrong_count: toNullableNumber(record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count),
+      subject_scores: record.subjectScores || record.subject_scores || record.scoresBySubject || record.subjects || {},
+      status: record.status || null,
+      updated_at: record.updatedAt || record.updated_at || new Date().toISOString(),
+      created_at: record.createdAt || record.created_at || new Date().toISOString(),
+    }));
+  const { error: deleteError } = await remoteStore
+    .from("final_exam_scores")
+    .delete()
+    .neq("id", "__never__");
+  if (deleteError) {
+    if (isMissingRelationError(deleteError, "final_exam_scores")) return;
+    throw deleteError;
+  }
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("final_exam_scores").upsert(rows, { onConflict: "id" });
+  if (error && !isMissingRelationError(error, "final_exam_scores")) throw error;
+}
+
 function isAttendanceCheckOpen(now = new Date()) {
   if (isAttendanceHoliday(getTodayDateKey())) return false;
   if (!state.settings.attendanceDeadlineEnabled) return true;
@@ -2414,17 +2951,22 @@ function formatAttendanceDeadline() {
 }
 
 function getAttendanceDeadlineParts() {
-  const value = String(state.settings.attendanceDeadline || DEFAULT_ATTENDANCE_DEADLINE);
+  const value = normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline);
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
   if (!match) return [8, 50];
   return [Number(match[1]), Number(match[2])];
 }
 
-function setAttendanceDeadline(value, enabled) {
-  const nextValue = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")) ? String(value) : DEFAULT_ATTENDANCE_DEADLINE;
+function normalizeAttendanceDeadlineValue(value) {
+  const text = String(value || "");
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_ATTENDANCE_DEADLINE;
+}
+
+function setAttendanceDeadline(value, enabled, options = {}) {
+  const nextValue = normalizeAttendanceDeadlineValue(value);
   state.settings.attendanceDeadline = nextValue;
   state.settings.attendanceDeadlineEnabled = Boolean(enabled);
-  saveState();
+  saveState({ skipRemote: options.skipRemote === true });
 }
 
 function getAttendancePhotoSrc(check) {
@@ -2450,38 +2992,47 @@ function getAttendancePublicPhotoUrl(path) {
 }
 
 function getOutingPhotoSrc(photo) {
-  return photo?.photoUrl || photo?.dataUrl || "";
+  return photo?.photoUrl || getOutingPublicPhotoUrl(photo?.photoPath) || photo?.dataUrl || "";
 }
 
 function getOutingThumbnailSrc(photo) {
-  return photo?.thumbnailUrl || getOutingPhotoSrc(photo);
+  return photo?.thumbnailUrl || getOutingPublicPhotoUrl(photo?.thumbnailPath) || getOutingPhotoSrc(photo);
+}
+
+function getOutingPublicPhotoUrl(path) {
+  if (!path || !remoteStore) return "";
+  const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(path);
+  return data?.publicUrl || "";
 }
 
 function getPhotoModalSrc(photo) {
   return photo?.thumbnailUrl
     || photo?.arrivalThumbnailUrl
     || photo?.photoUrl
+    || getOutingPublicPhotoUrl(photo?.photoPath)
     || photo?.dataUrl
     || photo?.photoDataUrl
     || "";
 }
 
-async function createOutingPhoto(outing, file, type) {
+async function createOutingPhoto(outing, file, type, options = {}) {
   if (!outing) throw new Error("outing_required");
   if (!file) throw new Error("photo_required");
   const id = createId();
   const uploadedAt = new Date().toISOString();
-  const compressedDataUrl = await compressImage(file);
-  const thumbnailDataUrl = await compressImage(file, 260, 0.6, 32000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
   let thumbnailUrl = "";
-  let dataUrl = compressedDataUrl;
+  let dataUrl = "";
 
   if (remoteStore) {
-    const blob = dataUrlToBlob(compressedDataUrl);
-    const thumbnailBlob = dataUrlToBlob(thumbnailDataUrl);
+    const blob = await preparePhotoBlobForUpload(
+      file,
+      options.maxSize || 640,
+      options.quality || 0.58,
+      options.targetBytes || 120000
+    );
     photoPath = createOutingPhotoPath(outing.studentId, outing.id, id);
     const { error: uploadError } = await remoteStore.storage
       .from(OUTING_PHOTO_BUCKET)
@@ -2491,25 +3042,11 @@ async function createOutingPhoto(outing, file, type) {
         upsert: false,
       });
     if (uploadError) throw uploadError;
-    thumbnailPath = createOutingPhotoPath(outing.studentId, outing.id, id, "thumb");
-    const { error: thumbnailUploadError } = await remoteStore.storage
-      .from(OUTING_PHOTO_BUCKET)
-      .upload(thumbnailPath, thumbnailBlob, {
-        cacheControl: "31536000",
-        contentType: thumbnailBlob.type || "image/jpeg",
-        upsert: false,
-      });
-    if (thumbnailUploadError && !isDuplicateStorageObjectError(thumbnailUploadError)) {
-      console.warn("Outing photo thumbnail upload failed; continuing with original photo.", thumbnailUploadError);
-      thumbnailPath = "";
-    }
     const { data } = remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(photoPath);
-    const { data: thumbnailData } = thumbnailPath
-      ? remoteStore.storage.from(OUTING_PHOTO_BUCKET).getPublicUrl(thumbnailPath)
-      : { data: null };
     photoUrl = data?.publicUrl || "";
-    thumbnailUrl = thumbnailData?.publicUrl || "";
     dataUrl = "";
+  } else {
+    dataUrl = await compressImage(file);
   }
 
   return {
@@ -2523,72 +3060,6 @@ async function createOutingPhoto(outing, file, type) {
     thumbnailUrl,
     uploadedAt,
   };
-}
-
-async function ensureOutingRequestSaved(outing) {
-  if (!remoteStore || !outing?.id) return;
-  const row = {
-    id: outing.id,
-    student_id: outing.studentId,
-    student_name: outing.studentName,
-    class_name: outing.className,
-    reason: outing.reason,
-    detail: outing.detail || null,
-    expected_return: outing.expectedReturn || null,
-    status: "requested",
-    decision: "pending",
-    receipt_note: outing.receiptNote || null,
-    early_leave_reason: outing.earlyLeaveReason || null,
-    created_at: outing.createdAt,
-    verified_at: null,
-    returned_at: null,
-  };
-  const { error } = await remoteStore
-    .from("outings")
-    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
-  if (error) throw error;
-}
-
-async function saveOutingPhotoToRemote(outing, photo) {
-  if (!remoteStore || !outing?.id || !photo?.id) return;
-  const row = {
-    id: photo.id,
-    outing_id: outing.id,
-    photo_type: photo.type,
-    data_url: photo.dataUrl || null,
-    photo_path: photo.photoPath || null,
-    photo_url: photo.photoUrl || null,
-    thumbnail_path: photo.thumbnailPath || null,
-    thumbnail_url: photo.thumbnailUrl || null,
-    original_name: photo.name || null,
-    uploaded_at: photo.uploadedAt,
-  };
-  const { error } = await remoteStore
-    .from("outing_photos")
-    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
-  if (
-    isMissingColumnError(error, "thumbnail_path") ||
-    isMissingColumnError(error, "thumbnail_url")
-  ) {
-    const { thumbnail_path, thumbnail_url, ...fallbackRow } = row;
-    const { error: fallbackError } = await remoteStore
-      .from("outing_photos")
-      .upsert(fallbackRow, { onConflict: "id", ignoreDuplicates: true });
-    if (fallbackError) throw fallbackError;
-  } else if (error) throw error;
-}
-
-async function saveOutingReturnToRemote(outing) {
-  if (!remoteStore || !outing?.id) return;
-  const { error } = await remoteStore
-    .from("outings")
-    .update({
-      status: "returned",
-      decision: outing.decision,
-      returned_at: outing.returnedAt,
-    })
-    .eq("id", outing.id);
-  if (error) throw error;
 }
 
 function createOutingPhotoPath(studentId, outingId, photoId, variant = "original") {
@@ -2953,22 +3424,21 @@ async function completePreArrivalAttendanceCheck(student, check, file) {
 }
 
 async function uploadAttendancePhotoAssets(studentId, checkId, file, options = {}) {
-  const compressedDataUrl = await compressImage(file, 720, 0.58, 95000);
+  const compressedBlob = await preparePhotoBlobForUpload(file, 560, 0.52, 60000);
   let photoPath = "";
   let photoUrl = "";
   let thumbnailPath = "";
   let thumbnailUrl = "";
-  let photoDataUrl = compressedDataUrl;
+  let photoDataUrl = remoteStore ? "" : await blobToDataUrl(compressedBlob);
 
   if (remoteStore) {
-    const blob = dataUrlToBlob(compressedDataUrl);
     photoPath = options.photoPath || createAttendancePhotoPath(studentId, checkId);
     thumbnailPath = options.thumbnailPath || "";
     const { error: uploadError } = await remoteStore.storage
       .from(ATTENDANCE_PHOTO_BUCKET)
-      .upload(photoPath, blob, {
+      .upload(photoPath, compressedBlob, {
         cacheControl: "31536000",
-        contentType: blob.type || "image/jpeg",
+        contentType: compressedBlob.type || "image/jpeg",
         upsert: false,
       });
     if (uploadError && !isDuplicateStorageObjectError(uploadError)) throw uploadError;
@@ -3013,28 +3483,100 @@ function readFile(file) {
 async function compressImage(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
   if (!file.type.startsWith("image/")) return readFile(file);
 
-  const dataUrl = await readFile(file);
-  const image = await loadImage(dataUrl);
+  const blob = await compressImageBlob(file, maxSize, quality, targetBytes);
+  return blobToDataUrl(blob);
+}
+
+async function preparePhotoBlobForUpload(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
+  try {
+    return await compressImageBlob(file, maxSize, quality, targetBytes);
+  } catch (error) {
+    if (canUploadOriginalPhotoAfterCompressionFailure(file, error)) return file;
+    throw error;
+  }
+}
+
+function canUploadOriginalPhotoAfterCompressionFailure(file, error) {
+  return (
+    remoteStore &&
+    file instanceof Blob &&
+    file.size > 0 &&
+    file.size <= ORIGINAL_PHOTO_FALLBACK_MAX_BYTES &&
+    (isPhotoCompressionMemoryError(error) || isPhotoCompressionDecodeError(error))
+  );
+}
+
+function isPhotoCompressionMemoryError(error) {
+  const text = getSharedErrorText(error);
+  return text.includes("memory") || text.includes("allocation") || text.includes("out of memory");
+}
+
+function isPhotoCompressionDecodeError(error) {
+  const text = getSharedErrorText(error);
+  return text.includes("decode") || text.includes("image") || text.includes("load") || text.includes("photo_decode_timeout") || error instanceof Event;
+}
+
+function getSharedErrorText(error) {
+  return [error?.message, error?.details, error?.hint, error?.code, error?.error, error?.statusCode, error?.name]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+async function compressImageBlob(file, maxSize = 960, quality = 0.68, targetBytes = 240000) {
+  if (!file.type.startsWith("image/")) return file;
+
+  const sourceUrl = URL.createObjectURL(file);
+  const canvas = document.createElement("canvas");
   let currentMaxSize = maxSize;
   let currentQuality = quality;
-  let output = "";
+  let output = file;
+  let image = null;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const scale = Math.min(1, currentMaxSize / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * scale));
-    const height = Math.max(1, Math.round(image.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0, width, height);
-    output = canvas.toDataURL("image/jpeg", currentQuality);
-    if (estimateDataUrlBytes(output) <= targetBytes) return output;
-    currentQuality = Math.max(0.42, currentQuality - 0.08);
-    if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
+  try {
+    image = await loadImage(sourceUrl);
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const scale = Math.min(1, currentMaxSize / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("photo_canvas_unavailable");
+      context.drawImage(image, 0, 0, width, height);
+      output = await canvasToBlob(canvas, currentQuality);
+      if (output.size <= targetBytes) return output;
+      currentQuality = Math.max(0.42, currentQuality - 0.08);
+      if (attempt >= 3) currentMaxSize = Math.max(520, Math.round(currentMaxSize * 0.82));
+    }
+    return output;
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    if (image) image.src = "";
+    URL.revokeObjectURL(sourceUrl);
   }
+}
 
-  return output;
+function canvasToBlob(canvas, quality) {
+  if (!canvas.toBlob) {
+    return Promise.resolve(dataUrlToBlob(canvas.toDataURL("image/jpeg", quality)));
+  }
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("photo_encode_failed"));
+    }, "image/jpeg", quality);
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 function estimateDataUrlBytes(dataUrl) {
@@ -3042,11 +3584,23 @@ function estimateDataUrlBytes(dataUrl) {
   return Math.ceil((base64.length * 3) / 4);
 }
 
-function loadImage(src) {
+function loadImage(src, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
+    const timer = window.setTimeout(() => {
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
+      reject(new Error("photo_decode_timeout"));
+    }, timeoutMs);
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve(image);
+    };
+    image.onerror = (error) => {
+      window.clearTimeout(timer);
+      reject(error);
+    };
     image.src = src;
   });
 }
@@ -3079,6 +3633,18 @@ function getReturnPhotoUploadedAt(outing) {
 
 function getOutingReturnedAt(outing) {
   return outing?.returnedAt || getReturnPhotoUploadedAt(outing);
+}
+
+function normalizeOutingPhotosByType(photos = []) {
+  const latestByType = new Map();
+  photos.forEach((photo) => {
+    const key = photo?.type ? `type:${photo.type}` : `id:${photo?.id || createId()}`;
+    const current = latestByType.get(key);
+    if (!current || new Date(photo?.uploadedAt || 0) >= new Date(current?.uploadedAt || 0)) {
+      latestByType.set(key, photo);
+    }
+  });
+  return [...latestByType.values()].sort((a, b) => new Date(a?.uploadedAt || 0) - new Date(b?.uploadedAt || 0));
 }
 
 function formatDateKey(value) {

@@ -4,6 +4,7 @@ const {
   hasPermission,
   readCookie,
   readSessionToken,
+  timingSafeEqualText,
 } = require("./teacher-auth-utils");
 
 const TABLE = "penalties";
@@ -24,15 +25,25 @@ module.exports = async function handler(req, res) {
 
       const body = await readJson(req);
       const id = String(body.id || "").trim();
+      const adminPassword = String(body.adminPassword || "");
       if (!id) {
         res.status(400).json({ ok: false, error: "missing_id" });
         return;
       }
+      const { password } = getConfig();
+      if (!password || !timingSafeEqualText(adminPassword, password)) {
+        res.status(403).json({ ok: false, error: "invalid_admin_password" });
+        return;
+      }
 
-      const rows = await requestSupabase("GET", `${TABLE}?id=eq.${encodeURIComponent(id)}&select=id,reason&limit=1`);
+      const rows = await requestSupabase("GET", `${TABLE}?id=eq.${encodeURIComponent(id)}&select=id,reason,deleted_at&limit=1`);
       const penalty = Array.isArray(rows) ? rows[0] : null;
       if (!penalty) {
         res.status(404).json({ ok: false, error: "not_found" });
+        return;
+      }
+      if (penalty.deleted_at) {
+        res.status(409).json({ ok: false, error: "already_deleted" });
         return;
       }
       if (!String(penalty.reason || "").trim()) {
@@ -40,10 +51,14 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      await requestSupabase("DELETE", `${TABLE}?id=eq.${encodeURIComponent(id)}`, null, {
-        Prefer: "return=minimal",
+      const deletedAt = new Date().toISOString();
+      const updated = await requestSupabase("PATCH", `${TABLE}?id=eq.${encodeURIComponent(id)}&select=*`, {
+        deleted_at: deletedAt,
+        deleted_by: session.username || "admin",
+      }, {
+        Prefer: "return=representation",
       });
-      res.status(200).json({ ok: true });
+      res.status(200).json({ ok: true, penalty: Array.isArray(updated) ? updated[0] : null });
       return;
     }
 

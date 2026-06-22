@@ -19,7 +19,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260513-student-attendance-exclude" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260513-pyramid-zone-fill" />
+    <link rel="stylesheet" href="./styles.css?v=20260601-pending-columns" />
   </head>
   <body data-app-mode="teacher">
     <div class="app-frame">
@@ -43,6 +43,7 @@
           <p class="nav-section">운영 도구</p>
           <button data-route="managers">담당자 등록</button>
           <button data-route="students">학생 등록</button>
+          <button data-route="device-history">기기 등록 이력</button>
           <button data-route="track-options">직렬 항목 관리</button>
           <button data-route="track-subjects">직렬별 응시과목 관리</button>
           <button data-route="duplicates">중복 사진</button>
@@ -63,10 +64,20 @@
     </div>
 
     <div id="toast" class="toast" role="status"></div>
+    <script>
+      window.va = window.va || function () {
+        (window.vaq = window.vaq || []).push(arguments);
+      };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./config.js?v=20260515-return-photo-save"></script>
-    <script src="./shared.js?v=20260515-return-photo-save" defer></script>
-    <script src="./teacher.js?v=20260515-return-photo-save" defer></script>
-    <script src="./app.js?v=20260515-return-photo-save" defer></script>
+    <script src="./config.js?v=20260514-return-photo-time"></script>
+    <script src="./shared.js?v=20260520-attendance-settings-sync" defer></script>
+    <script src="./teacher.js?v=20260601-pending-columns" defer></script>
+    <script src="./teacher-grades.js?v=20260519-teacher-grades-split" defer></script>
+    <script src="./teacher-students.js?v=20260519-teacher-students-split" defer></script>
+    <script src="./teacher-settings.js?v=20260519-teacher-settings-split" defer></script>
+    <script src="./teacher-penalties.js?v=20260519-teacher-penalties-split" defer></script>
+    <script src="./app.js?v=20260518-officer-track-spacing" defer></script>
   </body>
 </html>

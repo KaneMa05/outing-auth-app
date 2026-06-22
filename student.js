@@ -9,6 +9,14 @@
   if (activeOuting?.earlyLeaveReason) return el("div", { className: "grid student-view" }, [panel("조퇴 신청 완료", [renderEarlyLeaveDoneState(activeOuting)])]);
   if (step === "verify") return studentStepView("사진 인증", createVerifyForm(), "photo-step");
   if (step === "return") {
+    if (!activeOuting) {
+      setStudentStep("request");
+      return renderStudentRequestStep();
+    }
+    if (!isOutingReadyForReturn(activeOuting)) {
+      state.settings.studentStep = "verify";
+      return studentStepView("사진 인증", createVerifyForm(), "photo-step");
+    }
     return el("div", { className: "grid student-view" }, [
       panel("학원 복귀 인증", [
         el("p", { className: "subtle" }, "사무실에 있는 복귀 사진을 찍어주세요."),
@@ -24,7 +32,7 @@ function getStudentStepFromRoute() {
   if (currentRoute === "student") {
     const student = getAuthedStudent();
     const activeOuting = getActiveOuting(student?.id || state.settings.lastStudentId);
-    if (activeOuting) return activeOuting.status === "requested" ? "verify" : "return";
+    if (activeOuting) return isOutingReadyForReturn(activeOuting) ? "return" : "verify";
     return "request";
   }
   const routeSteps = {
@@ -61,7 +69,7 @@ function renderStudentRequestStep() {
 }
 
 function renderStudentOut() {
-  return studentShell("외출 신청", "학생은 고유번호로 신청만 남깁니다. 승인/반려는 교사용 화면에서 처리합니다.", [
+  return studentShell("외출 신청", "외출 신청 후 사진 인증과 복귀 인증까지 완료해주세요.", [
     panel("신청 정보", [createOutForm()]),
     panel("내 진행 상태 확인", [studentLookup("신청 상태 보기")]),
   ]);
@@ -279,20 +287,79 @@ function renderStudentVerify() {
 
 function createVerifyForm() {
   const submitButton = button("사진 인증 제출", "btn");
-  const uploadStatus = createPhotoSubmitStatus();
   const activeOuting = getActiveOuting(state.settings.lastStudentId);
   const isReceiptRequired = String(activeOuting?.reason || "").trim() === "병원";
+  const savedSitePhoto = getOutingPhotoByType(activeOuting, "현장 인증");
+  const savedReceiptPhoto = getOutingPhotoByType(activeOuting, "영수증 인증");
+  const savedTypes = new Set((activeOuting?.photos || []).map((photo) => photo.type));
+  const hasRequiredPhotos =
+    savedTypes.has("현장 인증") &&
+    (!isReceiptRequired || savedTypes.has("영수증 인증"));
+  const isPendingFinalSubmit = Boolean(activeOuting && activeOuting.status === "requested" && hasRequiredPhotos);
+  const savingTypes = new Set();
+  const saveVerificationPhoto = async (file, type) => {
+    const outing = getActiveOuting(state.settings.lastStudentId);
+    if (!outing) throw new Error("outing_required");
+    savingTypes.add(type);
+    submitButton.disabled = true;
+    try {
+      const photo = await createOutingPhoto(outing, file, type);
+      await saveOutingPhotoMetadataToRemote(outing, photo);
+      outing.photos = outing.photos.filter((item) => item.type !== type);
+      outing.photos.push(photo);
+      state.settings.lastStudentId = outing.studentId;
+      saveState({ skipRemote: true });
+      savedTypes.add(type);
+    } finally {
+      savingTypes.delete(type);
+      submitButton.disabled = Boolean(savingTypes.size);
+    }
+  };
   const form = el("form", { className: "form-grid" }, [
     el("p", { className: "subtle full" }, "외출 신청이 접수되었습니다. 현장 인증 사진을 제출해주세요."),
-    field("현장 인증 사진", photoCaptureInput("sitePhoto"), "full"),
+    isPendingFinalSubmit
+      ? el("div", { className: "pending-verification-notice full" }, [
+          el("strong", {}, "사진은 저장됐고, 아직 최종 제출 전입니다."),
+          el("span", {}, "사진을 바꾸려면 다시 촬영하고, 이 사진으로 확정하려면 아래 사진 인증 제출 버튼을 눌러주세요."),
+        ])
+      : null,
+    field("현장 인증 사진", photoCaptureInput("sitePhoto", {
+      thumbnailPreview: true,
+      initialStatus: savedTypes.has("현장 인증") ? "현장 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요." : "",
+      initialPreviewSrc: getOutingThumbnailSrc(savedSitePhoto),
+      onFileSelected: (file) => saveVerificationPhoto(file, "현장 인증"),
+      savingText: "현장 사진 저장 중...",
+      savingMessages: [
+        "현장 사진 저장 중...",
+        "사진 용량을 줄이는 중이에요.",
+        "서버로 전송하고 있어요.",
+        "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
+      ],
+      savedText: "현장 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요.",
+    }), "full"),
     field(
       isReceiptRequired ? "영수증 인증 사진 (필수)" : "영수증 인증 사진 (선택)",
-      photoCaptureInput("receiptPhoto"),
+      photoCaptureInput("receiptPhoto", {
+        thumbnailPreview: true,
+        initialStatus: savedTypes.has("영수증 인증") ? "영수증 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요." : "",
+        initialPreviewSrc: getOutingThumbnailSrc(savedReceiptPhoto),
+        onFileSelected: (file) => saveVerificationPhoto(file, "영수증 인증"),
+        savingText: "영수증 사진 저장 중...",
+        savingMessages: [
+          "영수증 사진 저장 중...",
+          "사진 용량을 줄이는 중이에요.",
+          "서버로 전송하고 있어요.",
+          "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
+        ],
+        savedText: "영수증 사진 저장 완료. 아래 사진 인증 제출 버튼을 눌러주세요.",
+      }),
       "full",
       isReceiptRequired ? "병원 외출은 영수증 인증 사진을 함께 제출해야 합니다." : ""
     ),
-    uploadStatus,
-    el("div", { className: "field full" }, [submitButton]),
+    el("div", { className: "field full" }, [
+      submitButton,
+      el("p", { className: "subtle" }, "사진 저장 완료 후 인증 제출이 안 되면 사진을 다시 찍지 말고 이 버튼만 다시 눌러주세요."),
+    ]),
   ]);
 
   form.addEventListener("submit", async (event) => {
@@ -300,38 +367,53 @@ function createVerifyForm() {
     const outing = getActiveOuting(state.settings.lastStudentId);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
 
-    const sitePhoto = form.elements.sitePhoto.files[0];
-    const receiptPhoto = form.elements.receiptPhoto.files[0];
-    if (!sitePhoto) return notify("현장 인증 사진을 업로드해주세요.");
-    if (String(outing.reason || "").trim() === "병원" && !receiptPhoto) return notify("병원 외출은 영수증 인증 사진을 업로드해주세요.");
+    if (savingTypes.size) return notify("사진 저장이 끝난 뒤 인증 제출을 눌러주세요.");
+    if (!hasOutingPhotoType(outing, "현장 인증")) return notify("현장 인증 사진을 먼저 저장해주세요.");
+    if (String(outing.reason || "").trim() === "병원" && !hasOutingPhotoType(outing, "영수증 인증")) return notify("병원 외출은 영수증 인증 사진을 먼저 저장해주세요.");
 
     submitButton.disabled = true;
-    setButtonLoading(submitButton, "사진 업로드 중...");
-    setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+    const loadingProgress = startButtonLoadingProgress(submitButton, [
+      "인증 내역 저장 중...",
+      "서버에 인증 상태를 저장하고 있어요.",
+      "조금 걸려도 사진을 다시 찍지 말고 기다려주세요.",
+    ]);
+
+    const previousOuting = {
+      receiptNote: outing.receiptNote,
+      status: outing.status,
+      verifiedAt: outing.verifiedAt,
+    };
+    const previousSettings = {
+      lastStudentId: state.settings.lastStudentId,
+      earlyLeaveMode: state.settings.earlyLeaveMode,
+      studentStep: state.settings.studentStep,
+    };
 
     try {
-      await flushRemoteSave();
-      setPhotoSubmitStatus(uploadStatus, "현장 인증 사진을 저장 중입니다. 화면을 닫지 마세요.");
-      outing.photos = outing.photos.filter((photo) => photo.type !== "현장 인증" && photo.type !== "영수증 인증");
-      outing.photos.push(await createOutingPhoto(outing, sitePhoto, "현장 인증"));
-      if (receiptPhoto) {
-        setPhotoSubmitStatus(uploadStatus, "영수증 인증 사진을 저장 중입니다. 화면을 닫지 마세요.");
-        outing.photos.push(await createOutingPhoto(outing, receiptPhoto, "영수증 인증"));
-      }
       outing.receiptNote = "";
       outing.status = outing.status === "returned" ? "returned" : "verified";
       outing.verifiedAt = new Date().toISOString();
       state.settings.lastStudentId = outing.studentId;
-      setStudentStep("return");
       state.settings.earlyLeaveMode = false;
-      saveState();
-      form.reset();
-      render();
+      saveState({ skipRemote: true });
+      await saveOutingVerificationStatusToRemote(outing);
+      loadingProgress.stop();
       notify("사진 인증을 제출했습니다. 복귀 후 반납 처리하세요.");
+      form.reset();
+      setStudentStep("return");
+      saveState({ skipRemote: true });
+      render();
     } catch (error) {
       console.error(error);
-      notify(getPhotoSubmitErrorMessage(error));
-      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
+      outing.receiptNote = previousOuting.receiptNote;
+      outing.status = previousOuting.status;
+      outing.verifiedAt = previousOuting.verifiedAt;
+      state.settings.lastStudentId = previousSettings.lastStudentId;
+      state.settings.earlyLeaveMode = previousSettings.earlyLeaveMode;
+      state.settings.studentStep = previousSettings.studentStep;
+      saveState({ skipRemote: true });
+      loadingProgress.stop();
+      notify("사진은 저장되어 있습니다. 다시 촬영하지 말고 잠시 후 사진 인증 제출 버튼만 다시 눌러주세요.");
       submitButton.disabled = false;
       submitButton.textContent = "사진 인증 제출";
     }
@@ -340,55 +422,118 @@ function createVerifyForm() {
   return form;
 }
 
+function getOutingPhotoByType(outing, type) {
+  return (outing?.photos || []).find((photo) => photo?.type === type) || null;
+}
+
 function photoCaptureInput(name, options = {}) {
   const disabled = Boolean(options.disabled);
+  const skipPreview = Boolean(options.skipPreview);
+  const thumbnailPreview = Boolean(options.thumbnailPreview);
+  const onFileSelected = typeof options.onFileSelected === "function" ? options.onFileSelected : null;
   const inputNode = fileInput(name);
   inputNode.disabled = disabled;
   inputNode.className = "visually-hidden-file";
-  const status = el("span", { className: "photo-input-status" }, disabled ? "인증 가능 시간이 지났습니다." : "사진을 촬영해주세요.");
+  const status = el("span", { className: `photo-input-status ${options.initialStatus ? "selected" : ""}` }, disabled ? "인증 가능 시간이 지났습니다." : options.initialStatus || "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
+  if (options.initialPreviewSrc) {
+    preview.appendChild(el("img", { src: options.initialPreviewSrc, alt: "저장된 사진 미리보기", loading: "lazy" }));
+    preview.hidden = false;
+  }
   let pickerResetTimer = null;
+  let pickerInProgress = false;
+  const fallbackTrigger = button("사진 선택", "btn secondary photo-input-button", "button", () => {
+    if (disabled) return;
+    pickerInProgress = true;
+    markStudentFilePickerOpen();
+    inputNode.value = "";
+    inputNode.removeAttribute("capture");
+    setPhotoInputLoading(fallbackTrigger, status, true, "사진 선택 중...");
+    inputNode.click();
+  });
+  fallbackTrigger.hidden = true;
+  fallbackTrigger.disabled = disabled;
+  const showFallbackPicker = (message) => {
+    pickerInProgress = false;
+    markStudentFilePickerClosed();
+    fallbackTrigger.hidden = false;
+    fallbackTrigger.disabled = disabled;
+    setPhotoInputLoading(trigger, status, false, message || "카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
+  };
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
     if (disabled) return;
+    pickerInProgress = true;
     markStudentFilePickerOpen();
     setPhotoInputLoading(trigger, status, true, "사진 선택 중...");
+    inputNode.value = "";
+    inputNode.setAttribute("capture", "environment");
+    if (shouldSimulatePhotoPickerFailure()) {
+      window.clearTimeout(pickerResetTimer);
+      pickerResetTimer = window.setTimeout(() => {
+        if (pickerInProgress && !inputNode.files?.length) {
+          showFallbackPicker("카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
+        }
+      }, 900);
+      return;
+    }
     inputNode.click();
   });
   trigger.disabled = disabled;
   let previewUrl = "";
+  let previewRequestId = 0;
 
   window.addEventListener("focus", () => {
     window.clearTimeout(pickerResetTimer);
     pickerResetTimer = window.setTimeout(() => {
-      if (!inputNode.files?.length) setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
+      if (pickerInProgress && !inputNode.files?.length) {
+        showFallbackPicker("카메라 촬영을 완료하지 못했습니다. 사진 선택으로 다시 시도해주세요.");
+      }
     }, 700);
   });
 
   inputNode.addEventListener("cancel", () => {
+    window.clearTimeout(pickerResetTimer);
+    pickerInProgress = false;
     markStudentFilePickerClosed();
     setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
   });
 
   inputNode.addEventListener("change", async () => {
     window.clearTimeout(pickerResetTimer);
+    pickerInProgress = false;
     markStudentFilePickerClosed();
+    previewRequestId += 1;
+    const currentPreviewRequestId = previewRequestId;
     const file = inputNode.files[0];
     preview.innerHTML = "";
     preview.hidden = !file;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = "";
     if (!file) {
+      pickerInProgress = false;
+      markStudentFilePickerClosed();
       setPhotoInputLoading(trigger, status, false, "사진을 촬영해주세요.");
       return;
     }
+    fallbackTrigger.hidden = true;
+    fallbackTrigger.disabled = disabled;
+    trigger.disabled = disabled;
 
+    if (skipPreview || (!thumbnailPreview && shouldSkipPhotoPreview(file))) {
+      preview.hidden = true;
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
+      return;
+    }
     setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
+    if (thumbnailPreview) {
+      renderPhotoThumbnailPreview(file, preview, () => currentPreviewRequestId === previewRequestId);
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
+      return;
+    }
     previewUrl = URL.createObjectURL(file);
     const previewImage = el("img", { alt: "선택한 사진 미리보기" });
-    previewImage.addEventListener("load", () => {
-      status.textContent = "사진이 선택되었습니다.";
-      status.className = "photo-input-status selected";
-      trigger.disabled = false;
+    previewImage.addEventListener("load", async () => {
+      await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
     });
     previewImage.addEventListener("error", () => {
       setPhotoInputLoading(trigger, status, false, "사진을 다시 선택해주세요.");
@@ -397,7 +542,85 @@ function photoCaptureInput(name, options = {}) {
     preview.appendChild(previewImage);
   });
 
-  return el("div", { className: "photo-input-control" }, [inputNode, trigger, status, preview]);
+  return el("div", { className: "photo-input-control" }, [inputNode, el("div", { className: "photo-input-actions" }, [trigger, fallbackTrigger]), status, preview]);
+}
+
+function isOutingReceiptRequired(outing) {
+  return String(outing?.reason || "").trim() === "병원";
+}
+
+function hasOutingPhotoType(outing, type) {
+  return (outing?.photos || []).some((photo) => photo?.type === type);
+}
+
+function isOutingReadyForReturn(outing) {
+  if (!outing) return false;
+  return Boolean(
+    outing.status !== "requested" &&
+      hasOutingPhotoType(outing, "현장 인증") &&
+      (!isOutingReceiptRequired(outing) || hasOutingPhotoType(outing, "영수증 인증"))
+  );
+}
+
+function getReturnBlockedMessage(outing) {
+  if (!hasOutingPhotoType(outing, "현장 인증")) return "현장 사진 인증을 먼저 완료해주세요.";
+  if (isOutingReceiptRequired(outing) && !hasOutingPhotoType(outing, "영수증 인증")) return "병원 외출은 영수증 사진 인증을 먼저 완료해주세요.";
+  return "현장 사진과 영수증 사진을 먼저 인증해주세요.";
+}
+
+function shouldSkipPhotoPreview(file) {
+  return !file || file.size > 1024 * 1024;
+}
+
+function shouldSimulatePhotoPickerFailure() {
+  if (!["localhost", "127.0.0.1"].includes(location.hostname)) return false;
+  return new URLSearchParams(location.search).get("simulatePhotoFailure") === "memory";
+}
+
+async function renderPhotoThumbnailPreview(file, preview, isCurrentSelection) {
+  try {
+    const thumbnailDataUrl = await createPhotoThumbnailPreview(file);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    preview.innerHTML = "";
+    if (thumbnailDataUrl) {
+      preview.appendChild(el("img", { src: thumbnailDataUrl, alt: "선택한 사진 미리보기" }));
+      preview.hidden = false;
+    } else {
+      preview.hidden = true;
+    }
+  } catch (error) {
+    console.warn("Photo thumbnail preview failed; continuing without preview.", error);
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    preview.innerHTML = "";
+    preview.hidden = true;
+  }
+}
+
+async function createPhotoThumbnailPreview(file, maxSize = 160) {
+  if (!file?.type?.startsWith("image/")) return "";
+
+  const canvas = document.createElement("canvas");
+  let image = null;
+  let objectUrl = "";
+
+  try {
+    objectUrl = URL.createObjectURL(file);
+    image = await loadImage(objectUrl);
+    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return "";
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.5);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    if (image) image.src = "";
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function setPhotoInputLoading(trigger, status, loading, text) {
@@ -408,17 +631,71 @@ function setPhotoInputLoading(trigger, status, loading, text) {
   status.appendChild(document.createTextNode(text));
 }
 
-function createPhotoSubmitStatus() {
-  return el("div", { className: "photo-submit-status full", role: "status", ariaLive: "polite", hidden: true });
+async function finishPhotoSelection(file, isCurrentSelection, trigger, status, onFileSelected, options = {}) {
+  if (!file) return;
+  if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+  if (!onFileSelected) {
+    status.textContent = options.selectedText || "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
+    status.className = "photo-input-status selected";
+    trigger.disabled = false;
+    return;
+  }
+
+  const savingProgress = startInlineStatusProgress(status, options.savingMessages || [options.savingText || "사진 저장 중..."]);
+  trigger.disabled = true;
+  try {
+    await onFileSelected(file);
+    savingProgress.stop();
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    status.textContent = options.savedText || "사진 저장 완료";
+    status.className = "photo-input-status selected";
+  } catch (error) {
+    console.error(error);
+    savingProgress.stop();
+    if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+    status.textContent = "사진 저장 실패. 다시 촬영해주세요.";
+    status.className = "photo-input-status";
+    notify(getPhotoSubmitErrorMessage(error));
+  } finally {
+    trigger.disabled = false;
+  }
 }
 
-function setPhotoSubmitStatus(statusNode, text, tone = "loading") {
-  if (!statusNode) return;
-  statusNode.hidden = false;
-  statusNode.className = `photo-submit-status full ${tone}`;
-  statusNode.innerHTML = "";
-  if (tone === "loading") statusNode.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
-  statusNode.appendChild(document.createTextNode(text));
+function startInlineStatusProgress(status, messages, intervalMs = 1800) {
+  let index = 0;
+  const renderMessage = () => {
+    status.className = "photo-input-status loading";
+    status.innerHTML = "";
+    status.appendChild(el("span", { className: "loading-spinner", ariaHidden: "true" }));
+    status.appendChild(document.createTextNode(messages[index] || messages[messages.length - 1] || "저장 중..."));
+  };
+  renderMessage();
+  const timer = window.setInterval(() => {
+    index = Math.min(index + 1, messages.length - 1);
+    renderMessage();
+  }, intervalMs);
+  return {
+    stop() {
+      window.clearInterval(timer);
+    },
+  };
+}
+
+function startButtonLoadingProgress(buttonNode, messages, intervalMs = 2400) {
+  let index = 0;
+  setButtonLoading(buttonNode, messages[index] || "처리 중...");
+  const timer = window.setInterval(() => {
+    index = Math.min(index + 1, messages.length - 1);
+    setButtonLoading(buttonNode, messages[index] || messages[messages.length - 1]);
+  }, intervalMs);
+  return {
+    set(text) {
+      setButtonLoading(buttonNode, text);
+    },
+    stop() {
+      window.clearInterval(timer);
+    },
+  };
 }
 
 function renderStudentReturn() {
@@ -457,7 +734,6 @@ function createAttendanceForm(student, options = {}) {
   if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("출석 인증하기", "btn");
-  const uploadStatus = createPhotoSubmitStatus();
   submitButton.disabled = !isOpen;
   const preArrivalButton = options.showPreArrival
     ? button("등원 전 사유신청", "btn", "button", () => {
@@ -470,8 +746,7 @@ function createAttendanceForm(student, options = {}) {
   if (preArrivalButton) preArrivalButton.disabled = !isOpen;
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("출석 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
-    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen }), "full"),
-    uploadStatus,
+    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen, thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       preArrivalButton,
@@ -481,12 +756,9 @@ function createAttendanceForm(student, options = {}) {
         state.settings.attendanceDeadlineEnabled
           ? isOpen
             ? `출석 인정은 오전 ${formatAttendanceDeadline()}까지입니다.`
-            : `오전 ${formatAttendanceDeadline()} 이후에는 출석 인증을 할 수 없습니다.`
+            : `오전 ${formatAttendanceDeadline()} 이후에는 인증이 불가합니다.`
           : "테스트 중에는 출석 인증 시간 제한이 꺼져 있습니다."
       ),
-      preArrivalButton && !isOpen && state.settings.attendanceDeadlineEnabled
-        ? el("p", { className: "subtle attendance-deadline-note" }, `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`)
-        : null,
     ]),
   ]);
 
@@ -505,12 +777,12 @@ function createAttendanceForm(student, options = {}) {
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "출석 인증 중...");
-    setPhotoSubmitStatus(uploadStatus, "출석 기록을 접수하고 사진을 준비 중입니다. 화면을 닫지 마세요.");
+    openLoadingModal("출석 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await createAttendanceCheck(student, attendancePhoto, {
         onAttendanceSaved: () => {
           setButtonLoading(submitButton, "사진 저장 중...");
-          setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+          openLoadingModal("사진 저장 중", "출석은 접수됐고 사진을 저장하고 있습니다. 잠시만 기다려주세요.");
         },
       });
       form.reset();
@@ -519,9 +791,10 @@ function createAttendanceForm(student, options = {}) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
-      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "출석 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
@@ -532,7 +805,6 @@ function createPreArrivalReasonForm(student) {
   if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("사유 인증하기", "btn");
-  const uploadStatus = createPhotoSubmitStatus();
   submitButton.disabled = !isOpen;
   const cancelButton = button("출석 체크로 돌아가기", "btn secondary", "button", () => {
     state.settings.attendanceMode = "";
@@ -543,8 +815,7 @@ function createPreArrivalReasonForm(student) {
     field("신청 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
     field("사유", select("reason", ["병원", "교통 지연", "개인 사유 인증", "기타"])),
     field("상세 사유", textarea("detail", "필요한 내용을 입력하세요."), "full"),
-    field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen }), "full"),
-    uploadStatus,
+    field("인증 사진", photoCaptureInput("reasonPhoto", { disabled: !isOpen, thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-action-row" }, [submitButton, cancelButton]),
       el(
@@ -572,12 +843,12 @@ function createPreArrivalReasonForm(student) {
     submitButton.disabled = true;
     cancelButton.disabled = true;
     setButtonLoading(submitButton, "사유 인증 중...");
-    setPhotoSubmitStatus(uploadStatus, "사유신청을 접수하고 사진을 준비 중입니다. 화면을 닫지 마세요.");
+    openLoadingModal("사유 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await createPreArrivalReasonCheck(student, reasonPhoto, data.reason, data.detail, {
         onAttendanceSaved: () => {
           setButtonLoading(submitButton, "사진 저장 중...");
-          setPhotoSubmitStatus(uploadStatus, "사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+          openLoadingModal("사진 저장 중", "사유신청은 접수됐고 사진을 저장하고 있습니다. 잠시만 기다려주세요.");
         },
       });
       state.settings.attendanceMode = "";
@@ -587,10 +858,11 @@ function createPreArrivalReasonForm(student) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
-      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       cancelButton.disabled = false;
       submitButton.textContent = "사유 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
@@ -644,10 +916,8 @@ function renderStudentAttendanceComplete(check) {
 function createArrivalVerificationForm(check) {
   const student = getAuthedStudent();
   const submitButton = button("등원 인증하기", "btn");
-  const uploadStatus = createPhotoSubmitStatus();
   const form = el("form", { className: "form-grid attendance-form" }, [
-    field("등원 현장 사진", photoCaptureInput("arrivalPhoto"), "full"),
-    uploadStatus,
+    field("등원 현장 사진", photoCaptureInput("arrivalPhoto", { thumbnailPreview: true }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       el("p", { className: "subtle attendance-deadline-note" }, "사유신청은 접수 상태입니다. 학원에 도착한 뒤 현장 사진으로 등원 인증을 완료해주세요."),
@@ -661,7 +931,7 @@ function createArrivalVerificationForm(check) {
     if (!arrivalPhoto) return notify("등원 현장 사진을 촬영해주세요.");
     submitButton.disabled = true;
     setButtonLoading(submitButton, "등원 인증 중...");
-    setPhotoSubmitStatus(uploadStatus, "등원 사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+    openLoadingModal("등원 인증 중", "사진을 저장하고 있습니다. 완료될 때까지 화면을 닫지 마세요.");
     try {
       await completePreArrivalAttendanceCheck(student, check, arrivalPhoto);
       form.reset();
@@ -670,9 +940,10 @@ function createArrivalVerificationForm(check) {
     } catch (error) {
       console.error(error);
       notify(getPhotoSubmitErrorMessage(error));
-      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
       submitButton.disabled = false;
       submitButton.textContent = "등원 인증하기";
+    } finally {
+      closeLoadingModal();
     }
   });
 
@@ -682,13 +953,46 @@ function createArrivalVerificationForm(check) {
 function createReturnForm() {
   const student = getAuthedStudent();
   const submitButton = button("복귀 완료", "btn");
-  const uploadStatus = createPhotoSubmitStatus();
+  const activeOuting = getActiveOuting(student?.id);
+  const savedReturnPhoto = getOutingPhotoByType(activeOuting, "복귀 인증");
+  let savingReturnPhoto = false;
+  const saveReturnPhoto = async (file) => {
+    const outing = getActiveOuting(student?.id);
+    if (!student) throw new Error("student_required");
+    if (!outing) throw new Error("outing_required");
+    if (!isOutingReadyForReturn(outing)) throw new Error(getReturnBlockedMessage(outing));
+    savingReturnPhoto = true;
+    submitButton.disabled = true;
+    try {
+      const photo = await createOutingPhoto(outing, file, "복귀 인증");
+      await saveOutingPhotoMetadataToRemote(outing, photo);
+      outing.photos = outing.photos.filter((item) => item.type !== "복귀 인증");
+      outing.photos.push(photo);
+      state.settings.lastStudentId = outing.studentId;
+      saveState({ skipRemote: true });
+    } finally {
+      savingReturnPhoto = false;
+      submitButton.disabled = false;
+    }
+  };
   const form = el("form", { className: "form-grid" }, [
-    field("복귀 현장 사진", photoCaptureInput("returnPhoto"), "full"),
-    uploadStatus,
+    field("복귀 현장 사진", photoCaptureInput("returnPhoto", {
+      thumbnailPreview: true,
+      initialStatus: savedReturnPhoto ? "복귀 사진 저장 완료. 아래 복귀 완료 버튼을 눌러주세요." : "",
+      initialPreviewSrc: getOutingThumbnailSrc(savedReturnPhoto),
+      onFileSelected: saveReturnPhoto,
+      savingText: "복귀 사진 저장 중...",
+      savingMessages: [
+        "복귀 사진 저장 중...",
+        "사진 용량을 줄이는 중이에요.",
+        "서버로 전송하고 있어요.",
+        "저장 확인 중이에요. 다시 촬영하지 말고 기다려주세요.",
+      ],
+      savedText: "복귀 사진 저장 완료. 아래 복귀 완료 버튼을 눌러주세요.",
+    }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
-      el("p", { className: "subtle" }, "복귀 현장 사진 인증 후 복귀 완료 버튼을 눌러주세요."),
+      el("p", { className: "subtle" }, "복귀 사진 저장 완료 후 복귀 처리가 안 되면 사진을 다시 찍지 말고 이 버튼만 다시 눌러주세요."),
     ]),
   ]);
 
@@ -697,32 +1001,55 @@ function createReturnForm() {
     if (!student) return notify("학생 등록 후 복귀 인증을 이용할 수 있습니다.");
     const outing = getActiveOuting(student.id);
     if (!outing) return notify("진행 중인 외출 신청이 없습니다.");
-    const returnPhoto = form.elements.returnPhoto.files[0];
-    if (!returnPhoto) return notify("복귀 현장 사진을 촬영해주세요.");
+    if (!isOutingReadyForReturn(outing)) {
+      setStudentStep("verify");
+      render();
+      return notify(getReturnBlockedMessage(outing));
+    }
+    if (savingReturnPhoto) return notify("복귀 사진 저장이 끝난 뒤 복귀 완료를 눌러주세요.");
+    if (!hasOutingPhotoType(outing, "복귀 인증")) return notify("복귀 현장 사진을 먼저 저장해주세요.");
     submitButton.disabled = true;
-    setButtonLoading(submitButton, "복귀 처리 중...");
-    setPhotoSubmitStatus(uploadStatus, "복귀 사진을 압축하고 업로드 중입니다. 화면을 닫지 마세요.");
+    const loadingProgress = startButtonLoadingProgress(submitButton, [
+      "복귀 처리 중...",
+      "서버에 복귀 상태를 저장하고 있어요.",
+      "조금 걸려도 사진을 다시 찍지 말고 기다려주세요.",
+    ]);
+    const previousOuting = {
+      status: outing.status,
+      decision: outing.decision,
+      returnedAt: outing.returnedAt,
+    };
+    const previousSettings = {
+      lastStudentId: state.settings.lastStudentId,
+      completionType: state.settings.completionType,
+      studentStep: state.settings.studentStep,
+    };
+
     try {
-      await ensureOutingRequestSaved(outing);
-      outing.photos = outing.photos.filter((photo) => photo.type !== "복귀 인증");
-      const savedPhoto = await createOutingPhoto(outing, returnPhoto, "복귀 인증");
-      await saveOutingPhotoToRemote(outing, savedPhoto);
-      outing.photos.push(savedPhoto);
       outing.status = "returned";
       if (outing.decision === "pending") outing.decision = "approved";
       outing.returnedAt = new Date().toISOString();
-      await saveOutingReturnToRemote(outing);
       state.settings.lastStudentId = outing.studentId;
-      setStudentStep("done");
       state.settings.completionType = "return";
       saveState({ skipRemote: true });
-      form.reset();
-      render();
+      await saveOutingReturnStatusToRemote(outing);
+      loadingProgress.stop();
       notify("복귀 완료되었습니다.");
+      form.reset();
+      setStudentStep("done");
+      saveState({ skipRemote: true });
+      render();
     } catch (error) {
       console.error(error);
-      notify(getPhotoSubmitErrorMessage(error));
-      setPhotoSubmitStatus(uploadStatus, "사진 저장이 완료되지 않았습니다. 다시 시도해주세요.", "error");
+      outing.status = previousOuting.status;
+      outing.decision = previousOuting.decision;
+      outing.returnedAt = previousOuting.returnedAt;
+      state.settings.lastStudentId = previousSettings.lastStudentId;
+      state.settings.completionType = previousSettings.completionType;
+      state.settings.studentStep = previousSettings.studentStep;
+      saveState({ skipRemote: true });
+      loadingProgress.stop();
+      notify("복귀 사진은 저장되어 있습니다. 다시 촬영하지 말고 잠시 후 복귀 완료 버튼만 다시 눌러주세요.");
       submitButton.disabled = false;
       submitButton.textContent = "복귀 완료";
     }
@@ -731,12 +1058,48 @@ function createReturnForm() {
   return form;
 }
 
+async function saveOutingVerificationStatusToRemote(outing) {
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("outings")
+    .update({
+      status: outing.status === "returned" ? "returned" : "verified",
+      receipt_note: outing.receiptNote || null,
+      verified_at: outing.verifiedAt || new Date().toISOString(),
+    })
+    .eq("id", outing.id);
+  if (error) throw error;
+}
+
+async function saveOutingReturnStatusToRemote(outing) {
+  if (!remoteStore) return;
+  const returnedAt = outing.returnedAt || new Date().toISOString();
+  const { error } = await remoteStore
+    .from("outings")
+    .update({
+      status: "returned",
+      decision: outing.decision === "pending" ? "approved" : outing.decision,
+      returned_at: returnedAt,
+    })
+    .eq("id", outing.id);
+  if (!error) return;
+
+  const { error: fallbackError } = await remoteStore
+    .from("outings")
+    .update({
+      status: "returned",
+      returned_at: returnedAt,
+    })
+    .eq("id", outing.id);
+  if (fallbackError) throw fallbackError;
+}
+
 function getPhotoSubmitErrorMessage(error) {
   if (error?.attendanceSaved) {
     return "출석은 접수됐지만 사진 저장이 완료되지 않았습니다. 화면을 닫지 말고 다시 시도해주세요.";
   }
   if (isStorageQuotaError(error)) {
-    return "사진 처리 중 기기 저장공간이 부족했습니다. 저장공간을 확보한 뒤 새 사진으로 다시 인증해주세요.";
+    return "기기 저장공간이 부족해 임시 저장을 줄였습니다. 다시 한 번 제출해주세요.";
   }
   if (isPhotoPermissionError(error)) {
     return "사진 저장 권한 문제로 처리하지 못했습니다. 화면을 닫지 말고 선생님께 Supabase 스토리지 정책 적용 여부를 확인해주세요.";
@@ -750,6 +1113,37 @@ function getPhotoSubmitErrorMessage(error) {
   return "사진 처리 중 오류가 발생했습니다. 다른 사진으로 다시 시도해주세요.";
 }
 
+async function saveOutingPhotoMetadataToRemote(outing, photo) {
+  if (!remoteStore || !outing || !photo) return;
+  const row = {
+    id: photo.id,
+    outing_id: outing.id,
+    photo_type: photo.type,
+    data_url: photo.dataUrl || null,
+    photo_path: photo.photoPath || null,
+    photo_url: photo.photoUrl || null,
+    thumbnail_path: photo.thumbnailPath || null,
+    thumbnail_url: photo.thumbnailUrl || null,
+    original_name: photo.name || null,
+    uploaded_at: photo.uploadedAt,
+  };
+  const { error } = await remoteStore
+    .from("outing_photos")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  if (
+    isMissingColumnError(error, "thumbnail_path") ||
+    isMissingColumnError(error, "thumbnail_url")
+  ) {
+    const { thumbnail_path, thumbnail_url, ...fallbackRow } = row;
+    const { error: fallbackError } = await remoteStore
+      .from("outing_photos")
+      .upsert(fallbackRow, { onConflict: "id", ignoreDuplicates: true });
+    if (fallbackError) throw fallbackError;
+    return;
+  }
+  if (error) throw error;
+}
+
 function isPhotoPermissionError(error) {
   const text = getErrorText(error);
   return text.includes("row-level security") || text.includes("violates row-level security") || text.includes("permission denied") || text.includes("403") || text.includes("42501");
@@ -757,7 +1151,7 @@ function isPhotoPermissionError(error) {
 
 function isPhotoPayloadError(error) {
   const text = getErrorText(error);
-  return text.includes("payload too large") || text.includes("file size") || text.includes("too large") || text.includes("413");
+  return text.includes("payload too large") || text.includes("file size") || text.includes("too large") || text.includes("out of memory") || text.includes("memory") || text.includes("413");
 }
 
 function isPhotoDecodeError(error) {
@@ -842,6 +1236,7 @@ function studentLookup(buttonText) {
 
 let selectedStudentExamId = "";
 let selectedStudentGradeLookupExamId = "";
+let selectedStudentFinalRound = 0;
 let studentGradeLookupType = "final";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
@@ -849,20 +1244,27 @@ let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editin
 function resetStudentGradesView() {
   selectedStudentExamId = "";
   selectedStudentGradeLookupExamId = "";
+  selectedStudentFinalRound = 0;
   studentGradeLookupType = "final";
   studentGradesView = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 }
 
+function isStudentFinalGradeTestLink() {
+  const params = new URLSearchParams(location.search || "");
+  const hash = String(location.hash || "");
+  return params.get("finalGradeTest") === "1" || hash === "#grades-final" || hash.includes("finalGradeTest=1");
+}
+
 function getStudentRegisteredTrack(student) {
   const profile = getStudentProfile(student?.id);
-  return normalizeCoastGuardTrack(profile?.initialTrack || profile?.track || student?.track);
+  return normalizeCoastGuardTrack(student?.track || profile?.track || profile?.initialTrack);
 }
 
 function renderStudentGrades() {
   const student = getAuthedStudent();
   if (!student) return renderStudentAuth();
-  if (studentGradesView === "lookup") return renderStudentGradeLookupComingSoon();
+  if (studentGradesView === "lookup" || isStudentFinalGradeTestLink()) return renderStudentGradeLookupComingSoon();
   if (studentGradesView !== "entry") return renderStudentGradesHome();
   return renderStudentWeeklyGrades(student);
 }
@@ -871,8 +1273,13 @@ function renderStudentGradesHome() {
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
+        renderStudentGradeAction("주간평가 답안 입력", "공개된 주간평가 과목의 답안을 입력합니다.", "입력", () => {
+          studentGradesView = "entry";
+          render();
+        }),
         renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
-          notify("성적 조회는 준비중입니다.");
+          studentGradesView = "lookup";
+          render();
         }),
       ]),
     ]),
@@ -893,17 +1300,302 @@ function renderStudentGradeLookupComingSoon() {
   const typeTabs = el("div", { className: "student-grade-type-tabs" }, [
     button("파이널 성적", "mini-btn active", "button", () => {}),
   ]);
+  const student = getAuthedStudent();
+  const roundOptions = student ? getStudentFinalRoundOptions(student) : [];
+  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 0;
+  const summary = student && selectedStudentFinalRound ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
 
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적 조회", [
       typeTabs,
-      renderStudentGradeResultPanel(null, { title: "파이널 성적", emptyText: "파이널 성적은 준비 중입니다." }),
+      renderStudentGradeResultPanel(summary, {
+        title: "성적 요약",
+        headerControl: roundOptions.length ? renderStudentFinalRoundSelect(roundOptions) : null,
+        emptyText: "파이널 성적은 준비 중입니다.",
+      }),
       button("성적 메뉴", "mini-btn", "button", () => {
         studentGradesView = "";
         render();
       }),
     ]),
   ]);
+}
+
+function getStudentFinalRoundOptions(student) {
+  const studentId = String(student?.id || "").trim();
+  if (!studentId) return [];
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  const records = sources.flat().filter(hasStudentFinalScoreRecord);
+  const studentRounds = records
+    .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
+    .map(getStudentFinalRecordRound)
+    .filter((round) => Number.isFinite(round) && round > 0);
+  const rounds = studentRounds.length
+    ? studentRounds
+    : records
+      .map(getStudentFinalRecordRound)
+      .filter((round) => Number.isFinite(round) && round > 0);
+  const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => b - a);
+  return uniqueRounds;
+}
+
+function getStudentFinalRecordRound(record) {
+  return Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0);
+}
+
+function hasStudentFinalScoreRecord(record) {
+  const directValues = [
+    record.score,
+    record.totalScore,
+    record.total_score,
+    record.maxScore,
+    record.max_score,
+    record.totalPossible,
+    record.wrongCount,
+    record.wrong_count,
+    record.incorrectCount,
+    record.incorrect_count,
+  ];
+  if (directValues.some((value) => value !== "" && value !== null && value !== undefined)) return true;
+  return Object.values(normalizeStudentFinalSubjectScores(record)).some((subjectScore) => subjectScore.status !== "empty");
+}
+
+function renderStudentFinalRoundSelect(roundOptions = [1]) {
+  const node = el("select", {
+    className: "student-grade-round-select",
+    ariaLabel: "파이널 성적 회차 선택",
+  }, roundOptions.map((round) => el("option", { value: String(round) }, `${round}회차`)));
+  node.value = String(selectedStudentFinalRound);
+  node.addEventListener("change", () => {
+    selectedStudentFinalRound = Number(node.value) || 1;
+    render();
+  });
+  return node;
+}
+
+function getStudentFinalGradeSummary(student, round = 1) {
+  const records = getStudentFinalScoreRecords(round);
+  const cohort = getStudentCohort(student);
+  const registeredTrack = getStudentRegisteredTrack(student);
+  const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
+  const peerIds = new Set(peers.map((peer) => String(peer.id)));
+  const externalPeers = records
+    .filter((record) => {
+      const studentId = String(record.studentId || "").trim();
+      if (!studentId || peerIds.has(studentId)) return false;
+      if ((state.students || []).some((item) => String(item.id) === studentId)) return false;
+      const recordCohort = String(record.cohort || "");
+      const recordTrack = normalizeCoastGuardTrack(record.track || "");
+      return (!recordCohort || recordCohort === cohort) && recordTrack === registeredTrack;
+    })
+    .map((record) => ({
+      id: record.studentId,
+      name: record.studentName || record.studentId,
+      track: normalizeCoastGuardTrack(record.track || registeredTrack),
+      isExternalFinalScore: true,
+    }));
+  const summaries = [...peers, ...externalPeers].map((peer) => {
+    const record = records.find((item) => String(item.studentId || "").trim() === String(peer.id || "").trim());
+    if (!record) return { student: peer, hasScore: false, submittedCount: 0, score: 0, maxScore: 0, wrongCount: "", subjectSummaries: [] };
+    const peerTrack = getStudentRegisteredTrack(peer);
+    const subjectSummaries = getFinalGradeSubjectHeadersForTrack(peerTrack)
+      .map((subject) => normalizeStudentFinalSubjectSummary(subject, record.subjectScores[subject], peerTrack));
+    const submittedSubjectSummaries = subjectSummaries.filter((item) => item.submitted);
+    const score = submittedSubjectSummaries.length
+      ? submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
+      : Number(record.score) || 0;
+    const maxScore = submittedSubjectSummaries.length
+      ? submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.maxScore) || 0), 0)
+      : Number(record.maxScore) || 0;
+    const subjectWrongCount = submittedSubjectSummaries.reduce((sum, item) => sum + (Number(item.wrongCount) || 0), 0);
+    return {
+      student: peer,
+      hasScore: true,
+      submittedCount: 1,
+      sectionCount: 1,
+      title: `${Number(round) || 1}회차 파이널 성적`,
+      score,
+      maxScore,
+      percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
+      wrongCount: submittedSubjectSummaries.length
+        ? subjectWrongCount
+        : record.wrongCount !== "" && record.wrongCount !== null && record.wrongCount !== undefined
+        ? Number(record.wrongCount) || 0
+        : maxScore
+          ? Math.max(0, Math.round((maxScore - score) / 5))
+          : 0,
+      subjectSummaries,
+      explicitRank: record.rank,
+      explicitTotal: record.total,
+      explicitTopPercent: record.topPercent,
+    };
+  }).filter((summary) => summary.hasScore);
+  const sorted = [...summaries].sort((a, b) => {
+    const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreCompare) return scoreCompare;
+    const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
+    if (wrongCompare) return wrongCompare;
+    return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
+  });
+  let previousScore = null;
+  let previousWrong = null;
+  let previousRank = 0;
+  sorted.forEach((summary, index) => {
+    const score = Number(summary.score) || 0;
+    const wrong = Number(summary.wrongCount) || 0;
+    const rank = score === previousScore && wrong === previousWrong ? previousRank : index + 1;
+    summary.rank = rank;
+    summary.total = sorted.length;
+    summary.topPercent = calculateStudentTopPercent(rank, sorted.length);
+    summary.displayTopPercent = rank ? Math.max(1, Math.ceil(summary.topPercent)) : 0;
+    summary.percentile = Math.round((100 - summary.topPercent) * 10) / 10;
+    previousScore = score;
+    previousWrong = wrong;
+    previousRank = rank;
+  });
+  applyStudentFinalSubjectRanks(summaries);
+  const own = sorted.find((summary) => String(summary.student.id) === String(student.id));
+  if (own && own.explicitRank) {
+    const explicitRank = Number(own.explicitRank) || 0;
+    const explicitTotal = Number(own.explicitTotal) || sorted.length;
+    const explicitTopPercent = own.explicitTopPercent !== "" && own.explicitTopPercent !== null && own.explicitTopPercent !== undefined
+      ? Number(own.explicitTopPercent) || 0
+      : calculateStudentTopPercent(explicitRank, explicitTotal);
+    own.rank = explicitRank;
+    own.total = explicitTotal;
+    own.topPercent = Math.round(explicitTopPercent * 10) / 10;
+    own.displayTopPercent = Math.max(1, Math.ceil(own.topPercent));
+    own.percentile = Math.round((100 - own.topPercent) * 10) / 10;
+  }
+  if (own && Number(round) > 1) {
+    const previousOwn = getStudentFinalGradeSummary(student, Number(round) - 1);
+    if (previousOwn?.rank) {
+      own.previousRank = previousOwn.rank;
+      own.rankDelta = Number(previousOwn.rank) - Number(own.rank);
+    }
+  }
+  return own || null;
+}
+
+function applyStudentFinalSubjectRanks(summaries = []) {
+  const subjectNames = Array.from(new Set(summaries.flatMap((summary) =>
+    (summary.subjectSummaries || []).map((subjectSummary) => subjectSummary.subject)
+  )));
+  subjectNames.forEach((subject) => {
+    const ranked = summaries
+      .map((summary) => {
+        const subjectSummary = (summary.subjectSummaries || []).find((item) => item.subject === subject);
+        if (!subjectSummary || !subjectSummary.submitted) return null;
+        return { summary, subjectSummary };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const scoreCompare = (Number(b.subjectSummary.score) || 0) - (Number(a.subjectSummary.score) || 0);
+        if (scoreCompare) return scoreCompare;
+        const wrongA = Number(a.subjectSummary.wrongCount);
+        const wrongB = Number(b.subjectSummary.wrongCount);
+        const wrongCompare = (Number.isFinite(wrongA) ? wrongA : 9999) - (Number.isFinite(wrongB) ? wrongB : 9999);
+        if (wrongCompare) return wrongCompare;
+        return String(a.summary.student.id).localeCompare(String(b.summary.student.id), "ko-KR", { numeric: true });
+      });
+    let previousScore = null;
+    let previousWrong = null;
+    let previousRank = 0;
+    ranked.forEach((item, index) => {
+      const score = Number(item.subjectSummary.score) || 0;
+      const wrong = Number(item.subjectSummary.wrongCount);
+      const normalizedWrong = Number.isFinite(wrong) ? wrong : null;
+      const rank = score === previousScore && normalizedWrong === previousWrong ? previousRank : index + 1;
+      item.subjectSummary.rank = rank;
+      item.subjectSummary.topPercent = calculateStudentTopPercent(rank, ranked.length);
+      item.subjectSummary.displayTopPercent = rank ? Math.max(1, Math.ceil(item.subjectSummary.topPercent)) : 0;
+      previousScore = score;
+      previousWrong = normalizedWrong;
+      previousRank = rank;
+    });
+  });
+}
+
+function getStudentFinalScoreRecords(round) {
+  const sources = [state.finalExamScores, state.finalMockScores, state.mockExamScores, state.finalScores].filter(Array.isArray);
+  return sources.flat().filter((record) => {
+    const value = Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0);
+    return value === Number(round);
+  }).map((record) => ({
+    studentId: record.studentId || record.student_id || record.studentNumber || "",
+    studentName: record.studentName || record.student_name || record.name || "",
+    track: normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || ""),
+    cohort: String(record.cohort || record.studentCohort || record.student_cohort || ""),
+    score: record.score ?? record.totalScore ?? record.total_score ?? "",
+    maxScore: record.maxScore ?? record.max_score ?? record.totalPossible ?? "",
+    wrongCount: record.wrongCount ?? record.wrong_count ?? record.incorrectCount ?? record.incorrect_count ?? "",
+    rank: record.rank ?? "",
+    total: record.total ?? record.totalStudents ?? record.total_students ?? "",
+    topPercent: record.topPercent ?? record.top_percent ?? "",
+    subjectScores: normalizeStudentFinalSubjectScores(record),
+  }));
+}
+
+function getFinalGradeSubjectHeaders() {
+  return Array.isArray(FINAL_GRADE_SUBJECTS) ? FINAL_GRADE_SUBJECTS : Array.from({ length: 8 }, (_, index) => `과목${index + 1}`);
+}
+
+function getFinalGradeSubjectHeadersForTrack(track) {
+  const finalSubjects = getFinalGradeSubjectHeaders();
+  return getFinalGradeSubjectsForTrack(track, finalSubjects);
+}
+
+function normalizeStudentFinalSubjectScores(record) {
+  const subjectScores = {};
+  const source = record.subjectScores || record.subject_scores || record.scoresBySubject || record.subjects || null;
+  if (Array.isArray(source)) {
+    source.slice(0, 8).forEach((value, index) => {
+      subjectScores[`과목${index + 1}`] = normalizeStudentFinalSubjectValue(value);
+    });
+  } else if (source && typeof source === "object") {
+    getFinalGradeSubjectHeaders().forEach((subject, index) => {
+      const value = source[subject] ?? source[`subject${index + 1}`] ?? source[`과목${index + 1}`];
+      if (value !== undefined) subjectScores[subject] = normalizeStudentFinalSubjectValue(value);
+    });
+  }
+  getFinalGradeSubjectHeaders().forEach((subject, index) => {
+    const direct = record[`subject${index + 1}`] ?? record[`subject_${index + 1}`] ?? record[`score${index + 1}`] ?? record[`score_${index + 1}`];
+    if (direct !== undefined) subjectScores[subject] = normalizeStudentFinalSubjectValue(direct);
+  });
+  return subjectScores;
+}
+
+function normalizeStudentFinalSubjectValue(value) {
+  if (value && typeof value === "object") {
+    return {
+      score: value.score ?? value.total ?? value.value ?? "",
+      maxScore: value.maxScore ?? value.max_score ?? value.max ?? "",
+      wrongCount: value.wrongCount ?? value.wrong_count ?? value.incorrectCount ?? value.incorrect_count ?? "",
+      status: value.status || "submitted",
+    };
+  }
+  if (value === "" || value === null || value === undefined) return { status: "empty" };
+  return { score: value, maxScore: "", status: "submitted" };
+}
+
+function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}, track = "") {
+  const score = Number(subjectScore.score) || 0;
+  const submitted = subjectScore.status !== "empty";
+  const maxScore = Number(subjectScore.maxScore) || (submitted ? 100 : 0);
+  return {
+    subject,
+    track,
+    score,
+    maxScore,
+    wrongCount: subjectScore.wrongCount !== "" && subjectScore.wrongCount !== null && subjectScore.wrongCount !== undefined
+      ? Number(subjectScore.wrongCount) || 0
+      : maxScore
+        ? Math.max(0, Math.round((maxScore - score) / 5))
+        : "-",
+    rank: 0,
+    displayTopPercent: 0,
+    submitted,
+  };
 }
 
 function getStudentWeeklyGradeSummary(exam, student) {
@@ -993,23 +1685,23 @@ function calculateStudentTopPercent(rank, total) {
 }
 
 function renderStudentGradeResultPanel(summary, options = {}) {
+  const headerTitle = summary?.title || options.title;
+  const header = headerTitle
+    ? el("div", { className: "student-grade-result-title" }, [
+        el("strong", {}, headerTitle),
+        options.headerControl || null,
+      ])
+    : null;
   if (!summary || !summary.submittedCount) {
     return el("div", { className: "student-grade-result" }, [
-      renderStudentGradePyramid(null),
+      header,
+      renderStudentGradeSummaryCard(null),
       el("div", { className: "empty" }, options.emptyText || "아직 제출된 성적이 없습니다."),
     ]);
   }
   return el("div", { className: "student-grade-result" }, [
-    renderStudentGradePyramid(summary),
-    el("div", { className: "student-grade-summary" }, [
-      el("strong", {}, summary.title),
-      el("div", { className: "detail-grid" }, [
-        el("div", { className: "detail-item" }, [el("span", {}, "총점"), el("strong", {}, `${summary.score}/${summary.maxScore}점`)]),
-        el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, `${summary.subjectSummaries.reduce((sum, item) => sum + (item.wrongCount ?? 0), 0)}개`)]),
-        el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, summary.rank ? `상위 ${summary.displayTopPercent}%` : "-")]),
-        el("div", { className: "detail-item" }, [el("span", {}, "제출"), el("strong", {}, `${summary.submittedCount}/${summary.sectionCount}과목`)]),
-      ]),
-    ]),
+    header,
+    renderStudentGradeSummaryCard(summary),
     renderStudentSubjectGradeList(summary.subjectSummaries),
   ]);
 }
@@ -1019,62 +1711,85 @@ function renderStudentSubjectGradeList(subjectSummaries = []) {
     el("strong", {}, "과목별 성적"),
     subjectSummaries.length
       ? subjectSummaries.map((item) => el("article", { className: "student-grade-subject-card" }, [
-          el("h3", {}, item.subject),
+          el("h3", {}, formatFinalGradeSubjectName(item.subject, item.track)),
           el("div", { className: "detail-grid" }, [
-            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}/${item.maxScore}점` : "미제출")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "틀린 개수"), el("strong", {}, item.submitted ? `${item.wrongCount}개` : "-")]),
-            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? `상위 ${item.displayTopPercent}%` : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "점수"), el("strong", {}, item.submitted ? `${item.score}점` : "미제출")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "오답"), el("strong", {}, item.submitted ? formatStudentWrongCount(item.wrongCount) : "-")]),
+            el("div", { className: "detail-item" }, [el("span", {}, "위치"), el("strong", {}, item.rank ? formatStudentSubjectPositionLabel(item.topPercent ?? item.displayTopPercent) : "-")]),
           ]),
         ]))
       : el("div", { className: "empty" }, "표시할 과목별 성적이 없습니다."),
   ]);
 }
 
-function renderStudentGradePyramid(summary) {
-  return renderPercentilePyramid({
-    percentile: summary?.rank ? summary.percentile : null,
-    label: summary?.rank ? `상위 ${summary.displayTopPercent}%` : "",
-    primaryColor: "var(--accent)",
-    baseBgColor: "#e6edf5",
-  });
+function formatFinalGradeSubjectName(subject, track = "") {
+  return formatFinalGradeSubjectDisplayName(subject, track);
 }
 
-function renderPercentilePyramid({ percentile = null, label = "", primaryColor = "var(--accent)", baseBgColor = "#e6edf5", levels = 5 } = {}) {
-  const hasMarker = percentile !== null && percentile !== undefined && percentile !== "";
-  const safePercentile = Math.max(0, Math.min(100, Number(percentile) || 0));
-  const fromTop = 100 - safePercentile;
-  const activeZone = hasMarker ? Math.min(levels - 1, Math.floor(fromTop / (100 / levels))) : -1;
-  const markerY = Math.round((8 + fromTop * 0.8) * 10) / 10;
-  const markerWidth = Math.round((12 + fromTop * 0.78) * 10) / 10;
-  const style = [
-    `--pyramid-primary:${primaryColor}`,
-    `--pyramid-base:${baseBgColor}`,
-    `--marker-y:${markerY}%`,
-    `--marker-width:${markerWidth}%`,
-  ].join(";");
-  return el("div", { className: `student-grade-pyramid${hasMarker ? " has-marker" : ""}`, style, ariaLabel: "백분위 시각화 피라미드" }, [
-    el("div", { className: "student-grade-pyramid-guide top" }, "상위 0%"),
-    el("div", { className: "student-grade-pyramid-guide bottom" }, "상위 100%"),
-    el("div", { className: "student-grade-pyramid-shape" }, [
-      el("div", { className: "student-grade-pyramid-fill" }),
-      el("div", { className: "student-grade-pyramid-zones" }, Array.from({ length: levels }, (_, index) =>
-        el("span", {
-          className: `student-grade-pyramid-zone${index === activeZone ? " active" : ""}`,
-          style: `top:${(index / levels) * 100}%;height:${100 / levels}%`,
-        })
-      )),
-      el("div", { className: "student-grade-pyramid-lines" }, Array.from({ length: Math.max(0, levels - 1) }, (_, index) =>
-        el("span", { style: `top:${((index + 1) / levels) * 100}%` })
-      )),
-      hasMarker ? el("span", { className: "student-grade-pyramid-marker-line" }) : null,
+function formatStudentSubjectPositionLabel(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return "-";
+  return `상위 ${Math.max(1, Math.ceil(percent))}%`;
+}
+
+function renderStudentGradeSummaryCard(summary) {
+  const student = summary?.student || getAuthedStudent();
+  const trackText = student ? getStudentRegisteredTrack(student) : "";
+  const rankLabel = summary?.rank ? formatTopPercentLabel(summary.topPercent) : "준비 중";
+  const rankDeltaText = formatStudentRankDelta(summary?.rankDelta);
+  const metaText = summary?.rank && summary?.total
+    ? [`응시자 ${summary.total}명 중 ${summary.rank}등`, rankDeltaText ? `전회차 대비 ${rankDeltaText}` : ""].filter(Boolean).join(" · ")
+    : "성적 집계 후 표시됩니다.";
+  return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
+    el("div", { className: "student-grade-overview-head" }, [
+      el("span", { className: "student-grade-overview-label" }, "내 위치"),
+      trackText ? el("span", { className: "student-grade-overview-track" }, trackText) : null,
     ]),
-    hasMarker
-      ? el("div", { className: "student-grade-pyramid-callout" }, [
-          el("span", {}, "내 위치"),
-          el("strong", {}, label || `백분위 ${safePercentile}%`),
-        ])
-      : null,
+    el("strong", { className: "student-grade-overview-value" }, rankLabel),
+    el("span", { className: "student-grade-overview-meta" }, metaText),
+    renderStudentGradeProgress(summary),
+    el("div", { className: "detail-grid student-grade-overview-grid" }, [
+      renderStudentGradeMetric("총점", summary ? `${summary.score}/${summary.maxScore}점` : "-"),
+      renderStudentGradeMetric("오답", summary ? formatStudentWrongCount(summary.wrongCount) : "-"),
+      renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
+    ]),
   ]);
+}
+
+function renderStudentGradeProgress(summary) {
+  const rawPercent = summary?.rank ? Number(summary.topPercent) || 0 : 0;
+  const percent = summary?.rank ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
+  return el("div", {
+    className: "student-grade-progress",
+    role: "meter",
+    ariaLabel: "내 위치 백분율",
+    ariaValueMin: "0",
+    ariaValueMax: "100",
+    ariaValueNow: String(percent),
+  }, [
+    el("span", { className: "student-grade-progress-fill", style: `width: ${percent}%` }),
+  ]);
+}
+
+function renderStudentGradeMetric(label, value) {
+  return el("div", { className: "detail-item" }, [
+    el("span", {}, label),
+    el("strong", {}, value),
+  ]);
+}
+
+function formatStudentWrongCount(value) {
+  if (value === "" || value === null || value === undefined || value === "-") return "-";
+  const count = Number(value);
+  return Number.isFinite(count) ? `${count}개` : "-";
+}
+
+function formatStudentRankDelta(delta) {
+  if (delta === "" || delta === null || delta === undefined) return "";
+  const value = Number(delta);
+  if (!Number.isFinite(value)) return "";
+  if (!value) return "변동 없음";
+  return value > 0 ? `▲ ${value}` : `▼ ${Math.abs(value)}`;
 }
 
 function renderStudentWeeklyGrades(student) {
@@ -1084,39 +1799,44 @@ function renderStudentWeeklyGrades(student) {
   if (!selectedExam) {
     return el("div", { className: "grid student-view" }, [
       panel(studentGradesView === "entry" ? "성적 입력" : "성적 조회", [
-        button("성적 메뉴", "mini-btn", "button", () => {
-          studentGradesView = "";
-          render();
-        }),
+        renderStudentGradesBackButton(),
         el("div", { className: "empty" }, "현재 공개된 주간평가가 없습니다."),
       ]),
     ]);
   }
   const sections = getStudentExamSections(selectedExam, student);
-  const visibleSections = studentGradesView === "entry"
-    ? sections.filter((section) => !getStudentSubmission(student.id, section.id))
-    : sections;
   const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
   if (selectedSection) {
     return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
+      renderStudentGradesBackPanel(),
       renderStudentExamAnswerEntry(selectedExam, selectedSection, student, sections),
     ]);
   }
   return el("div", { className: "grid student-view student-exam-view" }, [
+    renderStudentGradesBackPanel(),
     renderStudentExamList(exams, selectedExam),
-    renderStudentExamEntrySubjectList(selectedExam, visibleSections, student),
+    renderStudentExamEntrySubjectList(selectedExam, sections, student),
   ]);
 }
 
 function renderStudentGradesBackPanel() {
-  return panel("성적 구분", [
-    button("성적 메뉴", "mini-btn", "button", () => {
-      studentGradesView = "";
-      studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
-      render();
-    }),
-    el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
+  return el("section", { className: "panel student-weekly-back-panel" }, [
+    el("div", { className: "panel-title-row student-weekly-back-title" }, [
+      el("div", {}, [
+        el("h2", {}, "주간평가"),
+        el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
+      ]),
+      renderStudentGradesBackButton(),
+    ]),
   ]);
+}
+
+function renderStudentGradesBackButton() {
+  return button("돌아가기", "mini-btn student-weekly-back-button", "button", () => {
+    studentGradesView = "";
+    studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+    render();
+  });
 }
 
 function getVisibleStudentExams(student) {
@@ -1172,7 +1892,6 @@ function renderStudentExamList(exams, selectedExam) {
   });
   return panel("주간평가 목록", [
     field("주차 선택", examSelect),
-    el("p", { className: "subtle" }, formatStudentWeeklyExamName(selectedExam.weekNumber)),
   ]);
 }
 
@@ -1261,17 +1980,57 @@ function renderStudentExamAnswerEntry(exam, section, student, allSections) {
   const end = Math.min(start + 9, visibleAnswers.length);
   const cards = [];
   visibleAnswers.slice(start - 1, end).forEach((answer, index) => cards.push(renderStudentAnswerQuestion(answer.questionNumber, start + index)));
-  return panel(`${section.subject} ${visibleAnswers.length}문제`, [
-    el("div", { className: "student-answer-range" }, `${start}~${end}번`),
+  return panel("답안 입력", [
     el("div", { className: "student-answer-list" }, cards),
     renderStudentAnswerNav(section, visibleAnswers.length),
   ]);
 }
 
+function renderStudentAnswerSubjectTabs(exam, currentSection, student, sections) {
+  return el("div", { className: "student-answer-subject-tabs" }, sections.map((section) => {
+    const submission = getStudentSubmission(student.id, section.id);
+    const isCurrent = section.id === currentSection.id;
+    const className = [
+      "student-answer-subject-tab",
+      isCurrent ? "active" : "",
+      submission ? "submitted" : "",
+    ].filter(Boolean).join(" ");
+    const node = button("", className, "button", () => switchStudentAnswerSection(section, currentSection, student));
+    node.disabled = isCurrent || Boolean(submission) || !isExamOpen(exam);
+    node.append(
+      el("strong", {}, section.subject),
+      el("span", {}, submission ? "제출 완료" : isCurrent ? "입력 중" : "미제출")
+    );
+    return node;
+  }));
+}
+
+function switchStudentAnswerSection(nextSection, currentSection, student) {
+  if (!nextSection || nextSection.id === currentSection.id) return;
+  if (getStudentSubmission(student.id, nextSection.id)?.status === "submitted") return notify("이미 제출한 과목입니다.");
+  const hasDraft = Object.values(studentExamDraft.answers || {}).some(Boolean);
+  if (hasDraft && !confirm("현재 과목에서 입력 중인 답안이 사라질 수 있습니다. 다른 과목으로 이동할까요?")) return;
+  startStudentSectionAnswer(nextSection);
+}
+
+function renderStudentAnswerProgress(answeredCount, questionCount, start, end) {
+  const percent = questionCount ? Math.round((answeredCount / questionCount) * 100) : 0;
+  return el("div", { className: "student-answer-progress" }, [
+    el("div", { className: "student-answer-progress-top" }, [
+      el("strong", {}, `${answeredCount}/${questionCount} 입력`),
+      el("span", {}, `${start}~${end}번`),
+    ]),
+    el("div", { className: "student-answer-progress-track" }, [
+      el("span", { style: `width: ${percent}%` }),
+    ]),
+  ]);
+}
+
 function renderStudentExamEntrySubjectList(exam, sections, student) {
+  const scoreOpen = canStudentSeeScore(exam, sections, student);
   return panel(formatStudentWeeklyExamName(exam.weekNumber), [
     sections.length
-      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, false)))
+      ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "입력할 주간평가 과목이 없습니다."),
   ]);
 }
@@ -1280,7 +2039,7 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
   const current = studentExamDraft.answers[questionNumber] || "";
   const options = [1, 2, 3, 4].map((value) => {
     const selected = Number(current) === value;
-    const node = button(`${toCircledAnswer(value)}${selected ? " ✓" : ""}`, selected ? "answer-choice selected" : "answer-choice", "button", () => {
+    const node = button(String(value), selected ? "answer-choice selected" : "answer-choice", "button", () => {
       const previous = studentExamDraft.answers[questionNumber];
       studentExamDraft.answers[questionNumber] = value;
       studentExamDraft.locked[questionNumber] = true;
@@ -1288,10 +2047,14 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
       render();
       if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
+    node.setAttribute("aria-label", `${displayNumber}번 ${value}번 선택`);
+    node.setAttribute("aria-pressed", selected ? "true" : "false");
     return node;
   });
-  return el("article", { className: current ? "student-answer-card locked" : "student-answer-card" }, [
-    el("div", { className: "student-answer-head" }, [el("strong", {}, `${displayNumber}번`), el("span", {}, current ? `선택 ${toCircledAnswer(current)}` : "미입력")]),
+  return el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
+    el("div", { className: "student-answer-head" }, [
+      el("strong", {}, `${displayNumber}번`),
+    ]),
     el("div", { className: "answer-choice-row" }, options),
   ]);
 }
@@ -1308,13 +2071,15 @@ function renderStudentAnswerNav(section, questionCount = section.questionCount) 
   });
   next.disabled = studentExamDraft.page >= Math.ceil(questionCount / 10) - 1;
   return el("div", { className: "student-answer-nav" }, [
-    prev,
-    button("답안표", "btn", "button", () => {
+    el("div", { className: "student-answer-page-nav" }, [
+      prev,
+      next,
+    ]),
+    button("검토 후 제출", "btn student-answer-review-button", "button", () => {
       studentExamDraft.review = true;
       studentExamDraft.confirmed = false;
       render();
     }),
-    next,
   ]);
 }
 
@@ -1327,11 +2092,14 @@ function renderStudentExamReview(exam, section, student) {
     const displayNumber = index + 1;
     const answer = studentExamDraft.answers[question];
     if (!answer) missing.push(displayNumber);
-    cells.push(button(`${displayNumber}. ${answer ? toCircledAnswer(answer) : "미입력"}`, answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+    cells.push(button("", answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
       studentExamDraft.review = false;
       studentExamDraft.page = Math.floor(index / 10);
       render();
-    }));
+    }, [
+      el("span", {}, `${displayNumber}번`),
+      el("strong", {}, answer ? toCircledAnswer(answer) : "-"),
+    ]));
   });
   const checkbox = el("input", { type: "checkbox" });
   const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing, visibleAnswers.length));
@@ -1342,7 +2110,7 @@ function renderStudentExamReview(exam, section, student) {
   });
   return panel(`${section.subject} 답안표 확인`, [
     el("div", { className: "answer-sheet-grid" }, cells),
-    missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "subtle" }, "모든 문항을 입력했습니다."),
+    missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "answer-complete-message" }, "모든 문항을 입력했습니다."),
     el("label", { className: "confirm-check" }, [checkbox, el("span", {}, "위 답안을 모두 확인했습니다.")]),
     el("div", { className: "student-answer-nav" }, [
       button("답안 수정", "btn secondary", "button", () => {

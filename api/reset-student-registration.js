@@ -5,6 +5,7 @@ const {
   readSessionToken,
   readCookie,
 } = require("./teacher-auth-utils");
+const crypto = require("crypto");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -49,7 +50,18 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const endpoint = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/students?id=eq.${encodeURIComponent(studentId)}`;
+  const baseUrl = `${supabaseUrl.replace(/\/$/, "")}/rest/v1`;
+  const studentEndpoint = `${baseUrl}/students?id=eq.${encodeURIComponent(studentId)}`;
+  const readResponse = await fetch(`${studentEndpoint}&select=id,name,device_token`, {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+  });
+  const rows = readResponse.ok ? await readResponse.json().catch(() => []) : [];
+  const student = Array.isArray(rows) ? rows[0] : null;
+
+  const endpoint = studentEndpoint;
   const response = await fetch(endpoint, {
     method: "PATCH",
     headers: {
@@ -70,6 +82,26 @@ module.exports = async function handler(req, res) {
     res.status(502).json({ ok: false, error: "supabase_update_failed", detail: errorText });
     return;
   }
+
+  await fetch(`${baseUrl}/student_registration_events`, {
+    method: "POST",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      student_id: studentId,
+      student_name: student?.name || "",
+      event_type: "reset",
+      device_token: student?.device_token || null,
+      reason: "관리자 등록 초기화",
+      actor: "teacher",
+      created_at: new Date().toISOString(),
+    }),
+  }).catch(() => null);
 
   res.status(200).json({ ok: true });
 };

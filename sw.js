@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v142-return-photo-save";
+const CACHE_NAME = "outing-auth-app-v161-attendance-settings-sync";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -9,6 +9,10 @@ const APP_SHELL = [
   "/shared.js",
   "/student.js",
   "/teacher.js",
+  "/teacher-grades.js",
+  "/teacher-students.js",
+  "/teacher-settings.js",
+  "/teacher-penalties.js",
   "/app.js",
   "/manifest.webmanifest",
   "/app-icon.png",
