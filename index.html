@@ -146,8 +146,8 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "grades") return "home";
           if (route === "student" || route === "attendance" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "grades") return "grades";
           return "home";
         }
         function shouldUseFallback() {
@@ -163,10 +163,6 @@
           });
         }
         function navFallback(route) {
-          if (route === "grades") {
-            showToast("성적은 시험 이후에 활성화됩니다.");
-            return;
-          }
           var sameRoute = currentRoute() === route && location.hash === "#" + route;
           location.hash = route;
           if (shouldUseFallback()) renderFallback(route);

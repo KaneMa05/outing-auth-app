@@ -24,6 +24,7 @@
 const COAST_GUARD_EXAM_DATE = "2026-10-24";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
 const STUDENT_GRADES_LOCK_MESSAGE = "성적은 시험 이후에 활성화됩니다.";
+const STUDENT_GRADES_ALLOWED_COHORTS = ["19"];
 const COAST_GUARD_TRACK_OPTIONS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 해경학과 항해(경장)",
@@ -124,7 +125,7 @@ function normalizeRoute(route) {
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"];
-  if (normalized === "grades") return "home";
+  if (normalized === "grades" && !isStudentGradesEnabled()) return "home";
   if (studentRoutes.includes(normalized) || normalized.startsWith("notice-")) return normalized;
   return "home";
 }
@@ -134,7 +135,14 @@ function defaultRoute() {
 }
 
 function isLockedStudentGradesRoute(route) {
-  return APP_MODE !== "teacher" && String(route || "").split("?")[0] === "grades";
+  return APP_MODE !== "teacher" && String(route || "").split("?")[0] === "grades" && !isStudentGradesEnabled();
+}
+
+function isStudentGradesEnabled() {
+  if (APP_MODE === "teacher") return true;
+  const student = typeof getAuthedStudent === "function" ? getAuthedStudent() : null;
+  if (!student) return true;
+  return STUDENT_GRADES_ALLOWED_COHORTS.includes(getStudentCohort(student));
 }
 
 function navigate(route) {
@@ -171,9 +179,10 @@ function render() {
   document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
 
   document.querySelectorAll("[data-route]").forEach((button) => {
-    const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(button.dataset.route);
+    const route = button.dataset.route;
+    const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(route);
     button.hidden = !allowed;
-    button.classList.toggle("active", button.dataset.route === currentRoute);
+    button.classList.toggle("active", route === currentRoute);
   });
   if (APP_MODE === "teacher") updateTeacherNavSections();
 
@@ -557,10 +566,15 @@ function openStudentRegistrationResetModal(student, onSuccess) {
 
 function isStandaloneStudentApp() {
   return Boolean(
-    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    isLocalStudentPreview() ||
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
       window.navigator.standalone ||
       document.referrer.startsWith("android-app://")
   );
+}
+
+function isLocalStudentPreview() {
+  return ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
 }
 
 function renderStudentBrowserInstallOnly() {

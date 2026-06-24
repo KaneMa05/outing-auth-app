@@ -1514,10 +1514,27 @@ th {
 
 .weekly-answer-header-actions {
   display: flex;
-  align-items: end;
+  align-items: stretch;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.weekly-answer-control-group {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.weekly-answer-control-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .weekly-question-count-row {
@@ -1528,10 +1545,14 @@ th {
 }
 
 .weekly-question-count-tools {
+  min-width: 300px;
+}
+
+.weekly-question-count-controls {
   display: flex;
   align-items: end;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .weekly-question-count-row .field {
@@ -1864,8 +1885,63 @@ th {
   flex-wrap: wrap;
 }
 
+.student-weekly-files {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.student-weekly-files-head {
+  display: grid;
+  gap: 3px;
+}
+
+.student-weekly-files-head strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.student-weekly-files-head span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .student-weekly-back-panel {
   padding: 14px 16px;
+}
+
+.student-weekly-header-panel {
+  padding: 14px 16px;
+}
+
+.student-weekly-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-weekly-header-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.student-weekly-header-title h2 {
+  margin: 0;
+}
+
+.student-weekly-week-select {
+  width: auto;
+  min-width: 86px;
+  min-height: 36px;
+  padding: 7px 30px 7px 10px;
+  border-radius: 8px;
+  font-weight: 900;
 }
 
 .student-weekly-back-title {
@@ -1895,6 +1971,11 @@ th {
   gap: 12px;
 }
 
+.student-grade-action-list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 .student-grade-card {
   display: grid;
   gap: 8px;
@@ -1920,21 +2001,77 @@ th {
 
 .student-grade-action-card {
   display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
-  padding: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  color: var(--ink);
+  min-height: 74px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0, 60, 120, 0.04);
 }
 
-.student-grade-action-card .btn {
-  width: 100%;
+.student-grade-action-card::after {
+  content: "›";
+  color: var(--accent-strong);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.student-grade-action-card:hover,
+.student-grade-action-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 10px 22px rgba(0, 91, 172, 0.1);
+  outline: none;
+}
+
+.student-grade-action-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.student-grade-action-text strong {
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.student-grade-action-text span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.student-grade-action-label {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #e4f0fb;
+  color: #005bac;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .student-grade-type-tabs {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.student-grade-menu-back {
+  justify-self: start;
+  width: auto;
+  margin-top: -4px;
 }
 
 .student-grade-result {
@@ -4906,6 +5043,27 @@ body:not([data-app-mode="teacher"]) .btn {
 
   body:not([data-app-mode="teacher"]) .main-shell {
     padding: 8px 14px var(--student-content-bottom);
+  }
+
+  .student-weekly-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .student-weekly-header-title {
+    grid-column: 1 / -1;
+  }
+
+  .student-weekly-week-select {
+    justify-self: start;
+  }
+
+  .student-grade-action-list {
+    gap: 8px;
+  }
+
+  .student-grade-action-card {
+    min-height: 72px;
+    padding: 12px;
   }
 
   body:not([data-app-mode="teacher"]) .panel {

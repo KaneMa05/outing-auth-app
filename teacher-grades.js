@@ -1050,7 +1050,7 @@ function openWeeklyExamAnswerModal(sectionId, sectionIds = []) {
   const baseSection = allSections.find((item) => item.id === sectionId) || fallbackSection;
   const modalSections = sectionIds.length
     ? sectionIds.map((id) => allSections.find((section) => section.id === id) || enrichSection((state.examSections || []).find((section) => section.id === id))).filter(Boolean)
-    : (state.examSections || []).filter((section) => section.examId === baseSection?.examId).map(enrichSection).filter(Boolean);
+    : [baseSection].filter(Boolean);
   const section = baseSection || modalSections[0] || null;
   if (!section) return notify("정답을 입력할 과목을 찾을 수 없습니다.");
   weeklyExamSelectedSectionId = section.id;
@@ -1210,9 +1210,12 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     el("div", { className: "weekly-answer-header-actions" }, [
       renderWeeklyQuestionCountControls(section, answers, options),
       trackScoped
-        ? el("div", { className: "weekly-track-bulk-actions" }, [
-            renderWeeklyTrackBulkButton(section, answers, "vts"),
-            renderWeeklyTrackBulkButton(section, answers, "academy"),
+        ? el("div", { className: "weekly-answer-control-group" }, [
+            el("span", { className: "weekly-answer-control-label" }, "일괄 적용"),
+            el("div", { className: "weekly-track-bulk-actions" }, [
+              renderWeeklyTrackBulkButton(section, answers, "vts"),
+              renderWeeklyTrackBulkButton(section, answers, "academy"),
+            ]),
           ])
         : null,
     ]),
@@ -1266,9 +1269,12 @@ function renderWeeklyQuestionCountControls(section, answers, options = {}) {
     event.preventDefault();
     await applyCount(countInput.value);
   });
-  return el("div", { className: "weekly-question-count-tools" }, [
-    countForm,
-    button("+1 문항", "mini-btn secondary", "button", () => applyCount((Number(section.questionCount) || answers.length || 20) + 1)),
+  return el("div", { className: "weekly-answer-control-group weekly-question-count-tools" }, [
+    el("span", { className: "weekly-answer-control-label" }, "문항 관리"),
+    el("div", { className: "weekly-question-count-controls" }, [
+      countForm,
+      button("+1 문항", "mini-btn secondary", "button", () => applyCount((Number(section.questionCount) || answers.length || 20) + 1)),
+    ]),
   ]);
 }
 

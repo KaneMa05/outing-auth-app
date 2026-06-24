@@ -601,7 +601,7 @@ async function initLocalDevStore() {
     if (data.ok && data.exists && data.state) {
       const localStudentAuth = getLocalStudentAuthSettings();
       Object.assign(state, mergeDefaultState(data.state));
-      restoreLocalStudentAuthSettings(localStudentAuth);
+      if (!state.settings?.forceLocalStudentAuth) restoreLocalStudentAuthSettings(localStudentAuth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       render();
       return;

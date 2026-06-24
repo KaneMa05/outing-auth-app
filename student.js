@@ -1237,15 +1237,16 @@ function studentLookup(buttonText) {
 let selectedStudentExamId = "";
 let selectedStudentGradeLookupExamId = "";
 let selectedStudentFinalRound = 0;
-let studentGradeLookupType = "final";
+let studentGradeLookupType = "weekly";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+const STUDENT_GRADE_MIN_RELEASE_COUNT = 30;
 
 function resetStudentGradesView() {
   selectedStudentExamId = "";
   selectedStudentGradeLookupExamId = "";
   selectedStudentFinalRound = 0;
-  studentGradeLookupType = "final";
+  studentGradeLookupType = "weekly";
   studentGradesView = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 }
@@ -1264,7 +1265,7 @@ function getStudentRegisteredTrack(student) {
 function renderStudentGrades() {
   const student = getAuthedStudent();
   if (!student) return renderStudentAuth();
-  if (studentGradesView === "lookup" || isStudentFinalGradeTestLink()) return renderStudentGradeLookupComingSoon();
+  if (studentGradesView === "lookup" || isStudentFinalGradeTestLink()) return renderStudentGradeLookup();
   if (studentGradesView !== "entry") return renderStudentGradesHome();
   return renderStudentWeeklyGrades(student);
 }
@@ -1273,52 +1274,109 @@ function renderStudentGradesHome() {
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적", [
       el("div", { className: "student-grade-action-list" }, [
-        renderStudentGradeAction("주간평가 답안 입력", "공개된 주간평가 과목의 답안을 입력합니다.", "입력", () => {
+        renderStudentGradeAction("입력", "주간평가 답안 입력", "주간평가", () => {
+          selectedStudentExamId = "";
+          studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
           studentGradesView = "entry";
           render();
         }),
-        renderStudentGradeAction("성적 조회", "파이널 성적 결과를 확인합니다.", "조회", () => {
-          studentGradesView = "lookup";
-          render();
-        }),
+        renderStudentGradeAction(
+          "조회",
+          "성적 조회",
+          "주간평가·파이널",
+          () => {
+            selectedStudentGradeLookupExamId = "";
+            studentGradesView = "lookup";
+            render();
+          }
+        ),
       ]),
     ]),
   ]);
 }
 
-function renderStudentGradeAction(title, copy, actionText, onClick) {
-  return el("section", { className: "student-grade-action-card" }, [
-    el("div", { className: "student-history-head" }, [
-      el("h2", {}, title),
-      el("span", {}, copy),
+function renderStudentGradeAction(label, title, meta, onClick) {
+  return button("", "student-grade-action-card", "button", onClick, [
+    el("span", { className: "student-grade-action-label" }, label),
+    el("span", { className: "student-grade-action-text" }, [
+      el("strong", {}, title),
+      el("span", {}, meta),
     ]),
-    button(actionText, "btn secondary", "button", onClick),
   ]);
 }
 
-function renderStudentGradeLookupComingSoon() {
-  const typeTabs = el("div", { className: "student-grade-type-tabs" }, [
-    button("파이널 성적", "mini-btn active", "button", () => {}),
-  ]);
+function renderStudentGradeLookup() {
   const student = getAuthedStudent();
-  const roundOptions = student ? getStudentFinalRoundOptions(student) : [];
-  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 0;
-  const summary = student && selectedStudentFinalRound ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
+  const hasFinalGrades = hasStudentFinalGradeData(student);
+  if (isStudentFinalGradeTestLink() && hasFinalGrades) studentGradeLookupType = "final";
+  if (studentGradeLookupType === "final" && !hasFinalGrades) studentGradeLookupType = "weekly";
+  const typeTabs = renderStudentGradeLookupTabs();
+  const content = studentGradeLookupType === "weekly"
+    ? renderStudentWeeklyGradeLookup(student)
+    : renderStudentFinalGradeLookup(student);
 
   return el("div", { className: "grid student-view student-grade-home" }, [
     panel("성적 조회", [
       typeTabs,
-      renderStudentGradeResultPanel(summary, {
-        title: "성적 요약",
-        headerControl: roundOptions.length ? renderStudentFinalRoundSelect(roundOptions) : null,
-        emptyText: "파이널 성적은 준비 중입니다.",
-      }),
-      button("성적 메뉴", "mini-btn", "button", () => {
+      content,
+      button("성적 메뉴", "mini-btn student-grade-menu-back", "button", () => {
         studentGradesView = "";
         render();
       }),
     ]),
   ]);
+}
+
+function renderStudentGradeLookupTabs() {
+  const student = getAuthedStudent();
+  const items = [{ key: "weekly", label: "주간평가" }];
+  if (hasStudentFinalGradeData(student)) items.push({ key: "final", label: "파이널 성적" });
+  return el("div", { className: "student-grade-type-tabs" }, items.map((item) =>
+    button(item.label, studentGradeLookupType === item.key ? "mini-btn active" : "mini-btn", "button", () => {
+      studentGradeLookupType = item.key;
+      render();
+    })
+  ));
+}
+
+function hasStudentFinalGradeData(student) {
+  return Boolean(student && getStudentFinalRoundOptions(student).length);
+}
+
+function renderStudentWeeklyGradeLookup(student) {
+  const exams = getVisibleStudentExams(student);
+  const selectedExam = exams.find((exam) => exam.id === selectedStudentGradeLookupExamId) || exams[0] || null;
+  if (selectedExam) selectedStudentGradeLookupExamId = selectedExam.id;
+  const summary = selectedExam ? getStudentWeeklyGradeSummary(selectedExam, student) : null;
+  return renderStudentGradeResultPanel(summary, {
+    title: selectedExam ? formatStudentWeeklyExamName(selectedExam.weekNumber) : "주간평가 성적",
+    headerControl: selectedExam ? renderStudentWeeklyGradeLookupSelect(exams, selectedExam) : null,
+    emptyText: selectedExam ? "제출된 주간평가 성적이 없습니다." : "조회할 주간평가가 없습니다.",
+  });
+}
+
+function renderStudentWeeklyGradeLookupSelect(exams, selectedExam) {
+  const node = el("select", {
+    className: "student-grade-round-select",
+    ariaLabel: "주간평가 주차 선택",
+  }, exams.map((exam) => el("option", { value: exam.id }, `${Number(exam.weekNumber) || 1}주차`)));
+  node.value = selectedExam.id;
+  node.addEventListener("change", () => {
+    selectedStudentGradeLookupExamId = node.value;
+    render();
+  });
+  return node;
+}
+
+function renderStudentFinalGradeLookup(student) {
+  const roundOptions = student ? getStudentFinalRoundOptions(student) : [];
+  if (!roundOptions.includes(Number(selectedStudentFinalRound))) selectedStudentFinalRound = roundOptions[0] || 0;
+  const summary = student && selectedStudentFinalRound ? getStudentFinalGradeSummary(student, selectedStudentFinalRound) : null;
+  return renderStudentGradeResultPanel(summary, {
+    title: "파이널 성적",
+    headerControl: roundOptions.length ? renderStudentFinalRoundSelect(roundOptions) : null,
+    emptyText: "파이널 성적은 준비 중입니다.",
+  });
 }
 
 function getStudentFinalRoundOptions(student) {
@@ -1330,12 +1388,7 @@ function getStudentFinalRoundOptions(student) {
     .filter((record) => String(record.studentId || record.student_id || record.studentNumber || "").trim() === studentId)
     .map(getStudentFinalRecordRound)
     .filter((round) => Number.isFinite(round) && round > 0);
-  const rounds = studentRounds.length
-    ? studentRounds
-    : records
-      .map(getStudentFinalRecordRound)
-      .filter((round) => Number.isFinite(round) && round > 0);
-  const uniqueRounds = Array.from(new Set(rounds)).sort((a, b) => b - a);
+  const uniqueRounds = Array.from(new Set(studentRounds)).sort((a, b) => b - a);
   return uniqueRounds;
 }
 
@@ -1604,6 +1657,10 @@ function getStudentWeeklyGradeSummary(exam, student) {
   const submitted = ownSubmissions.filter((item) => item.submission);
   const maxScore = sections.reduce((sum, section) => sum + getStudentVisibleSectionAnswers(section, student).length * 5, 0);
   const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
+  const wrongCount = submitted.reduce((sum, item) => {
+    const questionCount = getStudentVisibleSectionAnswers(item.section, student).length;
+    return sum + Math.max(0, questionCount - (Number(item.submission.correctCount) || 0));
+  }, 0);
   const cohort = getStudentCohort(student);
   const registeredTrack = getStudentRegisteredTrack(student);
   const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
@@ -1632,6 +1689,7 @@ function getStudentWeeklyGradeSummary(exam, student) {
     score,
     maxScore,
     percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
+    wrongCount,
     submittedCount: submitted.length,
     sectionCount: sections.length,
     rank,
@@ -1699,11 +1757,16 @@ function renderStudentGradeResultPanel(summary, options = {}) {
       el("div", { className: "empty" }, options.emptyText || "아직 제출된 성적이 없습니다."),
     ]);
   }
+  const released = canReleaseStudentGradeSummary(summary);
   return el("div", { className: "student-grade-result" }, [
     header,
-    renderStudentGradeSummaryCard(summary),
-    renderStudentSubjectGradeList(summary.subjectSummaries),
+    renderStudentGradeSummaryCard(summary, { released }),
+    released ? renderStudentSubjectGradeList(summary.subjectSummaries) : null,
   ]);
+}
+
+function canReleaseStudentGradeSummary(summary) {
+  return Number(summary?.total) >= STUDENT_GRADE_MIN_RELEASE_COUNT;
 }
 
 function renderStudentSubjectGradeList(subjectSummaries = []) {
@@ -1732,12 +1795,13 @@ function formatStudentSubjectPositionLabel(value) {
   return `상위 ${Math.max(1, Math.ceil(percent))}%`;
 }
 
-function renderStudentGradeSummaryCard(summary) {
+function renderStudentGradeSummaryCard(summary, options = {}) {
   const student = summary?.student || getAuthedStudent();
   const trackText = student ? getStudentRegisteredTrack(student) : "";
-  const rankLabel = summary?.rank ? formatTopPercentLabel(summary.topPercent) : "준비 중";
+  const released = options.released !== false;
+  const rankLabel = summary?.rank && released ? formatTopPercentLabel(summary.topPercent) : "집계 대기";
   const rankDeltaText = formatStudentRankDelta(summary?.rankDelta);
-  const metaText = summary?.rank && summary?.total
+  const metaText = summary?.rank && summary?.total && released
     ? [`응시자 ${summary.total}명 중 ${summary.rank}등`, rankDeltaText ? `전회차 대비 ${rankDeltaText}` : ""].filter(Boolean).join(" · ")
     : "성적 집계 후 표시됩니다.";
   return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
@@ -1749,16 +1813,16 @@ function renderStudentGradeSummaryCard(summary) {
     el("span", { className: "student-grade-overview-meta" }, metaText),
     renderStudentGradeProgress(summary),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
-      renderStudentGradeMetric("총점", summary ? `${summary.score}/${summary.maxScore}점` : "-"),
-      renderStudentGradeMetric("오답", summary ? formatStudentWrongCount(summary.wrongCount) : "-"),
-      renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
+      renderStudentGradeMetric("총점", summary && released ? `${summary.score}/${summary.maxScore}점` : "-"),
+      renderStudentGradeMetric("오답", summary && released ? formatStudentWrongCount(summary.wrongCount) : "-"),
+      renderStudentGradeMetric("등수", summary?.rank && released ? `${summary.rank}등` : "-"),
     ]),
   ]);
 }
 
 function renderStudentGradeProgress(summary) {
-  const rawPercent = summary?.rank ? Number(summary.topPercent) || 0 : 0;
-  const percent = summary?.rank ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
+  const rawPercent = summary?.rank && canReleaseStudentGradeSummary(summary) ? Number(summary.topPercent) || 0 : 0;
+  const percent = summary?.rank && canReleaseStudentGradeSummary(summary) ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
   return el("div", {
     className: "student-grade-progress",
     role: "meter",
@@ -1813,9 +1877,21 @@ function renderStudentWeeklyGrades(student) {
     ]);
   }
   return el("div", { className: "grid student-view student-exam-view" }, [
-    renderStudentGradesBackPanel(),
-    renderStudentExamList(exams, selectedExam),
+    renderStudentWeeklyExamHeader(exams, selectedExam),
     renderStudentExamEntrySubjectList(selectedExam, sections, student),
+  ]);
+}
+
+function renderStudentWeeklyExamHeader(exams, selectedExam) {
+  return el("section", { className: "panel student-weekly-header-panel" }, [
+    el("div", { className: "student-weekly-header" }, [
+      el("div", { className: "student-weekly-header-title" }, [
+        el("h2", {}, "주간평가"),
+        el("span", { className: "subtle" }, studentGradesView === "entry" ? "성적 입력" : "성적 조회"),
+      ]),
+      renderStudentExamWeekSelect(exams, selectedExam),
+      renderStudentGradesBackButton(),
+    ]),
   ]);
 }
 
@@ -1879,6 +1955,12 @@ function getStudentVisibleSectionAnswers(section, student) {
 }
 
 function renderStudentExamList(exams, selectedExam) {
+  return panel("주간평가 목록", [
+    field("주차 선택", renderStudentExamWeekSelect(exams, selectedExam)),
+  ]);
+}
+
+function renderStudentExamWeekSelect(exams, selectedExam) {
   const examSelect = select("examId", exams.map((exam) => exam.id));
   examSelect.querySelectorAll("option").forEach((option) => {
     const exam = exams.find((item) => item.id === option.value);
@@ -1890,9 +1972,8 @@ function renderStudentExamList(exams, selectedExam) {
     selectedStudentExamId = examSelect.value;
     render();
   });
-  return panel("주간평가 목록", [
-    field("주차 선택", examSelect),
-  ]);
+  examSelect.classList.add("student-weekly-week-select");
+  return examSelect;
 }
 
 function renderStudentExamSubjectList(exam, sections, student) {
@@ -1903,6 +1984,7 @@ function renderStudentExamSubjectList(exam, sections, student) {
     sections.length
       ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "본인 직렬에 해당하는 과목이 없습니다."),
+    renderStudentWeeklyExamFiles(exam, sections, student),
   ]);
 }
 
@@ -1916,18 +1998,36 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
     submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
     submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
     submission?.status === "submitted"
-      ? renderStudentExamFiles(exam, section, canStudentSeeExplanation(exam, sections, student))
+      ? null
       : isExamOpen(exam)
         ? button("답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
         : el("p", { className: "subtle" }, "현재 응시할 수 없는 기간입니다."),
   ]);
 }
 
-function renderStudentExamFiles(exam, section, canOpen) {
-  if (!canOpen || exam.explanationReleaseMode === "hidden") return null;
-  const labels = { answer_pdf: "답안지" };
-  const files = (state.examFiles || []).filter((file) => file.examSectionId === section.id && file.fileType === "answer_pdf" && file.fileUrl);
-  return files.length ? el("div", { className: "student-exam-files" }, files.map((file) => el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, labels[file.fileType] || "파일"))) : null;
+function renderStudentWeeklyExamFiles(exam, sections, student) {
+  if (!sections.length || exam.explanationReleaseMode === "hidden") return null;
+  const allSubmitted = sections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
+  if (!allSubmitted || !canStudentSeeExplanation(exam, sections, student)) return null;
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const fileMap = new Map();
+  (state.examFiles || [])
+    .filter((file) => sectionIds.has(file.examSectionId) && file.fileType === "answer_pdf" && file.fileUrl)
+    .forEach((file) => {
+      const key = file.filePath || file.fileUrl || file.originalName || file.id;
+      if (!fileMap.has(key)) fileMap.set(key, file);
+    });
+  const files = [...fileMap.values()];
+  if (!files.length) return null;
+  return el("section", { className: "student-weekly-files" }, [
+    el("div", { className: "student-weekly-files-head" }, [
+      el("strong", {}, "답안 및 해설"),
+      el("span", {}, "모든 과목 제출 후 확인할 수 있습니다."),
+    ]),
+    el("div", { className: "student-exam-files" }, files.map((file, index) =>
+      el("a", { href: file.fileUrl, target: "_blank", rel: "noreferrer", className: "mini-btn" }, file.originalName || `답안지 ${index + 1}`)
+    )),
+  ]);
 }
 
 function getStudentSectionStatus(exam, section, submission) {
@@ -2032,6 +2132,7 @@ function renderStudentExamEntrySubjectList(exam, sections, student) {
     sections.length
       ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "입력할 주간평가 과목이 없습니다."),
+    renderStudentWeeklyExamFiles(exam, sections, student),
   ]);
 }
 
