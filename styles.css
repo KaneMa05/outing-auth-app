@@ -1482,16 +1482,21 @@ th {
 }
 
 .weekly-answer-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, auto);
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
 }
 
 .weekly-answer-header > div:first-child {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  align-content: start;
 }
 
 .weekly-answer-header strong {
@@ -1513,21 +1518,20 @@ th {
 }
 
 .weekly-answer-header-actions {
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  align-items: start;
   justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .weekly-answer-control-group {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   align-content: start;
-  padding: 10px 12px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface-soft);
+  background: #fff;
 }
 
 .weekly-answer-control-label {
@@ -1539,19 +1543,19 @@ th {
 
 .weekly-question-count-row {
   display: grid;
-  grid-template-columns: minmax(110px, 150px) auto;
-  gap: 10px;
+  grid-template-columns: minmax(96px, 150px) auto;
+  gap: 8px;
   align-items: end;
 }
 
 .weekly-question-count-tools {
-  min-width: 300px;
+  min-width: 280px;
 }
 
 .weekly-question-count-controls {
   display: flex;
   align-items: end;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: nowrap;
 }
 
@@ -1702,6 +1706,12 @@ th {
 .weekly-answer-modal-panel > .panel {
   min-height: 0;
   overflow: auto;
+  padding: 18px;
+  box-shadow: none;
+}
+
+.weekly-answer-modal-panel > .panel > h2 {
+  margin-bottom: 12px;
 }
 
 .weekly-answer-modal-panel .btn {
@@ -1820,7 +1830,8 @@ th {
 }
 
 .weekly-answer-picker.compact {
-  padding-bottom: 4px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1828,9 +1839,9 @@ th {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: #fff;
-  padding: 9px 12px;
+  padding: 8px 11px;
   color: var(--ink);
   text-align: left;
 }
@@ -1841,7 +1852,7 @@ th {
 
 .weekly-answer-chip.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: #eef6ff;
   color: var(--accent-strong);
 }
 
@@ -1888,6 +1899,7 @@ th {
 .student-weekly-files {
   display: grid;
   gap: 10px;
+  margin-top: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
@@ -2271,16 +2283,16 @@ th {
 
 .student-exam-subjects {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .student-exam-subject {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
-  padding: 14px;
+  padding: 15px 14px 16px;
 }
 
 .student-exam-subject > div:first-child,
@@ -5015,6 +5027,24 @@ body:not([data-app-mode="teacher"]) .btn {
     max-width: calc(100% - 24px);
   }
 
+}
+
+@media (max-width: 720px) {
+  .weekly-answer-header {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-answer-header-actions {
+    justify-content: stretch;
+  }
+
+  .weekly-question-count-tools {
+    min-width: 0;
+  }
+
+  .weekly-question-count-controls {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 430px) {

@@ -1184,7 +1184,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
       ]));
     }
   }
-  const picker = sections.length ? el("div", { className: "weekly-answer-picker compact" }, sections.map((item) =>
+  const picker = sections.length > 1 ? el("div", { className: "weekly-answer-picker compact" }, sections.map((item) =>
     button(
       "",
       item.id === section.id ? "weekly-answer-chip active" : "weekly-answer-chip",

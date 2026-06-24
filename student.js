@@ -1868,8 +1868,9 @@ function renderStudentWeeklyGrades(student) {
       ]),
     ]);
   }
-  const sections = getStudentExamSections(selectedExam, student);
-  const selectedSection = sections.find((section) => section.id === studentExamDraft.sectionId);
+  const readiness = getStudentWeeklyExamReadiness(selectedExam, student);
+  const sections = readiness.sections;
+  const selectedSection = readiness.isReady ? sections.find((section) => section.id === studentExamDraft.sectionId) : null;
   if (selectedSection) {
     return el("div", { className: "grid student-view student-exam-view student-answer-only-view" }, [
       renderStudentGradesBackPanel(),
@@ -1878,7 +1879,7 @@ function renderStudentWeeklyGrades(student) {
   }
   return el("div", { className: "grid student-view student-exam-view" }, [
     renderStudentWeeklyExamHeader(exams, selectedExam),
-    renderStudentExamEntrySubjectList(selectedExam, sections, student),
+    renderStudentExamEntrySubjectList(selectedExam, sections, student, readiness),
   ]);
 }
 
@@ -1919,15 +1920,43 @@ function getVisibleStudentExams(student) {
   const track = getStudentRegisteredTrack(student);
   const cohort = getStudentCohort(student);
   return (state.exams || [])
-    .filter((exam) => exam.isPublished)
+    .filter(isStudentWeeklyExamVisible)
     .filter((exam) => !exam.cohort || !cohort || String(exam.cohort) === cohort)
     .filter((exam) => (state.examSections || []).some((section) => section.examId === exam.id && isStudentSectionMatch(section, track)))
     .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber));
 }
 
+function isStudentWeeklyExamVisible(exam) {
+  if (!exam?.isPublished) return false;
+  if (!exam.startAt) return false;
+  const startTime = new Date(exam.startAt).getTime();
+  return Number.isFinite(startTime) && Date.now() >= startTime;
+}
+
 function getStudentExamSections(exam, student) {
   const track = getStudentRegisteredTrack(student);
   return (state.examSections || []).filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track));
+}
+
+function getStudentRequiredWeeklyExamSections(exam, student) {
+  const track = getStudentRegisteredTrack(student);
+  const sections = getStudentExamSections(exam, student);
+  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(track);
+  if (!requiredSubjects.length) return sections;
+  return requiredSubjects
+    .map((subject) => sections.find((section) => String(section.subject || "").trim() === subject))
+    .filter(Boolean);
+}
+
+function getStudentWeeklyExamReadiness(exam, student) {
+  const track = getStudentRegisteredTrack(student);
+  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(track);
+  const sections = getStudentExamSections(exam, student);
+  if (!requiredSubjects.length) return { isReady: sections.length > 0, sections, missingSubjects: [] };
+  const sectionBySubject = new Map(sections.map((section) => [String(section.subject || "").trim(), section]));
+  const readySections = requiredSubjects.map((subject) => sectionBySubject.get(subject)).filter(Boolean);
+  const missingSubjects = requiredSubjects.filter((subject) => !sectionBySubject.has(subject));
+  return { isReady: missingSubjects.length === 0, sections: readySections, missingSubjects };
 }
 
 function isStudentSectionMatch(section, studentTrack) {
@@ -1976,15 +2005,17 @@ function renderStudentExamWeekSelect(exams, selectedExam) {
   return examSelect;
 }
 
-function renderStudentExamSubjectList(exam, sections, student) {
+function renderStudentExamSubjectList(exam, sections, student, readiness = getStudentWeeklyExamReadiness(exam, student)) {
   const scoreOpen = canStudentSeeScore(exam, sections, student);
   const totalScore = sections.reduce((sum, section) => sum + (getStudentSubmission(student.id, section.id)?.score || 0), 0);
   return panel(formatStudentWeeklyExamName(exam.weekNumber), [
-    scoreOpen ? el("div", { className: "student-exam-total" }, [`총점 ${Math.round(totalScore * 10) / 10}점`, el("span", {}, `평균 ${Math.round((totalScore / Math.max(sections.length, 1)) * 10) / 10}점`)]) : null,
-    sections.length
+    readiness.isReady && scoreOpen ? el("div", { className: "student-exam-total" }, [`총점 ${Math.round(totalScore * 10) / 10}점`, el("span", {}, `평균 ${Math.round((totalScore / Math.max(sections.length, 1)) * 10) / 10}점`)]) : null,
+    !readiness.isReady
+      ? el("div", { className: "empty" }, "아직 과목이 입력되지 않았어요")
+      : sections.length
       ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "본인 직렬에 해당하는 과목이 없습니다."),
-    renderStudentWeeklyExamFiles(exam, sections, student),
+    readiness.isReady ? renderStudentWeeklyExamFiles(exam, sections, student) : null,
   ]);
 }
 
@@ -2007,9 +2038,12 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
 
 function renderStudentWeeklyExamFiles(exam, sections, student) {
   if (!sections.length || exam.explanationReleaseMode === "hidden") return null;
-  const allSubmitted = sections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
-  if (!allSubmitted || !canStudentSeeExplanation(exam, sections, student)) return null;
-  const sectionIds = new Set(sections.map((section) => section.id));
+  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(getStudentRegisteredTrack(student));
+  const requiredSections = getStudentRequiredWeeklyExamSections(exam, student);
+  const hasAllRequiredSections = !requiredSubjects.length || requiredSections.length >= requiredSubjects.length;
+  const allSubmitted = hasAllRequiredSections && requiredSections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
+  if (!allSubmitted) return null;
+  const sectionIds = new Set(requiredSections.map((section) => section.id));
   const fileMap = new Map();
   (state.examFiles || [])
     .filter((file) => sectionIds.has(file.examSectionId) && file.fileType === "answer_pdf" && file.fileUrl)
