@@ -3678,12 +3678,6 @@ body:not([data-app-mode="teacher"]) {
   background: var(--student-page-bg);
 }
 
-@media (max-width: 900px) {
-  body:not([data-app-mode="teacher"]) {
-    --student-safe-top: max(env(safe-area-inset-top, 0px), 58px);
-  }
-}
-
 body:not([data-app-mode="teacher"])::after {
   content: "";
   position: fixed;
@@ -3705,7 +3699,7 @@ body:not([data-app-mode="teacher"]) .sidebar {
   position: static;
   border-right: 0;
   border-bottom: 0;
-  padding: max(18px, calc(var(--student-safe-top) + 8px)) 18px 8px;
+  padding: 18px 18px 8px;
   background: transparent;
   backdrop-filter: none;
 }
@@ -5126,7 +5120,7 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   body:not([data-app-mode="teacher"]) .sidebar {
-    padding: max(16px, calc(var(--student-safe-top) + 6px)) 14px 6px;
+    padding: 16px 14px 6px;
   }
 
   body:not([data-app-mode="teacher"]) .main-shell {
