@@ -359,11 +359,11 @@ function renderWeeklyExamProblemLookupPanel() {
       el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
       el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
       el("td", {}, exam ? renderWeeklyExamRoundFileUpload(exam, subjectRows.map((item) => item.section).filter(Boolean)) : "-"),
-      el("td", { className: "action-cell weekly-exam-row-actions" }, exam
-        ? [
+      el("td", { className: "action-cell" }, exam
+        ? el("div", { className: "weekly-exam-row-actions" }, [
             button("관리", "mini-btn", "button", () => openWeeklyExamProblemDetail(exam.id)),
             button("초기화", "mini-btn danger", "button", () => openWeeklyExamResetModal(exam.id)),
-          ]
+          ])
         : el("span", { className: "subtle" }, "미생성")),
     ]);
   });
