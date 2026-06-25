@@ -3677,6 +3677,14 @@ body:not([data-app-mode="teacher"]) {
   background: #f4f6f8;
 }
 
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 900px) {
+    body:not([data-app-mode="teacher"]) {
+      --student-safe-top: max(env(safe-area-inset-top, 0px), 44px);
+    }
+  }
+}
+
 body:not([data-app-mode="teacher"])::before {
   content: "";
   position: fixed;
