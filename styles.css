@@ -3684,18 +3684,6 @@ body:not([data-app-mode="teacher"]) {
   }
 }
 
-body:not([data-app-mode="teacher"])::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 70;
-  width: 100%;
-  height: var(--student-safe-top);
-  background: var(--student-page-bg);
-  pointer-events: none;
-}
-
 body:not([data-app-mode="teacher"])::after {
   content: "";
   position: fixed;
@@ -3717,7 +3705,7 @@ body:not([data-app-mode="teacher"]) .sidebar {
   position: static;
   border-right: 0;
   border-bottom: 0;
-  padding: calc(18px + var(--student-safe-top)) 18px 8px;
+  padding: max(18px, calc(var(--student-safe-top) + 8px)) 18px 8px;
   background: transparent;
   backdrop-filter: none;
 }
@@ -5138,7 +5126,7 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   body:not([data-app-mode="teacher"]) .sidebar {
-    padding: calc(16px + var(--student-safe-top)) 14px 6px;
+    padding: max(16px, calc(var(--student-safe-top) + 6px)) 14px 6px;
   }
 
   body:not([data-app-mode="teacher"]) .main-shell {
