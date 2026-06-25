@@ -341,10 +341,11 @@ function renderWeeklyExamProblemLookupPanel() {
     const exam = exams.find((item) => Number(item.weekNumber) === weekNumber);
     const sections = exam ? getExamSections(exam.id) : [];
     const publishedCount = sections.filter(isWeeklyExamSectionPublished).length;
+    const sectionCount = sections.length || WEEKLY_EXAM_SUBJECTS.length;
     return el("tr", { className: exam ? "" : "weekly-unpublished-row" }, [
       el("td", {}, `${weekNumber}주차 주간평가`),
       el("td", {}, exam ? renderWeeklyExamPublishControl(exam) : "-"),
-      el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
+      el("td", {}, exam ? `${publishedCount}/${sectionCount}` : "-"),
       el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
       el("td", {}, exam ? renderWeeklyExamRoundFileUpload(exam, sections) : "-"),
       el("td", { className: "action-cell" }, exam
@@ -445,24 +446,24 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
   });
 
   const sections = getExamSections(selectedExam.id);
-  const rows = WEEKLY_EXAM_SUBJECTS.map((subject) => {
-    const section = sections.find((item) => item.subject === subject);
-    const answerCount = section ? countEnteredSectionAnswers(section) : 0;
-    const isPublished = Boolean(section && isWeeklyExamSectionPublished(section));
+  const rows = sections.length ? sections.map((section) => {
+    const answerCount = countEnteredSectionAnswers(section);
+    const isPublished = isWeeklyExamSectionPublished(section);
     return el("tr", { className: isPublished ? "" : "weekly-unpublished-row" }, [
-      el("td", {}, subject),
+      el("td", {}, section.track || "-"),
+      el("td", {}, section.subject || "-"),
       el("td", {}, section && section.isActive === false
         ? el("span", { className: "badge pending" }, "미사용")
         : el("span", { className: isPublished ? "badge approved" : "badge pending" }, isPublished ? "출제됨" : "미출제")),
-      el("td", {}, section ? `${section.questionCount || 20}문항` : "-"),
-      el("td", {}, section ? `${answerCount}/${section.questionCount || 20}` : "-"),
-      el("td", { className: "action-cell" }, section ? [
+      el("td", {}, `${section.questionCount || 20}문항`),
+      el("td", {}, `${answerCount}/${section.questionCount || 20}`),
+      el("td", { className: "action-cell" }, [
         button("답안 입력", "mini-btn", "button", () => {
           openWeeklyExamAnswerModal(section.id);
         }),
-      ].filter(Boolean) : "-"),
+      ].filter(Boolean)),
     ]);
-  });
+  }) : [el("tr", {}, [el("td", { colSpan: 6 }, el("div", { className: "empty table-empty" }, "등록된 주간평가 과목이 없습니다."))])];
 
   return el("section", { className: "panel weekly-exam-detail-panel" }, [
     el("div", { className: "panel-title-row weekly-detail-title-row" }, [
@@ -470,7 +471,7 @@ function renderWeeklyExamProblemDetailPanel(selectedExam) {
       button("주간평가 목록", "btn secondary", "button", () => closeWeeklyExamProblemDetail()),
     ]),
     periodForm,
-    table(["과목", "출제 여부", "문항", "정답 입력", "관리"], rows),
+    table(["직렬", "과목", "출제 여부", "문항", "정답 입력", "관리"], rows),
   ]);
 }
 
