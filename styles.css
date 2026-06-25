@@ -3669,19 +3669,18 @@ body:not([data-app-mode="teacher"]) .toast.show {
 }
 
 body:not([data-app-mode="teacher"]) {
+  --student-page-bg: #f4f6f8;
   --student-safe-top: env(safe-area-inset-top, 0px);
   --student-footer-safe-bottom: env(safe-area-inset-bottom, 0px);
   --student-footer-bottom: max(18px, calc(var(--student-footer-safe-bottom) + 12px));
   --student-content-bottom: calc(104px + var(--student-footer-safe-bottom));
   --student-toast-bottom: calc(var(--student-footer-bottom) + 104px);
-  background: #f4f6f8;
+  background: var(--student-page-bg);
 }
 
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 900px) {
-    body:not([data-app-mode="teacher"]) {
-      --student-safe-top: max(env(safe-area-inset-top, 0px), 44px);
-    }
+@media (max-width: 900px) {
+  body:not([data-app-mode="teacher"]) {
+    --student-safe-top: max(env(safe-area-inset-top, 0px), 58px);
   }
 }
 
@@ -3693,7 +3692,7 @@ body:not([data-app-mode="teacher"])::before {
   z-index: 70;
   width: 100%;
   height: var(--student-safe-top);
-  background: #fff;
+  background: var(--student-page-bg);
   pointer-events: none;
 }
 
@@ -3705,7 +3704,7 @@ body:not([data-app-mode="teacher"])::after {
   z-index: 25;
   width: 100%;
   height: var(--student-footer-bottom);
-  background: #f4f6f8;
+  background: var(--student-page-bg);
   pointer-events: none;
 }
 
