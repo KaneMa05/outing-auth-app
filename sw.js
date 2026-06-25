@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v161-attendance-settings-sync";
+const CACHE_NAME = "outing-auth-app-v162-weekly-exam-preparing-state";
 const APP_SHELL = [
   "/",
   "/index.html",

@@ -1968,7 +1968,8 @@ function isStudentSectionMatch(section, studentTrack) {
 
 function isStudentSectionPublished(section, studentTrack = "") {
   const answers = getStudentVisibleSectionAnswers(section, { track: studentTrack });
-  return answers.length > 0 && answers.every((answer) => answer.correctAnswer);
+  const questionCount = Number(section.questionCount) || 0;
+  return answers.length > 0 && answers.length >= questionCount && answers.every((answer) => answer.correctAnswer);
 }
 
 function getStudentVisibleSectionAnswers(section, student) {
@@ -2011,12 +2012,16 @@ function renderStudentExamSubjectList(exam, sections, student, readiness = getSt
   return panel(formatStudentWeeklyExamName(exam.weekNumber), [
     readiness.isReady && scoreOpen ? el("div", { className: "student-exam-total" }, [`총점 ${Math.round(totalScore * 10) / 10}점`, el("span", {}, `평균 ${Math.round((totalScore / Math.max(sections.length, 1)) * 10) / 10}점`)]) : null,
     !readiness.isReady
-      ? el("div", { className: "empty" }, "아직 과목이 입력되지 않았어요")
+      ? renderStudentWeeklyExamPreparingMessage()
       : sections.length
       ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "본인 직렬에 해당하는 과목이 없습니다."),
     readiness.isReady ? renderStudentWeeklyExamFiles(exam, sections, student) : null,
   ]);
+}
+
+function renderStudentWeeklyExamPreparingMessage() {
+  return el("div", { className: "empty" }, "시험 준비중입니다. 본인 직렬에 해당되는 시험 과목이 모두 올라오면 응시할 수 있습니다.");
 }
 
 function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen) {
@@ -2160,13 +2165,15 @@ function renderStudentAnswerProgress(answeredCount, questionCount, start, end) {
   ]);
 }
 
-function renderStudentExamEntrySubjectList(exam, sections, student) {
+function renderStudentExamEntrySubjectList(exam, sections, student, readiness = getStudentWeeklyExamReadiness(exam, student)) {
   const scoreOpen = canStudentSeeScore(exam, sections, student);
   return panel(formatStudentWeeklyExamName(exam.weekNumber), [
-    sections.length
+    !readiness.isReady
+      ? renderStudentWeeklyExamPreparingMessage()
+      : sections.length
       ? el("div", { className: "student-exam-subjects" }, sections.map((section) => renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen)))
       : el("div", { className: "empty" }, "입력할 주간평가 과목이 없습니다."),
-    renderStudentWeeklyExamFiles(exam, sections, student),
+    readiness.isReady ? renderStudentWeeklyExamFiles(exam, sections, student) : null,
   ]);
 }
 

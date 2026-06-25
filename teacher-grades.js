@@ -1085,13 +1085,17 @@ function resetSectionAnswerRows(section) {
 
 function getSectionAnswers(sectionId) {
   const section = (state.examSections || []).find((item) => item.id === sectionId);
+  const questionCount = section ? Number(section.questionCount) || 0 : 0;
+  if (section && questionCount > 0) {
+    state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== sectionId || Number(answer.questionNumber) <= questionCount);
+  }
   const answers = (state.examAnswers || []).filter((answer) => answer.examSectionId === sectionId);
   answers.forEach((answer) => {
     answer.targetTracks = normalizeWeeklyQuestionTargetTracks(answer.targetTracks);
   });
-  if (section && answers.length < section.questionCount) {
+  if (section && answers.length < questionCount) {
     const existing = new Set(answers.map((answer) => answer.questionNumber));
-    for (let i = 1; i <= section.questionCount; i += 1) {
+    for (let i = 1; i <= questionCount; i += 1) {
       if (!existing.has(i)) {
         const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, points: 5, targetTracks: getDefaultWeeklyQuestionTargetTracks() };
         state.examAnswers.push(row);
@@ -1251,11 +1255,13 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
 }
 
 function renderWeeklyQuestionCountControls(section, answers, options = {}) {
-  const countInput = input("questionCount", "number", "문항 수", String(answers.length || section.questionCount || 20));
+  const countInput = input("questionCount", "number", "문항 수", String(Number(section.questionCount) || answers.length || 20));
   countInput.min = "1";
   countInput.step = "1";
   const sectionIds = options.sectionIds || [];
+  const getCurrentCount = () => Number(section.questionCount) || Number(countInput.value) || answers.length || 20;
   const applyCount = async (nextCount) => {
+    countInput.value = String(Math.max(1, Number(nextCount) || 1));
     await updateWeeklyExamSectionQuestionCount(section, nextCount, {
       modal: options.modal,
       sectionIds,
@@ -1273,7 +1279,8 @@ function renderWeeklyQuestionCountControls(section, answers, options = {}) {
     el("span", { className: "weekly-answer-control-label" }, "문항 관리"),
     el("div", { className: "weekly-question-count-controls" }, [
       countForm,
-      button("+1 문항", "mini-btn secondary", "button", () => applyCount((Number(section.questionCount) || answers.length || 20) + 1)),
+      button("-1 문항", "mini-btn secondary", "button", () => applyCount(getCurrentCount() - 1)),
+      button("+1 문항", "mini-btn secondary", "button", () => applyCount(getCurrentCount() + 1)),
     ]),
   ]);
 }
