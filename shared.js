@@ -1074,7 +1074,7 @@ async function loadStateFromRemote() {
     remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true }),
     remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }).limit(10000),
     APP_MODE === "teacher" || scopedStudentId
-      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false })
+      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
       : Promise.resolve({ data: [], error: null }),
     APP_MODE === "teacher"
       ? remoteStore.from("submission_answers").select(submissionAnswerColumns).order("question_number", { ascending: true })
@@ -1202,9 +1202,6 @@ async function loadStateFromRemote() {
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
   if (finalExamScoreResult.error && !isMissingRelationError(finalExamScoreResult.error, "final_exam_scores")) throw finalExamScoreResult.error;
   if (studentRegistrationEventResult.error && !isMissingRelationError(studentRegistrationEventResult.error, "student_registration_events")) throw studentRegistrationEventResult.error;
-  if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
-    examSubmissionResult.data = (examSubmissionResult.data || []).filter((submission) => String(submission.student_id) === scopedStudentId);
-  }
   if (APP_MODE === "student" && loadedOutings.length) {
     const outingIds = loadedOutings.map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
