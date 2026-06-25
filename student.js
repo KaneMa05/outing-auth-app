@@ -1978,8 +1978,10 @@ function getStudentVisibleSectionAnswers(section, student) {
     : student?.id
       ? getStudentRegisteredTrack(student)
       : normalizeCoastGuardTrack(student?.track);
+  const questionCount = Number(section.questionCount) || 0;
   return (state.examAnswers || [])
     .filter((answer) => answer.examSectionId === section.id)
+    .filter((answer) => !questionCount || Number(answer.questionNumber) <= questionCount)
     .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, studentTrack))
     .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
 }
