@@ -990,16 +990,21 @@ function renderWeeklyExamSectionPanel(exam, sections) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
-    const section = createLocalExamSection(exam, normalizeCoastGuardTrack(data.track), String(data.subject || "").trim());
-    if (!section) return notify("이미 같은 직렬/과목이 있습니다.");
-    section.questionCount = Number(data.questionCount) || 20;
-    section.totalScore = Number(data.totalScore) || 100;
-    resetSectionAnswerRows(section);
-    weeklyExamSelectedSectionId = section.id;
-    saveState({ skipRemote: true });
-    await saveExamSectionsToRemote([section]);
-    await saveExamAnswersToRemote(getSectionAnswers(section.id));
-    render();
+    try {
+      const section = createLocalExamSection(exam, normalizeCoastGuardTrack(data.track), String(data.subject || "").trim());
+      if (!section) return notify("이미 같은 직렬/과목이 있습니다.");
+      section.questionCount = Number(data.questionCount) || 20;
+      section.totalScore = Number(data.totalScore) || 100;
+      resetSectionAnswerRows(section);
+      weeklyExamSelectedSectionId = section.id;
+      saveState({ skipRemote: true });
+      await saveExamSectionsToRemote([section]);
+      await saveExamAnswersToRemote(getSectionAnswers(section.id));
+      render();
+    } catch (error) {
+      console.error("Failed to create weekly exam section", error);
+      notify("과목 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
   });
   const rows = sections.map((section) => el("tr", { className: weeklyExamSelectedSectionId === section.id ? "selected-row" : "" }, [
     el("td", {}, button(section.subject, "link-btn", "button", () => {
@@ -1233,14 +1238,19 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
   ]);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    syncWeeklyAnswerFormState(form, answers);
-    saveState({ skipRemote: true });
-    const targetSection = (state.examSections || []).find((item) => item.id === section.id) || section;
-    await saveExamSectionsToRemote([targetSection]);
-    await saveExamAnswersToRemote(getSectionAnswers(section.id));
-    render();
-    if (options.modal) closeInfoModal();
-    notify("정답을 저장했습니다.");
+    try {
+      syncWeeklyAnswerFormState(form, answers);
+      saveState({ skipRemote: true });
+      const targetSection = (state.examSections || []).find((item) => item.id === section.id) || section;
+      await saveExamSectionsToRemote([targetSection]);
+      await saveExamAnswersToRemote(getSectionAnswers(section.id));
+      render();
+      if (options.modal) closeInfoModal();
+      notify("정답을 저장했습니다.");
+    } catch (error) {
+      console.error("Failed to save weekly exam answers", error);
+      notify("정답 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
   });
   return panel("정답 입력", [
     answerHeader,
@@ -1469,7 +1479,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     el("td", {}, summary.student.name || "-"),
     el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
     ...WEEKLY_EXAM_SUBJECTS.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
-    el("td", {}, summary.maxCorrect ? String(summary.wrongCount) : "-"),
+    el("td", {}, formatWeeklyWrongCountCell(summary)),
     el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
     el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
     el("td", {}, previousRank ? `${previousRank}등` : "-"),
@@ -1926,7 +1936,7 @@ function getWeeklyGradeStudentSummary(exam, student) {
     maxScore,
     correctCount,
     maxCorrect,
-    wrongCount: Math.max(0, maxCorrect - correctCount),
+    wrongCount: maxCorrect ? Math.max(0, maxCorrect - correctCount) : "",
     subjectScores,
     latestSubmittedAt,
     status,
@@ -2033,6 +2043,12 @@ function formatSubjectScoreCell(subjectScore) {
   if (subjectScore.status === "empty") return "-";
   const score = Number(subjectScore.score) || 0;
   return String(score);
+}
+
+function formatWeeklyWrongCountCell(summary) {
+  if (!summary || !summary.maxCorrect) return "-";
+  if (summary.wrongCount === "" || summary.wrongCount === null || summary.wrongCount === undefined) return "-";
+  return String(Number(summary.wrongCount) || 0);
 }
 
 function formatFinalGradeTableSubjectHeader(subject, track = "") {
@@ -2338,20 +2354,69 @@ async function deleteExamSectionFromRemote(sectionId) {
 
 async function saveExamAnswersToRemote(answers) {
   if (!remoteStore || !answers.length) return;
-  const rows = answers.map((answer) => ({
-    id: answer.id,
+  const uniqueAnswers = getUniqueExamAnswersByQuestion(answers);
+  if (!uniqueAnswers.length) return;
+  const answerConflictKey = "exam_section_id,question_number";
+  let rows = buildExamAnswerRows(uniqueAnswers, { includeId: false });
+  let { error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: answerConflictKey });
+  if (isMissingColumnError(error, "target_tracks")) {
+    const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
+    ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: answerConflictKey }));
+  }
+  if (isDuplicateConstraintError(error, "exam_answers_pkey")) {
+    await syncRemoteExamAnswerIds(uniqueAnswers);
+    rows = buildExamAnswerRows(uniqueAnswers);
+    ({ error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: "id" }));
+    if (isMissingColumnError(error, "target_tracks")) {
+      const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
+      ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: "id" }));
+    }
+  }
+  if (error) throw error;
+}
+
+function getUniqueExamAnswersByQuestion(answers) {
+  const answersByQuestion = new Map();
+  answers.forEach((answer) => {
+    const questionNumber = Number(answer.questionNumber) || 0;
+    if (!answer.examSectionId || questionNumber < 1) return;
+    answersByQuestion.set(`${answer.examSectionId}|||${questionNumber}`, answer);
+  });
+  return Array.from(answersByQuestion.values());
+}
+
+function buildExamAnswerRows(answers, options = {}) {
+  return answers.map((answer) => ({
+    ...(options.includeId === false ? {} : { id: answer.id }),
     exam_section_id: answer.examSectionId,
-    question_number: answer.questionNumber,
+    question_number: Number(answer.questionNumber) || 0,
     correct_answer: answer.correctAnswer || null,
     points: 5,
     target_tracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
   }));
-  let { error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: "id" });
-  if (isMissingColumnError(error, "target_tracks")) {
-    const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
-    ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: "id" }));
-  }
+}
+
+async function syncRemoteExamAnswerIds(answers) {
+  if (!remoteStore || !answers.length) return;
+  const sectionIds = Array.from(new Set(answers.map((answer) => answer.examSectionId).filter(Boolean)));
+  if (!sectionIds.length) return;
+  const { data, error } = await remoteStore
+    .from("exam_answers")
+    .select("id,exam_section_id,question_number")
+    .in("exam_section_id", sectionIds);
   if (error) throw error;
+  const remoteIds = new Map((data || []).map((row) => [
+    `${row.exam_section_id}|||${Number(row.question_number) || 0}`,
+    row.id,
+  ]));
+  answers.forEach((answer) => {
+    const remoteId = remoteIds.get(`${answer.examSectionId}|||${Number(answer.questionNumber) || 0}`);
+    if (remoteId) answer.id = remoteId;
+  });
+}
+
+function isDuplicateConstraintError(error, constraintName) {
+  return Boolean(error && error.code === "23505" && String(error.message || "").includes(constraintName));
 }
 
 async function saveExamFilesToRemote(files) {
