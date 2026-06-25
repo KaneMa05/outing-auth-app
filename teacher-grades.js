@@ -848,11 +848,12 @@ function renderTrackSubjectManagement() {
         return el("tr", {}, [
           el("th", {}, normalizedTrack),
           ...WEEKLY_SUBJECT_OPTIONS.map((subject) => {
+            const excluded = isWeeklySubjectExcludedForTrack(subject, normalizedTrack);
             const checked = hasSavedByTrack.has(normalizedTrack)
-              ? activeSettings.has(`${normalizedTrack}|||${subject}`)
+              ? activeSettings.has(`${normalizedTrack}|||${subject}`) && !excluded
               : defaultSubjects.includes(subject);
             return el("td", {}, el("label", { className: "track-subject-check" }, [
-              el("input", { type: "checkbox", name: `${normalizedTrack}|||${subject}`, checked }),
+              el("input", { type: "checkbox", name: `${normalizedTrack}|||${subject}`, checked, disabled: excluded }),
               el("span", {}, "응시"),
             ]));
           }),
@@ -873,7 +874,7 @@ function renderTrackSubjectManagement() {
       return WEEKLY_SUBJECT_OPTIONS.map((subject, index) => {
         const key = `${normalizedTrack}|||${subject}`;
         const current = existing.get(key);
-        const checked = Boolean(form.querySelector(`input[name="${CSS.escape(key)}"]`)?.checked);
+        const checked = !isWeeklySubjectExcludedForTrack(subject, normalizedTrack) && Boolean(form.querySelector(`input[name="${CSS.escape(key)}"]`)?.checked);
         return {
           ...(current || {}),
           id: current?.id || createId(),
@@ -907,7 +908,7 @@ function resetTrackSubjectDefaults(form, tracks) {
     WEEKLY_SUBJECT_OPTIONS.forEach((subject) => {
       const key = `${normalizedTrack}|||${subject}`;
       const checkbox = form.querySelector(`input[name="${CSS.escape(key)}"]`);
-      if (checkbox) checkbox.checked = defaultSubjects.includes(subject);
+      if (checkbox) checkbox.checked = defaultSubjects.includes(subject) && !isWeeklySubjectExcludedForTrack(subject, normalizedTrack);
     });
   });
 }

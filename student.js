@@ -1969,6 +1969,9 @@ function isStudentSectionMatch(section, studentTrack) {
 function isStudentSectionPublished(section, studentTrack = "") {
   const answers = getStudentVisibleSectionAnswers(section, { track: studentTrack });
   const questionCount = Number(section.questionCount) || 0;
+  if (isWeeklyQuestionTrackScopedSubject(section.subject)) {
+    return answers.length > 0 && answers.every((answer) => answer.correctAnswer);
+  }
   return answers.length > 0 && answers.length >= questionCount && answers.every((answer) => answer.correctAnswer);
 }
 

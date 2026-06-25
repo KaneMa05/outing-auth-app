@@ -212,6 +212,11 @@ const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
 const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
 const WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
+const WEEKLY_TRACK_EXCLUDED_SUBJECTS = {
+  "경찰직 - 해상교통관제(VTS)(순경)": ["해상교통관리"],
+  "일반직 - 선박교통관제(VTS)": ["해상교통관리"],
+};
+const WEEKLY_VTS_TRACKS = Object.keys(WEEKLY_TRACK_EXCLUDED_SUBJECTS);
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
   "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
@@ -220,11 +225,23 @@ const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 함정요원 기관(순경)": ["해양경찰학개론", "해사법규", "해사영어", "기관학"],
   "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
   "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
-  "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학", "해상교통관리"],
-  "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어", "해상교통관리"],
+  "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학"],
+  "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어"],
   "경찰직 - 경위 공채(해양-기관)": ["해양경찰학개론", "해사법규", "형사법", "기관학", "형사법(공판)"],
   "경찰직 - 경위 공채(해양-항해)": ["해양경찰학개론", "해사법규", "형사법", "항해학", "형사법(공판)"],
 };
+
+function isWeeklySubjectExcludedForTrack(subject, track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const normalizedSubject = String(subject || "").trim();
+  const excludedSubjects = WEEKLY_TRACK_EXCLUDED_SUBJECTS[normalizedTrack] || [];
+  return excludedSubjects.includes(normalizedSubject);
+}
+
+function isWeeklyVtsTrack(track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  return WEEKLY_VTS_TRACKS.includes(normalizedTrack);
+}
 
 function getDefaultWeeklyQuestionTargetTracks() {
   return [...WEEKLY_QUESTION_FIXED_TRACKS];
@@ -252,7 +269,8 @@ function isWeeklyQuestionTrackScopedSubject(subject) {
 
 function getDefaultWeeklySubjectsForTrack(track) {
   const normalized = normalizeCoastGuardTrack(track);
-  return WEEKLY_DEFAULT_TRACK_SUBJECTS[normalized] || ["해양경찰학개론", "해사법규", "형사법"];
+  return (WEEKLY_DEFAULT_TRACK_SUBJECTS[normalized] || ["해양경찰학개론", "해사법규", "형사법"])
+    .filter((subject) => !isWeeklySubjectExcludedForTrack(subject, normalized));
 }
 
 function getConfiguredWeeklySubjectsForTrack(track) {
@@ -265,7 +283,7 @@ function getConfiguredWeeklySubjectsForTrack(track) {
     return saved
       .filter((setting) => setting.isActive !== false)
       .map((setting) => String(setting.subject || "").trim())
-      .filter(Boolean);
+      .filter((subject) => subject && !isWeeklySubjectExcludedForTrack(subject, normalized));
   }
   return getDefaultWeeklySubjectsForTrack(normalized);
 }
@@ -292,8 +310,7 @@ function getFinalGradeSubjectsForTrack(track, finalSubjects) {
 }
 
 function formatFinalGradeSubjectDisplayName(subject, track = "") {
-  const normalizedTrack = normalizeCoastGuardTrack(track);
-  if (subject === "법규" && normalizedTrack === "일반직 - 선박교통관제(VTS)") {
+  if (subject === "법규" && isWeeklyVtsTrack(track)) {
     return "해사법규(해상교통관리)";
   }
   const names = {
@@ -317,6 +334,7 @@ function isWeeklySubjectAllowedForTrack(subject, track) {
   const normalizedTrack = normalizeCoastGuardTrack(track);
   const normalizedSubject = String(subject || "").trim();
   if (!normalizedSubject || !normalizedTrack) return true;
+  if (isWeeklySubjectExcludedForTrack(normalizedSubject, normalizedTrack)) return false;
   if (hasSavedWeeklySubjectSettingsForTrack(normalizedTrack)) {
     return (state.examSubjectSettings || []).some((setting) =>
       normalizeCoastGuardTrack(setting.track) === normalizedTrack &&
