@@ -2696,6 +2696,17 @@ async function deleteExamAnswersFromRemote(sectionIds, answerIds = []) {
   if (!remoteStore) return;
   const cleanSectionIds = sectionIds.filter(Boolean);
   const cleanAnswerIds = answerIds.filter(Boolean);
+  if (APP_MODE === "teacher") {
+    const response = await fetch("/api/exam-answers", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sectionIds: cleanSectionIds, ids: cleanAnswerIds }),
+    });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) throw new Error(data.error || "exam_answer_delete_failed");
+    return;
+  }
   if (cleanSectionIds.length) {
     const { error } = await remoteStore.from("exam_answers").delete().in("exam_section_id", cleanSectionIds);
     if (!error) return;
