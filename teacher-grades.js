@@ -1,3 +1,5 @@
+let weeklyExamRoundFileUploadProgress = null;
+
 function renderWeeklyExamManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
   const selectedLookupExam = weeklyExamMode === "lookup" && weeklyExamSelectedId
@@ -477,10 +479,13 @@ function renderWeeklyExamRoundFileUpload(exam, sections) {
   const sectionIds = new Set(activeSections.map((section) => section.id));
   const files = getWeeklyExamRoundFiles(sectionIds);
   const remainingFileCount = Math.max(0, WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT - files.length);
+  const uploadProgress = getWeeklyExamRoundFileUploadProgress(exam.id);
+  const isUploading = Boolean(uploadProgress);
   const inputNode = el("input", { type: "file", accept: "application/pdf", multiple: remainingFileCount > 1, className: "visually-hidden-file" });
   const uploadButton = button(files.length ? "추가" : "업로드", "mini-btn", "button", () => inputNode.click());
-  uploadButton.disabled = remainingFileCount <= 0;
-  if (uploadButton.disabled) uploadButton.title = `PDF ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다.`;
+  uploadButton.disabled = remainingFileCount <= 0 || isUploading;
+  if (isUploading) uploadButton.title = "답안지를 업로드하는 중입니다.";
+  else if (uploadButton.disabled) uploadButton.title = `PDF ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다.`;
   inputNode.addEventListener("change", async () => {
     await uploadWeeklyExamRoundAnswerFiles(exam, activeSections, inputNode.files);
     inputNode.value = "";
@@ -499,7 +504,45 @@ function renderWeeklyExamRoundFileUpload(exam, sections) {
       uploadButton,
       inputNode,
     ]),
+    uploadProgress ? renderWeeklyExamRoundFileUploadProgress(uploadProgress) : null,
   ]);
+}
+
+function getWeeklyExamRoundFileUploadProgress(examId) {
+  return weeklyExamRoundFileUploadProgress?.examId === examId ? weeklyExamRoundFileUploadProgress : null;
+}
+
+function setWeeklyExamRoundFileUploadProgress(examId, payload) {
+  weeklyExamRoundFileUploadProgress = {
+    examId,
+    percent: Math.max(0, Math.min(100, Math.round(Number(payload.percent) || 0))),
+    label: payload.label || "업로드 준비 중",
+    detail: payload.detail || "",
+  };
+  render();
+}
+
+function clearWeeklyExamRoundFileUploadProgress(examId, delay = 0) {
+  const clear = () => {
+    if (weeklyExamRoundFileUploadProgress?.examId !== examId) return;
+    weeklyExamRoundFileUploadProgress = null;
+    render();
+  };
+  if (delay > 0) window.setTimeout(clear, delay);
+  else clear();
+}
+
+function renderWeeklyExamRoundFileUploadProgress(progress) {
+  return el("div", { className: "weekly-inline-upload-progress", ariaLive: "polite" }, [
+    el("div", { className: "weekly-inline-upload-progress-top" }, [
+      el("strong", {}, progress.label),
+      el("span", {}, `${progress.percent}%`),
+    ]),
+    el("div", { className: "weekly-inline-upload-progress-track", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(progress.percent) }, [
+      el("span", { style: `width: ${progress.percent}%` }),
+    ]),
+    progress.detail ? el("small", {}, progress.detail) : null,
+  ].filter(Boolean));
 }
 
 function getWeeklyExamRoundFiles(sectionIds) {
@@ -528,6 +571,11 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
   if (files.length > remainingFileCount) return notify(`PDF는 최대 ${WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT}개까지 업로드할 수 있습니다. ${remainingFileCount}개만 더 선택해주세요.`);
 
   const createdRows = [];
+  setWeeklyExamRoundFileUploadProgress(exam.id, {
+    percent: 5,
+    label: "업로드 준비 중",
+    detail: `${files.length}개 PDF 확인 완료`,
+  });
 
   if (!remoteStore) {
     files.forEach((file) => {
@@ -546,19 +594,37 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
     });
     state.examFiles = [...(state.examFiles || []), ...createdRows];
     saveState({ skipRemote: true });
-    render();
-    return notify(`로컬에 답안지 ${files.length}개 파일명을 저장했습니다. Supabase 연결 후 실제 업로드가 가능합니다.`);
+    setWeeklyExamRoundFileUploadProgress(exam.id, {
+      percent: 100,
+      label: "저장 완료",
+      detail: "로컬 파일명이 저장되었습니다.",
+    });
+    notify(`로컬에 답안지 ${files.length}개 파일명을 저장했습니다. Supabase 연결 후 실제 업로드가 가능합니다.`);
+    clearWeeklyExamRoundFileUploadProgress(exam.id, 900);
+    return;
   }
 
+  const totalSteps = files.length + 1;
   for (const [index, file] of files.entries()) {
     const uploadedAt = new Date().toISOString();
     const path = `${exam.id}/round-answer-${Date.now()}-${index}-${sanitizeStorageFileName(file.name)}`;
     const uploadBody = file.type === "application/pdf" ? file : new Blob([file], { type: "application/pdf" });
+    setWeeklyExamRoundFileUploadProgress(exam.id, {
+      percent: Math.max(8, Math.round((index / totalSteps) * 100)),
+      label: `PDF 업로드 중 (${index + 1}/${files.length})`,
+      detail: file.name || "answer.pdf",
+    });
     const { error: uploadError } = await remoteStore.storage.from("exam-files").upload(path, uploadBody, { contentType: "application/pdf" });
     if (uploadError) {
       console.error(uploadError);
+      clearWeeklyExamRoundFileUploadProgress(exam.id);
       return notify(`파일 업로드에 실패했습니다. ${formatStorageUploadError(uploadError)}`);
     }
+    setWeeklyExamRoundFileUploadProgress(exam.id, {
+      percent: Math.round(((index + 1) / totalSteps) * 100),
+      label: `PDF 업로드 완료 (${index + 1}/${files.length})`,
+      detail: file.name || "answer.pdf",
+    });
     const { data } = remoteStore.storage.from("exam-files").getPublicUrl(path);
     sections.forEach((section) => {
       createdRows.push({
@@ -575,15 +641,26 @@ async function uploadWeeklyExamRoundAnswerFiles(exam, sections, fileList) {
   const previousFiles = [...(state.examFiles || [])];
   state.examFiles = [...previousFiles, ...createdRows];
   try {
+    setWeeklyExamRoundFileUploadProgress(exam.id, {
+      percent: Math.round((files.length / totalSteps) * 100),
+      label: "기록 저장 중",
+      detail: "업로드한 답안지를 과목에 연결하고 있습니다.",
+    });
     await saveExamFilesToRemote(createdRows);
     saveState({ skipRemote: true });
-    render();
+    setWeeklyExamRoundFileUploadProgress(exam.id, {
+      percent: 100,
+      label: "업로드 완료",
+      detail: `${files.length}개 PDF가 저장되었습니다.`,
+    });
     notify(`회차 답안지 ${files.length}개를 업로드했습니다.`);
+    clearWeeklyExamRoundFileUploadProgress(exam.id, 900);
   } catch (error) {
     console.error(error);
     state.examFiles = previousFiles;
     const paths = [...new Set(createdRows.map((row) => row.filePath).filter(Boolean))];
     if (paths.length) await remoteStore.storage.from("exam-files").remove(paths).catch((removeError) => console.error(removeError));
+    clearWeeklyExamRoundFileUploadProgress(exam.id);
     notify("답안지 기록 저장에 실패했습니다. Supabase exam_files 스키마와 권한을 확인해주세요.");
   }
 }
@@ -2359,9 +2436,17 @@ async function saveExamAnswersToRemote(answers) {
   const answerConflictKey = "exam_section_id,question_number";
   let rows = buildExamAnswerRows(uniqueAnswers, { includeId: false });
   let { error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: answerConflictKey });
+  if (isMissingConflictConstraintError(error)) {
+    await saveExamAnswersToRemoteWithoutQuestionConflict(uniqueAnswers);
+    return;
+  }
   if (isMissingColumnError(error, "target_tracks")) {
     const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
     ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: answerConflictKey }));
+    if (isMissingConflictConstraintError(error)) {
+      await saveExamAnswersToRemoteWithoutQuestionConflict(uniqueAnswers, { omitTargetTracks: true });
+      return;
+    }
   }
   if (isDuplicateConstraintError(error, "exam_answers_pkey")) {
     await syncRemoteExamAnswerIds(uniqueAnswers);
@@ -2373,6 +2458,44 @@ async function saveExamAnswersToRemote(answers) {
     }
   }
   if (error) throw error;
+}
+
+async function saveExamAnswersToRemoteWithoutQuestionConflict(answers, options = {}) {
+  const uniqueAnswers = getUniqueExamAnswersByQuestion(answers);
+  if (!remoteStore || !uniqueAnswers.length) return;
+  const sectionIds = Array.from(new Set(uniqueAnswers.map((answer) => answer.examSectionId).filter(Boolean)));
+  const { data, error: selectError } = await remoteStore
+    .from("exam_answers")
+    .select("id,exam_section_id,question_number")
+    .in("exam_section_id", sectionIds);
+  if (selectError) throw selectError;
+  const remoteIds = new Map((data || []).map((row) => [
+    `${row.exam_section_id}|||${Number(row.question_number) || 0}`,
+    row.id,
+  ]));
+  for (const answer of uniqueAnswers) {
+    const remoteId = remoteIds.get(`${answer.examSectionId}|||${Number(answer.questionNumber) || 0}`);
+    if (remoteId) answer.id = remoteId;
+    const [row] = buildExamAnswerRows([answer], { includeId: Boolean(answer.id) });
+    const payload = options.omitTargetTracks
+      ? (({ target_tracks, ...rest }) => rest)(row)
+      : row;
+    if (remoteId) {
+      let { error } = await remoteStore.from("exam_answers").update(payload).eq("id", remoteId);
+      if (isMissingColumnError(error, "target_tracks") && !options.omitTargetTracks) {
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { omitTargetTracks: true });
+        continue;
+      }
+      if (error) throw error;
+    } else {
+      let { error } = await remoteStore.from("exam_answers").insert(payload);
+      if (isMissingColumnError(error, "target_tracks") && !options.omitTargetTracks) {
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { omitTargetTracks: true });
+        continue;
+      }
+      if (error) throw error;
+    }
+  }
 }
 
 function getUniqueExamAnswersByQuestion(answers) {
@@ -2417,6 +2540,10 @@ async function syncRemoteExamAnswerIds(answers) {
 
 function isDuplicateConstraintError(error, constraintName) {
   return Boolean(error && error.code === "23505" && String(error.message || "").includes(constraintName));
+}
+
+function isMissingConflictConstraintError(error) {
+  return Boolean(error && (error.code === "42P10" || String(error.message || "").includes("no unique or exclusion constraint")));
 }
 
 async function saveExamFilesToRemote(files) {
