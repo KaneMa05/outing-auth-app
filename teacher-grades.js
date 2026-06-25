@@ -359,8 +359,11 @@ function renderWeeklyExamProblemLookupPanel() {
       el("td", {}, exam ? `${publishedCount}/${WEEKLY_EXAM_SUBJECTS.length}` : "-"),
       el("td", {}, exam ? formatWeeklyExamPeriod(exam) : "-"),
       el("td", {}, exam ? renderWeeklyExamRoundFileUpload(exam, subjectRows.map((item) => item.section).filter(Boolean)) : "-"),
-      el("td", { className: "action-cell" }, exam
-        ? button("관리", "mini-btn", "button", () => openWeeklyExamProblemDetail(exam.id))
+      el("td", { className: "action-cell weekly-exam-row-actions" }, exam
+        ? [
+            button("관리", "mini-btn", "button", () => openWeeklyExamProblemDetail(exam.id)),
+            button("초기화", "mini-btn danger", "button", () => openWeeklyExamResetModal(exam.id)),
+          ]
         : el("span", { className: "subtle" }, "미생성")),
     ]);
   });
@@ -398,6 +401,92 @@ function renderWeeklyExamPublishControl(exam) {
     }
   });
   return selectNode;
+}
+
+function openWeeklyExamResetModal(examId) {
+  const exam = (state.exams || []).find((item) => item.id === examId);
+  if (!exam) return notify("초기화할 주간평가를 찾을 수 없습니다.");
+  const confirmInput = input("resetConfirm", "text", "초기화");
+  confirmInput.autocomplete = "off";
+  const confirmButton = button("확인", "btn danger", "button");
+  confirmButton.disabled = true;
+  confirmInput.addEventListener("input", () => {
+    confirmButton.disabled = confirmInput.value.trim() !== "초기화";
+  });
+  confirmButton.addEventListener("click", async () => {
+    if (confirmInput.value.trim() !== "초기화") return;
+    confirmButton.disabled = true;
+    confirmInput.disabled = true;
+    try {
+      await resetWeeklyExamRound(exam);
+      closeInfoModal();
+      render();
+      notify("주간평가를 초기화했습니다.");
+    } catch (error) {
+      console.error(error);
+      confirmButton.disabled = false;
+      confirmInput.disabled = false;
+      notify("초기화 중 오류가 발생했습니다. Supabase 권한을 확인해주세요.");
+    }
+  });
+  closeInfoModal();
+  const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
+    el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "초기화 닫기" }),
+    el("div", { className: "info-modal-panel weekly-reset-modal" }, [
+      el("strong", {}, "주간평가 초기화"),
+      el("div", { className: "weekly-reset-content" }, [
+        el("p", {}, `${formatWeeklyExamName(exam.weekNumber, exam.cohort)}의 공개 여부, 응시 시작일, 답안지 업로드, 과목별 정답을 모두 초기화합니다.`),
+        el("p", { className: "subtle" }, "학생 제출 기록과 성적 기록은 삭제하지 않습니다."),
+        field("확인 문구", confirmInput, "", "'초기화'를 정확히 입력해야 확인할 수 있습니다."),
+        el("div", { className: "attendance-modal-actions" }, [
+          button("취소", "btn secondary", "button", closeInfoModal),
+          confirmButton,
+        ]),
+      ]),
+    ]),
+  ]);
+  modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
+  document.body.appendChild(modal);
+  document.addEventListener("keydown", closeInfoModalOnEscape);
+  requestAnimationFrame(() => confirmInput.focus());
+}
+
+async function resetWeeklyExamRound(exam) {
+  const sectionIds = getExamSections(exam.id).map((section) => section.id);
+  const sectionIdSet = new Set(sectionIds);
+  const targetFiles = (state.examFiles || []).filter((file) => sectionIdSet.has(file.examSectionId));
+  const targetAnswerIds = new Set(
+    (state.examAnswers || [])
+      .filter((answer) => sectionIdSet.has(answer.examSectionId))
+      .map((answer) => answer.id)
+  );
+  const previousExam = { ...exam };
+  const previousFiles = [...(state.examFiles || [])];
+  const previousAnswers = [...(state.examAnswers || [])];
+
+  exam.isPublished = false;
+  exam.startAt = "";
+  exam.endAt = "";
+  exam.updatedAt = new Date().toISOString();
+  state.examFiles = (state.examFiles || []).filter((file) => !sectionIdSet.has(file.examSectionId));
+  state.examAnswers = (state.examAnswers || []).filter((answer) => !sectionIdSet.has(answer.examSectionId));
+  saveState({ skipRemote: true });
+
+  try {
+    if (remoteStore) {
+      await saveWeeklyExamToRemote(exam);
+      const paths = [...new Set(targetFiles.map((file) => file.filePath).filter(Boolean))];
+      if (paths.length) await remoteStore.storage.from("exam-files").remove(paths);
+      await deleteExamFilesFromRemote(targetFiles.map((file) => file.id));
+      await deleteExamAnswersFromRemote(sectionIds, [...targetAnswerIds]);
+    }
+  } catch (error) {
+    Object.assign(exam, previousExam);
+    state.examFiles = previousFiles;
+    state.examAnswers = previousAnswers;
+    saveState({ skipRemote: true });
+    throw error;
+  }
 }
 
 function openWeeklyExamProblemDetail(examId, options = {}) {
@@ -2597,6 +2686,21 @@ async function deleteExamFilesFromRemote(fileIds) {
   }
   const { error } = await remoteStore.from("exam_files").delete().in("id", fileIds);
   if (error) throw error;
+}
+
+async function deleteExamAnswersFromRemote(sectionIds, answerIds = []) {
+  if (!remoteStore) return;
+  const cleanSectionIds = sectionIds.filter(Boolean);
+  const cleanAnswerIds = answerIds.filter(Boolean);
+  if (cleanSectionIds.length) {
+    const { error } = await remoteStore.from("exam_answers").delete().in("exam_section_id", cleanSectionIds);
+    if (!error) return;
+    if (!cleanAnswerIds.length) throw error;
+  }
+  if (cleanAnswerIds.length) {
+    const { error } = await remoteStore.from("exam_answers").delete().in("id", cleanAnswerIds);
+    if (error) throw error;
+  }
 }
 
 async function saveExamSubjectSettingsToRemote(settings) {

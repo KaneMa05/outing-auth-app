@@ -1325,6 +1325,26 @@ th {
   color: #7a5300;
 }
 
+.weekly-exam-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.info-modal-panel.weekly-reset-modal {
+  max-width: 460px;
+}
+
+.weekly-reset-content {
+  display: grid;
+  gap: 12px;
+}
+
+.weekly-reset-content .field {
+  margin: 0;
+}
+
 .link-btn {
   border: 0;
   background: transparent;
