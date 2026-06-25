@@ -24,7 +24,6 @@ let weeklyExamAnswerScoped = false;
 let weeklyExamSelectedCohort = DEFAULT_STUDENT_COHORT;
 let weeklyExamGradeFilters = { examId: "", track: "", subject: "", weekNumber: "1" };
 let weeklyExamAutoCreatingCohorts = new Set();
-let weeklyExamAnswerSaveTimers = new Map();
 let attendanceHolidayCalendarMonth = "";
 let attendanceHolidayDraftOverrides = null;
 let attendanceHolidaySavedMessage = "";

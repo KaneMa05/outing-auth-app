@@ -1106,7 +1106,7 @@ function getSectionAnswers(sectionId) {
   return answers.sort((a, b) => a.questionNumber - b.questionNumber);
 }
 
-async function updateWeeklyExamSectionQuestionCount(section, nextCount, options = {}) {
+function updateWeeklyExamSectionQuestionCount(section, nextCount, options = {}) {
   const targetSection = (state.examSections || []).find((item) => item.id === section.id);
   if (!targetSection) return notify("문항 수를 변경할 과목을 찾을 수 없습니다.");
   const questionCount = Number(nextCount) || 0;
@@ -1126,11 +1126,9 @@ async function updateWeeklyExamSectionQuestionCount(section, nextCount, options 
     answer.points = 5;
   });
   saveState({ skipRemote: true });
-  await saveExamSectionsToRemote([targetSection]);
-  await saveExamAnswersToRemote(currentAnswers);
   render();
   if (options.modal) openWeeklyExamAnswerModal(targetSection.id, options.sectionIds || []);
-  notify("문항 수를 변경했습니다.");
+  notify("문항 수를 변경했습니다. 정답 저장을 누르면 반영됩니다.");
 }
 
 function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
@@ -1154,8 +1152,6 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
       answer.correctAnswer = Number(answerInput.value) || 0;
       answer.points = 5;
       saveState({ skipRemote: true });
-      render();
-      scheduleWeeklyExamAnswerAutosave(section.id, answers);
       if (answerInput.value) focusNextAnswerInput(answerInput);
     });
     answerInput.addEventListener("keydown", (event) => {
@@ -1238,11 +1234,9 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     event.preventDefault();
     syncWeeklyAnswerFormState(form, answers);
     saveState({ skipRemote: true });
-    if (weeklyExamAnswerSaveTimers.has(section.id)) {
-      clearTimeout(weeklyExamAnswerSaveTimers.get(section.id));
-      weeklyExamAnswerSaveTimers.delete(section.id);
-    }
-    await saveExamAnswersToRemote(answers);
+    const targetSection = (state.examSections || []).find((item) => item.id === section.id) || section;
+    await saveExamSectionsToRemote([targetSection]);
+    await saveExamAnswersToRemote(getSectionAnswers(section.id));
     render();
     if (options.modal) closeInfoModal();
     notify("정답을 저장했습니다.");
@@ -1260,9 +1254,9 @@ function renderWeeklyQuestionCountControls(section, answers, options = {}) {
   countInput.step = "1";
   const sectionIds = options.sectionIds || [];
   const getCurrentCount = () => Number(section.questionCount) || Number(countInput.value) || answers.length || 20;
-  const applyCount = async (nextCount) => {
+  const applyCount = (nextCount) => {
     countInput.value = String(Math.max(1, Number(nextCount) || 1));
-    await updateWeeklyExamSectionQuestionCount(section, nextCount, {
+    updateWeeklyExamSectionQuestionCount(section, nextCount, {
       modal: options.modal,
       sectionIds,
     });
@@ -1271,9 +1265,9 @@ function renderWeeklyQuestionCountControls(section, answers, options = {}) {
     field("문항 수", countInput),
     button("적용", "mini-btn"),
   ]);
-  countForm.addEventListener("submit", async (event) => {
+  countForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    await applyCount(countInput.value);
+    applyCount(countInput.value);
   });
   return el("div", { className: "weekly-answer-control-group weekly-question-count-tools" }, [
     el("span", { className: "weekly-answer-control-label" }, "문항 관리"),
@@ -1298,7 +1292,6 @@ function applyWeeklyQuestionTrackGroupToAll(section, answers, groupKey) {
   saveState({ skipRemote: true });
   render();
   openWeeklyExamAnswerModal(section.id);
-  scheduleWeeklyExamAnswerAutosave(section.id, answers);
   notify(allApplied ? `${group.label} 전체 적용을 해제했습니다.` : `${group.label}을 모든 문항에 적용했습니다.`);
 }
 
@@ -1349,24 +1342,10 @@ function renderWeeklyQuestionTrackOptions(answer, section, answers) {
       ]);
       chip.classList.toggle("active", nextSelected);
       saveState({ skipRemote: true });
-      scheduleWeeklyExamAnswerAutosave(section.id, answers);
       }
     );
     return chip;
   }));
-}
-
-function scheduleWeeklyExamAnswerAutosave(sectionId, answers) {
-  if (weeklyExamAnswerSaveTimers.has(sectionId)) clearTimeout(weeklyExamAnswerSaveTimers.get(sectionId));
-  const timer = setTimeout(async () => {
-    weeklyExamAnswerSaveTimers.delete(sectionId);
-    try {
-      await saveExamAnswersToRemote(answers);
-    } catch (error) {
-      console.error(error);
-    }
-  }, 700);
-  weeklyExamAnswerSaveTimers.set(sectionId, timer);
 }
 
 function normalizeMultipleChoiceAnswer(value) {
