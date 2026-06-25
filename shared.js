@@ -1072,7 +1072,7 @@ async function loadStateFromRemote() {
     remoteStore.from("attendance_holidays").select(attendanceHolidayColumns).order("date_key", { ascending: false }).limit(120),
     remoteStore.from("exams").select(examColumns).order("week_number", { ascending: false }).order("created_at", { ascending: false }),
     remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true }),
-    remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }),
+    remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }).limit(10000),
     APP_MODE === "teacher" || scopedStudentId
       ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
@@ -1191,7 +1191,7 @@ async function loadStateFromRemote() {
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
   if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    const fallbackExamAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true });
+    const fallbackExamAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true }).limit(10000);
     if (fallbackExamAnswerResult.error && !isMissingRelationError(fallbackExamAnswerResult.error, "exam_answers")) throw fallbackExamAnswerResult.error;
     examAnswerResult = fallbackExamAnswerResult;
   }
