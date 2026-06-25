@@ -30,7 +30,7 @@ let attendanceHolidaySavedMessage = "";
 let selectedAttendanceDateKey = "";
 const WEEKLY_EXAM_TRACK_ALL = "전체";
 const WEEKLY_EXAM_WEEK_COUNT = 12;
-const WEEKLY_EXAM_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)", "해상교통관리"];
+const WEEKLY_EXAM_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)"];
 const WEEKLY_EXAM_HISTORY_DETAIL = "weekly-exam-problem-detail";
 const penaltyPeriodFilter = {
   start: "",

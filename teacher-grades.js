@@ -174,7 +174,9 @@ function renderWeeklyExamCohortPanel() {
 }
 
 function getExamSections(examId) {
-  return (state.examSections || []).filter((section) => section.examId === examId).sort((a, b) => {
+  return (state.examSections || [])
+    .filter((section) => section.examId === examId && !isWeeklySubjectExcludedForTrack(section.subject, section.track))
+    .sort((a, b) => {
     const trackCompare = String(a.track || "").localeCompare(String(b.track || ""), "ko-KR");
     return trackCompare || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR");
   });
@@ -196,7 +198,7 @@ function getWeeklyExamAnswerSections() {
   const examMap = new Map((state.exams || []).map((exam) => [exam.id, exam]));
   const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
   return (state.examSections || [])
-    .filter((section) => section.isActive !== false && examMap.has(section.examId))
+    .filter((section) => section.isActive !== false && examMap.has(section.examId) && !isWeeklySubjectExcludedForTrack(section.subject, section.track))
     .map((section) => ({ ...section, exam: examMap.get(section.examId) }))
     .sort((a, b) => {
       const weekCompare = Number(b.exam?.weekNumber || 0) - Number(a.exam?.weekNumber || 0);
@@ -219,7 +221,9 @@ function getWeeklyExamSubjectSettings() {
   const saved = Array.isArray(state.examSubjectSettings) ? state.examSubjectSettings : [];
   const source = saved.length
     ? saved
-    : (state.examSections || []).map((section, index) => ({
+    : (state.examSections || [])
+      .filter((section) => !isWeeklySubjectExcludedForTrack(section.subject, section.track))
+      .map((section, index) => ({
         id: `derived-${section.track}-${section.subject}`,
         track: section.track,
         subject: section.subject,
