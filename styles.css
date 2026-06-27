@@ -2663,6 +2663,169 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   font-weight: 900;
 }
 
+.student-answer-sheet-button {
+  width: 100%;
+  justify-content: center;
+}
+
+.student-graded-answer-modal {
+  width: min(640px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 44px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.student-graded-answer-sheet {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+}
+
+.student-graded-answer-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.student-graded-answer-summary > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(0, 91, 172, 0.16);
+  border-radius: 8px;
+  background: #f4f9ff;
+  padding: 10px;
+  text-align: center;
+}
+
+.student-graded-answer-summary span,
+.student-graded-answer-body span,
+.student-graded-answer-correct span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.student-graded-answer-summary strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.student-graded-answer-grid {
+  min-height: 0;
+  max-height: min(520px, calc(100vh - 260px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.student-graded-answer-cell {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) minmax(86px, auto);
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.student-graded-answer-cell.correct {
+  border-color: rgba(0, 91, 172, 0.22);
+  background: #fbfdff;
+}
+
+.student-graded-answer-cell.wrong {
+  border-color: rgba(240, 68, 56, 0.42);
+  background: #fff8f8;
+}
+
+.student-graded-answer-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.student-graded-answer-head strong {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.student-graded-answer-head span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgba(0, 91, 172, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.student-graded-answer-cell.wrong .student-graded-answer-head span {
+  background: #ffe4e2;
+  color: #b42318;
+}
+
+.student-graded-answer-body,
+.student-graded-answer-correct {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.student-graded-answer-body strong,
+.student-graded-answer-correct strong {
+  color: var(--ink);
+  font-size: 1.18rem;
+  line-height: 1.1;
+}
+
+.student-graded-answer-correct {
+  border-left: 1px dashed rgba(180, 35, 24, 0.32);
+  padding-left: 10px;
+}
+
+.student-graded-answer-correct span,
+.student-graded-answer-correct strong {
+  color: #b42318;
+}
+
+.student-graded-answer-correct.muted {
+  border-left-color: transparent;
+}
+
+.student-graded-answer-correct.muted span,
+.student-graded-answer-correct.muted strong {
+  color: rgba(100, 116, 139, 0.36);
+}
+
+@media (max-width: 430px) {
+  .student-graded-answer-modal {
+    width: min(430px, calc(100vw - 24px));
+  }
+
+  .student-graded-answer-summary > div {
+    padding: 8px 6px;
+  }
+
+  .student-graded-answer-cell,
+  .student-graded-answer-cell.wrong {
+    grid-template-columns: 72px minmax(0, 1fr) minmax(72px, auto);
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .student-graded-answer-head strong {
+    font-size: 0.96rem;
+  }
+}
+
 .confirm-check {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -5251,5 +5414,130 @@ body:not([data-app-mode="teacher"]) .btn {
 
   .answer-sheet-cell {
     min-height: 50px;
+  }
+}
+
+/* Graded answer sheet uses the same board shape as the submit review sheet. */
+.info-modal-panel.student-graded-answer-modal {
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(720px, calc(100dvh - 36px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.info-modal-panel.student-graded-answer-modal > strong {
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.info-modal-panel.student-graded-answer-modal > .btn {
+  min-height: 48px;
+  border-radius: 8px;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-sheet {
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-summary {
+  gap: 6px;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-summary > div {
+  border-color: rgba(0, 91, 172, 0.18);
+  border-radius: 8px;
+  background: #f7fbff;
+  padding: 9px 6px;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-summary span {
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-summary strong {
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
+.info-modal-panel.student-graded-answer-modal .student-graded-answer-board {
+  max-height: min(492px, calc(100dvh - 246px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+  gap: 7px;
+  padding: 1px 2px 1px 0;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell {
+  min-height: 62px;
+  gap: 3px;
+  border-color: rgba(0, 91, 172, 0.2);
+  background: #fbfdff;
+  padding: 7px 4px;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell > span {
+  color: #64748b;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell > strong {
+  color: var(--ink);
+  font-size: 1.06rem;
+  line-height: 1;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell.correct > strong {
+  color: var(--accent-strong);
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell.wrong {
+  border-color: rgba(240, 68, 56, 0.58);
+  background: #fff8f8;
+  color: #b42318;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell.wrong > span,
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell.wrong > strong {
+  color: #b42318;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell > em {
+  color: #b42318;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+  .info-modal {
+    padding: 12px;
+  }
+
+  .info-modal-panel.student-graded-answer-modal {
+    width: min(390px, calc(100vw - 24px));
+    padding: 16px;
+  }
+
+  .info-modal-panel.student-graded-answer-modal .student-graded-answer-board {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .info-modal-panel.student-graded-answer-modal .graded-answer-cell {
+    min-height: 58px;
+    padding: 6px 3px;
+  }
+
+  .info-modal-panel.student-graded-answer-modal .graded-answer-cell > strong {
+    font-size: 1rem;
   }
 }

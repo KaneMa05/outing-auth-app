@@ -1240,7 +1240,6 @@ let selectedStudentFinalRound = 0;
 let studentGradeLookupType = "weekly";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
-const STUDENT_GRADE_MIN_RELEASE_COUNT = 30;
 
 function resetStudentGradesView() {
   selectedStudentExamId = "";
@@ -1766,7 +1765,7 @@ function renderStudentGradeResultPanel(summary, options = {}) {
 }
 
 function canReleaseStudentGradeSummary(summary) {
-  return Number(summary?.total) >= STUDENT_GRADE_MIN_RELEASE_COUNT;
+  return Boolean(summary?.submittedCount);
 }
 
 function renderStudentSubjectGradeList(subjectSummaries = []) {
@@ -1799,11 +1798,11 @@ function renderStudentGradeSummaryCard(summary, options = {}) {
   const student = summary?.student || getAuthedStudent();
   const trackText = student ? getStudentRegisteredTrack(student) : "";
   const released = options.released !== false;
-  const rankLabel = summary?.rank && released ? formatTopPercentLabel(summary.topPercent) : "집계 대기";
+  const rankLabel = summary?.rank && released ? formatTopPercentLabel(summary.topPercent) : "-";
   const rankDeltaText = formatStudentRankDelta(summary?.rankDelta);
   const metaText = summary?.rank && summary?.total && released
     ? [`응시자 ${summary.total}명 중 ${summary.rank}등`, rankDeltaText ? `전회차 대비 ${rankDeltaText}` : ""].filter(Boolean).join(" · ")
-    : "성적 집계 후 표시됩니다.";
+    : "아직 제출된 성적이 없습니다.";
   return el("section", { className: "student-grade-overview", ariaLabel: "성적 요약" }, [
     el("div", { className: "student-grade-overview-head" }, [
       el("span", { className: "student-grade-overview-label" }, "내 위치"),
@@ -1821,8 +1820,8 @@ function renderStudentGradeSummaryCard(summary, options = {}) {
 }
 
 function renderStudentGradeProgress(summary) {
-  const rawPercent = summary?.rank && canReleaseStudentGradeSummary(summary) ? Number(summary.topPercent) || 0 : 0;
-  const percent = summary?.rank && canReleaseStudentGradeSummary(summary) ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
+  const rawPercent = summary?.rank ? Number(summary.topPercent) || 0 : 0;
+  const percent = summary?.rank ? Math.max(1, Math.min(100, Math.ceil(100 - rawPercent))) : 0;
   return el("div", {
     className: "student-grade-progress",
     role: "meter",
@@ -1939,24 +1938,12 @@ function getStudentExamSections(exam, student) {
 }
 
 function getStudentRequiredWeeklyExamSections(exam, student) {
-  const track = getStudentRegisteredTrack(student);
-  const sections = getStudentExamSections(exam, student);
-  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(track);
-  if (!requiredSubjects.length) return sections;
-  return requiredSubjects
-    .map((subject) => sections.find((section) => String(section.subject || "").trim() === subject))
-    .filter(Boolean);
+  return getStudentExamSections(exam, student);
 }
 
 function getStudentWeeklyExamReadiness(exam, student) {
-  const track = getStudentRegisteredTrack(student);
-  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(track);
   const sections = getStudentExamSections(exam, student);
-  if (!requiredSubjects.length) return { isReady: sections.length > 0, sections, missingSubjects: [] };
-  const sectionBySubject = new Map(sections.map((section) => [String(section.subject || "").trim(), section]));
-  const readySections = requiredSubjects.map((subject) => sectionBySubject.get(subject)).filter(Boolean);
-  const missingSubjects = requiredSubjects.filter((subject) => !sectionBySubject.has(subject));
-  return { isReady: missingSubjects.length === 0, sections: readySections, missingSubjects };
+  return { isReady: sections.length > 0, sections, missingSubjects: [] };
 }
 
 function isStudentSectionMatch(section, studentTrack) {
@@ -2033,11 +2020,13 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
   const submission = getStudentSubmission(student.id, section.id);
   const status = getStudentSectionStatus(exam, section, submission);
   const visibleQuestionCount = getStudentVisibleSectionAnswers(section, student).length;
+  const answerSheetOpen = Boolean(submission?.status === "submitted" && scoreOpen);
   return el("article", { className: "student-exam-subject" }, [
     el("div", {}, [el("strong", {}, section.subject), el("span", { className: "badge" }, status)]),
     el("p", { className: "subtle" }, `${visibleQuestionCount}문항 · ${visibleQuestionCount * 5}점`),
     submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
     submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
+    answerSheetOpen ? button("내 답안지 보기", "mini-btn student-answer-sheet-button", "button", () => openStudentGradedAnswerSheetModal(section, submission, student)) : null,
     submission?.status === "submitted"
       ? null
       : isExamOpen(exam)
@@ -2045,13 +2034,10 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
         : el("p", { className: "subtle" }, "현재 응시할 수 없는 기간입니다."),
   ]);
 }
-
 function renderStudentWeeklyExamFiles(exam, sections, student) {
   if (!sections.length || exam.explanationReleaseMode === "hidden") return null;
-  const requiredSubjects = getConfiguredWeeklySubjectsForTrack(getStudentRegisteredTrack(student));
   const requiredSections = getStudentRequiredWeeklyExamSections(exam, student);
-  const hasAllRequiredSections = !requiredSubjects.length || requiredSections.length >= requiredSubjects.length;
-  const allSubmitted = hasAllRequiredSections && requiredSections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
+  const allSubmitted = requiredSections.length > 0 && requiredSections.every((section) => getStudentSubmission(student.id, section.id)?.status === "submitted");
   if (!allSubmitted) return null;
   const sectionIds = new Set(requiredSections.map((section) => section.id));
   const fileMap = new Map();
@@ -2073,7 +2059,54 @@ function renderStudentWeeklyExamFiles(exam, sections, student) {
     )),
   ]);
 }
+function openStudentGradedAnswerSheetModal(section, submission, student) {
+  openInfoModal({
+    title: `${section.subject} 내 답안지`,
+    className: "student-graded-answer-modal",
+    content: renderStudentGradedAnswerSheet(section, submission, student),
+  });
+}
+function renderStudentGradedAnswerSheet(section, submission, student) {
+  const answerRows = getStudentGradedAnswerRows(section, submission, student);
+  const correctCount = answerRows.filter((row) => row.isCorrect).length;
+  const wrongCount = answerRows.length - correctCount;
+  return el("div", { className: "student-graded-answer-sheet" }, [
+    el("div", { className: "student-graded-answer-summary" }, [
+      el("div", {}, [el("span", {}, "\uC810\uC218"), el("strong", {}, `${submission.score || 0}\uC810`)]),
+      el("div", {}, [el("span", {}, "\uC815\uB2F5"), el("strong", {}, `${correctCount}/${answerRows.length}`)]),
+      el("div", {}, [el("span", {}, "\uC624\uB2F5"), el("strong", {}, `${wrongCount}\uAC1C`)]),
+    ]),
+    el("div", { className: "student-graded-answer-board answer-sheet-grid" }, answerRows.map(renderStudentGradedAnswerCell)),
+  ]);
+}
+function getStudentGradedAnswerRows(section, submission, student) {
+  const submittedAnswers = new Map(
+    (state.submissionAnswers || [])
+      .filter((answer) => answer.submissionId === submission.id)
+      .map((answer) => [Number(answer.questionNumber), answer])
+  );
+  return getStudentVisibleSectionAnswers(section, student).map((answerKey, index) => {
+    const submittedAnswer = submittedAnswers.get(Number(answerKey.questionNumber));
+    const selectedAnswer = Number(submittedAnswer?.selectedAnswer) || null;
+    const correctAnswer = Number(answerKey.correctAnswer) || null;
+    return {
+      displayNumber: index + 1,
+      questionNumber: answerKey.questionNumber,
+      selectedAnswer,
+      correctAnswer,
+      isCorrect: Boolean(submittedAnswer?.isCorrect),
+    };
+  });
+}
 
+function renderStudentGradedAnswerCell(row) {
+  const className = row.isCorrect ? "answer-sheet-cell graded-answer-cell correct" : "answer-sheet-cell graded-answer-cell wrong";
+  return el("article", { className }, [
+    el("span", {}, String(row.displayNumber) + "\uBC88"),
+    el("strong", {}, toCircledAnswer(row.selectedAnswer)),
+    row.isCorrect ? null : el("em", {}, "\uC815\uB2F5 " + toCircledAnswer(row.correctAnswer)),
+  ]);
+}
 function getStudentSectionStatus(exam, section, submission) {
   if (submission?.status === "submitted") return "제출 완료";
   if (exam.startAt && Date.now() < new Date(exam.startAt).getTime()) return "기간 전";

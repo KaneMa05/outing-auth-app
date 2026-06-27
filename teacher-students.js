@@ -851,7 +851,7 @@ function parseStudentRoster(value, cohort) {
       const parts = line.includes(",") || line.includes("\t") ? line.split(/[,\t]/) : line.split(/\s+/);
       const studentNumber = Number((parts.shift() || "").trim());
       const name = parts.join(" ").trim();
-      if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 130 || !name) return null;
+      if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 999 || !name) return null;
       return { id: buildStudentId(cohort, studentNumber), name };
     })
     .filter(Boolean);

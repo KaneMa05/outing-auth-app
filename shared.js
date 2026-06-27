@@ -46,6 +46,7 @@ const resetButton = document.querySelector("#reset-data");
 let remoteStore = createRemoteStore();
 const localDevStoreUrl = createLocalDevStoreUrl();
 const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
+const STUDENT_AUTO_REFRESH_INTERVAL_MS = 10000;
 const STUDENT_INTERACTION_PAUSE_MS = 15000;
 const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
@@ -643,6 +644,12 @@ function startRemoteRefresh() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) scheduleResumeRemoteRefresh();
   });
+  window.setInterval(runStudentAutoRefresh, STUDENT_AUTO_REFRESH_INTERVAL_MS);
+}
+
+function runStudentAutoRefresh() {
+  if (document.hidden) return;
+  refreshStateFromRemote();
 }
 
 async function refreshStateFromRemote(options = {}) {
