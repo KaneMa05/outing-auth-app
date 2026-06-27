@@ -1652,19 +1652,22 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const summaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
   const previousSummaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
-  const headers = ["이름", "직렬", ...WEEKLY_EXAM_SUBJECTS, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락"];
+  const headers = ["이름", "직렬", ...WEEKLY_EXAM_SUBJECTS, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return el("tr", {}, [
-    el("td", {}, summary.student.name || "-"),
-    el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
-    ...WEEKLY_EXAM_SUBJECTS.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
-    el("td", {}, formatWeeklyWrongCountCell(summary)),
-    el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
-    el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
-    el("td", {}, previousRank ? `${previousRank}등` : "-"),
-    el("td", {}, formatRankDelta(summary.rank, previousRank)),
-  ]);
+      el("td", {}, summary.student.name || "-"),
+      el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
+      ...WEEKLY_EXAM_SUBJECTS.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
+      el("td", {}, formatWeeklyWrongCountCell(summary)),
+      el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
+      el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
+      el("td", {}, previousRank ? `${previousRank}등` : "-"),
+      el("td", {}, formatRankDelta(summary.rank, previousRank)),
+      el("td", { className: "action-cell" }, summary.submittedCount
+        ? button("삭제", "mini-btn danger", "button", () => deleteWeeklyExamStudentSubmissions(exam, summary.student))
+        : "-"),
+    ]);
   });
 
   return panel("주간평가 성적", [
@@ -1675,6 +1678,40 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
       ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
   ]);
+}
+
+async function deleteWeeklyExamStudentSubmissions(exam, student) {
+  if (!exam || !student) return notify("삭제할 성적을 찾을 수 없습니다.");
+  const sections = getWeeklyGradeSectionsForStudent(exam, student);
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const submissions = (state.examSubmissions || []).filter((submission) =>
+    sectionIds.has(submission.examSectionId) &&
+    String(submission.studentId || "") === String(student.id || "") &&
+    submission.status === "submitted"
+  );
+  if (!submissions.length) return notify("삭제할 주간평가 성적이 없습니다.");
+  const weekLabel = `${Number(exam.weekNumber) || 1}주차`;
+  if (!confirm(`${student.name || student.id} 학생의 ${weekLabel} 주간평가 성적 ${submissions.length}건을 삭제할까요?\n삭제하면 학생 앱에서 해당 과목을 다시 응시할 수 있습니다.`)) return;
+
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousAnswers = [...(state.submissionAnswers || [])];
+  const submissionIds = new Set(submissions.map((submission) => submission.id));
+  state.examSubmissions = previousSubmissions.filter((submission) => !submissionIds.has(submission.id));
+  state.submissionAnswers = previousAnswers.filter((answer) => !submissionIds.has(answer.submissionId));
+  saveState({ skipRemote: true });
+
+  try {
+    await deleteExamSubmissionsFromRemote([...submissionIds]);
+    render();
+    notify("주간평가 성적을 삭제했습니다. 학생 앱에서 다시 응시할 수 있습니다.");
+  } catch (error) {
+    console.error(error);
+    state.examSubmissions = previousSubmissions;
+    state.submissionAnswers = previousAnswers;
+    saveState({ skipRemote: true });
+    render();
+    notify("성적 삭제를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
+  }
 }
 
 function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
@@ -2757,6 +2794,16 @@ async function saveExamSubmissionsToRemote(submissions) {
     created_at: submission.createdAt || new Date().toISOString(),
   }));
   const { error } = await remoteStore.from("exam_submissions").upsert(rows, { onConflict: "student_id,exam_section_id" });
+  if (error) throw error;
+}
+
+async function deleteExamSubmissionsFromRemote(submissionIds) {
+  if (!remoteStore || !submissionIds.length) return;
+  const cleanIds = submissionIds.filter(Boolean);
+  if (!cleanIds.length) return;
+  const { error: answerError } = await remoteStore.from("submission_answers").delete().in("submission_id", cleanIds);
+  if (answerError) throw answerError;
+  const { error } = await remoteStore.from("exam_submissions").delete().in("id", cleanIds);
   if (error) throw error;
 }
 

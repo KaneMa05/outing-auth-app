@@ -532,9 +532,11 @@ drop policy if exists "anon_exam_answers_update" on public.exam_answers;
 drop policy if exists "anon_exam_submissions_select" on public.exam_submissions;
 drop policy if exists "anon_exam_submissions_insert" on public.exam_submissions;
 drop policy if exists "anon_exam_submissions_update" on public.exam_submissions;
+drop policy if exists "anon_exam_submissions_delete" on public.exam_submissions;
 drop policy if exists "anon_submission_answers_select" on public.submission_answers;
 drop policy if exists "anon_submission_answers_insert" on public.submission_answers;
 drop policy if exists "anon_submission_answers_update" on public.submission_answers;
+drop policy if exists "anon_submission_answers_delete" on public.submission_answers;
 drop policy if exists "anon_exam_files_select" on public.exam_files;
 drop policy if exists "anon_exam_files_insert" on public.exam_files;
 drop policy if exists "anon_exam_files_update" on public.exam_files;
@@ -909,8 +911,8 @@ grant select, insert, update, delete on public.exam_sections to anon;
 grant select, insert, update on public.exam_subject_settings to anon;
 grant delete on public.exam_subject_settings to anon;
 grant select, insert, update on public.exam_answers to anon;
-grant select, insert, update on public.exam_submissions to anon;
-grant select, insert, update on public.submission_answers to anon;
+grant select, insert, update, delete on public.exam_submissions to anon;
+grant select, insert, update, delete on public.submission_answers to anon;
 grant select, insert, update on public.exam_files to anon;
 grant delete on public.exam_files to anon;
 grant select, insert, update, delete on public.final_exam_scores to anon;
@@ -1327,6 +1329,12 @@ to anon
 using (true)
 with check (student_id is not null and status in ('draft', 'submitted', 'cancelled'));
 
+create policy "anon_exam_submissions_delete"
+on public.exam_submissions
+for delete
+to anon
+using (true);
+
 create policy "anon_submission_answers_select"
 on public.submission_answers
 for select
@@ -1345,6 +1353,12 @@ for update
 to anon
 using (true)
 with check (question_number > 0 and (selected_answer is null or selected_answer between 1 and 4));
+
+create policy "anon_submission_answers_delete"
+on public.submission_answers
+for delete
+to anon
+using (true);
 
 create policy "anon_exam_files_select"
 on public.exam_files
