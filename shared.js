@@ -1069,6 +1069,11 @@ async function loadStateFromRemote() {
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
+  let examSubmissionRequest =
+    APP_MODE === "teacher" || scopedStudentId
+      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
+      : Promise.resolve({ data: [], error: null });
+  if (scopedStudentId && examSubmissionRequest?.eq) examSubmissionRequest = examSubmissionRequest.eq("student_id", scopedStudentId);
   let remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
@@ -1082,9 +1087,7 @@ async function loadStateFromRemote() {
     remoteStore.from("exams").select(examColumns).order("week_number", { ascending: false }).order("created_at", { ascending: false }),
     remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true }),
     remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }).limit(10000),
-    APP_MODE === "teacher" || scopedStudentId
-      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
-      : Promise.resolve({ data: [], error: null }),
+    examSubmissionRequest,
     APP_MODE === "teacher"
       ? remoteStore.from("submission_answers").select(submissionAnswerColumns).order("question_number", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -1108,7 +1111,7 @@ async function loadStateFromRemote() {
   const examSectionResult = remoteResults[10];
   let examAnswerResult = remoteResults[11];
   let examSubmissionResult = remoteResults[12];
-  const submissionAnswerResult = remoteResults[13];
+  let submissionAnswerResult = remoteResults[13];
   const examFileResult = remoteResults[14];
   const examSubjectSettingResult = remoteResults[15];
   const finalExamScoreResult = remoteResults[16];
@@ -1206,6 +1209,12 @@ async function loadStateFromRemote() {
   }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
+  if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
+    const scopedSubmissionIds = (examSubmissionResult.data || []).map((submission) => submission.id).filter(Boolean);
+    submissionAnswerResult = scopedSubmissionIds.length
+      ? await remoteStore.from("submission_answers").select(submissionAnswerColumns).in("submission_id", scopedSubmissionIds).order("question_number", { ascending: true })
+      : { data: [], error: null };
+  }
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
@@ -2407,13 +2416,28 @@ function mapExamSectionFromRemote(section) {
   };
 }
 
+function normalizeExamAnswerChoice(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) && value >= 1 && value <= 4 ? value : null;
+  const text = String(value).trim().normalize("NFKC");
+  if (!text) return null;
+  const match = text.match(/[1-4]/);
+  return match ? Number(match[0]) : null;
+}
+
+function getExamAnswerPointValue(answer, fallback = 5) {
+  if (!answer || answer.points === null || answer.points === undefined || answer.points === "") return fallback;
+  const value = Number(answer.points);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 function mapExamAnswerFromRemote(answer) {
   return {
     id: answer.id,
     examSectionId: answer.exam_section_id,
     questionNumber: Number(answer.question_number) || 0,
-    correctAnswer: Number(answer.correct_answer) || 0,
-    points: Number(answer.points) || 0,
+    correctAnswer: normalizeExamAnswerChoice(answer.correct_answer) || 0,
+    points: getExamAnswerPointValue(answer),
     targetTracks: Array.isArray(answer.target_tracks) ? answer.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
   };
 }

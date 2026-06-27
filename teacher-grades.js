@@ -2467,9 +2467,10 @@ function gradeSubmission(section, submission, selectedAnswers) {
   let correctCount = 0;
   state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
   answers.forEach((answer) => {
-    const selectedAnswer = Number(selectedByQuestion.get(answer.questionNumber) || selectedAnswers[answer.questionNumber - 1]) || null;
-    const isCorrect = Boolean(selectedAnswer && answer.correctAnswer && selectedAnswer === answer.correctAnswer);
-    const pointsAwarded = isCorrect ? Number(answer.points) || 0 : 0;
+    const selectedAnswer = normalizeExamAnswerChoice(selectedByQuestion.get(answer.questionNumber) || selectedAnswers[answer.questionNumber - 1]);
+    const correctAnswer = normalizeExamAnswerChoice(answer.correctAnswer);
+    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const pointsAwarded = isCorrect ? getExamAnswerPointValue(answer) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({

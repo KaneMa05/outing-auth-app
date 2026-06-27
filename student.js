@@ -2087,14 +2087,14 @@ function getStudentGradedAnswerRows(section, submission, student) {
   );
   return getStudentVisibleSectionAnswers(section, student).map((answerKey, index) => {
     const submittedAnswer = submittedAnswers.get(Number(answerKey.questionNumber));
-    const selectedAnswer = Number(submittedAnswer?.selectedAnswer) || null;
-    const correctAnswer = Number(answerKey.correctAnswer) || null;
+    const selectedAnswer = normalizeExamAnswerChoice(submittedAnswer?.selectedAnswer);
+    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
     return {
       displayNumber: index + 1,
       questionNumber: answerKey.questionNumber,
       selectedAnswer,
       correctAnswer,
-      isCorrect: Boolean(submittedAnswer?.isCorrect),
+      isCorrect: Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer),
     };
   });
 }
@@ -2344,9 +2344,10 @@ function gradeStudentSubmission(section, submission) {
   state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
   key.forEach((answerKey) => {
     const question = answerKey.questionNumber;
-    const selectedAnswer = Number(studentExamDraft.answers[question]) || null;
-    const isCorrect = Boolean(answerKey?.correctAnswer && selectedAnswer === answerKey.correctAnswer);
-    const pointsAwarded = isCorrect ? Number(answerKey.points) || 0 : 0;
+    const selectedAnswer = normalizeExamAnswerChoice(studentExamDraft.answers[question]);
+    const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
+    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const pointsAwarded = isCorrect ? getExamAnswerPointValue(answerKey) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
