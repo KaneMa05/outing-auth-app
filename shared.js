@@ -972,6 +972,8 @@ function makeLocalDevSafeState() {
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
+  const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
+  const localSubmissionAnswers = Array.isArray(state.submissionAnswers) ? state.submissionAnswers.map((answer) => ({ ...answer })) : [];
   let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
@@ -1318,6 +1320,7 @@ async function loadStateFromRemote() {
   if (!examAnswerResult.error) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
   if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
+  mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
   reconcileLoadedExamSubmissionGrades();
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
@@ -2441,6 +2444,40 @@ function mapExamAnswerFromRemote(answer) {
     points: getExamAnswerPointValue(answer),
     targetTracks: Array.isArray(answer.target_tracks) ? answer.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
   };
+}
+
+function mergeLocalSubmissionAnswersAfterRemoteLoad(localSubmissions = [], localAnswers = []) {
+  if (!localSubmissions.length || !localAnswers.length || !(state.examSubmissions || []).length) return;
+  const currentAnswersBySubmissionId = new Map();
+  (state.submissionAnswers || []).forEach((answer) => {
+    if (!currentAnswersBySubmissionId.has(answer.submissionId)) currentAnswersBySubmissionId.set(answer.submissionId, []);
+    currentAnswersBySubmissionId.get(answer.submissionId).push(answer);
+  });
+  const localAnswersBySubmissionId = new Map();
+  localAnswers.forEach((answer) => {
+    if (!localAnswersBySubmissionId.has(answer.submissionId)) localAnswersBySubmissionId.set(answer.submissionId, []);
+    localAnswersBySubmissionId.get(answer.submissionId).push(answer);
+  });
+  localSubmissions.forEach((localSubmission) => {
+    const currentSubmission = (state.examSubmissions || []).find((submission) =>
+      submission.studentId === localSubmission.studentId &&
+      submission.examSectionId === localSubmission.examSectionId &&
+      submission.status === "submitted"
+    );
+    if (!currentSubmission) return;
+    const currentAnswers = currentAnswersBySubmissionId.get(currentSubmission.id) || [];
+    if (currentAnswers.length) return;
+    const cachedAnswers = localAnswersBySubmissionId.get(localSubmission.id) || [];
+    if (!cachedAnswers.length) return;
+    cachedAnswers.forEach((answer) => {
+      state.submissionAnswers.push({
+        ...answer,
+        id: answer.id || createId(),
+        submissionId: currentSubmission.id,
+        selectedAnswer: normalizeExamAnswerChoice(answer.selectedAnswer),
+      });
+    });
+  });
 }
 
 function reconcileLoadedExamSubmissionGrades() {

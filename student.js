@@ -2329,7 +2329,12 @@ async function submitStudentSectionAnswers(section, student) {
   saveState({ skipRemote: true });
   if (remoteStore) {
     await saveStudentExamSubmissionToRemote(submission);
-    await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id));
+    try {
+      await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id));
+    } catch (error) {
+      console.warn("Failed to sync student submission answers", error);
+    }
+    saveState({ skipRemote: true });
   }
   studentExamDraft.sectionId = "";
   studentExamDraft.review = false;
@@ -2357,7 +2362,8 @@ function gradeStudentSubmission(section, submission) {
 }
 
 async function saveStudentExamSubmissionToRemote(submission) {
-  const { error } = await remoteStore.from("exam_submissions").upsert({
+  const previousId = submission.id;
+  const row = {
     id: submission.id,
     exam_section_id: submission.examSectionId,
     student_id: submission.studentId,
@@ -2368,8 +2374,26 @@ async function saveStudentExamSubmissionToRemote(submission) {
     correct_count: submission.correctCount,
     submitted_at: submission.submittedAt,
     created_at: submission.createdAt,
-  }, { onConflict: "student_id,exam_section_id" });
-  if (error) throw error;
+  };
+  const result = await remoteStore
+    .from("exam_submissions")
+    .upsert(row, { onConflict: "student_id,exam_section_id" })
+    .select("id,score,correct_count")
+    .maybeSingle();
+  if (result.error) {
+    const fallback = await remoteStore.from("exam_submissions").upsert(row, { onConflict: "student_id,exam_section_id" });
+    if (fallback.error) throw fallback.error;
+    return;
+  }
+  const data = result.data;
+  if (data?.id && data.id !== previousId) {
+    submission.id = data.id;
+    state.submissionAnswers = (state.submissionAnswers || []).map((answer) =>
+      answer.submissionId === previousId ? { ...answer, submissionId: data.id } : answer
+    );
+  }
+  if (data?.score !== undefined) submission.score = Number(data.score) || submission.score;
+  if (data?.correct_count !== undefined) submission.correctCount = Number(data.correct_count) || submission.correctCount;
 }
 
 async function saveStudentSubmissionAnswersToRemote(answers) {
