@@ -1318,6 +1318,7 @@ async function loadStateFromRemote() {
   if (!examAnswerResult.error) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
   if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
+  reconcileLoadedExamSubmissionGrades();
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
   if (!finalExamScoreResult.error) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
@@ -2440,6 +2441,49 @@ function mapExamAnswerFromRemote(answer) {
     points: getExamAnswerPointValue(answer),
     targetTracks: Array.isArray(answer.target_tracks) ? answer.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
   };
+}
+
+function reconcileLoadedExamSubmissionGrades() {
+  const submissions = state.examSubmissions || [];
+  const submissionAnswers = state.submissionAnswers || [];
+  if (!submissions.length || !submissionAnswers.length) return;
+  const sectionsById = new Map((state.examSections || []).map((section) => [section.id, section]));
+  const answersBySectionId = new Map();
+  (state.examAnswers || []).forEach((answer) => {
+    if (!answersBySectionId.has(answer.examSectionId)) answersBySectionId.set(answer.examSectionId, []);
+    answersBySectionId.get(answer.examSectionId).push(answer);
+  });
+  const answersBySubmissionId = new Map();
+  submissionAnswers.forEach((answer) => {
+    if (!answersBySubmissionId.has(answer.submissionId)) answersBySubmissionId.set(answer.submissionId, []);
+    answersBySubmissionId.get(answer.submissionId).push(answer);
+  });
+  submissions.forEach((submission) => {
+    const section = sectionsById.get(submission.examSectionId);
+    const savedAnswers = answersBySubmissionId.get(submission.id) || [];
+    if (!section || !savedAnswers.length) return;
+    const keyByQuestion = new Map(
+      (answersBySectionId.get(section.id) || [])
+        .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
+        .map((answer) => [Number(answer.questionNumber), answer])
+    );
+    let score = 0;
+    let correctCount = 0;
+    savedAnswers.forEach((answer) => {
+      const answerKey = keyByQuestion.get(Number(answer.questionNumber));
+      const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
+      const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
+      const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+      const pointsAwarded = isCorrect ? getExamAnswerPointValue(answerKey) : 0;
+      answer.selectedAnswer = selectedAnswer;
+      answer.isCorrect = isCorrect;
+      answer.pointsAwarded = pointsAwarded;
+      if (isCorrect) correctCount += 1;
+      score += pointsAwarded;
+    });
+    submission.score = Math.round(score * 10) / 10;
+    submission.correctCount = correctCount;
+  });
 }
 
 function mapExamSubmissionFromRemote(submission) {
