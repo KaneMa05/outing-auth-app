@@ -1649,16 +1649,17 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   }
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
   const students = getGradeManagementStudents(cohort);
+  const weeklySubjectHeaders = getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter);
   const summaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
   const previousSummaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
-  const headers = ["이름", "직렬", ...WEEKLY_EXAM_SUBJECTS, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
+  const headers = ["이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return el("tr", {}, [
       el("td", {}, summary.student.name || "-"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
-      ...WEEKLY_EXAM_SUBJECTS.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
+      ...weeklySubjectHeaders.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
       el("td", {}, formatWeeklyWrongCountCell(summary)),
       el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
       el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
@@ -1680,6 +1681,26 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   ]);
 }
 
+function getWeeklyGradeSubjectHeaders(exam, track) {
+  if (!exam) return [];
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const seen = new Set();
+  const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
+  return getExamSections(exam.id)
+    .filter((section) => {
+      const sectionTrack = normalizeCoastGuardTrack(section.track);
+      if (section.isActive === false) return false;
+      if (sectionTrack === normalizedTrack) return true;
+      return sectionTrack === WEEKLY_EXAM_TRACK_ALL && isWeeklySubjectAllowedForTrack(section.subject, normalizedTrack);
+    })
+    .map((section) => String(section.subject || "").trim())
+    .filter((subject) => {
+      if (!subject || seen.has(subject)) return false;
+      seen.add(subject);
+      return true;
+    })
+    .sort((a, b) => (subjectOrder.get(a) ?? 999) - (subjectOrder.get(b) ?? 999) || a.localeCompare(b, "ko-KR"));
+}
 async function deleteWeeklyExamStudentSubmissions(exam, student) {
   if (!exam || !student) return notify("삭제할 성적을 찾을 수 없습니다.");
   const sections = getWeeklyGradeSectionsForStudent(exam, student);
