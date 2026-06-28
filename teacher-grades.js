@@ -177,9 +177,9 @@ function getExamSections(examId) {
   return (state.examSections || [])
     .filter((section) => section.examId === examId && !isWeeklySubjectExcludedForTrack(section.subject, section.track))
     .sort((a, b) => {
-    const trackCompare = String(a.track || "").localeCompare(String(b.track || ""), "ko-KR");
-    return trackCompare || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR");
-  });
+      const trackCompare = String(a.track || "").localeCompare(String(b.track || ""), "ko-KR");
+      return trackCompare || compareWeeklySubjects(a.subject, b.subject);
+    });
 }
 
 function getWeeklyExamSubjectRows(examId) {
@@ -1424,6 +1424,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
       const targetSection = (state.examSections || []).find((item) => item.id === section.id) || section;
       await saveExamSectionsToRemote([targetSection]);
       await saveExamAnswersToRemote(getSectionAnswers(section.id));
+      await regradeSectionsAfterAnswerChange([targetSection]);
       render();
       if (options.modal) closeInfoModal();
       notify("정답을 저장했습니다.");
@@ -1585,6 +1586,7 @@ function openCopyAnswersModal(sourceSection) {
     });
     saveState({ skipRemote: true });
     await saveExamAnswersToRemote(targetIds.flatMap(getSectionAnswers));
+    await regradeSectionsAfterAnswerChange(targetIds.map((id) => (state.examSections || []).find((section) => section.id === id)).filter(Boolean));
     closeInfoModal();
     render();
     notify("정답을 복사했습니다.");
@@ -2515,6 +2517,26 @@ async function regradeSection(section) {
 
 function getSubmissionAnswers(submissionId) {
   return (state.submissionAnswers || []).filter((answer) => answer.submissionId === submissionId).sort((a, b) => a.questionNumber - b.questionNumber);
+}
+
+async function regradeSectionsAfterAnswerChange(sections) {
+  const uniqueSections = [];
+  const seen = new Set();
+  (sections || []).forEach((section) => {
+    if (!section?.id || seen.has(section.id)) return;
+    seen.add(section.id);
+    uniqueSections.push(section);
+  });
+  for (const section of uniqueSections) {
+    const submissions = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted");
+    if (!submissions.length) continue;
+    submissions.forEach((submission) => gradeSubmission(section, submission, getSubmissionAnswers(submission.id).map((answer) => answer.selectedAnswer)));
+    saveState({ skipRemote: true });
+    if (remoteStore) {
+      await saveExamSubmissionsToRemote(submissions);
+      await saveSubmissionAnswersToRemote(submissions.flatMap((submission) => getSubmissionAnswers(submission.id)));
+    }
+  }
 }
 
 function gradeSubmission(section, submission, selectedAnswers) {

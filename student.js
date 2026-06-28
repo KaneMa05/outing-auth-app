@@ -1934,7 +1934,9 @@ function isStudentWeeklyExamVisible(exam) {
 
 function getStudentExamSections(exam, student) {
   const track = getStudentRegisteredTrack(student);
-  return (state.examSections || []).filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track));
+  return (state.examSections || [])
+    .filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track))
+    .sort((a, b) => compareWeeklySubjects(a.subject, b.subject) || String(a.track || "").localeCompare(String(b.track || ""), "ko-KR"));
 }
 
 function getStudentRequiredWeeklyExamSections(exam, student) {

@@ -202,8 +202,6 @@ const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 함정요원 항해(순경)",
   "경찰직 - 함정요원 기관(순경)",
-  "경찰직 - 함정요원 항해(경장)",
-  "경찰직 - 함정요원 기관(경장)",
 ];
 const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
   { key: "vts", label: "VTS", keywords: ["VTS"], tracks: ["경찰직 - 해상교통관제(VTS)(순경)", "일반직 - 선박교통관제(VTS)"] },
@@ -212,30 +210,45 @@ const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
 const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
 const WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES = 10 * 1024 * 1024;
-const WEEKLY_SUBJECT_OPTIONS = ["해양경찰학개론", "해사법규", "형사법", "항해학", "기관학", "해사영어", "형사법(공판)"];
+const WEEKLY_SUBJECT_OPTIONS = ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "해사영어", "항해학", "기관학"];
 const WEEKLY_RETIRED_SUBJECTS = ["해상교통관리"];
 const WEEKLY_TRACK_EXCLUDED_SUBJECTS = {
   "경찰직 - 해상교통관제(VTS)(순경)": ["해상교통관리"],
   "일반직 - 선박교통관제(VTS)": ["해상교통관리"],
 };
+const WEEKLY_NO_WRITTEN_EXAM_TRACKS = [
+  "경찰직 - 함정요원 항해(경장)",
+  "경찰직 - 함정요원 기관(경장)",
+];
 const WEEKLY_VTS_TRACKS = Object.keys(WEEKLY_TRACK_EXCLUDED_SUBJECTS);
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
-  "경찰직 - 공채(순경)": ["해양경찰학개론", "해사법규", "형사법"],
-  "경찰직 - 해경학과 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
-  "경찰직 - 해경학과 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
-  "경찰직 - 함정요원 항해(순경)": ["해양경찰학개론", "해사법규", "해사영어", "항해학"],
-  "경찰직 - 함정요원 기관(순경)": ["해양경찰학개론", "해사법규", "해사영어", "기관학"],
-  "경찰직 - 함정요원 항해(경장)": ["해양경찰학개론", "해사법규", "형사법", "항해학"],
-  "경찰직 - 함정요원 기관(경장)": ["해양경찰학개론", "해사법규", "형사법", "기관학"],
-  "경찰직 - 해상교통관제(VTS)(순경)": ["해양경찰학개론", "해사법규", "항해학"],
-  "일반직 - 선박교통관제(VTS)": ["해사법규", "항해학", "해사영어"],
-  "경찰직 - 경위 공채(해양-기관)": ["해양경찰학개론", "해사법규", "형사법", "기관학", "형사법(공판)"],
-  "경찰직 - 경위 공채(해양-항해)": ["해양경찰학개론", "해사법규", "형사법", "항해학", "형사법(공판)"],
+  "경찰직 - 공채(순경)": ["해사법규", "해양경찰학개론", "형사법"],
+  "경찰직 - 해경학과 항해(경장)": ["해사법규", "해양경찰학개론", "형사법", "항해학"],
+  "경찰직 - 해경학과 기관(경장)": ["해사법규", "해양경찰학개론", "형사법", "기관학"],
+  "경찰직 - 함정요원 항해(순경)": ["해사법규", "해양경찰학개론", "해사영어", "항해학"],
+  "경찰직 - 함정요원 기관(순경)": ["해사법규", "해양경찰학개론", "해사영어", "기관학"],
+  "경찰직 - 함정요원 항해(경장)": [],
+  "경찰직 - 함정요원 기관(경장)": [],
+  "경찰직 - 해상교통관제(VTS)(순경)": ["해사법규", "해양경찰학개론", "항해학"],
+  "일반직 - 선박교통관제(VTS)": ["해사법규", "해사영어", "항해학"],
+  "경찰직 - 경위 공채(해양-기관)": ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "기관학"],
+  "경찰직 - 경위 공채(해양-항해)": ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "항해학"],
 };
+
+function getWeeklySubjectOrder(subject) {
+  const index = WEEKLY_SUBJECT_OPTIONS.indexOf(String(subject || "").trim());
+  return index >= 0 ? index : WEEKLY_SUBJECT_OPTIONS.length;
+}
+
+function compareWeeklySubjects(a, b) {
+  const subjectCompare = getWeeklySubjectOrder(a) - getWeeklySubjectOrder(b);
+  return subjectCompare || String(a || "").localeCompare(String(b || ""), "ko-KR");
+}
 
 function isWeeklySubjectExcludedForTrack(subject, track) {
   const normalizedTrack = normalizeCoastGuardTrack(track);
   const normalizedSubject = String(subject || "").trim();
+  if (WEEKLY_NO_WRITTEN_EXAM_TRACKS.includes(normalizedTrack)) return true;
   if (WEEKLY_RETIRED_SUBJECTS.includes(normalizedSubject)) return true;
   const excludedSubjects = WEEKLY_TRACK_EXCLUDED_SUBJECTS[normalizedTrack] || [];
   return excludedSubjects.includes(normalizedSubject);
@@ -281,7 +294,7 @@ function getConfiguredWeeklySubjectsForTrack(track) {
   if (!normalized) return [];
   const saved = (state.examSubjectSettings || [])
     .filter((setting) => normalizeCoastGuardTrack(setting.track) === normalized)
-    .sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || String(a.subject || "").localeCompare(String(b.subject || ""), "ko-KR"));
+    .sort((a, b) => compareWeeklySubjects(a.subject, b.subject) || Number(a.sortOrder) - Number(b.sortOrder));
   if (saved.length) {
     return saved
       .filter((setting) => setting.isActive !== false)
