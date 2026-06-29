@@ -1648,7 +1648,8 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
       el("div", { className: "teacher-search grade-management-filter" }, [
         field("주차", weekSelect),
       ]),
-      el("div", { className: "empty" }, "직렬을 선택하면 해당 직렬 학생의 주간평가 성적이 표시됩니다."),
+      exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
+      el("div", { className: "empty" }, "직렬을 선택하면 해당 직렬 학생의 주간평가 성적이 표시됩니다. 성적표 다운로드는 선택한 주차의 전체 응시 학생을 포함합니다."),
     ]);
   }
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
@@ -1679,10 +1680,18 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     el("div", { className: "teacher-search grade-management-filter" }, [
       field("주차", weekSelect),
     ]),
-    exam ? renderWeeklySubmissionAnswerSyncActions(exam) : null,
+    exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
     exam
       ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
+  ]);
+}
+
+function renderWeeklyGradeScoreActions(exam, cohort, weekNumber) {
+  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
+  return el("div", { className: "action-row weekly-answer-actions" }, [
+    button(`답안지 점수 동기화${targets.length ? ` (${targets.length}건)` : ""}`, "mini-btn", "button", () => syncWeeklySubmissionAnswerSheetsForExam(exam)),
+    button("성적표 다운로드", "mini-btn secondary", "button", () => downloadWeeklyGradeReport(exam, cohort, weekNumber)),
   ]);
 }
 
@@ -2287,6 +2296,186 @@ async function persistFinalExamScoresToRemote() {
 function escapeCssValue(value) {
   const text = String(value || "");
   return window.CSS?.escape ? CSS.escape(text) : text.replace(/["\\]/g, "\\$&");
+}
+
+function downloadWeeklyGradeReport(exam, cohort = selectedStudentCohort, weekNumber = weeklyExamGradeFilters.weekNumber) {
+  if (!exam) return notify("다운로드할 주간평가가 없습니다.");
+  const targetWeek = Number(weekNumber || exam.weekNumber) || 1;
+  const students = getWeeklyGradeReportStudents(cohort);
+  const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
+  const rankedSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
+  const summaries = sortWeeklyGradeReportSummaries(rankedSummaries, true).filter((summary) => summary.submittedCount > 0);
+  const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
+  const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
+  const subjects = getWeeklyGradeReportSubjects(exam);
+  const headers = ["번호", "이름", "직렬", ...subjects.map(formatWeeklyGradeReportSubjectHeader), "개수", "이번 등수", "전주 등수", "등락"];
+  const rows = summaries.map((summary) => {
+    const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
+    return {
+      summary,
+      previousRank,
+      cells: [
+        formatStudentNumber(summary.student.id),
+        summary.student.name || "",
+        formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(summary.student)),
+        ...subjects.map((subject) => formatWeeklyGradeReportScoreCell(summary.subjectScores[subject])),
+        formatWeeklyWrongCountCell(summary) === "-" ? "" : formatWeeklyWrongCountCell(summary),
+        summary.rank ? String(summary.rank) : "",
+        previousRank ? String(previousRank) : "",
+      ],
+    };
+  });
+  if (!rows.length) return notify("해당 주차에 응시한 학생이 없습니다.");
+  const titleText = `[론박스터디] ${targetWeek}주차 주간평가 성적표`;
+  const html = buildWeeklyGradeReportHtml({ titleText, headers, rows });
+  downloadHtmlExcel(`${titleText}_${cohort || "전체"}기_전체직렬.xls`, html);
+  notify("주간평가 성적표를 다운로드했습니다.");
+}
+
+function getWeeklyGradeReportStudents(cohort = selectedStudentCohort) {
+  return getStudentsInCohort(cohort)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+}
+
+function getWeeklyGradeReportSubjects(exam) {
+  const standardSubjects = ["해사법규", "해양경찰학개론", "형사법", "해사영어", "항해학", "기관학"];
+  const actualSubjects = getExamSections(exam?.id || "")
+    .filter((section) => section.isActive !== false)
+    .map((section) => String(section.subject || "").trim())
+    .filter(Boolean)
+    .filter((subject, index, subjects) => subjects.indexOf(subject) === index)
+    .sort(compareWeeklySubjects);
+  return [
+    ...standardSubjects,
+    ...actualSubjects.filter((subject) => !standardSubjects.includes(subject)),
+  ];
+}
+
+function sortWeeklyGradeReportSummaries(summaries = [], groupByTrack = false) {
+  const sorted = sortGradeSummariesForDisplay(summaries);
+  if (!groupByTrack) return sorted;
+  return sorted.sort((a, b) => {
+    const trackCompare = formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(a.student))
+      .localeCompare(formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(b.student)), "ko-KR");
+    if (trackCompare) return trackCompare;
+    const rankA = Number(a.rank) || 0;
+    const rankB = Number(b.rank) || 0;
+    if (rankA && rankB && rankA !== rankB) return rankA - rankB;
+    if (rankA !== rankB) return rankA ? -1 : 1;
+    const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreCompare) return scoreCompare;
+    const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
+    if (wrongCompare) return wrongCompare;
+    return String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true });
+  });
+}
+
+function formatWeeklyGradeReportSubjectHeader(subject) {
+  const labels = {
+    해사법규: "법규",
+    해양경찰학개론: "개론",
+    형사법: "형사",
+    "형사법(공판)": "형소법",
+    해사영어: "영어",
+    항해학: "항해",
+    기관학: "기관",
+  };
+  return labels[subject] || subject;
+}
+
+function formatWeeklyGradeReportTrackLabel(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  const labels = {
+    "경찰직 - 공채(순경)": "공개채용",
+    "경찰직 - 해경학과 항해(경장)": "해경학과 항해",
+    "경찰직 - 해경학과 기관(경장)": "해경학과 기관",
+    "경찰직 - 함정요원 항해(순경)": "함정 항해",
+    "경찰직 - 함정요원 기관(순경)": "함정 기관",
+    "경찰직 - 해상교통관제(VTS)(순경)": "VTS",
+    "일반직 - 선박교통관제(VTS)": "선박관제",
+    "경찰직 - 경위 공채(해양-기관)": "간부 기관",
+    "경찰직 - 경위 공채(해양-항해)": "간부 항해",
+  };
+  return labels[normalized] || normalized || "";
+}
+
+function formatWeeklyGradeReportScoreCell(subjectScore) {
+  if (!subjectScore || subjectScore.status === "missing" || subjectScore.status === "empty") return "";
+  return String(Number(subjectScore.score) || 0);
+}
+
+function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
+  const columnCount = headers.length;
+  const colgroup = headers.map((header) => {
+    const width = header === "이름" ? 74 : header === "직렬" ? 110 : header.includes("등수") ? 82 : 62;
+    return `<col style="width:${width}px">`;
+  }).join("");
+  const bodyRows = rows.length
+    ? rows.map(({ summary, previousRank, cells }) => {
+        const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
+        const deltaClass = delta.direction === "up" ? "rank-up" : delta.direction === "down" ? "rank-down" : "";
+        return `<tr>${cells.map((cell) => `<td>${escapeHtmlText(cell)}</td>`).join("")}<td class="${deltaClass}">${escapeHtmlText(delta.label)}</td></tr>`;
+      }).join("")
+    : `<tr><td colspan="${columnCount}">조회할 성적이 없습니다.</td></tr>`;
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  table { border-collapse: collapse; table-layout: fixed; font-family: "Malgun Gothic", Arial, sans-serif; }
+  th, td { border: 1px solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-size: 12px; mso-number-format: "\\@"; }
+  .title { background: #fff200; color: #1f2933; font-size: 52px; font-weight: 900; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
+  .header th { font-size: 14px; font-weight: 400; background: #fff; }
+  .rank-up { color: #f00; font-weight: 700; }
+  .rank-down { color: #00f; font-weight: 700; }
+</style>
+</head>
+<body>
+<table>
+  <colgroup>${colgroup}</colgroup>
+  <thead>
+    <tr><th class="title" colspan="${columnCount}">${escapeHtmlText(titleText)}</th></tr>
+    <tr class="header">${headers.map((header) => `<th>${escapeHtmlText(header)}</th>`).join("")}</tr>
+  </thead>
+  <tbody>${bodyRows}</tbody>
+</table>
+</body>
+</html>`;
+}
+
+function getWeeklyGradeReportRankDelta(currentRank, previousRank) {
+  if (!currentRank || !previousRank) return { label: "-", direction: "" };
+  const delta = Number(previousRank) - Number(currentRank);
+  if (!delta) return { label: "-", direction: "" };
+  return delta > 0
+    ? { label: `▲${delta}`, direction: "up" }
+    : { label: `▼${Math.abs(delta)}`, direction: "down" };
+}
+
+function downloadHtmlExcel(filename, html) {
+  const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = el("a", { href: url, download: filename, style: "display:none" });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeHtmlText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeWeeklyGradeReportFilePart(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/\s+/g, "_") || "성적표";
 }
 
 function getWeeklyExamByCohortAndWeek(cohort, weekNumber) {
