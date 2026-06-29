@@ -1658,10 +1658,11 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
   const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
-  const headers = ["이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
+  const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return el("tr", {}, [
+      el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
       ...weeklySubjectHeaders.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
@@ -1774,6 +1775,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   const summaries = applyGradeRanksByTrack(participants.map((student) => getFinalMockGradeStudentSummary(student, records)));
   const registered = participants.map((student) => recordByStudent.get(String(student.id))).filter(Boolean);
   const headers = [
+    "번호",
     "이름",
     "구분",
     "직렬",
@@ -1789,6 +1791,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
     return el("tr", {}, [
+      el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, summary.student.isExternalFinalScore ? "미등록" : "등록"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
@@ -2045,6 +2048,7 @@ async function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
 function renderFinalScoreInputRow(student, record) {
   const subjectScores = record?.subjectScores || {};
   return el("tr", {}, [
+    el("td", {}, formatStudentNumber(student.id)),
     el("td", {}, student.name || "-"),
     el("td", {}, getTeacherStudentRegisteredTrack(student) || "-"),
     ...getGradeSubjectHeaders().map((subject) => {
