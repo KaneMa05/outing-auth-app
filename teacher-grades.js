@@ -2348,12 +2348,12 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
         const isTrackStart = Boolean(currentTrack && currentTrack !== previousTrack);
         const isTrackEnd = Boolean(currentTrack && currentTrack !== nextTrack);
         const cellsXml = cells.map((cell, columnIndex) =>
-          buildXlsxInlineStringCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, getWeeklyGradeReportXlsxCellStyleId({
+          buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, getWeeklyGradeReportXlsxCellStyleId({
             columnNumber: columnIndex + 1,
             columnCount,
             isTrackStart,
             isTrackEnd,
-          }))
+          }), isWeeklyGradeReportNumericColumn(columnIndex + 1, columnCount))
         ).join("");
         const deltaStyle = getWeeklyGradeReportXlsxCellStyleId({
           columnNumber: columnCount,
@@ -2378,19 +2378,19 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
 }
 
 function getWeeklyGradeReportColumnWidth(header, index, columnCount) {
-  return pxToExcelColumnWidth(getWeeklyGradeReportColumnWidthPx(header, index, columnCount));
+  const pixels = getWeeklyGradeReportColumnWidthPx(header, index, columnCount);
+  return pxToExcelColumnWidth(pixels, index === 2 ? 9 : 7);
 }
 
 function getWeeklyGradeReportColumnWidthPx(header, index, columnCount) {
   if (index === 0 || index === 1) return 72;
   if (index === 2) return 125;
   if (index >= 3 && index < columnCount - 4) return 72;
-  if (index === columnCount - 1) return 90;
   return 100;
 }
 
-function pxToExcelColumnWidth(pixels) {
-  return Math.max(1, Math.round(((Number(pixels) || 72) - 5) / 7 * 100) / 100);
+function pxToExcelColumnWidth(pixels, maxDigitWidth = 7) {
+  return Math.max(1, Math.round(((Number(pixels) || 72) - 5) / maxDigitWidth * 100) / 100);
 }
 
 function pxToExcelRowHeight(pixels) {
@@ -2399,6 +2399,18 @@ function pxToExcelRowHeight(pixels) {
 
 function buildXlsxInlineStringCell(ref, value, styleId = 0) {
   return `<c r="${ref}" s="${styleId}" t="inlineStr"><is><t>${escapeXmlText(value)}</t></is></c>`;
+}
+
+function buildWeeklyGradeReportXlsxDataCell(ref, value, styleId = 0, numeric = false) {
+  const text = String(value ?? "").trim();
+  if (numeric && text !== "" && /^-?\d+(\.\d+)?$/.test(text)) {
+    return `<c r="${ref}" s="${styleId}"><v>${text}</v></c>`;
+  }
+  return buildXlsxInlineStringCell(ref, value, styleId);
+}
+
+function isWeeklyGradeReportNumericColumn(columnNumber, columnCount) {
+  return columnNumber >= 4 && columnNumber < columnCount;
 }
 
 function getWeeklyGradeReportXlsxCellStyleId({ columnNumber, columnCount, isTrackStart, isTrackEnd, deltaDirection = "" }) {
@@ -2418,7 +2430,7 @@ function buildWeeklyGradeReportStylesXml() {
   const bodyXfs = [0, 3, 4].flatMap((fontId, fontOffset) =>
     Array.from({ length: 16 }, (_, mask) => {
       const applyFont = fontOffset ? ` applyFont="1"` : "";
-      return `<xf numFmtId="49" fontId="${fontId}" fillId="0" borderId="${mask + 1}" xfId="0"${applyFont} applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>`;
+      return `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="${mask + 1}" xfId="0"${applyFont} applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>`;
     })
   ).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

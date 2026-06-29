@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v181-xlsx-grade-group-borders";
+const CACHE_NAME = "outing-auth-app-v184-xlsx-numeric-cells";
 const APP_SHELL = [
   "/",
   "/index.html",
