@@ -2411,10 +2411,13 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
     return `<col style="width:${width}px">`;
   }).join("");
   const bodyRows = rows.length
-    ? rows.map(({ summary, previousRank, cells }) => {
+    ? rows.map(({ summary, previousRank, cells }, index) => {
         const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
         const deltaClass = delta.direction === "up" ? "rank-up" : delta.direction === "down" ? "rank-down" : "";
-        return `<tr>${cells.map((cell) => `<td>${escapeHtmlText(cell)}</td>`).join("")}<td class="${deltaClass}">${escapeHtmlText(delta.label)}</td></tr>`;
+        const currentTrack = String(cells[2] || "");
+        const nextTrack = String(rows[index + 1]?.cells?.[2] || "");
+        const rowClass = currentTrack && currentTrack !== nextTrack ? " class=\"track-end\"" : "";
+        return `<tr${rowClass}>${cells.map((cell) => `<td>${escapeHtmlText(cell)}</td>`).join("")}<td class="${deltaClass}">${escapeHtmlText(delta.label)}</td></tr>`;
       }).join("")
     : `<tr><td colspan="${columnCount}">조회할 성적이 없습니다.</td></tr>`;
   return `<!doctype html>
@@ -2423,9 +2426,10 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
 <meta charset="utf-8">
 <style>
   table { border-collapse: collapse; table-layout: fixed; font-family: "Malgun Gothic", Arial, sans-serif; }
-  th, td { border: 1px solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-size: 12px; mso-number-format: "\\@"; }
-  .title { background: #fff200; color: #1f2933; font-size: 52px; font-weight: 900; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
-  .header th { font-size: 14px; font-weight: 400; background: #fff; }
+  th, td { border: 0.12pt solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12pt; mso-number-format: "\\@"; }
+  .title { background: #fff200; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 50pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
+  .header th { font-size: 12pt; font-weight: 400; background: #fff; }
+  .track-end td { border-bottom: 3px solid #111; }
   .rank-up { color: #f00; font-weight: 700; }
   .rank-down { color: #00f; font-weight: 700; }
 </style>
