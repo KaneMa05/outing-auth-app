@@ -2277,7 +2277,7 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
 <style>
   table { border-collapse: collapse; table-layout: fixed; font-family: "Malgun Gothic", Arial, sans-serif; }
   th, td { border: 0.12pt solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12pt; mso-number-format: "\\@"; }
-  .title { background: #ffff00; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 48pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: center; white-space: nowrap; }
+  .title { background: #ffff00; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 48pt; font-weight: bold; letter-spacing: 0; height: 70px; text-align: center; white-space: nowrap; }
   .title-spacer th { border: none; height: 21px; background: #fff; }
   .header th { font-size: 12pt; font-weight: 400; background: #fff; }
   .track-group td:first-child { border-left: 0.4pt solid #111; }
@@ -2333,7 +2333,7 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
     const width = getWeeklyGradeReportColumnWidth(header, index, headers.length);
     return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
   }).join("");
-  const titleRow = `<row r="1" ht="76" customHeight="1">${buildXlsxInlineStringCell("A1", titleText, 1)}</row>`;
+  const titleRow = `<row r="1" ht="${pxToExcelRowHeight(70)}" customHeight="1">${buildXlsxInlineStringCell("A1", titleText, 1)}</row>`;
   const spacerRow = `<row r="2" ht="21" customHeight="1"></row>`;
   const headerRow = `<row r="3">${headers.map((header, index) =>
     buildXlsxInlineStringCell(`${getExcelColumnName(index + 1)}3`, header, 2)
@@ -2383,13 +2383,18 @@ function getWeeklyGradeReportColumnWidth(header, index, columnCount) {
 
 function getWeeklyGradeReportColumnWidthPx(header, index, columnCount) {
   if (index === 0 || index === 1) return 72;
-  if (index === 2) return 130;
+  if (index === 2) return 125;
   if (index >= 3 && index < columnCount - 4) return 72;
+  if (index === columnCount - 1) return 90;
   return 100;
 }
 
 function pxToExcelColumnWidth(pixels) {
   return Math.max(1, Math.round(((Number(pixels) || 72) - 5) / 7 * 100) / 100);
+}
+
+function pxToExcelRowHeight(pixels) {
+  return Math.max(1, Math.round((Number(pixels) || 70) * 0.75 * 100) / 100);
 }
 
 function buildXlsxInlineStringCell(ref, value, styleId = 0) {
@@ -2443,11 +2448,11 @@ function buildWeeklyGradeReportStylesXml() {
 }
 
 function buildWeeklyGradeReportBorderXml(mask) {
-  const side = (outer) => `<color rgb="FF111111"/>`;
-  const leftStyle = mask & 1 ? "thin" : "hair";
-  const rightStyle = mask & 2 ? "thin" : "hair";
-  const topStyle = mask & 4 ? "thin" : "hair";
-  const bottomStyle = mask & 8 ? "thin" : "hair";
+  const side = () => `<color rgb="FF111111"/>`;
+  const leftStyle = mask & 1 ? "medium" : "thin";
+  const rightStyle = mask & 2 ? "medium" : "thin";
+  const topStyle = mask & 4 ? "medium" : "thin";
+  const bottomStyle = mask & 8 ? "medium" : "thin";
   return `<border><left style="${leftStyle}">${side(mask & 1)}</left><right style="${rightStyle}">${side(mask & 2)}</right><top style="${topStyle}">${side(mask & 4)}</top><bottom style="${bottomStyle}">${side(mask & 8)}</bottom><diagonal/></border>`;
 }
 
