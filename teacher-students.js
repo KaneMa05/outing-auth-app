@@ -476,14 +476,109 @@ function studentPreviewAttendanceText(check) {
 }
 
 function renderStudentPreviewGrades(student) {
+  const weeklyExams = getTeacherPreviewWeeklyExamOptions(student);
+  const selectedWeeklyExam = getTeacherPreviewSelectedWeeklyExam(student, weeklyExams);
   const roundOptions = getTeacherPreviewFinalRoundOptions(student);
   const selectedRound = Number(studentPreviewFinalRoundByStudent[student.id]) || 0;
   const round = roundOptions.includes(selectedRound) ? selectedRound : roundOptions[roundOptions.length - 1] || 0;
   if (round) studentPreviewFinalRoundByStudent[student.id] = round;
   const summary = round ? getTeacherPreviewFinalSummary(student, round) : null;
   return panel("성적", [
+    renderStudentWeeklyGradePreviewPanel(student, selectedWeeklyExam, weeklyExams),
     renderStudentGradePreviewPanel(summary, roundOptions),
   ]);
+}
+
+function getTeacherPreviewWeeklyExamOptions(student) {
+  const cohort = getStudentCohort(student);
+  return [...(state.exams || [])]
+    .filter((exam) => String(exam.cohort || "") === String(cohort || ""))
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+function getTeacherPreviewSelectedWeeklyExam(student, exams = []) {
+  const selectedId = studentPreviewWeeklyExamByStudent[student.id] || "";
+  const selected = exams.find((exam) => exam.id === selectedId) || exams[0] || null;
+  if (selected) studentPreviewWeeklyExamByStudent[student.id] = selected.id;
+  return selected;
+}
+
+function renderTeacherPreviewWeeklyExamSelect(studentId, exams = [], selectedExam) {
+  const node = el("select", {
+    className: "student-grade-round-select",
+    ariaLabel: "주간평가 주차 선택",
+  }, exams.map((exam) => el("option", { value: exam.id }, `${Number(exam.weekNumber) || 1}주차`)));
+  node.value = selectedExam?.id || "";
+  node.addEventListener("change", () => {
+    studentPreviewWeeklyExamByStudent[studentId] = node.value;
+    render();
+  });
+  return node;
+}
+
+function renderStudentWeeklyGradePreviewPanel(student, exam, exams = []) {
+  const summary = exam ? getTeacherPreviewWeeklySummary(student, exam) : null;
+  const title = exam ? `${Number(exam.weekNumber) || 1}주차 주간평가 성적` : "주간평가 성적";
+  const headerControl = exam ? renderTeacherPreviewWeeklyExamSelect(student.id, exams, exam) : null;
+  if (!summary || !summary.submittedCount) {
+    return el("div", { className: "student-grade-result" }, [
+      el("div", { className: "student-grade-result-title" }, [
+        el("strong", {}, title),
+        headerControl,
+      ]),
+      renderTeacherPreviewGradeSummary({ trackText: getTeacherStudentRegisteredTrack(student) }),
+      el("div", { className: "empty" }, exam ? "제출된 주간평가 성적이 없습니다." : "조회할 주간평가가 없습니다."),
+    ]);
+  }
+  const subjectSummaries = getTeacherPreviewWeeklySubjectSummaries(student, exam, summary);
+  return el("div", { className: "student-grade-result" }, [
+    el("div", { className: "student-grade-result-title" }, [
+      el("strong", {}, title),
+      headerControl,
+    ]),
+    renderTeacherPreviewGradeSummary({
+      label: summary.rank ? formatTopPercentLabel(summary.topPercent) : "",
+      metaText: summary.rank ? `응시자 ${summary.total || 0}명 중 ${summary.rank}등` : "",
+      scoreValue: `${summary.score}/${summary.maxScore}점`,
+      wrongValue: formatTeacherPreviewWrongCount(summary.wrongCount),
+      rankValue: summary.rank ? `${summary.rank}등` : "-",
+      topPercent: summary.topPercent,
+      trackText: getTeacherStudentRegisteredTrack(student),
+    }),
+    renderTeacherPreviewSubjectGradeList(subjectSummaries),
+  ]);
+}
+
+function getTeacherPreviewWeeklySummary(student, exam) {
+  const students = getStudentsInCohort(getStudentCohort(student));
+  const summaries = applyWeeklyGradeRanksByTrack(students.map((item) => getWeeklyGradeStudentSummary(exam, item)));
+  const summary = summaries.find((item) => String(item.student.id) === String(student.id)) || null;
+  if (!summary) return null;
+  const track = getTeacherStudentRegisteredTrack(student) || "미분류";
+  summary.total = summaries.filter((item) =>
+    item.submittedCount > 0 &&
+    Number(item.maxScore) > 0 &&
+    getTeacherStudentRegisteredTrack(item.student) === track
+  ).length;
+  return summary;
+}
+
+function getTeacherPreviewWeeklySubjectSummaries(student, exam, summary) {
+  return getWeeklyGradeSectionsForStudent(exam, student).map((section) => {
+    const subjectScore = summary.subjectScores?.[section.subject] || {};
+    const submitted = subjectScore.status === "submitted";
+    return {
+      subject: section.subject,
+      track: getTeacherStudentRegisteredTrack(student),
+      submitted,
+      score: Number(subjectScore.score) || 0,
+      wrongCount: submitted ? Math.max(0, (Number(subjectScore.questionCount) || 0) - (Number(subjectScore.correctCount) || 0)) : "-",
+      rank: 0,
+      topPercent: 0,
+      displayTopPercent: 0,
+      maxScore: Number(subjectScore.maxScore) || 0,
+    };
+  });
 }
 
 function renderTeacherPreviewFinalRoundSelect(studentId, roundOptions = []) {
@@ -529,7 +624,7 @@ function hasTeacherPreviewFinalScore(record) {
 }
 
 function getTeacherPreviewFinalSummary(student, round) {
-  const students = getGradeManagementStudents(getStudentCohort(student));
+  const students = getStudentsInCohort(getStudentCohort(student));
   const records = getFinalMockScoreRecords(round);
   const participants = getFinalMockGradeParticipants(getStudentCohort(student), students, records);
   const summaries = applyGradeRanksByTrack(participants.map((item) => getFinalMockGradeStudentSummary(item, records)));

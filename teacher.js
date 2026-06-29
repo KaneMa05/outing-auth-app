@@ -17,6 +17,7 @@ let gradeManagementMode = "weekly";
 let gradeManagementTrackFilter = "";
 let finalExamGradeFilters = { round: "1" };
 let studentPreviewFinalRoundByStudent = {};
+let studentPreviewWeeklyExamByStudent = {};
 let weeklyExamMode = "lookup";
 let weeklyExamSelectedId = "";
 let weeklyExamSelectedSectionId = "";
