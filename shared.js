@@ -1102,11 +1102,10 @@ async function loadStateFromRemote() {
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
-  let examSubmissionRequest =
-    APP_MODE === "teacher" || scopedStudentId
-      ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
-      : Promise.resolve({ data: [], error: null });
-  if (scopedStudentId && examSubmissionRequest?.eq) examSubmissionRequest = examSubmissionRequest.eq("student_id", scopedStudentId);
+  const shouldLoadExamSubmissions = APP_MODE === "teacher" || (APP_MODE === "student" && scopedStudentId);
+  const examSubmissionRequest = shouldLoadExamSubmissions
+    ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
+    : Promise.resolve({ data: [], error: null });
   let remoteResults = await Promise.all([
     remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
     managerRequest,
@@ -1243,7 +1242,10 @@ async function loadStateFromRemote() {
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
   if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
-    const scopedSubmissionIds = (examSubmissionResult.data || []).map((submission) => submission.id).filter(Boolean);
+    const scopedSubmissionIds = (examSubmissionResult.data || [])
+      .filter((submission) => String(submission.student_id || "") === String(scopedStudentId))
+      .map((submission) => submission.id)
+      .filter(Boolean);
     submissionAnswerResult = scopedSubmissionIds.length
       ? await remoteStore.from("submission_answers").select(submissionAnswerColumns).in("submission_id", scopedSubmissionIds).order("question_number", { ascending: true })
       : { data: [], error: null };
