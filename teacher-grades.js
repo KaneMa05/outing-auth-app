@@ -1688,171 +1688,9 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
 }
 
 function renderWeeklyGradeScoreActions(exam, cohort, weekNumber) {
-  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
   return el("div", { className: "action-row weekly-answer-actions" }, [
-    button(`답안지 점수 동기화${targets.length ? ` (${targets.length}건)` : ""}`, "mini-btn", "button", () => syncWeeklySubmissionAnswerSheetsForExam(exam)),
     button("성적표 다운로드", "mini-btn secondary", "button", () => downloadWeeklyGradeReport(exam, cohort, weekNumber)),
   ]);
-}
-
-function renderWeeklySubmissionAnswerSyncActions(exam) {
-  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
-  return el("div", { className: "action-row weekly-answer-actions" }, [
-    button(`답안지 점수 동기화${targets.length ? ` (${targets.length}건)` : ""}`, "mini-btn", "button", () => syncWeeklySubmissionAnswerSheetsForExam(exam)),
-  ]);
-}
-
-function getWeeklySubmissionAnswerSyncTargets(exam, track = "") {
-  if (!exam) return [];
-  const normalizedTrack = normalizeCoastGuardTrack(track);
-  const sections = getExamSections(exam.id)
-    .filter((section) => section.isActive !== false)
-    .filter((section) => {
-      const sectionTrack = normalizeCoastGuardTrack(section.track);
-      if (normalizedTrack && sectionTrack !== normalizedTrack && sectionTrack !== WEEKLY_EXAM_TRACK_ALL) return false;
-      if (sectionTrack === WEEKLY_EXAM_TRACK_ALL && normalizedTrack && !isWeeklySubjectAllowedForTrack(section.subject, normalizedTrack)) return false;
-      return isWeeklyGradeSectionVisibleForTrack(section, normalizedTrack || sectionTrack);
-    });
-  const sectionsById = new Map(sections.map((section) => [section.id, section]));
-  return (state.examSubmissions || [])
-    .filter((submission) => submission.status === "submitted" && sectionsById.has(submission.examSectionId))
-    .filter((submission) => !normalizedTrack || normalizeCoastGuardTrack(submission.track) === normalizedTrack)
-    .map((submission) => ({ section: sectionsById.get(submission.examSectionId), submission }))
-    .filter(({ section, submission }) => !isSubmissionAnswerSheetSyncedToScore(section, submission));
-}
-
-function isSubmissionAnswerSheetSyncedToScore(section, submission) {
-  const key = getScoreSyncSectionAnswers(section, submission);
-  const answers = getSubmissionAnswers(submission.id);
-  if (!key.length || !answers.length || !hasSubmissionAnswerSelections(answers)) return false;
-  const score = calculateSubmissionAnswerSheetScore(key, answers).score;
-  const targetScore = Number(submission.score) || 0;
-  return Math.abs(score - targetScore) < 0.01;
-}
-
-async function syncWeeklySubmissionAnswerSheetsForExam(exam) {
-  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
-  if (!targets.length) return notify("동기화할 답안지가 없습니다.");
-  const weekLabel = `${Number(exam.weekNumber) || 1}주차`;
-  if (!confirm(`${weekLabel} 주간평가 ${targets.length}건을 학생 답안지 기준으로 다시 채점할까요?\n학생이 실제로 선택한 번호가 없는 오래된 기록만 저장된 점수에 맞는 복구 답안으로 채워집니다.`)) return;
-
-  const previousAnswers = (state.submissionAnswers || []).map((answer) => ({ ...answer }));
-  const previousSubmissions = (state.examSubmissions || []).map((submission) => ({ ...submission }));
-  const submissionIds = new Set(targets.map(({ submission }) => submission.id));
-  const syncedAnswers = [];
-  targets.forEach(({ section, submission }) => {
-    const key = getScoreSyncSectionAnswers(section, submission);
-    const currentAnswers = getSubmissionAnswers(submission.id);
-    const hasSelections = hasSubmissionAnswerSelections(currentAnswers);
-    const { answers, score, correctCount } = hasSelections
-      ? buildAnswerSheetRescoredSubmissionAnswers(key, currentAnswers)
-      : buildScoreSyncedSubmissionAnswers(section, submission);
-    if (hasSelections) submission.score = score;
-    submission.correctCount = correctCount;
-    syncedAnswers.push(...answers);
-  });
-
-  try {
-    state.submissionAnswers = [
-      ...(state.submissionAnswers || []).filter((answer) => !submissionIds.has(answer.submissionId)),
-      ...syncedAnswers,
-    ];
-    saveState({ skipRemote: true });
-    if (remoteStore) {
-      const cleanIds = [...submissionIds].filter(Boolean);
-      if (cleanIds.length) {
-        const { error: deleteError } = await remoteStore.from("submission_answers").delete().in("submission_id", cleanIds);
-        if (deleteError) throw deleteError;
-      }
-      await saveSubmissionAnswersToRemote(syncedAnswers);
-      await saveExamSubmissionsToRemote(targets.map(({ submission }) => submission));
-    }
-    render();
-    notify(`답안지 ${targets.length}건을 기준으로 점수를 동기화했습니다.`);
-  } catch (error) {
-    console.error(error);
-    state.submissionAnswers = previousAnswers;
-    state.examSubmissions = previousSubmissions;
-    saveState({ skipRemote: true });
-    notify("답안지 동기화 중 오류가 발생했습니다.");
-  }
-}
-
-function buildScoreSyncedSubmissionAnswers(section, submission) {
-  const key = getScoreSyncSectionAnswers(section, submission);
-  let remainingScore = Number(submission.score) || 0;
-  let correctCount = 0;
-  const answers = key.map((answerKey) => {
-    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
-    const points = getExamAnswerPointValue(answerKey);
-    const isCorrect = correctAnswer && remainingScore + 0.01 >= points;
-    if (isCorrect) {
-      remainingScore -= points;
-      correctCount += 1;
-    }
-    return {
-      id: createId(),
-      submissionId: submission.id,
-      questionNumber: answerKey.questionNumber,
-      selectedAnswer: isCorrect ? correctAnswer : getIncorrectAnswerChoice(correctAnswer),
-      isCorrect: Boolean(isCorrect),
-      pointsAwarded: isCorrect ? points : 0,
-    };
-  });
-  return { answers, correctCount };
-}
-
-function buildAnswerSheetRescoredSubmissionAnswers(answerKey, currentAnswers) {
-  const keyByQuestion = new Map(answerKey.map((answer) => [Number(answer.questionNumber), answer]));
-  let score = 0;
-  let correctCount = 0;
-  const answers = currentAnswers.map((answer) => {
-    const key = keyByQuestion.get(Number(answer.questionNumber));
-    const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
-    const correctAnswer = normalizeExamAnswerChoice(key?.correctAnswer);
-    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const pointsAwarded = isCorrect ? getExamAnswerPointValue(key) : 0;
-    if (isCorrect) correctCount += 1;
-    score += pointsAwarded;
-    return {
-      ...answer,
-      id: answer.id || createId(),
-      selectedAnswer,
-      isCorrect,
-      pointsAwarded,
-    };
-  });
-  return { answers, score: Math.round(score * 10) / 10, correctCount };
-}
-
-function getScoreSyncSectionAnswers(section, submission) {
-  return getSectionAnswers(section.id)
-    .filter((answer) => answer.correctAnswer)
-    .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
-    .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
-}
-
-function calculateSubmissionAnswerSheetScore(answerKey, submissionAnswers) {
-  const keyByQuestion = new Map(answerKey.map((answer) => [Number(answer.questionNumber), answer]));
-  return submissionAnswers.reduce((total, answer) => {
-    const key = keyByQuestion.get(Number(answer.questionNumber));
-    const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
-    const correctAnswer = normalizeExamAnswerChoice(key?.correctAnswer);
-    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const points = isCorrect ? getExamAnswerPointValue(key) : 0;
-    return {
-      score: total.score + points,
-      correctCount: total.correctCount + (isCorrect ? 1 : 0),
-    };
-  }, { score: 0, correctCount: 0 });
-}
-
-function hasSubmissionAnswerSelections(answers = []) {
-  return answers.some((answer) => normalizeExamAnswerChoice(answer.selectedAnswer));
-}
-
-function getIncorrectAnswerChoice(correctAnswer) {
-  return [1, 2, 3, 4].find((choice) => choice !== Number(correctAnswer)) || null;
 }
 
 function getWeeklyGradeSubjectHeaders(exam, track) {
@@ -2327,8 +2165,8 @@ function downloadWeeklyGradeReport(exam, cohort = selectedStudentCohort, weekNum
   });
   if (!rows.length) return notify("해당 주차에 응시한 학생이 없습니다.");
   const titleText = `[론박스터디] ${targetWeek}주차 주간평가 성적표`;
-  const html = buildWeeklyGradeReportHtml({ titleText, headers, rows });
-  downloadHtmlExcel(`${titleText}_${cohort || "전체"}기_전체직렬.xls`, html);
+  const workbook = buildWeeklyGradeReportWorkbook({ titleText, headers, rows });
+  downloadXlsx(`${titleText}_${cohort || "전체"}기_전체직렬.xlsx`, workbook);
   notify("주간평가 성적표를 다운로드했습니다.");
 }
 
@@ -2407,16 +2245,24 @@ function formatWeeklyGradeReportScoreCell(subjectScore) {
 function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
   const columnCount = headers.length;
   const colgroup = headers.map((header) => {
-    const width = header === "이름" ? 74 : header === "직렬" ? 110 : header.includes("등수") ? 82 : 62;
+    const width = getWeeklyGradeReportColumnWidthPx(header);
     return `<col style="width:${width}px">`;
   }).join("");
   const bodyRows = rows.length
     ? rows.map(({ summary, previousRank, cells }, index) => {
         const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
         const deltaClass = delta.direction === "up" ? "rank-up" : delta.direction === "down" ? "rank-down" : "";
+        const previousTrack = String(rows[index - 1]?.cells?.[2] || "");
         const currentTrack = String(cells[2] || "");
         const nextTrack = String(rows[index + 1]?.cells?.[2] || "");
-        const rowClass = currentTrack && currentTrack !== nextTrack ? " class=\"track-end\"" : "";
+        const rowClasses = currentTrack
+          ? [
+              "track-group",
+              currentTrack !== previousTrack ? "track-start" : "",
+              currentTrack !== nextTrack ? "track-end" : "",
+            ].filter(Boolean)
+          : [];
+        const rowClass = rowClasses.length ? ` class="${rowClasses.join(" ")}"` : "";
         return `<tr${rowClass}>${cells.map((cell) => `<td>${escapeHtmlText(cell)}</td>`).join("")}<td class="${deltaClass}">${escapeHtmlText(delta.label)}</td></tr>`;
       }).join("")
     : `<tr><td colspan="${columnCount}">조회할 성적이 없습니다.</td></tr>`;
@@ -2427,9 +2273,13 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
 <style>
   table { border-collapse: collapse; table-layout: fixed; font-family: "Malgun Gothic", Arial, sans-serif; }
   th, td { border: 0.12pt solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12pt; mso-number-format: "\\@"; }
-  .title { background: #fff200; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 50pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
+  .title { background: #ffff00; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 48pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
+  .title-spacer th { border: none; height: 21px; background: #fff; }
   .header th { font-size: 12pt; font-weight: 400; background: #fff; }
-  .track-end td { border-bottom: 3px solid #111; }
+  .track-group td:first-child { border-left: 0.4pt solid #111; }
+  .track-group td:last-child { border-right: 0.4pt solid #111; }
+  .track-start td { border-top: 0.4pt solid #111; }
+  .track-end td { border-bottom: 0.4pt solid #111; }
   .rank-up { color: #f00; font-weight: 700; }
   .rank-down { color: #00f; font-weight: 700; }
 </style>
@@ -2439,6 +2289,7 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
   <colgroup>${colgroup}</colgroup>
   <thead>
     <tr><th class="title" colspan="${columnCount}">${escapeHtmlText(titleText)}</th></tr>
+    <tr class="title-spacer"><th colspan="${columnCount}"></th></tr>
     <tr class="header">${headers.map((header) => `<th>${escapeHtmlText(header)}</th>`).join("")}</tr>
   </thead>
   <tbody>${bodyRows}</tbody>
@@ -2456,14 +2307,311 @@ function getWeeklyGradeReportRankDelta(currentRank, previousRank) {
     : { label: `▼${Math.abs(delta)}`, direction: "down" };
 }
 
-function downloadHtmlExcel(filename, html) {
-  const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
+function buildWeeklyGradeReportWorkbook({ titleText, headers, rows }) {
+  return [
+    { name: "[Content_Types].xml", content: buildXlsxContentTypesXml() },
+    { name: "_rels/.rels", content: buildXlsxRootRelsXml() },
+    { name: "docProps/app.xml", content: buildXlsxAppXml() },
+    { name: "docProps/core.xml", content: buildXlsxCoreXml() },
+    { name: "xl/workbook.xml", content: buildXlsxWorkbookXml() },
+    { name: "xl/_rels/workbook.xml.rels", content: buildXlsxWorkbookRelsXml() },
+    { name: "xl/styles.xml", content: buildWeeklyGradeReportStylesXml() },
+    { name: "xl/worksheets/sheet1.xml", content: buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) },
+  ];
+}
+
+function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
+  const columnCount = headers.length;
+  const lastColumn = getExcelColumnName(columnCount);
+  const dataRowCount = Math.max(rows.length, 1);
+  const lastRow = 3 + dataRowCount;
+  const cols = headers.map((header, index) => {
+    const width = getWeeklyGradeReportColumnWidth(header);
+    return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
+  }).join("");
+  const titleRow = `<row r="1" ht="76" customHeight="1">${buildXlsxInlineStringCell("A1", titleText, 1)}</row>`;
+  const spacerRow = `<row r="2" ht="21" customHeight="1"></row>`;
+  const headerRow = `<row r="3">${headers.map((header, index) =>
+    buildXlsxInlineStringCell(`${getExcelColumnName(index + 1)}3`, header, 2)
+  ).join("")}</row>`;
+  const bodyRows = rows.length
+    ? rows.map(({ summary, previousRank, cells }, rowIndex) => {
+        const rowNumber = rowIndex + 4;
+        const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
+        const previousTrack = String(rows[rowIndex - 1]?.cells?.[2] || "");
+        const currentTrack = String(cells[2] || "");
+        const nextTrack = String(rows[rowIndex + 1]?.cells?.[2] || "");
+        const isTrackStart = Boolean(currentTrack && currentTrack !== previousTrack);
+        const isTrackEnd = Boolean(currentTrack && currentTrack !== nextTrack);
+        const cellsXml = cells.map((cell, columnIndex) =>
+          buildXlsxInlineStringCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, getWeeklyGradeReportXlsxCellStyleId({
+            columnNumber: columnIndex + 1,
+            columnCount,
+            isTrackStart,
+            isTrackEnd,
+          }))
+        ).join("");
+        const deltaStyle = getWeeklyGradeReportXlsxCellStyleId({
+          columnNumber: columnCount,
+          columnCount,
+          isTrackStart,
+          isTrackEnd,
+          deltaDirection: delta.direction,
+        });
+        return `<row r="${rowNumber}">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
+      }).join("")
+    : `<row r="4">${buildXlsxInlineStringCell("A4", "조회된 성적이 없습니다.", 3)}</row>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${lastColumn}${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="21"/>
+  <cols>${cols}</cols>
+  <sheetData>${titleRow}${spacerRow}${headerRow}${bodyRows}</sheetData>
+  <mergeCells count="1"><mergeCell ref="A1:${lastColumn}1"/></mergeCells>
+  <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+</worksheet>`;
+}
+
+function getWeeklyGradeReportColumnWidth() {
+  return 12;
+}
+
+function getWeeklyGradeReportColumnWidthPx() {
+  return 88;
+}
+
+function buildXlsxInlineStringCell(ref, value, styleId = 0) {
+  return `<c r="${ref}" s="${styleId}" t="inlineStr"><is><t>${escapeXmlText(value)}</t></is></c>`;
+}
+
+function getWeeklyGradeReportXlsxCellStyleId({ columnNumber, columnCount, isTrackStart, isTrackEnd, deltaDirection = "" }) {
+  const borderMask = (columnNumber === 1 ? 1 : 0)
+    | (columnNumber === columnCount ? 2 : 0)
+    | (isTrackStart ? 4 : 0)
+    | (isTrackEnd ? 8 : 0);
+  const fontOffset = deltaDirection === "up" ? 1 : deltaDirection === "down" ? 2 : 0;
+  return 3 + fontOffset * 16 + borderMask;
+}
+
+function buildWeeklyGradeReportStylesXml() {
+  const borders = [
+    `<border><left/><right/><top/><bottom/><diagonal/></border>`,
+    ...Array.from({ length: 16 }, (_, mask) => buildWeeklyGradeReportBorderXml(mask)),
+  ].join("");
+  const bodyXfs = [0, 3, 4].flatMap((fontId, fontOffset) =>
+    Array.from({ length: 16 }, (_, mask) => {
+      const applyFont = fontOffset ? ` applyFont="1"` : "";
+      return `<xf numFmtId="49" fontId="${fontId}" fillId="0" borderId="${mask + 1}" xfId="0"${applyFont} applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>`;
+    })
+  ).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="5">
+    <font><sz val="12"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="48"/><color rgb="FF1F2933"/><name val="공체 Bold"/></font>
+    <font><sz val="12"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="12"/><color rgb="FFFF0000"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="12"/><color rgb="FF0000FF"/><name val="Malgun Gothic"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="17">${borders}</borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="51">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="49" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="49" fontId="2" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+    ${bodyXfs}
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+function buildWeeklyGradeReportBorderXml(mask) {
+  const side = (outer) => `<color rgb="FF111111"/>`;
+  const leftStyle = mask & 1 ? "thin" : "hair";
+  const rightStyle = mask & 2 ? "thin" : "hair";
+  const topStyle = mask & 4 ? "thin" : "hair";
+  const bottomStyle = mask & 8 ? "thin" : "hair";
+  return `<border><left style="${leftStyle}">${side(mask & 1)}</left><right style="${rightStyle}">${side(mask & 2)}</right><top style="${topStyle}">${side(mask & 4)}</top><bottom style="${bottomStyle}">${side(mask & 8)}</bottom><diagonal/></border>`;
+}
+
+function buildXlsxContentTypesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`;
+}
+
+function buildXlsxRootRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+}
+
+function buildXlsxWorkbookXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="성적표" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+}
+
+function buildXlsxWorkbookRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+}
+
+function buildXlsxAppXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Robustudy</Application>
+</Properties>`;
+}
+
+function buildXlsxCoreXml() {
+  const now = new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:creator>Robustudy</dc:creator>
+  <cp:lastModifiedBy>Robustudy</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`;
+}
+
+function downloadXlsx(filename, files) {
+  const blob = createZipBlob(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   const url = URL.createObjectURL(blob);
   const link = el("a", { href: url, download: filename, style: "display:none" });
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function createZipBlob(files, type = "application/zip") {
+  const encoder = new TextEncoder();
+  const preparedFiles = files.map((file) => ({
+    nameBytes: encoder.encode(file.name),
+    data: typeof file.content === "string" ? encoder.encode(file.content) : file.content,
+  }));
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  preparedFiles.forEach((file) => {
+    const crc = getCrc32(file.data);
+    const localHeader = createZipLocalHeader(file, crc);
+    localParts.push(localHeader, file.nameBytes, file.data);
+    centralParts.push(createZipCentralHeader(file, crc, offset), file.nameBytes);
+    offset += localHeader.length + file.nameBytes.length + file.data.length;
+  });
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endRecord = createZipEndRecord(preparedFiles.length, centralSize, offset);
+  return new Blob([...localParts, ...centralParts, endRecord], { type });
+}
+
+function createZipLocalHeader(file, crc) {
+  const header = new Uint8Array(30);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x04034b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, 0, true);
+  view.setUint32(14, crc, true);
+  view.setUint32(18, file.data.length, true);
+  view.setUint32(22, file.data.length, true);
+  view.setUint16(26, file.nameBytes.length, true);
+  view.setUint16(28, 0, true);
+  return header;
+}
+
+function createZipCentralHeader(file, crc, offset) {
+  const header = new Uint8Array(46);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x02014b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 20, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, 0, true);
+  view.setUint16(14, 0, true);
+  view.setUint32(16, crc, true);
+  view.setUint32(20, file.data.length, true);
+  view.setUint32(24, file.data.length, true);
+  view.setUint16(28, file.nameBytes.length, true);
+  view.setUint16(30, 0, true);
+  view.setUint16(32, 0, true);
+  view.setUint16(34, 0, true);
+  view.setUint16(36, 0, true);
+  view.setUint32(38, 0, true);
+  view.setUint32(42, offset, true);
+  return header;
+}
+
+function createZipEndRecord(fileCount, centralSize, centralOffset) {
+  const record = new Uint8Array(22);
+  const view = new DataView(record.buffer);
+  view.setUint32(0, 0x06054b50, true);
+  view.setUint16(4, 0, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, fileCount, true);
+  view.setUint16(10, fileCount, true);
+  view.setUint32(12, centralSize, true);
+  view.setUint32(16, centralOffset, true);
+  view.setUint16(20, 0, true);
+  return record;
+}
+
+function getCrc32(bytes) {
+  const table = getCrc32Table();
+  let crc = -1;
+  for (let index = 0; index < bytes.length; index += 1) {
+    crc = (crc >>> 8) ^ table[(crc ^ bytes[index]) & 0xff];
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function getCrc32Table() {
+  if (getCrc32Table.cache) return getCrc32Table.cache;
+  const table = new Uint32Array(256);
+  for (let index = 0; index < 256; index += 1) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[index] = value >>> 0;
+  }
+  getCrc32Table.cache = table;
+  return table;
+}
+
+function getExcelColumnName(index) {
+  let name = "";
+  let column = Number(index) || 1;
+  while (column > 0) {
+    const modulo = (column - 1) % 26;
+    name = String.fromCharCode(65 + modulo) + name;
+    column = Math.floor((column - modulo) / 26);
+  }
+  return name;
 }
 
 function escapeHtmlText(value) {
@@ -2473,6 +2621,10 @@ function escapeHtmlText(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function escapeXmlText(value) {
+  return escapeHtmlText(value);
 }
 
 function sanitizeWeeklyGradeReportFilePart(value) {
