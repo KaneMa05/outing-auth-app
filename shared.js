@@ -2512,6 +2512,7 @@ function mergeLocalSubmissionAnswersAfterRemoteLoad(localSubmissions = [], local
 }
 
 function reconcileLoadedExamSubmissionGrades() {
+  if (APP_MODE === "teacher") return;
   const submissions = state.examSubmissions || [];
   const submissionAnswers = state.submissionAnswers || [];
   if (!submissions.length || !submissionAnswers.length) return;

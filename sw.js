@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v175-answer-sheet-current-key-sync";
+const CACHE_NAME = "outing-auth-app-v176-teacher-stored-weekly-scores";
 const APP_SHELL = [
   "/",
   "/index.html",
