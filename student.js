@@ -2061,13 +2061,42 @@ function renderStudentWeeklyExamFiles(exam, sections, student) {
     )),
   ]);
 }
-function openStudentGradedAnswerSheetModal(section, submission, student) {
+async function openStudentGradedAnswerSheetModal(section, submission, student) {
+  await ensureStudentSubmissionAnswersLoaded(submission);
   openInfoModal({
     title: `${section.subject} 내 답안지`,
     className: "student-graded-answer-modal",
     content: renderStudentGradedAnswerSheet(section, submission, student),
   });
 }
+
+async function ensureStudentSubmissionAnswersLoaded(submission) {
+  if (!remoteStore || !submission?.id) return;
+  const hasLoadedAnswers = (state.submissionAnswers || []).some((answer) => answer.submissionId === submission.id);
+  if (hasLoadedAnswers) return;
+  const { data, error } = await remoteStore
+    .from("submission_answers")
+    .select("id,submission_id,question_number,selected_answer,is_correct,points_awarded")
+    .eq("submission_id", submission.id)
+    .order("question_number", { ascending: true });
+  if (error) {
+    if (!isMissingRelationError(error, "submission_answers")) console.warn("Failed to load student submission answers", error);
+    return;
+  }
+  const loadedAnswers = (data || []).map(mapSubmissionAnswerFromRemote);
+  if (!loadedAnswers.length) return;
+  const loadedIds = new Set(loadedAnswers.map((answer) => answer.id).filter(Boolean));
+  const loadedQuestionKeys = new Set(loadedAnswers.map((answer) => `${answer.submissionId}:${answer.questionNumber}`));
+  state.submissionAnswers = [
+    ...(state.submissionAnswers || []).filter((answer) => {
+      if (answer.id && loadedIds.has(answer.id)) return false;
+      return !loadedQuestionKeys.has(`${answer.submissionId}:${answer.questionNumber}`);
+    }),
+    ...loadedAnswers,
+  ];
+  saveState({ skipRemote: true });
+}
+
 function renderStudentGradedAnswerSheet(section, submission, student) {
   const answerRows = getStudentGradedAnswerRows(section, submission, student);
   const correctCount = answerRows.filter((row) => row.isCorrect).length;
@@ -2385,9 +2414,14 @@ async function saveStudentExamSubmissionToRemote(submission) {
   if (result.error) {
     const fallback = await remoteStore.from("exam_submissions").upsert(row, { onConflict: "student_id,exam_section_id" });
     if (fallback.error) throw fallback.error;
+    await syncStudentSubmissionRemoteIdentity(submission, previousId);
     return;
   }
   const data = result.data;
+  applyStudentSubmissionRemoteIdentity(submission, previousId, data);
+}
+
+function applyStudentSubmissionRemoteIdentity(submission, previousId, data) {
   if (data?.id && data.id !== previousId) {
     submission.id = data.id;
     state.submissionAnswers = (state.submissionAnswers || []).map((answer) =>
@@ -2396,6 +2430,20 @@ async function saveStudentExamSubmissionToRemote(submission) {
   }
   if (data?.score !== undefined) submission.score = Number(data.score) || submission.score;
   if (data?.correct_count !== undefined) submission.correctCount = Number(data.correct_count) || submission.correctCount;
+}
+
+async function syncStudentSubmissionRemoteIdentity(submission, previousId) {
+  const { data, error } = await remoteStore
+    .from("exam_submissions")
+    .select("id,score,correct_count")
+    .eq("student_id", submission.studentId)
+    .eq("exam_section_id", submission.examSectionId)
+    .maybeSingle();
+  if (error) {
+    console.warn("Failed to confirm student submission id", error);
+    return;
+  }
+  applyStudentSubmissionRemoteIdentity(submission, previousId, data);
 }
 
 async function saveStudentSubmissionAnswersToRemote(answers) {

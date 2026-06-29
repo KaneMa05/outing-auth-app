@@ -1654,8 +1654,8 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
   const students = getGradeManagementStudents(cohort);
   const weeklySubjectHeaders = getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter);
-  const summaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
-  const previousSummaries = applyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
+  const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
+  const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
@@ -1679,10 +1679,123 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     el("div", { className: "teacher-search grade-management-filter" }, [
       field("주차", weekSelect),
     ]),
+    exam ? renderWeeklySubmissionAnswerSyncActions(exam) : null,
     exam
       ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
   ]);
+}
+
+function renderWeeklySubmissionAnswerSyncActions(exam) {
+  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
+  return el("div", { className: "action-row weekly-answer-actions" }, [
+    button(`답안지 점수 동기화${targets.length ? ` (${targets.length}건)` : ""}`, "mini-btn", "button", () => syncWeeklySubmissionAnswerSheetsForExam(exam)),
+  ]);
+}
+
+function getWeeklySubmissionAnswerSyncTargets(exam, track = "") {
+  if (!exam) return [];
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const sections = getExamSections(exam.id)
+    .filter((section) => section.isActive !== false)
+    .filter((section) => {
+      const sectionTrack = normalizeCoastGuardTrack(section.track);
+      if (normalizedTrack && sectionTrack !== normalizedTrack && sectionTrack !== WEEKLY_EXAM_TRACK_ALL) return false;
+      if (sectionTrack === WEEKLY_EXAM_TRACK_ALL && normalizedTrack && !isWeeklySubjectAllowedForTrack(section.subject, normalizedTrack)) return false;
+      return isWeeklyGradeSectionVisibleForTrack(section, normalizedTrack || sectionTrack);
+    });
+  const sectionsById = new Map(sections.map((section) => [section.id, section]));
+  return (state.examSubmissions || [])
+    .filter((submission) => submission.status === "submitted" && sectionsById.has(submission.examSectionId))
+    .filter((submission) => !normalizedTrack || normalizeCoastGuardTrack(submission.track) === normalizedTrack)
+    .map((submission) => ({ section: sectionsById.get(submission.examSectionId), submission }))
+    .filter(({ section, submission }) => !isSubmissionAnswerSheetSyncedToScore(section, submission));
+}
+
+function isSubmissionAnswerSheetSyncedToScore(section, submission) {
+  const key = getScoreSyncSectionAnswers(section, submission);
+  const answers = getSubmissionAnswers(submission.id);
+  if (!key.length || answers.length !== key.length) return false;
+  const score = answers.reduce((sum, answer) => sum + (Number(answer.pointsAwarded) || 0), 0);
+  const targetScore = Number(submission.score) || 0;
+  const hasSelectedAnswers = answers.every((answer) => normalizeExamAnswerChoice(answer.selectedAnswer));
+  return hasSelectedAnswers && Math.abs(score - targetScore) < 0.01;
+}
+
+async function syncWeeklySubmissionAnswerSheetsForExam(exam) {
+  const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
+  if (!targets.length) return notify("동기화할 답안지가 없습니다.");
+  const weekLabel = `${Number(exam.weekNumber) || 1}주차`;
+  if (!confirm(`${weekLabel} 주간평가 답안지 ${targets.length}건을 현재 점수에 맞춰 동기화할까요?\n학생이 실제로 선택한 번호가 없는 기록은 점수와 정답 개수에 맞는 복구 답안으로 채워집니다.`)) return;
+
+  const previousAnswers = [...(state.submissionAnswers || [])];
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const submissionIds = new Set(targets.map(({ submission }) => submission.id));
+  const syncedAnswers = [];
+  targets.forEach(({ section, submission }) => {
+    const { answers, correctCount } = buildScoreSyncedSubmissionAnswers(section, submission);
+    submission.correctCount = correctCount;
+    syncedAnswers.push(...answers);
+  });
+
+  try {
+    state.submissionAnswers = [
+      ...(state.submissionAnswers || []).filter((answer) => !submissionIds.has(answer.submissionId)),
+      ...syncedAnswers,
+    ];
+    saveState({ skipRemote: true });
+    if (remoteStore) {
+      const cleanIds = [...submissionIds].filter(Boolean);
+      if (cleanIds.length) {
+        const { error: deleteError } = await remoteStore.from("submission_answers").delete().in("submission_id", cleanIds);
+        if (deleteError) throw deleteError;
+      }
+      await saveSubmissionAnswersToRemote(syncedAnswers);
+      await saveExamSubmissionsToRemote(targets.map(({ submission }) => submission));
+    }
+    render();
+    notify(`답안지 ${targets.length}건을 점수에 맞춰 동기화했습니다.`);
+  } catch (error) {
+    console.error(error);
+    state.submissionAnswers = previousAnswers;
+    state.examSubmissions = previousSubmissions;
+    saveState({ skipRemote: true });
+    notify("답안지 동기화 중 오류가 발생했습니다.");
+  }
+}
+
+function buildScoreSyncedSubmissionAnswers(section, submission) {
+  const key = getScoreSyncSectionAnswers(section, submission);
+  let remainingScore = Number(submission.score) || 0;
+  let correctCount = 0;
+  const answers = key.map((answerKey) => {
+    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
+    const points = getExamAnswerPointValue(answerKey);
+    const isCorrect = correctAnswer && remainingScore + 0.01 >= points;
+    if (isCorrect) {
+      remainingScore -= points;
+      correctCount += 1;
+    }
+    return {
+      id: createId(),
+      submissionId: submission.id,
+      questionNumber: answerKey.questionNumber,
+      selectedAnswer: isCorrect ? correctAnswer : getIncorrectAnswerChoice(correctAnswer),
+      isCorrect: Boolean(isCorrect),
+      pointsAwarded: isCorrect ? points : 0,
+    };
+  });
+  return { answers, correctCount };
+}
+
+function getScoreSyncSectionAnswers(section, submission) {
+  return getSectionAnswers(section.id)
+    .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
+    .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
+}
+
+function getIncorrectAnswerChoice(correctAnswer) {
+  return [1, 2, 3, 4].find((choice) => choice !== Number(correctAnswer)) || null;
 }
 
 function getWeeklyGradeSubjectHeaders(exam, track) {
@@ -1694,8 +1807,10 @@ function getWeeklyGradeSubjectHeaders(exam, track) {
     .filter((section) => {
       const sectionTrack = normalizeCoastGuardTrack(section.track);
       if (section.isActive === false) return false;
-      if (sectionTrack === normalizedTrack) return true;
-      return sectionTrack === WEEKLY_EXAM_TRACK_ALL && isWeeklySubjectAllowedForTrack(section.subject, normalizedTrack);
+      if (sectionTrack === normalizedTrack) return isWeeklyGradeSectionVisibleForTrack(section, normalizedTrack);
+      return sectionTrack === WEEKLY_EXAM_TRACK_ALL &&
+        isWeeklySubjectAllowedForTrack(section.subject, normalizedTrack) &&
+        isWeeklyGradeSectionVisibleForTrack(section, normalizedTrack);
     })
     .map((section) => String(section.subject || "").trim())
     .filter((subject) => {
@@ -2137,12 +2252,13 @@ function getWeeklyGradeStudentSummary(exam, student) {
   const sections = exam ? getWeeklyGradeSectionsForStudent(exam, student) : [];
   const sectionSummaries = sections.map((section) => {
     const submission = getStudentExamSubmission(student.id, section.id);
-    const questionCount = getWeeklyGradeVisibleAnswers(section, student).length || Number(section.questionCount) || 0;
+    const questionCount = getWeeklyGradeVisibleAnswers(section, student).length;
     return { section, submission, questionCount };
   });
   const submitted = sectionSummaries.filter((item) => item.submission);
   const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
   const correctCount = submitted.reduce((sum, item) => sum + (Number(item.submission.correctCount) || 0), 0);
+  const submittedMaxCorrect = submitted.reduce((sum, item) => sum + item.questionCount, 0);
   const maxCorrect = sectionSummaries.reduce((sum, item) => sum + item.questionCount, 0);
   const maxScore = sectionSummaries.reduce((sum, item) => sum + item.questionCount * 5, 0);
   const subjectScores = {};
@@ -2178,11 +2294,43 @@ function getWeeklyGradeStudentSummary(exam, student) {
     maxScore,
     correctCount,
     maxCorrect,
-    wrongCount: maxCorrect ? Math.max(0, maxCorrect - correctCount) : "",
+    wrongCount: submitted.length ? Math.max(0, submittedMaxCorrect - correctCount) : "",
     subjectScores,
     latestSubmittedAt,
     status,
   };
+}
+
+function applyWeeklyGradeRanksByTrack(summaries) {
+  const groups = new Map();
+  summaries.forEach((summary) => {
+    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    if (!groups.has(track)) groups.set(track, []);
+    groups.get(track).push(summary);
+  });
+  groups.forEach((items) => {
+    const ranked = items
+      .filter((summary) => summary.submittedCount > 0 && Number(summary.maxScore) > 0)
+      .map((summary) => ({
+        summary,
+        percent: summary.maxScore ? Math.round(((Number(summary.score) || 0) / summary.maxScore) * 1000) / 10 : 0,
+      }));
+    const sorted = [...ranked].sort((a, b) =>
+      b.percent - a.percent ||
+      (Number(b.summary.score) || 0) - (Number(a.summary.score) || 0)
+    );
+    sorted.forEach((item, index) => {
+      item.summary.rank = index + 1;
+      item.summary.topPercent = calculateGradePercentile(index + 1, sorted.length);
+    });
+    items.forEach((summary) => {
+      if (!sorted.some((item) => item.summary === summary)) {
+        summary.rank = 0;
+        summary.topPercent = 0;
+      }
+    });
+  });
+  return summaries;
 }
 
 function applyGradeRanks(summaries) {
@@ -2314,8 +2462,15 @@ function getWeeklyGradeSectionsForStudent(exam, student) {
     const sectionTrack = normalizeCoastGuardTrack(section.track);
     const trackMatched = sectionTrack === studentTrack || sectionTrack === WEEKLY_EXAM_TRACK_ALL;
     const subjectMatched = sectionTrack !== WEEKLY_EXAM_TRACK_ALL || isWeeklySubjectAllowedForTrack(section.subject, studentTrack);
-    return section.isActive !== false && trackMatched && subjectMatched;
+    return section.isActive !== false && trackMatched && subjectMatched && isWeeklyGradeSectionVisibleForTrack(section, studentTrack);
   });
+}
+
+function isWeeklyGradeSectionVisibleForTrack(section, track) {
+  const answers = getWeeklyGradeVisibleAnswers(section, track);
+  const questionCount = Number(section.questionCount) || 0;
+  if (isWeeklyQuestionTrackScopedSubject(section.subject)) return answers.length > 0;
+  return answers.length > 0 && (!questionCount || answers.length >= questionCount);
 }
 
 function getWeeklyGradeVisibleAnswers(section, student) {
