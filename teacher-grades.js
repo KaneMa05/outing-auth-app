@@ -1715,25 +1715,30 @@ function getWeeklySubmissionAnswerSyncTargets(exam, track = "") {
 function isSubmissionAnswerSheetSyncedToScore(section, submission) {
   const key = getScoreSyncSectionAnswers(section, submission);
   const answers = getSubmissionAnswers(submission.id);
-  if (!key.length || answers.length !== key.length) return false;
-  const score = answers.reduce((sum, answer) => sum + (Number(answer.pointsAwarded) || 0), 0);
+  if (!key.length || !answers.length || !hasSubmissionAnswerSelections(answers)) return false;
+  const score = calculateSubmissionAnswerSheetScore(key, answers).score;
   const targetScore = Number(submission.score) || 0;
-  const hasSelectedAnswers = answers.every((answer) => normalizeExamAnswerChoice(answer.selectedAnswer));
-  return hasSelectedAnswers && Math.abs(score - targetScore) < 0.01;
+  return Math.abs(score - targetScore) < 0.01;
 }
 
 async function syncWeeklySubmissionAnswerSheetsForExam(exam) {
   const targets = getWeeklySubmissionAnswerSyncTargets(exam, gradeManagementTrackFilter);
   if (!targets.length) return notify("동기화할 답안지가 없습니다.");
   const weekLabel = `${Number(exam.weekNumber) || 1}주차`;
-  if (!confirm(`${weekLabel} 주간평가 답안지 ${targets.length}건을 현재 점수에 맞춰 동기화할까요?\n학생이 실제로 선택한 번호가 없는 기록은 점수와 정답 개수에 맞는 복구 답안으로 채워집니다.`)) return;
+  if (!confirm(`${weekLabel} 주간평가 ${targets.length}건을 학생 답안지 기준으로 다시 채점할까요?\n학생이 실제로 선택한 번호가 없는 오래된 기록만 저장된 점수에 맞는 복구 답안으로 채워집니다.`)) return;
 
-  const previousAnswers = [...(state.submissionAnswers || [])];
-  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousAnswers = (state.submissionAnswers || []).map((answer) => ({ ...answer }));
+  const previousSubmissions = (state.examSubmissions || []).map((submission) => ({ ...submission }));
   const submissionIds = new Set(targets.map(({ submission }) => submission.id));
   const syncedAnswers = [];
   targets.forEach(({ section, submission }) => {
-    const { answers, correctCount } = buildScoreSyncedSubmissionAnswers(section, submission);
+    const key = getScoreSyncSectionAnswers(section, submission);
+    const currentAnswers = getSubmissionAnswers(submission.id);
+    const hasSelections = hasSubmissionAnswerSelections(currentAnswers);
+    const { answers, score, correctCount } = hasSelections
+      ? buildAnswerSheetRescoredSubmissionAnswers(key, currentAnswers)
+      : buildScoreSyncedSubmissionAnswers(section, submission);
+    if (hasSelections) submission.score = score;
     submission.correctCount = correctCount;
     syncedAnswers.push(...answers);
   });
@@ -1754,7 +1759,7 @@ async function syncWeeklySubmissionAnswerSheetsForExam(exam) {
       await saveExamSubmissionsToRemote(targets.map(({ submission }) => submission));
     }
     render();
-    notify(`답안지 ${targets.length}건을 점수에 맞춰 동기화했습니다.`);
+    notify(`답안지 ${targets.length}건을 기준으로 점수를 동기화했습니다.`);
   } catch (error) {
     console.error(error);
     state.submissionAnswers = previousAnswers;
@@ -1788,10 +1793,53 @@ function buildScoreSyncedSubmissionAnswers(section, submission) {
   return { answers, correctCount };
 }
 
+function buildAnswerSheetRescoredSubmissionAnswers(answerKey, currentAnswers) {
+  const keyByQuestion = new Map(answerKey.map((answer) => [Number(answer.questionNumber), answer]));
+  let score = 0;
+  let correctCount = 0;
+  const answers = currentAnswers.map((answer) => {
+    const key = keyByQuestion.get(Number(answer.questionNumber));
+    const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
+    const correctAnswer = normalizeExamAnswerChoice(key?.correctAnswer);
+    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const pointsAwarded = isCorrect ? getExamAnswerPointValue(key) : 0;
+    if (isCorrect) correctCount += 1;
+    score += pointsAwarded;
+    return {
+      ...answer,
+      id: answer.id || createId(),
+      selectedAnswer,
+      isCorrect,
+      pointsAwarded,
+    };
+  });
+  return { answers, score: Math.round(score * 10) / 10, correctCount };
+}
+
 function getScoreSyncSectionAnswers(section, submission) {
   return getSectionAnswers(section.id)
+    .filter((answer) => answer.correctAnswer)
     .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
     .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
+}
+
+function calculateSubmissionAnswerSheetScore(answerKey, submissionAnswers) {
+  const keyByQuestion = new Map(answerKey.map((answer) => [Number(answer.questionNumber), answer]));
+  return submissionAnswers.reduce((total, answer) => {
+    const key = keyByQuestion.get(Number(answer.questionNumber));
+    const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
+    const correctAnswer = normalizeExamAnswerChoice(key?.correctAnswer);
+    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const points = isCorrect ? getExamAnswerPointValue(key) : 0;
+    return {
+      score: total.score + points,
+      correctCount: total.correctCount + (isCorrect ? 1 : 0),
+    };
+  }, { score: 0, correctCount: 0 });
+}
+
+function hasSubmissionAnswerSelections(answers = []) {
+  return answers.some((answer) => normalizeExamAnswerChoice(answer.selectedAnswer));
 }
 
 function getIncorrectAnswerChoice(correctAnswer) {
