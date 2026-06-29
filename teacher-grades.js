@@ -1029,11 +1029,12 @@ function renderTrackSubjectManagement() {
           el("th", {}, normalizedTrack),
           ...WEEKLY_SUBJECT_OPTIONS.map((subject) => {
             const excluded = isWeeklySubjectExcludedForTrack(subject, normalizedTrack);
+            const required = isWeeklySubjectRequiredForTrack(subject, normalizedTrack);
             const checked = hasSavedByTrack.has(normalizedTrack)
-              ? activeSettings.has(`${normalizedTrack}|||${subject}`) && !excluded
-              : defaultSubjects.includes(subject);
+              ? (required || activeSettings.has(`${normalizedTrack}|||${subject}`)) && !excluded
+              : defaultSubjects.includes(subject) || required;
             return el("td", {}, el("label", { className: "track-subject-check" }, [
-              el("input", { type: "checkbox", name: `${normalizedTrack}|||${subject}`, checked, disabled: excluded }),
+              el("input", { type: "checkbox", name: `${normalizedTrack}|||${subject}`, checked, disabled: excluded || required }),
               el("span", {}, "응시"),
             ]));
           }),
@@ -1054,7 +1055,8 @@ function renderTrackSubjectManagement() {
       return WEEKLY_SUBJECT_OPTIONS.map((subject, index) => {
         const key = `${normalizedTrack}|||${subject}`;
         const current = existing.get(key);
-        const checked = !isWeeklySubjectExcludedForTrack(subject, normalizedTrack) && Boolean(form.querySelector(`input[name="${CSS.escape(key)}"]`)?.checked);
+        const required = isWeeklySubjectRequiredForTrack(subject, normalizedTrack);
+        const checked = !isWeeklySubjectExcludedForTrack(subject, normalizedTrack) && (required || Boolean(form.querySelector(`input[name="${CSS.escape(key)}"]`)?.checked));
         return {
           ...(current || {}),
           id: current?.id || createId(),
@@ -1088,7 +1090,7 @@ function resetTrackSubjectDefaults(form, tracks) {
     WEEKLY_SUBJECT_OPTIONS.forEach((subject) => {
       const key = `${normalizedTrack}|||${subject}`;
       const checkbox = form.querySelector(`input[name="${CSS.escape(key)}"]`);
-      if (checkbox) checkbox.checked = defaultSubjects.includes(subject) && !isWeeklySubjectExcludedForTrack(subject, normalizedTrack);
+      if (checkbox) checkbox.checked = (defaultSubjects.includes(subject) || isWeeklySubjectRequiredForTrack(subject, normalizedTrack)) && !isWeeklySubjectExcludedForTrack(subject, normalizedTrack);
     });
   });
 }
@@ -1391,7 +1393,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     el("div", {}, [
       el("strong", {}, `${Number(exam?.weekNumber) || 1}주차 ${section.subject}`),
       el("span", {}, `${answers.length}문항 · 숫자를 키보드로 입력해주세요`),
-      trackScoped ? el("small", {}, "공채와 함정요원은 기본 적용됩니다. VTS와 학과특채만 문항별로 선택해주세요.") : null,
+      trackScoped ? el("small", {}, "공채, 함정요원, 간부는 기본 적용됩니다. VTS와 학과특채만 문항별로 선택해주세요.") : null,
     ]),
     el("div", { className: "weekly-answer-header-actions" }, [
       renderWeeklyQuestionCountControls(section, answers, options),

@@ -202,6 +202,8 @@ const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 함정요원 항해(순경)",
   "경찰직 - 함정요원 기관(순경)",
+  "경찰직 - 경위 공채(해양-기관)",
+  "경찰직 - 경위 공채(해양-항해)",
 ];
 const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
   { key: "vts", label: "VTS", keywords: ["VTS"], tracks: ["경찰직 - 해상교통관제(VTS)(순경)", "일반직 - 선박교통관제(VTS)"] },
@@ -234,6 +236,10 @@ const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
   "경찰직 - 경위 공채(해양-기관)": ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "기관학"],
   "경찰직 - 경위 공채(해양-항해)": ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "항해학"],
 };
+const WEEKLY_REQUIRED_TRACK_SUBJECTS = {
+  "경찰직 - 경위 공채(해양-기관)": ["해사법규"],
+  "경찰직 - 경위 공채(해양-항해)": ["해사법규"],
+};
 
 function getWeeklySubjectOrder(subject) {
   const index = WEEKLY_SUBJECT_OPTIONS.indexOf(String(subject || "").trim());
@@ -252,6 +258,12 @@ function isWeeklySubjectExcludedForTrack(subject, track) {
   if (WEEKLY_RETIRED_SUBJECTS.includes(normalizedSubject)) return true;
   const excludedSubjects = WEEKLY_TRACK_EXCLUDED_SUBJECTS[normalizedTrack] || [];
   return excludedSubjects.includes(normalizedSubject);
+}
+
+function isWeeklySubjectRequiredForTrack(subject, track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const normalizedSubject = String(subject || "").trim();
+  return (WEEKLY_REQUIRED_TRACK_SUBJECTS[normalizedTrack] || []).includes(normalizedSubject);
 }
 
 function isWeeklyVtsTrack(track) {
@@ -296,10 +308,15 @@ function getConfiguredWeeklySubjectsForTrack(track) {
     .filter((setting) => normalizeCoastGuardTrack(setting.track) === normalized)
     .sort((a, b) => compareWeeklySubjects(a.subject, b.subject) || Number(a.sortOrder) - Number(b.sortOrder));
   if (saved.length) {
-    return saved
+    const savedSubjects = saved
       .filter((setting) => setting.isActive !== false)
       .map((setting) => String(setting.subject || "").trim())
       .filter((subject) => subject && !isWeeklySubjectExcludedForTrack(subject, normalized));
+    const requiredSubjects = (WEEKLY_REQUIRED_TRACK_SUBJECTS[normalized] || [])
+      .filter((subject) => !isWeeklySubjectExcludedForTrack(subject, normalized));
+    return [...requiredSubjects, ...savedSubjects]
+      .filter((subject, index, subjects) => subjects.indexOf(subject) === index)
+      .sort(compareWeeklySubjects);
   }
   return getDefaultWeeklySubjectsForTrack(normalized);
 }
@@ -351,6 +368,7 @@ function isWeeklySubjectAllowedForTrack(subject, track) {
   const normalizedSubject = String(subject || "").trim();
   if (!normalizedSubject || !normalizedTrack) return true;
   if (isWeeklySubjectExcludedForTrack(normalizedSubject, normalizedTrack)) return false;
+  if (isWeeklySubjectRequiredForTrack(normalizedSubject, normalizedTrack)) return true;
   if (hasSavedWeeklySubjectSettingsForTrack(normalizedTrack)) {
     return (state.examSubjectSettings || []).some((setting) =>
       normalizeCoastGuardTrack(setting.track) === normalizedTrack &&
