@@ -1819,6 +1819,28 @@ th {
   min-width: 1320px;
 }
 
+.grade-score-table-wrap {
+  overflow-x: auto;
+}
+
+.grade-management .grade-score-table {
+  border-collapse: collapse;
+  width: auto;
+  min-width: 0;
+}
+
+.grade-management .grade-score-table th,
+.grade-management .grade-score-table td {
+  border: 0.12px solid var(--line);
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.grade-management .grade-score-table .grade-track-boundary > td {
+  border-top: 0.4px solid var(--muted);
+}
+
 .grade-input-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

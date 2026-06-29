@@ -1627,6 +1627,31 @@ function getSectionWeekLabel(section) {
   return `${Number(exam?.weekNumber) || 1}주차`;
 }
 
+function gradeManagementScoreTable(headers, rows, { trackIndex, subjectStartIndex, subjectCount }) {
+  const widths = headers.map((_, index) => {
+    if (index === 0 || index === 1) return 72;
+    if (index === trackIndex) return 130;
+    if (index >= subjectStartIndex && index < subjectStartIndex + subjectCount) return 72;
+    return 100;
+  });
+  const tableWidth = widths.reduce((total, width) => total + width, 0);
+  labelTableRows(headers, rows);
+  return el("div", { className: "table-wrap grade-score-table-wrap" }, [
+    el("table", { className: "responsive-table grade-score-table", style: `width:${tableWidth}px;min-width:${tableWidth}px;table-layout:fixed;` }, [
+      el("colgroup", {}, widths.map((width) => el("col", { style: `width:${width}px;` }))),
+      el("thead", {}, [el("tr", {}, headers.map((header) => el("th", {}, header)))]),
+      el("tbody", {}, rows),
+    ]),
+  ]);
+}
+
+function isGradeTrackBoundary(summaries, index) {
+  if (index <= 0) return false;
+  const currentTrack = getTeacherStudentRegisteredTrack(summaries[index]?.student) || "미분류";
+  const previousTrack = getTeacherStudentRegisteredTrack(summaries[index - 1]?.student) || "미분류";
+  return currentTrack !== previousTrack;
+}
+
 function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const weekOptions = Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => String(index + 1));
   const weekSelect = select("weekNumber", weekOptions);
@@ -1659,9 +1684,10 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
-  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
+  const sortedSummaries = sortGradeSummariesForDisplay(summaries);
+  const rows = sortedSummaries.map((summary, index) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
-    return el("tr", {}, [
+    return el("tr", { className: isGradeTrackBoundary(sortedSummaries, index) ? "grade-track-boundary" : "" }, [
       el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
@@ -1683,7 +1709,11 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     ]),
     exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
     exam
-      ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
+      ? gradeManagementScoreTable(
+        headers,
+        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])],
+        { trackIndex: 2, subjectStartIndex: 3, subjectCount: weeklySubjectHeaders.length }
+      )
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
   ]);
 }
@@ -1787,10 +1817,11 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     "전회차 대비 등수 등락",
     "관리",
   ];
-  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
+  const sortedSummaries = sortGradeSummariesForDisplay(summaries);
+  const rows = sortedSummaries.map((summary, index) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
-    return el("tr", {}, [
+    return el("tr", { className: isGradeTrackBoundary(sortedSummaries, index) ? "grade-track-boundary" : "" }, [
       el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, summary.student.isExternalFinalScore ? "미등록" : "등록"),
@@ -1826,7 +1857,11 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
       ]),
       bulkTextarea,
     ]),
-    table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])]),
+    gradeManagementScoreTable(
+      headers,
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])],
+      { trackIndex: 3, subjectStartIndex: 4, subjectCount: getGradeSubjectHeaders().length }
+    ),
     registered.length ? null : el("p", { className: "subtle" }, "파이널 모의고사 성적 데이터가 등록되면 이 표에 응시자별 성적이 표시됩니다."),
   ]);
 }
