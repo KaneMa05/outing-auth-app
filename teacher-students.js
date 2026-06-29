@@ -564,18 +564,44 @@ function getTeacherPreviewWeeklySummary(student, exam) {
 }
 
 function getTeacherPreviewWeeklySubjectSummaries(student, exam, summary) {
+  const track = getTeacherStudentRegisteredTrack(student);
+  const peers = getStudentsInCohort(getStudentCohort(student))
+    .filter((peer) => getTeacherStudentRegisteredTrack(peer) === track);
   return getWeeklyGradeSectionsForStudent(exam, student).map((section) => {
     const subjectScore = summary.subjectScores?.[section.subject] || {};
     const submitted = subjectScore.status === "submitted";
+    const peerScores = peers.map((peer) => {
+      const peerSection = getWeeklyGradeSectionsForStudent(exam, peer).find((item) => item.subject === section.subject);
+      if (!peerSection) return null;
+      const peerSubmission = getStudentExamSubmission(peer.id, peerSection.id);
+      if (!peerSubmission) return null;
+      const questionCount = getWeeklyGradeVisibleAnswers(peerSection, peer).length;
+      const score = Number(peerSubmission.score) || 0;
+      const wrongCount = Math.max(0, questionCount - (Number(peerSubmission.correctCount) || 0));
+      return {
+        id: peer.id,
+        score,
+        wrongCount,
+        percent: questionCount ? Math.round((score / (questionCount * 5)) * 1000) / 10 : 0,
+      };
+    }).filter(Boolean);
+    const sorted = [...peerScores].sort((a, b) =>
+      b.percent - a.percent ||
+      b.score - a.score ||
+      a.wrongCount - b.wrongCount ||
+      String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true })
+    );
+    const rank = submitted ? sorted.findIndex((item) => String(item.id) === String(student.id)) + 1 : 0;
+    const topPercent = rank ? calculateGradePercentile(rank, sorted.length) : 0;
     return {
       subject: section.subject,
-      track: getTeacherStudentRegisteredTrack(student),
+      track,
       submitted,
       score: Number(subjectScore.score) || 0,
       wrongCount: submitted ? Math.max(0, (Number(subjectScore.questionCount) || 0) - (Number(subjectScore.correctCount) || 0)) : "-",
-      rank: 0,
-      topPercent: 0,
-      displayTopPercent: 0,
+      rank,
+      topPercent,
+      displayTopPercent: rank ? Math.max(1, Math.ceil(topPercent)) : 0,
       maxScore: Number(subjectScore.maxScore) || 0,
     };
   });
