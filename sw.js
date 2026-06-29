@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v178-grade-inline-cells";
+const CACHE_NAME = "outing-auth-app-v179-xlsx-grade-widths";
 const APP_SHELL = [
   "/",
   "/index.html",

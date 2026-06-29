@@ -1627,43 +1627,6 @@ function getSectionWeekLabel(section) {
   return `${Number(exam?.weekNumber) || 1}주차`;
 }
 
-function gradeManagementScoreTable(headers, rows, { trackIndex, subjectStartIndex, subjectCount }) {
-  const widths = headers.map((_, index) => {
-    if (index === 0 || index === 1) return 72;
-    if (index === trackIndex) return 130;
-    if (index >= subjectStartIndex && index < subjectStartIndex + subjectCount) return 72;
-    return 100;
-  });
-  const tableWidth = widths.reduce((total, width) => total + width, 0);
-  const cellStyle = (width, isTrackBoundary = false, extra = "") =>
-    `width:${width}px;min-width:${width}px;max-width:${width}px;box-sizing:border-box;border:0.12px solid var(--line);${isTrackBoundary ? "border-top:0.4px solid var(--muted);" : ""}${extra}`;
-  labelTableRows(headers, rows);
-  rows.forEach((row) => {
-    const isTrackBoundary = row.classList?.contains("grade-track-boundary");
-    [...(row.children || [])].forEach((cell, index) => {
-      if (cell.hasAttribute("colspan")) {
-        cell.setAttribute("style", `box-sizing:border-box;border:0.12px solid var(--line);${isTrackBoundary ? "border-top:0.4px solid var(--muted);" : ""}`);
-        return;
-      }
-      cell.setAttribute("style", cellStyle(widths[index] || 100, isTrackBoundary));
-    });
-  });
-  return el("div", { className: "table-wrap grade-score-table-wrap" }, [
-    el("table", { className: "responsive-table grade-score-table", style: `width:${tableWidth}px;min-width:${tableWidth}px;table-layout:fixed;` }, [
-      el("colgroup", {}, widths.map((width) => el("col", { style: `width:${width}px;` }))),
-      el("thead", {}, [el("tr", {}, headers.map((header, index) => el("th", { style: cellStyle(widths[index], false, "background:var(--surface-soft);text-align:center;") }, header)))]),
-      el("tbody", {}, rows),
-    ]),
-  ]);
-}
-
-function isGradeTrackBoundary(summaries, index) {
-  if (index <= 0) return false;
-  const currentTrack = getTeacherStudentRegisteredTrack(summaries[index]?.student) || "미분류";
-  const previousTrack = getTeacherStudentRegisteredTrack(summaries[index - 1]?.student) || "미분류";
-  return currentTrack !== previousTrack;
-}
-
 function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const weekOptions = Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => String(index + 1));
   const weekSelect = select("weekNumber", weekOptions);
@@ -1696,10 +1659,9 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
-  const sortedSummaries = sortGradeSummariesForDisplay(summaries);
-  const rows = sortedSummaries.map((summary, index) => {
+  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
-    return el("tr", { className: isGradeTrackBoundary(sortedSummaries, index) ? "grade-track-boundary" : "" }, [
+    return el("tr", {}, [
       el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
@@ -1721,11 +1683,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     ]),
     exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
     exam
-      ? gradeManagementScoreTable(
-        headers,
-        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])],
-        { trackIndex: 2, subjectStartIndex: 3, subjectCount: weeklySubjectHeaders.length }
-      )
+      ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
   ]);
 }
@@ -1829,11 +1787,10 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     "전회차 대비 등수 등락",
     "관리",
   ];
-  const sortedSummaries = sortGradeSummariesForDisplay(summaries);
-  const rows = sortedSummaries.map((summary, index) => {
+  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
-    return el("tr", { className: isGradeTrackBoundary(sortedSummaries, index) ? "grade-track-boundary" : "" }, [
+    return el("tr", {}, [
       el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, summary.student.isExternalFinalScore ? "미등록" : "등록"),
@@ -1869,11 +1826,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
       ]),
       bulkTextarea,
     ]),
-    gradeManagementScoreTable(
-      headers,
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])],
-      { trackIndex: 3, subjectStartIndex: 4, subjectCount: getGradeSubjectHeaders().length }
-    ),
+    table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])]),
     registered.length ? null : el("p", { className: "subtle" }, "파이널 모의고사 성적 데이터가 등록되면 이 표에 응시자별 성적이 표시됩니다."),
   ]);
 }
@@ -2295,8 +2248,8 @@ function formatWeeklyGradeReportScoreCell(subjectScore) {
 
 function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
   const columnCount = headers.length;
-  const colgroup = headers.map((header) => {
-    const width = getWeeklyGradeReportColumnWidthPx(header);
+  const colgroup = headers.map((header, index) => {
+    const width = getWeeklyGradeReportColumnWidthPx(header, index, headers.length);
     return `<col style="width:${width}px">`;
   }).join("");
   const bodyRows = rows.length
@@ -2324,7 +2277,7 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
 <style>
   table { border-collapse: collapse; table-layout: fixed; font-family: "Malgun Gothic", Arial, sans-serif; }
   th, td { border: 0.12pt solid #111; height: 21px; padding: 0 4px; text-align: center; vertical-align: middle; font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12pt; mso-number-format: "\\@"; }
-  .title { background: #ffff00; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 48pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: left; white-space: nowrap; }
+  .title { background: #ffff00; color: #1f2933; font-family: "공체 Bold", "공체", "GongGothic", "Malgun Gothic", Arial, sans-serif; font-size: 48pt; font-weight: bold; letter-spacing: 0; height: 76px; text-align: center; white-space: nowrap; }
   .title-spacer th { border: none; height: 21px; background: #fff; }
   .header th { font-size: 12pt; font-weight: 400; background: #fff; }
   .track-group td:first-child { border-left: 0.4pt solid #111; }
@@ -2377,7 +2330,7 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
   const dataRowCount = Math.max(rows.length, 1);
   const lastRow = 3 + dataRowCount;
   const cols = headers.map((header, index) => {
-    const width = getWeeklyGradeReportColumnWidth(header);
+    const width = getWeeklyGradeReportColumnWidth(header, index, headers.length);
     return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
   }).join("");
   const titleRow = `<row r="1" ht="76" customHeight="1">${buildXlsxInlineStringCell("A1", titleText, 1)}</row>`;
@@ -2424,12 +2377,19 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
 </worksheet>`;
 }
 
-function getWeeklyGradeReportColumnWidth() {
-  return 12;
+function getWeeklyGradeReportColumnWidth(header, index, columnCount) {
+  return pxToExcelColumnWidth(getWeeklyGradeReportColumnWidthPx(header, index, columnCount));
 }
 
-function getWeeklyGradeReportColumnWidthPx() {
-  return 88;
+function getWeeklyGradeReportColumnWidthPx(header, index, columnCount) {
+  if (index === 0 || index === 1) return 72;
+  if (index === 2) return 130;
+  if (index >= 3 && index < columnCount - 4) return 72;
+  return 100;
+}
+
+function pxToExcelColumnWidth(pixels) {
+  return Math.max(1, Math.round(((Number(pixels) || 72) - 5) / 7 * 100) / 100);
 }
 
 function buildXlsxInlineStringCell(ref, value, styleId = 0) {
@@ -2474,7 +2434,7 @@ function buildWeeklyGradeReportStylesXml() {
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
   <cellXfs count="51">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="49" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="49" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
     <xf numFmtId="49" fontId="2" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
     ${bodyXfs}
   </cellXfs>
