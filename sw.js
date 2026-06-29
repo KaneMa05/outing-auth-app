@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v176-teacher-stored-weekly-scores";
+const CACHE_NAME = "outing-auth-app-v177-grade-table-fixed";
 const APP_SHELL = [
   "/",
   "/index.html",

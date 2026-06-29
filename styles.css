@@ -5210,6 +5210,54 @@ body:not([data-app-mode="teacher"]) .btn {
     background: transparent;
   }
 
+  body[data-app-mode="teacher"] .grade-score-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table {
+    display: table !important;
+    width: auto !important;
+    border-collapse: collapse;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table thead {
+    display: table-header-group !important;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table tbody {
+    display: table-row-group !important;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table tr {
+    display: table-row !important;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table th,
+  body[data-app-mode="teacher"] .grade-management .grade-score-table td {
+    display: table-cell !important;
+    border: 0.12px solid var(--line) !important;
+    padding: 9px 8px;
+    background: #fff;
+    vertical-align: middle;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table th {
+    background: var(--surface-soft);
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table td::before {
+    display: none !important;
+  }
+
+  body[data-app-mode="teacher"] .grade-management .grade-score-table .grade-track-boundary > td {
+    border-top: 0.4px solid var(--muted) !important;
+  }
+
   body[data-app-mode="teacher"] .wide-cell {
     min-width: 0;
     max-width: none;
