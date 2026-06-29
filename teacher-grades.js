@@ -97,6 +97,112 @@ function renderGradesManagement() {
   ]);
 }
 
+function renderWeeklyExamAbsenceManagement() {
+  if (!hasTeacherPermission("grades.read")) return renderForbidden();
+  const selected = selectedStudentCohortCount();
+  const weekOptions = Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => String(index + 1));
+  const weekSelect = select("weekNumber", weekOptions);
+  weekSelect.querySelectorAll("option").forEach((option) => {
+    option.textContent = `${option.value}주차`;
+  });
+  if (!weekOptions.includes(String(weeklyExamGradeFilters.weekNumber || ""))) weeklyExamGradeFilters.weekNumber = "1";
+  weekSelect.value = String(weeklyExamGradeFilters.weekNumber || "1");
+  weekSelect.addEventListener("change", () => {
+    weeklyExamGradeFilters.weekNumber = weekSelect.value;
+    render();
+  });
+
+  const targetWeek = Number(weeklyExamGradeFilters.weekNumber) || 1;
+  const exam = getWeeklyExamByCohortAndWeek(selected.value, targetWeek);
+  const students = getWeeklyAbsenceStudents(selected.value);
+  const summaries = exam ? students.map((student) => getWeeklyGradeStudentSummary(exam, student)) : [];
+  const absentSummaries = summaries.filter((summary) => summary.subjectCount > 0 && summary.submittedCount === 0);
+  const partialSummaries = summaries.filter((summary) => summary.submittedCount > 0 && summary.submittedCount < summary.subjectCount);
+  const completedCount = summaries.filter((summary) => summary.subjectCount > 0 && summary.submittedCount === summary.subjectCount).length;
+
+  return el("div", { className: "grid weekly-absence-management" }, [
+    el("div", { className: "stat-groups" }, [
+      studentCountStatGroup(),
+      statGroup(`${targetWeek}주차 응시 현황`, [
+        stat("미응시", absentSummaries.length, "명"),
+        stat("일부 응시", partialSummaries.length, "명"),
+        stat("응시 완료", completedCount, "명"),
+      ]),
+    ]),
+    panel("주간평가 미응시자 필터", [
+      el("div", { className: "teacher-search grade-management-top-filter" }, [
+        field("주차", weekSelect),
+      ]),
+    ]),
+    renderWeeklyAbsenceSummaryPanel(exam, summaries, targetWeek),
+    renderWeeklyAbsenceStudentPanel("미응시자", absentSummaries, exam, targetWeek, "해당 주차 미응시자가 없습니다."),
+    renderWeeklyAbsenceStudentPanel("일부 응시자", partialSummaries, exam, targetWeek, "일부 과목만 응시한 학생이 없습니다."),
+  ]);
+}
+
+function getWeeklyAbsenceStudents(cohort = selectedStudentCohort) {
+  return getStudentsInCohort(cohort)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+}
+
+function renderWeeklyAbsenceSummaryPanel(exam, summaries, targetWeek) {
+  if (!exam) {
+    return panel("직렬별 현황", [
+      el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
+    ]);
+  }
+  const groups = new Map();
+  summaries.forEach((summary) => {
+    if (!summary.subjectCount) return;
+    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    if (!groups.has(track)) groups.set(track, { total: 0, absent: 0, partial: 0, completed: 0 });
+    const item = groups.get(track);
+    item.total += 1;
+    if (summary.submittedCount === 0) item.absent += 1;
+    else if (summary.submittedCount < summary.subjectCount) item.partial += 1;
+    else item.completed += 1;
+  });
+  const rows = [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ko-KR"))
+    .map(([track, item]) => el("tr", {}, [
+      el("td", {}, track),
+      el("td", {}, item.total),
+      el("td", {}, item.absent),
+      el("td", {}, item.partial),
+      el("td", {}, item.completed),
+    ]));
+  return panel("직렬별 현황", [
+    table(["직렬", "대상", "미응시", "일부 응시", "응시 완료"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])]),
+  ]);
+}
+
+function renderWeeklyAbsenceStudentPanel(titleText, summaries, exam, targetWeek, emptyText) {
+  const rows = summaries
+    .sort((a, b) => String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true }))
+    .map((summary) => {
+      const missingSubjects = getWeeklyMissingSubjectLabels(summary);
+      return el("tr", {}, [
+        el("td", {}, formatStudentNumber(summary.student.id)),
+        el("td", {}, summary.student.name || "-"),
+        el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
+        el("td", {}, `${summary.submittedCount}/${summary.subjectCount}`),
+        el("td", {}, missingSubjects || "-"),
+      ]);
+    });
+  return panel(`${targetWeek}주차 ${titleText}`, [
+    exam
+      ? table(["번호", "이름", "직렬", "응시 과목", "미응시 과목"], rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, emptyText))])])
+      : el("div", { className: "empty" }, "주간평가가 생성되면 미응시자 목록이 표시됩니다."),
+  ]);
+}
+
+function getWeeklyMissingSubjectLabels(summary) {
+  return Object.entries(summary.subjectScores || {})
+    .filter(([, subjectScore]) => subjectScore?.status === "missing")
+    .map(([subject]) => subject)
+    .join(", ");
+}
+
 function getGradeManagementTrackOptions(cohort = selectedStudentCohort) {
   const tracks = [
     ...getCoastGuardTrackOptions().filter((track) => track !== "기타"),
@@ -2378,6 +2484,7 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
 }
 
 function getWeeklyGradeReportColumnWidth(header, index, columnCount) {
+  if (index >= columnCount - 4) return 11.1;
   const pixels = getWeeklyGradeReportColumnWidthPx(header, index, columnCount);
   return pxToExcelColumnWidth(pixels, index === 2 ? 9 : 7);
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v184-xlsx-numeric-cells";
+const CACHE_NAME = "outing-auth-app-v185-xlsx-100px-stat-columns";
 const APP_SHELL = [
   "/",
   "/index.html",
