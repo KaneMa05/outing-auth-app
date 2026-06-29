@@ -1635,11 +1635,23 @@ function gradeManagementScoreTable(headers, rows, { trackIndex, subjectStartInde
     return 100;
   });
   const tableWidth = widths.reduce((total, width) => total + width, 0);
+  const cellStyle = (width, isTrackBoundary = false, extra = "") =>
+    `width:${width}px;min-width:${width}px;max-width:${width}px;box-sizing:border-box;border:0.12px solid var(--line);${isTrackBoundary ? "border-top:0.4px solid var(--muted);" : ""}${extra}`;
   labelTableRows(headers, rows);
+  rows.forEach((row) => {
+    const isTrackBoundary = row.classList?.contains("grade-track-boundary");
+    [...(row.children || [])].forEach((cell, index) => {
+      if (cell.hasAttribute("colspan")) {
+        cell.setAttribute("style", `box-sizing:border-box;border:0.12px solid var(--line);${isTrackBoundary ? "border-top:0.4px solid var(--muted);" : ""}`);
+        return;
+      }
+      cell.setAttribute("style", cellStyle(widths[index] || 100, isTrackBoundary));
+    });
+  });
   return el("div", { className: "table-wrap grade-score-table-wrap" }, [
     el("table", { className: "responsive-table grade-score-table", style: `width:${tableWidth}px;min-width:${tableWidth}px;table-layout:fixed;` }, [
       el("colgroup", {}, widths.map((width) => el("col", { style: `width:${width}px;` }))),
-      el("thead", {}, [el("tr", {}, headers.map((header) => el("th", {}, header)))]),
+      el("thead", {}, [el("tr", {}, headers.map((header, index) => el("th", { style: cellStyle(widths[index], false, "background:var(--surface-soft);text-align:center;") }, header)))]),
       el("tbody", {}, rows),
     ]),
   ]);

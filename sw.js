@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v177-grade-table-fixed";
+const CACHE_NAME = "outing-auth-app-v178-grade-inline-cells";
 const APP_SHELL = [
   "/",
   "/index.html",
