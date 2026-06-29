@@ -483,10 +483,26 @@ function renderStudentPreviewGrades(student) {
   const round = roundOptions.includes(selectedRound) ? selectedRound : roundOptions[roundOptions.length - 1] || 0;
   if (round) studentPreviewFinalRoundByStudent[student.id] = round;
   const summary = round ? getTeacherPreviewFinalSummary(student, round) : null;
+  const type = studentPreviewGradeTypeByStudent[student.id] === "final" ? "final" : "weekly";
   return panel("성적", [
-    renderStudentWeeklyGradePreviewPanel(student, selectedWeeklyExam, weeklyExams),
-    renderStudentGradePreviewPanel(summary, roundOptions),
+    renderStudentPreviewGradeTabs(student.id, type),
+    type === "weekly"
+      ? renderStudentWeeklyGradePreviewPanel(student, selectedWeeklyExam, weeklyExams)
+      : renderStudentGradePreviewPanel(summary, roundOptions),
   ]);
+}
+
+function renderStudentPreviewGradeTabs(studentId, activeType = "weekly") {
+  const items = [
+    { key: "weekly", label: "주간평가" },
+    { key: "final", label: "파이널" },
+  ];
+  return el("div", { className: "student-grade-type-tabs" }, items.map((item) =>
+    button(item.label, activeType === item.key ? "mini-btn active" : "mini-btn", "button", () => {
+      studentPreviewGradeTypeByStudent[studentId] = item.key;
+      render();
+    })
+  ));
 }
 
 function getTeacherPreviewWeeklyExamOptions(student) {
