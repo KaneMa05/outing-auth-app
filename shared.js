@@ -2173,7 +2173,7 @@ function selectedStudentCohortCount() {
   const cohorts = getStudentCohortStats();
   if (!cohorts.length) {
     selectedStudentCohort = DEFAULT_STUDENT_COHORT;
-    return { label: "선택 기수", count: 0 };
+    return { value: DEFAULT_STUDENT_COHORT, label: "선택 기수", count: 0 };
   }
   if (!cohorts.some((cohort) => cohort.value === selectedStudentCohort)) selectedStudentCohort = getDefaultStudentCohortValue(cohorts);
   return cohorts.find((cohort) => cohort.value === selectedStudentCohort) || cohorts[0];
@@ -2195,9 +2195,20 @@ function statGroup(titleText, stats) {
   ]);
 }
 
+function getStudentClassTypeStats(cohort = selectedStudentCohort) {
+  const students = state.students.filter((student) => getStudentCohort(student) === cohort);
+  const online = students.filter((student) => String(student.className || "").includes("온라인")).length;
+  return {
+    total: students.length,
+    offline: students.length - online,
+    online,
+  };
+}
+
 function studentCountStatGroup() {
   const cohorts = getStudentCohortStats();
   const selected = selectedStudentCohortCount();
+  const classTypeStats = getStudentClassTypeStats(selected.value);
   const selectNode = el("select", { className: "cohort-select", ariaLabel: "등록 학생 기수 선택" }, [
     cohorts.map((cohort) => el("option", { value: cohort.value }, cohort.label)),
   ]);
@@ -2216,7 +2227,9 @@ function studentCountStatGroup() {
       ]),
     ]),
     el("div", { className: "grid stats" }, [
-      stat(selected.label, selected.count, "명"),
+      stat(selected.label + " 전체", classTypeStats.total, "명"),
+      stat("오프라인반", classTypeStats.offline, "명"),
+      stat("온라인반", classTypeStats.online, "명"),
     ]),
   ]);
 }
