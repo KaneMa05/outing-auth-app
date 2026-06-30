@@ -1287,7 +1287,7 @@ async function loadStateFromRemote() {
     gender: student.gender || "",
     passwordHash: "",
     appRegisteredAt: student.app_registered_at || "",
-    attendanceExcluded: student.attendance_excluded === true,
+    attendanceExcluded: student.attendance_excluded === true || isOnlineClassName(student.class_name),
     createdAt: student.created_at,
   }));
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
@@ -1376,7 +1376,7 @@ async function saveStateToRemote() {
       name: student.name,
       class_name: student.className || state.settings.className || "오프라인반",
       track: normalizeCoastGuardTrack(student.track) || null,
-      attendance_excluded: student.attendanceExcluded === true,
+      attendance_excluded: student.attendanceExcluded === true || isOnlineClassName(student.className),
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
@@ -2358,8 +2358,12 @@ function getStudentRegistrationEvents(studentId) {
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
+function isOnlineClassName(className) {
+  return String(className || "").includes("온라인");
+}
+
 function isAttendanceExcludedStudent(student) {
-  return student?.attendanceExcluded === true;
+  return student?.attendanceExcluded === true || isOnlineClassName(student?.className);
 }
 
 function isActiveOuting(outing) {

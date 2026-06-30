@@ -80,14 +80,19 @@ function normalizeStudentRow(student) {
   const id = String(student.id || "").trim();
   const name = String(student.name || "").trim();
   if (!id || !name) return null;
+  const className = String(student.class_name || student.className || "오프라인반").trim() || "오프라인반";
   return {
     id,
     name,
-    class_name: String(student.class_name || student.className || "오프라인반").trim() || "오프라인반",
+    class_name: className,
     track: String(student.track || "").trim() || null,
-    attendance_excluded: student.attendance_excluded === true || student.attendanceExcluded === true,
+    attendance_excluded: student.attendance_excluded === true || student.attendanceExcluded === true || isOnlineClassName(className),
     created_at: student.created_at || student.createdAt || new Date().toISOString(),
   };
+}
+
+function isOnlineClassName(className) {
+  return String(className || "").includes("온라인");
 }
 
 async function upsertStudent(row) {

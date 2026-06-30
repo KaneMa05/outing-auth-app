@@ -1641,18 +1641,19 @@ function upsertStudents(students, className, track = "") {
   let created = 0;
   let updated = 0;
   const nextTrack = normalizeCoastGuardTrack(track);
+  const nextClassName = String(className || "").trim() || state.settings.className;
   students.forEach((student) => {
     const existing = findStudent(student.id);
     const payload = {
       id: student.id,
       name: student.name,
-      className: String(className || "").trim() || state.settings.className,
+      className: nextClassName,
       track: nextTrack || normalizeCoastGuardTrack(existing?.track),
       gender: existing?.gender || "",
       passwordHash: existing?.passwordHash || "",
       deviceToken: existing?.deviceToken || "",
       appRegisteredAt: existing?.appRegisteredAt || "",
-      attendanceExcluded: existing?.attendanceExcluded === true,
+      attendanceExcluded: existing?.attendanceExcluded === true || isOnlineClassName(nextClassName),
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
     if (existing) {
