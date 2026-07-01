@@ -8,6 +8,7 @@
   "weekly-exams": "주간평가",
   "weekly-absences": "주간평가 미응시자",
   grades: "성적 관리",
+  fitness: "체력평가",
   penalties: "상/벌점 관리",
   attendance: "출석 관리",
   mypage: "마이페이지",
@@ -110,7 +111,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -194,6 +195,7 @@ function render() {
           "weekly-exams": renderWeeklyExamManagement,
           "weekly-absences": renderWeeklyExamAbsenceManagement,
           grades: renderGradesManagement,
+          fitness: renderFitnessManagement,
           penalties: renderPenaltyManagement,
           attendance: renderAttendanceManagement,
           notices: renderNoticesAdmin,
@@ -1108,6 +1110,7 @@ function renderHome() {
         hasTeacherPermission("grades.read") ? moduleCard("주간평가", "주차별 시험, 과목, 정답과 답안지 파일을 관리합니다.", "weekly-exams", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("주간평가 미응시자", "주차별 미응시자와 일부 응시자를 확인합니다.", "weekly-absences", "운영 중") : null,
         hasTeacherPermission("grades.read") ? moduleCard("성적 관리", "주간평가와 파이널 모의고사 성적을 학생별로 조회합니다.", "grades", "운영 중") : null,
+        hasTeacherPermission("fitness.read") ? moduleCard("체력평가", "윗몸일으키기, 팔굽혀펴기, 좌우악력 점수를 입력하고 환산 점수를 조회합니다.", "fitness", "운영 중") : null,
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,

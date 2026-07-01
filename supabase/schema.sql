@@ -270,6 +270,42 @@ create table if not exists public.final_exam_scores (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.fitness_scores (
+  id text primary key,
+  assessment_month text not null default to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM'),
+  student_id text not null references public.students(id) on delete cascade,
+  student_name text,
+  gender text,
+  cohort text not null default '',
+  sit_up_count numeric,
+  push_up_count numeric,
+  grip_strength numeric,
+  converted_scores jsonb not null default '{}'::jsonb,
+  total_score numeric,
+  memo text,
+  measured_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (assessment_month, student_id)
+);
+
+alter table public.fitness_scores
+add column if not exists assessment_month text not null default to_char((now() at time zone 'Asia/Seoul')::date, 'YYYY-MM');
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'fitness_scores_assessment_month_student_id_key'
+      and conrelid = 'public.fitness_scores'::regclass
+  ) then
+    alter table public.fitness_scores
+    add constraint fitness_scores_assessment_month_student_id_key
+    unique (assessment_month, student_id);
+  end if;
+end $$;
+
 do $$
 begin
   if exists (
@@ -410,6 +446,9 @@ on public.exam_submissions (student_id, created_at desc);
 create index if not exists final_exam_scores_round_student_idx
 on public.final_exam_scores (round, student_id);
 
+create index if not exists fitness_scores_month_student_idx
+on public.fitness_scores (assessment_month, student_id);
+
 delete from public.notices
 where id in ('attendance-guide', 'outing-guide');
 
@@ -476,6 +515,7 @@ alter table public.exam_submissions enable row level security;
 alter table public.submission_answers enable row level security;
 alter table public.exam_files enable row level security;
 alter table public.final_exam_scores enable row level security;
+alter table public.fitness_scores enable row level security;
 
 drop policy if exists "outing_app_students_all" on public.students;
 drop policy if exists "outing_app_outings_all" on public.outings;
@@ -545,6 +585,10 @@ drop policy if exists "anon_final_exam_scores_select" on public.final_exam_score
 drop policy if exists "anon_final_exam_scores_insert" on public.final_exam_scores;
 drop policy if exists "anon_final_exam_scores_update" on public.final_exam_scores;
 drop policy if exists "anon_final_exam_scores_delete" on public.final_exam_scores;
+drop policy if exists "anon_fitness_scores_select" on public.fitness_scores;
+drop policy if exists "anon_fitness_scores_insert" on public.fitness_scores;
+drop policy if exists "anon_fitness_scores_update" on public.fitness_scores;
+drop policy if exists "anon_fitness_scores_delete" on public.fitness_scores;
 drop policy if exists "anon_attendance_photo_select" on storage.objects;
 drop policy if exists "anon_attendance_photo_insert" on storage.objects;
 drop policy if exists "anon_outing_photo_select" on storage.objects;
@@ -572,6 +616,7 @@ revoke all on public.exam_submissions from anon;
 revoke all on public.submission_answers from anon;
 revoke all on public.exam_files from anon;
 revoke all on public.final_exam_scores from anon;
+revoke all on public.fitness_scores from anon;
 
 grant select (
   id,
@@ -916,6 +961,7 @@ grant select, insert, update, delete on public.submission_answers to anon;
 grant select, insert, update on public.exam_files to anon;
 grant delete on public.exam_files to anon;
 grant select, insert, update, delete on public.final_exam_scores to anon;
+grant select, insert, update, delete on public.fitness_scores to anon;
 
 create policy "anon_students_select_active"
 on public.students
@@ -1406,6 +1452,31 @@ with check (id is not null and student_id is not null and round > 0);
 
 create policy "anon_final_exam_scores_delete"
 on public.final_exam_scores
+for delete
+to anon
+using (true);
+
+create policy "anon_fitness_scores_select"
+on public.fitness_scores
+for select
+to anon
+using (true);
+
+create policy "anon_fitness_scores_insert"
+on public.fitness_scores
+for insert
+to anon
+with check (id is not null and student_id is not null and assessment_month ~ '^\d{4}-\d{2}$');
+
+create policy "anon_fitness_scores_update"
+on public.fitness_scores
+for update
+to anon
+using (true)
+with check (id is not null and student_id is not null and assessment_month ~ '^\d{4}-\d{2}$');
+
+create policy "anon_fitness_scores_delete"
+on public.fitness_scores
 for delete
 to anon
 using (true);

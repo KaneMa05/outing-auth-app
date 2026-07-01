@@ -33,7 +33,7 @@
       ]
     },
     {
-      "source": "/:file(shared|student|teacher|teacher-grades|teacher-students|teacher-settings|teacher-penalties|app|supabase).js",
+      "source": "/:file(shared|student|teacher|teacher-grades|teacher-fitness|teacher-students|teacher-settings|teacher-penalties|app|supabase).js",
       "headers": [
         {
           "key": "Cache-Control",

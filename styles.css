@@ -1203,6 +1203,54 @@ th {
   gap: 8px;
 }
 
+.fitness-toolbar {
+  align-items: flex-end;
+}
+
+.fitness-toolbar .field {
+  min-width: 180px;
+  margin: 0;
+}
+
+.fitness-score-input {
+  width: 86px;
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.fitness-bulk-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fitness-bulk-actions.bottom {
+  margin-top: 10px;
+}
+
+.fitness-month-stat strong {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.fitness-score-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 132px;
+}
+
+.fitness-score-summary strong {
+  color: var(--accent-strong);
+}
+
+.fitness-score-summary span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .info-modal-panel.penalty-modal {
   width: min(1080px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);

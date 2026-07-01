@@ -83,6 +83,7 @@ const routePermissions = {
   "weekly-exams": "grades.read",
   "weekly-absences": "grades.read",
   grades: "grades.read",
+  fitness: "fitness.read",
   "track-subjects": "grades.read",
   penalties: "penalties.read",
   attendance: "attendance.read",
@@ -119,7 +120,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -457,6 +458,7 @@ function defaultState() {
     examFiles: [],
     examSubjectSettings: [],
     finalExamScores: [],
+    fitnessScores: [],
     studentRegistrationEvents: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
@@ -489,6 +491,7 @@ function mergeDefaultState(nextState) {
     examFiles: Array.isArray(nextState?.examFiles) ? nextState.examFiles : defaults.examFiles,
     examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
     finalExamScores: Array.isArray(nextState?.finalExamScores) ? nextState.finalExamScores : defaults.finalExamScores,
+    fitnessScores: Array.isArray(nextState?.fitnessScores) ? nextState.fitnessScores : defaults.fitnessScores,
     studentRegistrationEvents: Array.isArray(nextState?.studentRegistrationEvents) ? nextState.studentRegistrationEvents : defaults.studentRegistrationEvents,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
@@ -985,6 +988,7 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.attendanceChecks?.length ||
     snapshot?.attendanceHolidays?.length ||
     snapshot?.penalties?.length ||
+    snapshot?.fitnessScores?.length ||
     snapshot?.notices?.length
   );
 }
@@ -997,6 +1001,7 @@ function makeLocalDevSafeState() {
   snapshot.attendanceChecks = snapshot.attendanceChecks || [];
   snapshot.attendanceHolidays = snapshot.attendanceHolidays || [];
   snapshot.penalties = snapshot.penalties || [];
+  snapshot.fitnessScores = snapshot.fitnessScores || [];
   snapshot.notices = snapshot.notices || [];
   return snapshot;
 }
@@ -1075,6 +1080,7 @@ async function loadStateFromRemote() {
   const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
   const examSubjectSettingColumns = "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at";
   const finalExamScoreColumns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
+  const fitnessScoreColumns = "id,assessment_month,student_id,student_name,gender,cohort,sit_up_count,push_up_count,grip_strength,converted_scores,total_score,memo,measured_at,updated_at,created_at";
   const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
   let managerRequest =
     APP_MODE === "student"
@@ -1128,6 +1134,9 @@ async function loadStateFromRemote() {
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false }),
     APP_MODE === "teacher"
+      ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    APP_MODE === "teacher"
       ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -1148,7 +1157,8 @@ async function loadStateFromRemote() {
   const examFileResult = remoteResults[14];
   const examSubjectSettingResult = remoteResults[15];
   const finalExamScoreResult = remoteResults[16];
-  const studentRegistrationEventResult = remoteResults[17];
+  let fitnessScoreResult = remoteResults[17];
+  const studentRegistrationEventResult = remoteResults[18];
   let outingPhotos = photoResult.data || [];
   if (
     isMissingColumnError(attendanceResult.error, "reason") ||
@@ -1255,6 +1265,10 @@ async function loadStateFromRemote() {
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
   if (finalExamScoreResult.error && !isMissingRelationError(finalExamScoreResult.error, "final_exam_scores")) throw finalExamScoreResult.error;
+  if (isMissingColumnError(fitnessScoreResult.error, "assessment_month")) {
+    fitnessScoreResult = { data: [], error: null };
+  }
+  if (fitnessScoreResult.error && !isMissingRelationError(fitnessScoreResult.error, "fitness_scores")) throw fitnessScoreResult.error;
   if (studentRegistrationEventResult.error && !isMissingRelationError(studentRegistrationEventResult.error, "student_registration_events")) throw studentRegistrationEventResult.error;
   if (APP_MODE === "student" && loadedOutings.length) {
     const outingIds = loadedOutings.map((outing) => outing.id).filter(Boolean);
@@ -1359,6 +1373,7 @@ async function loadStateFromRemote() {
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
   if (!finalExamScoreResult.error) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
+  if (!fitnessScoreResult.error) state.fitnessScores = (fitnessScoreResult.data || []).map(mapFitnessScoreFromRemote);
   if (!studentRegistrationEventResult.error) state.studentRegistrationEvents = (studentRegistrationEventResult.data || []).map(mapStudentRegistrationEventFromRemote);
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
@@ -2126,7 +2141,7 @@ async function updateRemoteOutingDeletedAt(id, deletedAt) {
 }
 function stat(label, value, unit = "", options = {}) {
   const valueNode = [String(value), unit ? el("small", {}, unit) : null].filter(Boolean);
-  return el("div", { className: "stat" }, [
+  return el("div", { className: ("stat " + (options.className || "")).trim() }, [
     el("span", {}, label),
     options.onClick
       ? el("button", { className: "stat-action", type: "button", onClick: options.onClick }, valueNode)
@@ -2646,6 +2661,26 @@ function mapFinalExamScoreFromRemote(record) {
   };
 }
 
+function mapFitnessScoreFromRemote(record) {
+  return {
+    id: record.id,
+    assessmentMonth: record.assessment_month || "",
+    studentId: record.student_id || "",
+    studentName: getCanonicalStudentName(record.student_id, record.student_name || ""),
+    gender: record.gender || "",
+    cohort: String(record.cohort || ""),
+    sitUpCount: record.sit_up_count === null || record.sit_up_count === undefined ? "" : Number(record.sit_up_count) || 0,
+    pushUpCount: record.push_up_count === null || record.push_up_count === undefined ? "" : Number(record.push_up_count) || 0,
+    gripStrength: record.grip_strength === null || record.grip_strength === undefined ? "" : Number(record.grip_strength) || 0,
+    convertedScores: record.converted_scores && typeof record.converted_scores === "object" ? record.converted_scores : {},
+    totalScore: record.total_score === null || record.total_score === undefined ? "" : Number(record.total_score) || 0,
+    memo: record.memo || "",
+    measuredAt: record.measured_at || "",
+    updatedAt: record.updated_at || record.created_at || "",
+    createdAt: record.created_at || record.updated_at || "",
+  };
+}
+
 function mapStudentRegistrationEventFromRemote(event) {
   return {
     id: event.id,
@@ -3115,6 +3150,41 @@ async function saveFinalExamScoresToRemote() {
   if (!rows.length) return;
   const { error } = await remoteStore.from("final_exam_scores").upsert(rows, { onConflict: "id" });
   if (error && !isMissingRelationError(error, "final_exam_scores")) throw error;
+}
+
+async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const toNullableNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const rows = (records || [])
+    .filter((record) => record.id && record.studentId)
+    .map((record) => ({
+      id: record.id,
+      assessment_month: record.assessmentMonth || record.assessment_month || new Date().toISOString().slice(0, 7),
+      student_id: String(record.studentId || "").trim(),
+      student_name: record.studentName || null,
+      gender: record.gender || null,
+      cohort: String(record.cohort || ""),
+      sit_up_count: toNullableNumber(record.sitUpCount),
+      push_up_count: toNullableNumber(record.pushUpCount),
+      grip_strength: toNullableNumber(record.gripStrength),
+      converted_scores: record.convertedScores || {},
+      total_score: toNullableNumber(record.totalScore),
+      memo: record.memo || null,
+      measured_at: record.measuredAt || new Date().toISOString(),
+      updated_at: record.updatedAt || new Date().toISOString(),
+      created_at: record.createdAt || new Date().toISOString(),
+    }));
+  if (!rows.length) return;
+  const { error } = await remoteStore.from("fitness_scores").upsert(rows, { onConflict: "id" });
+  if (error && !isMissingRelationError(error, "fitness_scores")) throw error;
 }
 
 function isAttendanceCheckOpen(now = new Date()) {
