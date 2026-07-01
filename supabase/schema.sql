@@ -11,6 +11,7 @@ create table if not exists public.students (
   device_token text,
   app_registered_at timestamptz,
   attendance_excluded boolean not null default false,
+  fitness_excluded boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -458,7 +459,8 @@ add column if not exists gender text,
 add column if not exists password_hash text,
 add column if not exists device_token text,
 add column if not exists app_registered_at timestamptz,
-add column if not exists attendance_excluded boolean not null default false;
+add column if not exists attendance_excluded boolean not null default false,
+add column if not exists fitness_excluded boolean not null default false;
 
 alter table public.attendance_checks
 add column if not exists reason text,
@@ -626,6 +628,7 @@ grant select (
   gender,
   app_registered_at,
   attendance_excluded,
+  fitness_excluded,
   is_active,
   created_at
 ) on public.students to anon;
@@ -636,6 +639,7 @@ grant insert (
   class_name,
   track,
   attendance_excluded,
+  fitness_excluded,
   is_active,
   created_at
 ) on public.students to anon;
@@ -649,6 +653,7 @@ grant update (
   device_token,
   app_registered_at,
   attendance_excluded,
+  fitness_excluded,
   is_active
 ) on public.students to anon;
 

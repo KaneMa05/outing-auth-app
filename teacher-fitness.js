@@ -166,7 +166,7 @@ function renderFitnessLookupPanel(students, records) {
 
 function getFitnessStudents(cohort = selectedStudentCohort) {
   return (state.students || [])
-    .filter((student) => getStudentCohort(student) === cohort && !isOnlineClassName(student.className))
+    .filter((student) => getStudentCohort(student) === cohort && !isOnlineClassName(student.className) && !isFitnessExcludedStudent(student))
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
 }
 

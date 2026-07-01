@@ -87,6 +87,7 @@ function normalizeStudentRow(student) {
     class_name: className,
     track: String(student.track || "").trim() || null,
     attendance_excluded: student.attendance_excluded === true || student.attendanceExcluded === true || isOnlineClassName(className),
+    fitness_excluded: student.fitness_excluded === true || student.fitnessExcluded === true,
     created_at: student.created_at || student.createdAt || new Date().toISOString(),
   };
 }
@@ -115,6 +116,7 @@ async function upsertStudent(row) {
     class_name: row.class_name,
     track: row.track,
     attendance_excluded: row.attendance_excluded,
+    fitness_excluded: row.fitness_excluded,
     is_active: true,
   };
 

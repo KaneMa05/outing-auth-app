@@ -1654,6 +1654,7 @@ function upsertStudents(students, className, track = "") {
       deviceToken: existing?.deviceToken || "",
       appRegisteredAt: existing?.appRegisteredAt || "",
       attendanceExcluded: existing?.attendanceExcluded === true || isOnlineClassName(nextClassName),
+      fitnessExcluded: existing?.fitnessExcluded === true,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
     if (existing) {

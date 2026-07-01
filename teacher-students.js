@@ -100,6 +100,7 @@ function renderStudentAdminActionMenu(student, profile) {
       button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
       profile ? button("등록 초기화", "student-action-menu-item", "button", () => resetStudentAppRegistration(student.id)) : null,
       button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "student-action-menu-item", "button", () => toggleStudentAttendanceExcluded(student.id)),
+      button(isFitnessExcludedStudent(student) ? "체력평가 포함" : "체력평가 제외", "student-action-menu-item", "button", () => toggleStudentFitnessExcluded(student.id)),
       button("삭제", "student-action-menu-item danger", "button", () => deleteStudent(student.id)),
     ]),
   ]);
@@ -925,6 +926,7 @@ async function saveStudentsToRemote(studentIds) {
       track: normalizeCoastGuardTrack(student.track) || null,
       is_active: true,
       attendance_excluded: student.attendanceExcluded === true,
+      fitness_excluded: student.fitnessExcluded === true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
 
@@ -938,8 +940,8 @@ async function saveStudentsToRemote(studentIds) {
   if (!remoteStore) return;
 
   const { error } = await remoteStore.from("students").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
-  if (isMissingColumnError(error, "attendance_excluded")) {
-    const fallbackRows = rows.map(({ attendance_excluded, ...row }) => row);
+  if (isMissingColumnError(error, "attendance_excluded") || isMissingColumnError(error, "fitness_excluded")) {
+    const fallbackRows = rows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
     const { error: fallbackError } = await remoteStore.from("students").upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
     if (fallbackError) throw fallbackError;
   } else if (isExpectedProfileRewriteError(error)) {
@@ -958,9 +960,10 @@ async function saveStudentsToRemote(studentIds) {
         class_name: row.class_name,
         track: row.track,
         attendance_excluded: row.attendance_excluded,
+        fitness_excluded: row.fitness_excluded,
       })
       .eq("id", row.id);
-    if (isMissingColumnError(updateError, "attendance_excluded")) {
+    if (isMissingColumnError(updateError, "attendance_excluded") || isMissingColumnError(updateError, "fitness_excluded")) {
       const { error: fallbackError } = await remoteStore
         .from("students")
         .update({
@@ -1034,6 +1037,42 @@ async function updateStudentAttendanceExcludedRemote(id, excluded) {
   const { error } = await remoteStore
     .from("students")
     .update({ attendance_excluded: excluded })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function toggleStudentFitnessExcluded(id) {
+  const student = findStudent(id);
+  if (!student) return;
+  const nextValue = !isFitnessExcludedStudent(student);
+  const message = nextValue
+    ? `${student.name} (${student.id}) 학생을 체력평가 대상에서 제외할까요?`
+    : `${student.name} (${student.id}) 학생을 다시 체력평가 대상에 포함할까요?`;
+  if (!confirm(message)) return;
+  const previousValue = student.fitnessExcluded === true;
+  student.fitnessExcluded = nextValue;
+  try {
+    await updateStudentFitnessExcludedRemote(student.id, nextValue);
+    saveState({ skipRemote: true });
+    render();
+    notify(nextValue ? "체력평가 제외로 변경했습니다." : "체력평가 포함으로 변경했습니다.");
+  } catch (error) {
+    console.error(error);
+    student.fitnessExcluded = previousValue;
+    render();
+    notify("체력평가 제외 설정을 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
+  }
+}
+
+async function updateStudentFitnessExcludedRemote(id, excluded) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return;
+  const { error } = await remoteStore
+    .from("students")
+    .update({ fitness_excluded: excluded })
     .eq("id", id);
   if (error) throw error;
 }

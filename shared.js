@@ -1011,7 +1011,7 @@ async function loadStateFromRemote() {
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
   const localSubmissionAnswers = Array.isArray(state.submissionAnswers) ? state.submissionAnswers.map((answer) => ({ ...answer })) : [];
-  let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,is_active,created_at";
+  let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
   const outingColumns = [
@@ -1178,7 +1178,7 @@ async function loadStateFromRemote() {
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
 
-  if (isMissingColumnError(studentResult.error, "attendance_excluded")) {
+  if (isMissingColumnError(studentResult.error, "attendance_excluded") || isMissingColumnError(studentResult.error, "fitness_excluded")) {
     studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
   }
@@ -1302,6 +1302,7 @@ async function loadStateFromRemote() {
     passwordHash: "",
     appRegisteredAt: student.app_registered_at || "",
     attendanceExcluded: student.attendance_excluded === true || isOnlineClassName(student.class_name),
+    fitnessExcluded: student.fitness_excluded === true,
     createdAt: student.created_at,
   }));
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
@@ -1392,6 +1393,7 @@ async function saveStateToRemote() {
       class_name: student.className || state.settings.className || "오프라인반",
       track: normalizeCoastGuardTrack(student.track) || null,
       attendance_excluded: student.attendanceExcluded === true || isOnlineClassName(student.className),
+      fitness_excluded: student.fitnessExcluded === true,
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
@@ -1400,8 +1402,8 @@ async function saveStateToRemote() {
     const { error } = await remoteStore
       .from("students")
       .upsert(rosterRows, { onConflict: "id", ignoreDuplicates: true });
-    if (isMissingColumnError(error, "attendance_excluded")) {
-      const fallbackRows = rosterRows.map(({ attendance_excluded, ...row }) => row);
+    if (isMissingColumnError(error, "attendance_excluded") || isMissingColumnError(error, "fitness_excluded")) {
+      const fallbackRows = rosterRows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
       const { error: fallbackError } = await remoteStore
         .from("students")
         .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
@@ -1434,9 +1436,10 @@ async function saveStateToRemote() {
           class_name: row.class_name,
           track: row.track,
           attendance_excluded: row.attendance_excluded,
+          fitness_excluded: row.fitness_excluded,
         })
         .eq("id", row.id);
-      if (isMissingColumnError(error, "attendance_excluded")) {
+      if (isMissingColumnError(error, "attendance_excluded") || isMissingColumnError(error, "fitness_excluded")) {
         const { error: fallbackError } = await remoteStore
           .from("students")
           .update({
@@ -2379,6 +2382,10 @@ function isOnlineClassName(className) {
 
 function isAttendanceExcludedStudent(student) {
   return student?.attendanceExcluded === true || isOnlineClassName(student?.className);
+}
+
+function isFitnessExcludedStudent(student) {
+  return student?.fitnessExcluded === true;
 }
 
 function isActiveOuting(outing) {
