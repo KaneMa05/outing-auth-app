@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v187-fitness-bulk-save";
+const CACHE_NAME = "outing-auth-app-v188-fitness-upsert-key";
 const APP_SHELL = [
   "/",
   "/index.html",

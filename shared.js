@@ -3190,7 +3190,7 @@ async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {
       created_at: record.createdAt || new Date().toISOString(),
     }));
   if (!rows.length) return;
-  const { error } = await remoteStore.from("fitness_scores").upsert(rows, { onConflict: "id" });
+  const { error } = await remoteStore.from("fitness_scores").upsert(rows, { onConflict: "assessment_month,student_id" });
   if (error) throw error;
 }
 
