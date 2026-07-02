@@ -3164,7 +3164,7 @@ async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {
     await loadSupabaseSdk();
     remoteStore = createRemoteStore();
   }
-  if (!remoteStore) return;
+  if (!remoteStore) throw new Error("remote_store_unavailable");
   const toNullableNumber = (value) => {
     if (value === "" || value === null || value === undefined) return null;
     const number = Number(value);
@@ -3191,7 +3191,7 @@ async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {
     }));
   if (!rows.length) return;
   const { error } = await remoteStore.from("fitness_scores").upsert(rows, { onConflict: "id" });
-  if (error && !isMissingRelationError(error, "fitness_scores")) throw error;
+  if (error) throw error;
 }
 
 function isAttendanceCheckOpen(now = new Date()) {

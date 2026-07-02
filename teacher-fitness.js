@@ -126,7 +126,7 @@ function renderFitnessInputRow(student, record) {
       updateFitnessScoreSummary(scoreSummary, calculateFitnessScore(readFitnessControlValues(controls), gender));
     });
   });
-  return el("tr", {}, [
+  const row = el("tr", {}, [
     el("td", {}, formatStudentNumber(student.id)),
     el("td", {}, student.name || "-"),
     el("td", {}, fitnessGenderLabel(gender)),
@@ -275,6 +275,7 @@ async function saveFitnessStudentScore(student, controls, existingRecord) {
   const values = readFitnessControlValues(controls);
   if (FITNESS_EVENTS.every((event) => values[event.key] === "")) return notify("체력 점수를 하나 이상 입력해주세요.");
   const record = buildFitnessScoreRecord(student, values, existingRecord);
+  const previousFitnessScores = JSON.parse(JSON.stringify(state.fitnessScores || []));
   state.fitnessScores = [
     ...(state.fitnessScores || []).filter((item) => item.id !== record.id),
     record,
@@ -285,6 +286,8 @@ async function saveFitnessStudentScore(student, controls, existingRecord) {
     notify(`${student.name || student.id} 체력평가 점수를 저장했습니다.`);
   } catch (error) {
     console.error(error);
+    state.fitnessScores = previousFitnessScores;
+    saveState({ skipRemote: true });
     notify("체력평가 점수를 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
   }
   render();
@@ -322,6 +325,7 @@ async function saveFitnessBulkScores() {
     })
     .filter(Boolean);
   if (!records.length) return notify("저장할 체력 점수가 없습니다.");
+  const previousFitnessScores = JSON.parse(JSON.stringify(state.fitnessScores || []));
   const recordIds = new Set(records.map((record) => record.id));
   state.fitnessScores = [
     ...(state.fitnessScores || []).filter((item) => !recordIds.has(item.id)),
@@ -333,6 +337,8 @@ async function saveFitnessBulkScores() {
     notify(`${records.length}명 체력평가 점수를 일괄 저장했습니다.`);
   } catch (error) {
     console.error(error);
+    state.fitnessScores = previousFitnessScores;
+    saveState({ skipRemote: true });
     notify("체력평가 점수를 서버에 저장하지 못했습니다. Supabase 스키마를 먼저 반영해주세요.");
   }
   render();
