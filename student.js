@@ -1402,19 +1402,19 @@ function renderStudentFitnessEmpty() {
 }
 
 function renderStudentFitnessOverview(summary) {
-  const rankMeta = summary?.rank && summary?.total
-    ? `${summary.total}명 중 ${summary.rank}등`
-    : "월별 입력 점수를 확인할 수 있습니다.";
+  const rankLabel = summary?.rank && summary?.total ? `${summary.rank}등 / ${summary.total}명` : "";
   return el("section", { className: "student-grade-overview student-fitness-overview", ariaLabel: "체력평가 요약" }, [
     el("div", { className: "student-grade-overview-head" }, [
       el("span", { className: "student-grade-overview-label" }, "체력 총점"),
       summary?.gender ? el("span", { className: "student-grade-overview-track" }, studentFitnessGenderLabel(summary.gender)) : null,
     ]),
-    el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
-    el("span", { className: "student-grade-overview-meta" }, summary ? rankMeta : "체력평가 입력 후 표시됩니다."),
+    el("div", { className: "student-fitness-score-row" }, [
+      el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
+      rankLabel ? el("span", { className: "student-fitness-rank-badge" }, rankLabel) : null,
+    ]),
+    el("span", { className: "student-grade-overview-meta" }, summary ? "월별 입력 점수를 확인할 수 있습니다." : "체력평가 입력 후 표시됩니다."),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
-      renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
       renderStudentGradeMetric("측정일", summary?.measuredAt ? formatStudentFitnessMeasuredDate(summary.measuredAt) : "-"),
     ]),
   ]);
