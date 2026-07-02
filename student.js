@@ -1415,7 +1415,7 @@ function renderStudentFitnessOverview(summary) {
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
       renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
-      renderStudentGradeMetric("측정일", summary?.measuredAt ? formatDateCompact(summary.measuredAt) : "-"),
+      renderStudentGradeMetric("측정일", summary?.measuredAt ? formatStudentFitnessMeasuredDate(summary.measuredAt) : "-"),
     ]),
   ]);
 }
@@ -1554,7 +1554,7 @@ function normalizeStudentFitnessGender(gender) {
 }
 
 function studentFitnessGenderLabel(gender) {
-  return normalizeStudentFitnessGender(gender) === "female" ? "여자" : "남자";
+  return normalizeStudentFitnessGender(gender) === "female" ? "여" : "남";
 }
 
 function normalizeStudentFitnessMonth(value) {
@@ -1570,6 +1570,12 @@ function formatStudentFitnessMonth(value) {
   const month = normalizeStudentFitnessMonth(value);
   const [year, monthNumber] = month.split("-");
   return `${year}년 ${Number(monthNumber)}월`;
+}
+
+function formatStudentFitnessMeasuredDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${String(date.getFullYear()).slice(-2)}.${date.getMonth() + 1}`;
 }
 
 function formatStudentFitnessRawScore(value, unit) {
