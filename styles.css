@@ -2403,10 +2403,6 @@ th {
   color: #064e3b;
 }
 
-.student-fitness-progress .student-grade-progress-fill {
-  background: linear-gradient(90deg, #047857 0%, #38bdf8 100%);
-}
-
 .student-fitness-empty {
   display: grid;
   gap: 14px;

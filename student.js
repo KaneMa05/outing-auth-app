@@ -1411,26 +1411,11 @@ function renderStudentFitnessOverview(summary) {
     ]),
     el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
     el("span", { className: "student-grade-overview-meta" }, summary ? rankMeta : "체력평가 입력 후 표시됩니다."),
-    renderStudentFitnessProgress(summary),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
       renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
       renderStudentGradeMetric("측정일", summary?.measuredAt ? formatStudentFitnessMeasuredDate(summary.measuredAt) : "-"),
     ]),
-  ]);
-}
-
-function renderStudentFitnessProgress(summary) {
-  const percent = summary ? Math.max(0, Math.min(100, Math.round((Number(summary.totalScore) || 0) / 30 * 100))) : 0;
-  return el("div", {
-    className: "student-grade-progress student-fitness-progress",
-    role: "meter",
-    ariaLabel: "체력평가 총점 비율",
-    ariaValueMin: "0",
-    ariaValueMax: "30",
-    ariaValueNow: String(summary ? Number(summary.totalScore) || 0 : 0),
-  }, [
-    el("span", { className: "student-grade-progress-fill", style: `width: ${percent}%` }),
   ]);
 }
 
