@@ -1568,8 +1568,8 @@ function getStudentCurrentFitnessMonth() {
 
 function formatStudentFitnessMonth(value) {
   const month = normalizeStudentFitnessMonth(value);
-  const [year, monthNumber] = month.split("-");
-  return `${year}년 ${Number(monthNumber)}월`;
+  const [, monthNumber] = month.split("-");
+  return `${Number(monthNumber)}월`;
 }
 
 function formatStudentFitnessMeasuredDate(value) {
