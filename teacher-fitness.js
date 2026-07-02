@@ -233,7 +233,7 @@ function buildFitnessMissingReportRow(student, record) {
   const gender = normalizeFitnessGender(student?.gender || record?.gender);
   const missingEvents = FITNESS_EVENTS
     .filter((event) => isFitnessEventUnmeasured(record, event))
-    .map((event) => event.label.replace("일으키기", "").replace("펴기", ""));
+    .map(formatFitnessMissingEventLabel);
   const missingLabel = missingEvents.length === FITNESS_EVENTS.length || !record ? "전체 미측정" : `${missingEvents.join(", ")} 미측정`;
   return {
     student,
@@ -267,6 +267,13 @@ function isFitnessEventUnmeasured(record, event) {
 function formatFitnessReportRawCell(value) {
   if (value === "" || value === null || value === undefined) return "";
   return formatFitnessNumber(value);
+}
+
+function formatFitnessMissingEventLabel(event) {
+  if (event?.key === "sitUpCount") return "윗몸";
+  if (event?.key === "pushUpCount") return "팔굽";
+  if (event?.key === "gripStrength") return "악력";
+  return String(event?.label || "").trim();
 }
 
 function applyFitnessRanks(records = []) {

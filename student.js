@@ -1424,15 +1424,16 @@ function renderStudentFitnessEmpty() {
 }
 
 function renderStudentFitnessOverview(summary) {
+  const isPending = summary?.isPending === true;
   return el("section", { className: "student-grade-overview student-fitness-overview", ariaLabel: "체력평가 요약" }, [
     el("div", { className: "student-grade-overview-head" }, [
       el("span", { className: "student-grade-overview-label" }, "체력 총점"),
       summary?.gender ? el("span", { className: "student-grade-overview-track" }, studentFitnessGenderLabel(summary.gender)) : null,
     ]),
-    el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
+    el("strong", { className: "student-grade-overview-value" }, summary ? (isPending ? "측정 대기" : `${formatStudentFitnessNumber(summary.totalScore)}점`) : "-"),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
-      renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
-      renderStudentGradeMetric("등수", summary?.rank && summary?.total ? `${summary.rank}등 / ${summary.total}명` : "-"),
+      renderStudentGradeMetric("총점", summary ? (isPending ? "측정 대기" : `${formatStudentFitnessNumber(summary.totalScore)}/30점`) : "-"),
+      renderStudentGradeMetric("등수", !isPending && summary?.rank && summary?.total ? `${summary.rank}등 / ${summary.total}명` : "-"),
       renderStudentGradeMetric("측정일", summary?.measuredAt ? formatStudentFitnessMeasuredDate(summary.measuredAt) : "-"),
     ]),
   ]);
@@ -1443,20 +1444,21 @@ function renderStudentFitnessEventList(summary, student) {
     el("strong", {}, "항목별 점수"),
     ...STUDENT_FITNESS_EVENTS.map((event) => {
       const eventRank = getStudentFitnessEventRank(summary.raw, student, event);
+      const isEventPending = isStudentFitnessEventUnmeasured(summary.raw, event);
       return el("article", { className: "student-grade-subject-card student-fitness-event-card" }, [
         el("h3", {}, event.label),
         el("div", { className: "detail-grid" }, [
           el("div", { className: "detail-item" }, [
             el("span", {}, "원점수"),
-            el("strong", {}, formatStudentFitnessRawScore(summary.raw[event.key], event.unit)),
+            el("strong", {}, isEventPending ? "측정 대기" : formatStudentFitnessRawScore(summary.raw[event.key], event.unit)),
           ]),
           el("div", { className: "detail-item" }, [
             el("span", {}, "환산"),
-            el("strong", {}, `${Number(summary.converted[event.scoreKey]) || 0}점`),
+            el("strong", {}, isEventPending ? "측정 대기" : `${Number(summary.converted[event.scoreKey]) || 0}점`),
           ]),
           el("div", { className: "detail-item" }, [
             el("span", {}, "등수"),
-            el("strong", {}, eventRank.rank && eventRank.total ? `${eventRank.rank}등 / ${eventRank.total}명` : "-"),
+            el("strong", {}, !isEventPending && eventRank.rank && eventRank.total ? `${eventRank.rank}등 / ${eventRank.total}명` : "-"),
           ]),
         ]),
       ]);
@@ -1526,6 +1528,17 @@ function hasStudentFitnessScoreValue(record) {
   return STUDENT_FITNESS_EVENTS.some((event) => record?.[event.key] !== "" && record?.[event.key] !== null && record?.[event.key] !== undefined);
 }
 
+function hasCompleteStudentFitnessScore(record) {
+  return STUDENT_FITNESS_EVENTS.every((event) => !isStudentFitnessEventUnmeasured(record, event));
+}
+
+function isStudentFitnessEventUnmeasured(record, event) {
+  const value = record?.[event.key];
+  if (value === "" || value === null || value === undefined) return true;
+  const number = Number(value);
+  return Number.isFinite(number) && number <= 0;
+}
+
 function getStudentFitnessSummary(record, student) {
   const gender = normalizeStudentFitnessGender(record.gender || student?.gender || getStudentProfile(student?.id)?.gender);
   const converted = record.convertedScores && Object.keys(record.convertedScores).length
@@ -1535,12 +1548,14 @@ function getStudentFitnessSummary(record, student) {
     ? Number(record.totalScore) || 0
     : Object.values(converted).reduce((sum, score) => sum + (Number(score) || 0), 0);
   const rank = getStudentFitnessRank(record, student);
+  const isPending = !hasCompleteStudentFitnessScore(record);
   return {
     month: record.assessmentMonth,
     gender,
     raw: record,
     converted,
     totalScore,
+    isPending,
     rank: rank.rank,
     total: rank.total,
     measuredAt: record.measuredAt || record.updatedAt || record.createdAt || "",
@@ -1555,7 +1570,7 @@ function getStudentFitnessRank(record, student) {
     .filter((item) => normalizeStudentFitnessMonth(item.assessmentMonth) === month)
     .filter((item) => !cohort || getStudentCohort({ id: item.studentId }) === cohort)
     .filter((item) => normalizeStudentFitnessGender(item.gender || findStudent(item.studentId)?.gender) === gender)
-    .filter(hasStudentFitnessScoreValue)
+    .filter(hasCompleteStudentFitnessScore)
     .map((item) => {
       const summary = getStudentFitnessRecordTotal(item, gender);
       return { id: String(item.studentId || "").trim(), totalScore: summary.totalScore };
@@ -1577,7 +1592,7 @@ function getStudentFitnessEventRank(record, student, event) {
       id: String(item.studentId || "").trim(),
       value: Number(item?.[event.key]),
     }))
-    .filter((item) => item.id && Number.isFinite(item.value))
+    .filter((item) => item.id && Number.isFinite(item.value) && item.value > 0)
     .sort((a, b) => Number(b.value || 0) - Number(a.value || 0) || String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
   const index = ranked.findIndex((item) => item.id === String(student?.id || "").trim());
   return { rank: index >= 0 ? index + 1 : 0, total: ranked.length };
