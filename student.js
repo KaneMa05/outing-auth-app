@@ -1249,8 +1249,8 @@ const STUDENT_FITNESS_EVENTS = [
 ];
 
 const STUDENT_FITNESS_CRITERIA_EVENTS = [
-  { scoreKey: "run100m", shortLabel: "100m", unit: "초", mode: "max" },
   ...STUDENT_FITNESS_EVENTS.map((event) => ({ ...event, mode: "min" })),
+  { scoreKey: "run100m", shortLabel: "100m", unit: "초", mode: "max" },
   { scoreKey: "swim50m", shortLabel: "50m 수영", unit: "초", mode: "max" },
 ];
 

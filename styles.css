@@ -2457,18 +2457,24 @@ th {
 }
 
 .student-fitness-criteria-table {
-  width: 100%;
+  width: max-content;
+  min-width: 600px;
   border-collapse: collapse;
-  table-layout: fixed;
   font-size: 0.78rem;
 }
 
 .student-fitness-criteria-table th,
 .student-fitness-criteria-table td {
+  min-width: 86px;
   padding: 7px 6px;
   border: 1px solid var(--line);
   text-align: center;
   white-space: nowrap;
+}
+
+.student-fitness-criteria-table th:first-child,
+.student-fitness-criteria-table td:first-child {
+  min-width: 54px;
 }
 
 .student-fitness-criteria-table th {
