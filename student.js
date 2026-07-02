@@ -1366,11 +1366,12 @@ function renderStudentFitnessGrades(student) {
     panel("체력평가", [
       el("div", { className: "student-grade-result" }, [
         el("div", { className: "student-grade-result-title" }, [
-          el("strong", {}, summary ? formatStudentFitnessMonth(summary.month) : "월별 점수"),
+          el("strong", {}, "월별 점수"),
           monthOptions.length ? renderStudentFitnessMonthSelect(monthOptions) : null,
         ]),
         summary ? renderStudentFitnessOverview(summary) : renderStudentFitnessEmpty(),
         summary ? renderStudentFitnessEventList(summary) : null,
+        renderStudentFitnessCriteriaButton(),
         button("성적 메뉴", "mini-btn student-grade-menu-back", "button", () => {
           studentGradesView = "";
           render();
@@ -1435,10 +1436,50 @@ function renderStudentFitnessEventList(summary) {
         ]),
         el("div", { className: "detail-item" }, [
           el("span", {}, "기준"),
-          el("strong", {}, `${studentFitnessGenderLabel(summary.gender)} 기준`),
+          el("strong", {}, studentFitnessGenderLabel(summary.gender)),
         ]),
       ]),
     ])),
+  ]);
+}
+
+function renderStudentFitnessCriteriaButton() {
+  return button("측정 기준 보기", "mini-btn student-fitness-criteria-button", "button", openStudentFitnessCriteriaModal);
+}
+
+function openStudentFitnessCriteriaModal() {
+  openInfoModal({
+    title: "체력평가 측정 기준",
+    className: "student-fitness-criteria-modal",
+    content: el("div", { className: "student-fitness-criteria-content" }, [
+      ...["male", "female"].map((gender) => renderStudentFitnessCriteriaTable(gender)),
+    ]),
+  });
+}
+
+function renderStudentFitnessCriteriaTable(gender) {
+  const normalizedGender = normalizeStudentFitnessGender(gender);
+  return el("section", { className: "student-fitness-criteria-section" }, [
+    el("h3", {}, studentFitnessGenderLabel(normalizedGender)),
+    el("div", { className: "student-fitness-criteria-table-wrap" }, [
+      el("table", { className: "student-fitness-criteria-table" }, [
+        el("thead", {}, [
+          el("tr", {}, [
+            el("th", {}, "점수"),
+            ...STUDENT_FITNESS_EVENTS.map((event) => el("th", {}, event.shortLabel)),
+          ]),
+        ]),
+        el("tbody", {}, Array.from({ length: 10 }, (_, index) => {
+          const score = 10 - index;
+          return el("tr", {}, [
+            el("td", {}, `${score}점`),
+            ...STUDENT_FITNESS_EVENTS.map((event) =>
+              el("td", {}, formatStudentFitnessCriteriaValue(normalizedGender, event.scoreKey, score, event.unit))
+            ),
+          ]);
+        })),
+      ]),
+    ]),
   ]);
 }
 
@@ -1560,7 +1601,13 @@ function formatStudentFitnessMonth(value) {
 function formatStudentFitnessMeasuredDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return `${String(date.getFullYear()).slice(-2)}.${date.getMonth() + 1}`;
+  return `${String(date.getFullYear()).slice(-2)}년 ${date.getMonth() + 1}월`;
+}
+
+function formatStudentFitnessCriteriaValue(gender, eventKey, score, unit) {
+  const rules = STUDENT_FITNESS_SCORE_RULES[normalizeStudentFitnessGender(gender)]?.[eventKey] || [];
+  const rule = rules.find((item) => Number(item.score) === Number(score));
+  return rule ? `${formatStudentFitnessNumber(rule.min)}${unit}+` : "-";
 }
 
 function formatStudentFitnessRawScore(value, unit) {
