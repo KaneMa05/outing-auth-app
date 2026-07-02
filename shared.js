@@ -3194,6 +3194,28 @@ async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {
   if (error) throw error;
 }
 
+async function deleteFitnessScoreFromRemote(record) {
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) throw new Error("remote_store_unavailable");
+  const monthText = String(record?.assessmentMonth || record?.assessment_month || "").trim();
+  const assessmentMonth = /^\d{4}-\d{2}$/.test(monthText) ? monthText : "";
+  const studentId = String(record?.studentId || record?.student_id || "").trim();
+  const recordId = String(record?.id || "").trim();
+  if (!studentId && !recordId) return;
+
+  let request = remoteStore.from("fitness_scores").delete();
+  if (assessmentMonth && studentId) {
+    request = request.eq("assessment_month", assessmentMonth).eq("student_id", studentId);
+  } else {
+    request = request.eq("id", recordId);
+  }
+  const { error } = await request;
+  if (error) throw error;
+}
+
 function isAttendanceCheckOpen(now = new Date()) {
   if (isAttendanceHoliday(getTodayDateKey())) return false;
   if (!state.settings.attendanceDeadlineEnabled) return true;

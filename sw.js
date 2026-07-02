@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v188-fitness-upsert-key";
+const CACHE_NAME = "outing-auth-app-v189-fitness-delete";
 const APP_SHELL = [
   "/",
   "/index.html",

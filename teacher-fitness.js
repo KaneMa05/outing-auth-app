@@ -143,7 +143,8 @@ function renderFitnessLookupPanel(students, records) {
     .filter((record) => studentIds.has(String(record.studentId)))
     .filter((record) => isFitnessRecordMatched(record))
     .sort((a, b) => Number(b.totalScore || 0) - Number(a.totalScore || 0) || String(a.studentId).localeCompare(String(b.studentId), "ko-KR", { numeric: true }));
-  const headers = ["순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일"];
+  const canDelete = hasTeacherPermission("fitness.write");
+  const headers = ["순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일", canDelete ? "처리" : null].filter(Boolean);
   const rows = summaries.map((record, index) => {
     const converted = record.convertedScores || calculateFitnessScore(record, normalizeFitnessGender(record.gender)).converted;
     return el("tr", {}, [
@@ -157,6 +158,11 @@ function renderFitnessLookupPanel(students, records) {
       el("td", {}, formatFitnessConvertedScores(converted)),
       el("td", {}, `${formatFitnessNumber(record.totalScore)}점`),
       el("td", {}, formatDateCompact(record.measuredAt || record.updatedAt || record.createdAt)),
+      canDelete
+        ? el("td", { className: "student-admin-actions" }, [
+            button("삭제", "mini-btn danger", "button", () => deleteFitnessScore(record)),
+          ])
+        : null,
     ]);
   });
   return panel("점수 조회", [
@@ -313,6 +319,40 @@ function buildFitnessScoreRecord(student, values, existingRecord) {
     updatedAt: now,
     createdAt: existingRecord?.createdAt || now,
   };
+}
+
+async function deleteFitnessScore(record) {
+  if (!hasTeacherPermission("fitness.write")) return notify("체력평가 삭제 권한이 없습니다.");
+  if (!record?.id && !record?.studentId) return;
+  const studentLabel = record.studentName || getCanonicalStudentName(record.studentId, "") || record.studentId || "학생";
+  const monthLabel = formatFitnessMonth(record.assessmentMonth || fitnessFilters.month);
+  if (!confirm(`${studentLabel} ${monthLabel} 체력평가 점수를 삭제할까요?`)) return;
+
+  const previousFitnessScores = JSON.parse(JSON.stringify(state.fitnessScores || []));
+  state.fitnessScores = (state.fitnessScores || []).filter((item) => !isSameFitnessScoreRecord(item, record));
+  saveState({ skipRemote: true });
+  try {
+    await deleteFitnessScoreFromRemote(record);
+    notify("체력평가 점수를 삭제했습니다.");
+  } catch (error) {
+    console.error(error);
+    state.fitnessScores = previousFitnessScores;
+    saveState({ skipRemote: true });
+    notify("체력평가 점수를 서버에서 삭제하지 못했습니다.");
+  }
+  render();
+}
+
+function isSameFitnessScoreRecord(left, right) {
+  if (!left || !right) return false;
+  const leftMonth = normalizeFitnessMonth(left.assessmentMonth || left.assessment_month);
+  const rightMonth = normalizeFitnessMonth(right.assessmentMonth || right.assessment_month);
+  const leftStudentId = String(left.studentId || left.student_id || "").trim();
+  const rightStudentId = String(right.studentId || right.student_id || "").trim();
+  if (leftMonth && rightMonth && leftStudentId && rightStudentId) {
+    return leftMonth === rightMonth && leftStudentId === rightStudentId;
+  }
+  return Boolean(left.id && right.id && left.id === right.id);
 }
 
 async function saveFitnessBulkScores() {
