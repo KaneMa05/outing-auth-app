@@ -1133,9 +1133,7 @@ async function loadStateFromRemote() {
     remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false }),
-    APP_MODE === "teacher"
-      ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
-      : Promise.resolve({ data: [], error: null }),
+    remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false }),
     APP_MODE === "teacher"
       ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
       : Promise.resolve({ data: [], error: null }),
