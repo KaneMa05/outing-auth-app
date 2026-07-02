@@ -2405,26 +2405,6 @@ th {
   color: #064e3b;
 }
 
-.student-fitness-score-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.student-fitness-rank-badge {
-  flex: 0 0 auto;
-  color: #047857;
-  font-size: 0.82rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.student-fitness-overview .student-grade-overview-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .student-fitness-empty {
   display: grid;
   gap: 14px;
