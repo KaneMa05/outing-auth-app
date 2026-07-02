@@ -226,13 +226,13 @@ function downloadFitnessMonthlyReport(students = getFitnessStudents(selectedStud
 }
 
 function hasCompleteFitnessScoreRecord(record) {
-  return FITNESS_EVENTS.every((event) => record?.[event.key] !== "" && record?.[event.key] !== null && record?.[event.key] !== undefined);
+  return FITNESS_EVENTS.every((event) => !isFitnessEventUnmeasured(record, event));
 }
 
 function buildFitnessMissingReportRow(student, record) {
   const gender = normalizeFitnessGender(student?.gender || record?.gender);
   const missingEvents = FITNESS_EVENTS
-    .filter((event) => record?.[event.key] === "" || record?.[event.key] === null || record?.[event.key] === undefined)
+    .filter((event) => isFitnessEventUnmeasured(record, event))
     .map((event) => event.label.replace("일으키기", "").replace("펴기", ""));
   const missingLabel = missingEvents.length === FITNESS_EVENTS.length || !record ? "전체 미측정" : `${missingEvents.join(", ")} 미측정`;
   return {
@@ -255,6 +255,13 @@ function buildFitnessMissingReportRow(student, record) {
       missingLabel,
     ],
   };
+}
+
+function isFitnessEventUnmeasured(record, event) {
+  const value = record?.[event.key];
+  if (value === "" || value === null || value === undefined) return true;
+  const number = Number(value);
+  return Number.isFinite(number) && number <= 0;
 }
 
 function formatFitnessReportRawCell(value) {
@@ -390,10 +397,31 @@ function buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRo
     ? rows.map(({ record, previousRank, cells }, rowIndex) => {
         const rowNumber = rowIndex + 4;
         const delta = getFitnessReportRankDelta(record.rank, previousRank);
+        const previousGender = rows[rowIndex - 1] ? normalizeFitnessGender(rows[rowIndex - 1]?.record?.gender) : "";
+        const currentGender = normalizeFitnessGender(record.gender);
+        const nextGender = rows[rowIndex + 1] ? normalizeFitnessGender(rows[rowIndex + 1]?.record?.gender) : "";
+        const isGenderStart = Boolean(currentGender && currentGender !== previousGender);
+        const isGenderEnd = Boolean(currentGender && currentGender !== nextGender);
         const cellsXml = cells.map((cell, columnIndex) =>
-          buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, 3, isFitnessMonthlyReportNumericColumn(columnIndex))
+          buildWeeklyGradeReportXlsxDataCell(
+            `${getExcelColumnName(columnIndex + 1)}${rowNumber}`,
+            cell,
+            getFitnessMonthlyReportBodyStyleId({
+              columnNumber: columnIndex + 1,
+              columnCount,
+              isGenderStart,
+              isGenderEnd,
+            }),
+            isFitnessMonthlyReportNumericColumn(columnIndex)
+          )
         ).join("");
-        const deltaStyle = delta.direction === "up" ? 4 : delta.direction === "down" ? 5 : 3;
+        const deltaStyle = getFitnessMonthlyReportBodyStyleId({
+          columnNumber: columnCount,
+          columnCount,
+          isGenderStart,
+          isGenderEnd,
+          deltaDirection: delta.direction,
+        });
         return `<row r="${rowNumber}">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
       }).join("")
     : `<row r="4">${buildXlsxInlineStringCell("A4", "측정 완료 인원이 없습니다.", 3)}</row>`;
@@ -448,7 +476,26 @@ function isFitnessMonthlyReportNumericColumn(columnIndex) {
   return ![1, 2, 3, 13].includes(columnIndex);
 }
 
+function getFitnessMonthlyReportBodyStyleId({ columnNumber, columnCount, isGenderStart, isGenderEnd, deltaDirection = "" }) {
+  const borderMask = (columnNumber === 1 ? 1 : 0)
+    | (columnNumber === columnCount ? 2 : 0)
+    | (isGenderStart ? 4 : 0)
+    | (isGenderEnd ? 8 : 0);
+  const fontOffset = deltaDirection === "up" ? 1 : deltaDirection === "down" ? 2 : 0;
+  return 3 + fontOffset * 16 + borderMask;
+}
+
 function buildFitnessMonthlyReportStylesXml() {
+  const borders = [
+    `<border><left/><right/><top/><bottom/><diagonal/></border>`,
+    ...Array.from({ length: 16 }, (_, mask) => buildFitnessMonthlyReportBorderXml(mask)),
+  ].join("");
+  const bodyXfs = [0, 3, 4].flatMap((fontId, fontOffset) =>
+    Array.from({ length: 16 }, (_, mask) => {
+      const applyFont = fontOffset ? ` applyFont="1"` : "";
+      return `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="${mask + 1}" xfId="0"${applyFont} applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>`;
+    })
+  ).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="5">
@@ -462,21 +509,25 @@ function buildFitnessMonthlyReportStylesXml() {
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
   </fills>
-  <borders count="2">
-    <border><left/><right/><top/><bottom/><diagonal/></border>
-    <border><left style="thin"><color rgb="FF111111"/></left><right style="thin"><color rgb="FF111111"/></right><top style="thin"><color rgb="FF111111"/></top><bottom style="thin"><color rgb="FF111111"/></bottom><diagonal/></border>
-  </borders>
+  <borders count="17">${borders}</borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="6">
+  <cellXfs count="51">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="49" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
     <xf numFmtId="49" fontId="2" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="49" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+    ${bodyXfs}
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
+}
+
+function buildFitnessMonthlyReportBorderXml(mask) {
+  const side = (enabled) => enabled ? `<color rgb="FF111111"/>` : `<color rgb="FF111111"/>`;
+  const leftStyle = mask & 1 ? "medium" : "thin";
+  const rightStyle = mask & 2 ? "medium" : "thin";
+  const topStyle = mask & 4 ? "medium" : "thin";
+  const bottomStyle = mask & 8 ? "medium" : "thin";
+  return `<border><left style="${leftStyle}">${side(mask & 1)}</left><right style="${rightStyle}">${side(mask & 2)}</right><top style="${topStyle}">${side(mask & 4)}</top><bottom style="${bottomStyle}">${side(mask & 8)}</bottom><diagonal/></border>`;
 }
 
 function getFitnessStudents(cohort = selectedStudentCohort) {
