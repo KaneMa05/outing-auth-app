@@ -139,16 +139,15 @@ function renderFitnessInputRow(student, record) {
 
 function renderFitnessLookupPanel(students, records) {
   const studentIds = new Set(students.map((student) => String(student.id)));
-  const summaries = records
+  const summaries = sortFitnessLookupRecords(applyFitnessRanks(records
     .filter((record) => studentIds.has(String(record.studentId)))
-    .filter((record) => isFitnessRecordMatched(record))
-    .sort((a, b) => Number(b.totalScore || 0) - Number(a.totalScore || 0) || String(a.studentId).localeCompare(String(b.studentId), "ko-KR", { numeric: true }));
+    .filter((record) => isFitnessRecordMatched(record))));
   const canDelete = hasTeacherPermission("fitness.write");
-  const headers = ["순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일", canDelete ? "처리" : null].filter(Boolean);
-  const rows = summaries.map((record, index) => {
+  const headers = ["성별 순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일", canDelete ? "처리" : null].filter(Boolean);
+  const rows = summaries.map((record) => {
     const converted = record.convertedScores || calculateFitnessScore(record, normalizeFitnessGender(record.gender)).converted;
     return el("tr", {}, [
-      el("td", {}, String(index + 1)),
+      el("td", {}, formatFitnessRankLabel(record)),
       el("td", {}, formatStudentNumber(record.studentId)),
       el("td", {}, record.studentName || getCanonicalStudentName(record.studentId, "") || "-"),
       el("td", {}, fitnessGenderLabel(normalizeFitnessGender(record.gender))),
@@ -166,8 +165,318 @@ function renderFitnessLookupPanel(students, records) {
     ]);
   });
   return panel("점수 조회", [
+    el("div", { className: "action-row weekly-answer-actions" }, [
+      button("성적표 다운로드", "mini-btn secondary", "button", () => downloadFitnessMonthlyReport(students, records)),
+    ]),
     table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "입력된 체력평가 점수가 없습니다."))])]),
   ]);
+}
+
+function downloadFitnessMonthlyReport(students = getFitnessStudents(selectedStudentCohort), records = getFitnessRecordsForMonth(fitnessFilters.month)) {
+  const month = normalizeFitnessMonth(fitnessFilters.month);
+  const studentIds = new Set(students.map((student) => String(student.id)));
+  const recordByStudent = new Map(records
+    .filter((record) => studentIds.has(String(record.studentId)))
+    .map((record) => [String(record.studentId), record]));
+  const currentRecords = applyFitnessRanks(records
+    .filter((record) => studentIds.has(String(record.studentId)))
+    .filter(hasCompleteFitnessScoreRecord));
+
+  const previousMonth = getPreviousFitnessMonth(month);
+  const previousRecords = applyFitnessRanks(getFitnessRecordsForMonth(previousMonth)
+    .filter((record) => studentIds.has(String(record.studentId)))
+    .filter(hasCompleteFitnessScoreRecord));
+  const previousRankByStudent = new Map(previousRecords.map((record) => [String(record.studentId), record.rank]));
+  const sortedRecords = sortFitnessReportRecords(currentRecords);
+  const headers = ["번호", "직렬", "성별", "이름", "악력", "팔굽", "윗몸", "악력(환산)", "팔굽(환산)", "윗몸(환산)", "총합", "등수", "전주등수", "등락"];
+  const rows = sortedRecords.map((record) => {
+    const converted = record.convertedScores || calculateFitnessScore(record, normalizeFitnessGender(record.gender)).converted;
+    const previousRank = previousRankByStudent.get(String(record.studentId)) || 0;
+    return {
+      record,
+      previousRank,
+      cells: [
+        formatStudentNumber(record.studentId),
+        formatFitnessReportTrackLabel(getFitnessRecordTrack(record)),
+        fitnessGenderLabel(record.gender),
+        record.studentName || getCanonicalStudentName(record.studentId, "") || "",
+        formatFitnessNumber(record.gripStrength),
+        formatFitnessNumber(record.pushUpCount),
+        formatFitnessNumber(record.sitUpCount),
+        String(Number(converted.grip) || 0),
+        String(Number(converted.pushUp) || 0),
+        String(Number(converted.sitUp) || 0),
+        String(Number(record.totalScore) || 0),
+        record.rank ? String(record.rank) : "",
+        previousRank ? String(previousRank) : "",
+      ],
+    };
+  });
+  const completeStudentIds = new Set(currentRecords.map((record) => String(record.studentId)));
+  const missingRows = students
+    .filter((student) => !completeStudentIds.has(String(student.id)))
+    .map((student) => buildFitnessMissingReportRow(student, recordByStudent.get(String(student.id))))
+    .sort((a, b) => String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true }));
+  if (!rows.length && !missingRows.length) return notify("다운로드할 체력평가 대상자가 없습니다.");
+
+  const titleText = `${Number(month.split("-")[1])}월 오프라인 월간 체력 측정표`;
+  const workbook = buildFitnessMonthlyReportWorkbook({ titleText, headers, rows, missingRows });
+  downloadXlsx(`${sanitizeWeeklyGradeReportFilePart(titleText)}_${selectedStudentCohort || "전체"}기.xlsx`, workbook);
+  notify("월간 체력 성적표를 다운로드했습니다.");
+}
+
+function hasCompleteFitnessScoreRecord(record) {
+  return FITNESS_EVENTS.every((event) => record?.[event.key] !== "" && record?.[event.key] !== null && record?.[event.key] !== undefined);
+}
+
+function buildFitnessMissingReportRow(student, record) {
+  const gender = normalizeFitnessGender(student?.gender || record?.gender);
+  const missingEvents = FITNESS_EVENTS
+    .filter((event) => record?.[event.key] === "" || record?.[event.key] === null || record?.[event.key] === undefined)
+    .map((event) => event.label.replace("일으키기", "").replace("펴기", ""));
+  const missingLabel = missingEvents.length === FITNESS_EVENTS.length || !record ? "전체 미측정" : `${missingEvents.join(", ")} 미측정`;
+  return {
+    student,
+    record,
+    cells: [
+      formatStudentNumber(student?.id),
+      formatFitnessReportTrackLabel(getTeacherStudentRegisteredTrack(student)),
+      fitnessGenderLabel(gender),
+      student?.name || record?.studentName || "",
+      formatFitnessReportRawCell(record?.gripStrength),
+      formatFitnessReportRawCell(record?.pushUpCount),
+      formatFitnessReportRawCell(record?.sitUpCount),
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      missingLabel,
+    ],
+  };
+}
+
+function formatFitnessReportRawCell(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  return formatFitnessNumber(value);
+}
+
+function applyFitnessRanks(records = []) {
+  const rankedRecords = records.map((record) => ({ ...record }));
+  const groups = new Map();
+  rankedRecords.forEach((record) => {
+    const gender = normalizeFitnessGender(record.gender);
+    if (!groups.has(gender)) groups.set(gender, []);
+    groups.get(gender).push(record);
+  });
+  groups.forEach((items) => {
+    const sorted = [...items].sort((a, b) => {
+      const scoreCompare = (Number(b.totalScore) || 0) - (Number(a.totalScore) || 0);
+      if (scoreCompare) return scoreCompare;
+      return String(a.studentId || "").localeCompare(String(b.studentId || ""), "ko-KR", { numeric: true });
+    });
+    let previousScore = null;
+    let previousRank = 0;
+    sorted.forEach((record, index) => {
+      const score = Number(record.totalScore) || 0;
+      const rank = score === previousScore ? previousRank : index + 1;
+      record.rank = rank;
+      previousScore = score;
+      previousRank = rank;
+    });
+  });
+  return rankedRecords;
+}
+
+function sortFitnessLookupRecords(records = []) {
+  return [...records].sort((a, b) => {
+    const genderCompare = getFitnessGenderSortOrder(a.gender) - getFitnessGenderSortOrder(b.gender);
+    if (genderCompare) return genderCompare;
+    const rankA = Number(a.rank) || 0;
+    const rankB = Number(b.rank) || 0;
+    if (rankA && rankB && rankA !== rankB) return rankA - rankB;
+    const scoreCompare = (Number(b.totalScore) || 0) - (Number(a.totalScore) || 0);
+    if (scoreCompare) return scoreCompare;
+    return String(a.studentId || "").localeCompare(String(b.studentId || ""), "ko-KR", { numeric: true });
+  });
+}
+
+function formatFitnessRankLabel(record) {
+  return record?.rank ? `${fitnessGenderLabel(record.gender)} ${record.rank}` : "-";
+}
+
+function getFitnessGenderSortOrder(gender) {
+  return normalizeFitnessGender(gender) === "female" ? 2 : 1;
+}
+
+function sortFitnessReportRecords(records = []) {
+  return [...records].sort((a, b) => {
+    const genderCompare = getFitnessGenderSortOrder(a.gender) - getFitnessGenderSortOrder(b.gender);
+    if (genderCompare) return genderCompare;
+    const rankA = Number(a.rank) || 0;
+    const rankB = Number(b.rank) || 0;
+    if (rankA && rankB && rankA !== rankB) return rankA - rankB;
+    const scoreCompare = (Number(b.totalScore) || 0) - (Number(a.totalScore) || 0);
+    if (scoreCompare) return scoreCompare;
+    return String(a.studentId || "").localeCompare(String(b.studentId || ""), "ko-KR", { numeric: true });
+  });
+}
+
+function getFitnessRecordTrack(record) {
+  const student = findStudent(record?.studentId);
+  return record?.track || getTeacherStudentRegisteredTrack(student) || "";
+}
+
+function formatFitnessReportTrackLabel(track) {
+  const normalized = normalizeCoastGuardTrack(track);
+  const labels = {
+    "경찰직 - 공채(순경)": "공채",
+    "경찰직 - 해경학과 항해(경장)": "학과(항해)",
+    "경찰직 - 해경학과 기관(경장)": "학과(기관)",
+    "경찰직 - 함정요원 항해(순경)": "함정(항해)",
+    "경찰직 - 함정요원 기관(순경)": "함정(기관)",
+    "경찰직 - 해상교통관제(VTS)(순경)": "VTS",
+    "일반직 - 선박교통관제(VTS)": "일반직(VTS)",
+    "경찰직 - 경위 공채(해양-기관)": "간부(기관)",
+    "경찰직 - 경위 공채(해양-항해)": "간부(항해)",
+  };
+  return labels[normalized] || normalized || "";
+}
+
+function getPreviousFitnessMonth(month) {
+  const [year, monthNumber] = normalizeFitnessMonth(month).split("-").map(Number);
+  const date = new Date(year, monthNumber - 2, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getFitnessReportRankDelta(currentRank, previousRank) {
+  if (!currentRank || !previousRank) return { label: "-", direction: "" };
+  const delta = Number(previousRank) - Number(currentRank);
+  if (!delta) return { label: "-", direction: "" };
+  return delta > 0
+    ? { label: `▲${delta}`, direction: "up" }
+    : { label: `▼${Math.abs(delta)}`, direction: "down" };
+}
+
+function buildFitnessMonthlyReportWorkbook({ titleText, headers, rows, missingRows = [] }) {
+  return [
+    { name: "[Content_Types].xml", content: buildXlsxContentTypesXml() },
+    { name: "_rels/.rels", content: buildXlsxRootRelsXml() },
+    { name: "docProps/app.xml", content: buildXlsxAppXml() },
+    { name: "docProps/core.xml", content: buildXlsxCoreXml() },
+    { name: "xl/workbook.xml", content: buildXlsxWorkbookXml() },
+    { name: "xl/_rels/workbook.xml.rels", content: buildXlsxWorkbookRelsXml() },
+    { name: "xl/styles.xml", content: buildFitnessMonthlyReportStylesXml() },
+    { name: "xl/worksheets/sheet1.xml", content: buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRows }) },
+  ];
+}
+
+function buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRows = [] }) {
+  const columnCount = headers.length;
+  const lastColumn = getExcelColumnName(columnCount);
+  const dataRowCount = Math.max(rows.length, 1);
+  const missingBlockRowCount = missingRows.length ? 3 + missingRows.length : 0;
+  const lastRow = 3 + dataRowCount + missingBlockRowCount;
+  const cols = headers.map((header, index) =>
+    `<col min="${index + 1}" max="${index + 1}" width="${getFitnessMonthlyReportColumnWidth(header, index)}" customWidth="1"/>`
+  ).join("");
+  const titleRow = `<row r="1" ht="${pxToExcelRowHeight(82)}" customHeight="1">${buildXlsxInlineStringCell("A1", titleText, 1)}</row>`;
+  const spacerRow = `<row r="2" ht="21" customHeight="1"></row>`;
+  const headerRow = `<row r="3">${headers.map((header, index) =>
+    buildXlsxInlineStringCell(`${getExcelColumnName(index + 1)}3`, header, 2)
+  ).join("")}</row>`;
+  const bodyRows = rows.length
+    ? rows.map(({ record, previousRank, cells }, rowIndex) => {
+        const rowNumber = rowIndex + 4;
+        const delta = getFitnessReportRankDelta(record.rank, previousRank);
+        const cellsXml = cells.map((cell, columnIndex) =>
+          buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, 3, isFitnessMonthlyReportNumericColumn(columnIndex))
+        ).join("");
+        const deltaStyle = delta.direction === "up" ? 4 : delta.direction === "down" ? 5 : 3;
+        return `<row r="${rowNumber}">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
+      }).join("")
+    : `<row r="4">${buildXlsxInlineStringCell("A4", "측정 완료 인원이 없습니다.", 3)}</row>`;
+  const missingRowsXml = missingRows.length
+    ? buildFitnessMonthlyReportMissingRowsXml({ headers, missingRows, startRow: 4 + dataRowCount, columnCount, lastColumn })
+    : "";
+  const mergeRefs = [`<mergeCell ref="A1:${lastColumn}1"/>`];
+  if (missingRows.length) {
+    const missingTitleRow = 4 + dataRowCount + 1;
+    mergeRefs.push(`<mergeCell ref="A${missingTitleRow}:${lastColumn}${missingTitleRow}"/>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${lastColumn}${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="21"/>
+  <cols>${cols}</cols>
+  <sheetData>${titleRow}${spacerRow}${headerRow}${bodyRows}${missingRowsXml}</sheetData>
+  <mergeCells count="${mergeRefs.length}">${mergeRefs.join("")}</mergeCells>
+  <pageMargins left="0.25" right="0.25" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+</worksheet>`;
+}
+
+function buildFitnessMonthlyReportMissingRowsXml({ headers, missingRows, startRow, columnCount, lastColumn }) {
+  const titleRow = startRow + 1;
+  const headerRow = startRow + 2;
+  const dataStartRow = startRow + 3;
+  const headerXml = headers.map((header, index) =>
+    buildXlsxInlineStringCell(`${getExcelColumnName(index + 1)}${headerRow}`, header, 2)
+  ).join("");
+  const rowsXml = missingRows.map(({ cells }, rowIndex) => {
+    const rowNumber = dataStartRow + rowIndex;
+    const cellsXml = cells.map((cell, columnIndex) =>
+      buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, 3, isFitnessMonthlyReportNumericColumn(columnIndex))
+    ).join("");
+    return `<row r="${rowNumber}">${cellsXml}</row>`;
+  }).join("");
+  return [
+    `<row r="${startRow}" ht="21" customHeight="1"></row>`,
+    `<row r="${titleRow}">${buildXlsxInlineStringCell(`A${titleRow}`, "미측정 인원", 2)}</row>`,
+    `<row r="${headerRow}">${headerXml}</row>`,
+    rowsXml,
+  ].join("");
+}
+
+function getFitnessMonthlyReportColumnWidth(header, index) {
+  const pixelWidths = [70, 96, 70, 86, 76, 76, 76, 86, 86, 86, 72, 72, 82, 70];
+  return pxToExcelColumnWidth(pixelWidths[index] || 76, index === 1 ? 9 : 7);
+}
+
+function isFitnessMonthlyReportNumericColumn(columnIndex) {
+  return ![1, 2, 3, 13].includes(columnIndex);
+}
+
+function buildFitnessMonthlyReportStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="5">
+    <font><sz val="12"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="48"/><color rgb="FF000000"/><name val="Malgun Gothic"/></font>
+    <font><sz val="12"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="12"/><color rgb="FFFF0000"/><name val="Malgun Gothic"/></font>
+    <font><b/><sz val="12"/><color rgb="FF0000FF"/><name val="Malgun Gothic"/></font>
+  </fonts>
+  <fills count="2">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FF111111"/></left><right style="thin"><color rgb="FF111111"/></right><top style="thin"><color rgb="FF111111"/></top><bottom style="thin"><color rgb="FF111111"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="6">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="49" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="49" fontId="2" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="49" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
 }
 
 function getFitnessStudents(cohort = selectedStudentCohort) {
