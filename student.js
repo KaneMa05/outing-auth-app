@@ -1248,8 +1248,18 @@ const STUDENT_FITNESS_EVENTS = [
   { key: "gripStrength", scoreKey: "grip", label: "악력", shortLabel: "악력", unit: "kg" },
 ];
 
+const STUDENT_FITNESS_CRITERIA_EVENTS = [
+  { scoreKey: "run100m", shortLabel: "100m", unit: "초", mode: "max" },
+  ...STUDENT_FITNESS_EVENTS.map((event) => ({ ...event, mode: "min" })),
+  { scoreKey: "swim50m", shortLabel: "50m 수영", unit: "초", mode: "max" },
+];
+
 const STUDENT_FITNESS_SCORE_RULES = {
   male: {
+    run100m: [
+      { max: 13.0, score: 10 }, { max: 13.5, score: 9 }, { max: 14.0, score: 8 }, { max: 14.5, score: 7 }, { max: 15.0, score: 6 },
+      { max: 15.5, score: 5 }, { max: 16.0, score: 4 }, { max: 16.5, score: 3 }, { max: 16.9, score: 2 }, { min: 17.0, score: 1 },
+    ],
     sitUp: [
       { min: 58, score: 10 }, { min: 55, score: 9 }, { min: 51, score: 8 }, { min: 46, score: 7 }, { min: 40, score: 6 },
       { min: 36, score: 5 }, { min: 31, score: 4 }, { min: 25, score: 3 }, { min: 22, score: 2 }, { min: 0, score: 1 },
@@ -1262,8 +1272,16 @@ const STUDENT_FITNESS_SCORE_RULES = {
       { min: 61, score: 10 }, { min: 59, score: 9 }, { min: 56, score: 8 }, { min: 54, score: 7 }, { min: 51, score: 6 },
       { min: 48, score: 5 }, { min: 45, score: 4 }, { min: 42, score: 3 }, { min: 38, score: 2 }, { min: 0, score: 1 },
     ],
+    swim50m: [
+      { max: 40, score: 10 }, { max: 50, score: 9 }, { max: 60, score: 8 }, { max: 70, score: 7 }, { max: 80, score: 6 },
+      { max: 90, score: 5 }, { max: 100, score: 4 }, { max: 110, score: 3 }, { max: 120, score: 2 }, { min: 121, score: 1 },
+    ],
   },
   female: {
+    run100m: [
+      { max: 15.5, score: 10 }, { max: 16.3, score: 9 }, { max: 17.1, score: 8 }, { max: 17.9, score: 7 }, { max: 18.7, score: 6 },
+      { max: 19.4, score: 5 }, { max: 20.1, score: 4 }, { max: 20.8, score: 3 }, { max: 21.5, score: 2 }, { min: 21.6, score: 1 },
+    ],
     sitUp: [
       { min: 55, score: 10 }, { min: 50, score: 9 }, { min: 45, score: 8 }, { min: 40, score: 7 }, { min: 35, score: 6 },
       { min: 30, score: 5 }, { min: 25, score: 4 }, { min: 19, score: 3 }, { min: 13, score: 2 }, { min: 0, score: 1 },
@@ -1275,6 +1293,10 @@ const STUDENT_FITNESS_SCORE_RULES = {
     grip: [
       { min: 40, score: 10 }, { min: 38, score: 9 }, { min: 36, score: 8 }, { min: 34, score: 7 }, { min: 31, score: 6 },
       { min: 29, score: 5 }, { min: 27, score: 4 }, { min: 25, score: 3 }, { min: 22, score: 2 }, { min: 0, score: 1 },
+    ],
+    swim50m: [
+      { max: 40, score: 10 }, { max: 50, score: 9 }, { max: 60, score: 8 }, { max: 70, score: 7 }, { max: 80, score: 6 },
+      { max: 90, score: 5 }, { max: 100, score: 4 }, { max: 110, score: 3 }, { max: 120, score: 2 }, { min: 121, score: 1 },
     ],
   },
 };
@@ -1465,14 +1487,14 @@ function renderStudentFitnessCriteriaTable(gender) {
         el("thead", {}, [
           el("tr", {}, [
             el("th", {}, "점수"),
-            ...STUDENT_FITNESS_EVENTS.map((event) => el("th", {}, event.shortLabel)),
+            ...STUDENT_FITNESS_CRITERIA_EVENTS.map((event) => el("th", {}, event.shortLabel)),
           ]),
         ]),
         el("tbody", {}, Array.from({ length: 10 }, (_, index) => {
           const score = 10 - index;
           return el("tr", {}, [
             el("td", {}, `${score}점`),
-            ...STUDENT_FITNESS_EVENTS.map((event) =>
+            ...STUDENT_FITNESS_CRITERIA_EVENTS.map((event) =>
               el("td", {}, formatStudentFitnessCriteriaValue(normalizedGender, event.scoreKey, score, event.unit))
             ),
           ]);
@@ -1624,7 +1646,15 @@ function formatStudentFitnessMeasuredDate(value) {
 function formatStudentFitnessCriteriaValue(gender, eventKey, score, unit) {
   const rules = STUDENT_FITNESS_SCORE_RULES[normalizeStudentFitnessGender(gender)]?.[eventKey] || [];
   const rule = rules.find((item) => Number(item.score) === Number(score));
-  return rule ? `${formatStudentFitnessNumber(rule.min)}${unit}+` : "-";
+  if (!rule) return "-";
+  if (rule.max !== undefined) return `${formatStudentFitnessNumber(rule.max)}${unit} 이하`;
+  if (rule.min !== undefined && Number(score) === 1) {
+    const nextRule = rules.find((item) => Number(item.score) === 2);
+    if (nextRule?.min !== undefined) return `${formatStudentFitnessNumber(nextRule.min - 1)}${unit} 이하`;
+    return `${formatStudentFitnessNumber(rule.min)}${unit} 이상`;
+  }
+  if (rule.min !== undefined) return `${formatStudentFitnessNumber(rule.min)}${unit} 이상`;
+  return "-";
 }
 
 function formatStudentFitnessRawScore(value, unit) {
