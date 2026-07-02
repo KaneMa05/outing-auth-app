@@ -1240,6 +1240,44 @@ let selectedStudentFinalRound = 0;
 let studentGradeLookupType = "weekly";
 let studentGradesView = "";
 let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+let selectedStudentFitnessMonth = "";
+
+const STUDENT_FITNESS_EVENTS = [
+  { key: "sitUpCount", scoreKey: "sitUp", label: "윗몸일으키기", shortLabel: "윗몸", unit: "회" },
+  { key: "pushUpCount", scoreKey: "pushUp", label: "팔굽혀펴기", shortLabel: "팔굽", unit: "회" },
+  { key: "gripStrength", scoreKey: "grip", label: "악력", shortLabel: "악력", unit: "kg" },
+];
+
+const STUDENT_FITNESS_SCORE_RULES = {
+  male: {
+    sitUp: [
+      { min: 58, score: 10 }, { min: 55, score: 9 }, { min: 51, score: 8 }, { min: 46, score: 7 }, { min: 40, score: 6 },
+      { min: 36, score: 5 }, { min: 31, score: 4 }, { min: 25, score: 3 }, { min: 22, score: 2 }, { min: 0, score: 1 },
+    ],
+    pushUp: [
+      { min: 58, score: 10 }, { min: 54, score: 9 }, { min: 50, score: 8 }, { min: 46, score: 7 }, { min: 42, score: 6 },
+      { min: 38, score: 5 }, { min: 33, score: 4 }, { min: 28, score: 3 }, { min: 23, score: 2 }, { min: 0, score: 1 },
+    ],
+    grip: [
+      { min: 61, score: 10 }, { min: 59, score: 9 }, { min: 56, score: 8 }, { min: 54, score: 7 }, { min: 51, score: 6 },
+      { min: 48, score: 5 }, { min: 45, score: 4 }, { min: 42, score: 3 }, { min: 38, score: 2 }, { min: 0, score: 1 },
+    ],
+  },
+  female: {
+    sitUp: [
+      { min: 55, score: 10 }, { min: 50, score: 9 }, { min: 45, score: 8 }, { min: 40, score: 7 }, { min: 35, score: 6 },
+      { min: 30, score: 5 }, { min: 25, score: 4 }, { min: 19, score: 3 }, { min: 13, score: 2 }, { min: 0, score: 1 },
+    ],
+    pushUp: [
+      { min: 31, score: 10 }, { min: 28, score: 9 }, { min: 25, score: 8 }, { min: 22, score: 7 }, { min: 19, score: 6 },
+      { min: 16, score: 5 }, { min: 13, score: 4 }, { min: 10, score: 3 }, { min: 7, score: 2 }, { min: 0, score: 1 },
+    ],
+    grip: [
+      { min: 40, score: 10 }, { min: 38, score: 9 }, { min: 36, score: 8 }, { min: 34, score: 7 }, { min: 31, score: 6 },
+      { min: 29, score: 5 }, { min: 27, score: 4 }, { min: 25, score: 3 }, { min: 22, score: 2 }, { min: 0, score: 1 },
+    ],
+  },
+};
 
 function resetStudentGradesView() {
   selectedStudentExamId = "";
@@ -1247,6 +1285,7 @@ function resetStudentGradesView() {
   selectedStudentFinalRound = 0;
   studentGradeLookupType = "weekly";
   studentGradesView = "";
+  selectedStudentFitnessMonth = "";
   studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
 }
 
@@ -1264,6 +1303,7 @@ function getStudentRegisteredTrack(student) {
 function renderStudentGrades() {
   const student = getAuthedStudent();
   if (!student) return renderStudentAuth();
+  if (studentGradesView === "fitness") return renderStudentFitnessGrades(student);
   if (studentGradesView === "lookup" || isStudentFinalGradeTestLink()) return renderStudentGradeLookup();
   if (studentGradesView !== "entry") return renderStudentGradesHome();
   return renderStudentWeeklyGrades(student);
@@ -1289,6 +1329,16 @@ function renderStudentGradesHome() {
             render();
           }
         ),
+        renderStudentGradeAction(
+          "체력",
+          "체력평가",
+          "월별 점수 조회",
+          () => {
+            selectedStudentFitnessMonth = "";
+            studentGradesView = "fitness";
+            render();
+          }
+        ),
       ]),
     ]),
   ]);
@@ -1302,6 +1352,235 @@ function renderStudentGradeAction(label, title, meta, onClick) {
       el("span", {}, meta),
     ]),
   ]);
+}
+
+function renderStudentFitnessGrades(student) {
+  const records = getStudentFitnessRecords(student);
+  const monthOptions = records.map((record) => record.assessmentMonth).filter(Boolean);
+  if (!selectedStudentFitnessMonth || !monthOptions.includes(selectedStudentFitnessMonth)) {
+    selectedStudentFitnessMonth = monthOptions[0] || getStudentCurrentFitnessMonth();
+  }
+  const selectedRecord = records.find((record) => record.assessmentMonth === selectedStudentFitnessMonth) || null;
+  const summary = selectedRecord ? getStudentFitnessSummary(selectedRecord, student) : null;
+  return el("div", { className: "grid student-view student-grade-home student-fitness-view" }, [
+    panel("체력평가", [
+      el("div", { className: "student-grade-result" }, [
+        el("div", { className: "student-grade-result-title" }, [
+          el("strong", {}, summary ? formatStudentFitnessMonth(summary.month) : "월별 점수"),
+          monthOptions.length ? renderStudentFitnessMonthSelect(monthOptions) : null,
+        ]),
+        summary ? renderStudentFitnessOverview(summary) : renderStudentFitnessEmpty(),
+        summary ? renderStudentFitnessEventList(summary) : null,
+        button("성적 메뉴", "mini-btn student-grade-menu-back", "button", () => {
+          studentGradesView = "";
+          render();
+        }),
+      ]),
+    ]),
+  ]);
+}
+
+function renderStudentFitnessMonthSelect(monthOptions) {
+  const node = el("select", {
+    className: "student-grade-round-select student-fitness-month-select",
+    ariaLabel: "체력평가 월 선택",
+  }, monthOptions.map((month) => el("option", { value: month }, formatStudentFitnessMonth(month))));
+  node.value = selectedStudentFitnessMonth;
+  node.addEventListener("change", () => {
+    selectedStudentFitnessMonth = node.value;
+    render();
+  });
+  return node;
+}
+
+function renderStudentFitnessEmpty() {
+  return el("div", { className: "student-fitness-empty" }, [
+    renderStudentFitnessOverview(null),
+    el("div", { className: "empty" }, "아직 입력된 체력평가 점수가 없습니다."),
+  ]);
+}
+
+function renderStudentFitnessOverview(summary) {
+  const rankMeta = summary?.rank && summary?.total
+    ? `${summary.total}명 중 ${summary.rank}등`
+    : "월별 입력 점수를 확인할 수 있습니다.";
+  return el("section", { className: "student-grade-overview student-fitness-overview", ariaLabel: "체력평가 요약" }, [
+    el("div", { className: "student-grade-overview-head" }, [
+      el("span", { className: "student-grade-overview-label" }, "체력 총점"),
+      summary?.gender ? el("span", { className: "student-grade-overview-track" }, studentFitnessGenderLabel(summary.gender)) : null,
+    ]),
+    el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
+    el("span", { className: "student-grade-overview-meta" }, summary ? rankMeta : "체력평가 입력 후 표시됩니다."),
+    renderStudentFitnessProgress(summary),
+    el("div", { className: "detail-grid student-grade-overview-grid" }, [
+      renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
+      renderStudentGradeMetric("등수", summary?.rank ? `${summary.rank}등` : "-"),
+      renderStudentGradeMetric("측정일", summary?.measuredAt ? formatDateCompact(summary.measuredAt) : "-"),
+    ]),
+  ]);
+}
+
+function renderStudentFitnessProgress(summary) {
+  const percent = summary ? Math.max(0, Math.min(100, Math.round((Number(summary.totalScore) || 0) / 30 * 100))) : 0;
+  return el("div", {
+    className: "student-grade-progress student-fitness-progress",
+    role: "meter",
+    ariaLabel: "체력평가 총점 비율",
+    ariaValueMin: "0",
+    ariaValueMax: "30",
+    ariaValueNow: String(summary ? Number(summary.totalScore) || 0 : 0),
+  }, [
+    el("span", { className: "student-grade-progress-fill", style: `width: ${percent}%` }),
+  ]);
+}
+
+function renderStudentFitnessEventList(summary) {
+  return el("div", { className: "student-grade-subject-list student-fitness-event-list" }, [
+    el("strong", {}, "항목별 점수"),
+    ...STUDENT_FITNESS_EVENTS.map((event) => el("article", { className: "student-grade-subject-card student-fitness-event-card" }, [
+      el("h3", {}, event.label),
+      el("div", { className: "detail-grid" }, [
+        el("div", { className: "detail-item" }, [
+          el("span", {}, "원점수"),
+          el("strong", {}, formatStudentFitnessRawScore(summary.raw[event.key], event.unit)),
+        ]),
+        el("div", { className: "detail-item" }, [
+          el("span", {}, "환산"),
+          el("strong", {}, `${Number(summary.converted[event.scoreKey]) || 0}점`),
+        ]),
+        el("div", { className: "detail-item" }, [
+          el("span", {}, "기준"),
+          el("strong", {}, `${studentFitnessGenderLabel(summary.gender)} 기준`),
+        ]),
+      ]),
+    ])),
+  ]);
+}
+
+function getStudentFitnessRecords(student) {
+  const studentId = String(student?.id || "").trim();
+  if (!studentId) return [];
+  const byMonth = new Map();
+  (state.fitnessScores || [])
+    .filter((record) => String(record.studentId || "").trim() === studentId)
+    .filter(hasStudentFitnessScoreValue)
+    .forEach((record) => {
+      const month = normalizeStudentFitnessMonth(record.assessmentMonth);
+      const normalized = { ...record, assessmentMonth: month };
+      const existing = byMonth.get(month);
+      if (!existing || new Date(normalized.updatedAt || normalized.measuredAt || normalized.createdAt || 0) > new Date(existing.updatedAt || existing.measuredAt || existing.createdAt || 0)) {
+        byMonth.set(month, normalized);
+      }
+    });
+  return Array.from(byMonth.values()).sort((a, b) => String(b.assessmentMonth).localeCompare(String(a.assessmentMonth)));
+}
+
+function hasStudentFitnessScoreValue(record) {
+  return STUDENT_FITNESS_EVENTS.some((event) => record?.[event.key] !== "" && record?.[event.key] !== null && record?.[event.key] !== undefined);
+}
+
+function getStudentFitnessSummary(record, student) {
+  const gender = normalizeStudentFitnessGender(record.gender || student?.gender || getStudentProfile(student?.id)?.gender);
+  const converted = record.convertedScores && Object.keys(record.convertedScores).length
+    ? record.convertedScores
+    : calculateStudentFitnessScore(record, gender).converted;
+  const totalScore = record.totalScore !== "" && record.totalScore !== null && record.totalScore !== undefined
+    ? Number(record.totalScore) || 0
+    : Object.values(converted).reduce((sum, score) => sum + (Number(score) || 0), 0);
+  const rank = getStudentFitnessRank(record, student);
+  return {
+    month: record.assessmentMonth,
+    gender,
+    raw: record,
+    converted,
+    totalScore,
+    rank: rank.rank,
+    total: rank.total,
+    measuredAt: record.measuredAt || record.updatedAt || record.createdAt || "",
+  };
+}
+
+function getStudentFitnessRank(record, student) {
+  const month = normalizeStudentFitnessMonth(record.assessmentMonth);
+  const cohort = getStudentCohort(student);
+  const gender = normalizeStudentFitnessGender(record.gender || student?.gender || getStudentProfile(student?.id)?.gender);
+  const ranked = (state.fitnessScores || [])
+    .filter((item) => normalizeStudentFitnessMonth(item.assessmentMonth) === month)
+    .filter((item) => !cohort || getStudentCohort({ id: item.studentId }) === cohort)
+    .filter((item) => normalizeStudentFitnessGender(item.gender || findStudent(item.studentId)?.gender) === gender)
+    .filter(hasStudentFitnessScoreValue)
+    .map((item) => {
+      const summary = getStudentFitnessRecordTotal(item, gender);
+      return { id: String(item.studentId || "").trim(), totalScore: summary.totalScore };
+    })
+    .sort((a, b) => Number(b.totalScore || 0) - Number(a.totalScore || 0) || String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+  const index = ranked.findIndex((item) => item.id === String(student?.id || "").trim());
+  return { rank: index >= 0 ? index + 1 : 0, total: ranked.length };
+}
+
+function getStudentFitnessRecordTotal(record, gender) {
+  const converted = record.convertedScores && Object.keys(record.convertedScores).length
+    ? record.convertedScores
+    : calculateStudentFitnessScore(record, gender).converted;
+  const totalScore = record.totalScore !== "" && record.totalScore !== null && record.totalScore !== undefined
+    ? Number(record.totalScore) || 0
+    : Object.values(converted).reduce((sum, score) => sum + (Number(score) || 0), 0);
+  return { converted, totalScore };
+}
+
+function calculateStudentFitnessScore(values, gender) {
+  const normalizedGender = normalizeStudentFitnessGender(gender);
+  const converted = {};
+  STUDENT_FITNESS_EVENTS.forEach((event) => {
+    converted[event.scoreKey] = convertStudentFitnessEventScore(values[event.key], normalizedGender, event.scoreKey);
+  });
+  const totalScore = Object.values(converted).reduce((sum, score) => sum + (Number(score) || 0), 0);
+  return { converted, totalScore };
+}
+
+function convertStudentFitnessEventScore(rawValue, gender, eventKey) {
+  if (rawValue === "" || rawValue === null || rawValue === undefined) return 0;
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) return 0;
+  const rules = STUDENT_FITNESS_SCORE_RULES[normalizeStudentFitnessGender(gender)]?.[eventKey] || [];
+  const matched = rules.find((rule) => value >= rule.min);
+  return matched ? matched.score : 0;
+}
+
+function normalizeStudentFitnessGender(gender) {
+  const value = String(gender || "").trim().toLowerCase();
+  if (["여", "여자", "여성", "female", "f"].includes(value)) return "female";
+  return "male";
+}
+
+function studentFitnessGenderLabel(gender) {
+  return normalizeStudentFitnessGender(gender) === "female" ? "여자" : "남자";
+}
+
+function normalizeStudentFitnessMonth(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}$/.test(text) ? text : getStudentCurrentFitnessMonth();
+}
+
+function getStudentCurrentFitnessMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function formatStudentFitnessMonth(value) {
+  const month = normalizeStudentFitnessMonth(value);
+  const [year, monthNumber] = month.split("-");
+  return `${year}년 ${Number(monthNumber)}월`;
+}
+
+function formatStudentFitnessRawScore(value, unit) {
+  if (value === "" || value === null || value === undefined) return "-";
+  return `${formatStudentFitnessNumber(value)}${unit}`;
+}
+
+function formatStudentFitnessNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "-";
+  return Number.isInteger(number) ? String(number) : String(Math.round(number * 10) / 10);
 }
 
 function renderStudentGradeLookup() {

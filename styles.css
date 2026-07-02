@@ -2390,6 +2390,40 @@ th {
   font-size: 0.95rem;
 }
 
+.student-fitness-view .student-grade-result {
+  gap: 16px;
+}
+
+.student-fitness-month-select {
+  min-width: 128px;
+  max-width: 148px;
+}
+
+.student-fitness-overview .student-grade-overview-value {
+  color: #064e3b;
+}
+
+.student-fitness-progress .student-grade-progress-fill {
+  background: linear-gradient(90deg, #047857 0%, #38bdf8 100%);
+}
+
+.student-fitness-empty {
+  display: grid;
+  gap: 14px;
+}
+
+.student-fitness-event-list {
+  gap: 10px;
+}
+
+.student-fitness-event-card .detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.student-fitness-event-card .detail-item strong {
+  font-size: 0.92rem;
+}
+
 .student-grade-subject-card .detail-item,
 .student-grade-overview .student-grade-overview-grid .detail-item {
   align-items: center;
