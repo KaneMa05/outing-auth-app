@@ -2448,12 +2448,17 @@ th {
 
 .student-fitness-criteria-modal {
   max-width: min(92vw, 520px);
+  max-height: min(82vh, 720px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .student-fitness-criteria-content {
   display: grid;
   gap: 14px;
   width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .student-fitness-criteria-section {
