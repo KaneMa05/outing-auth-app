@@ -96,6 +96,7 @@ function renderStudentAdminActionMenu(student, profile) {
     el("summary", { className: "mini-btn student-action-menu-trigger" }, "관리"),
     el("div", { className: "student-action-menu-list" }, [
       button("미리보기", "student-action-menu-item", "button", () => openStudentPreview(student.id)),
+      button("반 변경", "student-action-menu-item", "button", () => openStudentClassEditModal(student.id)),
       button("직렬 변경", "student-action-menu-item", "button", () => openStudentTrackEditModal(student.id)),
       button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
       profile ? button("등록 초기화", "student-action-menu-item", "button", () => resetStudentAppRegistration(student.id)) : null,
@@ -104,6 +105,55 @@ function renderStudentAdminActionMenu(student, profile) {
       button("삭제", "student-action-menu-item danger", "button", () => deleteStudent(student.id)),
     ]),
   ]);
+}
+
+function openStudentClassEditModal(studentId) {
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  const currentClassName = student.className || state.settings.className || "오프라인반";
+  const classInput = input("className", "text", "오프라인반", currentClassName);
+
+  const form = el("form", { className: "form-grid" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${student.id})`)),
+    field("현재 반", el("span", {}, currentClassName || "-")),
+    field("변경 반", classInput, "", "예: 오프라인반, 온라인반"),
+    el("div", { className: "attendance-modal-actions field full" }, [
+      button("취소", "btn secondary", "button", closeInfoModal),
+      button("저장", "btn"),
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    await updateStudentClass(student.id, data.className);
+  });
+
+  openInfoModal({
+    title: "학생 반 변경",
+    content: form,
+  });
+}
+
+async function updateStudentClass(studentId, nextClassName) {
+  const student = findStudent(studentId);
+  const className = String(nextClassName || "").trim();
+  if (!student || !className) return notify("학생 또는 반 정보를 확인해주세요.");
+  const previousStudent = { ...student };
+  const wasManuallyAttendanceExcluded = student.attendanceExcluded === true && !isOnlineClassName(student.className);
+  try {
+    student.className = className;
+    student.attendanceExcluded = isOnlineClassName(className) || wasManuallyAttendanceExcluded;
+    await saveStudentsToRemote([student.id]);
+    saveState({ skipRemote: true });
+    closeInfoModal();
+    render();
+    notify(`${student.name || student.id} 학생의 반을 변경했습니다.`);
+  } catch (error) {
+    console.error(error);
+    Object.assign(student, previousStudent);
+    render();
+    notify("반 변경을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
 }
 
 function openStudentTrackEditModal(studentId) {
