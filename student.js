@@ -1412,7 +1412,6 @@ function renderStudentFitnessOverview(summary) {
       el("strong", { className: "student-grade-overview-value" }, summary ? `${formatStudentFitnessNumber(summary.totalScore)}점` : "-"),
       rankLabel ? el("span", { className: "student-fitness-rank-badge" }, rankLabel) : null,
     ]),
-    el("span", { className: "student-grade-overview-meta" }, summary ? "월별 입력 점수를 확인할 수 있습니다." : "체력평가 입력 후 표시됩니다."),
     el("div", { className: "detail-grid student-grade-overview-grid" }, [
       renderStudentGradeMetric("총점", summary ? `${formatStudentFitnessNumber(summary.totalScore)}/30점` : "-"),
       renderStudentGradeMetric("측정일", summary?.measuredAt ? formatStudentFitnessMeasuredDate(summary.measuredAt) : "-"),
