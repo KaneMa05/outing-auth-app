@@ -643,13 +643,14 @@ function getTeacherPreviewWeeklySubjectSummaries(student, exam, summary) {
       const peerSubmission = getStudentExamSubmission(peer.id, peerSection.id);
       if (!peerSubmission) return null;
       const questionCount = getWeeklyGradeVisibleAnswers(peerSection, peer).length;
+      const maxScore = sumWeeklyAnswerPoints(getWeeklyGradeVisibleAnswers(peerSection, peer), peerSection);
       const score = Number(peerSubmission.score) || 0;
       const wrongCount = Math.max(0, questionCount - (Number(peerSubmission.correctCount) || 0));
       return {
         id: peer.id,
         score,
         wrongCount,
-        percent: questionCount ? Math.round((score / (questionCount * 5)) * 1000) / 10 : 0,
+        percent: maxScore ? Math.round((score / maxScore) * 1000) / 10 : 0,
       };
     }).filter(Boolean);
     const sorted = [...peerScores].sort((a, b) =>

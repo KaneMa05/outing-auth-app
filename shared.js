@@ -215,6 +215,7 @@ const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
 const WEEKLY_EXAM_ROUND_ANSWER_FILE_LIMIT = 2;
 const WEEKLY_EXAM_ANSWER_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const WEEKLY_SUBJECT_OPTIONS = ["해사법규", "해양경찰학개론", "형사법", "형사법(공판)", "해사영어", "항해학", "기관학"];
+const WEEKLY_SUBJECT_DEFAULT_SPECS = {};
 const WEEKLY_RETIRED_SUBJECTS = ["해상교통관리"];
 const WEEKLY_TRACK_EXCLUDED_SUBJECTS = {
   "경찰직 - 해상교통관제(VTS)(순경)": ["해상교통관리"],
@@ -246,6 +247,14 @@ const WEEKLY_REQUIRED_TRACK_SUBJECTS = {
 function getWeeklySubjectOrder(subject) {
   const index = WEEKLY_SUBJECT_OPTIONS.indexOf(String(subject || "").trim());
   return index >= 0 ? index : WEEKLY_SUBJECT_OPTIONS.length;
+}
+
+function getWeeklySubjectDefaultSpec(subject) {
+  const spec = WEEKLY_SUBJECT_DEFAULT_SPECS[String(subject || "").trim()] || {};
+  return {
+    questionCount: Number(spec.questionCount) || 20,
+    totalScore: Number(spec.totalScore) || 100,
+  };
 }
 
 function compareWeeklySubjects(a, b) {
@@ -321,6 +330,21 @@ function getConfiguredWeeklySubjectsForTrack(track) {
       .sort(compareWeeklySubjects);
   }
   return getDefaultWeeklySubjectsForTrack(normalized);
+}
+
+function preferTrackSpecificWeeklySections(sections, track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const specificSubjects = new Set(
+    (sections || [])
+      .filter((section) => normalizeCoastGuardTrack(section.track) === normalizedTrack)
+      .map((section) => String(section.subject || "").trim())
+      .filter(Boolean)
+  );
+  return (sections || []).filter((section) => {
+    const sectionTrack = normalizeCoastGuardTrack(section.track);
+    const subject = String(section.subject || "").trim();
+    return sectionTrack === normalizedTrack || !specificSubjects.has(subject);
+  });
 }
 
 function mapWeeklySubjectToFinalGradeSubject(subject) {
@@ -1368,7 +1392,7 @@ async function loadStateFromRemote() {
   if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
   mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
-  reconcileLoadedExamSubmissionGrades();
+  const reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
   if (!examFileResult.error) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
   if (!finalExamScoreResult.error) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
@@ -1380,6 +1404,7 @@ async function loadStateFromRemote() {
       state.settings.trackOptions = remoteTrackOptions;
     }
   }
+  if (APP_MODE === "teacher") await persistReconciledExamSubmissionGrades(reconciledExamGrades);
 }
 
 async function saveStateToRemote() {
@@ -2506,6 +2531,22 @@ function getExamAnswerPointValue(answer, fallback = 5) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function getWeeklySectionQuestionPointValue(section, fallback = 5) {
+  const questionCount = Number(section?.questionCount) || 0;
+  const totalScore = Number(section?.totalScore) || 0;
+  if (!questionCount || !totalScore) return fallback;
+  const value = totalScore / questionCount;
+  return Number.isFinite(value) && value >= 0 ? Math.round(value * 1000) / 1000 : fallback;
+}
+
+function getWeeklyAnswerPointValue(answer, section = null, fallback = 5) {
+  return getExamAnswerPointValue(answer, getWeeklySectionQuestionPointValue(section, fallback));
+}
+
+function sumWeeklyAnswerPoints(answers = [], section = null) {
+  return Math.round((answers || []).reduce((sum, answer) => sum + getWeeklyAnswerPointValue(answer, section), 0) * 10) / 10;
+}
+
 function mapExamAnswerFromRemote(answer) {
   return {
     id: answer.id,
@@ -2552,10 +2593,11 @@ function mergeLocalSubmissionAnswersAfterRemoteLoad(localSubmissions = [], local
 }
 
 function reconcileLoadedExamSubmissionGrades() {
-  if (APP_MODE === "teacher") return;
   const submissions = state.examSubmissions || [];
   const submissionAnswers = state.submissionAnswers || [];
-  if (!submissions.length || !submissionAnswers.length) return;
+  const changedSubmissions = [];
+  const changedAnswers = [];
+  if (!submissions.length) return { submissions: changedSubmissions, answers: changedAnswers };
   const sectionsById = new Map((state.examSections || []).map((section) => [section.id, section]));
   const answersBySectionId = new Map();
   (state.examAnswers || []).forEach((answer) => {
@@ -2570,29 +2612,97 @@ function reconcileLoadedExamSubmissionGrades() {
   submissions.forEach((submission) => {
     const section = sectionsById.get(submission.examSectionId);
     const savedAnswers = answersBySubmissionId.get(submission.id) || [];
-    if (!section || !savedAnswers.length) return;
-    const keyByQuestion = new Map(
-      (answersBySectionId.get(section.id) || [])
-        .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
-        .map((answer) => [Number(answer.questionNumber), answer])
-    );
+    if (!section) return;
+    const answerKeys = (answersBySectionId.get(section.id) || [])
+      .filter((answer) => !Number(section.questionCount) || Number(answer.questionNumber) <= Number(section.questionCount))
+      .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track))
+      .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
+    if (!answerKeys.length) return;
+    const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
     let score = 0;
     let correctCount = 0;
-    savedAnswers.forEach((answer) => {
-      const answerKey = keyByQuestion.get(Number(answer.questionNumber));
-      const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
+    const nextAnswers = answerKeys.map((answerKey) => {
+      const previousAnswer = savedByQuestion.get(Number(answerKey.questionNumber));
+      if (!previousAnswer) return null;
+      const selectedAnswer = normalizeExamAnswerChoice(previousAnswer?.selectedAnswer);
       const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
       const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-      const pointsAwarded = isCorrect ? getExamAnswerPointValue(answerKey) : 0;
-      answer.selectedAnswer = selectedAnswer;
-      answer.isCorrect = isCorrect;
-      answer.pointsAwarded = pointsAwarded;
+      const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answerKey, section) : 0;
       if (isCorrect) correctCount += 1;
       score += pointsAwarded;
-    });
-    submission.score = Math.round(score * 10) / 10;
+      const nextAnswer = {
+        id: previousAnswer?.id || createId(),
+        submissionId: submission.id,
+        questionNumber: Number(answerKey.questionNumber) || 0,
+        selectedAnswer,
+        isCorrect,
+        pointsAwarded,
+      };
+      const changed = !previousAnswer ||
+        normalizeExamAnswerChoice(previousAnswer.selectedAnswer) !== selectedAnswer ||
+        previousAnswer.isCorrect !== isCorrect ||
+        Number(previousAnswer.pointsAwarded || 0) !== pointsAwarded;
+      if (changed) changedAnswers.push(nextAnswer);
+      return nextAnswer;
+    }).filter(Boolean);
+    const nextScore = Math.round(score * 10) / 10;
+    if (Number(submission.score || 0) !== nextScore || Number(submission.correctCount || 0) !== correctCount) {
+      changedSubmissions.push(submission);
+    }
+    submission.score = nextScore;
     submission.correctCount = correctCount;
+    state.submissionAnswers = [
+      ...(state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id),
+      ...nextAnswers,
+    ];
   });
+  return { submissions: changedSubmissions, answers: changedAnswers };
+}
+
+async function persistReconciledExamSubmissionGrades(result) {
+  if (!remoteStore || !result) return;
+  const submissions = Array.isArray(result.submissions) ? result.submissions : [];
+  const answers = Array.isArray(result.answers) ? result.answers : [];
+  if (!submissions.length && !answers.length) return;
+  try {
+    if (submissions.length) {
+      const submissionRows = submissions.map((submission) => ({
+        id: submission.id,
+        exam_section_id: submission.examSectionId,
+        student_id: submission.studentId,
+        student_name: submission.studentName,
+        track: submission.track,
+        status: submission.status,
+        score: submission.score,
+        correct_count: submission.correctCount,
+        submitted_at: submission.submittedAt || null,
+        created_at: submission.createdAt || new Date().toISOString(),
+      }));
+      const { error } = await remoteStore.from("exam_submissions").upsert(submissionRows, { onConflict: "student_id,exam_section_id" });
+      if (error && !isMissingRelationError(error, "exam_submissions")) throw error;
+    }
+    if (answers.length) {
+      const uniqueAnswers = new Map();
+      answers.forEach((answer) => {
+        if (!answer.submissionId || !answer.questionNumber) return;
+        uniqueAnswers.set(`${answer.submissionId}|||${answer.questionNumber}`, answer);
+      });
+      const answerRows = [...uniqueAnswers.values()].map((answer) => ({
+        id: answer.id,
+        submission_id: answer.submissionId,
+        question_number: answer.questionNumber,
+        selected_answer: answer.selectedAnswer || null,
+        is_correct: answer.isCorrect,
+        points_awarded: answer.pointsAwarded || 0,
+      }));
+      if (answerRows.length) {
+        const { error } = await remoteStore.from("submission_answers").upsert(answerRows, { onConflict: "submission_id,question_number" });
+        if (error && !isMissingRelationError(error, "submission_answers")) throw error;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to persist reconciled weekly exam grades", error);
+  }
 }
 
 function mapExamSubmissionFromRemote(submission) {

@@ -330,11 +330,12 @@ function getWeeklyExamSubjectSettings() {
     : (state.examSections || [])
       .filter((section) => !isWeeklySubjectExcludedForTrack(section.subject, section.track))
       .map((section, index) => ({
+        ...getWeeklySubjectDefaultSpec(section.subject),
         id: `derived-${section.track}-${section.subject}`,
         track: section.track,
         subject: section.subject,
-        questionCount: section.questionCount || 20,
-        totalScore: section.totalScore || 100,
+        questionCount: section.questionCount || getWeeklySubjectDefaultSpec(section.subject).questionCount,
+        totalScore: section.totalScore || getWeeklySubjectDefaultSpec(section.subject).totalScore,
         isActive: section.isActive !== false,
         sortOrder: index + 1,
         createdAt: section.createdAt || "",
@@ -352,8 +353,8 @@ function getWeeklyExamSubjectSettings() {
         id: setting.id && !String(setting.id).startsWith("derived-") ? setting.id : createId(),
         track,
         subject,
-        questionCount: Number(setting.questionCount) || 20,
-        totalScore: Number(setting.totalScore) || 100,
+        questionCount: Number(setting.questionCount) || getWeeklySubjectDefaultSpec(subject).questionCount,
+        totalScore: Number(setting.totalScore) || getWeeklySubjectDefaultSpec(subject).totalScore,
         isActive: setting.isActive !== false,
         sortOrder: Number(setting.sortOrder) || index + 1,
         createdAt: setting.createdAt || new Date().toISOString(),
@@ -364,6 +365,13 @@ function getWeeklyExamSubjectSettings() {
   return [...map.values()].sort((a, b) => {
     const trackCompare = String(a.track).localeCompare(String(b.track), "ko-KR");
     return trackCompare || Number(a.sortOrder) - Number(b.sortOrder) || String(a.subject).localeCompare(String(b.subject), "ko-KR");
+  });
+}
+
+function getWeeklyTrackSpecificSectionSettings() {
+  return getWeeklyExamSubjectSettings().filter((setting) => {
+    const track = normalizeCoastGuardTrack(setting.track);
+    return setting.isActive !== false && track && track !== WEEKLY_EXAM_TRACK_ALL;
   });
 }
 
@@ -394,10 +402,19 @@ async function ensureWeeklyExamWeeksForCohort(cohort, options = {}) {
       };
       state.exams = [exam, ...(state.exams || [])];
       WEEKLY_EXAM_SUBJECTS.forEach((subject) => {
+        const spec = getWeeklySubjectDefaultSpec(subject);
         const section = createLocalExamSection(exam, WEEKLY_EXAM_TRACK_ALL, subject, {
-          questionCount: 20,
-          totalScore: 100,
+          questionCount: spec.questionCount,
+          totalScore: spec.totalScore,
           isActive: true,
+        });
+        if (section) createdSections.push(section);
+      });
+      getWeeklyTrackSpecificSectionSettings().forEach((setting) => {
+        const section = createLocalExamSection(exam, setting.track, setting.subject, {
+          questionCount: setting.questionCount,
+          totalScore: setting.totalScore,
+          isActive: setting.isActive !== false,
         });
         if (section) createdSections.push(section);
       });
@@ -1161,6 +1178,7 @@ function renderTrackSubjectManagement() {
       return WEEKLY_SUBJECT_OPTIONS.map((subject, index) => {
         const key = `${normalizedTrack}|||${subject}`;
         const current = existing.get(key);
+        const spec = getWeeklySubjectDefaultSpec(subject);
         const required = isWeeklySubjectRequiredForTrack(subject, normalizedTrack);
         const checked = !isWeeklySubjectExcludedForTrack(subject, normalizedTrack) && (required || Boolean(form.querySelector(`input[name="${CSS.escape(key)}"]`)?.checked));
         return {
@@ -1168,8 +1186,8 @@ function renderTrackSubjectManagement() {
           id: current?.id || createId(),
           track: normalizedTrack,
           subject,
-          questionCount: current?.questionCount || 20,
-          totalScore: current?.totalScore || 100,
+          questionCount: current?.questionCount || spec.questionCount,
+          totalScore: current?.totalScore || spec.totalScore,
           isActive: checked,
           sortOrder: index + 1,
           createdAt: current?.createdAt || now,
@@ -1226,6 +1244,7 @@ function createLocalExamSection(exam, track, subject, options = {}) {
     isActive: options.isActive !== false,
     createdAt: new Date().toISOString(),
   };
+  const pointValue = getWeeklySectionQuestionPointValue(section);
   state.examSections = [...(state.examSections || []), section];
   state.examAnswers = [
     ...(state.examAnswers || []),
@@ -1234,7 +1253,7 @@ function createLocalExamSection(exam, track, subject, options = {}) {
       examSectionId: section.id,
       questionNumber: index + 1,
       correctAnswer: 0,
-      points: 5,
+      points: pointValue,
       targetTracks: getDefaultWeeklyQuestionTargetTracks(),
     })),
   ];
@@ -1279,10 +1298,11 @@ function renderWeeklyExamSectionPanel(exam, sections) {
     event.preventDefault();
     const data = formData(form);
     try {
-      const section = createLocalExamSection(exam, normalizeCoastGuardTrack(data.track), String(data.subject || "").trim());
+      const section = createLocalExamSection(exam, normalizeCoastGuardTrack(data.track), String(data.subject || "").trim(), {
+        questionCount: Number(data.questionCount) || 20,
+        totalScore: Number(data.totalScore) || 100,
+      });
       if (!section) return notify("이미 같은 직렬/과목이 있습니다.");
-      section.questionCount = Number(data.questionCount) || 20;
-      section.totalScore = Number(data.totalScore) || 100;
       resetSectionAnswerRows(section);
       weeklyExamSelectedSectionId = section.id;
       saveState({ skipRemote: true });
@@ -1366,13 +1386,14 @@ function openWeeklyExamAnswerModal(sectionId, sectionIds = []) {
 }
 
 function resetSectionAnswerRows(section) {
+  const pointValue = getWeeklySectionQuestionPointValue(section);
   state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== section.id);
   state.examAnswers.push(...Array.from({ length: section.questionCount }, (_, index) => ({
     id: createId(),
     examSectionId: section.id,
     questionNumber: index + 1,
     correctAnswer: 0,
-    points: 5,
+    points: pointValue,
     targetTracks: getDefaultWeeklyQuestionTargetTracks(),
   })));
 }
@@ -1389,9 +1410,10 @@ function getSectionAnswers(sectionId) {
   });
   if (section && answers.length < questionCount) {
     const existing = new Set(answers.map((answer) => answer.questionNumber));
+    const pointValue = getWeeklySectionQuestionPointValue(section);
     for (let i = 1; i <= questionCount; i += 1) {
       if (!existing.has(i)) {
-        const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, points: 5, targetTracks: getDefaultWeeklyQuestionTargetTracks() };
+        const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, points: pointValue, targetTracks: getDefaultWeeklyQuestionTargetTracks() };
         state.examAnswers.push(row);
         answers.push(row);
       }
@@ -1400,7 +1422,7 @@ function getSectionAnswers(sectionId) {
   return answers.sort((a, b) => a.questionNumber - b.questionNumber);
 }
 
-function updateWeeklyExamSectionQuestionCount(section, nextCount, options = {}) {
+async function updateWeeklyExamSectionQuestionCount(section, nextCount, options = {}) {
   const targetSection = (state.examSections || []).find((item) => item.id === section.id);
   if (!targetSection) return notify("문항 수를 변경할 과목을 찾을 수 없습니다.");
   const questionCount = Number(nextCount) || 0;
@@ -1410,19 +1432,29 @@ function updateWeeklyExamSectionQuestionCount(section, nextCount, options = {}) 
   const existingAnswers = getSectionAnswers(targetSection.id);
   const removedAnswers = existingAnswers.filter((answer) => answer.questionNumber > questionCount && answer.correctAnswer);
   if (removedAnswers.length && !confirm(`${questionCount}문항으로 줄이면 ${removedAnswers.length}개 정답이 삭제됩니다. 변경할까요?`)) return;
+  const previousPointValue = getWeeklySectionQuestionPointValue(targetSection);
   targetSection.questionCount = questionCount;
-  targetSection.totalScore = questionCount * 5;
+  targetSection.totalScore = Math.round(questionCount * previousPointValue * 1000) / 1000;
   section.questionCount = questionCount;
-  section.totalScore = questionCount * 5;
+  section.totalScore = targetSection.totalScore;
   state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== targetSection.id || answer.questionNumber <= questionCount);
   const currentAnswers = getSectionAnswers(targetSection.id);
+  const pointValue = getWeeklySectionQuestionPointValue(targetSection);
   currentAnswers.forEach((answer) => {
-    answer.points = 5;
+    answer.points = pointValue;
   });
   saveState({ skipRemote: true });
+  try {
+    await saveExamSectionsToRemote([targetSection]);
+    await saveExamAnswersToRemote(currentAnswers);
+    await regradeSectionsAfterAnswerChange([targetSection]);
+  } catch (error) {
+    console.error("Failed to save weekly question count change", error);
+    notify("문항 수 변경은 화면에 반영됐지만 서버 재채점 저장에 실패했습니다. 정답 저장을 다시 눌러주세요.");
+  }
   render();
   if (options.modal) openWeeklyExamAnswerModal(targetSection.id, options.sectionIds || []);
-  notify("문항 수를 변경했습니다. 정답 저장을 누르면 반영됩니다.");
+  notify("문항 수를 변경하고 기존 답안지를 다시 채점했습니다.");
 }
 
 function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
@@ -1444,7 +1476,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     answerInput.addEventListener("input", () => {
       answerInput.value = normalizeMultipleChoiceAnswer(answerInput.value);
       answer.correctAnswer = Number(answerInput.value) || 0;
-      answer.points = 5;
+      answer.points = getWeeklySectionQuestionPointValue(section);
       saveState({ skipRemote: true });
       if (answerInput.value) focusNextAnswerInput(answerInput);
     });
@@ -1554,9 +1586,9 @@ function renderWeeklyQuestionCountControls(section, answers, options = {}) {
   countInput.step = "1";
   const sectionIds = options.sectionIds || [];
   const getCurrentCount = () => Number(section.questionCount) || Number(countInput.value) || answers.length || 20;
-  const applyCount = (nextCount) => {
+  const applyCount = async (nextCount) => {
     countInput.value = String(Math.max(1, Number(nextCount) || 1));
-    updateWeeklyExamSectionQuestionCount(section, nextCount, {
+    await updateWeeklyExamSectionQuestionCount(section, nextCount, {
       modal: options.modal,
       sectionIds,
     });
@@ -1615,9 +1647,12 @@ function isWeeklyQuestionTrackGroupAppliedToAll(answers, group) {
 }
 
 function syncWeeklyAnswerFormState(form, answers) {
+  const sectionId = answers[0]?.examSectionId || "";
+  const section = (state.examSections || []).find((item) => item.id === sectionId) || null;
+  const pointValue = getWeeklySectionQuestionPointValue(section);
   answers.forEach((answer) => {
     answer.correctAnswer = Number(form.querySelector(`[name='answer-${answer.questionNumber}']`)?.value) || 0;
-    answer.points = 5;
+    answer.points = pointValue;
     answer.targetTracks = normalizeWeeklyQuestionTargetTracks(answer.targetTracks);
   });
 }
@@ -1683,12 +1718,13 @@ function openCopyAnswersModal(sourceSection) {
       const target = (state.examSections || []).find((section) => section.id === id);
       if (!target) return;
       state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== id);
+      const pointValue = getWeeklySectionQuestionPointValue(target);
       state.examAnswers.push(...sourceAnswers.slice(0, target.questionCount).map((answer) => ({
         id: createId(),
         examSectionId: id,
         questionNumber: answer.questionNumber,
         correctAnswer: answer.correctAnswer,
-        points: 5,
+        points: pointValue,
         targetTracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
       })));
     });
@@ -2780,26 +2816,28 @@ function getWeeklyGradeStudentSummary(exam, student) {
   const sections = exam ? getWeeklyGradeSectionsForStudent(exam, student) : [];
   const sectionSummaries = sections.map((section) => {
     const submission = getStudentExamSubmission(student.id, section.id);
-    const questionCount = getWeeklyGradeVisibleAnswers(section, student).length;
-    return { section, submission, questionCount };
+    const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student);
+    const questionCount = visibleAnswers.length;
+    const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
+    return { section, submission, questionCount, maxScore };
   });
   const submitted = sectionSummaries.filter((item) => item.submission);
   const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
   const correctCount = submitted.reduce((sum, item) => sum + (Number(item.submission.correctCount) || 0), 0);
   const submittedMaxCorrect = submitted.reduce((sum, item) => sum + item.questionCount, 0);
   const maxCorrect = sectionSummaries.reduce((sum, item) => sum + item.questionCount, 0);
-  const maxScore = sectionSummaries.reduce((sum, item) => sum + item.questionCount * 5, 0);
+  const maxScore = sectionSummaries.reduce((sum, item) => sum + item.maxScore, 0);
   const subjectScores = {};
   sectionSummaries.forEach((item) => {
     subjectScores[item.section.subject] = item.submission
       ? {
           score: Number(item.submission.score) || 0,
-          maxScore: item.questionCount * 5,
+          maxScore: item.maxScore,
           correctCount: Number(item.submission.correctCount) || 0,
           questionCount: item.questionCount,
           status: "submitted",
         }
-      : { status: "missing", questionCount: item.questionCount, maxScore: item.questionCount * 5 };
+      : { status: "missing", questionCount: item.questionCount, maxScore: item.maxScore };
   });
   const latestSubmittedAt = submitted
     .map((item) => item.submission.submittedAt)
@@ -2986,12 +3024,13 @@ function getGradeSubjectHeaders() {
 
 function getWeeklyGradeSectionsForStudent(exam, student) {
   const studentTrack = getTeacherStudentRegisteredTrack(student);
-  return getExamSections(exam?.id || "").filter((section) => {
+  const matchedSections = getExamSections(exam?.id || "").filter((section) => {
     const sectionTrack = normalizeCoastGuardTrack(section.track);
     const trackMatched = sectionTrack === studentTrack || sectionTrack === WEEKLY_EXAM_TRACK_ALL;
     const subjectMatched = sectionTrack !== WEEKLY_EXAM_TRACK_ALL || isWeeklySubjectAllowedForTrack(section.subject, studentTrack);
     return section.isActive !== false && trackMatched && subjectMatched && isWeeklyGradeSectionVisibleForTrack(section, studentTrack);
   });
+  return preferTrackSpecificWeeklySections(matchedSections, studentTrack);
 }
 
 function isWeeklyGradeSectionVisibleForTrack(section, track) {
@@ -3225,23 +3264,30 @@ async function regradeSectionsAfterAnswerChange(sections) {
 }
 
 function gradeSubmission(section, submission, selectedAnswers) {
-  const answers = getSectionAnswers(section.id).filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track));
+  const answers = getSectionAnswers(section.id)
+    .filter((answer) => !Number(section.questionCount) || Number(answer.questionNumber) <= Number(section.questionCount))
+    .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, submission.track));
   const previousAnswers = getSubmissionAnswers(submission.id);
-  const selectedByQuestion = new Map(previousAnswers.map((answer) => [answer.questionNumber, answer.selectedAnswer]));
+  const previousByQuestion = new Map(previousAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+  const selectedByQuestion = new Map(previousAnswers.map((answer) => [Number(answer.questionNumber), answer.selectedAnswer]));
   let score = 0;
   let correctCount = 0;
   state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
   answers.forEach((answer) => {
-    const selectedAnswer = normalizeExamAnswerChoice(selectedByQuestion.get(answer.questionNumber) || selectedAnswers[answer.questionNumber - 1]);
+    const questionNumber = Number(answer.questionNumber) || 0;
+    const previousAnswer = previousByQuestion.get(questionNumber);
+    const selectedAnswer = normalizeExamAnswerChoice(selectedByQuestion.has(questionNumber)
+      ? selectedByQuestion.get(questionNumber)
+      : selectedAnswers[questionNumber - 1]);
     const correctAnswer = normalizeExamAnswerChoice(answer.correctAnswer);
     const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const pointsAwarded = isCorrect ? getExamAnswerPointValue(answer) : 0;
+    const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answer, section) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({
-      id: createId(),
+      id: previousAnswer?.id || createId(),
       submissionId: submission.id,
-      questionNumber: answer.questionNumber,
+      questionNumber,
       selectedAnswer,
       isCorrect,
       pointsAwarded,
@@ -3383,7 +3429,7 @@ function buildExamAnswerRows(answers, options = {}) {
     exam_section_id: answer.examSectionId,
     question_number: Number(answer.questionNumber) || 0,
     correct_answer: answer.correctAnswer || null,
-    points: 5,
+    points: getWeeklyAnswerPointValue(answer, (state.examSections || []).find((section) => section.id === answer.examSectionId)),
     target_tracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
   }));
 }

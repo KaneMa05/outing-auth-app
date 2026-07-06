@@ -2033,7 +2033,7 @@ function getStudentWeeklyGradeSummary(exam, student) {
   const sections = getStudentExamSections(exam, student);
   const ownSubmissions = sections.map((section) => ({ section, submission: getStudentSubmission(student.id, section.id) }));
   const submitted = ownSubmissions.filter((item) => item.submission);
-  const maxScore = sections.reduce((sum, section) => sum + getStudentVisibleSectionAnswers(section, student).length * 5, 0);
+  const maxScore = sections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, student), section), 0);
   const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
   const wrongCount = submitted.reduce((sum, item) => {
     const questionCount = getStudentVisibleSectionAnswers(item.section, student).length;
@@ -2044,7 +2044,7 @@ function getStudentWeeklyGradeSummary(exam, student) {
   const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
   const peerScores = peers.map((peer) => {
     const peerSections = getStudentExamSections(exam, peer);
-    const peerMax = peerSections.reduce((sum, section) => sum + getStudentVisibleSectionAnswers(section, peer).length * 5, 0);
+    const peerMax = peerSections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, peer), section), 0);
     const peerSubmitted = peerSections.map((section) => getStudentSubmission(peer.id, section.id)).filter(Boolean);
     const peerScore = peerSubmitted.reduce((sum, submission) => sum + (Number(submission.score) || 0), 0);
     return {
@@ -2081,9 +2081,9 @@ function getStudentWeeklyGradeSummary(exam, student) {
 
 function getStudentSubjectGradeSummary(exam, student, section, submission, peers) {
   const questionCount = getStudentVisibleSectionAnswers(section, student).length;
+  const maxScore = sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, student), section);
   const score = submission ? Number(submission.score) || 0 : 0;
   const correctCount = submission ? Number(submission.correctCount) || 0 : 0;
-  const maxScore = questionCount * 5;
   const wrongCount = submission ? Math.max(0, questionCount - correctCount) : null;
   const peerScores = peers.map((peer) => {
     const peerSection = getStudentExamSections(exam, peer).find((item) => item.subject === section.subject);
@@ -2091,12 +2091,13 @@ function getStudentSubjectGradeSummary(exam, student, section, submission, peers
     const peerSubmission = getStudentSubmission(peer.id, peerSection.id);
     if (!peerSubmission) return null;
     const peerQuestionCount = getStudentVisibleSectionAnswers(peerSection, peer).length;
+    const peerMaxScore = sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(peerSection, peer), peerSection);
     const peerScore = Number(peerSubmission.score) || 0;
     return {
       id: peer.id,
       score: peerScore,
       wrongCount: Math.max(0, peerQuestionCount - (Number(peerSubmission.correctCount) || 0)),
-      percent: peerQuestionCount ? Math.round((peerScore / (peerQuestionCount * 5)) * 1000) / 10 : 0,
+      percent: peerMaxScore ? Math.round((peerScore / peerMaxScore) * 1000) / 10 : 0,
     };
   }).filter(Boolean);
   const sorted = [...peerScores].sort((a, b) => b.percent - a.percent || b.score - a.score || a.wrongCount - b.wrongCount);
@@ -2313,9 +2314,10 @@ function isStudentWeeklyExamVisible(exam) {
 
 function getStudentExamSections(exam, student) {
   const track = getStudentRegisteredTrack(student);
-  return (state.examSections || [])
+  const matchedSections = (state.examSections || [])
     .filter((section) => section.examId === exam.id && isStudentSectionMatch(section, track))
     .sort((a, b) => compareWeeklySubjects(a.subject, b.subject) || String(a.track || "").localeCompare(String(b.track || ""), "ko-KR"));
+  return preferTrackSpecificWeeklySections(matchedSections, track);
 }
 
 function getStudentRequiredWeeklyExamSections(exam, student) {
@@ -2400,11 +2402,13 @@ function renderStudentWeeklyExamPreparingMessage() {
 function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen) {
   const submission = getStudentSubmission(student.id, section.id);
   const status = getStudentSectionStatus(exam, section, submission);
-  const visibleQuestionCount = getStudentVisibleSectionAnswers(section, student).length;
+  const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
+  const visibleQuestionCount = visibleAnswers.length;
+  const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
   const answerSheetOpen = Boolean(submission?.status === "submitted" && scoreOpen);
   return el("article", { className: "student-exam-subject" }, [
     el("div", {}, [el("strong", {}, section.subject), el("span", { className: "badge" }, status)]),
-    el("p", { className: "subtle" }, `${visibleQuestionCount}문항 · ${visibleQuestionCount * 5}점`),
+    el("p", { className: "subtle" }, `${visibleQuestionCount}문항 · ${maxScore}점`),
     submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
     submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
     answerSheetOpen ? button("내 답안지 보기", "mini-btn student-answer-sheet-button", "button", () => openStudentGradedAnswerSheetModal(section, submission, student)) : null,
@@ -2727,15 +2731,28 @@ function renderStudentExamReview(exam, section, student) {
 }
 
 function confirmStudentExamSubmit(section, student, missing, questionCount = section.questionCount) {
-  const message = missing.length
-    ? `총 ${questionCount}문항 중 ${questionCount - missing.length}문항만 입력했습니다.\n미입력 문항: ${missing.join(", ")}번\n미입력 문항은 오답 처리됩니다.\n그래도 제출하시겠습니까?`
-    : `총 ${questionCount}문항 중 ${questionCount}문항을 모두 입력했습니다.\n제출 후에는 답안을 수정할 수 없습니다.\n최종 제출하시겠습니까?`;
+  if (missing.length) {
+    notify(`미입력 문항이 있습니다: ${missing.join(", ")}번`);
+    return;
+  }
+  const message = `총 ${questionCount}문항 중 ${questionCount}문항을 모두 입력했습니다.\n제출 후에는 답안을 수정할 수 없습니다.\n최종 제출하시겠습니까?`;
   if (!confirm(message)) return;
   submitStudentSectionAnswers(section, student);
 }
 
 async function submitStudentSectionAnswers(section, student) {
   if (getStudentSubmission(student.id, section.id)?.status === "submitted") return notify("이미 제출한 과목입니다. 제출 후에는 수정할 수 없습니다.");
+  const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
+  const missing = visibleAnswers
+    .map((answerKey, index) => ({ displayNumber: index + 1, questionNumber: Number(answerKey.questionNumber) || 0 }))
+    .filter((item) => !normalizeExamAnswerChoice(studentExamDraft.answers[item.questionNumber]))
+    .map((item) => item.displayNumber);
+  if (missing.length) {
+    notify(`미입력 문항이 있습니다: ${missing.join(", ")}번`);
+    studentExamDraft.review = true;
+    render();
+    return;
+  }
   const submission = {
     id: createId(),
     examSectionId: section.id,
@@ -2749,16 +2766,35 @@ async function submitStudentSectionAnswers(section, student) {
     createdAt: new Date().toISOString(),
   };
   gradeStudentSubmission(section, submission);
+  const submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
+  if (submissionAnswers.length !== visibleAnswers.length || submissionAnswers.some((answer) => !normalizeExamAnswerChoice(answer.selectedAnswer))) {
+    notify("답안 저장 전 검증에 실패했습니다. 모든 문항을 다시 확인해주세요.");
+    studentExamDraft.review = true;
+    render();
+    return;
+  }
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousSubmissionAnswers = [...(state.submissionAnswers || [])];
   state.examSubmissions = [...(state.examSubmissions || []), submission];
   saveState({ skipRemote: true });
-  if (remoteStore) {
+  try {
+    if (remoteStore) {
     await saveStudentExamSubmissionToRemote(submission);
-    try {
-      await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id));
-    } catch (error) {
-      console.warn("Failed to sync student submission answers", error);
+      await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id), {
+        expectedCount: visibleAnswers.length,
+      });
+      await verifyStudentSubmissionAnswersSaved(submission.id, visibleAnswers.length);
+      saveState({ skipRemote: true });
     }
+  } catch (error) {
+    console.error("Failed to submit student weekly exam answers", error);
+    state.examSubmissions = previousSubmissions;
+    state.submissionAnswers = previousSubmissionAnswers;
     saveState({ skipRemote: true });
+    notify("답안 저장에 실패했습니다. 제출되지 않았습니다. 다시 시도해주세요.");
+    studentExamDraft.review = true;
+    render();
+    return;
   }
   studentExamDraft.sectionId = "";
   studentExamDraft.review = false;
@@ -2776,7 +2812,7 @@ function gradeStudentSubmission(section, submission) {
     const selectedAnswer = normalizeExamAnswerChoice(studentExamDraft.answers[question]);
     const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
     const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const pointsAwarded = isCorrect ? getExamAnswerPointValue(answerKey) : 0;
+    const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answerKey, section) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
@@ -2839,8 +2875,10 @@ async function syncStudentSubmissionRemoteIdentity(submission, previousId) {
   applyStudentSubmissionRemoteIdentity(submission, previousId, data);
 }
 
-async function saveStudentSubmissionAnswersToRemote(answers) {
+async function saveStudentSubmissionAnswersToRemote(answers, options = {}) {
   if (!answers.length) return;
+  if (options.expectedCount && answers.length !== options.expectedCount) throw new Error("submission_answer_count_mismatch");
+  if (answers.some((answer) => !normalizeExamAnswerChoice(answer.selectedAnswer))) throw new Error("submission_answer_missing_selected_answer");
   const rows = answers.map((answer) => ({
     id: answer.id,
     submission_id: answer.submissionId,
@@ -2851,6 +2889,17 @@ async function saveStudentSubmissionAnswersToRemote(answers) {
   }));
   const { error } = await remoteStore.from("submission_answers").upsert(rows, { onConflict: "submission_id,question_number" });
   if (error) throw error;
+}
+
+async function verifyStudentSubmissionAnswersSaved(submissionId, expectedCount) {
+  if (!remoteStore || !submissionId || !expectedCount) return;
+  const { data, error } = await remoteStore
+    .from("submission_answers")
+    .select("question_number,selected_answer")
+    .eq("submission_id", submissionId);
+  if (error) throw error;
+  const selectedCount = (data || []).filter((answer) => normalizeExamAnswerChoice(answer.selected_answer)).length;
+  if (selectedCount !== expectedCount) throw new Error("submission_answer_remote_count_mismatch");
 }
 
 function toCircledAnswer(value) {
