@@ -2441,7 +2441,7 @@ function renderStudentWeeklyExamFiles(exam, sections, student) {
   ]);
 }
 async function openStudentGradedAnswerSheetModal(section, submission, student) {
-  await ensureStudentSubmissionAnswersLoaded(submission);
+  await ensureStudentSubmissionAnswersLoaded(submission, section, student);
   openInfoModal({
     title: `${section.subject} 내 답안지`,
     className: "student-graded-answer-modal",
@@ -2449,10 +2449,9 @@ async function openStudentGradedAnswerSheetModal(section, submission, student) {
   });
 }
 
-async function ensureStudentSubmissionAnswersLoaded(submission) {
+async function ensureStudentSubmissionAnswersLoaded(submission, section, student) {
   if (!remoteStore || !submission?.id) return;
-  const hasLoadedAnswers = (state.submissionAnswers || []).some((answer) => answer.submissionId === submission.id);
-  if (hasLoadedAnswers) return;
+  if (hasUsableStudentSubmissionAnswers(submission, section, student)) return;
   const { data, error } = await remoteStore
     .from("submission_answers")
     .select("id,submission_id,question_number,selected_answer,is_correct,points_awarded")
@@ -2474,6 +2473,21 @@ async function ensureStudentSubmissionAnswersLoaded(submission) {
     ...loadedAnswers,
   ];
   saveState({ skipRemote: true });
+}
+
+function hasUsableStudentSubmissionAnswers(submission, section, student) {
+  const cachedAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
+  if (!cachedAnswers.length) return false;
+  const visibleQuestionNumbers = getStudentVisibleSectionAnswers(section, student).map((answer) => Number(answer.questionNumber));
+  if (!visibleQuestionNumbers.length) return true;
+  const cachedByQuestion = new Map(cachedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+  const allQuestionsMatched = visibleQuestionNumbers.every((questionNumber) => cachedByQuestion.has(questionNumber));
+  if (!allQuestionsMatched) return false;
+  const hasAnySelectedAnswer = visibleQuestionNumbers.some((questionNumber) =>
+    Boolean(normalizeExamAnswerChoice(cachedByQuestion.get(questionNumber)?.selectedAnswer))
+  );
+  const hasSubmittedScore = Number(submission.score) > 0 || Number(submission.correctCount) > 0;
+  return hasAnySelectedAnswer || !hasSubmittedScore;
 }
 
 function renderStudentGradedAnswerSheet(section, submission, student) {
