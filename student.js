@@ -1239,7 +1239,38 @@ let selectedStudentGradeLookupExamId = "";
 let selectedStudentFinalRound = 0;
 let studentGradeLookupType = "weekly";
 let studentGradesView = "";
-let studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+let studentExamDraft = createStudentExamDraft();
+let studentExamSaveNoticeTimers = [];
+
+function createStudentExamDraft(overrides = {}) {
+  return { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false, saving: false, savingStartedAt: 0, ...overrides };
+}
+
+function clearStudentExamSaveNotices() {
+  studentExamSaveNoticeTimers.forEach((timerId) => window.clearTimeout(timerId));
+  studentExamSaveNoticeTimers = [];
+}
+
+function startStudentExamSaveNotices() {
+  clearStudentExamSaveNotices();
+  studentExamSaveNoticeTimers = [
+    window.setTimeout(() => {
+      if (studentExamDraft.saving) notify("저장이 조금 지연되고 있습니다. 잠시만 기다려주세요.");
+    }, 5000),
+    window.setTimeout(() => {
+      if (studentExamDraft.saving) notify("네트워크가 불안정할 수 있습니다. 계속 저장 중입니다.");
+    }, 15000),
+    window.setTimeout(() => {
+      if (studentExamDraft.saving) notify("저장 확인이 오래 걸리고 있습니다. 앱을 닫지 말고 잠시만 더 기다려주세요.");
+    }, 30000),
+  ];
+}
+
+window.addEventListener("beforeunload", (event) => {
+  if (!studentExamDraft.saving) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 let selectedStudentFitnessMonth = "";
 
 const STUDENT_FITNESS_EVENTS = [
@@ -1308,7 +1339,7 @@ function resetStudentGradesView() {
   studentGradeLookupType = "weekly";
   studentGradesView = "";
   selectedStudentFitnessMonth = "";
-  studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+  studentExamDraft = createStudentExamDraft();
 }
 
 function isStudentFinalGradeTestLink() {
@@ -1337,7 +1368,7 @@ function renderStudentGradesHome() {
       el("div", { className: "student-grade-action-list" }, [
         renderStudentGradeAction("입력", "주간평가 답안 입력", "주간평가", () => {
           selectedStudentExamId = "";
-          studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+          studentExamDraft = createStudentExamDraft();
           studentGradesView = "entry";
           render();
         }),
@@ -2289,8 +2320,9 @@ function renderStudentGradesBackPanel() {
 
 function renderStudentGradesBackButton() {
   return button("돌아가기", "mini-btn student-weekly-back-button", "button", () => {
+    if (studentExamDraft.saving) return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
     studentGradesView = "";
-    studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+    studentExamDraft = createStudentExamDraft();
     render();
   });
 }
@@ -2373,7 +2405,11 @@ function renderStudentExamWeekSelect(exams, selectedExam) {
   });
   examSelect.value = selectedExam.id;
   examSelect.addEventListener("change", () => {
-    studentExamDraft = { sectionId: "", page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+    if (studentExamDraft.saving) {
+      examSelect.value = selectedExam.id;
+      return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
+    }
+    studentExamDraft = createStudentExamDraft();
     selectedStudentExamId = examSelect.value;
     render();
   });
@@ -2579,7 +2615,8 @@ function getStudentSubmission(studentId, sectionId) {
 }
 
 function startStudentSectionAnswer(section) {
-  studentExamDraft = { sectionId: section.id, page: 0, answers: {}, locked: {}, editing: {}, review: false, confirmed: false };
+  clearStudentExamSaveNotices();
+  studentExamDraft = createStudentExamDraft({ sectionId: section.id });
   render();
 }
 
@@ -2626,6 +2663,7 @@ function renderStudentAnswerSubjectTabs(exam, currentSection, student, sections)
 
 function switchStudentAnswerSection(nextSection, currentSection, student) {
   if (!nextSection || nextSection.id === currentSection.id) return;
+  if (studentExamDraft.saving) return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
   if (getStudentSubmission(student.id, nextSection.id)?.status === "submitted") return notify("이미 제출한 과목입니다.");
   const hasDraft = Object.values(studentExamDraft.answers || {}).some(Boolean);
   if (hasDraft && !confirm("현재 과목에서 입력 중인 답안이 사라질 수 있습니다. 다른 과목으로 이동할까요?")) return;
@@ -2662,6 +2700,7 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
   const options = [1, 2, 3, 4].map((value) => {
     const selected = Number(current) === value;
     const node = button(String(value), selected ? "answer-choice selected" : "answer-choice", "button", () => {
+      if (studentExamDraft.saving) return;
       const previous = studentExamDraft.answers[questionNumber];
       studentExamDraft.answers[questionNumber] = value;
       studentExamDraft.locked[questionNumber] = true;
@@ -2669,6 +2708,7 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
       render();
       if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
+    node.disabled = Boolean(studentExamDraft.saving);
     node.setAttribute("aria-label", `${displayNumber}번 ${value}번 선택`);
     node.setAttribute("aria-pressed", selected ? "true" : "false");
     return node;
@@ -2683,25 +2723,30 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
 
 function renderStudentAnswerNav(section, questionCount = section.questionCount) {
   const prev = button("이전 10문제", "btn secondary", "button", () => {
+    if (studentExamDraft.saving) return;
     studentExamDraft.page = Math.max(0, studentExamDraft.page - 1);
     render();
   });
-  prev.disabled = studentExamDraft.page === 0;
+  prev.disabled = studentExamDraft.saving || studentExamDraft.page === 0;
   const next = button("다음 10문제", "btn secondary", "button", () => {
+    if (studentExamDraft.saving) return;
     studentExamDraft.page = Math.min(Math.ceil(questionCount / 10) - 1, studentExamDraft.page + 1);
     render();
   });
-  next.disabled = studentExamDraft.page >= Math.ceil(questionCount / 10) - 1;
+  next.disabled = studentExamDraft.saving || studentExamDraft.page >= Math.ceil(questionCount / 10) - 1;
+  const reviewButton = button(studentExamDraft.saving ? "저장 중..." : "검토 후 제출", "btn student-answer-review-button", "button", () => {
+    if (studentExamDraft.saving) return;
+    studentExamDraft.review = true;
+    studentExamDraft.confirmed = false;
+    render();
+  });
+  reviewButton.disabled = Boolean(studentExamDraft.saving);
   return el("div", { className: "student-answer-nav" }, [
     el("div", { className: "student-answer-page-nav" }, [
       prev,
       next,
     ]),
-    button("검토 후 제출", "btn student-answer-review-button", "button", () => {
-      studentExamDraft.review = true;
-      studentExamDraft.confirmed = false;
-      render();
-    }),
+    reviewButton,
   ]);
 }
 
@@ -2709,42 +2754,56 @@ function renderStudentExamReview(exam, section, student) {
   const missing = [];
   const cells = [];
   const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
+  const saving = Boolean(studentExamDraft.saving);
   visibleAnswers.forEach((answerKey, index) => {
     const question = answerKey.questionNumber;
     const displayNumber = index + 1;
     const answer = studentExamDraft.answers[question];
     if (!answer) missing.push(displayNumber);
-    cells.push(button("", answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+    const cell = button("", answer ? "answer-sheet-cell" : "answer-sheet-cell missing", "button", () => {
+      if (saving) return;
       studentExamDraft.review = false;
       studentExamDraft.page = Math.floor(index / 10);
       render();
     }, [
       el("span", {}, `${displayNumber}번`),
       el("strong", {}, answer ? toCircledAnswer(answer) : "-"),
-    ]));
+    ]);
+    cell.disabled = saving;
+    cells.push(cell);
   });
   const checkbox = el("input", { type: "checkbox" });
-  const submitButton = button("최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing, visibleAnswers.length));
-  submitButton.disabled = true;
+  checkbox.checked = Boolean(studentExamDraft.confirmed);
+  checkbox.disabled = saving;
+  const submitButton = button(saving ? "저장 중..." : "최종 제출", "btn", "button", () => confirmStudentExamSubmit(section, student, missing, visibleAnswers.length));
+  submitButton.disabled = saving || !studentExamDraft.confirmed;
   checkbox.addEventListener("change", () => {
     studentExamDraft.confirmed = checkbox.checked;
-    submitButton.disabled = !checkbox.checked;
+    submitButton.disabled = saving || !checkbox.checked;
   });
+  const editButton = button("답안 수정", "btn secondary", "button", () => {
+    if (studentExamDraft.saving) return;
+    studentExamDraft.review = false;
+    render();
+  });
+  editButton.disabled = saving;
   return panel(`${section.subject} 답안표 확인`, [
+    saving ? el("div", { className: "student-answer-saving" }, [
+      el("strong", {}, "답안을 저장 중입니다."),
+      el("span", {}, "완료될 때까지 앱을 닫지 마세요."),
+    ]) : null,
     el("div", { className: "answer-sheet-grid" }, cells),
     missing.length ? el("p", { className: "missing-warning" }, `미입력 문항: ${missing.join(", ")}번`) : el("p", { className: "answer-complete-message" }, "모든 문항을 입력했습니다."),
     el("label", { className: "confirm-check" }, [checkbox, el("span", {}, "위 답안을 모두 확인했습니다.")]),
     el("div", { className: "student-answer-nav" }, [
-      button("답안 수정", "btn secondary", "button", () => {
-        studentExamDraft.review = false;
-        render();
-      }),
+      editButton,
       submitButton,
     ]),
   ]);
 }
 
 function confirmStudentExamSubmit(section, student, missing, questionCount = section.questionCount) {
+  if (studentExamDraft.saving) return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
   if (missing.length) {
     notify(`미입력 문항이 있습니다: ${missing.join(", ")}번`);
     return;
@@ -2755,6 +2814,7 @@ function confirmStudentExamSubmit(section, student, missing, questionCount = sec
 }
 
 async function submitStudentSectionAnswers(section, student) {
+  if (studentExamDraft.saving) return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
   if (getStudentSubmission(student.id, section.id)?.status === "submitted") return notify("이미 제출한 과목입니다. 제출 후에는 수정할 수 없습니다.");
   const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
   const missing = visibleAnswers
@@ -2767,6 +2827,11 @@ async function submitStudentSectionAnswers(section, student) {
     render();
     return;
   }
+  studentExamDraft.saving = true;
+  studentExamDraft.savingStartedAt = Date.now();
+  startStudentExamSaveNotices();
+  notify("답안을 저장 중입니다. 완료될 때까지 앱을 닫지 마세요.");
+  render();
   const submission = {
     id: createId(),
     examSectionId: section.id,
@@ -2782,6 +2847,9 @@ async function submitStudentSectionAnswers(section, student) {
   gradeStudentSubmission(section, submission);
   const submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
   if (submissionAnswers.length !== visibleAnswers.length || submissionAnswers.some((answer) => !normalizeExamAnswerChoice(answer.selectedAnswer))) {
+    clearStudentExamSaveNotices();
+    studentExamDraft.saving = false;
+    studentExamDraft.savingStartedAt = 0;
     notify("답안 저장 전 검증에 실패했습니다. 모든 문항을 다시 확인해주세요.");
     studentExamDraft.review = true;
     render();
@@ -2807,6 +2875,9 @@ async function submitStudentSectionAnswers(section, student) {
     }
   } catch (error) {
     console.error("Failed to submit student weekly exam answers", error);
+    clearStudentExamSaveNotices();
+    studentExamDraft.saving = false;
+    studentExamDraft.savingStartedAt = 0;
     await cleanupFailedStudentExamSubmission(submission);
     state.examSubmissions = previousSubmissions;
     state.submissionAnswers = previousSubmissionAnswers;
@@ -2816,8 +2887,11 @@ async function submitStudentSectionAnswers(section, student) {
     render();
     return;
   }
+  clearStudentExamSaveNotices();
   studentExamDraft.sectionId = "";
   studentExamDraft.review = false;
+  studentExamDraft.saving = false;
+  studentExamDraft.savingStartedAt = 0;
   render();
   notify("답안을 제출했습니다.");
 }

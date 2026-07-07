@@ -2751,6 +2751,25 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   min-width: 132px;
 }
 
+.student-answer-saving {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--accent-soft);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--accent-strong);
+  padding: 10px 12px;
+}
+
+.student-answer-saving strong {
+  font-size: 0.95rem;
+}
+
+.student-answer-saving span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .answer-sheet-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
