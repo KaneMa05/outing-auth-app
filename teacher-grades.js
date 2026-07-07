@@ -1831,8 +1831,12 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
 }
 
 function renderWeeklyGradeScoreActions(exam, cohort, weekNumber) {
+  const resetTargets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort);
   return el("div", { className: "action-row weekly-answer-actions" }, [
     button("성적표 다운로드", "mini-btn secondary", "button", () => downloadWeeklyGradeReport(exam, cohort, weekNumber)),
+    resetTargets.length
+      ? button(`0점 답안 초기화 ${resetTargets.length}건`, "mini-btn danger", "button", () => resetZeroScoreIncompleteWeeklySubmissions(exam, cohort))
+      : null,
   ]);
 }
 
@@ -1915,6 +1919,50 @@ async function resetWeeklyExamSubjectSubmission(section, submission, student) {
     saveState({ skipRemote: true });
     render();
     notify("답안 초기화를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
+  }
+}
+
+function getZeroScoreIncompleteWeeklySubmissions(exam, cohort) {
+  if (!exam || !gradeManagementTrackFilter) return [];
+  const targets = [];
+  getGradeManagementStudents(cohort).forEach((student) => {
+    getWeeklyGradeSectionsForStudent(exam, student).forEach((section) => {
+      const submission = getStudentExamSubmission(student.id, section.id);
+      if (!submission || Number(submission.score || 0) !== 0) return;
+      const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student);
+      const answerStatus = getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers);
+      if (answerStatus.status !== "incomplete") return;
+      targets.push({ student, section, submission, answerStatus });
+    });
+  });
+  return targets;
+}
+
+async function resetZeroScoreIncompleteWeeklySubmissions(exam, cohort) {
+  const targets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort);
+  if (!targets.length) return notify("초기화할 0점 답안 부족 제출이 없습니다.");
+  const weekLabel = `${Number(exam?.weekNumber) || 1}주차`;
+  const trackLabel = gradeManagementTrackFilter || "현재 직렬";
+  if (!confirm(`${weekLabel} ${trackLabel}에서 0점으로 표시된 답안 부족 제출 ${targets.length}건을 초기화할까요?\n정상 답안이 있는 실제 0점 제출은 제외됩니다.`)) return;
+
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousAnswers = [...(state.submissionAnswers || [])];
+  const submissionIds = new Set(targets.map((target) => target.submission.id).filter(Boolean));
+  state.examSubmissions = previousSubmissions.filter((submission) => !submissionIds.has(submission.id));
+  state.submissionAnswers = previousAnswers.filter((answer) => !submissionIds.has(answer.submissionId));
+  saveState({ skipRemote: true });
+
+  try {
+    await deleteExamSubmissionsFromRemote([...submissionIds]);
+    render();
+    notify(`0점 답안 부족 제출 ${targets.length}건을 초기화했습니다.`);
+  } catch (error) {
+    console.error(error);
+    state.examSubmissions = previousSubmissions;
+    state.submissionAnswers = previousAnswers;
+    saveState({ skipRemote: true });
+    render();
+    notify("0점 답안 초기화를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
   }
 }
 
@@ -2846,7 +2894,7 @@ function getWeeklyGradeStudentSummary(exam, student) {
     const questionCount = visibleAnswers.length;
     const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
     const computedGrade = submission ? computeWeeklySubmissionGrade(section, submission, visibleAnswers) : null;
-    return { section, submission, computedGrade, questionCount, maxScore };
+    return { section, submission, computedGrade, visibleAnswers, questionCount, maxScore };
   });
   const submitted = sectionSummaries.filter((item) => item.submission);
   const score = submitted.reduce((sum, item) => sum + getWeeklySummarySectionScore(item), 0);
@@ -2865,7 +2913,7 @@ function getWeeklyGradeStudentSummary(exam, student) {
           correctCount: getWeeklySummarySectionCorrectCount(item),
           questionCount: item.questionCount,
           status: "submitted",
-          answerStatus: getWeeklySubmissionAnswerStatus(item.section, item.submission, visibleAnswers),
+          answerStatus: getWeeklySubmissionAnswerStatus(item.section, item.submission, item.visibleAnswers),
         }
       : { status: "missing", questionCount: item.questionCount, maxScore: item.maxScore };
   });
