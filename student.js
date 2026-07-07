@@ -2093,6 +2093,7 @@ function getStudentWeeklyGradeSummary(exam, student) {
   const displayTopPercent = rank ? Math.max(1, Math.ceil(topPercent)) : 0;
   const percentile = own ? Math.round((100 - topPercent) * 10) / 10 : 0;
   const subjectSummaries = ownSubmissions.map((item) => getStudentSubjectGradeSummary(exam, student, item.section, item.submission, peers));
+  const previousSummary = Number(exam.weekNumber) > 1 ? getStudentPreviousWeeklyGradeSummary(exam, student) : null;
   return {
     title: formatStudentWeeklyExamName(exam.weekNumber),
     score,
@@ -2106,8 +2107,19 @@ function getStudentWeeklyGradeSummary(exam, student) {
     topPercent,
     displayTopPercent,
     percentile,
+    previousRank: previousSummary?.rank || 0,
+    rankDelta: previousSummary?.rank && rank ? Number(previousSummary.rank) - Number(rank) : "",
     subjectSummaries,
   };
+}
+
+function getStudentPreviousWeeklyGradeSummary(exam, student) {
+  const previousExam = (state.exams || []).find((item) =>
+    String(item.cohort || "") === String(exam.cohort || "") &&
+    Number(item.weekNumber) === Number(exam.weekNumber) - 1
+  );
+  if (!previousExam) return null;
+  return getStudentWeeklyGradeSummary(previousExam, student);
 }
 
 function getStudentSubjectGradeSummary(exam, student, section, submission, peers) {
