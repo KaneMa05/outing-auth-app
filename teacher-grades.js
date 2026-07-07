@@ -1785,23 +1785,17 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
 
   const targetWeek = Number(weeklyExamGradeFilters.weekNumber) || 1;
   const exam = getWeeklyExamByCohortAndWeek(cohort, targetWeek);
-  if (!gradeManagementTrackFilter) {
-    return panel("주간평가 성적", [
-      el("div", { className: "teacher-search grade-management-filter" }, [
-        field("주차", weekSelect),
-      ]),
-      exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
-      el("div", { className: "empty" }, "직렬을 선택하면 해당 직렬 학생의 주간평가 성적이 표시됩니다. 성적표 다운로드는 선택한 주차의 전체 응시 학생을 포함합니다."),
-    ]);
-  }
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
   const students = getGradeManagementStudents(cohort);
-  const weeklySubjectHeaders = getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter);
+  const weeklySubjectHeaders = gradeManagementTrackFilter
+    ? getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter)
+    : getWeeklyGradeSubjectHeadersForStudents(exam, students);
   const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
   const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
-  const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
+  const displaySummaries = gradeManagementTrackFilter ? sortGradeSummariesForDisplay(summaries) : sortWeeklyGradeSummariesByTrack(summaries);
+  const rows = displaySummaries.map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return el("tr", {}, [
       el("td", {}, formatStudentNumber(summary.student.id)),
@@ -1861,6 +1855,19 @@ function getWeeklyGradeSubjectHeaders(exam, track) {
       return true;
     })
     .sort((a, b) => (subjectOrder.get(a) ?? 999) - (subjectOrder.get(b) ?? 999) || a.localeCompare(b, "ko-KR"));
+}
+
+function getWeeklyGradeSubjectHeadersForStudents(exam, students = []) {
+  if (!exam) return [];
+  const seen = new Set();
+  const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
+  students.forEach((student) => {
+    getWeeklyGradeSectionsForStudent(exam, student).forEach((section) => {
+      const subject = String(section.subject || "").trim();
+      if (subject) seen.add(subject);
+    });
+  });
+  return [...seen].sort((a, b) => (subjectOrder.get(a) ?? 999) - (subjectOrder.get(b) ?? 999) || a.localeCompare(b, "ko-KR"));
 }
 async function deleteWeeklyExamStudentSubmissions(exam, student) {
   if (!exam || !student) return notify("삭제할 성적을 찾을 수 없습니다.");
@@ -1923,7 +1930,7 @@ async function resetWeeklyExamSubjectSubmission(section, submission, student) {
 }
 
 function getZeroScoreIncompleteWeeklySubmissions(exam, cohort) {
-  if (!exam || !gradeManagementTrackFilter) return [];
+  if (!exam) return [];
   const targets = [];
   getGradeManagementStudents(cohort).forEach((student) => {
     getWeeklyGradeSectionsForStudent(exam, student).forEach((section) => {
@@ -1942,7 +1949,7 @@ async function resetZeroScoreIncompleteWeeklySubmissions(exam, cohort) {
   const targets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort);
   if (!targets.length) return notify("초기화할 0점 답안 부족 제출이 없습니다.");
   const weekLabel = `${Number(exam?.weekNumber) || 1}주차`;
-  const trackLabel = gradeManagementTrackFilter || "현재 직렬";
+  const trackLabel = gradeManagementTrackFilter || "전체 직렬";
   if (!confirm(`${weekLabel} ${trackLabel}에서 0점으로 표시된 답안 부족 제출 ${targets.length}건을 초기화할까요?\n정상 답안이 있는 실제 0점 제출은 제외됩니다.`)) return;
 
   const previousSubmissions = [...(state.examSubmissions || [])];
@@ -3111,6 +3118,21 @@ function sortGradeSummariesForDisplay(summaries = []) {
     if (scoreCompare) return scoreCompare;
     const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
     if (wrongCompare) return wrongCompare;
+    return String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true });
+  });
+}
+
+function sortWeeklyGradeSummariesByTrack(summaries = []) {
+  return [...summaries].sort((a, b) => {
+    const trackCompare = String(getTeacherStudentRegisteredTrack(a.student) || "").localeCompare(
+      String(getTeacherStudentRegisteredTrack(b.student) || ""),
+      "ko-KR"
+    );
+    if (trackCompare) return trackCompare;
+    const rankA = Number(a.rank) || 0;
+    const rankB = Number(b.rank) || 0;
+    if (rankA && rankB && rankA !== rankB) return rankA - rankB;
+    if (rankA !== rankB) return rankA ? -1 : 1;
     return String(a.student?.id || "").localeCompare(String(b.student?.id || ""), "ko-KR", { numeric: true });
   });
 }
