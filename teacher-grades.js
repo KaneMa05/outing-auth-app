@@ -1807,7 +1807,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
       el("td", {}, formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
-      ...weeklySubjectHeaders.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject]))),
+      ...weeklySubjectHeaders.map((subject) => el("td", {}, formatSubjectScoreCell(summary.subjectScores[subject], summary))),
       el("td", {}, formatWeeklyWrongCountCell(summary)),
       el("td", {}, summary.rank ? `${summary.rank}등` : "-"),
       el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
@@ -1889,6 +1889,32 @@ async function deleteWeeklyExamStudentSubmissions(exam, student) {
     saveState({ skipRemote: true });
     render();
     notify("성적 삭제를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
+  }
+}
+
+async function resetWeeklyExamSubjectSubmission(section, submission, student) {
+  if (!section || !submission?.id) return notify("초기화할 답안을 찾을 수 없습니다.");
+  const studentLabel = student?.name || submission.studentName || submission.studentId || "학생";
+  const subjectLabel = section.subject || "과목";
+  if (!confirm(`${studentLabel} 학생의 ${subjectLabel} 답안을 초기화할까요?\n초기화하면 해당 과목을 학생 앱에서 다시 입력해야 합니다.`)) return;
+
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousAnswers = [...(state.submissionAnswers || [])];
+  state.examSubmissions = previousSubmissions.filter((item) => item.id !== submission.id);
+  state.submissionAnswers = previousAnswers.filter((answer) => answer.submissionId !== submission.id);
+  saveState({ skipRemote: true });
+
+  try {
+    await deleteExamSubmissionsFromRemote([submission.id]);
+    render();
+    notify(`${studentLabel} 학생의 ${subjectLabel} 답안을 초기화했습니다. 학생 앱에서 다시 입력할 수 있습니다.`);
+  } catch (error) {
+    console.error(error);
+    state.examSubmissions = previousSubmissions;
+    state.submissionAnswers = previousAnswers;
+    saveState({ skipRemote: true });
+    render();
+    notify("답안 초기화를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
   }
 }
 
@@ -2832,11 +2858,14 @@ function getWeeklyGradeStudentSummary(exam, student) {
   sectionSummaries.forEach((item) => {
     subjectScores[item.section.subject] = item.submission
       ? {
+          section: item.section,
+          submission: item.submission,
           score: getWeeklySummarySectionScore(item),
           maxScore: item.maxScore,
           correctCount: getWeeklySummarySectionCorrectCount(item),
           questionCount: item.questionCount,
           status: "submitted",
+          answerStatus: getWeeklySubmissionAnswerStatus(item.section, item.submission, visibleAnswers),
         }
       : { status: "missing", questionCount: item.questionCount, maxScore: item.maxScore };
   });
@@ -2865,6 +2894,23 @@ function getWeeklyGradeStudentSummary(exam, student) {
     subjectScores,
     latestSubmittedAt,
     status,
+  };
+}
+
+function getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers = []) {
+  const requiredQuestionNumbers = visibleAnswers.map((answer) => Number(answer.questionNumber) || 0).filter(Boolean);
+  const savedAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
+  const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+  const missingQuestions = requiredQuestionNumbers.filter((questionNumber) =>
+    !normalizeExamAnswerChoice(savedByQuestion.get(questionNumber)?.selectedAnswer)
+  );
+  return {
+    status: missingQuestions.length ? "incomplete" : "complete",
+    savedCount: requiredQuestionNumbers.filter((questionNumber) =>
+      normalizeExamAnswerChoice(savedByQuestion.get(questionNumber)?.selectedAnswer)
+    ).length,
+    requiredCount: requiredQuestionNumbers.length,
+    missingQuestions,
   };
 }
 
@@ -3027,12 +3073,21 @@ function calculateGradePercentile(rank, total) {
   return Math.round(((rank - 1) / (total - 1)) * 1000) / 10;
 }
 
-function formatSubjectScoreCell(subjectScore) {
+function formatSubjectScoreCell(subjectScore, summary = null) {
   if (!subjectScore) return "-";
   if (subjectScore.status === "missing") return "미제출";
   if (subjectScore.status === "empty") return "-";
   const score = Number(subjectScore.score) || 0;
-  return String(score);
+  if (subjectScore.answerStatus?.status !== "incomplete") return String(score);
+  const savedCount = Number(subjectScore.answerStatus.savedCount) || 0;
+  const requiredCount = Number(subjectScore.answerStatus.requiredCount) || Number(subjectScore.questionCount) || 0;
+  return el("div", { className: "weekly-score-cell answer-incomplete" }, [
+    el("span", {}, String(score)),
+    el("small", { className: "subtle" }, `답안 부족 ${savedCount}/${requiredCount}`),
+    button("답안 초기화", "mini-btn danger", "button", () =>
+      resetWeeklyExamSubjectSubmission(subjectScore.section, subjectScore.submission, summary?.student)
+    ),
+  ]);
 }
 
 function formatWeeklyWrongCountCell(summary) {

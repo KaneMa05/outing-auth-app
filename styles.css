@@ -3417,6 +3417,26 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   opacity: 0.58;
 }
 
+.weekly-score-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 72px;
+}
+
+.weekly-score-cell.answer-incomplete {
+  color: var(--danger);
+}
+
+.weekly-score-cell .subtle {
+  width: 100%;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .teacher-tools,
 .teacher-search {
   display: grid;
