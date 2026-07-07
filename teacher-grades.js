@@ -2819,11 +2819,12 @@ function getWeeklyGradeStudentSummary(exam, student) {
     const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student);
     const questionCount = visibleAnswers.length;
     const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
-    return { section, submission, questionCount, maxScore };
+    const computedGrade = submission ? computeWeeklySubmissionGrade(section, submission, visibleAnswers) : null;
+    return { section, submission, computedGrade, questionCount, maxScore };
   });
   const submitted = sectionSummaries.filter((item) => item.submission);
-  const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
-  const correctCount = submitted.reduce((sum, item) => sum + (Number(item.submission.correctCount) || 0), 0);
+  const score = submitted.reduce((sum, item) => sum + getWeeklySummarySectionScore(item), 0);
+  const correctCount = submitted.reduce((sum, item) => sum + getWeeklySummarySectionCorrectCount(item), 0);
   const submittedMaxCorrect = submitted.reduce((sum, item) => sum + item.questionCount, 0);
   const maxCorrect = sectionSummaries.reduce((sum, item) => sum + item.questionCount, 0);
   const maxScore = sectionSummaries.reduce((sum, item) => sum + item.maxScore, 0);
@@ -2831,9 +2832,9 @@ function getWeeklyGradeStudentSummary(exam, student) {
   sectionSummaries.forEach((item) => {
     subjectScores[item.section.subject] = item.submission
       ? {
-          score: Number(item.submission.score) || 0,
+          score: getWeeklySummarySectionScore(item),
           maxScore: item.maxScore,
-          correctCount: Number(item.submission.correctCount) || 0,
+          correctCount: getWeeklySummarySectionCorrectCount(item),
           questionCount: item.questionCount,
           status: "submitted",
         }
@@ -2865,6 +2866,39 @@ function getWeeklyGradeStudentSummary(exam, student) {
     latestSubmittedAt,
     status,
   };
+}
+
+function computeWeeklySubmissionGrade(section, submission, visibleAnswers = []) {
+  const savedAnswers = (state.submissionAnswers || [])
+    .filter((answer) => answer.submissionId === submission.id)
+    .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
+  if (!visibleAnswers.length || savedAnswers.length < visibleAnswers.length) return null;
+  const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+  let score = 0;
+  let correctCount = 0;
+  for (const answerKey of visibleAnswers) {
+    const questionNumber = Number(answerKey.questionNumber) || 0;
+    const savedAnswer = savedByQuestion.get(questionNumber);
+    const selectedAnswer = normalizeExamAnswerChoice(savedAnswer?.selectedAnswer);
+    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
+    if (!savedAnswer || !selectedAnswer || !correctAnswer) return null;
+    if (selectedAnswer === correctAnswer) {
+      correctCount += 1;
+      score += getWeeklyAnswerPointValue(answerKey, section);
+    }
+  }
+  return {
+    score: Math.round(score * 10) / 10,
+    correctCount,
+  };
+}
+
+function getWeeklySummarySectionScore(item) {
+  return Number(item?.computedGrade?.score ?? item?.submission?.score) || 0;
+}
+
+function getWeeklySummarySectionCorrectCount(item) {
+  return Number(item?.computedGrade?.correctCount ?? item?.submission?.correctCount) || 0;
 }
 
 function applyWeeklyGradeRanksByTrack(summaries) {

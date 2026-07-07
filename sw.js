@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v190-weekly-answer-load";
+const CACHE_NAME = "outing-auth-app-v191-weekly-score-recompute";
 const APP_SHELL = [
   "/",
   "/index.html",
