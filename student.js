@@ -2405,17 +2405,20 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
   const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
   const visibleQuestionCount = visibleAnswers.length;
   const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
-  const answerSheetOpen = Boolean(submission?.status === "submitted" && scoreOpen);
+  const hasStoredAnswers = submission?.status === "submitted" && hasStudentStoredSubmissionAnswers(submission, section, student);
+  const answerSheetOpen = Boolean(submission?.status === "submitted" && scoreOpen && hasStoredAnswers);
+  const missingStoredAnswers = Boolean(submission?.status === "submitted" && !hasStoredAnswers);
   return el("article", { className: "student-exam-subject" }, [
     el("div", {}, [el("strong", {}, section.subject), el("span", { className: "badge" }, status)]),
     el("p", { className: "subtle" }, `${visibleQuestionCount}문항 · ${maxScore}점`),
-    submission?.status === "submitted" && scoreOpen ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
-    submission?.status === "submitted" && !scoreOpen ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
+    submission?.status === "submitted" && scoreOpen && hasStoredAnswers ? el("p", { className: "student-score-line" }, `점수 ${submission.score}점 · 정답 ${submission.correctCount}/${visibleQuestionCount}`) : null,
+    submission?.status === "submitted" && !scoreOpen && hasStoredAnswers ? el("p", { className: "subtle" }, "모든 과목을 제출해야 점수와 해설을 확인할 수 있습니다.") : null,
+    missingStoredAnswers ? el("p", { className: "subtle" }, "저장된 답안 번호를 찾을 수 없습니다. 다시 입력해주세요.") : null,
     answerSheetOpen ? button("내 답안지 보기", "mini-btn student-answer-sheet-button", "button", () => openStudentGradedAnswerSheetModal(section, submission, student)) : null,
-    submission?.status === "submitted"
+    submission?.status === "submitted" && !missingStoredAnswers
       ? null
       : isExamOpen(exam)
-        ? button("답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
+        ? button(missingStoredAnswers ? "답안 다시 입력" : "답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
         : el("p", { className: "subtle" }, "현재 응시할 수 없는 기간입니다."),
   ]);
 }
@@ -2492,6 +2495,17 @@ function hasUsableStudentSubmissionAnswers(submission, section, student) {
   );
   const hasSubmittedScore = Number(submission.score) > 0 || Number(submission.correctCount) > 0;
   return hasAnySelectedAnswer || !hasSubmittedScore;
+}
+
+function hasStudentStoredSubmissionAnswers(submission, section, student) {
+  const cachedAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
+  if (!cachedAnswers.length) return false;
+  const visibleQuestionNumbers = getStudentVisibleSectionAnswers(section, student).map((answer) => Number(answer.questionNumber));
+  const cachedByQuestion = new Map(cachedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+  const questions = visibleQuestionNumbers.length ? visibleQuestionNumbers : cachedAnswers.map((answer) => Number(answer.questionNumber));
+  return questions.some((questionNumber) =>
+    Boolean(normalizeExamAnswerChoice(cachedByQuestion.get(questionNumber)?.selectedAnswer))
+  );
 }
 
 function renderStudentGradedAnswerSheet(section, submission, student) {
@@ -2775,7 +2789,12 @@ async function submitStudentSectionAnswers(section, student) {
   }
   const previousSubmissions = [...(state.examSubmissions || [])];
   const previousSubmissionAnswers = [...(state.submissionAnswers || [])];
-  state.examSubmissions = [...(state.examSubmissions || []), submission];
+  state.examSubmissions = [
+    ...(state.examSubmissions || []).filter((item) =>
+      !(item.studentId === submission.studentId && item.examSectionId === submission.examSectionId)
+    ),
+    submission,
+  ];
   saveState({ skipRemote: true });
   try {
     if (remoteStore) {
@@ -2788,6 +2807,7 @@ async function submitStudentSectionAnswers(section, student) {
     }
   } catch (error) {
     console.error("Failed to submit student weekly exam answers", error);
+    await cleanupFailedStudentExamSubmission(submission);
     state.examSubmissions = previousSubmissions;
     state.submissionAnswers = previousSubmissionAnswers;
     saveState({ skipRemote: true });
@@ -2889,6 +2909,24 @@ async function saveStudentSubmissionAnswersToRemote(answers, options = {}) {
   }));
   const { error } = await remoteStore.from("submission_answers").upsert(rows, { onConflict: "submission_id,question_number" });
   if (error) throw error;
+}
+
+async function cleanupFailedStudentExamSubmission(submission) {
+  if (!remoteStore || !submission?.id) return;
+  try {
+    const { error: answerError } = await remoteStore
+      .from("submission_answers")
+      .delete()
+      .eq("submission_id", submission.id);
+    if (answerError && !isMissingRelationError(answerError, "submission_answers")) throw answerError;
+    const { error: submissionError } = await remoteStore
+      .from("exam_submissions")
+      .delete()
+      .eq("id", submission.id);
+    if (submissionError && !isMissingRelationError(submissionError, "exam_submissions")) throw submissionError;
+  } catch (cleanupError) {
+    console.warn("Failed to clean up incomplete student weekly exam submission", cleanupError);
+  }
 }
 
 async function verifyStudentSubmissionAnswersSaved(submissionId, expectedCount) {

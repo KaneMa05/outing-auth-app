@@ -53,6 +53,11 @@ const STUDENT_PULL_REFRESH_THRESHOLD = 82;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
 const OUTING_PHOTO_BUCKET = "outing-photos";
 const ORIGINAL_PHOTO_FALLBACK_MAX_BYTES = 8 * 1024 * 1024;
+const chunkArray = (items, size) => {
+  const result = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+};
 let isRemoteLoading = false;
 let isRemoteSaving = false;
 let remoteSaveTimer = null;
@@ -1030,6 +1035,28 @@ function makeLocalDevSafeState() {
   return snapshot;
 }
 
+async function loadSubmissionAnswersBySubmissionIds(submissionIds, columns) {
+  if (!remoteStore || !submissionIds.length) return { data: [], error: null };
+  const rows = [];
+  const uniqueIds = [...new Set(submissionIds.filter(Boolean))];
+  for (const idChunk of chunkArray(uniqueIds, 80)) {
+    for (let from = 0; ; from += 1000) {
+      const result = await remoteStore
+        .from("submission_answers")
+        .select(columns)
+        .in("submission_id", idChunk)
+        .order("submission_id", { ascending: true })
+        .order("question_number", { ascending: true })
+        .range(from, from + 999);
+      if (result.error) return result;
+      const data = result.data || [];
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+  }
+  return { data: rows, error: null };
+}
+
 async function loadStateFromRemote() {
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
@@ -1151,9 +1178,7 @@ async function loadStateFromRemote() {
     remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true }),
     remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }).limit(10000),
     examSubmissionRequest,
-    APP_MODE === "teacher"
-      ? remoteStore.from("submission_answers").select(submissionAnswerColumns).order("question_number", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+    Promise.resolve({ data: [], error: null }),
     remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false }),
     remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false }),
@@ -1274,14 +1299,12 @@ async function loadStateFromRemote() {
   }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
-  if (APP_MODE === "student" && scopedStudentId && !examSubmissionResult.error) {
+  if ((APP_MODE === "teacher" || (APP_MODE === "student" && scopedStudentId)) && !examSubmissionResult.error) {
     const scopedSubmissionIds = (examSubmissionResult.data || [])
-      .filter((submission) => String(submission.student_id || "") === String(scopedStudentId))
+      .filter((submission) => APP_MODE === "teacher" || String(submission.student_id || "") === String(scopedStudentId))
       .map((submission) => submission.id)
       .filter(Boolean);
-    submissionAnswerResult = scopedSubmissionIds.length
-      ? await remoteStore.from("submission_answers").select(submissionAnswerColumns).in("submission_id", scopedSubmissionIds).order("question_number", { ascending: true })
-      : { data: [], error: null };
+    submissionAnswerResult = await loadSubmissionAnswersBySubmissionIds(scopedSubmissionIds, submissionAnswerColumns);
   }
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
@@ -2619,6 +2642,11 @@ function reconcileLoadedExamSubmissionGrades() {
       .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
     if (!answerKeys.length) return;
     const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
+    const hasCompleteSavedAnswers = answerKeys.every((answerKey) => {
+      const savedAnswer = savedByQuestion.get(Number(answerKey.questionNumber));
+      return Boolean(savedAnswer && normalizeExamAnswerChoice(savedAnswer.selectedAnswer));
+    });
+    if (!hasCompleteSavedAnswers) return;
     let score = 0;
     let correctCount = 0;
     const nextAnswers = answerKeys.map((answerKey) => {
