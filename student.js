@@ -2274,7 +2274,7 @@ function formatStudentRankDelta(delta) {
   if (delta === "" || delta === null || delta === undefined) return "";
   const value = Number(delta);
   if (!Number.isFinite(value)) return "";
-  if (!value) return "변동 없음";
+  if (!value) return "동일";
   return value > 0 ? `▲ ${value}` : `▼ ${Math.abs(value)}`;
 }
 
