@@ -229,8 +229,8 @@ async function saveStateToRemote() {
     receipt_note: outing.receiptNote || null,
     teacher_memo: outing.teacherMemo || null,
     created_at: outing.createdAt,
-    verified_at: outing.verifiedAt,
-    returned_at: outing.returnedAt,
+    verified_at: outing.verifiedAt || null,
+    returned_at: outing.returnedAt || null,
   }));
 
   const photoRows = state.outings.flatMap((outing) =>

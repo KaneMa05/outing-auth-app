@@ -1625,8 +1625,8 @@ async function saveStateToRemote() {
       approval_reason: outing.approvalReason || null,
       teacher_memo: outing.teacherMemo || null,
       receipt_note: outing.receiptNote || null,
-      verified_at: outing.verifiedAt,
-      returned_at: outing.returnedAt,
+      verified_at: outing.verifiedAt || null,
+      returned_at: outing.returnedAt || null,
     }));
 
   for (const outing of statusRows) {
@@ -3185,7 +3185,7 @@ async function saveStudentRegistrationEventsToRemote() {
       created_at: event.createdAt || new Date().toISOString(),
     }));
   if (!rows.length) return;
-  const { error } = await remoteStore.from("student_registration_events").upsert(rows, { onConflict: "id" });
+  const { error } = await remoteStore.from("student_registration_events").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
   if (error && !isMissingRelationError(error, "student_registration_events")) throw error;
 }
 
