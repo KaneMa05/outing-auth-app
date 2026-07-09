@@ -50,6 +50,7 @@ const STUDENT_AUTO_REFRESH_INTERVAL_MS = 10000;
 const STUDENT_INTERACTION_PAUSE_MS = 15000;
 const STUDENT_FILE_PICKER_PAUSE_MS = 120000;
 const STUDENT_PULL_REFRESH_THRESHOLD = 82;
+const APP_SETTINGS_API_FALLBACK_INTERVAL_MS = 5 * 60 * 1000;
 const ATTENDANCE_PHOTO_BUCKET = "attendance-photos";
 const OUTING_PHOTO_BUCKET = "outing-photos";
 const ORIGINAL_PHOTO_FALLBACK_MAX_BYTES = 8 * 1024 * 1024;
@@ -72,6 +73,7 @@ let studentFilePickerOpenedAt = 0;
 let studentInteractionPausedUntil = 0;
 let isStudentInteractionTrackingStarted = false;
 let isStudentPullRefreshStarted = false;
+let appSettingsApiLastLoadedAt = 0;
 let studentPullStartY = 0;
 let studentPullDistance = 0;
 let studentPullPointerId = null;
@@ -1401,12 +1403,13 @@ async function loadStateFromRemote() {
   state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
   state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
   state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
+  let loadedAppSettingsFromNotices = false;
   if (!noticeResult.error) {
     const remoteNotices = (noticeResult.data || []).map(mapNoticeFromRemote);
-    applyRemoteAppSettingsFromNotices(remoteNotices);
+    loadedAppSettingsFromNotices = applyRemoteAppSettingsFromNotices(remoteNotices);
     state.notices = remoteNotices;
   }
-  await loadAppSettingsFromApi();
+  if (!loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
@@ -2898,12 +2901,14 @@ function mapNoticeFromRemote(notice) {
 
 function applyRemoteAppSettingsFromNotices(notices) {
   const settingsNotice = (notices || []).find((notice) => String(notice?.id || "") === APP_SETTINGS_NOTICE_ID);
-  if (!settingsNotice) return;
+  if (!settingsNotice) return false;
   try {
     const payload = JSON.parse(settingsNotice.body || "{}");
     applyRemoteAppSettings(payload);
+    return true;
   } catch (error) {
     console.warn("Unable to read remote app settings.", error);
+    return false;
   }
 }
 
@@ -2925,6 +2930,9 @@ async function saveAppSettingsToRemote() {
 }
 
 async function loadAppSettingsFromApi() {
+  const now = Date.now();
+  if (appSettingsApiLastLoadedAt && now - appSettingsApiLastLoadedAt < APP_SETTINGS_API_FALLBACK_INTERVAL_MS) return;
+  appSettingsApiLastLoadedAt = now;
   try {
     const response = await fetch("/api/app-settings", { credentials: "same-origin" });
     const data = await response.json().catch(() => ({ ok: false }));

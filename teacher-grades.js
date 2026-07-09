@@ -3217,8 +3217,10 @@ function isWeeklyGradeSectionVisibleForTrack(section, track) {
 
 function getWeeklyGradeVisibleAnswers(section, student) {
   const studentTrack = typeof student === "string" ? normalizeCoastGuardTrack(student) : getTeacherStudentRegisteredTrack(student);
+  const questionCount = Number(section.questionCount) || 0;
   return getSectionAnswers(section.id)
     .filter((answer) => answer.correctAnswer)
+    .filter((answer) => !questionCount || Number(answer.questionNumber) <= questionCount)
     .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, studentTrack));
 }
 
