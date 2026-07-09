@@ -3016,13 +3016,29 @@ function applyWeeklyGradeRanksByTrack(summaries) {
         summary,
         percent: summary.maxScore ? Math.round(((Number(summary.score) || 0) / summary.maxScore) * 1000) / 10 : 0,
       }));
-    const sorted = [...ranked].sort((a, b) =>
-      b.percent - a.percent ||
-      (Number(b.summary.score) || 0) - (Number(a.summary.score) || 0)
-    );
+    const sorted = [...ranked].sort((a, b) => {
+      const percentCompare = b.percent - a.percent;
+      if (percentCompare) return percentCompare;
+      const scoreCompare = (Number(b.summary.score) || 0) - (Number(a.summary.score) || 0);
+      if (scoreCompare) return scoreCompare;
+      const wrongCompare = (Number(a.summary.wrongCount) || 0) - (Number(b.summary.wrongCount) || 0);
+      if (wrongCompare) return wrongCompare;
+      return String(a.summary.student?.id || "").localeCompare(String(b.summary.student?.id || ""), "ko-KR", { numeric: true });
+    });
+    let previousPercent = null;
+    let previousScore = null;
+    let previousWrong = null;
+    let previousRank = 0;
     sorted.forEach((item, index) => {
-      item.summary.rank = index + 1;
-      item.summary.topPercent = calculateGradePercentile(index + 1, sorted.length);
+      const score = Number(item.summary.score) || 0;
+      const wrong = Number(item.summary.wrongCount) || 0;
+      const rank = item.percent === previousPercent && score === previousScore && wrong === previousWrong ? previousRank : index + 1;
+      item.summary.rank = rank;
+      item.summary.topPercent = calculateGradePercentile(rank, sorted.length);
+      previousPercent = item.percent;
+      previousScore = score;
+      previousWrong = wrong;
+      previousRank = rank;
     });
     items.forEach((summary) => {
       if (!sorted.some((item) => item.summary === summary)) {
