@@ -1415,6 +1415,7 @@ async function loadStateFromRemote() {
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
   if (!examSectionResult.error) state.examSections = (examSectionResult.data || []).map(mapExamSectionFromRemote);
   if (!examAnswerResult.error) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
+  const normalizedWeeklySectionScores = normalizeLoadedWeeklySectionScores();
   if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
   if (!submissionAnswerResult.error) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
   mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
@@ -1431,6 +1432,7 @@ async function loadStateFromRemote() {
     }
   }
   if (APP_MODE === "teacher") await persistReconciledExamSubmissionGrades(reconciledExamGrades);
+  if (APP_MODE === "teacher") await persistNormalizedWeeklySectionScores(normalizedWeeklySectionScores);
 }
 
 async function saveStateToRemote() {
@@ -2565,12 +2567,66 @@ function getWeeklySectionQuestionPointValue(section, fallback = 5) {
   return Number.isFinite(value) && value >= 0 ? Math.round(value * 1000) / 1000 : fallback;
 }
 
+function getWeeklySectionExpectedTotalScore(section) {
+  return Number(getWeeklySubjectDefaultSpec(section?.subject).totalScore) || 100;
+}
+
 function getWeeklyAnswerPointValue(answer, section = null, fallback = 5) {
   return getExamAnswerPointValue(answer, getWeeklySectionQuestionPointValue(section, fallback));
 }
 
+function shouldScaleWeeklyVisibleAnswerPoints(answers = [], section = null) {
+  const visibleCount = Array.isArray(answers) ? answers.length : 0;
+  const questionCount = Number(section?.questionCount) || 0;
+  const totalScore = Number(section?.totalScore) || 0;
+  return Boolean(
+    visibleCount &&
+    totalScore &&
+    isWeeklyQuestionTrackScopedSubject(section?.subject) &&
+    (!questionCount || visibleCount !== questionCount)
+  );
+}
+
+function getWeeklyVisibleAnswerPointValue(answer, section = null, visibleAnswers = [], fallback = 5) {
+  if (shouldScaleWeeklyVisibleAnswerPoints(visibleAnswers, section)) {
+    const value = Number(section.totalScore) / visibleAnswers.length;
+    return Number.isFinite(value) && value >= 0 ? Math.round(value * 1000) / 1000 : fallback;
+  }
+  return getWeeklyAnswerPointValue(answer, section, fallback);
+}
+
 function sumWeeklyAnswerPoints(answers = [], section = null) {
+  if (shouldScaleWeeklyVisibleAnswerPoints(answers, section)) {
+    return Math.round((Number(section.totalScore) || 0) * 10) / 10;
+  }
   return Math.round((answers || []).reduce((sum, answer) => sum + getWeeklyAnswerPointValue(answer, section), 0) * 10) / 10;
+}
+
+function normalizeLoadedWeeklySectionScores() {
+  const changedSections = [];
+  const changedAnswers = [];
+  const sections = Array.isArray(state.examSections) ? state.examSections : [];
+  const answers = Array.isArray(state.examAnswers) ? state.examAnswers : [];
+  sections.forEach((section) => {
+    const questionCount = Number(section.questionCount) || 0;
+    if (!questionCount) return;
+    const expectedTotalScore = getWeeklySectionExpectedTotalScore(section);
+    if (!expectedTotalScore) return;
+    if (Number(section.totalScore) !== expectedTotalScore) {
+      section.totalScore = expectedTotalScore;
+      changedSections.push(section);
+    }
+    const pointValue = getWeeklySectionQuestionPointValue(section);
+    answers
+      .filter((answer) => answer.examSectionId === section.id)
+      .filter((answer) => Number(answer.questionNumber) > 0 && Number(answer.questionNumber) <= questionCount)
+      .forEach((answer) => {
+        if (Number(answer.points) === pointValue) return;
+        answer.points = pointValue;
+        changedAnswers.push(answer);
+      });
+  });
+  return { sections: changedSections, answers: changedAnswers };
 }
 
 function mapExamAnswerFromRemote(answer) {
@@ -2658,7 +2714,7 @@ function reconcileLoadedExamSubmissionGrades() {
       const selectedAnswer = normalizeExamAnswerChoice(previousAnswer?.selectedAnswer);
       const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
       const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-      const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answerKey, section) : 0;
+      const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answerKey, section, answerKeys) : 0;
       if (isCorrect) correctCount += 1;
       score += pointsAwarded;
       const nextAnswer = {
@@ -2733,6 +2789,39 @@ async function persistReconciledExamSubmissionGrades(result) {
     }
   } catch (error) {
     console.warn("Failed to persist reconciled weekly exam grades", error);
+  }
+}
+
+async function persistNormalizedWeeklySectionScores(result) {
+  if (!remoteStore || !result) return;
+  const sections = Array.isArray(result.sections) ? result.sections : [];
+  const answers = Array.isArray(result.answers) ? result.answers : [];
+  if (!sections.length && !answers.length) return;
+  try {
+    for (const section of sections) {
+      if (!section?.id) continue;
+      const { error } = await remoteStore
+        .from("exam_sections")
+        .update({ total_score: Number(section.totalScore) || getWeeklySectionExpectedTotalScore(section) })
+        .eq("id", section.id);
+      if (error && !isMissingRelationError(error, "exam_sections")) throw error;
+    }
+    for (const answer of answers) {
+      const points = Number(answer.points);
+      if (!Number.isFinite(points)) continue;
+      const payload = { points };
+      const request = answer.id
+        ? remoteStore.from("exam_answers").update(payload).eq("id", answer.id)
+        : remoteStore
+            .from("exam_answers")
+            .update(payload)
+            .eq("exam_section_id", answer.examSectionId)
+            .eq("question_number", Number(answer.questionNumber) || 0);
+      const { error } = await request;
+      if (error && !isMissingRelationError(error, "exam_answers")) throw error;
+    }
+  } catch (error) {
+    console.warn("Failed to persist normalized weekly section scores", error);
   }
 }
 

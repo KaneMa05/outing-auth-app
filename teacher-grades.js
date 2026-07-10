@@ -1432,9 +1432,9 @@ async function updateWeeklyExamSectionQuestionCount(section, nextCount, options 
   const existingAnswers = getSectionAnswers(targetSection.id);
   const removedAnswers = existingAnswers.filter((answer) => answer.questionNumber > questionCount && answer.correctAnswer);
   if (removedAnswers.length && !confirm(`${questionCount}문항으로 줄이면 ${removedAnswers.length}개 정답이 삭제됩니다. 변경할까요?`)) return;
-  const previousPointValue = getWeeklySectionQuestionPointValue(targetSection);
+  const previousTotalScore = Number(targetSection.totalScore) || 100;
   targetSection.questionCount = questionCount;
-  targetSection.totalScore = Math.round(questionCount * previousPointValue * 1000) / 1000;
+  targetSection.totalScore = previousTotalScore;
   section.questionCount = questionCount;
   section.totalScore = targetSection.totalScore;
   state.examAnswers = (state.examAnswers || []).filter((answer) => answer.examSectionId !== targetSection.id || answer.questionNumber <= questionCount);
@@ -2985,7 +2985,7 @@ function computeWeeklySubmissionGrade(section, submission, visibleAnswers = []) 
     if (!savedAnswer || !selectedAnswer || !correctAnswer) return null;
     if (selectedAnswer === correctAnswer) {
       correctCount += 1;
-      score += getWeeklyAnswerPointValue(answerKey, section);
+      score += getWeeklyVisibleAnswerPointValue(answerKey, section, visibleAnswers);
     }
   }
   return {
@@ -3458,7 +3458,7 @@ function gradeSubmission(section, submission, selectedAnswers) {
       : selectedAnswers[questionNumber - 1]);
     const correctAnswer = normalizeExamAnswerChoice(answer.correctAnswer);
     const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answer, section) : 0;
+    const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answer, section, answers) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({

@@ -2661,9 +2661,11 @@ th {
 
 .student-answer-head {
   min-height: 48px;
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
+  align-content: center;
+  gap: 2px;
   border-radius: 8px;
   background: var(--surface-soft);
   text-align: center;
@@ -2681,7 +2683,7 @@ th {
 .student-answer-head span {
   min-height: 18px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 900;
   line-height: 1.1;
 }
@@ -2793,6 +2795,9 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
 .answer-sheet-cell span {
   color: var(--muted);
   font-size: 0.72rem;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
 }
 
 .answer-sheet-cell strong {
@@ -5654,7 +5659,7 @@ body:not([data-app-mode="teacher"]) .btn {
 }
 
 .info-modal-panel.student-graded-answer-modal .graded-answer-cell {
-  min-height: 62px;
+  min-height: 72px;
   gap: 3px;
   border-color: rgba(0, 91, 172, 0.2);
   background: #fbfdff;
@@ -5689,12 +5694,16 @@ body:not([data-app-mode="teacher"]) .btn {
 }
 
 .info-modal-panel.student-graded-answer-modal .graded-answer-cell > em {
-  color: #b42318;
+  color: var(--accent-strong);
   font-size: 0.66rem;
   font-style: normal;
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
+}
+
+.info-modal-panel.student-graded-answer-modal .graded-answer-cell.wrong > em {
+  color: #b42318;
 }
 
 @media (max-width: 430px) {
@@ -5713,7 +5722,7 @@ body:not([data-app-mode="teacher"]) .btn {
   }
 
   .info-modal-panel.student-graded-answer-modal .graded-answer-cell {
-    min-height: 58px;
+    min-height: 68px;
     padding: 6px 3px;
   }
 

@@ -2592,11 +2592,12 @@ function getStudentGradedAnswerRows(section, submission, student) {
 function renderStudentGradedAnswerCell(row) {
   const className = row.isCorrect ? "answer-sheet-cell graded-answer-cell correct" : "answer-sheet-cell graded-answer-cell wrong";
   return el("article", { className }, [
-    el("span", {}, String(row.displayNumber) + "\uBC88"),
+    el("span", {}, `${row.displayNumber}번`),
     el("strong", {}, toCircledAnswer(row.selectedAnswer)),
-    row.isCorrect ? null : el("em", {}, "\uC815\uB2F5 " + toCircledAnswer(row.correctAnswer)),
+    el("em", { className: "answer-sheet-correct-answer" }, "\uC815\uB2F5 " + toCircledAnswer(row.correctAnswer)),
   ]);
 }
+
 function getStudentSectionStatus(exam, section, submission) {
   if (submission?.status === "submitted") return "제출 완료";
   if (exam.startAt && Date.now() < new Date(exam.startAt).getTime()) return "기간 전";
@@ -2718,7 +2719,7 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
       studentExamDraft.locked[questionNumber] = true;
       studentExamDraft.editing[questionNumber] = false;
       render();
-      if (previous && previous !== value) notify(`${questionNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
+      if (previous && previous !== value) notify(`${displayNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
     node.disabled = Boolean(studentExamDraft.saving);
     node.setAttribute("aria-label", `${displayNumber}번 ${value}번 선택`);
@@ -2918,7 +2919,7 @@ function gradeStudentSubmission(section, submission) {
     const selectedAnswer = normalizeExamAnswerChoice(studentExamDraft.answers[question]);
     const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
     const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
-    const pointsAwarded = isCorrect ? getWeeklyAnswerPointValue(answerKey, section) : 0;
+    const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answerKey, section, key) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
     state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
