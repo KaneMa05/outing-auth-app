@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v192-police-vts-law-all-questions";
+const CACHE_NAME = "outing-auth-app-v194-storage-quota-fallback";
 const APP_SHELL = [
   "/",
   "/index.html",

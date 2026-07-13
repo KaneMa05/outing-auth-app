@@ -553,14 +553,29 @@ function restoreLocalStudentAuthSettings(authSettings) {
 }
 
 function saveState(options = {}) {
+  saveStateToLocalStorage();
+  if (!options.skipRemote) scheduleRemoteSave();
+  scheduleLocalDevSave();
+}
+
+function saveStateToLocalStorage() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
     if (!isStorageQuotaError(error)) throw error;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(makeLocalStorageSafeState()));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(makeLocalStorageSafeState()));
+    } catch (fallbackError) {
+      if (!isStorageQuotaError(fallbackError)) throw fallbackError;
+      console.warn("Local storage quota exceeded; storing minimal app state only.");
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(makeMinimalLocalStorageState()));
+      } catch (minimalError) {
+        console.warn("Minimal local storage state could not be saved.", minimalError);
+      }
+    }
   }
-  if (!options.skipRemote) scheduleRemoteSave();
-  scheduleLocalDevSave();
 }
 
 function isStorageQuotaError(error) {
@@ -577,7 +592,22 @@ function makeLocalStorageSafeState() {
   snapshot.outings = (snapshot.outings || []).slice(0, 30).map(stripPhotoDataForLocalStorage);
   snapshot.attendanceChecks = (snapshot.attendanceChecks || []).slice(0, 120).map(stripAttendancePhotoDataForLocalStorage);
   snapshot.deletedOutings = [];
+  snapshot.examAnswers = [];
+  snapshot.examSubmissions = [];
+  snapshot.submissionAnswers = [];
+  snapshot.finalExamScores = [];
+  snapshot.fitnessScores = [];
+  snapshot.studentRegistrationEvents = (snapshot.studentRegistrationEvents || []).slice(0, 100);
   return snapshot;
+}
+
+function makeMinimalLocalStorageState() {
+  const minimal = defaultState();
+  minimal.settings = {
+    ...minimal.settings,
+    ...(state.settings || {}),
+  };
+  return minimal;
 }
 
 function stripPhotoDataForLocalStorage(outing) {
@@ -667,7 +697,7 @@ async function initRemoteStore() {
   try {
     await loadStateFromRemote();
     const registrationChanged = reconcileStudentRegistrationFromRemote();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveStateToLocalStorage();
     if (registrationChanged || !shouldPreserveStudentAuthForm()) render();
     startRemoteRefresh();
   } catch (error) {
@@ -688,7 +718,7 @@ async function initLocalDevStore() {
       const localStudentAuth = getLocalStudentAuthSettings();
       Object.assign(state, mergeDefaultState(data.state));
       if (!state.settings?.forceLocalStudentAuth) restoreLocalStudentAuthSettings(localStudentAuth);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      saveStateToLocalStorage();
       render();
       return;
     }
@@ -729,7 +759,7 @@ async function refreshStateFromRemote(options = {}) {
     await loadStateFromRemote();
     const registrationChanged = reconcileStudentRegistrationFromRemote();
     const preserveAuthForm = shouldPreserveStudentAuthForm();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveStateToLocalStorage();
     if (registrationChanged || !preserveAuthForm) render();
     if (registrationChanged) notify("앱 등록이 초기화되었습니다. 다시 등록해주세요.");
     else if (force) notify("새로고침되었습니다.");

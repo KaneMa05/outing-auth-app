@@ -105,8 +105,7 @@ function renderWeeklyExamAbsenceManagement() {
   weekSelect.querySelectorAll("option").forEach((option) => {
     option.textContent = `${option.value}주차`;
   });
-  if (!weekOptions.includes(String(weeklyExamGradeFilters.weekNumber || ""))) weeklyExamGradeFilters.weekNumber = "1";
-  weekSelect.value = String(weeklyExamGradeFilters.weekNumber || "1");
+  weekSelect.value = resolveWeeklyGradeWeekFilter(selected.value, weekOptions);
   weekSelect.addEventListener("change", () => {
     weeklyExamGradeFilters.weekNumber = weekSelect.value;
     render();
@@ -241,6 +240,22 @@ function getWeeklyExams() {
   return [...(state.exams || [])]
     .filter((exam) => !cohort || String(exam.cohort || "") === cohort)
     .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function getLatestWeeklyExamWeekForCohort(cohort = selectedStudentCohort) {
+  const normalizedCohort = String(cohort || "");
+  const latestExam = [...(state.exams || [])]
+    .filter((exam) => !normalizedCohort || String(exam.cohort || "") === normalizedCohort)
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+  return String(Number(latestExam?.weekNumber) || 1);
+}
+
+function resolveWeeklyGradeWeekFilter(cohort, weekOptions) {
+  const currentWeek = String(weeklyExamGradeFilters.weekNumber || "");
+  if (weekOptions.includes(currentWeek)) return currentWeek;
+  const latestWeek = getLatestWeeklyExamWeekForCohort(cohort);
+  weeklyExamGradeFilters.weekNumber = weekOptions.includes(latestWeek) ? latestWeek : "1";
+  return weeklyExamGradeFilters.weekNumber;
 }
 
 function getSelectedWeeklyExamCohort() {
@@ -1775,8 +1790,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   weekSelect.querySelectorAll("option").forEach((option) => {
     option.textContent = `${option.value}주차`;
   });
-  if (!weekOptions.includes(String(weeklyExamGradeFilters.weekNumber || ""))) weeklyExamGradeFilters.weekNumber = "1";
-  weekSelect.value = String(weeklyExamGradeFilters.weekNumber || "1");
+  weekSelect.value = resolveWeeklyGradeWeekFilter(cohort, weekOptions);
   weekSelect.addEventListener("change", () => {
     weeklyExamGradeFilters.weekNumber = weekSelect.value;
     weeklyExamGradeFilters.examId = "";
