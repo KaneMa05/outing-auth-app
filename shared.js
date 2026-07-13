@@ -207,15 +207,18 @@ function expandTrackOptionAlias(option) {
   return [option];
 }
 
+const WEEKLY_POLICE_VTS_TRACK = "경찰직 - 해상교통관제(VTS)(순경)";
+const WEEKLY_GENERAL_VTS_TRACK = "일반직 - 선박교통관제(VTS)";
 const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 함정요원 항해(순경)",
   "경찰직 - 함정요원 기관(순경)",
+  WEEKLY_POLICE_VTS_TRACK,
   "경찰직 - 경위 공채(해양-기관)",
   "경찰직 - 경위 공채(해양-항해)",
 ];
 const WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS = [
-  { key: "vts", label: "VTS", keywords: ["VTS"], tracks: ["경찰직 - 해상교통관제(VTS)(순경)", "일반직 - 선박교통관제(VTS)"] },
+  { key: "vts", label: "일반직 VTS", keywords: ["VTS"], tracks: [WEEKLY_GENERAL_VTS_TRACK] },
   { key: "academy", label: "학과특채", keywords: ["해경학과"], tracks: ["경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
 ];
 const WEEKLY_QUESTION_TRACK_SCOPED_SUBJECTS = ["해사법규"];
@@ -302,11 +305,7 @@ function normalizeWeeklyQuestionTargetTracks(tracks) {
 function isWeeklyQuestionForTrack(answer, track) {
   const targetTracks = normalizeWeeklyQuestionTargetTracks(answer?.targetTracks);
   const normalizedTrack = normalizeCoastGuardTrack(track);
-  if (targetTracks.includes(normalizedTrack)) return true;
-  return WEEKLY_QUESTION_OPTIONAL_TRACK_GROUPS.some((group) =>
-    group.tracks.some((groupTrack) => targetTracks.includes(normalizeCoastGuardTrack(groupTrack))) &&
-    group.keywords.some((keyword) => normalizedTrack.includes(keyword))
-  );
+  return targetTracks.includes(normalizedTrack);
 }
 
 function isWeeklyQuestionTrackScopedSubject(subject) {

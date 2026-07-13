@@ -1531,7 +1531,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
     el("div", {}, [
       el("strong", {}, `${Number(exam?.weekNumber) || 1}주차 ${section.subject}`),
       el("span", {}, `${answers.length}문항 · 숫자를 키보드로 입력해주세요`),
-      trackScoped ? el("small", {}, "공채, 함정요원, 간부는 기본 적용됩니다. VTS와 학과특채만 문항별로 선택해주세요.") : null,
+      trackScoped ? el("small", {}, "공채, 함정요원, 경찰직 VTS, 간부는 기본 적용됩니다. 일반직 VTS와 학과특채만 문항별로 선택해주세요.") : null,
     ]),
     el("div", { className: "weekly-answer-header-actions" }, [
       renderWeeklyQuestionCountControls(section, answers, options),
