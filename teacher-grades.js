@@ -244,10 +244,26 @@ function getWeeklyExams() {
 
 function getLatestWeeklyExamWeekForCohort(cohort = selectedStudentCohort) {
   const normalizedCohort = String(cohort || "");
-  const latestExam = [...(state.exams || [])]
+  const exams = [...(state.exams || [])]
     .filter((exam) => !normalizedCohort || String(exam.cohort || "") === normalizedCohort)
-    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const latestExam = exams.find(hasWeeklyExamGradeData) || exams[0];
   return String(Number(latestExam?.weekNumber) || 1);
+}
+
+function hasWeeklyExamGradeData(exam) {
+  if (!exam?.id) return false;
+  const sectionIds = new Set(
+    (state.examSections || [])
+      .filter((section) => section.examId === exam.id && section.isActive !== false && !isWeeklySubjectExcludedForTrack(section.subject, section.track))
+      .map((section) => section.id)
+  );
+  if (!sectionIds.size) return false;
+  const hasAnswerKey = (state.examAnswers || []).some((answer) =>
+    sectionIds.has(answer.examSectionId) && Boolean(answer.correctAnswer)
+  );
+  if (hasAnswerKey) return true;
+  return (state.examSubmissions || []).some((submission) => sectionIds.has(submission.examSectionId));
 }
 
 function resolveWeeklyGradeWeekFilter(cohort, weekOptions) {

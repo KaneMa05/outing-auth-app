@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v194-storage-quota-fallback";
+const CACHE_NAME = "outing-auth-app-v195-latest-ready-weekly-grade";
 const APP_SHELL = [
   "/",
   "/index.html",
