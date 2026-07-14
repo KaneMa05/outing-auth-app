@@ -2384,9 +2384,9 @@ function isStudentSectionPublished(section, studentTrack = "") {
   const answers = getStudentVisibleSectionAnswers(section, { track: studentTrack });
   const questionCount = Number(section.questionCount) || 0;
   if (isWeeklyQuestionTrackScopedSubject(section.subject)) {
-    return answers.length > 0 && answers.every((answer) => answer.correctAnswer);
+    return answers.length > 0 && answers.every(hasExamCorrectAnswer);
   }
-  return answers.length > 0 && answers.length >= questionCount && answers.every((answer) => answer.correctAnswer);
+  return answers.length > 0 && answers.length >= questionCount && answers.every(hasExamCorrectAnswer);
 }
 
 function getStudentVisibleSectionAnswers(section, student) {
@@ -2578,13 +2578,13 @@ function getStudentGradedAnswerRows(section, submission, student) {
   return getStudentVisibleSectionAnswers(section, student).map((answerKey, index) => {
     const submittedAnswer = submittedAnswers.get(Number(answerKey.questionNumber));
     const selectedAnswer = normalizeExamAnswerChoice(submittedAnswer?.selectedAnswer);
-    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
+    const correctAnswers = getExamCorrectAnswers(answerKey);
     return {
       displayNumber: index + 1,
       questionNumber: answerKey.questionNumber,
       selectedAnswer,
-      correctAnswer,
-      isCorrect: Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer),
+      correctAnswers,
+      isCorrect: isExamAnswerCorrect(selectedAnswer, answerKey),
     };
   });
 }
@@ -2594,7 +2594,7 @@ function renderStudentGradedAnswerCell(row) {
   return el("article", { className }, [
     el("span", {}, `${row.displayNumber}번`),
     el("strong", {}, toCircledAnswer(row.selectedAnswer)),
-    el("em", { className: "answer-sheet-correct-answer" }, "\uC815\uB2F5 " + toCircledAnswer(row.correctAnswer)),
+    el("em", { className: "answer-sheet-correct-answer" }, "\uC815\uB2F5 " + toCircledAnswers(row.correctAnswers)),
   ]);
 }
 
@@ -2917,8 +2917,7 @@ function gradeStudentSubmission(section, submission) {
   key.forEach((answerKey) => {
     const question = answerKey.questionNumber;
     const selectedAnswer = normalizeExamAnswerChoice(studentExamDraft.answers[question]);
-    const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
-    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const isCorrect = isExamAnswerCorrect(selectedAnswer, answerKey);
     const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answerKey, section, key) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
@@ -3029,6 +3028,11 @@ async function verifyStudentSubmissionAnswersSaved(submissionId, expectedCount) 
 
 function toCircledAnswer(value) {
   return ["", "①", "②", "③", "④"][Number(value)] || "-";
+}
+
+function toCircledAnswers(values) {
+  const answers = normalizeExamCorrectAnswers(values);
+  return answers.length ? answers.map(toCircledAnswer).join(", ") : "-";
 }
 
 function formatStudentWeeklyExamName(weekNumber) {

@@ -50,6 +50,13 @@ function normalizeAnswer(value) {
   return match ? Number(match[0]) : null;
 }
 
+function normalizeCorrectAnswers(value, fallback) {
+  const source = Array.isArray(value) && value.length ? value : [fallback];
+  return [...new Set(source.flatMap((item) =>
+    String(item ?? "").trim().normalize("NFKC").match(/[1-4]/g) || []
+  ).map(Number))].sort((a, b) => a - b);
+}
+
 function normalizeTrack(track) {
   return String(track || "").trim();
 }
@@ -133,7 +140,13 @@ function groupBy(items, keyFn) {
 
   const answers = [];
   for (const chunk of chunks(sectionIds, 80)) {
-    answers.push(...await getPaged(`exam_answers?select=exam_section_id,question_number,correct_answer,points,target_tracks&exam_section_id=${encodeURIComponent(inList(chunk))}&order=question_number.asc`));
+    const filter = `exam_section_id=${encodeURIComponent(inList(chunk))}&order=question_number.asc`;
+    try {
+      answers.push(...await getPaged(`exam_answers?select=exam_section_id,question_number,correct_answer,correct_answers,points,target_tracks&${filter}`));
+    } catch (error) {
+      if (!String(error?.message || error).includes("correct_answers")) throw error;
+      answers.push(...await getPaged(`exam_answers?select=exam_section_id,question_number,correct_answer,points,target_tracks&${filter}`));
+    }
   }
   answers.forEach((answer) => {
     const section = sectionById.get(answer.exam_section_id);
@@ -180,8 +193,8 @@ function groupBy(items, keyFn) {
     let correctCount = 0;
     answerKeys.forEach((answerKey) => {
       const selected = normalizeAnswer(savedByQuestion.get(Number(answerKey.question_number))?.selected_answer);
-      const correct = normalizeAnswer(answerKey.correct_answer);
-      if (selected && correct && selected === correct) {
+      const correctAnswers = normalizeCorrectAnswers(answerKey.correct_answers, answerKey.correct_answer);
+      if (selected && correctAnswers.includes(selected)) {
         correctCount += 1;
         score += pointValue(answerKey, section);
       }

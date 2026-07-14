@@ -1977,7 +1977,7 @@ th {
 }
 
 .answer-key-input {
-  width: 56px;
+  width: 72px;
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 8px;

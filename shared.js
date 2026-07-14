@@ -1156,7 +1156,7 @@ async function loadStateFromRemote() {
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
   const examColumns = "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
   const examSectionColumns = "id,exam_id,track,subject,question_count,total_score,is_active,created_at";
-  const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,points,target_tracks";
+  const examAnswerColumns = "id,exam_section_id,question_number,correct_answer,correct_answers,points,target_tracks";
   const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
   const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
   const examFileColumns = "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at";
@@ -1323,10 +1323,13 @@ async function loadStateFromRemote() {
   }
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
+  if (isMissingColumnError(examAnswerResult.error, "correct_answers")) {
+    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points,target_tracks").order("question_number", { ascending: true }).limit(10000);
+  } else if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
+    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,correct_answers,points").order("question_number", { ascending: true }).limit(10000);
+  }
   if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    const fallbackExamAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true }).limit(10000);
-    if (fallbackExamAnswerResult.error && !isMissingRelationError(fallbackExamAnswerResult.error, "exam_answers")) throw fallbackExamAnswerResult.error;
-    examAnswerResult = fallbackExamAnswerResult;
+    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true }).limit(10000);
   }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
@@ -2596,6 +2599,35 @@ function getWeeklySectionQuestionPointValue(section, fallback = 5) {
   return Number.isFinite(value) && value >= 0 ? Math.round(value * 1000) / 1000 : fallback;
 }
 
+function normalizeExamCorrectAnswers(value) {
+  const source = Array.isArray(value) ? value : [value];
+  const choices = [];
+  source.forEach((item) => {
+    if (item === null || item === undefined || item === "") return;
+    const matches = String(item).trim().normalize("NFKC").match(/[1-4]/g) || [];
+    matches.forEach((match) => {
+      const choice = Number(match);
+      if (!choices.includes(choice)) choices.push(choice);
+    });
+  });
+  return choices.sort((a, b) => a - b);
+}
+
+function getExamCorrectAnswers(answer) {
+  if (!answer) return [];
+  const multipleAnswers = normalizeExamCorrectAnswers(answer.correctAnswers ?? answer.correct_answers);
+  return multipleAnswers.length ? multipleAnswers : normalizeExamCorrectAnswers(answer.correctAnswer ?? answer.correct_answer);
+}
+
+function hasExamCorrectAnswer(answer) {
+  return getExamCorrectAnswers(answer).length > 0;
+}
+
+function isExamAnswerCorrect(selectedAnswer, answer) {
+  const selected = normalizeExamAnswerChoice(selectedAnswer);
+  return Boolean(selected && getExamCorrectAnswers(answer).includes(selected));
+}
+
 function getWeeklySectionExpectedTotalScore(section) {
   return Number(getWeeklySubjectDefaultSpec(section?.subject).totalScore) || 100;
 }
@@ -2659,11 +2691,16 @@ function normalizeLoadedWeeklySectionScores() {
 }
 
 function mapExamAnswerFromRemote(answer) {
+  const correctAnswers = normalizeExamCorrectAnswers(answer.correct_answers);
+  const normalizedCorrectAnswers = correctAnswers.length
+    ? correctAnswers
+    : normalizeExamCorrectAnswers(answer.correct_answer);
   return {
     id: answer.id,
     examSectionId: answer.exam_section_id,
     questionNumber: Number(answer.question_number) || 0,
-    correctAnswer: normalizeExamAnswerChoice(answer.correct_answer) || 0,
+    correctAnswer: normalizedCorrectAnswers[0] || 0,
+    correctAnswers: normalizedCorrectAnswers,
     points: getExamAnswerPointValue(answer),
     targetTracks: Array.isArray(answer.target_tracks) ? answer.target_tracks.map(normalizeCoastGuardTrack).filter(Boolean) : [],
   };
@@ -2741,8 +2778,7 @@ function reconcileLoadedExamSubmissionGrades() {
       const previousAnswer = savedByQuestion.get(Number(answerKey.questionNumber));
       if (!previousAnswer) return null;
       const selectedAnswer = normalizeExamAnswerChoice(previousAnswer?.selectedAnswer);
-      const correctAnswer = normalizeExamAnswerChoice(answerKey?.correctAnswer);
-      const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+      const isCorrect = isExamAnswerCorrect(selectedAnswer, answerKey);
       const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answerKey, section, answerKeys) : 0;
       if (isCorrect) correctCount += 1;
       score += pointsAwarded;

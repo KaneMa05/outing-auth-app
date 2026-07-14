@@ -260,7 +260,7 @@ function hasWeeklyExamGradeData(exam) {
   );
   if (!sectionIds.size) return false;
   const hasAnswerKey = (state.examAnswers || []).some((answer) =>
-    sectionIds.has(answer.examSectionId) && Boolean(answer.correctAnswer)
+    sectionIds.has(answer.examSectionId) && hasExamCorrectAnswer(answer)
   );
   if (hasAnswerKey) return true;
   return (state.examSubmissions || []).some((submission) => sectionIds.has(submission.examSectionId));
@@ -1013,7 +1013,7 @@ function renderWeeklyExamAnswerWeekPanel(exams) {
 }
 
 function countEnteredSectionAnswers(section) {
-  return getSectionAnswers(section.id).filter((answer) => answer.correctAnswer).length;
+  return getSectionAnswers(section.id).filter(hasExamCorrectAnswer).length;
 }
 
 function isWeeklyExamSectionPublished(section) {
@@ -1284,6 +1284,7 @@ function createLocalExamSection(exam, track, subject, options = {}) {
       examSectionId: section.id,
       questionNumber: index + 1,
       correctAnswer: 0,
+      correctAnswers: [],
       points: pointValue,
       targetTracks: getDefaultWeeklyQuestionTargetTracks(),
     })),
@@ -1424,6 +1425,7 @@ function resetSectionAnswerRows(section) {
     examSectionId: section.id,
     questionNumber: index + 1,
     correctAnswer: 0,
+    correctAnswers: [],
     points: pointValue,
     targetTracks: getDefaultWeeklyQuestionTargetTracks(),
   })));
@@ -1444,7 +1446,7 @@ function getSectionAnswers(sectionId) {
     const pointValue = getWeeklySectionQuestionPointValue(section);
     for (let i = 1; i <= questionCount; i += 1) {
       if (!existing.has(i)) {
-        const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, points: pointValue, targetTracks: getDefaultWeeklyQuestionTargetTracks() };
+        const row = { id: createId(), examSectionId: sectionId, questionNumber: i, correctAnswer: 0, correctAnswers: [], points: pointValue, targetTracks: getDefaultWeeklyQuestionTargetTracks() };
         state.examAnswers.push(row);
         answers.push(row);
       }
@@ -1461,7 +1463,7 @@ async function updateWeeklyExamSectionQuestionCount(section, nextCount, options 
   const currentCount = Number(targetSection.questionCount) || 20;
   if (questionCount === currentCount) return notify("변경된 문항 수가 없습니다.");
   const existingAnswers = getSectionAnswers(targetSection.id);
-  const removedAnswers = existingAnswers.filter((answer) => answer.questionNumber > questionCount && answer.correctAnswer);
+  const removedAnswers = existingAnswers.filter((answer) => answer.questionNumber > questionCount && hasExamCorrectAnswer(answer));
   if (removedAnswers.length && !confirm(`${questionCount}문항으로 줄이면 ${removedAnswers.length}개 정답이 삭제됩니다. 변경할까요?`)) return;
   const previousTotalScore = Number(targetSection.totalScore) || 100;
   targetSection.questionCount = questionCount;
@@ -1498,21 +1500,21 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
       name: `answer-${answer.questionNumber}`,
       type: "text",
       inputMode: "numeric",
-      pattern: "[1-4]",
-      maxLength: 1,
-      value: answer.correctAnswer ? String(answer.correctAnswer) : "",
+      pattern: "[1-4]{1,4}",
+      maxLength: 4,
+      value: getExamCorrectAnswers(answer).join(""),
       autocomplete: "off",
       ariaLabel: `${answer.questionNumber}번 정답`,
     });
     answerInput.addEventListener("input", () => {
-      answerInput.value = normalizeMultipleChoiceAnswer(answerInput.value);
-      answer.correctAnswer = Number(answerInput.value) || 0;
+      answerInput.value = normalizeMultipleChoiceAnswers(answerInput.value);
+      answer.correctAnswers = normalizeExamCorrectAnswers(answerInput.value);
+      answer.correctAnswer = answer.correctAnswers[0] || 0;
       answer.points = getWeeklySectionQuestionPointValue(section);
       saveState({ skipRemote: true });
-      if (answerInput.value) focusNextAnswerInput(answerInput);
     });
     answerInput.addEventListener("keydown", (event) => {
-      if (event.key === "Tab" && !event.shiftKey) {
+      if ((event.key === "Tab" && !event.shiftKey) || event.key === "Enter") {
         const next = getNextAnswerInput(answerInput);
         if (next) {
           event.preventDefault();
@@ -1561,7 +1563,7 @@ function renderWeeklyExamAnswerPanel(section, sections = [], options = {}) {
   const answerHeader = el("div", { className: "weekly-answer-header" }, [
     el("div", {}, [
       el("strong", {}, `${Number(exam?.weekNumber) || 1}주차 ${section.subject}`),
-      el("span", {}, `${answers.length}문항 · 숫자를 키보드로 입력해주세요`),
+      el("span", {}, `${answers.length}문항 · 복수 정답은 번호를 이어서 입력해주세요 (예: 13)`),
       trackScoped ? el("small", {}, "공채, 함정요원, 경찰직 VTS, 간부는 기본 적용됩니다. 일반직 VTS와 학과특채만 문항별로 선택해주세요.") : null,
     ]),
     el("div", { className: "weekly-answer-header-actions" }, [
@@ -1682,7 +1684,8 @@ function syncWeeklyAnswerFormState(form, answers) {
   const section = (state.examSections || []).find((item) => item.id === sectionId) || null;
   const pointValue = getWeeklySectionQuestionPointValue(section);
   answers.forEach((answer) => {
-    answer.correctAnswer = Number(form.querySelector(`[name='answer-${answer.questionNumber}']`)?.value) || 0;
+    answer.correctAnswers = normalizeExamCorrectAnswers(form.querySelector(`[name='answer-${answer.questionNumber}']`)?.value);
+    answer.correctAnswer = answer.correctAnswers[0] || 0;
     answer.points = pointValue;
     answer.targetTracks = normalizeWeeklyQuestionTargetTracks(answer.targetTracks);
   });
@@ -1714,11 +1717,10 @@ function renderWeeklyQuestionTrackOptions(answer, section, answers) {
   }));
 }
 
-function normalizeMultipleChoiceAnswer(value) {
+function normalizeMultipleChoiceAnswers(value) {
   const circled = { "①": "1", "②": "2", "③": "3", "④": "4" };
   const normalized = String(value || "").trim().replace(/[①②③④]/g, (char) => circled[char] || "");
-  const match = normalized.match(/[1-4]/);
-  return match ? match[0] : "";
+  return normalizeExamCorrectAnswers(normalized).join("");
 }
 
 function getNextAnswerInput(inputNode) {
@@ -1742,7 +1744,7 @@ function openCopyAnswersModal(sourceSection) {
   const run = button("복사", "btn", "button", async () => {
     const targetIds = [...list.querySelectorAll("input:checked")].map((node) => node.value);
     if (!targetIds.length) return notify("복사할 과목을 선택해주세요.");
-    const hasExisting = targetIds.some((id) => getSectionAnswers(id).some((answer) => answer.correctAnswer));
+    const hasExisting = targetIds.some((id) => getSectionAnswers(id).some(hasExamCorrectAnswer));
     if (hasExisting && !confirm("기존 정답이 있는 과목이 있습니다. 덮어쓸까요?")) return;
     const sourceAnswers = getSectionAnswers(sourceSection.id);
     targetIds.forEach((id) => {
@@ -1755,6 +1757,7 @@ function openCopyAnswersModal(sourceSection) {
         examSectionId: id,
         questionNumber: answer.questionNumber,
         correctAnswer: answer.correctAnswer,
+        correctAnswers: getExamCorrectAnswers(answer),
         points: pointValue,
         targetTracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
       })));
@@ -3011,9 +3014,8 @@ function computeWeeklySubmissionGrade(section, submission, visibleAnswers = []) 
     const questionNumber = Number(answerKey.questionNumber) || 0;
     const savedAnswer = savedByQuestion.get(questionNumber);
     const selectedAnswer = normalizeExamAnswerChoice(savedAnswer?.selectedAnswer);
-    const correctAnswer = normalizeExamAnswerChoice(answerKey.correctAnswer);
-    if (!savedAnswer || !selectedAnswer || !correctAnswer) return null;
-    if (selectedAnswer === correctAnswer) {
+    if (!savedAnswer || !selectedAnswer || !hasExamCorrectAnswer(answerKey)) return null;
+    if (isExamAnswerCorrect(selectedAnswer, answerKey)) {
       correctCount += 1;
       score += getWeeklyVisibleAnswerPointValue(answerKey, section, visibleAnswers);
     }
@@ -3249,7 +3251,7 @@ function getWeeklyGradeVisibleAnswers(section, student) {
   const studentTrack = typeof student === "string" ? normalizeCoastGuardTrack(student) : getTeacherStudentRegisteredTrack(student);
   const questionCount = Number(section.questionCount) || 0;
   return getSectionAnswers(section.id)
-    .filter((answer) => answer.correctAnswer)
+    .filter(hasExamCorrectAnswer)
     .filter((answer) => !questionCount || Number(answer.questionNumber) <= questionCount)
     .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, studentTrack));
 }
@@ -3486,8 +3488,7 @@ function gradeSubmission(section, submission, selectedAnswers) {
     const selectedAnswer = normalizeExamAnswerChoice(selectedByQuestion.has(questionNumber)
       ? selectedByQuestion.get(questionNumber)
       : selectedAnswers[questionNumber - 1]);
-    const correctAnswer = normalizeExamAnswerChoice(answer.correctAnswer);
-    const isCorrect = Boolean(selectedAnswer && correctAnswer && selectedAnswer === correctAnswer);
+    const isCorrect = isExamAnswerCorrect(selectedAnswer, answer);
     const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answer, section, answers) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
@@ -3557,29 +3558,35 @@ async function saveExamAnswersToRemote(answers) {
   if (!uniqueAnswers.length) return;
   const answerConflictKey = "exam_section_id,question_number";
   let rows = buildExamAnswerRows(uniqueAnswers, { includeId: false });
-  let { error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: answerConflictKey });
+  let { error, options: fallbackOptions } = await upsertExamAnswerRowsWithFallback(rows, answerConflictKey);
   if (isMissingConflictConstraintError(error)) {
-    await saveExamAnswersToRemoteWithoutQuestionConflict(uniqueAnswers);
+    await saveExamAnswersToRemoteWithoutQuestionConflict(uniqueAnswers, fallbackOptions);
     return;
-  }
-  if (isMissingColumnError(error, "target_tracks")) {
-    const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
-    ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: answerConflictKey }));
-    if (isMissingConflictConstraintError(error)) {
-      await saveExamAnswersToRemoteWithoutQuestionConflict(uniqueAnswers, { omitTargetTracks: true });
-      return;
-    }
   }
   if (isDuplicateConstraintError(error, "exam_answers_pkey")) {
     await syncRemoteExamAnswerIds(uniqueAnswers);
     rows = buildExamAnswerRows(uniqueAnswers);
-    ({ error } = await remoteStore.from("exam_answers").upsert(rows, { onConflict: "id" }));
-    if (isMissingColumnError(error, "target_tracks")) {
-      const fallbackRows = rows.map(({ target_tracks, ...row }) => row);
-      ({ error } = await remoteStore.from("exam_answers").upsert(fallbackRows, { onConflict: "id" }));
-    }
+    ({ error } = await upsertExamAnswerRowsWithFallback(rows, "id"));
   }
   if (error) throw error;
+}
+
+async function upsertExamAnswerRowsWithFallback(rows, onConflict) {
+  let options = {};
+  for (;;) {
+    const payload = rows.map((row) => omitUnsupportedExamAnswerColumns(row, options));
+    const { error } = await remoteStore.from("exam_answers").upsert(payload, { onConflict });
+    if (isMissingColumnError(error, "correct_answers") && !options.omitCorrectAnswers) {
+      if (rows.some((row) => normalizeExamCorrectAnswers(row.correct_answers).length > 1)) return { error, options };
+      options = { ...options, omitCorrectAnswers: true };
+      continue;
+    }
+    if (isMissingColumnError(error, "target_tracks") && !options.omitTargetTracks) {
+      options = { ...options, omitTargetTracks: true };
+      continue;
+    }
+    return { error, options };
+  }
 }
 
 async function saveExamAnswersToRemoteWithoutQuestionConflict(answers, options = {}) {
@@ -3599,20 +3606,28 @@ async function saveExamAnswersToRemoteWithoutQuestionConflict(answers, options =
     const remoteId = remoteIds.get(`${answer.examSectionId}|||${Number(answer.questionNumber) || 0}`);
     if (remoteId) answer.id = remoteId;
     const [row] = buildExamAnswerRows([answer], { includeId: Boolean(answer.id) });
-    const payload = options.omitTargetTracks
-      ? (({ target_tracks, ...rest }) => rest)(row)
-      : row;
+    const payload = omitUnsupportedExamAnswerColumns(row, options);
     if (remoteId) {
       let { error } = await remoteStore.from("exam_answers").update(payload).eq("id", remoteId);
+      if (isMissingColumnError(error, "correct_answers") && !options.omitCorrectAnswers) {
+        if (getExamCorrectAnswers(answer).length > 1) throw error;
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { ...options, omitCorrectAnswers: true });
+        continue;
+      }
       if (isMissingColumnError(error, "target_tracks") && !options.omitTargetTracks) {
-        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { omitTargetTracks: true });
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { ...options, omitTargetTracks: true });
         continue;
       }
       if (error) throw error;
     } else {
       let { error } = await remoteStore.from("exam_answers").insert(payload);
+      if (isMissingColumnError(error, "correct_answers") && !options.omitCorrectAnswers) {
+        if (getExamCorrectAnswers(answer).length > 1) throw error;
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { ...options, omitCorrectAnswers: true });
+        continue;
+      }
       if (isMissingColumnError(error, "target_tracks") && !options.omitTargetTracks) {
-        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { omitTargetTracks: true });
+        await saveExamAnswersToRemoteWithoutQuestionConflict([answer], { ...options, omitTargetTracks: true });
         continue;
       }
       if (error) throw error;
@@ -3631,14 +3646,27 @@ function getUniqueExamAnswersByQuestion(answers) {
 }
 
 function buildExamAnswerRows(answers, options = {}) {
-  return answers.map((answer) => ({
-    ...(options.includeId === false ? {} : { id: answer.id }),
-    exam_section_id: answer.examSectionId,
-    question_number: Number(answer.questionNumber) || 0,
-    correct_answer: answer.correctAnswer || null,
-    points: getWeeklyAnswerPointValue(answer, (state.examSections || []).find((section) => section.id === answer.examSectionId)),
-    target_tracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
-  }));
+  return answers.map((answer) => {
+    const correctAnswers = getExamCorrectAnswers(answer);
+    answer.correctAnswers = correctAnswers;
+    answer.correctAnswer = correctAnswers[0] || 0;
+    return {
+      ...(options.includeId === false ? {} : { id: answer.id }),
+      exam_section_id: answer.examSectionId,
+      question_number: Number(answer.questionNumber) || 0,
+      correct_answer: answer.correctAnswer || null,
+      correct_answers: correctAnswers,
+      points: getWeeklyAnswerPointValue(answer, (state.examSections || []).find((section) => section.id === answer.examSectionId)),
+      target_tracks: normalizeWeeklyQuestionTargetTracks(answer.targetTracks),
+    };
+  });
+}
+
+function omitUnsupportedExamAnswerColumns(row, options = {}) {
+  const payload = { ...row };
+  if (options.omitCorrectAnswers) delete payload.correct_answers;
+  if (options.omitTargetTracks) delete payload.target_tracks;
+  return payload;
 }
 
 async function syncRemoteExamAnswerIds(answers) {
