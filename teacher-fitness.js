@@ -429,7 +429,7 @@ function buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRo
           isGenderEnd,
           deltaDirection: delta.direction,
         });
-        return `<row r="${rowNumber}">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
+        return `<row r="${rowNumber}" ht="${pxToExcelRowHeight(28)}" customHeight="1">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
       }).join("")
     : `<row r="4">${buildXlsxInlineStringCell("A4", "측정 완료 인원이 없습니다.", 3)}</row>`;
   const missingRowsXml = missingRows.length
@@ -442,6 +442,7 @@ function buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRo
   }
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
   <dimension ref="A1:${lastColumn}${lastRow}"/>
   <sheetViews><sheetView workbookViewId="0"/></sheetViews>
   <sheetFormatPr defaultRowHeight="21"/>
@@ -449,6 +450,7 @@ function buildFitnessMonthlyReportSheetXml({ titleText, headers, rows, missingRo
   <sheetData>${titleRow}${spacerRow}${headerRow}${bodyRows}${missingRowsXml}</sheetData>
   <mergeCells count="${mergeRefs.length}">${mergeRefs.join("")}</mergeCells>
   <pageMargins left="0.25" right="0.25" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+  <pageSetup paperSize="8" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
 
@@ -464,7 +466,7 @@ function buildFitnessMonthlyReportMissingRowsXml({ headers, missingRows, startRo
     const cellsXml = cells.map((cell, columnIndex) =>
       buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, 3, isFitnessMonthlyReportNumericColumn(columnIndex))
     ).join("");
-    return `<row r="${rowNumber}">${cellsXml}</row>`;
+    return `<row r="${rowNumber}" ht="${pxToExcelRowHeight(28)}" customHeight="1">${cellsXml}</row>`;
   }).join("");
   return [
     `<row r="${startRow}" ht="21" customHeight="1"></row>`,

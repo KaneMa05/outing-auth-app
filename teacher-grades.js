@@ -2618,11 +2618,12 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
           isTrackEnd,
           deltaDirection: delta.direction,
         });
-        return `<row r="${rowNumber}">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
+        return `<row r="${rowNumber}" ht="${pxToExcelRowHeight(28)}" customHeight="1">${cellsXml}${buildXlsxInlineStringCell(`${getExcelColumnName(columnCount)}${rowNumber}`, delta.label, deltaStyle)}</row>`;
       }).join("")
     : `<row r="4">${buildXlsxInlineStringCell("A4", "조회된 성적이 없습니다.", 3)}</row>`;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
   <dimension ref="A1:${lastColumn}${lastRow}"/>
   <sheetViews><sheetView workbookViewId="0"/></sheetViews>
   <sheetFormatPr defaultRowHeight="21"/>
@@ -2630,6 +2631,7 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
   <sheetData>${titleRow}${spacerRow}${headerRow}${bodyRows}</sheetData>
   <mergeCells count="1"><mergeCell ref="A1:${lastColumn}1"/></mergeCells>
   <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+  <pageSetup paperSize="8" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
 
