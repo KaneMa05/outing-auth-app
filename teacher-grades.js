@@ -107,6 +107,7 @@ function renderWeeklyExamAbsenceManagement() {
   });
   weekSelect.value = resolveWeeklyGradeWeekFilter(selected.value, weekOptions);
   weekSelect.addEventListener("change", () => {
+    weeklyExamGradeWeekManuallySelected = true;
     weeklyExamGradeFilters.weekNumber = weekSelect.value;
     render();
   });
@@ -246,9 +247,36 @@ function getLatestWeeklyExamWeekForCohort(cohort = selectedStudentCohort) {
   const normalizedCohort = String(cohort || "");
   const exams = [...(state.exams || [])]
     .filter((exam) => !normalizedCohort || String(exam.cohort || "") === normalizedCohort)
-    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  const latestExam = exams.find(hasWeeklyExamGradeData) || exams[0];
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0) || Number(b.weekNumber) - Number(a.weekNumber));
+  const submittedExam = exams
+    .map((exam) => ({ exam, submittedAt: getLatestWeeklyExamSubmittedAt(exam) }))
+    .filter((item) => item.submittedAt)
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt) || Number(b.exam.weekNumber) - Number(a.exam.weekNumber))[0]?.exam;
+  const activeExam = exams
+    .filter(isWeeklyExamStarted)
+    .sort((a, b) => new Date(b.startAt || 0) - new Date(a.startAt || 0) || Number(b.weekNumber) - Number(a.weekNumber))[0];
+  const latestExam = submittedExam || activeExam || exams[0];
   return String(Number(latestExam?.weekNumber) || 1);
+}
+
+function getLatestWeeklyExamSubmittedAt(exam) {
+  if (!exam?.id) return "";
+  const sectionIds = new Set(
+    (state.examSections || [])
+      .filter((section) => section.examId === exam.id)
+      .map((section) => section.id)
+  );
+  return (state.examSubmissions || [])
+    .filter((submission) => sectionIds.has(submission.examSectionId))
+    .map((submission) => submission.submittedAt || submission.createdAt || "")
+    .filter(Boolean)
+    .sort((a, b) => new Date(b) - new Date(a))[0] || "";
+}
+
+function isWeeklyExamStarted(exam) {
+  if (!exam?.isPublished || !exam.startAt) return false;
+  const startTime = new Date(exam.startAt).getTime();
+  return Number.isFinite(startTime) && startTime <= Date.now();
 }
 
 function hasWeeklyExamGradeData(exam) {
@@ -267,8 +295,13 @@ function hasWeeklyExamGradeData(exam) {
 }
 
 function resolveWeeklyGradeWeekFilter(cohort, weekOptions) {
+  const normalizedCohort = String(cohort || "");
+  if (weeklyExamGradeLastAutoCohort !== normalizedCohort) {
+    weeklyExamGradeWeekManuallySelected = false;
+    weeklyExamGradeLastAutoCohort = normalizedCohort;
+  }
   const currentWeek = String(weeklyExamGradeFilters.weekNumber || "");
-  if (weekOptions.includes(currentWeek)) return currentWeek;
+  if (weeklyExamGradeWeekManuallySelected && weekOptions.includes(currentWeek)) return currentWeek;
   const latestWeek = getLatestWeeklyExamWeekForCohort(cohort);
   weeklyExamGradeFilters.weekNumber = weekOptions.includes(latestWeek) ? latestWeek : "1";
   return weeklyExamGradeFilters.weekNumber;
@@ -1811,6 +1844,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   });
   weekSelect.value = resolveWeeklyGradeWeekFilter(cohort, weekOptions);
   weekSelect.addEventListener("change", () => {
+    weeklyExamGradeWeekManuallySelected = true;
     weeklyExamGradeFilters.weekNumber = weekSelect.value;
     weeklyExamGradeFilters.examId = "";
     render();

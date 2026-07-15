@@ -15,6 +15,8 @@ let editingNoticeId = "";
 let trackOptionDraft = null;
 let gradeManagementMode = "weekly";
 let gradeManagementTrackFilter = "";
+let weeklyExamGradeWeekManuallySelected = false;
+let weeklyExamGradeLastAutoCohort = "";
 let finalExamGradeFilters = { round: "1" };
 let studentPreviewFinalRoundByStudent = {};
 let studentPreviewGradeTypeByStudent = {};
@@ -122,9 +124,9 @@ function renderTeacherAuth() {
       teacherAuth.checked = true;
       teacherAuth.user = data.user || null;
       if (!canUseRoute(currentRoute)) currentRoute = firstAllowedTeacherRoute();
-      await initRemoteStore();
       render();
-      notify("교사 로그인이 완료되었습니다.");
+      notify("교사 로그인이 완료되었습니다. 데이터를 불러오는 중입니다.");
+      initRemoteStore();
     } catch (error) {
       console.error(error);
       result.className = "student-auth-result error";
