@@ -23,12 +23,22 @@ module.exports = async function handler(req, res) {
         res.status(401).json({ ok: false, error: "unauthorized" });
         return;
       }
-      if (!hasPermission(session, "attendance.write")) {
+      const body = await readJson(req);
+      const rawSettings = body.settings || body;
+      const writesAttendanceSettings =
+        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDeadline") ||
+        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDeadlineEnabled");
+      const writesSeatAssignments = Object.prototype.hasOwnProperty.call(rawSettings, "seatAssignments");
+      if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
-      const body = await readJson(req);
-      const settings = normalizeSettings(body.settings || body);
+      if (writesSeatAssignments && !hasPermission(session, "seats.write")) {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      const currentSettings = await loadSettings();
+      const settings = normalizeSettings({ ...currentSettings, ...rawSettings });
       await saveSettings(settings);
       res.status(200).json({ ok: true, settings });
       return;
@@ -84,15 +94,23 @@ async function saveSettings(settings) {
 }
 
 function normalizeSettings(settings) {
-  return {
+  const normalized = {
     attendanceDeadline: normalizeAttendanceDeadlineValue(settings.attendanceDeadline),
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
   };
+  if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {
+    normalized.seatAssignments = normalizeSeatAssignments(settings.seatAssignments);
+  }
+  return normalized;
 }
 
 function normalizeAttendanceDeadlineValue(value) {
   const text = String(value || "");
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_ATTENDANCE_DEADLINE;
+}
+
+function normalizeSeatAssignments(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 async function requestSupabase(method, path, body, extraHeaders = {}) {

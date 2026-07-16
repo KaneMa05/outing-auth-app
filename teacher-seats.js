@@ -298,13 +298,14 @@ function openSeatModal(roomId, seatId) {
     ]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const studentId = String(studentSelect.value || "").trim();
     if (!studentId) {
       notify("배정할 학생을 선택해주세요.");
       return;
     }
+    const beforeSeatAssignments = JSON.parse(JSON.stringify(state.seatAssignments || {}));
     const existingSeat = findSeatByStudentId(studentId);
     if (existingSeat && !(existingSeat.roomId === roomId && existingSeat.seatId === seatId)) {
       const existingRoomSeats = getSeatRoomAssignments(existingSeat.roomId, getCurrentStudentCohort());
@@ -315,6 +316,15 @@ function openSeatModal(roomId, seatId) {
       updatedAt: new Date().toISOString(),
     };
     saveState({ skipRemote: true });
+    try {
+      await saveSeatAssignmentsToRemote();
+    } catch (error) {
+      console.error(error);
+      state.seatAssignments = beforeSeatAssignments;
+      saveState({ skipRemote: true });
+      notify("좌석 저장 중 오류가 발생했습니다.");
+      return;
+    }
     closeInfoModal();
     render();
     notify(`${seatId}번 좌석이 저장되었습니다.`);
@@ -335,14 +345,24 @@ function openSeatModal(roomId, seatId) {
   studentSelect.focus();
 }
 
-function removeSeatAssignment(roomId, seatId, fromModal = false) {
+async function removeSeatAssignment(roomId, seatId, fromModal = false) {
   const roomSeats = getSeatRoomAssignments(roomId, getCurrentStudentCohort());
   const assignment = roomSeats[seatId];
   if (!assignment?.studentId) return;
   const student = findStudent(assignment.studentId);
   if (!confirm(`${seatId}번 좌석의 ${student?.name || "학생"} 배정을 삭제할까요?`)) return;
+  const beforeSeatAssignments = JSON.parse(JSON.stringify(state.seatAssignments || {}));
   delete roomSeats[seatId];
   saveState({ skipRemote: true });
+  try {
+    await saveSeatAssignmentsToRemote();
+  } catch (error) {
+    console.error(error);
+    state.seatAssignments = beforeSeatAssignments;
+    saveState({ skipRemote: true });
+    notify("좌석 삭제 저장 중 오류가 발생했습니다.");
+    return;
+  }
   if (fromModal) closeInfoModal();
   render();
   notify(`${seatId}번 좌석 배정을 삭제했습니다.`);

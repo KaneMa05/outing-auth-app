@@ -74,6 +74,7 @@ let studentInteractionPausedUntil = 0;
 let isStudentInteractionTrackingStarted = false;
 let isStudentPullRefreshStarted = false;
 let appSettingsApiLastLoadedAt = 0;
+let lastRemoteAppSettingsHadSeatAssignments = false;
 let studentPullStartY = 0;
 let studentPullDistance = 0;
 let studentPullPointerId = null;
@@ -1099,6 +1100,7 @@ async function loadStateFromRemote() {
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
   const localSubmissionAnswers = Array.isArray(state.submissionAnswers) ? state.submissionAnswers.map((answer) => ({ ...answer })) : [];
+  const localSeatAssignments = JSON.parse(JSON.stringify(state.seatAssignments || {}));
   let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
@@ -1448,6 +1450,7 @@ async function loadStateFromRemote() {
     state.notices = remoteNotices;
   }
   if (!loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
+  await migrateLocalSeatAssignmentsToRemoteIfNeeded(localSeatAssignments);
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
   if (!examResult.error) state.exams = (examResult.data || []).map(mapExamFromRemote);
@@ -3089,6 +3092,44 @@ async function saveAppSettingsToRemote() {
   applyRemoteAppSettings(data.settings);
 }
 
+async function saveSeatAssignmentsToRemote() {
+  const response = await fetch("/api/app-settings", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      settings: {
+        seatAssignments: state.seatAssignments || {},
+      },
+    }),
+  });
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) throw new Error(data.error || "seat_assignments_save_failed");
+  applyRemoteAppSettings(data.settings);
+}
+
+async function migrateLocalSeatAssignmentsToRemoteIfNeeded(localSeatAssignments) {
+  if (APP_MODE !== "teacher") return;
+  if (lastRemoteAppSettingsHadSeatAssignments) return;
+  if (!hasTeacherPermission("seats.write")) return;
+  if (!hasSeatAssignmentData(localSeatAssignments)) return;
+  state.seatAssignments = localSeatAssignments;
+  try {
+    await saveSeatAssignmentsToRemote();
+  } catch (error) {
+    console.warn("Unable to migrate local seat assignments.", error);
+  }
+}
+
+function hasSeatAssignmentData(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value).some((item) => {
+    if (!item || typeof item !== "object") return false;
+    if (item.studentId) return true;
+    return hasSeatAssignmentData(item);
+  });
+}
+
 async function loadAppSettingsFromApi() {
   const now = Date.now();
   if (appSettingsApiLastLoadedAt && now - appSettingsApiLastLoadedAt < APP_SETTINGS_API_FALLBACK_INTERVAL_MS) return;
@@ -3106,6 +3147,15 @@ function applyRemoteAppSettings(settings) {
   if (!settings) return;
   state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
+  lastRemoteAppSettingsHadSeatAssignments = Object.prototype.hasOwnProperty.call(settings, "seatAssignments");
+  if (
+    lastRemoteAppSettingsHadSeatAssignments &&
+    settings.seatAssignments &&
+    typeof settings.seatAssignments === "object" &&
+    !Array.isArray(settings.seatAssignments)
+  ) {
+    state.seatAssignments = settings.seatAssignments;
+  }
 }
 
 function getImportantNotices({ publishedOnly = false } = {}) {
