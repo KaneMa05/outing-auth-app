@@ -310,12 +310,22 @@ function openPenaltyModal() {
     el("option", { value: "reward" }, "상점"),
   ]);
   const presetSelect = el("select", { name: "penaltyPreset" }, [
-    el("option", { value: "" }, "직접 입력"),
+    el("option", { value: "" }, ""),
     ...PENALTY_PRESETS.map((preset) => el("option", { value: preset.reason }, `${preset.reason} - ${preset.points}점`)),
+    el("option", { value: "__custom__" }, "직접 입력"),
   ]);
   const pointsInput = el("input", { name: "points", type: "number", min: "1", step: "1", placeholder: "예: 1", required: true });
   const reasonInput = textarea("reason", "상/벌점 사유");
   reasonInput.required = true;
+  let reasonEditMode = false;
+  const reasonPreviewText = el("span", { className: "penalty-reason-preview-text" });
+  const reasonEditButton = button("수정", "mini-btn", "button", () => {
+    reasonEditMode = true;
+    syncPresetState();
+    reasonInput.focus();
+  });
+  const reasonPreview = el("div", { className: "penalty-reason-preview" }, [reasonPreviewText, reasonEditButton]);
+  const reasonControl = el("div", { className: "penalty-reason-control" }, [reasonPreview, reasonInput]);
   const managerInput = managerNameControl();
 
   const form = el("form", { className: "form-grid penalty-form" }, [
@@ -327,7 +337,7 @@ function openPenaltyModal() {
     field("구분", typeSelect),
     field("벌점 항목", presetSelect),
     field("점수", pointsInput),
-    field("사유", reasonInput, "full"),
+    field("사유", reasonControl, "full"),
     field("담당자", managerInput),
     el("div", { className: "field full" }, [
       el("div", { className: "attendance-modal-actions" }, [
@@ -356,29 +366,59 @@ function openPenaltyModal() {
 
   const syncPresetState = () => {
     const isPenalty = typeSelect.value === "penalty";
+    const preset = PENALTY_PRESETS.find((item) => item.reason === presetSelect.value);
+    const isDirectInput = isPenalty && presetSelect.value === "__custom__";
+    const isPresetPenalty = isPenalty && Boolean(preset);
+    const shouldEditReason = !isPenalty || isDirectInput || reasonEditMode;
     presetSelect.disabled = !isPenalty;
+    reasonPreview.hidden = shouldEditReason;
+    reasonEditButton.hidden = !isPresetPenalty;
+    reasonInput.hidden = !shouldEditReason;
+    reasonInput.required = shouldEditReason;
+    reasonInput.disabled = !shouldEditReason;
     if (!isPenalty) {
       presetSelect.value = "";
+      reasonPreviewText.textContent = "";
       return;
     }
-    const preset = PENALTY_PRESETS.find((item) => item.reason === presetSelect.value);
-    if (!preset) return;
+    if (isDirectInput) {
+      reasonInput.value = "";
+      reasonPreviewText.textContent = "";
+      return;
+    }
+    if (!preset) {
+      reasonPreviewText.textContent = "벌점 항목을 선택해주세요.";
+      return;
+    }
     pointsInput.value = String(preset.points);
-    reasonInput.value = preset.reason;
+    if (!reasonEditMode) reasonInput.value = preset.reason;
+    reasonPreviewText.textContent = reasonInput.value || preset.reason;
   };
-  typeSelect.addEventListener("change", syncPresetState);
-  presetSelect.addEventListener("change", syncPresetState);
+  typeSelect.addEventListener("change", () => {
+    reasonEditMode = false;
+    syncPresetState();
+  });
+  presetSelect.addEventListener("change", () => {
+    reasonEditMode = false;
+    syncPresetState();
+  });
   syncPresetState();
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const points = Number(data.points);
+    const selectedPreset = PENALTY_PRESETS.find((item) => item.reason === data.penaltyPreset);
+    const reason = data.scoreType === "penalty" && selectedPreset && !reasonEditMode
+      ? selectedPreset.reason
+      : String(data.reason || "").trim();
     if (!selectedStudents.length) return notify("학생을 한 명 이상 추가해주세요.");
+    if (data.scoreType === "penalty" && !data.penaltyPreset) return notify("벌점 항목을 선택해주세요.");
     if (!Number.isFinite(points) || points < 1) return notify("점수는 1점 이상 입력해주세요.");
+    if (!reason) return notify(data.penaltyPreset === "__custom__" ? "직접 입력할 벌점 사유를 입력해주세요." : "상/벌점 사유를 입력해주세요.");
     const signedPoints = data.scoreType === "reward" ? -Math.floor(points) : Math.floor(points);
     try {
-      await Promise.all(selectedStudents.map((student) => createPenalty(student, signedPoints, data.reason, data.managerName)));
+      await Promise.all(selectedStudents.map((student) => createPenalty(student, signedPoints, reason, data.managerName)));
       closeInfoModal();
       render();
       notify(`${selectedStudents.length}명에게 ${data.scoreType === "reward" ? "상점" : "벌점"}을 부여했습니다.`);

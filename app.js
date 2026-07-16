@@ -10,6 +10,7 @@
   grades: "성적 관리",
   fitness: "체력평가",
   penalties: "상/벌점 관리",
+  seats: "좌석 관리",
   attendance: "출석 관리",
   mypage: "마이페이지",
   teacher: "외출 관리",
@@ -111,7 +112,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -197,6 +198,7 @@ function render() {
           grades: renderGradesManagement,
           fitness: renderFitnessManagement,
           penalties: renderPenaltyManagement,
+          seats: renderSeatManagement,
           attendance: renderAttendanceManagement,
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,

@@ -10,6 +10,7 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "penalties.read",
   "penalties.write",
   "managers.read",
+  "seats.read",
   "attendance.read",
   "attendance.write",
   "fitness.read",

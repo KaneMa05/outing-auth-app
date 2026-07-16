@@ -93,6 +93,7 @@ const routePermissions = {
   fitness: "fitness.read",
   "track-subjects": "grades.read",
   penalties: "penalties.read",
+  seats: "seats.read",
   attendance: "attendance.read",
   notices: "notices.read",
   managers: "managers.read",
@@ -127,7 +128,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -489,6 +490,7 @@ function defaultState() {
     examSubjectSettings: [],
     finalExamScores: [],
     fitnessScores: [],
+    seatAssignments: {},
     studentRegistrationEvents: [],
     notices: DEFAULT_IMPORTANT_NOTICES.map((notice) => ({ ...notice })),
   };
@@ -522,6 +524,7 @@ function mergeDefaultState(nextState) {
     examSubjectSettings: Array.isArray(nextState?.examSubjectSettings) ? nextState.examSubjectSettings : defaults.examSubjectSettings,
     finalExamScores: Array.isArray(nextState?.finalExamScores) ? nextState.finalExamScores : defaults.finalExamScores,
     fitnessScores: Array.isArray(nextState?.fitnessScores) ? nextState.fitnessScores : defaults.fitnessScores,
+    seatAssignments: nextState?.seatAssignments && typeof nextState.seatAssignments === "object" ? nextState.seatAssignments : defaults.seatAssignments,
     studentRegistrationEvents: Array.isArray(nextState?.studentRegistrationEvents) ? nextState.studentRegistrationEvents : defaults.studentRegistrationEvents,
     notices: Array.isArray(nextState?.notices) ? removeLegacySampleNotices(nextState.notices) : defaults.notices,
   };
@@ -597,6 +600,7 @@ function makeLocalStorageSafeState() {
   snapshot.submissionAnswers = [];
   snapshot.finalExamScores = [];
   snapshot.fitnessScores = [];
+  snapshot.seatAssignments = state.seatAssignments || {};
   snapshot.studentRegistrationEvents = (snapshot.studentRegistrationEvents || []).slice(0, 100);
   return snapshot;
 }
@@ -1050,6 +1054,7 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.penalties?.length ||
     snapshot?.fitnessScores?.length ||
     snapshot?.notices?.length
+    || Object.keys(snapshot?.seatAssignments || {}).length
   );
 }
 
@@ -1062,6 +1067,7 @@ function makeLocalDevSafeState() {
   snapshot.attendanceHolidays = snapshot.attendanceHolidays || [];
   snapshot.penalties = snapshot.penalties || [];
   snapshot.fitnessScores = snapshot.fitnessScores || [];
+  snapshot.seatAssignments = snapshot.seatAssignments || {};
   snapshot.notices = snapshot.notices || [];
   return snapshot;
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v196-multiple-weekly-answers";
+const CACHE_NAME = "outing-auth-app-v223-manager-seats";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -13,6 +13,7 @@ const APP_SHELL = [
   "/teacher-students.js",
   "/teacher-settings.js",
   "/teacher-penalties.js",
+  "/teacher-seats.js",
   "/app.js",
   "/manifest.webmanifest",
   "/app-icon.png",
