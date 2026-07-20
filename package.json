@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node build-config.js",
+    "test": "node tests/refresh-safety.test.js && node tests/answer-ui.test.js && node tests/student-devices-api.test.js && node tests/student-device-client.test.js && node tests/device-reset-api.test.js",
     "dev": "vercel dev",
     "deploy": "vercel",
     "deploy:prod": "vercel --prod"

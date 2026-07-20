@@ -99,6 +99,7 @@ function renderStudentAdminActionMenu(student, profile) {
       button("반 변경", "student-action-menu-item", "button", () => openStudentClassEditModal(student.id)),
       button("직렬 변경", "student-action-menu-item", "button", () => openStudentTrackEditModal(student.id)),
       button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
+      profile ? button("등록 기기 관리", "student-action-menu-item", "button", () => openTeacherStudentDeviceManager(student.id)) : null,
       profile ? button("등록 초기화", "student-action-menu-item", "button", () => resetStudentAppRegistration(student.id)) : null,
       button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "student-action-menu-item", "button", () => toggleStudentAttendanceExcluded(student.id)),
       button(isFitnessExcludedStudent(student) ? "체력평가 포함" : "체력평가 제외", "student-action-menu-item", "button", () => toggleStudentFitnessExcluded(student.id)),
@@ -255,6 +256,71 @@ function openStudentRegistrationHistory(studentId) {
         : el("div", { className: "empty" }, "기기 등록 이력이 없습니다."),
     ]),
   });
+}
+
+async function openTeacherStudentDeviceManager(studentId) {
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  openLoadingModal("등록 기기 확인 중", "학생의 등록 기기 목록을 불러오고 있습니다.");
+  try {
+    const result = await requestTeacherStudentDeviceAction("admin_list", { studentId });
+    if (!result.ok) return notify("등록 기기 목록을 불러오지 못했습니다.");
+    const devices = Array.isArray(result.devices) ? result.devices : [];
+    openInfoModal({
+      title: `${student.name || "학생"} 등록 기기 관리`,
+      className: "student-device-manager-modal",
+      content: el("div", { className: "student-device-manager-content" }, [
+        el("p", { className: "subtle" }, `현재 ${devices.length}/2대가 등록되어 있습니다.`),
+        devices.length
+          ? el("div", { className: "student-device-list" }, devices.map((device) =>
+              el("article", { className: "student-device-item" }, [
+                el("div", { className: "student-device-item-head" }, [el("strong", {}, device.label || "등록 기기")]),
+                el("p", { className: "subtle" }, `등록 ${formatDateCompact(device.registeredAt)} · 최근 사용 ${formatDateCompact(device.lastUsedAt)}`),
+                device.tokenPreview ? el("small", {}, `기기 코드 ···${device.tokenPreview}`) : null,
+                button("이 기기 해제", "mini-btn danger", "button", () => revokeTeacherStudentDevice(studentId, device)),
+              ])
+            ))
+          : el("div", { className: "empty" }, "등록된 기기가 없습니다."),
+        button("전체 등록 초기화", "btn danger", "button", () => {
+          closeInfoModal();
+          resetStudentAppRegistration(studentId);
+        }),
+      ]),
+    });
+  } catch (error) {
+    console.error(error);
+    notify("등록 기기 서버에 연결하지 못했습니다.");
+  } finally {
+    closeLoadingModal();
+  }
+}
+
+async function revokeTeacherStudentDevice(studentId, device) {
+  if (!confirm(`${device.label || "선택한 기기"}를 해제할까요?`)) return;
+  try {
+    const result = await requestTeacherStudentDeviceAction("admin_revoke", {
+      studentId,
+      targetDeviceId: device.id,
+      reason: "관리자 개별 기기 해제",
+    });
+    if (!result.ok) return notify("기기를 해제하지 못했습니다.");
+    notify("선택한 기기를 해제했습니다.");
+    await openTeacherStudentDeviceManager(studentId);
+  } catch (error) {
+    console.error(error);
+    notify("기기 해제 중 오류가 발생했습니다.");
+  }
+}
+
+async function requestTeacherStudentDeviceAction(action, payload) {
+  const response = await fetch("/api/student-devices", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
 }
 
 function getStudentRegistrationHistoryRows(student) {
@@ -1221,15 +1287,9 @@ async function resetStudentAppRegistration(id) {
     closeLoadingModal();
   }
 
-  const previousDeviceToken = student.deviceToken || "";
   student.passwordHash = "";
   student.deviceToken = "";
   student.appRegisteredAt = "";
-  addStudentRegistrationEvent(student, "reset", {
-    deviceToken: previousDeviceToken,
-    actor: "teacher",
-    reason: "관리자 등록 초기화",
-  });
   if (state.settings.studentProfiles?.[student.id]) {
     const profile = state.settings.studentProfiles[student.id];
     state.settings.studentProfiles[student.id] = {
@@ -1240,7 +1300,7 @@ async function resetStudentAppRegistration(id) {
   }
   if (state.settings.studentAuthId === student.id) state.settings.studentAuthId = "";
 
-  saveState();
+  saveState({ skipRemote: true });
   render();
   notify("학생 앱 등록 상태를 초기화했습니다.");
 }

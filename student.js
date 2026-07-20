@@ -2710,6 +2710,7 @@ function renderStudentExamEntrySubjectList(exam, sections, student, readiness = 
 
 function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNumber) {
   const current = studentExamDraft.answers[questionNumber] || "";
+  let row = null;
   const options = [1, 2, 3, 4].map((value) => {
     const selected = Number(current) === value;
     const node = button(String(value), selected ? "answer-choice selected" : "answer-choice", "button", () => {
@@ -2718,7 +2719,12 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
       studentExamDraft.answers[questionNumber] = value;
       studentExamDraft.locked[questionNumber] = true;
       studentExamDraft.editing[questionNumber] = false;
-      render();
+      row?.classList.add("answered");
+      row?.querySelectorAll(".answer-choice").forEach((choiceNode) => {
+        const isSelected = choiceNode === node;
+        choiceNode.classList.toggle("selected", isSelected);
+        choiceNode.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      });
       if (previous && previous !== value) notify(`${displayNumber}번 답안이 ${toCircledAnswer(previous)}에서 ${toCircledAnswer(value)}로 변경되었습니다.`);
     });
     node.disabled = Boolean(studentExamDraft.saving);
@@ -2726,12 +2732,13 @@ function renderStudentAnswerQuestion(questionNumber, displayNumber = questionNum
     node.setAttribute("aria-pressed", selected ? "true" : "false");
     return node;
   });
-  return el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
+  row = el("article", { className: current ? "student-answer-row answered" : "student-answer-row" }, [
     el("div", { className: "student-answer-head" }, [
       el("strong", {}, `${displayNumber}번`),
     ]),
     el("div", { className: "answer-choice-row" }, options),
   ]);
+  return row;
 }
 
 function renderStudentAnswerNav(section, questionCount = section.questionCount) {

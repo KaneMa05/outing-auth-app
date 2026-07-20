@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v223-manager-seats";
+const CACHE_NAME = "outing-auth-app-v232-two-device-auth";
 const APP_SHELL = [
   "/",
   "/index.html",

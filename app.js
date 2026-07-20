@@ -355,30 +355,40 @@ function renderStudentAuth() {
     }
 
     const profile = getStudentProfile(selectedStudent.id) || {};
-    if (selectedStudent.appRegisteredAt && !profile.deviceToken) {
-      lookupResult.className = "student-auth-result error";
-      lookupResult.textContent = "이미 다른 기기에서 앱 등록이 완료된 학생입니다. 사무실에 문의해주세요.";
-      showResetRequestButton(selectedStudent);
-      return;
+    const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || profile.initialTrack || profile.track);
+    const registeredGender = selectedStudent.gender || profile.gender || "";
+    const hasRegisteredTrack = Boolean(selectedStudent.appRegisteredAt && registeredTrack);
+    const hasRegisteredGender = Boolean(selectedStudent.appRegisteredAt && registeredGender);
+
+    trackSelect.disabled = hasRegisteredTrack;
+    customTrackInput.disabled = hasRegisteredTrack;
+    genderSelect.disabled = hasRegisteredGender;
+    trackSelect.value = "";
+    customTrackInput.value = "";
+    customTrackField.hidden = true;
+    if (registeredTrack) {
+      const registeredOption = [...trackSelect.options].find((option) => option.value === registeredTrack);
+      if (registeredOption) trackSelect.value = registeredTrack;
+      else {
+        trackSelect.value = "기타";
+        customTrackInput.value = registeredTrack;
+        customTrackField.hidden = false;
+      }
     }
-    const normalizedTrack = normalizeCoastGuardTrack(profile.track || selectedStudent.track);
-    if (getCoastGuardTrackOptions().includes(normalizedTrack)) {
-      trackSelect.value = normalizedTrack;
-      customTrackField.hidden = true;
-      customTrackInput.value = "";
-    } else if (normalizedTrack) {
-      trackSelect.value = "기타";
-      customTrackInput.value = normalizedTrack;
-      customTrackField.hidden = false;
-    }
-    genderSelect.value = profile.gender || genderSelect.value;
+    if (registeredGender) genderSelect.value = registeredGender;
     studentNameNode.textContent = selectedStudent.name;
     lookupResult.className = "student-auth-result success";
-    lookupResult.textContent = `${selectedStudent.name} 학생이 확인되었습니다.`;
+    lookupResult.textContent = selectedStudent.appRegisteredAt
+      ? `${selectedStudent.name} 학생이 확인되었습니다. 기존 비밀번호로 이 기기를 추가 등록할 수 있습니다.`
+      : `${selectedStudent.name} 학생이 확인되었습니다.`;
     profileArea.hidden = false;
   });
 
-  const trackSelect = select("track", getCoastGuardTrackOptions());
+  const trackSelect = select("track", ["", ...getCoastGuardTrackOptions()]);
+  const trackPlaceholder = trackSelect.querySelector("option[value='']");
+  trackPlaceholder.textContent = "직렬을 선택하세요";
+  trackPlaceholder.disabled = true;
+  trackSelect.value = "";
   const customTrackInput = input("customTrack", "text", "직렬을 입력하세요");
   const customTrackField = field("기타 직렬", customTrackInput);
   customTrackField.hidden = true;
@@ -397,6 +407,7 @@ function renderStudentAuth() {
     field("본인 비밀번호", passwordInput, "", "다음 접속 때 본인 확인에 사용합니다.")
   );
 
+  const submitButton = button("시작하기", "btn");
   const form = el("form", { className: "student-auth-card" }, [
     el("div", {}, [
       el("h2", {}, "학생 등록"),
@@ -406,7 +417,7 @@ function renderStudentAuth() {
     lookupResult,
     resetRequestArea,
     profileArea,
-    button("시작하기", "btn"),
+    submitButton,
   ]);
 
   form.addEventListener("submit", async (event) => {
@@ -422,47 +433,69 @@ function renderStudentAuth() {
       openInstallGuideModal();
       return notify("홈화면에 추가한 뒤 홈화면 아이콘으로 다시 열어 등록해주세요.");
     }
-    const finalTrack = resolveStudentTrack(data.track, data.customTrack);
-    if (!finalTrack || !data.gender || !data.password) {
+    const profiles = ensureStudentProfiles();
+    const existingProfile = profiles[studentId];
+    const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || existingProfile?.initialTrack || existingProfile?.track);
+    const finalTrack = registeredTrack || resolveStudentTrack(data.track, data.customTrack);
+    const finalGender = selectedStudent.gender || existingProfile?.gender || data.gender;
+    if (!finalTrack || !finalGender || !data.password) {
       return notify("직렬, 성별, 비밀번호를 모두 입력해주세요.");
     }
 
-    const profiles = ensureStudentProfiles();
-    const existingProfile = profiles[studentId];
-    if (selectedStudent.appRegisteredAt && !existingProfile?.deviceToken) {
-      return notify("이미 다른 기기에서 앱 등록이 완료된 학생입니다. 사무실에 문의해주세요.");
-    }
     const passwordHash = await hashStudentPassword(data.password);
-    if (existingProfile?.passwordHash && existingProfile.passwordHash !== passwordHash) {
-      return notify("비밀번호가 일치하지 않습니다.");
-    }
-
     const deviceToken = existingProfile?.deviceToken || createDeviceToken();
     const authedAt = new Date().toISOString();
+    let registration;
+
+    setButtonLoading(submitButton, "기기 확인 중");
+    submitButton.disabled = true;
+    try {
+      registration = await registerStudentDeviceWithServer({
+        studentId,
+        passwordHash,
+        deviceToken,
+        track: finalTrack,
+        gender: finalGender,
+      });
+    } catch (error) {
+      console.error(error);
+      notify("기기 등록 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    } finally {
+      submitButton.innerHTML = "";
+      submitButton.textContent = "시작하기";
+      submitButton.disabled = false;
+    }
+
+    if (!registration.ok) {
+      if (registration.error === "device_limit_reached") {
+        lookupResult.className = "student-auth-result error";
+        lookupResult.textContent = "등록 가능한 기기 2대를 모두 사용 중입니다. 기존 기기를 초기화하거나 사무실에 문의해주세요.";
+        showResetRequestButton(selectedStudent);
+        return notify("등록 가능한 기기 2대를 모두 사용 중입니다.");
+      }
+      if (registration.error === "invalid_credentials") return notify("비밀번호가 일치하지 않습니다.");
+      return notify("기기를 등록하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    }
 
     profiles[studentId] = {
       initialTrack: existingProfile?.deviceToken ? existingProfile?.initialTrack || finalTrack : finalTrack,
       track: finalTrack,
-      gender: data.gender,
+      gender: finalGender,
       passwordHash,
       deviceToken,
+      deviceId: registration.deviceId || existingProfile?.deviceId || "",
+      deviceActiveCount: registration.activeCount || 1,
       authedAt,
     };
     selectedStudent.track = finalTrack;
-    selectedStudent.gender = data.gender;
+    selectedStudent.gender = finalGender;
     selectedStudent.passwordHash = passwordHash;
     selectedStudent.deviceToken = deviceToken;
     selectedStudent.appRegisteredAt = authedAt;
-    addStudentRegistrationEvent(selectedStudent, "registered", {
-      deviceToken,
-      actor: "student",
-      clientDisplayMode: isStandaloneStudentApp() ? "standalone" : "browser",
-      clientUserAgent: navigator.userAgent || "",
-      createdAt: authedAt,
-    });
     state.settings.studentAuthId = studentId;
     state.settings.lastStudentId = studentId;
-    saveState();
+    saveState({ skipRemote: true });
     currentRoute = "home";
     if (location.hash !== "#home") location.hash = "home";
     render();
@@ -578,6 +611,38 @@ function createDeviceToken() {
     return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
+async function registerStudentDeviceWithServer({ studentId, passwordHash, deviceToken, track, gender }) {
+  const response = await fetch("/api/student-devices", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "register",
+      studentId,
+      passwordHash,
+      deviceToken,
+      deviceLabel: getStudentDeviceLabel(),
+      track,
+      gender,
+      client: {
+        displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+        userAgent: navigator.userAgent || "",
+      },
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
+}
+
+function getStudentDeviceLabel() {
+  const userAgent = String(navigator.userAgent || "").toLowerCase();
+  if (/iphone|ipad|ipod/.test(userAgent)) return "iPhone/iPad";
+  if (userAgent.includes("android")) return "Android";
+  if (userAgent.includes("windows")) return "Windows";
+  if (userAgent.includes("macintosh") || userAgent.includes("mac os")) return "Mac";
+  return "등록 기기";
 }
 
 function renderStudentHome() {
@@ -929,10 +994,118 @@ function renderStudentMypage() {
         profileItem("성별", profile.gender || "-"),
       ]),
     ]),
+    renderStudentDeviceManagementCard(student, profile),
     renderStudentOutingHistoryButton(student.id),
     renderStudentPenaltyHistoryButton(student.id),
     renderHomeScreenInstallCard(),
   ]);
+}
+
+function renderStudentDeviceManagementCard(student, profile) {
+  const activeCount = Math.max(1, Number(profile.deviceActiveCount || 1));
+  return el("section", { className: "student-history-button-card student-device-card" }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "등록 기기"),
+      el("span", {}, `${activeCount}/2대`),
+    ]),
+    el("p", { className: "subtle" }, "사용 중인 기기를 확인하고 필요 없는 기기만 해제할 수 있습니다."),
+    button("등록 기기 관리", "btn secondary", "button", () => openStudentDeviceManager(student.id)),
+  ]);
+}
+
+async function openStudentDeviceManager(studentId) {
+  const profile = getStudentProfile(studentId);
+  if (!profile?.deviceToken) return notify("현재 기기 등록 정보를 찾을 수 없습니다.");
+  openLoadingModal("등록 기기 확인 중", "사용 중인 기기 목록을 불러오고 있습니다.");
+  try {
+    const result = await requestStudentDeviceAction("list", { studentId, deviceToken: profile.deviceToken });
+    if (!result.ok) {
+      if (result.error === "device_not_active") {
+        clearStudentDeviceAuth(studentId);
+        saveState({ skipRemote: true });
+        render();
+        return notify("현재 기기의 등록이 해제되었습니다. 다시 등록해주세요.");
+      }
+      return notify("등록 기기 목록을 불러오지 못했습니다.");
+    }
+    profile.deviceActiveCount = result.devices.length;
+    saveState({ skipRemote: true });
+    openInfoModal({
+      title: "등록 기기 관리",
+      className: "student-device-manager-modal",
+      content: renderStudentDeviceList(studentId, result.devices),
+    });
+  } catch (error) {
+    console.error(error);
+    notify("등록 기기 서버에 연결하지 못했습니다.");
+  } finally {
+    closeLoadingModal();
+  }
+}
+
+function renderStudentDeviceList(studentId, devices) {
+  if (!devices.length) return el("div", { className: "empty" }, "등록된 기기가 없습니다.");
+  return el("div", { className: "student-device-list" }, devices.map((device) =>
+    el("article", { className: "student-device-item" }, [
+      el("div", { className: "student-device-item-head" }, [
+        el("strong", {}, device.label || "등록 기기"),
+        device.isCurrent ? el("span", { className: "badge approved" }, "현재 기기") : null,
+      ]),
+      el("p", { className: "subtle" }, `등록 ${formatDateCompact(device.registeredAt)} · 최근 사용 ${formatDateCompact(device.lastUsedAt)}`),
+      device.tokenPreview ? el("small", {}, `기기 코드 ···${device.tokenPreview}`) : null,
+      button(device.isCurrent ? "현재 기기 해제" : "이 기기 해제", "mini-btn danger", "button", () =>
+        revokeStudentDevice(studentId, device)
+      ),
+    ])
+  ));
+}
+
+async function revokeStudentDevice(studentId, device) {
+  const message = device.isCurrent
+    ? "현재 기기를 해제하면 다시 등록해야 합니다. 계속할까요?"
+    : `${device.label || "선택한 기기"}를 해제할까요?`;
+  if (!confirm(message)) return;
+  const profile = getStudentProfile(studentId);
+  if (!profile?.deviceToken) return;
+  try {
+    const result = await requestStudentDeviceAction("revoke", {
+      studentId,
+      deviceToken: profile.deviceToken,
+      targetDeviceId: device.id,
+      reason: "학생 개별 기기 해제",
+    });
+    if (!result.ok) return notify("기기를 해제하지 못했습니다. 목록을 다시 확인해주세요.");
+    if (result.selfRevoked) {
+      closeInfoModal();
+      clearStudentDeviceAuth(studentId);
+      saveState({ skipRemote: true });
+      render();
+      return notify("현재 기기를 해제했습니다. 다시 등록해주세요.");
+    }
+    profile.deviceActiveCount = result.activeCount || 1;
+    notify("선택한 기기를 해제했습니다.");
+    await openStudentDeviceManager(studentId);
+  } catch (error) {
+    console.error(error);
+    notify("기기 해제 중 오류가 발생했습니다.");
+  }
+}
+
+function clearStudentDeviceAuth(studentId) {
+  if (state.settings.studentProfiles?.[studentId]) delete state.settings.studentProfiles[studentId];
+  if (state.settings.studentAuthId === studentId) state.settings.studentAuthId = "";
+  if (state.settings.lastStudentId === studentId) state.settings.lastStudentId = "";
+}
+
+async function requestStudentDeviceAction(action, payload) {
+  const response = await fetch("/api/student-devices", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
 }
 
 function renderStudentOutingHistoryButton(studentId) {

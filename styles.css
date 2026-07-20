@@ -5456,6 +5456,65 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-size: 0.88rem;
 }
 
+.student-device-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.student-device-card > .subtle {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+}
+
+.student-device-card > .btn {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.student-device-manager-modal {
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+}
+
+.student-device-manager-content,
+.student-device-list {
+  display: grid;
+  gap: 10px;
+}
+
+.student-device-list {
+  max-height: min(58dvh, 520px);
+  overflow: auto;
+}
+
+.student-device-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce6f1;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.student-device-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.student-device-item p {
+  margin: 0;
+}
+
+.student-device-item small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.student-device-item .mini-btn {
+  justify-self: end;
+}
+
 .history-modal-panel {
   width: min(420px, 100%);
 }

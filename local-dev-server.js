@@ -17,6 +17,7 @@ const apiHandlers = {
   "/api/penalties": require("./api/penalties"),
   "/api/students": require("./api/students"),
   "/api/student-reset-registration": require("./api/student-reset-registration"),
+  "/api/student-devices": require("./api/student-devices"),
   "/api/reset-student-registration": require("./api/reset-student-registration"),
 };
 
