@@ -46,8 +46,13 @@ const resetButton = document.querySelector("#reset-data");
 let remoteStore = createRemoteStore();
 const localDevStoreUrl = createLocalDevStoreUrl();
 const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
-const STUDENT_AUTO_REFRESH_INTERVAL_MS = 10000;
-const STUDENT_AUTO_REFRESH_JITTER_MS = 5000;
+const STUDENT_AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const STUDENT_AUTO_REFRESH_JITTER_MS = 30 * 1000;
+const STUDENT_GRADES_REFRESH_INTERVAL_MS = 30 * 1000;
+const TEACHER_OUTING_REFRESH_INTERVAL_MS = 5000;
+const TEACHER_OUTING_REALTIME_REFRESH_INTERVAL_MS = 30000;
+const TEACHER_OUTING_RENDER_DEBOUNCE_MS = 450;
+const TEACHER_OUTING_RESUME_DELAY_MS = 250;
 const STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS = 30000;
 const STUDENT_DEVICE_VALIDATION_INTERVAL_MS = 5 * 60 * 1000;
 const STUDENT_SCOPED_REFRESH_ENABLED = new URLSearchParams(location.search).get("scopedRefresh") !== "0";
@@ -72,7 +77,21 @@ let isLocalDevLoading = false;
 let isLocalDevSaving = false;
 let isRemoteRefreshStarted = false;
 let remoteResumeRefreshTimer = null;
+let studentRouteRefreshTimer = null;
 let studentAutoRefreshTimer = null;
+let studentOutingRenderPending = false;
+let studentRealtimeChannel = null;
+let studentRealtimeStudentId = "";
+let studentRealtimeDeviceTimer = null;
+let studentRealtimeRenderTimer = null;
+let teacherOutingRefreshTimer = null;
+let teacherOutingResumeTimer = null;
+let teacherOutingRealtimeChannel = null;
+let teacherOutingRealtimeConnected = false;
+let teacherOutingRenderTimer = null;
+let isTeacherOutingRefreshing = false;
+let teacherOutingRenderPending = false;
+let lastTeacherOutingSignature = "";
 let studentExamDataLastLoadedAt = 0;
 let studentDeviceValidationAttemptedAt = 0;
 let isStudentLocalSnapshotSavePending = false;
@@ -568,6 +587,7 @@ function saveState(options = {}) {
   saveStateToLocalStorage();
   if (!options.skipRemote) scheduleRemoteSave();
   scheduleLocalDevSave();
+  if (APP_MODE === "student" && isRemoteRefreshStarted) ensureStudentRealtimeSubscription();
 }
 
 function saveStateToLocalStorage() {
@@ -723,6 +743,11 @@ async function initRemoteStore() {
   }
   isRemoteLoading = true;
   try {
+    if (APP_MODE === "teacher") {
+      await refreshTeacherOutingsFromRemote({ allowWhileLoading: true, renderImmediately: true });
+      // Keep the lightweight outing refresh alive even if an unrelated admin dataset fails below.
+      startRemoteRefresh();
+    }
     await loadStateFromRemote({ forceExamData: true });
     const registrationChanged = reconcileStudentRegistrationFromRemote();
     const deviceValidationChanged = registrationChanged
@@ -763,20 +788,380 @@ async function initLocalDevStore() {
 }
 
 function startRemoteRefresh() {
-  if (!remoteStore || APP_MODE !== "student" || isRemoteRefreshStarted) return;
+  if (!remoteStore || isRemoteRefreshStarted) return;
   isRemoteRefreshStarted = true;
+  if (APP_MODE === "teacher") {
+    window.addEventListener("focus", scheduleTeacherOutingResumeRefresh);
+    document.addEventListener("visibilitychange", handleTeacherVisibilityChange);
+    ensureTeacherOutingRealtimeSubscription();
+    scheduleTeacherOutingRefresh();
+    return;
+  }
   startStudentInteractionTracking();
   startStudentPullRefresh();
   window.addEventListener("focus", scheduleResumeRemoteRefresh);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) scheduleResumeRemoteRefresh();
   });
+  ensureStudentRealtimeSubscription();
   scheduleStudentAutoRefresh();
+}
+
+function canRenderStudentRealtimeRefresh() {
+  return !shouldPauseStudentRemoteRefresh() && !document.querySelector('[role="dialog"], .loading-modal');
+}
+
+function ensureStudentRealtimeSubscription() {
+  if (APP_MODE !== "student" || !remoteStore?.channel) return;
+  const studentId = String(state.settings.studentAuthId || "").trim();
+  if (studentRealtimeChannel && studentRealtimeStudentId === studentId) return;
+
+  if (studentRealtimeChannel) {
+    remoteStore.removeChannel(studentRealtimeChannel).catch((error) => console.warn("Student realtime channel cleanup failed.", error));
+    studentRealtimeChannel = null;
+  }
+  studentRealtimeStudentId = studentId;
+  if (!studentId) return;
+
+  studentRealtimeChannel = remoteStore
+    .channel(`student-critical-${studentId}`)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "outings",
+      filter: `student_id=eq.${studentId}`,
+    }, applyStudentOutingRealtimeChange)
+    .on("postgres_changes", {
+      event: "UPDATE",
+      schema: "public",
+      table: "students",
+      filter: `id=eq.${studentId}`,
+    }, scheduleStudentDeviceRealtimeValidation)
+    .subscribe((status) => {
+      if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) console.warn("Student realtime channel is unavailable; fallback refresh remains active.");
+    });
+}
+
+function applyStudentOutingRealtimeChange(payload) {
+  const studentId = String(state.settings.studentAuthId || "").trim();
+  const row = payload?.new && Object.keys(payload.new).length ? payload.new : payload?.old;
+  if (!studentId || !row?.id) return;
+  if (row.student_id && String(row.student_id) !== studentId) return;
+
+  const existing = [...(state.outings || []), ...(state.deletedOutings || [])].find((outing) => outing.id === row.id);
+  const previousActiveOutingId = getActiveOuting(studentId)?.id || "";
+  state.outings = (state.outings || []).filter((outing) => outing.id !== row.id);
+  state.deletedOutings = (state.deletedOutings || []).filter((outing) => outing.id !== row.id);
+
+  if (payload.eventType !== "DELETE") {
+    const mapped = mapRemoteOutings([row], [])[0];
+    if (!mapped) return;
+    const photos = existing?.photos || [];
+    const nextOuting = existing || mapped;
+    Object.assign(nextOuting, mapped, {
+      photos,
+      returnedAt: mapped.returnedAt || (mapped.status === "returned" ? getReturnPhotoUploadedAt({ photos }) : ""),
+    });
+    if (nextOuting.deletedAt) state.deletedOutings.unshift(nextOuting);
+    else state.outings.push(nextOuting);
+  }
+
+  state.outings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  state.deletedOutings.sort((a, b) => new Date(b.deletedAt || b.createdAt) - new Date(a.deletedAt || a.createdAt));
+  const activeOutingDeleted = Boolean(previousActiveOutingId && previousActiveOutingId === row.id && !state.outings.some((outing) => outing.id === row.id));
+  studentOutingRenderPending = true;
+  saveStateToLocalStorage();
+
+  if (activeOutingDeleted || canRenderStudentRealtimeRefresh()) {
+    render();
+    studentOutingRenderPending = false;
+  } else {
+    scheduleStudentRealtimePendingRender();
+  }
+  if (activeOutingDeleted) notify("관리자가 현재 외출 신청을 삭제했습니다.");
+}
+
+function scheduleStudentRealtimePendingRender() {
+  window.clearTimeout(studentRealtimeRenderTimer);
+  studentRealtimeRenderTimer = window.setTimeout(() => {
+    studentRealtimeRenderTimer = null;
+    if (!studentOutingRenderPending) return;
+    if (!canRenderStudentRealtimeRefresh()) {
+      scheduleStudentRealtimePendingRender();
+      return;
+    }
+    render();
+    studentOutingRenderPending = false;
+  }, 1000);
+}
+
+function scheduleStudentDeviceRealtimeValidation() {
+  window.clearTimeout(studentRealtimeDeviceTimer);
+  studentRealtimeDeviceTimer = window.setTimeout(async () => {
+    studentRealtimeDeviceTimer = null;
+    const changed = await reconcileCurrentStudentDeviceWithServer({ force: true });
+    if (!changed) return;
+    saveStateToLocalStorage();
+    ensureStudentRealtimeSubscription();
+    render();
+    notify("이 기기의 등록이 해제되었습니다. 다시 등록해주세요.");
+  }, 180);
+}
+
+function getTeacherOutingRefreshInterval() {
+  return teacherOutingRealtimeConnected
+    ? TEACHER_OUTING_REALTIME_REFRESH_INTERVAL_MS
+    : TEACHER_OUTING_REFRESH_INTERVAL_MS;
+}
+
+function scheduleTeacherOutingRefresh(delay = getTeacherOutingRefreshInterval()) {
+  window.clearTimeout(teacherOutingRefreshTimer);
+  if (!teacherAuth.authenticated) {
+    teacherOutingRefreshTimer = null;
+    return;
+  }
+  teacherOutingRefreshTimer = window.setTimeout(async () => {
+    teacherOutingRefreshTimer = null;
+    try {
+      if (!document.hidden) await refreshTeacherOutingsFromRemote();
+    } finally {
+      if (teacherAuth.authenticated) scheduleTeacherOutingRefresh();
+    }
+  }, delay);
+}
+
+function ensureTeacherOutingRealtimeSubscription() {
+  if (APP_MODE !== "teacher" || !teacherAuth.authenticated || !remoteStore?.channel || teacherOutingRealtimeChannel) return;
+  teacherOutingRealtimeChannel = remoteStore
+    .channel("teacher-critical-outings")
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "outings",
+    }, applyTeacherOutingRealtimeChange)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "outing_photos",
+    }, applyTeacherOutingPhotoRealtimeChange)
+    .subscribe((status) => {
+      if (!teacherAuth.authenticated) return;
+      if (status === "SUBSCRIBED") {
+        teacherOutingRealtimeConnected = true;
+        scheduleTeacherOutingRefresh();
+        return;
+      }
+      if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        teacherOutingRealtimeConnected = false;
+        scheduleTeacherOutingRefresh(1000);
+        console.warn("Teacher outing realtime is unavailable; fallback refresh remains active.");
+      }
+    });
+}
+
+function handleTeacherVisibilityChange() {
+  if (!document.hidden) scheduleTeacherOutingResumeRefresh();
+}
+
+async function stopTeacherOutingRealtimeSync() {
+  if (APP_MODE !== "teacher") return;
+  window.clearTimeout(teacherOutingRefreshTimer);
+  window.clearTimeout(teacherOutingResumeTimer);
+  window.clearTimeout(teacherOutingRenderTimer);
+  teacherOutingRefreshTimer = null;
+  teacherOutingResumeTimer = null;
+  teacherOutingRenderTimer = null;
+  teacherOutingRenderPending = false;
+  teacherOutingRealtimeConnected = false;
+  lastTeacherOutingSignature = "";
+  window.removeEventListener("focus", scheduleTeacherOutingResumeRefresh);
+  document.removeEventListener("visibilitychange", handleTeacherVisibilityChange);
+
+  const channel = teacherOutingRealtimeChannel;
+  teacherOutingRealtimeChannel = null;
+  isRemoteRefreshStarted = false;
+  if (!channel || !remoteStore?.removeChannel) return;
+  try {
+    await remoteStore.removeChannel(channel);
+  } catch (error) {
+    console.warn("Teacher realtime channel cleanup failed.", error);
+  }
+}
+
+function scheduleTeacherOutingRealtimeRender() {
+  teacherOutingRenderPending = true;
+  window.clearTimeout(teacherOutingRenderTimer);
+  teacherOutingRenderTimer = window.setTimeout(() => {
+    teacherOutingRenderTimer = null;
+    saveStateToLocalStorage();
+    flushTeacherOutingPendingRender();
+  }, TEACHER_OUTING_RENDER_DEBOUNCE_MS);
+}
+
+function flushTeacherOutingPendingRender() {
+  if (!teacherOutingRenderPending) return;
+  if (!canRenderTeacherOutingRefresh()) {
+    teacherOutingRenderTimer = window.setTimeout(() => {
+      teacherOutingRenderTimer = null;
+      flushTeacherOutingPendingRender();
+    }, 750);
+    return;
+  }
+  render();
+  teacherOutingRenderPending = false;
+}
+
+function applyTeacherOutingRealtimeChange(payload) {
+  if (!teacherAuth.authenticated) return;
+  const row = payload?.new && Object.keys(payload.new).length ? payload.new : payload?.old;
+  if (!row?.id) return;
+  const existing = [...(state.outings || []), ...(state.deletedOutings || [])].find((outing) => outing.id === row.id);
+  state.outings = (state.outings || []).filter((outing) => outing.id !== row.id);
+  state.deletedOutings = (state.deletedOutings || []).filter((outing) => outing.id !== row.id);
+
+  if (payload.eventType !== "DELETE") {
+    const mapped = mapRemoteOutings([row], [])[0];
+    if (!mapped) return;
+    const nextOuting = existing || mapped;
+    const photos = existing?.photos || [];
+    Object.assign(nextOuting, mapped, {
+      photos,
+      returnedAt: mapped.returnedAt || (mapped.status === "returned" ? getReturnPhotoUploadedAt({ photos }) : ""),
+    });
+    if (nextOuting.deletedAt) state.deletedOutings.unshift(nextOuting);
+    else state.outings.push(nextOuting);
+  }
+
+  state.outings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  state.deletedOutings.sort((a, b) => new Date(b.deletedAt || b.createdAt) - new Date(a.deletedAt || a.createdAt));
+  scheduleTeacherOutingRealtimeRender();
+}
+
+function applyTeacherOutingPhotoRealtimeChange(payload) {
+  if (!teacherAuth.authenticated) return;
+  const row = payload?.new && Object.keys(payload.new).length ? payload.new : payload?.old;
+  if (!row?.id) return;
+
+  const outingId = String(row.outing_id || "").trim();
+  const outing = [...(state.outings || []), ...(state.deletedOutings || [])]
+    .find((item) => String(item.id || "") === outingId);
+  if (!outingId || !outing) {
+    scheduleTeacherOutingRefresh(250);
+    return;
+  }
+
+  const photos = (outing.photos || []).filter((photo) => photo.id !== row.id);
+  if (payload.eventType !== "DELETE") photos.push(mapRemoteOutingPhoto(row));
+  outing.photos = normalizeOutingPhotosByType(photos);
+  scheduleTeacherOutingRealtimeRender();
+}
+
+function scheduleTeacherOutingResumeRefresh() {
+  window.clearTimeout(teacherOutingResumeTimer);
+  if (!teacherAuth.authenticated) {
+    teacherOutingResumeTimer = null;
+    return;
+  }
+  teacherOutingResumeTimer = window.setTimeout(async () => {
+    teacherOutingResumeTimer = null;
+    await refreshTeacherOutingsFromRemote();
+    if (teacherAuth.authenticated) scheduleTeacherOutingRefresh();
+  }, TEACHER_OUTING_RESUME_DELAY_MS);
+}
+
+function canRenderTeacherOutingRefresh() {
+  if (!teacherAuth.authenticated) return false;
+  if (!["home", "outing", "duplicates", "trash"].includes(currentRoute)) return false;
+  if (document.querySelector('[role="dialog"], .loading-modal')) return false;
+  const active = document.activeElement;
+  return !active || !app?.contains(active) || !active.matches("input, select, textarea, [contenteditable='true']");
+}
+
+function teacherOutingRowsSignature(outings, photos) {
+  return JSON.stringify([
+    (outings || []).map((outing) => [
+      outing.id, outing.student_id, outing.student_name, outing.class_name, outing.reason, outing.detail,
+      outing.expected_return, outing.status, outing.decision, outing.approved_by, outing.approved_at,
+      outing.approval_reason, outing.receipt_note, outing.early_leave_reason, outing.created_at,
+      outing.verified_at, outing.returned_at, outing.deleted_at,
+    ]),
+    (photos || []).map((photo) => [
+      photo.id, photo.outing_id, photo.photo_type, photo.photo_path, photo.photo_url,
+      photo.thumbnail_path, photo.thumbnail_url, photo.original_name, photo.uploaded_at,
+    ]),
+  ]);
+}
+
+async function refreshTeacherOutingsFromRemote(options = {}) {
+  if (
+    APP_MODE !== "teacher" ||
+    !teacherAuth.authenticated ||
+    !remoteStore ||
+    isTeacherOutingRefreshing ||
+    (!options.allowWhileLoading && (isRemoteLoading || isRemoteSaving || hasPendingRemoteSave))
+  ) return false;
+
+  isTeacherOutingRefreshing = true;
+  try {
+    const outingColumns = "id,student_id,student_name,class_name,reason,detail,expected_return,status,decision,approved_by,approved_at,approval_reason,receipt_note,early_leave_reason,created_at,verified_at,returned_at,deleted_at";
+    const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
+    let [outingResult, photoResult] = await Promise.all([
+      remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
+      remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
+    ]);
+
+    if (
+      isMissingColumnError(outingResult.error, "approved_by") ||
+      isMissingColumnError(outingResult.error, "approved_at") ||
+      isMissingColumnError(outingResult.error, "approval_reason")
+    ) {
+      const fallbackColumns = outingColumns.split(",").filter((column) => !["approved_by", "approved_at", "approval_reason"].includes(column)).join(",");
+      outingResult = await remoteStore.from("outings").select(fallbackColumns).order("created_at", { ascending: false });
+    }
+    if (outingResult.error) throw outingResult.error;
+
+    if (
+      isMissingColumnError(photoResult.error, "photo_path") ||
+      isMissingColumnError(photoResult.error, "photo_url") ||
+      isMissingColumnError(photoResult.error, "thumbnail_path") ||
+      isMissingColumnError(photoResult.error, "thumbnail_url")
+    ) {
+      photoResult = await remoteStore.from("outing_photos").select("id,outing_id,photo_type,data_url,original_name,uploaded_at").order("uploaded_at", { ascending: true });
+    }
+    if (photoResult.error) throw photoResult.error;
+
+    const outings = outingResult.data || [];
+    const photos = photoResult.data || [];
+    if (!teacherAuth.authenticated) return false;
+    const signature = teacherOutingRowsSignature(outings, photos);
+    const changed = signature !== lastTeacherOutingSignature;
+    if (changed) {
+      const mappedOutings = mapRemoteOutings(outings, photos);
+      state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
+      state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
+      lastTeacherOutingSignature = signature;
+      teacherOutingRenderPending = true;
+      saveStateToLocalStorage();
+    }
+
+    if ((changed || teacherOutingRenderPending) && (options.renderImmediately || canRenderTeacherOutingRefresh())) {
+      render();
+      teacherOutingRenderPending = false;
+    }
+    return changed;
+  } catch (error) {
+    console.error("Failed to refresh teacher outing data", error);
+    return false;
+  } finally {
+    isTeacherOutingRefreshing = false;
+  }
 }
 
 function scheduleStudentAutoRefresh() {
   window.clearTimeout(studentAutoRefreshTimer);
-  const jitter = Math.floor(Math.random() * (STUDENT_AUTO_REFRESH_JITTER_MS + 1));
+  const isGradesOverview = currentRoute === "grades" && !hasActiveStudentExamDraft();
+  const jitter = isGradesOverview ? 0 : Math.floor(Math.random() * (STUDENT_AUTO_REFRESH_JITTER_MS + 1));
+  const delay = isGradesOverview ? STUDENT_GRADES_REFRESH_INTERVAL_MS : STUDENT_AUTO_REFRESH_INTERVAL_MS + jitter;
   studentAutoRefreshTimer = window.setTimeout(async () => {
     studentAutoRefreshTimer = null;
     try {
@@ -784,7 +1169,7 @@ function scheduleStudentAutoRefresh() {
     } finally {
       scheduleStudentAutoRefresh();
     }
-  }, STUDENT_AUTO_REFRESH_INTERVAL_MS + jitter);
+  }, delay);
 }
 
 function runStudentAutoRefresh() {
@@ -795,15 +1180,18 @@ function runStudentAutoRefresh() {
 async function refreshStateFromRemote(options = {}) {
   const force = Boolean(options.force);
   if (!remoteStore || isRemoteLoading || isRemoteSaving || hasPendingRemoteSave) return false;
-  if (shouldPauseStudentRemoteRefresh()) {
-    if (force) notify("입력 중인 내용이 있어 새로고침을 건너뛰었습니다.");
-    return false;
-  }
-  const deviceValidationChanged = await reconcileCurrentStudentDeviceWithServer();
+  const deviceValidationChanged = await reconcileCurrentStudentDeviceWithServer({
+    force: force || Boolean(options.forceDeviceValidation),
+  });
   if (deviceValidationChanged) {
     saveStateToLocalStorage();
     render();
     notify("이 기기의 등록이 해제되었습니다. 다시 등록해주세요.");
+    return true;
+  }
+  if (shouldPauseStudentRemoteRefresh()) {
+    if (force) notify("입력 중인 내용이 있어 새로고침을 건너뛰었습니다.");
+    return false;
   }
   if (shouldUseStudentGradesScopedRefresh(force)) return refreshStudentGradesStateFromRemote();
   isRemoteLoading = true;
@@ -869,9 +1257,19 @@ function scheduleResumeRemoteRefresh() {
   window.clearTimeout(remoteResumeRefreshTimer);
   remoteResumeRefreshTimer = window.setTimeout(async () => {
     remoteResumeRefreshTimer = null;
-    await refreshStateFromRemote();
+    await refreshStateFromRemote({ forceDeviceValidation: true });
     scheduleStudentAutoRefresh();
   }, STUDENT_RESUME_REFRESH_DELAY_MS);
+}
+
+function scheduleStudentRouteRemoteRefresh() {
+  if (APP_MODE !== "student" || !isRemoteRefreshStarted) return;
+  window.clearTimeout(studentRouteRefreshTimer);
+  studentRouteRefreshTimer = window.setTimeout(async () => {
+    studentRouteRefreshTimer = null;
+    await refreshStateFromRemote();
+    scheduleStudentAutoRefresh();
+  }, 180);
 }
 
 function startStudentInteractionTracking() {
@@ -1161,8 +1559,6 @@ async function reconcileCurrentStudentDeviceWithServer(options = {}) {
   if (!options.force && now - studentDeviceValidationAttemptedAt < STUDENT_DEVICE_VALIDATION_INTERVAL_MS) {
     return false;
   }
-  studentDeviceValidationAttemptedAt = now;
-
   let response;
   let data;
   try {
@@ -1182,18 +1578,24 @@ async function reconcileCurrentStudentDeviceWithServer(options = {}) {
     });
     data = await response.json().catch(() => ({}));
   } catch (error) {
+    studentDeviceValidationAttemptedAt = 0;
     console.warn("Student device validation was skipped.", error);
     return false;
   }
 
   if (response.ok && data.ok === true && data.valid === true) {
+    studentDeviceValidationAttemptedAt = now;
     profile.deviceId = data.deviceId || profile.deviceId || "";
     profile.deviceActiveCount = Number(data.activeCount || profile.deviceActiveCount || 1);
     profile.deviceValidatedAt = new Date().toISOString();
     return false;
   }
 
-  if (response.status !== 403 || data.error !== "device_not_active") return false;
+  if (response.status !== 403 || data.error !== "device_not_active") {
+    studentDeviceValidationAttemptedAt = 0;
+    return false;
+  }
+  studentDeviceValidationAttemptedAt = now;
 
   delete state.settings.studentProfiles[studentId];
   state.settings.studentAuthId = "";
@@ -1359,7 +1761,9 @@ async function loadStateFromRemote(options = {}) {
     "returned_at",
     "deleted_at",
   ].join(",");
-  const photoColumns = "id,outing_id,photo_type,data_url,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
+  // Full-size legacy data URLs can make the initial administrator load very large.
+  // They are fetched on demand by loadOutingPhotoForView when no storage URL exists.
+  const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
   const attendanceColumns = [
     "id",
     "student_id",
@@ -1668,44 +2072,8 @@ async function loadStateFromRemote(options = {}) {
     if (apiManagers) state.managers = apiManagers;
   }
 
-  const mappedOutings = loadedOutings.map((outing) => {
-    const photos = normalizeOutingPhotosByType(outingPhotos
-      .filter((photo) => photo.outing_id === outing.id)
-      .map((photo) => ({
-        id: photo.id,
-        type: photo.photo_type,
-        name: photo.original_name || "",
-        dataUrl: photo.data_url || "",
-        photoPath: photo.photo_path || "",
-        photoUrl: photo.photo_url || "",
-        thumbnailPath: photo.thumbnail_path || "",
-        thumbnailUrl: photo.thumbnail_url || "",
-        uploadedAt: photo.uploaded_at,
-      })));
-    const returnPhotoUploadedAt = getReturnPhotoUploadedAt({ photos });
-    return {
-      id: outing.id,
-      studentId: outing.student_id,
-      studentName: getCanonicalStudentName(outing.student_id, outing.student_name || ""),
-      className: outing.class_name || "",
-      reason: outing.reason,
-      detail: outing.detail || "",
-      expectedReturn: outing.expected_return || "",
-      status: outing.status,
-      decision: outing.decision,
-      approvedBy: outing.approved_by || "",
-      approvedAt: outing.approved_at || "",
-      approvalReason: outing.approval_reason || "",
-      teacherMemo: "",
-      earlyLeaveReason: outing.early_leave_reason || "",
-      receiptNote: outing.receipt_note || "",
-      photos,
-      createdAt: outing.created_at,
-      verifiedAt: outing.verified_at,
-      returnedAt: outing.returned_at || (outing.status === "returned" ? returnPhotoUploadedAt : ""),
-      deletedAt: outing.deleted_at || "",
-    };
-  });
+  const mappedOutings = mapRemoteOutings(loadedOutings, outingPhotos);
+  if (APP_MODE === "teacher") lastTeacherOutingSignature = teacherOutingRowsSignature(loadedOutings, outingPhotos);
   state.outings = mergePendingOutingPhotoDrafts(
     mappedOutings.filter((outing) => !outing.deletedAt),
     pendingPhotoDrafts
@@ -2119,6 +2487,36 @@ async function saveStateToRemote() {
 
 }
 
+async function saveNewOutingRequestToRemote(outing) {
+  if (!outing) throw new Error("outing_required");
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) return false;
+
+  const { error } = await remoteStore
+    .from("outings")
+    .upsert({
+      id: outing.id,
+      student_id: outing.studentId,
+      student_name: outing.studentName,
+      class_name: outing.className,
+      reason: outing.reason,
+      detail: outing.detail || null,
+      expected_return: outing.expectedReturn || null,
+      status: "requested",
+      decision: "pending",
+      receipt_note: outing.receiptNote || null,
+      early_leave_reason: outing.earlyLeaveReason || null,
+      created_at: outing.createdAt,
+      verified_at: null,
+      returned_at: null,
+    }, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw error;
+  return true;
+}
+
 function stripAttendanceReasonColumnsFromRow(row, error = null) {
   const missingColumns = getUnavailableAttendanceColumns(error).filter((column) =>
     ["reason", "detail", "manager_name"].includes(column)
@@ -2393,6 +2791,63 @@ function collectStudentPendingOutingPhotoDrafts(scopedStudentId = "") {
         .map((photo) => ({ ...photo })),
     }))
     .filter((outing) => outing.id && outing.photos.length);
+}
+
+function mapRemoteOutings(remoteOutings = [], remotePhotos = []) {
+  const existingPhotosById = new Map(
+    [...(state.outings || []), ...(state.deletedOutings || [])]
+      .flatMap((outing) => outing.photos || [])
+      .filter((photo) => photo?.id)
+      .map((photo) => [photo.id, photo])
+  );
+  const photosByOutingId = new Map();
+  remotePhotos.forEach((photo) => {
+    const mappedPhoto = mapRemoteOutingPhoto(photo, existingPhotosById.get(photo.id));
+    if (!photosByOutingId.has(photo.outing_id)) photosByOutingId.set(photo.outing_id, []);
+    photosByOutingId.get(photo.outing_id).push(mappedPhoto);
+  });
+
+  return remoteOutings.map((outing) => {
+    const photos = normalizeOutingPhotosByType(photosByOutingId.get(outing.id) || []);
+    const returnPhotoUploadedAt = getReturnPhotoUploadedAt({ photos });
+    return {
+      id: outing.id,
+      studentId: outing.student_id,
+      studentName: getCanonicalStudentName(outing.student_id, outing.student_name || ""),
+      className: outing.class_name || "",
+      reason: outing.reason,
+      detail: outing.detail || "",
+      expectedReturn: outing.expected_return || "",
+      status: outing.status,
+      decision: outing.decision,
+      approvedBy: outing.approved_by || "",
+      approvedAt: outing.approved_at || "",
+      approvalReason: outing.approval_reason || "",
+      teacherMemo: "",
+      earlyLeaveReason: outing.early_leave_reason || "",
+      receiptNote: outing.receipt_note || "",
+      photos,
+      createdAt: outing.created_at,
+      verifiedAt: outing.verified_at,
+      returnedAt: outing.returned_at || (outing.status === "returned" ? returnPhotoUploadedAt : ""),
+      deletedAt: outing.deleted_at || "",
+    };
+  });
+}
+
+function mapRemoteOutingPhoto(photo, existingPhoto = null) {
+  const existing = existingPhoto || {};
+  return {
+    id: photo.id,
+    type: photo.photo_type,
+    name: photo.original_name || "",
+    dataUrl: photo.data_url || existing.dataUrl || "",
+    photoPath: photo.photo_path || existing.photoPath || "",
+    photoUrl: photo.photo_url || existing.photoUrl || "",
+    thumbnailPath: photo.thumbnail_path || existing.thumbnailPath || "",
+    thumbnailUrl: photo.thumbnail_url || existing.thumbnailUrl || "",
+    uploadedAt: photo.uploaded_at,
+  };
 }
 
 function mergePendingOutingPhotoDrafts(outings, drafts) {

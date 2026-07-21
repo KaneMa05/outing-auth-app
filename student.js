@@ -162,8 +162,10 @@ function openPreAttendanceOutingConfirmModal(onContinue) {
   document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
-function submitOutingRequest(student, data, form) {
-    state.outings.unshift({
+async function submitOutingRequest(student, data, form) {
+    const submitButton = form.querySelector('[type="submit"]');
+    const originalButtonText = submitButton?.textContent || "외출 신청하기";
+    const outing = {
       id: createId(),
       studentId: student.id,
       studentName: student.name,
@@ -180,13 +182,31 @@ function submitOutingRequest(student, data, form) {
       createdAt: new Date().toISOString(),
       verifiedAt: null,
       returnedAt: null,
-    });
-    state.settings.lastStudentId = student.id;
-    setStudentStep("verify");
-    saveState();
-    form.reset();
-    render();
-    notify("외출 신청이 접수되었습니다. 사진 인증을 진행하세요.");
+    };
+    if (submitButton) {
+      submitButton.disabled = true;
+      setButtonLoading(submitButton, "신청 저장 중...");
+    }
+    try {
+      const savedDirectly = await saveNewOutingRequestToRemote(outing);
+      state.outings = state.outings.filter((item) => item.id !== outing.id);
+      state.deletedOutings = state.deletedOutings.filter((item) => item.id !== outing.id);
+      state.outings.unshift(outing);
+      state.settings.lastStudentId = student.id;
+      setStudentStep("verify");
+      saveState({ skipRemote: savedDirectly });
+      form.reset();
+      render();
+      notify("외출 신청이 접수되었습니다. 사진 인증을 진행하세요.");
+    } catch (error) {
+      console.error("Failed to save a new outing request", error);
+      notify("외출 신청을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      if (submitButton?.isConnected) {
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
+      }
+    }
 }
 
 function createEarlyLeaveForm() {
@@ -204,7 +224,7 @@ function createEarlyLeaveForm() {
     el("div", { className: "field full attendance-action-row" }, [submitButton, cancelButton]),
   ]);
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
     const earlyLeaveReason = String(data.earlyLeaveReason || "").trim();
@@ -218,7 +238,7 @@ function createEarlyLeaveForm() {
       return;
     }
 
-    state.outings.unshift({
+    const outing = {
       id: createId(),
       studentId: student.id,
       studentName: student.name,
@@ -235,13 +255,26 @@ function createEarlyLeaveForm() {
       createdAt: new Date().toISOString(),
       verifiedAt: null,
       returnedAt: null,
-    });
-    state.settings.lastStudentId = student.id;
-    state.settings.earlyLeaveMode = false;
-    saveState();
-    form.reset();
-    render();
-    notify("조퇴 신청이 접수되었습니다.");
+    };
+    submitButton.disabled = true;
+    setButtonLoading(submitButton, "신청 저장 중...");
+    try {
+      const savedDirectly = await saveNewOutingRequestToRemote(outing);
+      state.outings = state.outings.filter((item) => item.id !== outing.id);
+      state.deletedOutings = state.deletedOutings.filter((item) => item.id !== outing.id);
+      state.outings.unshift(outing);
+      state.settings.lastStudentId = student.id;
+      state.settings.earlyLeaveMode = false;
+      saveState({ skipRemote: savedDirectly });
+      form.reset();
+      render();
+      notify("조퇴 신청이 접수되었습니다.");
+    } catch (error) {
+      console.error("Failed to save a new early-leave request", error);
+      submitButton.disabled = false;
+      submitButton.textContent = "조퇴 신청하기";
+      notify("조퇴 신청을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    }
   });
 
   return form;

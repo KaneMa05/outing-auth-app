@@ -2440,7 +2440,7 @@ function downloadWeeklyGradeReport(exam, cohort = selectedStudentCohort, weekNum
   const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const subjects = getWeeklyGradeReportSubjects(exam);
-  const headers = ["번호", "이름", "직렬", ...subjects.map(formatWeeklyGradeReportSubjectHeader), "개수", "이번 등수", "전주 등수", "등락"];
+  const headers = ["번호", "이름", "직렬", ...subjects.map(formatWeeklyGradeReportSubjectHeader), "총점", "개수", "이번 등수", "전주 등수", "등락"];
   const rows = summaries.map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     return {
@@ -2451,6 +2451,7 @@ function downloadWeeklyGradeReport(exam, cohort = selectedStudentCohort, weekNum
         summary.student.name || "",
         formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(summary.student)),
         ...subjects.map((subject) => formatWeeklyGradeReportScoreCell(summary.subjectScores[subject])),
+        String(Number(summary.score) || 0),
         formatWeeklyWrongCountCell(summary) === "-" ? "" : formatWeeklyWrongCountCell(summary),
         summary.rank ? String(summary.rank) : "",
         previousRank ? String(previousRank) : "",

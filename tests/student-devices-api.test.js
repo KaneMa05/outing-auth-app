@@ -5,12 +5,22 @@ const fs = require("node:fs");
 const handler = require("../api/student-devices");
 
 const migrationSql = fs.readFileSync("supabase/add-student-devices.sql", "utf8");
+const schemaSql = fs.readFileSync("supabase/schema.sql", "utf8");
 assert.match(migrationSql, /pg_advisory_xact_lock\(hashtext\(p_student_id\)::bigint\)/);
 assert.match(migrationSql, /if v_active_count >= 2 then/);
-assert.match(migrationSql, /encode\(digest\(v_legacy_device_token, 'sha256'\), 'hex'\)/);
+assert.match(migrationSql, /encode\(extensions\.digest\(v_legacy_device_token, 'sha256'\), 'hex'\)/);
+assert.doesNotMatch(migrationSql, /(?<!\.)\bdigest\(/, "pgcrypto digest calls must use the extensions schema");
+assert.doesNotMatch(schemaSql, /(?<!\.)\bdigest\(/, "schema pgcrypto digest calls must use the extensions schema");
 assert.match(migrationSql, /create or replace function public\.validate_student_device/);
 assert.match(migrationSql, /create or replace function public\.revoke_student_device/);
 assert.match(migrationSql, /create or replace function public\.reset_student_devices/);
+assert.match(migrationSql, /alter publication supabase_realtime add table public\.students/);
+assert.match(migrationSql, /alter publication supabase_realtime add table public\.outings/);
+assert.match(
+  migrationSql,
+  /create or replace function public\.revoke_student_device[\s\S]*update public\.students\s+set app_registered_at = app_registered_at/,
+  "individual device revocation must emit a non-sensitive student realtime event"
+);
 
 function createResponse() {
   return {

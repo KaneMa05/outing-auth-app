@@ -82,12 +82,14 @@ window.addEventListener("hashchange", () => {
   currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
   render();
   scrollAppToTop();
+  if (APP_MODE === "student") scheduleStudentRouteRemoteRefresh();
 });
 
 window.addEventListener("popstate", () => {
   currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
   render();
   scrollAppToTop();
+  if (APP_MODE === "student") scheduleStudentRouteRemoteRefresh();
 });
 
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
@@ -475,6 +477,9 @@ function renderStudentAuth() {
         return notify("등록 가능한 기기 2대를 모두 사용 중입니다.");
       }
       if (registration.error === "invalid_credentials") return notify("비밀번호가 일치하지 않습니다.");
+      if (registration.error === "student_device_store_unavailable" || registration.httpStatus >= 500) {
+        return notify("기기 등록 서버에 오류가 발생했습니다. 잠시 후 다시 시도하거나 사무실에 문의해주세요.");
+      }
       return notify("기기를 등록하지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
 

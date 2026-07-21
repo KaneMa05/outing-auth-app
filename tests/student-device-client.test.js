@@ -9,6 +9,7 @@ const teacherResetApiSource = fs.readFileSync("api/reset-student-registration.js
 
 assert.match(appSource, /await registerStudentDeviceWithServer\(/);
 assert.match(appSource, /registration\.error === "device_limit_reached"/);
+assert.match(appSource, /registration\.error === "student_device_store_unavailable" \|\| registration\.httpStatus >= 500/);
 assert.match(appSource, /saveState\(\{ skipRemote: true \}\);/);
 assert.doesNotMatch(
   appSource.match(/form\.addEventListener\("submit"[\s\S]*?return el\("div", \{ className: "grid student-view"/)?.[0] || "",
@@ -20,6 +21,18 @@ assert.match(sharedSource, /async function reconcileCurrentStudentDeviceWithServ
 assert.match(sharedSource, /response\.status !== 403 \|\| data\.error !== "device_not_active"/);
 assert.match(sharedSource, /console\.warn\("Student device validation was skipped\."/);
 assert.match(sharedSource, /delete state\.settings\.studentProfiles\[studentId\]/);
+assert.match(
+  sharedSource,
+  /const deviceValidationChanged = await reconcileCurrentStudentDeviceWithServer\(\{[\s\S]*?if \(shouldPauseStudentRemoteRefresh\(\)\)/,
+  "device validation must run before draft-protection pauses the full refresh"
+);
+assert.match(
+  sharedSource,
+  /function applyStudentOutingRealtimeChange\([\s\S]*?activeOutingDeleted[\s\S]*?notify\("관리자가 현재 외출 신청을 삭제했습니다\."\)/,
+  "a realtime change must immediately apply an active outing deletion"
+);
+assert.match(sharedSource, /const STUDENT_DEVICE_VALIDATION_INTERVAL_MS = 5 \* 60 \* 1000;/);
+assert.match(sharedSource, /function scheduleStudentDeviceRealtimeValidation\([\s\S]*reconcileCurrentStudentDeviceWithServer\(\{ force: true \}\)/);
 assert.match(appSource, /async function openStudentDeviceManager/);
 assert.match(appSource, /async function revokeStudentDevice/);
 assert.match(teacherSource, /async function openTeacherStudentDeviceManager/);
@@ -81,6 +94,22 @@ function createAuthState() {
   });
   assert.equal(await networkValidator({ force: true }), false);
   assert.ok(networkState.settings.studentProfiles["18001"], "network failures must preserve local auth");
+
+  const retryState = createAuthState();
+  let retryAttempts = 0;
+  const retryValidator = createValidator(retryState, async () => {
+    retryAttempts += 1;
+    if (retryAttempts === 1) throw new Error("offline");
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, valid: true, deviceId: "device-after-retry", activeCount: 1 }),
+    };
+  });
+  assert.equal(await retryValidator(), false);
+  assert.equal(await retryValidator(), false);
+  assert.equal(retryAttempts, 2, "a failed validation must be retried on the next refresh cycle");
+  assert.equal(retryState.settings.studentProfiles["18001"].deviceId, "device-after-retry");
 
   const validState = createAuthState();
   const validValidator = createValidator(validState, async () => ({

@@ -396,7 +396,7 @@ begin
     )
     values (
       p_student_id,
-      encode(digest(v_legacy_device_token, 'sha256'), 'hex'),
+      encode(extensions.digest(v_legacy_device_token, 'sha256'), 'hex'),
       right(v_legacy_device_token, 8),
       'Migrated device',
       coalesce(v_student_registered_at, v_now),
@@ -567,7 +567,7 @@ begin
   end if;
 
   if nullif(v_legacy_device_token, '') is not null
-     and encode(digest(v_legacy_device_token, 'sha256'), 'hex') = p_device_token_hash then
+     and encode(extensions.digest(v_legacy_device_token, 'sha256'), 'hex') = p_device_token_hash then
     insert into public.student_devices (
       student_id,
       device_token_hash,
@@ -687,6 +687,12 @@ begin
   where id = p_target_device_id
     and student_id = p_student_id
     and revoked_at is null;
+
+  -- Emit a non-sensitive student-row update so the registered clients can
+  -- validate their own device after a single-device revocation.
+  update public.students
+  set app_registered_at = app_registered_at
+  where id = p_student_id;
 
   insert into public.student_registration_events (
     student_id,
@@ -809,6 +815,31 @@ revoke all on function public.reset_student_devices(text, text, text, text, text
 revoke all on function public.reset_student_devices(text, text, text, text, text, text) from anon;
 revoke all on function public.reset_student_devices(text, text, text, text, text, text) from authenticated;
 grant execute on function public.reset_student_devices(text, text, text, text, text, text) to service_role;
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'students'
+    ) then
+      alter publication supabase_realtime add table public.students;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'outings'
+    ) then
+      alter publication supabase_realtime add table public.outings;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'outing_photos'
+    ) then
+      alter publication supabase_realtime add table public.outing_photos;
+    end if;
+  end if;
+end;
+$$;
 
 create table if not exists public.fitness_scores (
   id text primary key,
@@ -979,6 +1010,18 @@ on public.penalties (student_id, created_at desc);
 
 create index if not exists notices_created_at_idx
 on public.notices (created_at desc);
+
+create index if not exists outings_created_at_idx
+on public.outings (created_at desc);
+
+create index if not exists outings_student_created_at_idx
+on public.outings (student_id, created_at desc);
+
+create index if not exists outing_photos_uploaded_at_idx
+on public.outing_photos (uploaded_at asc);
+
+create index if not exists outing_photos_outing_uploaded_idx
+on public.outing_photos (outing_id, uploaded_at asc);
 
 create index if not exists student_registration_events_student_created_idx
 on public.student_registration_events (student_id, created_at desc);

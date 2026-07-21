@@ -150,6 +150,7 @@ async function logoutTeacher() {
   teacherAuth.authenticated = false;
   teacherAuth.checked = true;
   teacherAuth.user = null;
+  await stopTeacherOutingRealtimeSync();
   render();
   notify("로그아웃되었습니다.");
 }

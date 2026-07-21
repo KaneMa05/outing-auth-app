@@ -2,6 +2,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
 const source = fs.readFileSync("shared.js", "utf8");
+const studentSource = fs.readFileSync("student.js", "utf8");
+const schemaSource = fs.readFileSync("supabase/schema.sql", "utf8");
+const outingSyncMigrationSource = fs.readFileSync("supabase/add-outing-sync-indexes.sql", "utf8");
 const peerFunctionSource = source.match(/function getStudentRemotePeerIds\([\s\S]*?\n}\n\nasync function loadStudentGradesRefreshSnapshot/)?.[0]
   .replace(/\n\nasync function loadStudentGradesRefreshSnapshot[\s\S]*$/, "");
 const snapshotFunctionSource = source.match(/function applyStudentGradesRefreshSnapshot\([\s\S]*?\n}\n\nasync function refreshStudentGradesStateFromRemote/)?.[0]
@@ -58,6 +61,105 @@ assert.match(
   source,
   /if \(hasActiveStudentExamDraft\(\) \|\| isRemoteSaving \|\| hasPendingRemoteSave\) return;\s*saveStateToLocalStorage\(\);/,
   "background snapshots must not serialize state while answers or remote writes are active"
+);
+assert.match(
+  source,
+  /\.on\("postgres_changes", \{[\s\S]*table: "outings",[\s\S]*filter: `student_id=eq\.\$\{studentId\}`/,
+  "student outing changes should use a student-scoped realtime subscription"
+);
+assert.doesNotMatch(
+  source,
+  /STUDENT_OUTING_REFRESH_INTERVAL_MS|scheduleStudentOutingRefresh/,
+  "student outings must not add a short-interval polling loop"
+);
+assert.match(
+  source,
+  /const STUDENT_AUTO_REFRESH_INTERVAL_MS = 5 \* 60 \* 1000;/,
+  "the general student refresh must remain a low-frequency safety fallback"
+);
+assert.match(
+  source,
+  /const STUDENT_GRADES_REFRESH_INTERVAL_MS = 30 \* 1000;/,
+  "students actively viewing grades should retain a scoped refresh cadence"
+);
+assert.match(
+  source,
+  /const nextOuting = existing \|\| mapped;[\s\S]*Object\.assign\(nextOuting, mapped/,
+  "realtime updates must preserve the outing object used by an in-flight photo upload"
+);
+assert.match(
+  source,
+  /function ensureTeacherOutingRealtimeSubscription\(\)[\s\S]*channel\("teacher-critical-outings"\)[\s\S]*table: "outings"/,
+  "the administrator must receive new outing rows without waiting for the fallback polling interval"
+);
+assert.match(
+  source,
+  /function ensureTeacherOutingRealtimeSubscription\(\)[\s\S]*table: "outing_photos"[\s\S]*applyTeacherOutingPhotoRealtimeChange/,
+  "the administrator must receive new outing photos without waiting for the fallback polling interval"
+);
+assert.match(
+  source,
+  /async function stopTeacherOutingRealtimeSync\(\)[\s\S]*removeEventListener[\s\S]*removeChannel/,
+  "teacher logout must stop timers, listeners, and the realtime channel"
+);
+assert.match(
+  source,
+  /function scheduleTeacherOutingRefresh\([\s\S]*if \(!teacherAuth\.authenticated\)[\s\S]*finally \{\s*if \(teacherAuth\.authenticated\) scheduleTeacherOutingRefresh\(\)/,
+  "an in-flight administrator refresh must not recreate its timer after logout"
+);
+assert.match(
+  source,
+  /const TEACHER_OUTING_REALTIME_REFRESH_INTERVAL_MS = 30000;[\s\S]*function getTeacherOutingRefreshInterval\(\)[\s\S]*teacherOutingRealtimeConnected/,
+  "connected administrator clients must reduce full-table fallback polling"
+);
+assert.match(
+  source,
+  /function scheduleTeacherOutingRealtimeRender\(\)[\s\S]*clearTimeout\(teacherOutingRenderTimer\)[\s\S]*TEACHER_OUTING_RENDER_DEBOUNCE_MS/,
+  "bursts of administrator realtime events must be rendered as one batch"
+);
+assert.doesNotMatch(
+  source.match(/function applyTeacherOutingRealtimeChange\(payload\)[\s\S]*?\n}\n\nfunction scheduleTeacherOutingResumeRefresh/)?.[0] || "",
+  /saveStateToLocalStorage\(\)|\brender\(\)/,
+  "individual administrator realtime events must not synchronously serialize and rebuild the page"
+);
+assert.match(
+  source,
+  /async function saveNewOutingRequestToRemote\(outing\)[\s\S]*\.from\("outings"\)[\s\S]*\.upsert\(\{[\s\S]*status: "requested",[\s\S]*decision: "pending"/,
+  "new outing requests must be written directly instead of waiting behind a full-state save"
+);
+assert.ok(
+  studentSource.indexOf("await saveNewOutingRequestToRemote(outing)") < studentSource.indexOf("state.outings = state.outings.filter"),
+  "the student UI must wait for the direct insert before reporting a successful request"
+);
+assert.match(
+  studentSource,
+  /state\.outings = state\.outings\.filter\(\(item\) => item\.id !== outing\.id\);\s*state\.deletedOutings = state\.deletedOutings\.filter/,
+  "a realtime insert racing the direct response must not duplicate the local outing"
+);
+assert.match(
+  studentSource,
+  /const savedDirectly = await saveNewOutingRequestToRemote\(outing\);[\s\S]*saveState\(\{ skipRemote: savedDirectly \}\)/,
+  "a successful direct insert must not trigger the legacy full-state save"
+);
+assert.match(
+  schemaSource,
+  /create index if not exists outings_student_created_at_idx\s*on public\.outings \(student_id, created_at desc\)/,
+  "student outing fallback reads must have a matching compound index"
+);
+assert.match(
+  schemaSource,
+  /create index if not exists outing_photos_outing_uploaded_idx\s*on public\.outing_photos \(outing_id, uploaded_at asc\)/,
+  "scoped outing-photo reads must have a matching compound index"
+);
+assert.match(
+  outingSyncMigrationSource,
+  /alter publication supabase_realtime add table public\.outings/,
+  "the deployable migration must enable outing realtime delivery"
+);
+assert.match(
+  outingSyncMigrationSource,
+  /alter publication supabase_realtime add table public\.outing_photos/,
+  "the deployable migration must enable outing photo realtime delivery"
 );
 
 function getStudentCohort(student) {
