@@ -5457,17 +5457,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .student-device-card {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.student-device-card > .subtle {
-  grid-column: 1 / -1;
-  margin: -4px 0 0;
-}
-
-.student-device-card > .btn {
-  grid-column: 1 / -1;
-  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .student-device-manager-modal {

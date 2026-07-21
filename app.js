@@ -1013,8 +1013,6 @@ function renderStudentDeviceManagementCard(student, profile) {
       el("h2", {}, "등록 기기"),
       el("span", {}, `${activeCount}/2대`),
     ]),
-    el("p", { className: "subtle" }, "사용 중인 기기를 확인하고 필요 없는 기기만 해제할 수 있습니다."),
-    button("등록 기기 관리", "btn secondary", "button", () => openStudentDeviceManager(student.id)),
   ]);
 }
 
