@@ -999,9 +999,9 @@ function renderStudentMypage() {
         profileItem("성별", profile.gender || "-"),
       ]),
     ]),
-    renderStudentDeviceManagementCard(student, profile),
     renderStudentOutingHistoryButton(student.id),
     renderStudentPenaltyHistoryButton(student.id),
+    renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),
   ]);
 }

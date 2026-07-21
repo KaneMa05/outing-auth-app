@@ -343,8 +343,9 @@ function renderWeeklyExamCohortPanel() {
   ]);
 }
 
-function getExamSections(examId) {
-  return (state.examSections || [])
+function getExamSections(examId, gradeLookup = null) {
+  const sections = gradeLookup?.sectionsByExamId?.get(examId) || state.examSections || [];
+  return sections
     .filter((section) => section.examId === examId && !isWeeklySubjectExcludedForTrack(section.subject, section.track))
     .sort((a, b) => {
       const trackCompare = String(a.track || "").localeCompare(String(b.track || ""), "ko-KR");
@@ -1854,11 +1855,12 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const exam = getWeeklyExamByCohortAndWeek(cohort, targetWeek);
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
   const students = getGradeManagementStudents(cohort);
+  const gradeLookup = createWeeklyGradeLookup();
   const weeklySubjectHeaders = gradeManagementTrackFilter
-    ? getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter)
-    : getWeeklyGradeSubjectHeadersForStudents(exam, students);
-  const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student)));
-  const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student)));
+    ? getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter, gradeLookup)
+    : getWeeklyGradeSubjectHeadersForStudents(exam, students, gradeLookup);
+  const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student, gradeLookup)));
+  const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student, gradeLookup)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const displaySummaries = gradeManagementTrackFilter ? sortGradeSummariesForDisplay(summaries) : sortWeeklyGradeSummariesByTrack(summaries);
@@ -1884,15 +1886,15 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
     el("div", { className: "teacher-search grade-management-filter" }, [
       field("주차", weekSelect),
     ]),
-    exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek) : null,
+    exam ? renderWeeklyGradeScoreActions(exam, cohort, targetWeek, gradeLookup) : null,
     exam
       ? table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "조회할 학생이 없습니다."))])])
       : el("div", { className: "empty" }, `${targetWeek}주차 주간평가가 아직 생성되지 않았습니다.`),
   ]);
 }
 
-function renderWeeklyGradeScoreActions(exam, cohort, weekNumber) {
-  const resetTargets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort);
+function renderWeeklyGradeScoreActions(exam, cohort, weekNumber, gradeLookup = null) {
+  const resetTargets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort, gradeLookup);
   return el("div", { className: "action-row weekly-answer-actions" }, [
     button("성적표 다운로드", "mini-btn secondary", "button", () => downloadWeeklyGradeReport(exam, cohort, weekNumber)),
     resetTargets.length
@@ -1901,12 +1903,12 @@ function renderWeeklyGradeScoreActions(exam, cohort, weekNumber) {
   ]);
 }
 
-function getWeeklyGradeSubjectHeaders(exam, track) {
+function getWeeklyGradeSubjectHeaders(exam, track, gradeLookup = null) {
   if (!exam) return [];
   const normalizedTrack = normalizeCoastGuardTrack(track);
   const seen = new Set();
   const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
-  return getExamSections(exam.id)
+  return getExamSections(exam.id, gradeLookup)
     .filter((section) => {
       const sectionTrack = normalizeCoastGuardTrack(section.track);
       if (section.isActive === false) return false;
@@ -1924,12 +1926,12 @@ function getWeeklyGradeSubjectHeaders(exam, track) {
     .sort((a, b) => (subjectOrder.get(a) ?? 999) - (subjectOrder.get(b) ?? 999) || a.localeCompare(b, "ko-KR"));
 }
 
-function getWeeklyGradeSubjectHeadersForStudents(exam, students = []) {
+function getWeeklyGradeSubjectHeadersForStudents(exam, students = [], gradeLookup = null) {
   if (!exam) return [];
   const seen = new Set();
   const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
   students.forEach((student) => {
-    getWeeklyGradeSectionsForStudent(exam, student).forEach((section) => {
+    getWeeklyGradeSectionsForStudent(exam, student, gradeLookup).forEach((section) => {
       const subject = String(section.subject || "").trim();
       if (subject) seen.add(subject);
     });
@@ -1996,15 +1998,15 @@ async function resetWeeklyExamSubjectSubmission(section, submission, student) {
   }
 }
 
-function getZeroScoreIncompleteWeeklySubmissions(exam, cohort) {
+function getZeroScoreIncompleteWeeklySubmissions(exam, cohort, gradeLookup = null) {
   if (!exam) return [];
   const targets = [];
   getGradeManagementStudents(cohort).forEach((student) => {
-    getWeeklyGradeSectionsForStudent(exam, student).forEach((section) => {
-      const submission = getStudentExamSubmission(student.id, section.id);
+    getWeeklyGradeSectionsForStudent(exam, student, gradeLookup).forEach((section) => {
+      const submission = getStudentExamSubmission(student.id, section.id, gradeLookup);
       if (!submission || Number(submission.score || 0) !== 0) return;
-      const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student);
-      const answerStatus = getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers);
+      const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student, gradeLookup);
+      const answerStatus = getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers, gradeLookup);
       if (answerStatus.status !== "incomplete") return;
       targets.push({ student, section, submission, answerStatus });
     });
@@ -2963,14 +2965,39 @@ function getWeeklyExamByCohortAndWeek(cohort, weekNumber) {
   );
 }
 
-function getWeeklyGradeStudentSummary(exam, student) {
-  const sections = exam ? getWeeklyGradeSectionsForStudent(exam, student) : [];
+function createWeeklyGradeLookup() {
+  const groupBy = (items, getKey) => {
+    const grouped = new Map();
+    (items || []).forEach((item) => {
+      const key = getKey(item);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(item);
+    });
+    return grouped;
+  };
+  const submissionsByStudentSection = new Map();
+  (state.examSubmissions || []).forEach((submission) => {
+    if (submission.status !== "submitted") return;
+    submissionsByStudentSection.set(`${String(submission.studentId || "")}|||${submission.examSectionId}`, submission);
+  });
+  return {
+    sectionsByExamId: groupBy(state.examSections, (section) => section.examId),
+    answersBySectionId: groupBy(state.examAnswers, (answer) => answer.examSectionId),
+    submissionAnswersBySubmissionId: groupBy(state.submissionAnswers, (answer) => answer.submissionId),
+    submissionsByStudentSection,
+    gradeSectionsByExamTrack: new Map(),
+    visibleAnswersBySectionTrack: new Map(),
+  };
+}
+
+function getWeeklyGradeStudentSummary(exam, student, gradeLookup = null) {
+  const sections = exam ? getWeeklyGradeSectionsForStudent(exam, student, gradeLookup) : [];
   const sectionSummaries = sections.map((section) => {
-    const submission = getStudentExamSubmission(student.id, section.id);
-    const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student);
+    const submission = getStudentExamSubmission(student.id, section.id, gradeLookup);
+    const visibleAnswers = getWeeklyGradeVisibleAnswers(section, student, gradeLookup);
     const questionCount = visibleAnswers.length;
     const maxScore = sumWeeklyAnswerPoints(visibleAnswers, section);
-    const computedGrade = submission ? computeWeeklySubmissionGrade(section, submission, visibleAnswers) : null;
+    const computedGrade = submission ? computeWeeklySubmissionGrade(section, submission, visibleAnswers, gradeLookup) : null;
     return { section, submission, computedGrade, visibleAnswers, questionCount, maxScore };
   });
   const submitted = sectionSummaries.filter((item) => item.submission);
@@ -2990,7 +3017,7 @@ function getWeeklyGradeStudentSummary(exam, student) {
           correctCount: getWeeklySummarySectionCorrectCount(item),
           questionCount: item.questionCount,
           status: "submitted",
-          answerStatus: getWeeklySubmissionAnswerStatus(item.section, item.submission, item.visibleAnswers),
+          answerStatus: getWeeklySubmissionAnswerStatus(item.section, item.submission, item.visibleAnswers, gradeLookup),
         }
       : { status: "missing", questionCount: item.questionCount, maxScore: item.maxScore };
   });
@@ -3022,9 +3049,10 @@ function getWeeklyGradeStudentSummary(exam, student) {
   };
 }
 
-function getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers = []) {
+function getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers = [], gradeLookup = null) {
   const requiredQuestionNumbers = visibleAnswers.map((answer) => Number(answer.questionNumber) || 0).filter(Boolean);
-  const savedAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
+  const savedAnswers = gradeLookup?.submissionAnswersBySubmissionId?.get(submission.id)
+    || (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
   const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
   const missingQuestions = requiredQuestionNumbers.filter((questionNumber) =>
     !normalizeExamAnswerChoice(savedByQuestion.get(questionNumber)?.selectedAnswer)
@@ -3039,9 +3067,9 @@ function getWeeklySubmissionAnswerStatus(section, submission, visibleAnswers = [
   };
 }
 
-function computeWeeklySubmissionGrade(section, submission, visibleAnswers = []) {
-  const savedAnswers = (state.submissionAnswers || [])
-    .filter((answer) => answer.submissionId === submission.id)
+function computeWeeklySubmissionGrade(section, submission, visibleAnswers = [], gradeLookup = null) {
+  const savedAnswers = [...(gradeLookup?.submissionAnswersBySubmissionId?.get(submission.id)
+    || (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id))]
     .sort((a, b) => Number(a.questionNumber) - Number(b.questionNumber));
   if (!visibleAnswers.length || savedAnswers.length < visibleAnswers.length) return null;
   const savedByQuestion = new Map(savedAnswers.map((answer) => [Number(answer.questionNumber), answer]));
@@ -3266,34 +3294,50 @@ function getGradeSubjectHeaders() {
   return Array.isArray(FINAL_GRADE_SUBJECTS) ? FINAL_GRADE_SUBJECTS : Array.from({ length: 8 }, (_, index) => `과목${index + 1}`);
 }
 
-function getWeeklyGradeSectionsForStudent(exam, student) {
+function getWeeklyGradeSectionsForStudent(exam, student, gradeLookup = null) {
   const studentTrack = getTeacherStudentRegisteredTrack(student);
-  const matchedSections = getExamSections(exam?.id || "").filter((section) => {
+  const cacheKey = `${exam?.id || ""}|||${studentTrack}`;
+  if (gradeLookup?.gradeSectionsByExamTrack?.has(cacheKey)) {
+    return gradeLookup.gradeSectionsByExamTrack.get(cacheKey);
+  }
+  const matchedSections = getExamSections(exam?.id || "", gradeLookup).filter((section) => {
     const sectionTrack = normalizeCoastGuardTrack(section.track);
     const trackMatched = sectionTrack === studentTrack || sectionTrack === WEEKLY_EXAM_TRACK_ALL;
     const subjectMatched = sectionTrack !== WEEKLY_EXAM_TRACK_ALL || isWeeklySubjectAllowedForTrack(section.subject, studentTrack);
-    return section.isActive !== false && trackMatched && subjectMatched && isWeeklyGradeSectionVisibleForTrack(section, studentTrack);
+    return section.isActive !== false && trackMatched && subjectMatched && isWeeklyGradeSectionVisibleForTrack(section, studentTrack, gradeLookup);
   });
-  return preferTrackSpecificWeeklySections(matchedSections, studentTrack);
+  const sections = preferTrackSpecificWeeklySections(matchedSections, studentTrack);
+  gradeLookup?.gradeSectionsByExamTrack?.set(cacheKey, sections);
+  return sections;
 }
 
-function isWeeklyGradeSectionVisibleForTrack(section, track) {
-  const answers = getWeeklyGradeVisibleAnswers(section, track);
+function isWeeklyGradeSectionVisibleForTrack(section, track, gradeLookup = null) {
+  const answers = getWeeklyGradeVisibleAnswers(section, track, gradeLookup);
   const questionCount = Number(section.questionCount) || 0;
   if (isWeeklyQuestionTrackScopedSubject(section.subject)) return answers.length > 0;
   return answers.length > 0 && (!questionCount || answers.length >= questionCount);
 }
 
-function getWeeklyGradeVisibleAnswers(section, student) {
+function getWeeklyGradeVisibleAnswers(section, student, gradeLookup = null) {
   const studentTrack = typeof student === "string" ? normalizeCoastGuardTrack(student) : getTeacherStudentRegisteredTrack(student);
+  const cacheKey = `${section.id}|||${studentTrack}`;
+  if (gradeLookup?.visibleAnswersBySectionTrack?.has(cacheKey)) {
+    return gradeLookup.visibleAnswersBySectionTrack.get(cacheKey);
+  }
   const questionCount = Number(section.questionCount) || 0;
-  return getSectionAnswers(section.id)
+  const answers = gradeLookup?.answersBySectionId?.get(section.id) || getSectionAnswers(section.id);
+  const visibleAnswers = answers
     .filter(hasExamCorrectAnswer)
     .filter((answer) => !questionCount || Number(answer.questionNumber) <= questionCount)
     .filter((answer) => !isWeeklyQuestionTrackScopedSubject(section.subject) || isWeeklyQuestionForTrack(answer, studentTrack));
+  gradeLookup?.visibleAnswersBySectionTrack?.set(cacheKey, visibleAnswers);
+  return visibleAnswers;
 }
 
-function getStudentExamSubmission(studentId, sectionId) {
+function getStudentExamSubmission(studentId, sectionId, gradeLookup = null) {
+  if (gradeLookup?.submissionsByStudentSection) {
+    return gradeLookup.submissionsByStudentSection.get(`${String(studentId || "")}|||${sectionId}`);
+  }
   return (state.examSubmissions || []).find((submission) =>
     String(submission.studentId || "") === String(studentId || "") &&
     submission.examSectionId === sectionId &&
