@@ -92,6 +92,11 @@ let teacherOutingRenderTimer = null;
 let isTeacherOutingRefreshing = false;
 let teacherOutingRenderPending = false;
 let lastTeacherOutingSignature = "";
+let teacherBaseDataLoaded = false;
+const teacherWeeklyGradeLoadedExamIds = new Set();
+const teacherWeeklyGradeLoadPromises = new Map();
+const teacherFitnessLoadedScopeKeys = new Set();
+const teacherFitnessLoadPromises = new Map();
 let studentExamDataLastLoadedAt = 0;
 let studentDeviceValidationAttemptedAt = 0;
 let isStudentLocalSnapshotSavePending = false;
@@ -706,6 +711,13 @@ function setButtonLoading(buttonNode, text) {
   buttonNode.appendChild(document.createTextNode(text));
 }
 
+function renderDataLoadingState(message = "데이터를 불러오는 중입니다.") {
+  return el("div", { className: "data-loading-state", role: "status", ariaLive: "polite" }, [
+    el("span", { className: "loading-spinner", ariaHidden: "true" }),
+    el("span", {}, message),
+  ]);
+}
+
 function loadSupabaseSdk() {
   if (window.supabase && window.supabase.createClient) return Promise.resolve(true);
   if (window.__outingSupabaseSdkPromise) return window.__outingSupabaseSdkPromise;
@@ -744,11 +756,15 @@ async function initRemoteStore() {
   isRemoteLoading = true;
   try {
     if (APP_MODE === "teacher") {
+      teacherBaseDataLoaded = false;
+      teacherWeeklyGradeLoadedExamIds.clear();
+      teacherFitnessLoadedScopeKeys.clear();
       await refreshTeacherOutingsFromRemote({ allowWhileLoading: true, renderImmediately: true });
       // Keep the lightweight outing refresh alive even if an unrelated admin dataset fails below.
       startRemoteRefresh();
     }
     await loadStateFromRemote({ forceExamData: true });
+    if (APP_MODE === "teacher") teacherBaseDataLoaded = true;
     const registrationChanged = reconcileStudentRegistrationFromRemote();
     const deviceValidationChanged = registrationChanged
       ? false
@@ -762,6 +778,7 @@ async function initRemoteStore() {
     if (APP_MODE === "teacher") notify("Supabase 불러오기 중 오류가 발생했습니다.");
   } finally {
     isRemoteLoading = false;
+    if (APP_MODE === "teacher" && teacherAuth.authenticated) renderAppIfReady();
   }
 }
 
@@ -1646,6 +1663,196 @@ async function loadSubmissionAnswersBySubmissionIds(submissionIds, columns) {
   return { data: rows, error: null };
 }
 
+async function loadExamSubmissionsBySectionIds(sectionIds, columns) {
+  if (!remoteStore || !sectionIds.length) return { data: [], error: null };
+  const rows = [];
+  const uniqueIds = [...new Set(sectionIds.filter(Boolean))];
+  for (const idChunk of chunkArray(uniqueIds, 80)) {
+    for (let from = 0; ; from += 1000) {
+      const result = await remoteStore
+        .from("exam_submissions")
+        .select(columns)
+        .in("exam_section_id", idChunk)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (result.error) return result;
+      const data = result.data || [];
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+  }
+  return { data: rows, error: null };
+}
+
+function isTeacherWeeklyGradeDataLoaded(examId) {
+  if (!examId || APP_MODE !== "teacher") return true;
+  if (!remoteStore && !isRemoteLoading) return true;
+  if (!teacherBaseDataLoaded) return false;
+  return teacherWeeklyGradeLoadedExamIds.has(String(examId));
+}
+
+async function loadTeacherWeeklyGradeExamData(examId, options = {}) {
+  const normalizedExamId = String(examId || "").trim();
+  if (!normalizedExamId || APP_MODE !== "teacher" || !remoteStore) return false;
+  const sectionIds = (state.examSections || [])
+    .filter((section) => String(section.examId || "") === normalizedExamId)
+    .map((section) => section.id)
+    .filter(Boolean);
+  const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
+  const submissionAnswerColumns = "id,submission_id,question_number,selected_answer,is_correct,points_awarded";
+  const submissionResult = await loadExamSubmissionsBySectionIds(sectionIds, examSubmissionColumns);
+  if (submissionResult.error && !isMissingRelationError(submissionResult.error, "exam_submissions")) throw submissionResult.error;
+  const remoteSubmissions = submissionResult.error ? [] : (submissionResult.data || []).map(mapExamSubmissionFromRemote);
+  const submissionAnswerResult = submissionResult.error
+    ? { data: [], error: null }
+    : await loadSubmissionAnswersBySubmissionIds(remoteSubmissions.map((submission) => submission.id), submissionAnswerColumns);
+  if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
+  const remoteAnswers = submissionAnswerResult.error ? [] : (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
+  const targetSectionIds = new Set(sectionIds);
+  const previousSubmissionIds = new Set(
+    (state.examSubmissions || [])
+      .filter((submission) => targetSectionIds.has(submission.examSectionId))
+      .map((submission) => submission.id)
+  );
+  remoteSubmissions.forEach((submission) => previousSubmissionIds.add(submission.id));
+  state.examSubmissions = [
+    ...(state.examSubmissions || []).filter((submission) => !targetSectionIds.has(submission.examSectionId)),
+    ...remoteSubmissions,
+  ];
+  state.submissionAnswers = [
+    ...(state.submissionAnswers || []).filter((answer) => !previousSubmissionIds.has(answer.submissionId)),
+    ...remoteAnswers,
+  ];
+  teacherWeeklyGradeLoadedExamIds.add(normalizedExamId);
+  if (options.reconcile !== false) {
+    const reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
+    await persistReconciledExamSubmissionGrades(reconciledExamGrades);
+  }
+  return true;
+}
+
+async function ensureTeacherWeeklyGradeDataForExamIds(examIds, options = {}) {
+  if (APP_MODE !== "teacher" || !remoteStore || isRemoteLoading || !teacherBaseDataLoaded) return false;
+  const normalizedIds = [...new Set((examIds || []).map((examId) => String(examId || "").trim()).filter(Boolean))];
+  if (!normalizedIds.length) return true;
+  const requests = normalizedIds.map((examId) => {
+    if (!options.force && teacherWeeklyGradeLoadedExamIds.has(examId)) return Promise.resolve(false);
+    if (teacherWeeklyGradeLoadPromises.has(examId)) return teacherWeeklyGradeLoadPromises.get(examId);
+    const request = loadTeacherWeeklyGradeExamData(examId, options)
+      .finally(() => teacherWeeklyGradeLoadPromises.delete(examId));
+    teacherWeeklyGradeLoadPromises.set(examId, request);
+    return request;
+  });
+  await Promise.all(requests);
+  return true;
+}
+
+function requestTeacherWeeklyGradeDataForExams(exams, options = {}) {
+  const examIds = (exams || []).map((exam) => exam?.id).filter(Boolean);
+  if (!teacherBaseDataLoaded) return;
+  if (!examIds.length || examIds.every(isTeacherWeeklyGradeDataLoaded)) return;
+  ensureTeacherWeeklyGradeDataForExamIds(examIds, options)
+    .then((loaded) => {
+      if (loaded && typeof render === "function") render();
+    })
+    .catch((error) => {
+      console.error("Failed to load weekly grade data", error);
+      notify("주간평가 성적 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+    });
+}
+
+function getTeacherFitnessScopeKey(cohort, month) {
+  return `${String(cohort || "").trim()}|||${String(month || "").trim()}`;
+}
+
+function isTeacherFitnessDataLoaded(cohort, months = []) {
+  if (APP_MODE !== "teacher") return true;
+  if (!remoteStore && !isRemoteLoading) return true;
+  if (!teacherBaseDataLoaded) return false;
+  const normalizedMonths = [...new Set((months || []).map((month) => String(month || "").trim()).filter(Boolean))];
+  return normalizedMonths.every((month) => teacherFitnessLoadedScopeKeys.has(getTeacherFitnessScopeKey(cohort, month)));
+}
+
+async function loadTeacherFitnessScoresByStudentIds(studentIds, months, columns) {
+  if (!remoteStore || !studentIds.length || !months.length) return { data: [], error: null };
+  const rows = [];
+  const uniqueStudentIds = [...new Set(studentIds.map((studentId) => String(studentId || "").trim()).filter(Boolean))];
+  const uniqueMonths = [...new Set(months.map((month) => String(month || "").trim()).filter(Boolean))];
+  for (const idChunk of chunkArray(uniqueStudentIds, 80)) {
+    for (let from = 0; ; from += 1000) {
+      const result = await remoteStore
+        .from("fitness_scores")
+        .select(columns)
+        .in("student_id", idChunk)
+        .in("assessment_month", uniqueMonths)
+        .order("assessment_month", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (result.error) return result;
+      const data = result.data || [];
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+  }
+  return { data: rows, error: null };
+}
+
+async function loadTeacherFitnessData(cohort, months) {
+  const normalizedCohort = String(cohort || "").trim();
+  const normalizedMonths = [...new Set((months || []).map((month) => String(month || "").trim()).filter(Boolean))];
+  if (APP_MODE !== "teacher" || !remoteStore || !normalizedMonths.length) return false;
+  const studentIds = (state.students || [])
+    .filter((student) => getStudentCohort(student) === normalizedCohort)
+    .map((student) => student.id)
+    .filter(Boolean);
+  const columns = "id,assessment_month,student_id,student_name,gender,cohort,sit_up_count,push_up_count,grip_strength,converted_scores,total_score,memo,measured_at,updated_at,created_at";
+  let result = await loadTeacherFitnessScoresByStudentIds(studentIds, normalizedMonths, columns);
+  if (isMissingColumnError(result.error, "assessment_month")) result = { data: [], error: null };
+  if (result.error && !isMissingRelationError(result.error, "fitness_scores")) throw result.error;
+  const targetStudentIds = new Set(studentIds.map((studentId) => String(studentId)));
+  const targetMonths = new Set(normalizedMonths);
+  state.fitnessScores = [
+    ...(state.fitnessScores || []).filter((record) =>
+      !targetStudentIds.has(String(record.studentId || "")) ||
+      !targetMonths.has(String(record.assessmentMonth || ""))
+    ),
+    ...(result.data || []).map(mapFitnessScoreFromRemote),
+  ];
+  normalizedMonths.forEach((month) => teacherFitnessLoadedScopeKeys.add(getTeacherFitnessScopeKey(normalizedCohort, month)));
+  return true;
+}
+
+async function ensureTeacherFitnessData(cohort, months) {
+  if (APP_MODE !== "teacher" || !remoteStore || isRemoteLoading || !teacherBaseDataLoaded) return false;
+  const normalizedMonths = [...new Set((months || []).map((month) => String(month || "").trim()).filter(Boolean))];
+  const missingMonths = normalizedMonths.filter((month) =>
+    !teacherFitnessLoadedScopeKeys.has(getTeacherFitnessScopeKey(cohort, month))
+  );
+  if (!missingMonths.length) return true;
+  const requestKey = `${String(cohort || "").trim()}|||${missingMonths.sort().join(",")}`;
+  if (!teacherFitnessLoadPromises.has(requestKey)) {
+    const request = loadTeacherFitnessData(cohort, missingMonths)
+      .finally(() => teacherFitnessLoadPromises.delete(requestKey));
+    teacherFitnessLoadPromises.set(requestKey, request);
+  }
+  await teacherFitnessLoadPromises.get(requestKey);
+  return true;
+}
+
+function requestTeacherFitnessData(cohort, months) {
+  if (!teacherBaseDataLoaded || isTeacherFitnessDataLoaded(cohort, months)) return;
+  ensureTeacherFitnessData(cohort, months)
+    .then((loaded) => {
+      if (loaded && typeof render === "function") render();
+    })
+    .catch((error) => {
+      console.error("Failed to load fitness data", error);
+      notify("체력평가 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+    });
+}
+
 async function loadExamAnswersFromRemote(columns) {
   if (!remoteStore) return { data: [], error: null };
   const rows = [];
@@ -1857,11 +2064,11 @@ async function loadStateFromRemote(options = {}) {
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
   const shouldLoadLegacyStudentGradeData = APP_MODE === "student" && scopedStudentId && !STUDENT_SCOPED_REFRESH_ENABLED;
-  const examSubmissionRequest = APP_MODE === "teacher" || shouldLoadLegacyStudentGradeData
+  const examSubmissionRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
     : Promise.resolve({ data: [], error: null });
   const finalExamScoreRequest = remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false });
-  const fitnessScoreRequest = APP_MODE === "teacher" || shouldLoadLegacyStudentGradeData
+  const fitnessScoreRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
   const examRequest = shouldLoadExamData

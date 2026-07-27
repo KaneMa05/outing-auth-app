@@ -44,6 +44,19 @@ const FITNESS_SCORE_RULES = {
 function renderFitnessManagement() {
   if (!hasTeacherPermission("fitness.read")) return renderForbidden();
   const selected = selectedStudentCohortCount();
+  const requiredMonths = [fitnessFilters.month, getPreviousFitnessMonth(fitnessFilters.month)];
+  if (!isTeacherFitnessDataLoaded(selected.value, requiredMonths)) {
+    requestTeacherFitnessData(selected.value, requiredMonths);
+    return el("div", { className: "grid fitness-management" }, [
+      el("div", { className: "stat-groups" }, [
+        studentCountStatGroup(),
+      ]),
+      renderFitnessToolbar(),
+      panel("체력평가 조회", [
+        renderDataLoadingState("선택한 기수의 체력평가 데이터를 불러오는 중입니다."),
+      ]),
+    ]);
+  }
   const students = getFitnessStudents(selected.value);
   const records = getFitnessRecordsForMonth(fitnessFilters.month);
   const savedCount = records.filter((record) => getStudentCohort({ id: record.studentId }) === selected.value).length;

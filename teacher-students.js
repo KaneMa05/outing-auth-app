@@ -650,9 +650,19 @@ function renderTeacherPreviewWeeklyExamSelect(studentId, exams = [], selectedExa
 }
 
 function renderStudentWeeklyGradePreviewPanel(student, exam, exams = []) {
-  const summary = exam ? getTeacherPreviewWeeklySummary(student, exam) : null;
   const title = exam ? `${Number(exam.weekNumber) || 1}주차 주간평가 성적` : "주간평가 성적";
   const headerControl = exam ? renderTeacherPreviewWeeklyExamSelect(student.id, exams, exam) : null;
+  if (exam && !isTeacherWeeklyGradeDataLoaded(exam.id)) {
+    requestTeacherWeeklyGradeDataForExams([exam]);
+    return el("div", { className: "student-grade-result" }, [
+      el("div", { className: "student-grade-result-title" }, [
+        el("strong", {}, title),
+        headerControl,
+      ]),
+      renderDataLoadingState("주간평가 성적을 불러오는 중입니다."),
+    ]);
+  }
+  const summary = exam ? getTeacherPreviewWeeklySummary(student, exam) : null;
   if (!summary || !summary.submittedCount) {
     return el("div", { className: "student-grade-result" }, [
       el("div", { className: "student-grade-result-title" }, [

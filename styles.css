@@ -689,6 +689,28 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
   animation: spin 0.75s linear infinite;
 }
 
+.data-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 96px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft, #f7f9fc);
+  color: var(--muted);
+  text-align: center;
+}
+
+.data-loading-state .loading-spinner {
+  flex: 0 0 auto;
+  inline-size: 20px;
+  block-size: 20px;
+  border-color: rgba(7, 93, 164, 0.2);
+  border-top-color: var(--accent);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1998,6 +2020,30 @@ th {
 
 .weekly-answer-actions {
   margin: 0;
+}
+
+.info-modal-panel.weekly-answer-reset-modal {
+  width: min(440px, 100%);
+}
+
+.weekly-answer-reset-content,
+.weekly-answer-reset-form {
+  display: grid;
+  gap: 12px;
+}
+
+.weekly-answer-reset-form .field {
+  margin: 0;
+}
+
+.weekly-answer-reset-feedback {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.weekly-answer-reset-feedback.error {
+  color: var(--danger);
 }
 
 .weekly-detail-actions,

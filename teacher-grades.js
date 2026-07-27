@@ -2,6 +2,13 @@ let weeklyExamRoundFileUploadProgress = null;
 
 function renderWeeklyExamManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
+  if (isRemoteLoading && !teacherBaseDataLoaded) {
+    return el("div", { className: "grid weekly-exam-admin" }, [
+      panel("주간평가 문제 조회", [
+        renderDataLoadingState("주간평가 문제 데이터를 불러오는 중입니다."),
+      ]),
+    ]);
+  }
   const selectedLookupExam = weeklyExamMode === "lookup" && weeklyExamSelectedId
     ? getWeeklyExams().find((exam) => exam.id === weeklyExamSelectedId)
     : null;
@@ -114,6 +121,22 @@ function renderWeeklyExamAbsenceManagement() {
 
   const targetWeek = Number(weeklyExamGradeFilters.weekNumber) || 1;
   const exam = getWeeklyExamByCohortAndWeek(selected.value, targetWeek);
+  if (exam && !isTeacherWeeklyGradeDataLoaded(exam.id)) {
+    requestTeacherWeeklyGradeDataForExams([exam]);
+    return el("div", { className: "grid weekly-absence-management" }, [
+      el("div", { className: "stat-groups" }, [
+        studentCountStatGroup(),
+      ]),
+      panel("주간평가 미응시자 필터", [
+        el("div", { className: "teacher-search grade-management-top-filter" }, [
+          field("주차", weekSelect),
+        ]),
+      ]),
+      panel(`${targetWeek}주차 응시 현황`, [
+        renderDataLoadingState("선택한 주차의 응시 데이터를 불러오는 중입니다."),
+      ]),
+    ]);
+  }
   const students = getWeeklyAbsenceStudents(selected.value);
   const summaries = exam ? students.map((student) => getWeeklyGradeStudentSummary(exam, student)) : [];
   const absentSummaries = summaries.filter((summary) => summary.subjectCount > 0 && summary.submittedCount === 0);
@@ -1809,6 +1832,7 @@ function openCopyAnswersModal(sourceSection) {
 async function deleteWeeklyExamSection(sectionId) {
   const section = (state.examSections || []).find((item) => item.id === sectionId);
   if (!section) return notify("삭제할 과목을 찾을 수 없습니다.");
+  await ensureTeacherWeeklyGradeDataForExamIds([section.examId]);
   const submissionCount = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id).length;
   const message = submissionCount
     ? `${getSectionWeekLabel(section)} ${section.subject} 과목과 제출 기록 ${submissionCount}건이 함께 삭제됩니다. 삭제할까요?`
@@ -1854,6 +1878,16 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   const targetWeek = Number(weeklyExamGradeFilters.weekNumber) || 1;
   const exam = getWeeklyExamByCohortAndWeek(cohort, targetWeek);
   const previousExam = targetWeek > 1 ? getWeeklyExamByCohortAndWeek(cohort, targetWeek - 1) : null;
+  const requiredExams = [exam, previousExam].filter(Boolean);
+  if (requiredExams.some((item) => !isTeacherWeeklyGradeDataLoaded(item.id))) {
+    requestTeacherWeeklyGradeDataForExams(requiredExams);
+    return panel("주간평가 성적", [
+      el("div", { className: "teacher-search grade-management-filter" }, [
+        field("주차", weekSelect),
+      ]),
+      renderDataLoadingState("선택한 주차의 성적 데이터를 불러오는 중입니다."),
+    ]);
+  }
   const students = getGradeManagementStudents(cohort);
   const gradeLookup = createWeeklyGradeLookup();
   const weeklySubjectHeaders = gradeManagementTrackFilter
@@ -1897,10 +1931,100 @@ function renderWeeklyGradeScoreActions(exam, cohort, weekNumber, gradeLookup = n
   const resetTargets = getZeroScoreIncompleteWeeklySubmissions(exam, cohort, gradeLookup);
   return el("div", { className: "action-row weekly-answer-actions" }, [
     button("성적표 다운로드", "mini-btn secondary", "button", () => downloadWeeklyGradeReport(exam, cohort, weekNumber)),
+    button("답안지 초기화", "mini-btn danger", "button", () => openWeeklyExamAnswerResetModal(exam, cohort, gradeLookup)),
     resetTargets.length
       ? button(`0점 답안 초기화 ${resetTargets.length}건`, "mini-btn danger", "button", () => resetZeroScoreIncompleteWeeklySubmissions(exam, cohort))
       : null,
   ]);
+}
+
+function getWeeklyExamAnswerResetSubjects(exam, gradeLookup = null) {
+  const subjectOrder = new Map(WEEKLY_EXAM_SUBJECTS.map((subject, index) => [subject, index]));
+  return [...new Set(
+    getExamSections(exam?.id || "", gradeLookup)
+      .filter((section) => section.isActive !== false)
+      .map((section) => String(section.subject || "").trim())
+      .filter(Boolean)
+  )].sort((a, b) => (subjectOrder.get(a) ?? 999) - (subjectOrder.get(b) ?? 999) || a.localeCompare(b, "ko-KR"));
+}
+
+function getWeeklyExamAnswerResetTarget(exam, cohort, studentId, subject, gradeLookup = null) {
+  const normalizedStudentId = String(studentId || "").trim();
+  const normalizedSubject = String(subject || "").trim();
+  if (!normalizedStudentId) return { error: "student_id_required" };
+  if (!normalizedSubject) return { error: "subject_required" };
+
+  const student = getStudentsInCohort(cohort)
+    .find((item) => String(item.id || "").trim() === normalizedStudentId);
+  if (!student) return { error: "student_not_found" };
+
+  const sections = getWeeklyGradeSectionsForStudent(exam, student, gradeLookup)
+    .filter((section) => String(section.subject || "").trim() === normalizedSubject);
+  if (!sections.length) return { error: "subject_not_available", student };
+
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const submission = (state.examSubmissions || []).find((item) =>
+    String(item.studentId || "").trim() === normalizedStudentId &&
+    sectionIds.has(item.examSectionId) &&
+    item.status !== "cancelled"
+  );
+  if (!submission) return { error: "submission_not_found", student, section: sections[0] };
+
+  const section = sections.find((item) => item.id === submission.examSectionId) || sections[0];
+  return { student, section, submission };
+}
+
+function openWeeklyExamAnswerResetModal(exam, cohort, gradeLookup = null) {
+  if (!exam) return notify("초기화할 주간평가를 찾을 수 없습니다.");
+  const subjects = getWeeklyExamAnswerResetSubjects(exam, gradeLookup);
+  if (!subjects.length) return notify("초기화할 과목이 없습니다.");
+
+  const studentInput = input("studentId", "text", "예: 18016");
+  studentInput.inputMode = "numeric";
+  studentInput.pattern = "[0-9]*";
+  const subjectSelect = select("subject", ["", ...subjects]);
+  subjectSelect.querySelector("option[value='']").textContent = "과목 선택";
+  const feedback = el("p", { className: "weekly-answer-reset-feedback", ariaLive: "polite" });
+  const resetButton = button("답안지 초기화", "btn danger");
+  const form = el("form", { className: "weekly-answer-reset-form" }, [
+    field("학생 번호", studentInput, "", "현재 선택된 기수의 학생 번호를 입력해주세요."),
+    field("과목", subjectSelect),
+    feedback,
+    resetButton,
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const target = getWeeklyExamAnswerResetTarget(exam, cohort, studentInput.value, subjectSelect.value, gradeLookup);
+    const errorMessages = {
+      student_id_required: "학생 번호를 입력해주세요.",
+      subject_required: "과목을 선택해주세요.",
+      student_not_found: `${cohort}기 학생 명단에서 해당 번호를 찾을 수 없습니다.`,
+      subject_not_available: "해당 학생이 응시하는 과목이 아닙니다.",
+      submission_not_found: "초기화할 답안 제출 기록이 없습니다.",
+    };
+    if (target.error) {
+      feedback.textContent = errorMessages[target.error] || "초기화 대상을 찾을 수 없습니다.";
+      feedback.className = "weekly-answer-reset-feedback error";
+      return;
+    }
+
+    feedback.textContent = "";
+    resetButton.disabled = true;
+    const resetCompleted = await resetWeeklyExamSubjectSubmission(target.section, target.submission, target.student);
+    resetButton.disabled = false;
+    if (resetCompleted) closeInfoModal();
+  });
+
+  openInfoModal({
+    title: `${Number(exam.weekNumber) || 1}주차 답안지 초기화`,
+    className: "weekly-answer-reset-modal",
+    content: el("div", { className: "weekly-answer-reset-content" }, [
+      el("p", {}, "학생 번호와 과목을 확인한 뒤 해당 답안지만 초기화합니다."),
+      form,
+    ]),
+  });
+  studentInput.focus();
 }
 
 function getWeeklyGradeSubjectHeaders(exam, track, gradeLookup = null) {
@@ -1973,10 +2097,13 @@ async function deleteWeeklyExamStudentSubmissions(exam, student) {
 }
 
 async function resetWeeklyExamSubjectSubmission(section, submission, student) {
-  if (!section || !submission?.id) return notify("초기화할 답안을 찾을 수 없습니다.");
+  if (!section || !submission?.id) {
+    notify("초기화할 답안을 찾을 수 없습니다.");
+    return false;
+  }
   const studentLabel = student?.name || submission.studentName || submission.studentId || "학생";
   const subjectLabel = section.subject || "과목";
-  if (!confirm(`${studentLabel} 학생의 ${subjectLabel} 답안을 초기화할까요?\n초기화하면 해당 과목을 학생 앱에서 다시 입력해야 합니다.`)) return;
+  if (!confirm(`${studentLabel} 학생의 ${subjectLabel} 답안을 초기화할까요?\n초기화하면 해당 과목을 학생 앱에서 다시 입력해야 합니다.`)) return false;
 
   const previousSubmissions = [...(state.examSubmissions || [])];
   const previousAnswers = [...(state.submissionAnswers || [])];
@@ -1988,6 +2115,7 @@ async function resetWeeklyExamSubjectSubmission(section, submission, student) {
     await deleteExamSubmissionsFromRemote([submission.id]);
     render();
     notify(`${studentLabel} 학생의 ${subjectLabel} 답안을 초기화했습니다. 학생 앱에서 다시 입력할 수 있습니다.`);
+    return true;
   } catch (error) {
     console.error(error);
     state.examSubmissions = previousSubmissions;
@@ -1995,6 +2123,7 @@ async function resetWeeklyExamSubjectSubmission(section, submission, student) {
     saveState({ skipRemote: true });
     render();
     notify("답안 초기화를 서버에 반영하지 못했습니다. Supabase 삭제 권한을 확인해주세요.");
+    return false;
   }
 }
 
@@ -3541,6 +3670,10 @@ async function regradeSectionsAfterAnswerChange(sections) {
     seen.add(section.id);
     uniqueSections.push(section);
   });
+  await ensureTeacherWeeklyGradeDataForExamIds(
+    uniqueSections.map((section) => section.examId),
+    { force: true, reconcile: false }
+  );
   for (const section of uniqueSections) {
     const submissions = (state.examSubmissions || []).filter((submission) => submission.examSectionId === section.id && submission.status === "submitted");
     if (!submissions.length) continue;
