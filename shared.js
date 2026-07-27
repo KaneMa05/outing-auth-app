@@ -1646,6 +1646,24 @@ async function loadSubmissionAnswersBySubmissionIds(submissionIds, columns) {
   return { data: rows, error: null };
 }
 
+async function loadExamAnswersFromRemote(columns) {
+  if (!remoteStore) return { data: [], error: null };
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const result = await remoteStore
+      .from("exam_answers")
+      .select(columns)
+      .order("question_number", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + 999);
+    if (result.error) return result;
+    const data = result.data || [];
+    rows.push(...data);
+    if (data.length < 1000) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function loadStudentScopedRows(table, studentIds, columns, orderColumns = []) {
   if (!remoteStore || !studentIds.length) return { data: [], error: null };
   const rows = [];
@@ -1853,7 +1871,7 @@ async function loadStateFromRemote(options = {}) {
     ? remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true })
     : skippedRemoteResult();
   const examAnswerRequest = shouldLoadExamData
-    ? remoteStore.from("exam_answers").select(examAnswerColumns).order("question_number", { ascending: true }).limit(10000)
+    ? loadExamAnswersFromRemote(examAnswerColumns)
     : skippedRemoteResult();
   const examFileRequest = shouldLoadExamData
     ? remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false })
@@ -2005,12 +2023,12 @@ async function loadStateFromRemote(options = {}) {
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
   if (isMissingColumnError(examAnswerResult.error, "correct_answers")) {
-    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points,target_tracks").order("question_number", { ascending: true }).limit(10000);
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points,target_tracks");
   } else if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,correct_answers,points").order("question_number", { ascending: true }).limit(10000);
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,correct_answers,points");
   }
   if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    examAnswerResult = await remoteStore.from("exam_answers").select("id,exam_section_id,question_number,correct_answer,points").order("question_number", { ascending: true }).limit(10000);
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points");
   }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;

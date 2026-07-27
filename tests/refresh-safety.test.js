@@ -142,6 +142,21 @@ assert.match(
   "a successful direct insert must not trigger the legacy full-state save"
 );
 assert.match(
+  studentSource,
+  /function getStudentSectionSubmission\(studentId, sectionId\)[\s\S]*state\.examSubmissions[\s\S]*submission\.studentId === studentId && submission\.examSectionId === sectionId/,
+  "draft weekly submissions must remain discoverable so saved answers can be resumed"
+);
+assert.match(
+  studentSource,
+  /async function startStudentSectionAnswer\(section\)[\s\S]*await ensureStudentSubmissionAnswersLoaded\(submission, section, student\)[\s\S]*getStudentSavedAnswerDraft\(section, student, submission\)[\s\S]*getStudentFirstMissingAnswerPage\(visibleAnswers, answers\)/,
+  "weekly answer entry must preload saved answers and open on the first missing question page"
+);
+assert.match(
+  studentSource,
+  /function getStudentSavedAnswerDraft\(section, student, submission\)[\s\S]*normalizeExamAnswerChoice\(answer\.selectedAnswer\)[\s\S]*answers\[Number\(answer\.questionNumber\)\] = selectedAnswer/,
+  "resumed weekly drafts must preserve selected stored answers"
+);
+assert.match(
   schemaSource,
   /create index if not exists outings_student_created_at_idx\s*on public\.outings \(student_id, created_at desc\)/,
   "student outing fallback reads must have a matching compound index"

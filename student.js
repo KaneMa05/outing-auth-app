@@ -2481,7 +2481,7 @@ function renderStudentWeeklyExamPreparingMessage() {
 }
 
 function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpen) {
-  const submission = getStudentSubmission(student.id, section.id);
+  const submission = getStudentSectionSubmission(student.id, section.id);
   const status = getStudentSectionStatus(exam, section, submission);
   const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
   const visibleQuestionCount = visibleAnswers.length;
@@ -2499,7 +2499,7 @@ function renderStudentExamSubjectCard(exam, section, student, sections, scoreOpe
     submission?.status === "submitted" && !missingStoredAnswers
       ? null
       : isExamOpen(exam)
-        ? button(missingStoredAnswers ? "답안 다시 입력" : "답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
+        ? button(missingStoredAnswers ? "답안 다시 입력" : submission?.status === "draft" ? "답안 이어 입력" : "답안 입력", "btn", "button", () => startStudentSectionAnswer(section))
         : el("p", { className: "subtle" }, "현재 응시할 수 없는 기간입니다."),
   ]);
 }
@@ -2633,6 +2633,7 @@ function renderStudentGradedAnswerCell(row) {
 
 function getStudentSectionStatus(exam, section, submission) {
   if (submission?.status === "submitted") return "제출 완료";
+  if (submission?.status === "draft") return "추가 입력 필요";
   if (exam.startAt && Date.now() < new Date(exam.startAt).getTime()) return "기간 전";
   if (studentExamDraft.sectionId === section.id) return "입력 중";
   return "미제출";
@@ -2660,9 +2661,41 @@ function getStudentSubmission(studentId, sectionId) {
   return (state.examSubmissions || []).find((submission) => submission.studentId === studentId && submission.examSectionId === sectionId && submission.status === "submitted");
 }
 
-function startStudentSectionAnswer(section) {
+function getStudentSectionSubmission(studentId, sectionId) {
+  return (state.examSubmissions || []).find((submission) => submission.studentId === studentId && submission.examSectionId === sectionId);
+}
+
+function getStudentSavedAnswerDraft(section, student, submission) {
+  if (!submission?.id) return {};
+  const visibleQuestionNumbers = new Set(getStudentVisibleSectionAnswers(section, student).map((answer) => Number(answer.questionNumber)));
+  return (state.submissionAnswers || [])
+    .filter((answer) => answer.submissionId === submission.id && visibleQuestionNumbers.has(Number(answer.questionNumber)))
+    .reduce((answers, answer) => {
+      const selectedAnswer = normalizeExamAnswerChoice(answer.selectedAnswer);
+      if (selectedAnswer) answers[Number(answer.questionNumber)] = selectedAnswer;
+      return answers;
+    }, {});
+}
+
+function getStudentFirstMissingAnswerPage(visibleAnswers, answers) {
+  const firstMissingIndex = visibleAnswers.findIndex((answer) =>
+    !normalizeExamAnswerChoice(answers[Number(answer.questionNumber)])
+  );
+  return firstMissingIndex >= 0 ? Math.floor(firstMissingIndex / 10) : 0;
+}
+
+async function startStudentSectionAnswer(section) {
   clearStudentExamSaveNotices();
-  studentExamDraft = createStudentExamDraft({ sectionId: section.id });
+  const student = getAuthedStudent();
+  const submission = student ? getStudentSectionSubmission(student.id, section.id) : null;
+  if (student && submission) await ensureStudentSubmissionAnswersLoaded(submission, section, student);
+  const visibleAnswers = student ? getStudentVisibleSectionAnswers(section, student) : [];
+  const answers = student && submission ? getStudentSavedAnswerDraft(section, student, submission) : {};
+  studentExamDraft = createStudentExamDraft({
+    sectionId: section.id,
+    answers,
+    page: getStudentFirstMissingAnswerPage(visibleAnswers, answers),
+  });
   render();
 }
 
