@@ -4004,20 +4004,7 @@ async function deleteExamSubjectSettingFromRemote(settingId) {
 
 async function saveExamSubmissionsToRemote(submissions) {
   if (!remoteStore || !submissions.length) return;
-  const rows = submissions.map((submission) => ({
-    id: submission.id,
-    exam_section_id: submission.examSectionId,
-    student_id: submission.studentId,
-    student_name: submission.studentName,
-    track: submission.track,
-    status: submission.status,
-    score: submission.score,
-    correct_count: submission.correctCount,
-    submitted_at: submission.submittedAt || null,
-    created_at: submission.createdAt || new Date().toISOString(),
-  }));
-  const { error } = await remoteStore.from("exam_submissions").upsert(rows, { onConflict: "student_id,exam_section_id" });
-  if (error) throw error;
+  await upsertExamSubmissionsPreservingRemoteIds(submissions);
 }
 
 async function deleteExamSubmissionsFromRemote(submissionIds) {

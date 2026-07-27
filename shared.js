@@ -3782,27 +3782,17 @@ async function persistReconciledExamSubmissionGrades(result) {
   const answers = Array.isArray(result.answers) ? result.answers : [];
   if (!submissions.length && !answers.length) return;
   try {
+    let submissionIdChanges = new Map();
     if (submissions.length) {
-      const submissionRows = submissions.map((submission) => ({
-        id: submission.id,
-        exam_section_id: submission.examSectionId,
-        student_id: submission.studentId,
-        student_name: submission.studentName,
-        track: submission.track,
-        status: submission.status,
-        score: submission.score,
-        correct_count: submission.correctCount,
-        submitted_at: submission.submittedAt || null,
-        created_at: submission.createdAt || new Date().toISOString(),
-      }));
-      const { error } = await remoteStore.from("exam_submissions").upsert(submissionRows, { onConflict: "student_id,exam_section_id" });
-      if (error && !isMissingRelationError(error, "exam_submissions")) throw error;
+      const saveResult = await upsertExamSubmissionsPreservingRemoteIds(submissions);
+      submissionIdChanges = saveResult.idChanges;
     }
     if (answers.length) {
       const uniqueAnswers = new Map();
       answers.forEach((answer) => {
-        if (!answer.submissionId || !answer.questionNumber) return;
-        uniqueAnswers.set(`${answer.submissionId}|||${answer.questionNumber}`, answer);
+        const submissionId = submissionIdChanges.get(answer.submissionId) || answer.submissionId;
+        if (!submissionId || !answer.questionNumber) return;
+        uniqueAnswers.set(`${submissionId}|||${answer.questionNumber}`, { ...answer, submissionId });
       });
       const answerRows = [...uniqueAnswers.values()].map((answer) => ({
         id: answer.id,
@@ -3820,6 +3810,66 @@ async function persistReconciledExamSubmissionGrades(result) {
   } catch (error) {
     console.warn("Failed to persist reconciled weekly exam grades", error);
   }
+}
+
+function getExamSubmissionRemoteKey(submission) {
+  return JSON.stringify([
+    String(submission?.studentId ?? submission?.student_id ?? ""),
+    String(submission?.examSectionId ?? submission?.exam_section_id ?? ""),
+  ]);
+}
+
+function buildExamSubmissionRemoteRow(submission) {
+  return {
+    exam_section_id: submission.examSectionId,
+    student_id: submission.studentId,
+    student_name: submission.studentName,
+    track: submission.track,
+    status: submission.status,
+    score: submission.score,
+    correct_count: submission.correctCount,
+    submitted_at: submission.submittedAt || null,
+    created_at: submission.createdAt || new Date().toISOString(),
+  };
+}
+
+async function upsertExamSubmissionsPreservingRemoteIds(submissions) {
+  if (!remoteStore || !Array.isArray(submissions) || !submissions.length) {
+    return { data: [], idChanges: new Map() };
+  }
+  const uniqueSubmissions = new Map();
+  submissions.forEach((submission) => {
+    if (!submission?.studentId || !submission?.examSectionId) return;
+    uniqueSubmissions.set(getExamSubmissionRemoteKey(submission), submission);
+  });
+  if (!uniqueSubmissions.size) return { data: [], idChanges: new Map() };
+
+  // Do not send the client-side id on a natural-key conflict. Updating the
+  // primary key would break submission_answers_submission_id_fkey.
+  const rows = [...uniqueSubmissions.values()].map(buildExamSubmissionRemoteRow);
+  const { data, error } = await remoteStore
+    .from("exam_submissions")
+    .upsert(rows, { onConflict: "student_id,exam_section_id" })
+    .select("id,student_id,exam_section_id");
+  if (error) throw error;
+
+  const remoteByKey = new Map((data || []).map((row) => [getExamSubmissionRemoteKey(row), row]));
+  const idChanges = new Map();
+  submissions.forEach((submission) => {
+    if (!submission?.studentId || !submission?.examSectionId) return;
+    const key = getExamSubmissionRemoteKey(submission);
+    const remoteId = remoteByKey.get(key)?.id;
+    if (!remoteId) throw new Error("exam_submission_remote_identity_missing");
+    if (submission.id && submission.id !== remoteId) idChanges.set(submission.id, remoteId);
+    submission.id = remoteId;
+  });
+  if (idChanges.size && Array.isArray(state?.submissionAnswers)) {
+    state.submissionAnswers = state.submissionAnswers.map((answer) => {
+      const submissionId = idChanges.get(answer.submissionId);
+      return submissionId ? { ...answer, submissionId } : answer;
+    });
+  }
+  return { data: data || [], idChanges };
 }
 
 async function persistNormalizedWeeklySectionScores(result) {

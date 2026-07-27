@@ -2950,9 +2950,10 @@ async function submitStudentSectionAnswers(section, student) {
     submission,
   ];
   saveState({ skipRemote: true });
+  const remoteSubmissionSaveContext = { preserveExistingRemote: false };
   try {
     if (remoteStore) {
-    await saveStudentExamSubmissionToRemote(submission);
+      await saveStudentExamSubmissionToRemote(submission, remoteSubmissionSaveContext);
       await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id), {
         expectedCount: visibleAnswers.length,
       });
@@ -2964,11 +2965,15 @@ async function submitStudentSectionAnswers(section, student) {
     clearStudentExamSaveNotices();
     studentExamDraft.saving = false;
     studentExamDraft.savingStartedAt = 0;
-    await cleanupFailedStudentExamSubmission(submission);
+    await cleanupFailedStudentExamSubmission(submission, remoteSubmissionSaveContext);
     state.examSubmissions = previousSubmissions;
     state.submissionAnswers = previousSubmissionAnswers;
     saveState({ skipRemote: true });
-    notify("답안 저장에 실패했습니다. 제출되지 않았습니다. 다시 시도해주세요.");
+    notify(
+      remoteSubmissionSaveContext.preserveExistingRemote
+        ? "이미 서버에 제출된 과목입니다. 기존 제출은 그대로 유지됩니다."
+        : "답안 저장에 실패했습니다. 제출되지 않았습니다. 다시 시도해주세요."
+    );
     studentExamDraft.review = true;
     render();
     return;
@@ -3000,58 +3005,26 @@ function gradeStudentSubmission(section, submission) {
   submission.correctCount = correctCount;
 }
 
-async function saveStudentExamSubmissionToRemote(submission) {
+async function saveStudentExamSubmissionToRemote(submission, saveContext = {}) {
   const previousId = submission.id;
-  const row = {
-    id: submission.id,
-    exam_section_id: submission.examSectionId,
-    student_id: submission.studentId,
-    student_name: submission.studentName,
-    track: submission.track,
-    status: submission.status,
-    score: submission.score,
-    correct_count: submission.correctCount,
-    submitted_at: submission.submittedAt,
-    created_at: submission.createdAt,
-  };
+  const row = buildExamSubmissionRemoteRow(submission);
   const result = await remoteStore
     .from("exam_submissions")
-    .upsert(row, { onConflict: "student_id,exam_section_id" })
+    .insert(row)
     .select("id,score,correct_count")
     .maybeSingle();
   if (result.error) {
-    const fallback = await remoteStore.from("exam_submissions").upsert(row, { onConflict: "student_id,exam_section_id" });
-    if (fallback.error) throw fallback.error;
-    await syncStudentSubmissionRemoteIdentity(submission, previousId);
-    return;
+    if (String(result.error.code || "") === "23505") saveContext.preserveExistingRemote = true;
+    throw result.error;
   }
   const data = result.data;
-  applyStudentSubmissionRemoteIdentity(submission, previousId, data);
-}
-
-function applyStudentSubmissionRemoteIdentity(submission, previousId, data) {
-  if (data?.id && data.id !== previousId) {
-    submission.id = data.id;
-    state.submissionAnswers = (state.submissionAnswers || []).map((answer) =>
-      answer.submissionId === previousId ? { ...answer, submissionId: data.id } : answer
-    );
-  }
-  if (data?.score !== undefined) submission.score = Number(data.score) || submission.score;
-  if (data?.correct_count !== undefined) submission.correctCount = Number(data.correct_count) || submission.correctCount;
-}
-
-async function syncStudentSubmissionRemoteIdentity(submission, previousId) {
-  const { data, error } = await remoteStore
-    .from("exam_submissions")
-    .select("id,score,correct_count")
-    .eq("student_id", submission.studentId)
-    .eq("exam_section_id", submission.examSectionId)
-    .maybeSingle();
-  if (error) {
-    console.warn("Failed to confirm student submission id", error);
-    return;
-  }
-  applyStudentSubmissionRemoteIdentity(submission, previousId, data);
+  if (!data?.id) throw new Error("exam_submission_remote_identity_missing");
+  submission.id = data.id;
+  state.submissionAnswers = (state.submissionAnswers || []).map((answer) =>
+    answer.submissionId === previousId ? { ...answer, submissionId: data.id } : answer
+  );
+  if (data.score !== undefined) submission.score = Number(data.score) || submission.score;
+  if (data.correct_count !== undefined) submission.correctCount = Number(data.correct_count) || submission.correctCount;
 }
 
 async function saveStudentSubmissionAnswersToRemote(answers, options = {}) {
@@ -3070,8 +3043,9 @@ async function saveStudentSubmissionAnswersToRemote(answers, options = {}) {
   if (error) throw error;
 }
 
-async function cleanupFailedStudentExamSubmission(submission) {
+async function cleanupFailedStudentExamSubmission(submission, options = {}) {
   if (!remoteStore || !submission?.id) return;
+  if (options.preserveExistingRemote) return;
   try {
     const { error: answerError } = await remoteStore
       .from("submission_answers")
