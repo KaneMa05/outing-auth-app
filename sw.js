@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v240-weekly-answer-pagination";
+const CACHE_NAME = "outing-auth-app-v241-weekly-recovery-refresh";
 const APP_SHELL = [
   "/",
   "/index.html",

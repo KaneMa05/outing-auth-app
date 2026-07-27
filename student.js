@@ -2538,8 +2538,8 @@ async function openStudentGradedAnswerSheetModal(section, submission, student) {
 }
 
 async function ensureStudentSubmissionAnswersLoaded(submission, section, student) {
-  if (!remoteStore || !submission?.id) return;
-  if (hasUsableStudentSubmissionAnswers(submission, section, student)) return;
+  if (!remoteStore || !submission?.id) return true;
+  if (hasUsableStudentSubmissionAnswers(submission, section, student)) return true;
   const { data, error } = await remoteStore
     .from("submission_answers")
     .select("id,submission_id,question_number,selected_answer,is_correct,points_awarded")
@@ -2547,10 +2547,10 @@ async function ensureStudentSubmissionAnswersLoaded(submission, section, student
     .order("question_number", { ascending: true });
   if (error) {
     if (!isMissingRelationError(error, "submission_answers")) console.warn("Failed to load student submission answers", error);
-    return;
+    return false;
   }
   const loadedAnswers = (data || []).map(mapSubmissionAnswerFromRemote);
-  if (!loadedAnswers.length) return;
+  if (!loadedAnswers.length) return true;
   const loadedIds = new Set(loadedAnswers.map((answer) => answer.id).filter(Boolean));
   const loadedQuestionKeys = new Set(loadedAnswers.map((answer) => `${answer.submissionId}:${answer.questionNumber}`));
   state.submissionAnswers = [
@@ -2561,6 +2561,7 @@ async function ensureStudentSubmissionAnswersLoaded(submission, section, student
     ...loadedAnswers,
   ];
   saveState({ skipRemote: true });
+  return true;
 }
 
 function hasUsableStudentSubmissionAnswers(submission, section, student) {
@@ -2688,7 +2689,13 @@ async function startStudentSectionAnswer(section) {
   clearStudentExamSaveNotices();
   const student = getAuthedStudent();
   const submission = student ? getStudentSectionSubmission(student.id, section.id) : null;
-  if (student && submission) await ensureStudentSubmissionAnswersLoaded(submission, section, student);
+  const answersVerified = student && submission
+    ? await ensureStudentSubmissionAnswersLoaded(submission, section, student)
+    : true;
+  if (!answersVerified) {
+    notify("저장된 답안을 확인하지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.");
+    return;
+  }
   const visibleAnswers = student ? getStudentVisibleSectionAnswers(section, student) : [];
   const answers = student && submission ? getStudentSavedAnswerDraft(section, student, submission) : {};
   studentExamDraft = createStudentExamDraft({
@@ -2700,7 +2707,11 @@ async function startStudentSectionAnswer(section) {
 }
 
 function renderStudentExamAnswerEntry(exam, section, student, allSections) {
-  if (getStudentSubmission(student.id, section.id)?.status === "submitted") {
+  const submitted = getStudentSubmission(student.id, section.id);
+  const canRepairMissingAnswers = Boolean(
+    submitted && !hasStudentStoredSubmissionAnswers(submitted, section, student)
+  );
+  if (submitted && !canRepairMissingAnswers) {
     studentExamDraft.sectionId = "";
     return renderStudentExamSubjectList(exam, allSections, student);
   }
@@ -2901,7 +2912,17 @@ function confirmStudentExamSubmit(section, student, missing, questionCount = sec
 
 async function submitStudentSectionAnswers(section, student) {
   if (studentExamDraft.saving) return notify("답안을 저장 중입니다. 완료될 때까지 기다려주세요.");
-  if (getStudentSubmission(student.id, section.id)?.status === "submitted") return notify("이미 제출한 과목입니다. 제출 후에는 수정할 수 없습니다.");
+  const existingSubmission = getStudentSectionSubmission(student.id, section.id);
+  const canRepairMissingAnswers = Boolean(
+    existingSubmission?.status === "submitted" &&
+    !hasStudentStoredSubmissionAnswers(existingSubmission, section, student)
+  );
+  const canReuseExistingSubmission = Boolean(
+    existingSubmission && (existingSubmission.status === "draft" || canRepairMissingAnswers)
+  );
+  if (existingSubmission?.status === "submitted" && !canRepairMissingAnswers) {
+    return notify("이미 제출한 과목입니다. 제출 후에는 수정할 수 없습니다.");
+  }
   const visibleAnswers = getStudentVisibleSectionAnswers(section, student);
   const missing = visibleAnswers
     .map((answerKey, index) => ({ displayNumber: index + 1, questionNumber: Number(answerKey.questionNumber) || 0 }))
@@ -2918,8 +2939,11 @@ async function submitStudentSectionAnswers(section, student) {
   startStudentExamSaveNotices();
   notify("답안을 저장 중입니다. 완료될 때까지 앱을 닫지 마세요.");
   render();
+  const previousSubmissions = [...(state.examSubmissions || [])];
+  const previousSubmissionAnswers = [...(state.submissionAnswers || [])];
+  const submittedAt = new Date().toISOString();
   const submission = {
-    id: createId(),
+    id: canReuseExistingSubmission ? existingSubmission.id : createId(),
     examSectionId: section.id,
     studentId: student.id,
     studentName: student.name,
@@ -2927,8 +2951,8 @@ async function submitStudentSectionAnswers(section, student) {
     status: "submitted",
     score: 0,
     correctCount: 0,
-    submittedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    submittedAt,
+    createdAt: canReuseExistingSubmission ? existingSubmission.createdAt || submittedAt : submittedAt,
   };
   gradeStudentSubmission(section, submission);
   const submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id);
@@ -2941,8 +2965,6 @@ async function submitStudentSectionAnswers(section, student) {
     render();
     return;
   }
-  const previousSubmissions = [...(state.examSubmissions || [])];
-  const previousSubmissionAnswers = [...(state.submissionAnswers || [])];
   state.examSubmissions = [
     ...(state.examSubmissions || []).filter((item) =>
       !(item.studentId === submission.studentId && item.examSectionId === submission.examSectionId)
@@ -2950,14 +2972,20 @@ async function submitStudentSectionAnswers(section, student) {
     submission,
   ];
   saveState({ skipRemote: true });
-  const remoteSubmissionSaveContext = { preserveExistingRemote: false };
+  const remoteSubmissionSaveContext = {
+    preserveExistingRemote: canReuseExistingSubmission,
+    updateExistingRemote: canReuseExistingSubmission,
+  };
   try {
     if (remoteStore) {
       await saveStudentExamSubmissionToRemote(submission, remoteSubmissionSaveContext);
       await saveStudentSubmissionAnswersToRemote((state.submissionAnswers || []).filter((answer) => answer.submissionId === submission.id), {
         expectedCount: visibleAnswers.length,
       });
-      await verifyStudentSubmissionAnswersSaved(submission.id, visibleAnswers.length);
+      await verifyStudentSubmissionAnswersSaved(
+        submission.id,
+        visibleAnswers.map((answer) => Number(answer.questionNumber))
+      );
       saveState({ skipRemote: true });
     }
   } catch (error) {
@@ -2970,7 +2998,9 @@ async function submitStudentSectionAnswers(section, student) {
     state.submissionAnswers = previousSubmissionAnswers;
     saveState({ skipRemote: true });
     notify(
-      remoteSubmissionSaveContext.preserveExistingRemote
+      remoteSubmissionSaveContext.updateExistingRemote
+        ? "답안 저장에 실패했습니다. 기존 임시·제출 기록은 유지됩니다. 다시 시도해주세요."
+        : remoteSubmissionSaveContext.preserveExistingRemote
         ? "이미 서버에 제출된 과목입니다. 기존 제출은 그대로 유지됩니다."
         : "답안 저장에 실패했습니다. 제출되지 않았습니다. 다시 시도해주세요."
     );
@@ -2989,6 +3019,11 @@ async function submitStudentSectionAnswers(section, student) {
 
 function gradeStudentSubmission(section, submission) {
   const key = getStudentVisibleSectionAnswers(section, { track: submission.track });
+  const previousByQuestion = new Map(
+    (state.submissionAnswers || [])
+      .filter((answer) => answer.submissionId === submission.id)
+      .map((answer) => [Number(answer.questionNumber), answer])
+  );
   let score = 0;
   let correctCount = 0;
   state.submissionAnswers = (state.submissionAnswers || []).filter((answer) => answer.submissionId !== submission.id);
@@ -2999,7 +3034,14 @@ function gradeStudentSubmission(section, submission) {
     const pointsAwarded = isCorrect ? getWeeklyVisibleAnswerPointValue(answerKey, section, key) : 0;
     if (isCorrect) correctCount += 1;
     score += pointsAwarded;
-    state.submissionAnswers.push({ id: createId(), submissionId: submission.id, questionNumber: question, selectedAnswer, isCorrect, pointsAwarded });
+    state.submissionAnswers.push({
+      id: previousByQuestion.get(Number(question))?.id || createId(),
+      submissionId: submission.id,
+      questionNumber: question,
+      selectedAnswer,
+      isCorrect,
+      pointsAwarded,
+    });
   });
   submission.score = Math.round(score * 10) / 10;
   submission.correctCount = correctCount;
@@ -3008,11 +3050,17 @@ function gradeStudentSubmission(section, submission) {
 async function saveStudentExamSubmissionToRemote(submission, saveContext = {}) {
   const previousId = submission.id;
   const row = buildExamSubmissionRemoteRow(submission);
-  const result = await remoteStore
-    .from("exam_submissions")
-    .insert(row)
-    .select("id,score,correct_count")
-    .maybeSingle();
+  let request = remoteStore.from("exam_submissions");
+  if (saveContext.updateExistingRemote) {
+    request = request
+      .update(row)
+      .eq("id", submission.id)
+      .eq("student_id", submission.studentId)
+      .eq("exam_section_id", submission.examSectionId);
+  } else {
+    request = request.insert(row);
+  }
+  const result = await request.select("id,score,correct_count").maybeSingle();
   if (result.error) {
     if (String(result.error.code || "") === "23505") saveContext.preserveExistingRemote = true;
     throw result.error;
@@ -3062,15 +3110,25 @@ async function cleanupFailedStudentExamSubmission(submission, options = {}) {
   }
 }
 
-async function verifyStudentSubmissionAnswersSaved(submissionId, expectedCount) {
-  if (!remoteStore || !submissionId || !expectedCount) return;
+async function verifyStudentSubmissionAnswersSaved(submissionId, expectedQuestionNumbers) {
+  const requiredQuestions = [...new Set(
+    (expectedQuestionNumbers || []).map(Number).filter((questionNumber) => questionNumber > 0)
+  )];
+  if (!remoteStore || !submissionId || !requiredQuestions.length) return;
   const { data, error } = await remoteStore
     .from("submission_answers")
     .select("question_number,selected_answer")
     .eq("submission_id", submissionId);
   if (error) throw error;
-  const selectedCount = (data || []).filter((answer) => normalizeExamAnswerChoice(answer.selected_answer)).length;
-  if (selectedCount !== expectedCount) throw new Error("submission_answer_remote_count_mismatch");
+  const selectedByQuestion = new Map(
+    (data || []).map((answer) => [
+      Number(answer.question_number),
+      normalizeExamAnswerChoice(answer.selected_answer),
+    ])
+  );
+  if (requiredQuestions.some((questionNumber) => !selectedByQuestion.get(questionNumber))) {
+    throw new Error("submission_answer_remote_count_mismatch");
+  }
 }
 
 function toCircledAnswer(value) {

@@ -662,6 +662,7 @@ function renderStudentWeeklyGradePreviewPanel(student, exam, exams = []) {
       renderDataLoadingState("주간평가 성적을 불러오는 중입니다."),
     ]);
   }
+  scheduleTeacherWeeklyGradeDataRefresh(exam ? [exam] : []);
   const summary = exam ? getTeacherPreviewWeeklySummary(student, exam) : null;
   if (!summary || !summary.submittedCount) {
     return el("div", { className: "student-grade-result" }, [

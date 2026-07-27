@@ -54,6 +54,26 @@ assert.match(
   /if \(exam && !isTeacherWeeklyGradeDataLoaded\(exam\.id\)\)[\s\S]*requestTeacherWeeklyGradeDataForExams\(\[exam\]\)/,
   "student preview should lazy-load the selected weekly exam"
 );
+assert.match(
+  sharedSource,
+  /function scheduleTeacherWeeklyGradeDataRefresh\([\s\S]*force: true[\s\S]*TEACHER_WEEKLY_GRADE_REFRESH_INTERVAL_MS/,
+  "teacher weekly grade views should periodically force-refresh their selected exams"
+);
+assert.match(
+  gradeSource,
+  /scheduleTeacherWeeklyGradeDataRefresh\(exam \? \[exam\] : \[\]\)[\s\S]*getWeeklyAbsenceStudents/,
+  "the weekly absence screen should keep its selected exam fresh"
+);
+assert.match(
+  gradeSource,
+  /scheduleTeacherWeeklyGradeDataRefresh\(requiredExams\)[\s\S]*getGradeManagementStudents/,
+  "the weekly grade screen should keep its selected exams fresh"
+);
+assert.match(
+  studentSource,
+  /scheduleTeacherWeeklyGradeDataRefresh\(exam \? \[exam\] : \[\]\)[\s\S]*getTeacherPreviewWeeklySummary/,
+  "student weekly grade preview should keep its selected exam fresh"
+);
 
 const remoteRows = Array.from({ length: 1003 }, (_, index) => ({ id: index + 1 }));
 const requestedRanges = [];

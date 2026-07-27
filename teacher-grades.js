@@ -137,6 +137,7 @@ function renderWeeklyExamAbsenceManagement() {
       ]),
     ]);
   }
+  scheduleTeacherWeeklyGradeDataRefresh(exam ? [exam] : []);
   const students = getWeeklyAbsenceStudents(selected.value);
   const summaries = exam ? students.map((student) => getWeeklyGradeStudentSummary(exam, student)) : [];
   const absentSummaries = summaries.filter((summary) => summary.subjectCount > 0 && summary.submittedCount === 0);
@@ -1888,6 +1889,7 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
       renderDataLoadingState("선택한 주차의 성적 데이터를 불러오는 중입니다."),
     ]);
   }
+  scheduleTeacherWeeklyGradeDataRefresh(requiredExams);
   const students = getGradeManagementStudents(cohort);
   const gradeLookup = createWeeklyGradeLookup();
   const weeklySubjectHeaders = gradeManagementTrackFilter

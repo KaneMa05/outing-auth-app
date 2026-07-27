@@ -49,6 +49,7 @@ const STUDENT_RESUME_REFRESH_DELAY_MS = 1200;
 const STUDENT_AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STUDENT_AUTO_REFRESH_JITTER_MS = 30 * 1000;
 const STUDENT_GRADES_REFRESH_INTERVAL_MS = 30 * 1000;
+const TEACHER_WEEKLY_GRADE_REFRESH_INTERVAL_MS = 30 * 1000;
 const TEACHER_OUTING_REFRESH_INTERVAL_MS = 5000;
 const TEACHER_OUTING_REALTIME_REFRESH_INTERVAL_MS = 30000;
 const TEACHER_OUTING_RENDER_DEBOUNCE_MS = 450;
@@ -89,6 +90,7 @@ let teacherOutingResumeTimer = null;
 let teacherOutingRealtimeChannel = null;
 let teacherOutingRealtimeConnected = false;
 let teacherOutingRenderTimer = null;
+let teacherWeeklyGradeRefreshTimer = null;
 let isTeacherOutingRefreshing = false;
 let teacherOutingRenderPending = false;
 let lastTeacherOutingSignature = "";
@@ -1760,6 +1762,33 @@ function requestTeacherWeeklyGradeDataForExams(exams, options = {}) {
       console.error("Failed to load weekly grade data", error);
       notify("주간평가 성적 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
     });
+}
+
+function scheduleTeacherWeeklyGradeDataRefresh(exams) {
+  window.clearTimeout(teacherWeeklyGradeRefreshTimer);
+  teacherWeeklyGradeRefreshTimer = null;
+  const refreshExams = (exams || []).filter((exam) => exam?.id);
+  if (APP_MODE !== "teacher" || !refreshExams.length) return;
+  teacherWeeklyGradeRefreshTimer = window.setTimeout(async () => {
+    teacherWeeklyGradeRefreshTimer = null;
+    const weeklyGradeRoutes = ["grades", "weekly-absences", "student-preview"];
+    if (!weeklyGradeRoutes.includes(currentRoute)) return;
+    if (document.hidden) {
+      scheduleTeacherWeeklyGradeDataRefresh(refreshExams);
+      return;
+    }
+    try {
+      const loaded = await ensureTeacherWeeklyGradeDataForExamIds(
+        refreshExams.map((exam) => exam.id),
+        { force: true }
+      );
+      if (loaded && typeof render === "function") render();
+      else scheduleTeacherWeeklyGradeDataRefresh(refreshExams);
+    } catch (error) {
+      console.error("Failed to refresh weekly grade data", error);
+      scheduleTeacherWeeklyGradeDataRefresh(refreshExams);
+    }
+  }, TEACHER_WEEKLY_GRADE_REFRESH_INTERVAL_MS);
 }
 
 function getTeacherFitnessScopeKey(cohort, month) {
