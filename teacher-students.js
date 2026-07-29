@@ -92,6 +92,7 @@ function teacherStudentForm() {
 }
 
 function renderStudentAdminActionMenu(student, profile) {
+  const hasAppRegistration = Boolean(student.appRegisteredAt || profile?.passwordHash || profile?.authedAt);
   return el("details", { className: "student-action-menu" }, [
     el("summary", { className: "mini-btn student-action-menu-trigger" }, "관리"),
     el("div", { className: "student-action-menu-list" }, [
@@ -100,7 +101,9 @@ function renderStudentAdminActionMenu(student, profile) {
       button("직렬 변경", "student-action-menu-item", "button", () => openStudentTrackEditModal(student.id)),
       button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
       profile ? button("등록 기기 관리", "student-action-menu-item", "button", () => openTeacherStudentDeviceManager(student.id)) : null,
-      profile ? button("등록 초기화", "student-action-menu-item", "button", () => resetStudentAppRegistration(student.id)) : null,
+      hasAppRegistration
+        ? button("비밀번호 초기화", "student-action-menu-item danger", "button", () => openStudentPasswordResetModal(student.id))
+        : null,
       button(isAttendanceExcludedStudent(student) ? "출석 포함" : "출석 제외", "student-action-menu-item", "button", () => toggleStudentAttendanceExcluded(student.id)),
       button(isFitnessExcludedStudent(student) ? "체력평가 포함" : "체력평가 제외", "student-action-menu-item", "button", () => toggleStudentFitnessExcluded(student.id)),
       button("삭제", "student-action-menu-item danger", "button", () => deleteStudent(student.id)),
@@ -281,9 +284,9 @@ async function openTeacherStudentDeviceManager(studentId) {
               ])
             ))
           : el("div", { className: "empty" }, "등록된 기기가 없습니다."),
-        button("전체 등록 초기화", "btn danger", "button", () => {
+        button("비밀번호 및 전체 등록 초기화", "btn danger", "button", () => {
           closeInfoModal();
-          resetStudentAppRegistration(studentId);
+          openStudentPasswordResetModal(studentId);
         }),
       ]),
     });
@@ -1263,12 +1266,42 @@ async function deactivateStudentRemote(id) {
   if (error) throw error;
 }
 
-async function resetStudentAppRegistration(id) {
+function openStudentPasswordResetModal(id) {
   const student = findStudent(id);
-  if (!student) return;
-  if (!confirm(student.name + " (" + student.id + ") 학생의 앱 등록 상태를 초기화할까요?")) return;
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
 
-  openLoadingModal("등록 초기화 중", "학생 앱 등록 정보를 초기화하고 있습니다.");
+  const resetButton = button("비밀번호 초기화", "btn danger", "button", async () => {
+    resetButton.disabled = true;
+    try {
+      await resetStudentPassword(student.id);
+    } finally {
+      resetButton.disabled = false;
+    }
+  });
+
+  openInfoModal({
+    title: "학생 비밀번호 초기화",
+    className: "student-password-reset-modal",
+    content: el("div", { className: "student-password-reset-content" }, [
+      el("p", {}, [
+        el("strong", {}, `${student.name} (${student.id})`),
+        " 학생의 비밀번호를 초기화합니다.",
+      ]),
+      el("p", { className: "subtle" }, "보안을 위해 기존에 등록된 모든 기기도 함께 해제됩니다. 학생은 다음 앱 등록 때 새 비밀번호를 설정할 수 있습니다."),
+      el("div", { className: "attendance-modal-actions" }, [
+        button("취소", "btn secondary", "button", closeInfoModal),
+        resetButton,
+      ]),
+    ]),
+  });
+}
+
+async function resetStudentPassword(id) {
+  const student = findStudent(id);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+
+  closeInfoModal();
+  openLoadingModal("비밀번호 초기화 중", "학생 비밀번호와 등록 기기를 초기화하고 있습니다.");
 
   if (remoteStore) {
     try {
@@ -1282,14 +1315,18 @@ async function resetStudentAppRegistration(id) {
       if (!data.ok) {
         if (response.status === 401) {
           notify("교사 로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+        } else if (response.status === 403) {
+          notify("비밀번호를 초기화할 권한이 없습니다.");
+        } else if (response.status === 404) {
+          notify("학생 정보를 찾을 수 없습니다.");
         } else {
-          notify(response.status === 503 ? "서버 초기화 설정을 확인해주세요." : "서버 등록 초기화에 실패했습니다.");
+          notify(response.status === 503 ? "서버 초기화 설정을 확인해주세요." : "서버 비밀번호 초기화에 실패했습니다.");
         }
         return;
       }
     } catch (error) {
       console.error(error);
-      notify("서버 등록 초기화 요청 중 오류가 발생했습니다.");
+      notify("서버 비밀번호 초기화 요청 중 오류가 발생했습니다.");
       return;
     } finally {
       closeLoadingModal();
@@ -1313,5 +1350,5 @@ async function resetStudentAppRegistration(id) {
 
   saveState({ skipRemote: true });
   render();
-  notify("학생 앱 등록 상태를 초기화했습니다.");
+  notify(`${student.name} 학생의 비밀번호를 초기화했습니다. 다음 앱 등록 때 새 비밀번호를 설정할 수 있습니다.`);
 }

@@ -37,8 +37,24 @@ assert.match(appSource, /async function openStudentDeviceManager/);
 assert.match(appSource, /async function revokeStudentDevice/);
 assert.match(teacherSource, /async function openTeacherStudentDeviceManager/);
 assert.match(teacherSource, /async function revokeTeacherStudentDevice/);
+assert.match(
+  teacherSource,
+  /const hasAppRegistration = Boolean\([\s\S]*hasAppRegistration[\s\S]*button\("비밀번호 초기화", "student-action-menu-item danger", "button", \(\) => openStudentPasswordResetModal\(student\.id\)\)/,
+  "student management must expose an individual password reset action"
+);
+assert.match(
+  teacherSource,
+  /function openStudentPasswordResetModal\([\s\S]*기존에 등록된 모든 기기도 함께 해제[\s\S]*async function resetStudentPassword/,
+  "the password reset confirmation must explain that registered devices are revoked"
+);
+assert.match(
+  teacherSource,
+  /async function resetStudentPassword\([\s\S]*fetch\("\/api\/reset-student-registration"[\s\S]*student\.passwordHash = ""[\s\S]*student\.deviceToken = ""/,
+  "password reset must clear both the server registration and local credentials"
+);
 assert.match(studentResetApiSource, /rpc\/reset_student_devices/);
 assert.match(teacherResetApiSource, /rpc\/reset_student_devices/);
+assert.match(teacherResetApiSource, /p_reason: "관리자 비밀번호 초기화"/);
 assert.match(
   sharedSource,
   /if \(APP_MODE !== "student"\) \{\s*const registeredStudents/,

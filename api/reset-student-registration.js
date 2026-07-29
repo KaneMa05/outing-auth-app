@@ -60,7 +60,7 @@ module.exports = async function handler(req, res) {
       p_student_id: studentId,
       p_password_hash: null,
       p_actor: "teacher",
-      p_reason: "관리자 등록 초기화",
+      p_reason: "관리자 비밀번호 초기화",
       p_client_display_mode: null,
       p_client_user_agent: null,
     }),

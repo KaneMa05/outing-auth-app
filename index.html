@@ -22,7 +22,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260720-two-device-auth" />
+    <link rel="stylesheet" href="./styles.css?v=20260729-home-card-copy" />
   </head>
   <body>
     <noscript>
@@ -34,7 +34,7 @@
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">R</div>
-          <div>
+          <div class="brand-copy">
             <strong>론박스터디</strong>
             <span>관리반 학생 전용</span>
           </div>
@@ -59,10 +59,14 @@
       </main>
     </div>
 
-    <footer class="student-footer-menu" aria-label="학생 메뉴">
+    <footer class="student-footer-menu normal-student-footer" aria-label="학생 메뉴">
       <a href="#home" data-route="home" onclick="window.__studentNav && window.__studentNav('home');">
         <span class="footer-icon footer-icon-home" aria-hidden="true"></span>
         <span>홈</span>
+      </a>
+      <a href="#study-cafe" data-route="study-cafe" onclick="window.__studentNav && window.__studentNav('study-cafe');" hidden>
+        <span class="footer-icon footer-icon-study-cafe" aria-hidden="true"></span>
+        <span>스터디카페</span>
       </a>
       <a href="#attendance" data-route="attendance" onclick="window.__studentNav && window.__studentNav('attendance');">
         <span class="footer-icon footer-icon-attendance" aria-hidden="true"></span>
@@ -82,6 +86,29 @@
       </a>
     </footer>
 
+    <footer class="student-footer-menu study-cafe-footer-menu" aria-label="스터디카페 메뉴" aria-hidden="true">
+      <button type="button" data-study-cafe-back onclick="window.__studentNav && window.__studentNav('home');">
+        <span class="footer-icon footer-icon-study-back" aria-hidden="true"></span>
+        <span>뒤로</span>
+      </button>
+      <a href="#study-cafe" data-route="study-cafe" onclick="window.__studentNav && window.__studentNav('study-cafe');">
+        <span class="footer-icon footer-icon-study-cafe" aria-hidden="true"></span>
+        <span>스터디카페</span>
+      </a>
+      <a href="#study-ranking" data-route="study-ranking" onclick="window.__studentNav && window.__studentNav('study-ranking');">
+        <span class="footer-icon footer-icon-study-ranking" aria-hidden="true"></span>
+        <span>랭킹</span>
+      </a>
+      <a href="#study-timer" data-route="study-timer" onclick="window.__studentNav && window.__studentNav('study-timer');">
+        <span class="footer-icon footer-icon-study-timer" aria-hidden="true"></span>
+        <span>타이머</span>
+      </a>
+      <a href="#study-character" data-route="study-character" onclick="window.__studentNav && window.__studentNav('study-character');">
+        <span class="footer-icon footer-icon-study-character" aria-hidden="true"></span>
+        <span>캐릭터</span>
+      </a>
+    </footer>
+
     <div id="toast" class="toast" role="status"></div>
     <script>
       window.va = window.va || function () {
@@ -97,6 +124,10 @@
           attendance: "출석 체크",
           grades: "성적",
           mypage: "마이페이지",
+          "study-cafe": "온라인 스터디카페",
+          "study-timer": "과목 타이머",
+          "study-ranking": "순공시간 랭킹",
+          "study-character": "캐릭터",
           notices: "중요 공지"
         };
         function qs(selector) {
@@ -146,7 +177,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
@@ -197,7 +228,7 @@
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
           if (!route) return;
-          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "notices" || route.indexOf("notice-") === 0) {
+          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
             if (shouldUseFallback()) {
               event.preventDefault();
               navFallback(route);
@@ -217,6 +248,6 @@
     <script src="./supabase.js?v=20260514-return-photo-time" defer></script>
     <script src="./shared.js?v=20260727-weekly-recovery-refresh" defer></script>
     <script src="./student.js?v=20260727-weekly-recovery-refresh" defer></script>
-    <script src="./app.js?v=20260721-realtime-student-sync" defer></script>
+    <script src="./app.js?v=20260729-home-card-copy" defer></script>
   </body>
 </html>

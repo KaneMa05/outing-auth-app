@@ -9,6 +9,15 @@ const deviceHistoryFilters = {
   query: "",
   eventType: "all",
 };
+const studyCafeAdminState = {
+  loading: false,
+  loaded: false,
+  error: "",
+  data: null,
+  lastLoadedAt: 0,
+  refreshTimer: null,
+  actionStudentId: "",
+};
 let previewStudentId = "";
 let penaltySortMode = "id";
 let editingNoticeId = "";
@@ -201,6 +210,311 @@ function renderTeacher() {
         : el("div", { className: "empty" }, cohortOutings.length ? "검색 결과가 없습니다." : "아직 외출 신청이 없습니다."),
     ]),
   ]);
+}
+
+function renderStudyCafeAdmin() {
+  if (!hasTeacherPermission("study_cafe.read")) return renderForbidden();
+  requestStudyCafeAdminDashboard();
+  ensureStudyCafeAdminRefresh();
+
+  const data = studyCafeAdminState.data;
+  if (studyCafeAdminState.loading && !data) {
+    return el("div", { className: "grid study-cafe-admin-page" }, [
+      renderDataLoadingState("온라인 스터디카페 현황을 불러오는 중입니다."),
+    ]);
+  }
+  if (studyCafeAdminState.error && !data) {
+    return el("div", { className: "grid study-cafe-admin-page" }, [
+      el("section", { className: "study-cafe-admin-error" }, [
+        el("strong", {}, "스터디카페 현황을 불러오지 못했습니다"),
+        el("p", {}, studyCafeAdminState.error),
+        button("다시 불러오기", "btn", "button", () => loadStudyCafeAdminDashboard({ force: true })),
+      ]),
+    ]);
+  }
+
+  const summary = data?.summary || {};
+  const members = Array.isArray(data?.members) ? data.members : [];
+  const seatedMembers = members.filter((member) => member.seatNumber);
+  const canWrite = hasTeacherPermission("study_cafe.write");
+  return el("div", { className: "grid study-cafe-admin-page" }, [
+    el("section", { className: "study-cafe-admin-head" }, [
+      el("div", {}, [
+        el("span", {}, "RONPARK STUDYCAFE"),
+        el("h2", {}, "온라인 스터디카페 관리"),
+        el("p", {}, "현재 좌석과 오늘 순공시간을 확인하고 비정상 이용 상태를 정리할 수 있습니다."),
+      ]),
+      el("div", { className: "study-cafe-admin-head-actions" }, [
+        el(
+          "span",
+          {},
+          studyCafeAdminState.loading
+            ? "갱신 중"
+            : studyCafeAdminState.lastLoadedAt
+              ? `${formatStudyCafeAdminClock(studyCafeAdminState.lastLoadedAt)} 기준`
+              : "대기 중"
+        ),
+        button(
+          studyCafeAdminState.loading ? "불러오는 중" : "새로고침",
+          "btn secondary",
+          "button",
+          () => loadStudyCafeAdminDashboard({ force: true })
+        ),
+      ]),
+    ]),
+    el("section", { className: "study-cafe-admin-stats", ariaLabel: "스터디카페 오늘 요약" }, [
+      renderStudyCafeAdminStat("온라인 학생", summary.onlineStudentCount || 0, "명"),
+      renderStudyCafeAdminStat("좌석 이용", summary.seatedCount || 0, "명"),
+      renderStudyCafeAdminStat("집중 중", summary.studyingCount || 0, "명"),
+      renderStudyCafeAdminStat("오늘 총 순공", formatStudyCafeAdminDuration(summary.totalSeconds || 0), ""),
+    ]),
+    el("section", { className: "study-cafe-admin-section" }, [
+      el("div", { className: "study-cafe-admin-section-head" }, [
+        el("div", {}, [
+          el("h3", {}, "현재 좌석 현황"),
+          el("p", {}, "연결이 2분 이상 끊긴 학생은 연결 끊김으로 표시됩니다."),
+        ]),
+        el("span", {}, `${seatedMembers.length}석 사용 중`),
+      ]),
+      el(
+        "div",
+        { className: "study-cafe-admin-room-list" },
+        ["A룸", "B룸", "C룸", "D룸", "E룸"].map((roomLabel, roomIndex) => {
+          const firstSeat = roomIndex * 10 + 1;
+          return el("section", { className: "study-cafe-admin-room" }, [
+            el("div", { className: "study-cafe-admin-room-head" }, [
+              el("strong", {}, roomLabel),
+              el("span", {}, `${firstSeat}–${firstSeat + 9}번`),
+            ]),
+            el(
+              "div",
+              { className: "study-cafe-admin-seat-grid" },
+              Array.from({ length: 10 }, (_, index) => {
+                const seatNumber = firstSeat + index;
+                return renderStudyCafeAdminSeat(
+                  seatNumber,
+                  seatedMembers.find((member) => member.seatNumber === seatNumber),
+                  canWrite
+                );
+              })
+            ),
+          ]);
+        })
+      ),
+    ]),
+    el("section", { className: "study-cafe-admin-section" }, [
+      el("div", { className: "study-cafe-admin-section-head" }, [
+        el("div", {}, [
+          el("h3", {}, "온라인 학생 순공시간"),
+          el("p", {}, `${data?.date || "오늘"} 서버 기록 기준 · 오전 4시 갱신`),
+        ]),
+        el("span", {}, `${members.length}명`),
+      ]),
+      members.length
+        ? el("div", { className: "study-cafe-admin-member-list" }, members.map((member) =>
+            renderStudyCafeAdminMember(member, canWrite)
+          ))
+        : el("div", { className: "empty study-cafe-admin-empty" }, "등록번호가 2로 시작하는 활성 온라인 학생이 없습니다."),
+    ]),
+  ]);
+}
+
+function renderStudyCafeAdminStat(label, value, unit) {
+  return el("article", { className: "study-cafe-admin-stat" }, [
+    el("span", {}, label),
+    el("strong", {}, [
+      String(value),
+      unit ? el("small", {}, unit) : null,
+    ]),
+  ]);
+}
+
+function renderStudyCafeAdminSeat(seatNumber, member, canWrite) {
+  if (!member) {
+    return el("article", { className: "study-cafe-admin-seat empty" }, [
+      el("span", { className: "study-cafe-admin-seat-number" }, `${seatNumber}번`),
+      el("strong", {}, "빈 좌석"),
+      el("p", {}, "현재 이용 학생 없음"),
+    ]);
+  }
+  const active = Boolean(member.sessionStatus);
+  return el("article", {
+    className: `study-cafe-admin-seat occupied ${member.connected ? "" : "disconnected"}`,
+  }, [
+    el("div", { className: "study-cafe-admin-seat-top" }, [
+      el("span", { className: "study-cafe-admin-seat-number" }, `${seatNumber}번`),
+      renderStudyCafeAdminStatus(member),
+    ]),
+    el("strong", {}, `${member.name} · ${member.studentId}`),
+    el("p", {}, summarizeStudyCafeTrack(member.track)),
+    active ? el("span", { className: "study-cafe-admin-subject" }, member.currentSubject || "과목 미지정") : null,
+    el("time", {}, `오늘 ${formatStudyCafeAdminDuration(member.todaySeconds)}`),
+    canWrite
+      ? el("div", { className: "study-cafe-admin-seat-actions" }, [
+          active
+            ? button(
+                "타이머 종료",
+                "mini-btn",
+                "button",
+                () => runStudyCafeAdminAction("stop_session", member)
+              )
+            : null,
+          button(
+            "좌석 비우기",
+            "mini-btn danger",
+            "button",
+            () => runStudyCafeAdminAction("release_seat", member)
+          ),
+        ])
+      : null,
+  ]);
+}
+
+function renderStudyCafeAdminMember(member, canWrite) {
+  const active = Boolean(member.sessionStatus);
+  return el("article", {
+    className: `study-cafe-admin-member ${member.connected ? "" : "disconnected"}`,
+  }, [
+    el("div", { className: `study-cafe-admin-avatar ${member.avatarTone || "navy"}`, ariaHidden: "true" }, member.name.slice(0, 1)),
+    el("div", { className: "study-cafe-admin-member-main" }, [
+      el("div", {}, [
+        el("strong", {}, member.name),
+        el("span", {}, member.studentId),
+        renderStudyCafeAdminStatus(member),
+      ]),
+      el("p", {}, [
+        summarizeStudyCafeTrack(member.track),
+        member.seatNumber ? ` · ${member.seatNumber}번 좌석` : " · 좌석 없음",
+        active && member.currentSubject ? ` · ${member.currentSubject}` : "",
+      ]),
+    ]),
+    el("div", { className: "study-cafe-admin-member-time" }, [
+      el("span", {}, "오늘 순공"),
+      el("strong", {}, formatStudyCafeAdminDuration(member.todaySeconds)),
+    ]),
+    canWrite && member.seatNumber
+      ? el("div", { className: "study-cafe-admin-member-actions" }, [
+          active
+            ? button("타이머 종료", "mini-btn", "button", () =>
+                runStudyCafeAdminAction("stop_session", member)
+              )
+            : null,
+          button("좌석 비우기", "mini-btn danger", "button", () =>
+            runStudyCafeAdminAction("release_seat", member)
+          ),
+        ])
+      : null,
+  ]);
+}
+
+function renderStudyCafeAdminStatus(member) {
+  const label = !member.connected && member.seatNumber
+    ? "연결 끊김"
+    : member.sessionStatus === "running"
+      ? "집중 중"
+      : member.sessionStatus === "paused"
+        ? "일시정지"
+        : member.seatNumber
+          ? "착석"
+          : "오프라인";
+  const status = !member.connected && member.seatNumber
+    ? "disconnected"
+    : member.sessionStatus || (member.seatNumber ? "seated" : "offline");
+  return el("span", { className: `study-cafe-admin-status ${status}` }, label);
+}
+
+function requestStudyCafeAdminDashboard() {
+  if (studyCafeAdminState.loading || studyCafeAdminState.loaded) return;
+  loadStudyCafeAdminDashboard();
+}
+
+async function loadStudyCafeAdminDashboard(options = {}) {
+  if (studyCafeAdminState.loading) return;
+  studyCafeAdminState.loading = true;
+  studyCafeAdminState.error = "";
+  if (currentRoute === "study-cafe-admin") render();
+  try {
+    const response = await fetch("/api/study-cafe-admin", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "dashboard" }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok !== true) {
+      throw new Error(
+        data.error === "forbidden"
+          ? "스터디카페 조회 권한이 없습니다. 다시 로그인해주세요."
+          : "서버 또는 데이터베이스 연결 상태를 확인해주세요."
+      );
+    }
+    studyCafeAdminState.data = data;
+    studyCafeAdminState.loaded = true;
+    studyCafeAdminState.lastLoadedAt = Date.now();
+  } catch (error) {
+    console.error(error);
+    studyCafeAdminState.error = error.message || "현황을 불러오지 못했습니다.";
+  } finally {
+    studyCafeAdminState.loading = false;
+    if (currentRoute === "study-cafe-admin") render();
+  }
+}
+
+function ensureStudyCafeAdminRefresh() {
+  if (studyCafeAdminState.refreshTimer) return;
+  studyCafeAdminState.refreshTimer = window.setInterval(() => {
+    if (currentRoute === "study-cafe-admin" && !studyCafeAdminState.loading) {
+      loadStudyCafeAdminDashboard({ force: true });
+    }
+  }, 15000);
+}
+
+async function runStudyCafeAdminAction(action, member) {
+  if (!hasTeacherPermission("study_cafe.write") || studyCafeAdminState.actionStudentId) return;
+  const release = action === "release_seat";
+  const question = release
+    ? `${member.name} 학생의 ${member.seatNumber}번 좌석을 비울까요? 실행 중인 타이머도 종료됩니다.`
+    : `${member.name} 학생의 현재 타이머를 종료할까요? 좌석은 유지됩니다.`;
+  if (!confirm(question)) return;
+  studyCafeAdminState.actionStudentId = member.studentId;
+  try {
+    const response = await fetch("/api/study-cafe-admin", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, studentId: member.studentId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok !== true) {
+      notify(data.error === "forbidden" ? "스터디카페 제어 권한이 없습니다." : "요청을 처리하지 못했습니다.");
+      return;
+    }
+    notify(release ? `${member.name} 학생의 좌석을 비웠습니다.` : `${member.name} 학생의 타이머를 종료했습니다.`);
+    studyCafeAdminState.loaded = false;
+    await loadStudyCafeAdminDashboard({ force: true });
+  } catch (error) {
+    console.error(error);
+    notify("스터디카페 관리 서버에 연결하지 못했습니다.");
+  } finally {
+    studyCafeAdminState.actionStudentId = "";
+  }
+}
+
+function formatStudyCafeAdminDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = String(Math.floor(total / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const remainder = String(total % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${remainder}`;
+}
+
+function formatStudyCafeAdminClock(timestamp) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(timestamp));
 }
 
 function renderAttendanceManagement() {
