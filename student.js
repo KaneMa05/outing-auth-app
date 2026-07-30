@@ -238,34 +238,13 @@ function createEarlyLeaveForm() {
       return;
     }
 
-    const outing = {
-      id: createId(),
-      studentId: student.id,
-      studentName: student.name,
-      className: student.className,
-      reason: "조퇴",
-      detail: "",
-      expectedReturn: "",
-      status: "requested",
-      decision: "pending",
-      teacherMemo: "",
-      earlyLeaveReason,
-      receiptNote: "",
-      photos: [],
-      createdAt: new Date().toISOString(),
-      verifiedAt: null,
-      returnedAt: null,
-    };
     submitButton.disabled = true;
     setButtonLoading(submitButton, "신청 저장 중...");
     try {
-      const savedDirectly = await saveNewOutingRequestToRemote(outing);
-      state.outings = state.outings.filter((item) => item.id !== outing.id);
-      state.deletedOutings = state.deletedOutings.filter((item) => item.id !== outing.id);
-      state.outings.unshift(outing);
+      await createEarlyLeaveRequest(student, earlyLeaveReason);
       state.settings.lastStudentId = student.id;
       state.settings.earlyLeaveMode = false;
-      saveState({ skipRemote: savedDirectly });
+      saveState({ skipRemote: true });
       form.reset();
       render();
       notify("조퇴 신청이 접수되었습니다.");

@@ -584,8 +584,69 @@ function renderStudentPreviewHome(student) {
         el("strong", {}, homeStatus.title),
         homeStatus.copy ? el("p", {}, homeStatus.copy) : null,
       ]),
+      isTeacherAdmin() && !activeOuting
+        ? button("조퇴 신청", "btn", "button", () => openStudentPreviewEarlyLeaveModal(student.id))
+        : null,
     ]),
   ]);
+}
+
+function openStudentPreviewEarlyLeaveModal(studentId) {
+  if (!isTeacherAdmin()) return notify("관리자만 조퇴 신청을 할 수 있습니다.");
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  if (getActiveOuting(student.id)) {
+    render();
+    return notify("이미 진행 중인 신청이 있습니다.");
+  }
+
+  const reasonInput = textarea("earlyLeaveReason", "조퇴 사유를 입력하세요.");
+  const submitButton = button("조퇴 신청하기", "btn");
+  const form = el("form", { className: "form-grid" }, [
+    field("신청 학생", el("strong", {}, `${student.name} (${student.id})`)),
+    field("조퇴 사유", reasonInput, "full"),
+    el("div", { className: "field full attendance-action-row" }, [
+      submitButton,
+      button("취소", "btn secondary", "button", closeInfoModal),
+    ]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const earlyLeaveReason = String(formData(form).earlyLeaveReason || "").trim();
+    if (!earlyLeaveReason) return notify("조퇴 사유를 입력해주세요.");
+    if (getActiveOuting(student.id)) {
+      closeInfoModal();
+      render();
+      return notify("이미 진행 중인 신청이 있습니다.");
+    }
+
+    submitButton.disabled = true;
+    setButtonLoading(submitButton, "신청 저장 중...");
+    try {
+      await createEarlyLeaveRequest(student, earlyLeaveReason);
+      closeInfoModal();
+      render();
+      notify("조퇴 신청이 접수되었습니다.");
+    } catch (error) {
+      console.error("Failed to save an administrator early-leave request", error);
+      if (error?.message === "active_outing_exists") {
+        closeInfoModal();
+        render();
+        notify("이미 진행 중인 신청이 있습니다.");
+        return;
+      }
+      submitButton.disabled = false;
+      submitButton.textContent = "조퇴 신청하기";
+      notify("조퇴 신청을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    }
+  });
+
+  openInfoModal({
+    title: "관리자 조퇴 신청",
+    content: form,
+  });
+  requestAnimationFrame(() => reasonInput.focus());
 }
 
 function studentPreviewAttendanceText(check) {

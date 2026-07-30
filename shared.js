@@ -2772,6 +2772,38 @@ async function saveNewOutingRequestToRemote(outing) {
   return true;
 }
 
+async function createEarlyLeaveRequest(student, reason) {
+  if (!student?.id) throw new Error("student_required");
+  const earlyLeaveReason = String(reason || "").trim();
+  if (!earlyLeaveReason) throw new Error("early_leave_reason_required");
+  if (getActiveOuting(student.id)) throw new Error("active_outing_exists");
+
+  const outing = {
+    id: createId(),
+    studentId: student.id,
+    studentName: student.name,
+    className: student.className,
+    reason: "조퇴",
+    detail: "",
+    expectedReturn: "",
+    status: "requested",
+    decision: "pending",
+    teacherMemo: "",
+    earlyLeaveReason,
+    receiptNote: "",
+    photos: [],
+    createdAt: new Date().toISOString(),
+    verifiedAt: null,
+    returnedAt: null,
+  };
+  const savedDirectly = await saveNewOutingRequestToRemote(outing);
+  state.outings = state.outings.filter((item) => item.id !== outing.id);
+  state.deletedOutings = state.deletedOutings.filter((item) => item.id !== outing.id);
+  state.outings.unshift(outing);
+  saveState({ skipRemote: savedDirectly });
+  return outing;
+}
+
 function stripAttendanceReasonColumnsFromRow(row, error = null) {
   const missingColumns = getUnavailableAttendanceColumns(error).filter((column) =>
     ["reason", "detail", "manager_name"].includes(column)
