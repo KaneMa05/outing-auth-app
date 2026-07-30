@@ -2748,7 +2748,7 @@ async function saveNewOutingRequestToRemote(outing) {
     await loadSupabaseSdk();
     remoteStore = createRemoteStore();
   }
-  if (!remoteStore) return false;
+  if (!remoteStore) throw new Error("remote_store_unavailable");
 
   const { error } = await remoteStore
     .from("outings")
@@ -3140,7 +3140,7 @@ function mapRemoteOutingPhoto(photo, existingPhoto = null) {
 function mergePendingOutingPhotoDrafts(outings, drafts) {
   if (!drafts.length) return outings;
   const draftsByOutingId = new Map(drafts.map((draft) => [draft.id, draft]));
-  const mergedOutings = outings.map((outing) => {
+  return outings.map((outing) => {
     const draft = draftsByOutingId.get(outing.id);
     if (!draft || outing.status === "returned" || outing.deletedAt) return outing;
     const photos = [...(outing.photos || [])];
@@ -3152,12 +3152,6 @@ function mergePendingOutingPhotoDrafts(outings, drafts) {
     });
     return { ...outing, photos: normalizeOutingPhotosByType(photos) };
   });
-  drafts.forEach((draft) => {
-    if (!mergedOutings.some((outing) => outing.id === draft.id)) {
-      mergedOutings.push({ ...draft, photos: normalizeOutingPhotosByType(draft.photos || []) });
-    }
-  });
-  return mergedOutings;
 }
 
 function hasPersistedOutingPhotoSource(photo) {
