@@ -4,12 +4,14 @@ const fs = require("node:fs");
 
 const handler = require("../api/study-cafe");
 const {
+  getCurrentRankingRange,
   getKstDayBounds,
   getKstDateKey,
   getSessionElapsedSeconds,
   hashDeviceToken,
   maskName,
   normalizeNickname,
+  normalizeRankingPeriod,
   normalizeSeatNumber,
   normalizeSubjects,
   normalizeStatsRange,
@@ -20,12 +22,28 @@ const {
   summarizeTrack,
 } = handler._private;
 
+assert.equal(normalizeRankingPeriod("weekly"), "weekly");
+assert.deepEqual(getCurrentRankingRange("weekly", new Date("2026-07-31T07:00:00.000Z")).dateKeys, [
+  "2026-07-27",
+  "2026-07-28",
+  "2026-07-29",
+  "2026-07-30",
+  "2026-07-31",
+]);
+assert.equal(
+  getCurrentRankingRange("monthly", new Date("2026-07-31T07:00:00.000Z")).dateKeys[0],
+  "2026-07-01"
+);
+
 const migrationSql = fs.readFileSync("supabase/add-study-cafe.sql", "utf8");
 const schemaSql = fs.readFileSync("supabase/schema.sql", "utf8");
 const rollbackSql = fs.readFileSync("supabase/remove-study-cafe.sql", "utf8");
 const seatExpansionSql = fs.readFileSync("supabase/expand-study-cafe-to-192-seats.sql", "utf8");
 const productionMigrationSql = fs.readFileSync("supabase/prepare-study-cafe-production.sql", "utf8");
 const apiSource = fs.readFileSync("api/study-cafe.js", "utf8");
+assert.match(apiSource, /"ranking"/);
+assert.match(apiSource, /async function loadStudyRanking\(studentId, period, now\)/);
+assert.match(apiSource, /function getCurrentRankingRange\(period, now = new Date\(\)\)/);
 assert.match(apiSource, /currentSubject: row\.current_subject \|\| ""/);
 for (const sql of [migrationSql, schemaSql]) {
   assert.match(sql, /create table if not exists public\.study_cafe_subjects/);
@@ -67,6 +85,9 @@ assert.match(apiSource, /await rolloverActiveSessionIfNeeded\(row\.student_id, s
 assert.match(apiSource, /await completeActiveSession\(row\.student_id, staleEndedAt\)/);
 assert.match(apiSource, /rpc\/replace_study_cafe_subjects/);
 assert.match(apiSource, /display_name: displayName/);
+assert.match(apiSource, /body\.preserveStudy === true[\s\S]*?await getActiveSession\(studentId\)/);
+assert.match(apiSource, /status: presenceStatus/);
+assert.match(apiSource, /current_subject: activeSession\?\.subject_name \|\| null/);
 assert.match(apiSource, /displayName: normalizeStoredNickname\(row\.display_name\)/);
 assert.match(apiSource, /"todo_create"/);
 assert.match(apiSource, /"todos_load"/);

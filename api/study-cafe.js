@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const ALLOWED_ACTIONS = new Set([
   "load",
+  "ranking",
   "stats",
   "save_subjects",
   "save_profile",
@@ -70,6 +71,16 @@ module.exports = async function handler(req, res) {
         ok: true,
         serverNow: now.toISOString(),
         ...(await loadStudyStats(studentId, range, now)),
+      });
+      return;
+    }
+
+    if (action === "ranking") {
+      const period = normalizeRankingPeriod(body.period);
+      res.status(200).json({
+        ok: true,
+        serverNow: now.toISOString(),
+        ...(await loadStudyRanking(studentId, period, now)),
       });
       return;
     }
@@ -198,6 +209,14 @@ module.exports = async function handler(req, res) {
       }
       const avatarTone = normalizeAvatarTone(body.avatarTone);
       const displayName = normalizeStoredNickname(body.displayName) || "온라인학생";
+      const activeSession = body.preserveStudy === true
+        ? await getActiveSession(studentId)
+        : null;
+      const presenceStatus = activeSession?.status === "running"
+        ? "studying"
+        : activeSession?.status === "paused"
+          ? "paused"
+          : "seated";
       try {
         await requestSupabase(
           "POST",
@@ -205,8 +224,8 @@ module.exports = async function handler(req, res) {
           {
             student_id: studentId,
             seat_number: seatNumber,
-            status: "seated",
-            current_subject: null,
+            status: presenceStatus,
+            current_subject: activeSession?.subject_name || null,
             avatar_tone: avatarTone,
             display_name: displayName,
             last_heartbeat_at: now.toISOString(),
@@ -519,6 +538,54 @@ async function loadStudyStats(studentId, range, now) {
       dailyAverageSeconds: studiedDays ? Math.floor(totalSeconds / studiedDays) : 0,
       maxDailySeconds: days.reduce((max, day) => Math.max(max, day.totalSeconds), 0),
       sessionCount: rows.length,
+    },
+  };
+}
+
+async function loadStudyRanking(studentId, period, now) {
+  const range = getCurrentRankingRange(period, now);
+  const [sessions, profiles, presence, onlineStudents] = await Promise.all([
+    requestSupabase(
+      "GET",
+      `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,student_id,status,elapsed_seconds,started_at,active_started_at,ended_at`
+    ),
+    requestSupabase("GET", "study_cafe_profiles?select=student_id,avatar_tone,nickname"),
+    requestSupabase("GET", "study_cafe_presence?select=student_id,display_name"),
+    requestSupabase("GET", "students?id=like.2*&is_active=eq.true&select=id,name"),
+  ]);
+  const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((row) => [row.student_id, row]));
+  const presenceMap = new Map((Array.isArray(presence) ? presence : []).map((row) => [row.student_id, row]));
+  const studentMap = new Map((Array.isArray(onlineStudents) ? onlineStudents : []).map((row) => [row.id, row]));
+  const totals = aggregateSessionSeconds(Array.isArray(sessions) ? sessions : [], now, (row) => row.student_id);
+  const ranking = [...totals.entries()]
+    .map(([id, totalSeconds]) => ({
+      studentId: id === studentId ? id : undefined,
+      name: id === studentId
+        ? "나"
+        : normalizeStoredNickname(profileMap.get(id)?.nickname) ||
+          normalizeStoredNickname(presenceMap.get(id)?.display_name) ||
+          maskName(studentMap.get(id)?.name),
+      tone: id === studentId
+        ? normalizeAvatarTone(profileMap.get(id)?.avatar_tone)
+        : avatarToneForId(id),
+      totalSeconds,
+      isMine: id === studentId,
+    }))
+    .filter((row) => row.totalSeconds > 0)
+    .sort((a, b) => b.totalSeconds - a.totalSeconds)
+    .map((row, index, rows) => ({
+      ...row,
+      rank: index + 1,
+      percentile: Math.max(1, Math.ceil(((index + 1) / Math.max(1, rows.length)) * 100)),
+    }));
+  return {
+    period,
+    dateFrom: range.dateKeys[0],
+    dateTo: range.dateKeys[range.dateKeys.length - 1],
+    ranking,
+    summary: {
+      studiedCount: totals.size,
+      focusedCount: Array.isArray(presence) ? presence.length : 0,
     },
   };
 }
@@ -854,6 +921,35 @@ function getKstDayBounds(now = new Date()) {
   };
 }
 
+function normalizeRankingPeriod(value) {
+  const period = normalizeText(value, 10);
+  if (!["daily", "weekly", "monthly"].includes(period)) {
+    const error = new Error("invalid_ranking_period");
+    error.status = 400;
+    throw error;
+  }
+  return period;
+}
+
+function getCurrentRankingRange(period, now = new Date()) {
+  const currentDateKey = getKstDateKey(now);
+  const [year, month, day] = currentDateKey.split("-").map(Number);
+  const current = new Date(Date.UTC(year, month - 1, day));
+  const from = new Date(current);
+  if (period === "weekly") {
+    const weekday = from.getUTCDay() || 7;
+    from.setUTCDate(from.getUTCDate() - weekday + 1);
+  } else if (period === "monthly") {
+    from.setUTCDate(1);
+  }
+  const fromKey = [
+    from.getUTCFullYear(),
+    String(from.getUTCMonth() + 1).padStart(2, "0"),
+    String(from.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+  return normalizeStatsRange(fromKey, currentDateKey);
+}
+
 function normalizeStatsRange(dateFrom, dateTo) {
   const from = normalizeDateKey(dateFrom);
   const to = normalizeDateKey(dateTo);
@@ -954,6 +1050,7 @@ function avatarToneForId(studentId) {
 
 module.exports._private = {
   aggregateSessionSeconds,
+  getCurrentRankingRange,
   getKstDayBounds,
   getKstDateKey,
   getSessionElapsedSeconds,
@@ -961,6 +1058,7 @@ module.exports._private = {
   maskName,
   normalizeAvatarTone,
   normalizeNickname,
+  normalizeRankingPeriod,
   normalizeSeatNumber,
   normalizeStatsRange,
   normalizeTodoContent,

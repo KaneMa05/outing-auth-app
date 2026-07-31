@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v289-my-seat-scene";
+const CACHE_NAME = "outing-auth-app-v293-consistent-seat-scene";
 const APP_SHELL = [
   "/",
   "/index.html",
