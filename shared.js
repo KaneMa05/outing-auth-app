@@ -5455,7 +5455,10 @@ function closeLoadingModal() {
 }
 
 function closeInfoModal() {
-  document.querySelector(".info-modal")?.remove();
+  document.querySelectorAll(".info-modal").forEach((modal) => {
+    if (modal.contains(document.activeElement)) document.activeElement.blur();
+    modal.remove();
+  });
   document.removeEventListener("keydown", closeInfoModalOnEscape);
 }
 

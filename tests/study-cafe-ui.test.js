@@ -6,6 +6,7 @@ const root = path.join(__dirname, "..");
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const styleSource = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const sharedSource = fs.readFileSync(path.join(root, "shared.js"), "utf8");
 
 assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentStudyTodo\)/);
 assert.match(appSource, /"study-cafe": \(\) => requireStudentAuth\(renderStudentStudyCafe\)/);
@@ -18,6 +19,10 @@ assert.match(appSource, /if \(isStudyCafeLocalPreview\(\)\) return \{ ok: true, 
 assert.match(appSource, /return \{ ok: false, error: studyCafeRemoteState\.error \|\| "study_cafe_unavailable" \}/);
 assert.match(appSource, /function hydrateStudyCafeSnapshot\(snapshot\)/);
 assert.match(appSource, /mutateStudyCafeRemote\("claim_seat"/);
+assert.match(
+  sharedSource,
+  /function closeInfoModal\(\) \{[\s\S]*?document\.querySelectorAll\("\.info-modal"\)\.forEach[\s\S]*?document\.activeElement\.blur\(\)[\s\S]*?modal\.remove\(\)/
+);
 assert.match(
   appSource,
   /if \(studyCafePreviewState\.selectedSeatId\) \{[\s\S]*?openStudyCafeSeatMoveModal\(seat\.id, seatNumber, \{[\s\S]*?preserveStudy: Boolean\(studyCafePreviewState\.subject\)/
@@ -70,10 +75,15 @@ assert.match(
   appSource,
   /if \(!result\.ok\) \{[\s\S]*?todo\.id !== optimisticTodo\.id[\s\S]*?renderStudyCafeStateUpdate\(\)/
 );
+assert.doesNotMatch(appSource, /notify\(`\$\{subject\} 할 일을 추가했습니다\.`\)/);
 assert.match(appSource, /disabled: todo\.pending === true/);
 assert.match(styleSource, /\.study-todo-item\.pending/);
 assert.match(appSource, /mutateStudyCafeRemote\("todo_toggle"/);
 assert.match(appSource, /mutateStudyCafeRemote\("todo_delete"/);
+assert.match(
+  appSource,
+  /if \(!confirm\(`"\$\{todo\.content\}" 항목을 삭제할까요\?`\)\) return;[\s\S]*?mutateStudyCafeRemote\("todo_delete"[\s\S]*?notify\("할 일을 삭제했습니다\."\)/
+);
 assert.match(appSource, /studyCafeRemoteState\.refreshTimer = window\.setInterval/);
 assert.match(appSource, /studyCafeRemoteState\.heartbeatTimer = window\.setInterval/);
 assert.match(appSource, /const STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS = 2 \* 60 \* 1000/);
@@ -178,16 +188,20 @@ assert.doesNotMatch(appSource, /number\.textContent = "저장 중"/);
 assert.match(appSource, /function cancelStudyCafeCountdown\(\)/);
 assert.match(
   appSource,
-  /async function toggleStudyCafePreviewTimer\(\)[\s\S]*?const pausedElapsedMs = getStudyCafeElapsedMs\(\)[\s\S]*?studyCafePreviewState\.running = false[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote\("timer_pause"\)/
+  /async function toggleStudyCafePreviewTimer\(\)[\s\S]*?if \(!confirm\("공부 타이머를 일시정지할까요\?"\)\) return;[\s\S]*?const pausedElapsedMs = getStudyCafeElapsedMs\(\)[\s\S]*?studyCafePreviewState\.running = false[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote\("timer_pause"\)/
 );
 assert.match(
   appSource,
   /if \(!result\?\.ok\) \{[\s\S]*?Object\.assign\(studyCafePreviewState, previousTimerState\)[\s\S]*?renderStudyCafeStateUpdate\(\)/
 );
+assert.match(
+  appSource,
+  /\} else if \(studyCafePreviewState\.paused\) \{[\s\S]*?beginStudyCafeTimer\([\s\S]*?studyCafePreviewState\.subject,[\s\S]*?true[\s\S]*?\);[\s\S]*?\} else \{[\s\S]*?startStudyCafeCountdown/
+);
 assert.match(appSource, /async function beginStudyCafeTimer\(seatId, subject, resumeExistingSession\)/);
 assert.match(
   appSource,
-  /const optimisticStartedAt = Date\.now\(\)[\s\S]*?studyCafePreviewState\.running = true[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote/
+  /const optimisticStartedAt = Date\.now\(\)[\s\S]*?studyCafePreviewState\.running = true[\s\S]*?clearStudyCafeIdleWarning\(\)[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote/
 );
 assert.match(appSource, /Object\.assign\(studyCafePreviewState, previousTimerState\)/);
 assert.match(appSource, /if \(!isStudyCafeLocalPreview\(\)\) return \[\]/);
@@ -387,6 +401,10 @@ assert.doesNotMatch(
   /\.study-cafe-my-seat-copy > p,\s*\.study-cafe-my-seat-detail\s*\{[^}]*padding-right/
 );
 assert.match(styleSource, /\.study-cafe-my-seat-scene\s*\{[^}]*width: 100px[^}]*height: 122px[^}]*transform: scale\(0\.76\)/);
+assert.match(
+  styleSource,
+  /@media \(max-width: 430px\)[\s\S]*?\.study-cafe-my-seat-scene\s*\{[^}]*transform: translateY\(-8px\) scale\(0\.68\)/
+);
 assert.match(styleSource, /\.study-cafe-chair-back\s*\{[^}]*z-index: 4[^}]*width: 31px[^}]*border-radius: 7px 7px 5px 5px/);
 assert.match(styleSource, /\.study-cafe-chair-back::after/);
 assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-(?:character|scene) \.study-cafe-chair-back/);
@@ -634,9 +652,13 @@ assert.doesNotMatch(
 );
 assert.match(
   styleSource,
-  /\.student-footer-menu\s*\{[^}]*transition: none/
+  /\.student-footer-menu\s*\{[^}]*will-change: opacity[^}]*opacity 140ms cubic-bezier\(0\.22, 1, 0\.36, 1\)[^}]*visibility 0s linear 140ms/
 );
 assert.doesNotMatch(styleSource, /transition-delay: 0s, 220ms/);
+assert.match(
+  styleSource,
+  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*opacity: 1[^}]*transition-delay: 0s, 0s/
+);
 assert.match(
   styleSource,
   /body\.student-online-mode \.study-cafe-footer-menu,\s*body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(6/

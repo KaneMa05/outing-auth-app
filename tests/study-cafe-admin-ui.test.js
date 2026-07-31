@@ -21,11 +21,16 @@ assert.match(teacherSource, /runStudyCafeAdminAction\("stop_session"/);
 assert.match(teacherSource, /runStudyCafeAdminAction\("release_seat"/);
 assert.match(teacherSource, /studyCafeAdminState\.refreshTimer = window\.setInterval/);
 assert.match(teacherSource, /\["A룸", "B룸", "C룸", "D룸"\]/);
-assert.match(teacherSource, /roomIndex \* 48 \+ 1/);
+assert.match(teacherSource, /activeRoomIndex: 0/);
+assert.match(teacherSource, /activeRoomIndex \* 48 \+ 1/);
 assert.match(teacherSource, /Array\.from\(\{ length: 48 \}/);
+assert.match(teacherSource, /className: "study-cafe-admin-room-tabs"/);
+assert.match(teacherSource, /role: "tablist"/);
+assert.match(teacherSource, /role: "tabpanel"/);
 assert.match(styleSource, /\.study-cafe-admin-seat-grid\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
 assert.match(styleSource, /\.study-cafe-admin-seat-grid/);
-assert.match(styleSource, /\.study-cafe-admin-room-list/);
+assert.match(styleSource, /\.study-cafe-admin-room-tabs/);
+assert.match(styleSource, /\.study-cafe-admin-room-tab\.active/);
 assert.match(styleSource, /\.study-cafe-admin-member-list/);
 assert.match(styleSource, /\.study-cafe-admin-status\.running/);
 

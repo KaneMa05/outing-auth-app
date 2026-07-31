@@ -1799,7 +1799,6 @@ function renderStudyTodoSubjectCard(subject, todos) {
       )
     );
     renderStudyCafeStateUpdate();
-    notify(`${subject} 할 일을 추가했습니다.`);
   });
 
   return el("section", { className: "study-todo-subject-card" }, [
@@ -1840,14 +1839,20 @@ function renderStudyTodoItem(todo) {
     event.preventDefault();
     event.stopPropagation();
     if (todo.pending) return;
+    if (!confirm(`"${todo.content}" 항목을 삭제할까요?`)) return;
+    deleteButton.disabled = true;
     const studyDate = getSelectedStudyTodoDateKey();
     const result = await mutateStudyCafeRemote("todo_delete", { todoId: todo.id, studyDate });
-    if (!result.ok) return;
+    if (!result.ok) {
+      deleteButton.disabled = false;
+      return;
+    }
     setStudyTodosForDate(
       studyDate,
       getStudyTodosForDate(studyDate).filter((item) => item.id !== todo.id)
     );
     renderStudyCafeStateUpdate();
+    notify("할 일을 삭제했습니다.");
   });
   deleteButton.disabled = todo.pending === true;
 
@@ -3785,6 +3790,7 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
     subjectStartedAt: studyCafePreviewState.subjectStartedAt,
     running: studyCafePreviewState.running,
     paused: studyCafePreviewState.paused,
+    idleSince: studyCafePreviewState.idleSince,
   };
   const optimisticStartedAt = Date.now();
   studyCafePreviewState.startedAt = optimisticStartedAt;
@@ -3792,6 +3798,7 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
   studyCafePreviewState.idleSince = 0;
   studyCafePreviewState.running = true;
   studyCafePreviewState.paused = false;
+  clearStudyCafeIdleWarning();
   renderStudyCafeStateUpdate();
   try {
     const result = await mutateStudyCafeRemote(
@@ -4122,6 +4129,7 @@ function ensureStudyCafePreviewClock() {
 async function toggleStudyCafePreviewTimer() {
   if (studyCafeTimerActionPending) return;
   if (studyCafePreviewState.running) {
+    if (!confirm("공부 타이머를 일시정지할까요?")) return;
     studyCafeTimerActionPending = true;
     const previousTimerState = {
       elapsedMs: studyCafePreviewState.elapsedMs,
@@ -4152,6 +4160,12 @@ async function toggleStudyCafePreviewTimer() {
       return;
     }
     invalidateStudyTimerStatsCache();
+  } else if (studyCafePreviewState.paused) {
+    beginStudyCafeTimer(
+      studyCafePreviewState.selectedSeatId,
+      studyCafePreviewState.subject,
+      true
+    );
   } else {
     startStudyCafeCountdown(
       studyCafePreviewState.selectedSeatId,

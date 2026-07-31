@@ -17,6 +17,7 @@ const studyCafeAdminState = {
   lastLoadedAt: 0,
   refreshTimer: null,
   actionStudentId: "",
+  activeRoomIndex: 0,
 };
 let previewStudentId = "";
 let penaltySortMode = "id";
@@ -237,6 +238,16 @@ function renderStudyCafeAdmin() {
   const members = Array.isArray(data?.members) ? data.members : [];
   const seatedMembers = members.filter((member) => member.seatNumber);
   const canWrite = hasTeacherPermission("study_cafe.write");
+  const roomLabels = ["A룸", "B룸", "C룸", "D룸"];
+  const activeRoomIndex = Math.min(
+    roomLabels.length - 1,
+    Math.max(0, Number(studyCafeAdminState.activeRoomIndex) || 0)
+  );
+  const activeRoomLabel = roomLabels[activeRoomIndex];
+  const activeRoomFirstSeat = activeRoomIndex * 48 + 1;
+  const activeRoomMembers = seatedMembers.filter(
+    (member) => member.seatNumber >= activeRoomFirstSeat && member.seatNumber <= activeRoomFirstSeat + 47
+  );
   return el("div", { className: "grid study-cafe-admin-page" }, [
     el("section", { className: "study-cafe-admin-head" }, [
       el("div", {}, [
@@ -274,33 +285,61 @@ function renderStudyCafeAdmin() {
           el("h3", {}, "현재 좌석 현황"),
           el("p", {}, "연결이 2분 이상 끊긴 학생은 연결 끊김으로 표시됩니다."),
         ]),
-        el("span", {}, `${seatedMembers.length}석 사용 중`),
+        el("span", {}, `${activeRoomLabel} ${activeRoomMembers.length}석 사용 중`),
       ]),
       el(
         "div",
-        { className: "study-cafe-admin-room-list" },
-        ["A룸", "B룸", "C룸", "D룸"].map((roomLabel, roomIndex) => {
+        { className: "study-cafe-admin-room-tabs", role: "tablist", ariaLabel: "스터디카페 룸 선택" },
+        roomLabels.map((roomLabel, roomIndex) => {
           const firstSeat = roomIndex * 48 + 1;
-          return el("section", { className: "study-cafe-admin-room" }, [
-            el("div", { className: "study-cafe-admin-room-head" }, [
+          const occupiedCount = seatedMembers.filter(
+            (member) => member.seatNumber >= firstSeat && member.seatNumber <= firstSeat + 47
+          ).length;
+          const isActive = roomIndex === activeRoomIndex;
+          return el(
+            "button",
+            {
+              className: `study-cafe-admin-room-tab ${isActive ? "active" : ""}`,
+              type: "button",
+              role: "tab",
+              ariaSelected: String(isActive),
+              ariaControls: "study-cafe-admin-active-room",
+              id: `study-cafe-admin-room-tab-${roomIndex}`,
+              onclick: () => {
+                studyCafeAdminState.activeRoomIndex = roomIndex;
+                render();
+              },
+            },
+            [
               el("strong", {}, roomLabel),
-              el("span", {}, `${firstSeat}–${firstSeat + 47}번`),
-            ]),
-            el(
-              "div",
-              { className: "study-cafe-admin-seat-grid" },
-              Array.from({ length: 48 }, (_, index) => {
-                const seatNumber = firstSeat + index;
-                return renderStudyCafeAdminSeat(
-                  seatNumber,
-                  seatedMembers.find((member) => member.seatNumber === seatNumber),
-                  canWrite
-                );
-              })
-            ),
-          ]);
+              el("span", {}, `${occupiedCount}/48`),
+            ]
+          );
         })
       ),
+      el("section", {
+        className: "study-cafe-admin-room",
+        id: "study-cafe-admin-active-room",
+        role: "tabpanel",
+        ariaLabelledby: `study-cafe-admin-room-tab-${activeRoomIndex}`,
+      }, [
+        el("div", { className: "study-cafe-admin-room-head" }, [
+          el("strong", {}, activeRoomLabel),
+          el("span", {}, `${activeRoomFirstSeat}–${activeRoomFirstSeat + 47}번`),
+        ]),
+        el(
+          "div",
+          { className: "study-cafe-admin-seat-grid" },
+          Array.from({ length: 48 }, (_, index) => {
+            const seatNumber = activeRoomFirstSeat + index;
+            return renderStudyCafeAdminSeat(
+              seatNumber,
+              seatedMembers.find((member) => member.seatNumber === seatNumber),
+              canWrite
+            );
+          })
+        ),
+      ]),
     ]),
     el("section", { className: "study-cafe-admin-section" }, [
       el("div", { className: "study-cafe-admin-section-head" }, [

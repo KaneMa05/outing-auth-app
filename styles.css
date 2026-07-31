@@ -4708,7 +4708,10 @@ body:not([data-app-mode="teacher"]) .student-view {
   backface-visibility: hidden;
   isolation: isolate;
   touch-action: manipulation;
-  transition: none;
+  will-change: opacity;
+  transition:
+    opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 140ms;
 }
 
 body.student-footer-tap-guard .study-cafe-seat {
@@ -4732,6 +4735,7 @@ body.student-study-mode .study-cafe-footer-menu {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
+  transition-delay: 0s, 0s;
 }
 
 .study-cafe-footer-menu {
@@ -4740,6 +4744,7 @@ body.student-study-mode .study-cafe-footer-menu {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%);
+  transition-delay: 0s, 140ms;
 }
 
 body.student-study-mode .normal-student-footer {
@@ -4747,6 +4752,7 @@ body.student-study-mode .normal-student-footer {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%);
+  transition-delay: 0s, 140ms;
 }
 
 body.student-study-mode .study-cafe-footer-menu {
@@ -4754,6 +4760,7 @@ body.student-study-mode .study-cafe-footer-menu {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%);
+  transition-delay: 0s, 0s;
 }
 
 body.student-online-mode .student-footer-menu [data-route="study-cafe"] {
@@ -9221,7 +9228,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   }
 
   .study-cafe-my-seat-scene {
-    transform: scale(0.68);
+    transform: translateY(-8px) scale(0.68);
   }
 
   .study-cafe-my-seat-title > strong {
@@ -9811,9 +9818,64 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   font-weight: 900;
 }
 
-.study-cafe-admin-room-list {
+.study-cafe-admin-room-tabs {
   display: grid;
-  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid #dce7f1;
+  border-radius: 14px;
+  background: #f3f7fb;
+}
+
+.study-cafe-admin-room-tab {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #60758a;
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.study-cafe-admin-room-tab strong {
+  font-size: 0.86rem;
+}
+
+.study-cafe-admin-room-tab span {
+  border-radius: 999px;
+  background: #e4ebf2;
+  padding: 3px 7px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-cafe-admin-room-tab:hover {
+  background: #fff;
+  color: var(--accent-strong);
+}
+
+.study-cafe-admin-room-tab:focus-visible {
+  outline: 3px solid rgba(0, 111, 191, 0.24);
+  outline-offset: 2px;
+}
+
+.study-cafe-admin-room-tab.active {
+  border-color: #9fc9ea;
+  background: #fff;
+  color: var(--accent-strong);
+  box-shadow: 0 5px 14px rgba(18, 67, 108, 0.09);
+}
+
+.study-cafe-admin-room-tab.active span {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .study-cafe-admin-room {
@@ -10120,6 +10182,10 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   }
 
   .study-cafe-admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .study-cafe-admin-room-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
