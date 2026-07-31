@@ -1022,6 +1022,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     hydrateStudyCafeSnapshot(result, {
       preserveLocalSession:
         studyCafeTimerActionPending ||
+        Boolean(studyCafeCountdownInterval) ||
         sessionRevisionAtRequest !== studyCafeSessionRevision,
       preserveLocalTodos:
         studyTodoDeletePendingKeys.size > 0 ||
@@ -3762,12 +3763,16 @@ function renderStudyCafeChairBack() {
 }
 
 function claimStudyCafeSeat(seatNumber, options = {}) {
-  return mutateStudyCafeRemote("claim_seat", {
-    seatNumber,
-    avatarTone: studyCafePreviewState.avatarTone,
-    displayName: getStudyCafeDisplayName("나"),
-    preserveStudy: options.preserveStudy === true,
-  });
+  return mutateStudyCafeRemote(
+    "claim_seat",
+    {
+      seatNumber,
+      avatarTone: studyCafePreviewState.avatarTone,
+      displayName: getStudyCafeDisplayName("나"),
+      preserveStudy: options.preserveStudy === true,
+    },
+    { refresh: false }
+  );
 }
 
 function openStudyCafeSeatMoveModal(seatId, seatNumber, options = {}) {
@@ -3906,22 +3911,27 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
 }
 
 function applyStudyCafeSubjectSelection(seatId, subject, options = {}) {
+  beginStudyCafeLocalSessionMutation();
   const preserveTimer = options.preserveTimer === true;
-  const previousSubject = studyCafePreviewState.subject;
-  if (studyCafePreviewState.running && previousSubject) commitCurrentStudySubjectElapsed();
-  cancelStudyCafeCountdown();
-  studyCafePreviewState.selectedSeatId = seatId;
-  studyCafePreviewState.pendingSubject = "";
-  studyCafePreviewState.subject = subject;
-  studyCafePreviewState.lastSubject = subject;
-  if (!preserveTimer) {
-    studyCafePreviewState.elapsedMs = 0;
+  try {
+    const previousSubject = studyCafePreviewState.subject;
+    if (studyCafePreviewState.running && previousSubject) commitCurrentStudySubjectElapsed();
+    cancelStudyCafeCountdown();
+    studyCafePreviewState.selectedSeatId = seatId;
+    studyCafePreviewState.pendingSubject = "";
+    studyCafePreviewState.subject = subject;
+    studyCafePreviewState.lastSubject = subject;
+    if (!preserveTimer) {
+      studyCafePreviewState.elapsedMs = 0;
+    }
+    studyCafePreviewState.running = false;
+    studyCafePreviewState.paused = false;
+    studyCafePreviewState.startedAt = 0;
+    studyCafePreviewState.subjectStartedAt = 0;
+    startStudyCafeCountdown(seatId, subject);
+  } finally {
+    finishStudyCafeLocalSessionMutation();
   }
-  studyCafePreviewState.running = false;
-  studyCafePreviewState.paused = false;
-  studyCafePreviewState.startedAt = 0;
-  studyCafePreviewState.subjectStartedAt = 0;
-  startStudyCafeCountdown(seatId, subject);
 }
 
 function cancelStudyCafeCountdown() {

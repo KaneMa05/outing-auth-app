@@ -30,7 +30,18 @@ assert.match(
   appSource,
   /if \(!options\.preserveLocalSession\) \{\s*studyCafePreviewState\.subjectElapsedMs = totals;\s*\}/
 );
-assert.match(appSource, /mutateStudyCafeRemote\("claim_seat"/);
+assert.match(
+  appSource,
+  /function claimStudyCafeSeat\(seatNumber, options = \{\}\)[\s\S]*?"claim_seat"[\s\S]*?\{ refresh: false \}/
+);
+assert.match(
+  appSource,
+  /preserveLocalSession:\s*studyCafeTimerActionPending \|\|\s*Boolean\(studyCafeCountdownInterval\)/
+);
+assert.match(
+  appSource,
+  /function applyStudyCafeSubjectSelection\(seatId, subject, options = \{\}\) \{\s*beginStudyCafeLocalSessionMutation\(\);[\s\S]*?startStudyCafeCountdown\(seatId, subject\);[\s\S]*?finishStudyCafeLocalSessionMutation\(\)/
+);
 assert.match(
   sharedSource,
   /function closeInfoModal\(\) \{[\s\S]*?document\.querySelectorAll\("\.info-modal"\)\.forEach[\s\S]*?document\.activeElement\.blur\(\)[\s\S]*?modal\.remove\(\)/
