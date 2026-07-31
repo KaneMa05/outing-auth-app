@@ -4792,9 +4792,7 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
   font-size: 0.7rem;
   font-weight: 800;
   text-decoration: none;
-  transition:
-    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 100ms linear, color 100ms linear;
 }
 
 .study-cafe-footer-menu button,
@@ -4817,7 +4815,10 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
   background: currentColor;
   opacity: 0;
   transform: translateX(-50%) scaleX(0.45);
-  transition: opacity 140ms ease, transform 180ms ease;
+  will-change: opacity, transform;
+  transition:
+    opacity 120ms linear,
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .study-cafe-footer-menu button > span:last-child,
@@ -6236,13 +6237,13 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   grid-template-columns: 96px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
-  min-height: 132px;
+  min-height: 124px;
   border: 1px solid #cfe4f7;
   border-radius: 20px;
   background:
     radial-gradient(circle at 4% 12%, rgba(92, 180, 226, 0.2), transparent 34%),
     linear-gradient(135deg, #fafdff 0%, #eaf5ff 100%);
-  padding: 16px 18px 16px 14px;
+  padding: 14px 18px 14px 14px;
   box-shadow: 0 12px 30px rgba(17, 83, 137, 0.1);
 }
 
@@ -6261,7 +6262,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .study-cafe-my-seat-character {
   position: relative;
   z-index: 1;
-  min-height: 96px;
+  min-height: 0;
+  aspect-ratio: 1 / 1.08;
+  align-self: center;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -6287,9 +6290,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   gap: 5px;
 }
 
-.study-cafe-my-seat-title,
-.study-cafe-my-seat-copy > p,
-.study-cafe-my-seat-detail {
+.study-cafe-my-seat-title {
   padding-right: 86px;
 }
 
@@ -6400,7 +6401,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
-  padding-right: 86px;
 }
 
 .study-cafe-my-seat-idle-buttons .study-cafe-my-seat-subject-button,
@@ -8021,16 +8021,22 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room {
-  --room-border: #d7c1a3;
-  --room-floor: #f4e8d2;
-  --room-grid: rgba(145, 111, 72, 0.06);
-  --room-glow: rgba(255, 239, 196, 0.42);
-  --room-toolbar: rgba(255, 251, 243, 0.94);
-  --room-ink: #493d30;
-  --room-muted: #6c5d4a;
-  --room-accent: #8a6338;
-  --room-accent-soft: #f4e6d2;
-  --room-seat: rgba(255, 255, 255, 0.4);
+  --room-border: #c9baa2;
+  --room-floor: #f2ede4;
+  --room-grid: rgba(102, 83, 61, 0.052);
+  --room-glow: rgba(255, 252, 242, 0.74);
+  --room-toolbar: rgba(250, 248, 243, 0.96);
+  --room-ink: #484138;
+  --room-muted: #70675b;
+  --room-accent: #7a674f;
+  --room-accent-soft: #e9e1d5;
+  --room-seat: rgba(255, 253, 249, 0.56);
+  --room-desk: #ae895f;
+  --room-desk-top: #c7a47a;
+  --room-desk-edge: #80664a;
+  --room-chair-border: #88715a;
+  --room-chair-top: #ece2d4;
+  --room-chair-bottom: #cdb99e;
   position: relative;
   overflow: hidden;
   border: 6px solid var(--room-border);
@@ -8046,55 +8052,79 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room.theme-dawn {
-  --room-border: #a8bac9;
-  --room-floor: #e3edf4;
-  --room-grid: rgba(75, 109, 135, 0.065);
-  --room-glow: rgba(206, 236, 255, 0.72);
-  --room-toolbar: rgba(245, 250, 253, 0.95);
-  --room-ink: #354f63;
-  --room-muted: #587084;
-  --room-accent: #4a7897;
-  --room-accent-soft: #dcebf5;
-  --room-seat: rgba(255, 255, 255, 0.46);
+  --room-border: #b9c5cb;
+  --room-floor: #edf1f2;
+  --room-grid: rgba(74, 94, 105, 0.05);
+  --room-glow: rgba(250, 253, 254, 0.78);
+  --room-toolbar: rgba(248, 250, 250, 0.96);
+  --room-ink: #3e4d54;
+  --room-muted: #68777e;
+  --room-accent: #607985;
+  --room-accent-soft: #dfe7e9;
+  --room-seat: rgba(255, 255, 255, 0.58);
+  --room-desk: #a48b70;
+  --room-desk-top: #bba38a;
+  --room-desk-edge: #786754;
+  --room-chair-border: #78858a;
+  --room-chair-top: #e8eceb;
+  --room-chair-bottom: #c3cccd;
 }
 
 .study-cafe-room.theme-forest {
-  --room-border: #abb9a1;
-  --room-floor: #e4eadb;
-  --room-grid: rgba(77, 105, 70, 0.065);
-  --room-glow: rgba(224, 245, 199, 0.7);
-  --room-toolbar: rgba(247, 250, 241, 0.95);
-  --room-ink: #40543b;
-  --room-muted: #62725b;
-  --room-accent: #5b7c52;
-  --room-accent-soft: #e1eddc;
-  --room-seat: rgba(255, 255, 255, 0.44);
+  --room-border: #b9c2b2;
+  --room-floor: #edf0e9;
+  --room-grid: rgba(75, 91, 69, 0.05);
+  --room-glow: rgba(250, 252, 246, 0.76);
+  --room-toolbar: rgba(248, 250, 246, 0.96);
+  --room-ink: #424c3f;
+  --room-muted: #697364;
+  --room-accent: #687a61;
+  --room-accent-soft: #e0e6dc;
+  --room-seat: rgba(255, 255, 252, 0.56);
+  --room-desk: #a28a68;
+  --room-desk-top: #baa17d;
+  --room-desk-edge: #76664f;
+  --room-chair-border: #79816e;
+  --room-chair-top: #e9eadf;
+  --room-chair-bottom: #c6cbb8;
 }
 
 .study-cafe-room.theme-classic {
-  --room-border: #b9a098;
-  --room-floor: #eee2dc;
-  --room-grid: rgba(112, 72, 65, 0.06);
-  --room-glow: rgba(255, 226, 202, 0.62);
-  --room-toolbar: rgba(252, 246, 242, 0.95);
-  --room-ink: #5a403b;
-  --room-muted: #795f59;
-  --room-accent: #8b554c;
-  --room-accent-soft: #f1dfda;
-  --room-seat: rgba(255, 255, 255, 0.43);
+  --room-border: #c5b6b0;
+  --room-floor: #f0ebe8;
+  --room-grid: rgba(96, 73, 68, 0.05);
+  --room-glow: rgba(255, 251, 248, 0.76);
+  --room-toolbar: rgba(251, 248, 246, 0.96);
+  --room-ink: #504542;
+  --room-muted: #746965;
+  --room-accent: #7f655f;
+  --room-accent-soft: #e9dfdc;
+  --room-seat: rgba(255, 253, 252, 0.56);
+  --room-desk: #a7856d;
+  --room-desk-top: #bea08a;
+  --room-desk-edge: #796052;
+  --room-chair-border: #88756f;
+  --room-chair-top: #ede6e2;
+  --room-chair-bottom: #cfbdb6;
 }
 
 .study-cafe-room.theme-night {
-  --room-border: #78889b;
-  --room-floor: #d6dee8;
-  --room-grid: rgba(46, 66, 88, 0.07);
-  --room-glow: rgba(255, 232, 166, 0.52);
-  --room-toolbar: rgba(237, 242, 247, 0.96);
-  --room-ink: #304257;
-  --room-muted: #56687b;
-  --room-accent: #445f7d;
-  --room-accent-soft: #dce5ef;
-  --room-seat: rgba(248, 251, 255, 0.48);
+  --room-border: #aab4c0;
+  --room-floor: #e7ebef;
+  --room-grid: rgba(55, 70, 88, 0.052);
+  --room-glow: rgba(246, 249, 252, 0.76);
+  --room-toolbar: rgba(245, 248, 250, 0.96);
+  --room-ink: #3b4654;
+  --room-muted: #64707e;
+  --room-accent: #5b6d80;
+  --room-accent-soft: #dce2e8;
+  --room-seat: rgba(252, 253, 255, 0.57);
+  --room-desk: #958474;
+  --room-desk-top: #ad9b8a;
+  --room-desk-edge: #6c6056;
+  --room-chair-border: #707b88;
+  --room-chair-top: #e5e9ed;
+  --room-chair-bottom: #bec6cf;
 }
 
 .study-cafe-room .study-cafe-my-seat-card {
@@ -8122,6 +8152,38 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .study-cafe-room .study-cafe-my-seat-title > strong {
   color: var(--room-ink);
+}
+
+.study-cafe-room .study-cafe-seat.mine {
+  background: color-mix(in srgb, var(--room-accent-soft) 78%, white);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--room-accent) 72%, white);
+}
+
+.study-cafe-room .study-cafe-seat.mine .study-cafe-seat-number,
+.study-cafe-room .study-cafe-seat.mine .study-cafe-seat-name,
+.study-cafe-room .study-cafe-seat.mine .study-cafe-member-time {
+  background: var(--room-accent);
+}
+
+.study-cafe-room .study-cafe-seat.empty {
+  border-color: color-mix(in srgb, var(--room-accent) 25%, transparent);
+}
+
+.study-cafe-room .study-cafe-seat.empty:hover,
+.study-cafe-room .study-cafe-seat.empty:focus-visible {
+  outline-color: color-mix(in srgb, var(--room-accent) 22%, transparent);
+}
+
+.study-cafe-room .study-cafe-desk {
+  background: var(--room-desk);
+  box-shadow:
+    inset 0 4px 0 var(--room-desk-top),
+    0 7px 0 var(--room-desk-edge);
+}
+
+.study-cafe-room .study-cafe-chair-back {
+  border-color: var(--room-chair-border);
+  background: linear-gradient(180deg, var(--room-chair-top), var(--room-chair-bottom));
 }
 
 .study-cafe-room-toolbar {
@@ -9134,8 +9196,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   .study-cafe-my-seat-card {
     grid-template-columns: 82px minmax(0, 1fr);
     gap: 12px;
-    min-height: 120px;
-    padding: 13px 14px 13px 12px;
+    min-height: 112px;
+    padding: 11px 14px 11px 12px;
   }
 
   .study-cafe-my-seat-fullscreen-button {
@@ -9145,24 +9207,17 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   }
 
   .study-cafe-my-seat-actions {
-    top: 13px;
+    top: 11px;
     right: 14px;
-    bottom: 13px;
+    bottom: 11px;
   }
 
-  .study-cafe-my-seat-title,
-  .study-cafe-my-seat-copy > p,
-  .study-cafe-my-seat-detail {
+  .study-cafe-my-seat-title {
     padding-right: 72px;
   }
 
   .study-cafe-my-seat-idle-buttons {
     gap: 6px;
-    padding-right: 72px;
-  }
-
-  .study-cafe-my-seat-character {
-    min-height: 86px;
   }
 
   .study-cafe-my-seat-scene {
@@ -9214,6 +9269,59 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   color: var(--accent-strong);
   padding: 10px;
   font-weight: 900;
+}
+
+.study-cafe-subject-stop-button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #efc8c2;
+  border-radius: 12px;
+  background: #fff3f1;
+  color: #a94339;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.study-cafe-subject-stop-button:focus-visible {
+  outline: 3px solid rgba(182, 66, 53, 0.16);
+  outline-offset: 2px;
+}
+
+.study-cafe-idle-warning-modal {
+  width: min(360px, calc(100vw - 36px));
+  text-align: center;
+}
+
+.study-cafe-idle-warning-modal > p {
+  margin: 0;
+}
+
+.study-cafe-idle-countdown-wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  color: var(--accent-strong);
+}
+
+.study-cafe-idle-countdown {
+  min-width: 1.5ch;
+  font-size: 3.2rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.study-cafe-idle-countdown-wrap > span {
+  font-weight: 900;
+}
+
+.study-cafe-idle-keep-button {
+  width: 100%;
+  min-height: 48px;
+}
+
+.study-todo-item.pending {
+  opacity: 0.72;
 }
 
 .study-cafe-subject-option.recent::after {
@@ -9426,30 +9534,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   width: 100%;
 }
 
-body.student-study-mode .student-study-todo-page,
-body.student-study-mode .student-study-cafe-page,
-body.student-study-mode .student-study-timer-page,
-body.student-study-mode .student-study-ranking-page,
-body.student-study-mode .student-study-character-page {
-  animation: study-view-enter 150ms ease-out;
-}
-
-body.student-study-mode .study-view-static {
-  animation: none;
-}
-
 body.study-timer-fullscreen-mode .student-study-timer-page {
   animation: none;
   transform: none;
-}
-
-@keyframes study-view-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 @keyframes study-cafe-writing-left {

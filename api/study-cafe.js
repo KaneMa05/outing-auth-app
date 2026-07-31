@@ -16,11 +16,13 @@ const ALLOWED_ACTIONS = new Set([
   "timer_pause",
   "timer_resume",
   "timer_stop",
+  "keep_seat",
   "heartbeat",
 ]);
 const AVATAR_TONES = new Set(["navy", "blue", "mint", "purple", "orange", "rose"]);
 const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const PRESENCE_HEARTBEAT_GRACE_MS = 30 * 1000;
+const IDLE_PRESENCE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
 const MAX_SEAT_NUMBER = 192;
 const MAX_TODOS_PER_DAY = 60;
@@ -355,9 +357,16 @@ module.exports = async function handler(req, res) {
       res.status(409).json({ ok: false, error: "seat_required" });
       return;
     }
+    if (action === "keep_seat") {
+      await updatePresence(studentId, {
+        last_heartbeat_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      });
+      res.status(200).json({ ok: true, serverNow: now.toISOString() });
+      return;
+    }
     await updatePresence(studentId, {
       last_heartbeat_at: now.toISOString(),
-      updated_at: now.toISOString(),
     });
     res.status(200).json({ ok: true, serverNow: now.toISOString() });
   } catch (error) {
@@ -398,7 +407,7 @@ async function buildStudyCafeSnapshot(student, now) {
     ),
     requestSupabase(
       "GET",
-      `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&limit=1`
+      `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at,updated_at&limit=1`
     ),
     requestSupabase(
       "GET",
@@ -594,26 +603,35 @@ async function clearStalePresence(now) {
   const cutoff = new Date(now.getTime() - PRESENCE_STALE_MS).toISOString();
   const staleRows = await requestSupabase(
     "GET",
-    `study_cafe_presence?last_heartbeat_at=lt.${encodeURIComponent(cutoff)}&select=student_id,last_heartbeat_at`
+    `study_cafe_presence?last_heartbeat_at=lt.${encodeURIComponent(cutoff)}&select=student_id,status,last_heartbeat_at,updated_at`
   );
   for (const row of Array.isArray(staleRows) ? staleRows : []) {
+    const idleActivityAt = new Date(row.updated_at);
+    const isIdle = row.status === "seated" || row.status === "paused";
+    if (
+      isIdle &&
+      !Number.isNaN(idleActivityAt.getTime()) &&
+      now.getTime() - idleActivityAt.getTime() < IDLE_PRESENCE_STALE_MS
+    ) {
+      continue;
+    }
     const lastHeartbeatAt = new Date(row.last_heartbeat_at);
     const staleEndedAt = Number.isNaN(lastHeartbeatAt.getTime())
       ? now
       : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
     await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
     await completeActiveSession(row.student_id, staleEndedAt);
+    await requestSupabase(
+      "DELETE",
+      `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
+    );
   }
-  await requestSupabase(
-    "DELETE",
-    `study_cafe_presence?last_heartbeat_at=lt.${encodeURIComponent(cutoff)}`
-  );
 }
 
 async function getOwnPresence(studentId) {
   const rows = await requestSupabase(
     "GET",
-    `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&limit=1`
+    `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at,updated_at&limit=1`
   );
   return Array.isArray(rows) ? rows[0] || null : null;
 }
@@ -895,6 +913,7 @@ function serializeOwnPresence(row) {
     avatarTone: normalizeAvatarTone(row.avatar_tone),
     displayName: normalizeStoredNickname(row.display_name),
     lastHeartbeatAt: row.last_heartbeat_at,
+    idleSince: row.updated_at,
   };
 }
 

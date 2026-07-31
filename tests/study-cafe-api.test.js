@@ -42,6 +42,7 @@ const seatExpansionSql = fs.readFileSync("supabase/expand-study-cafe-to-192-seat
 const productionMigrationSql = fs.readFileSync("supabase/prepare-study-cafe-production.sql", "utf8");
 const apiSource = fs.readFileSync("api/study-cafe.js", "utf8");
 assert.match(apiSource, /"ranking"/);
+assert.match(apiSource, /"keep_seat"/);
 assert.match(apiSource, /async function loadStudyRanking\(studentId, period, now\)/);
 assert.match(apiSource, /function getCurrentRankingRange\(period, now = new Date\(\)\)/);
 assert.match(apiSource, /currentSubject: row\.current_subject \|\| ""/);
@@ -79,7 +80,10 @@ assert.match(rollbackSql, /drop table if exists public\.study_cafe_presence/);
 assert.match(rollbackSql, /drop table if exists public\.study_cafe_sessions/);
 assert.match(rollbackSql, /drop table if exists public\.study_cafe_todos/);
 assert.doesNotMatch(rollbackSql, /drop table if exists public\.(students|outings|attendance)/);
-assert.match(apiSource, /select=student_id,last_heartbeat_at/);
+assert.match(apiSource, /select=student_id,status,last_heartbeat_at,updated_at/);
+assert.match(apiSource, /const IDLE_PRESENCE_STALE_MS = 15 \* 60 \* 1000 \+ 10 \* 1000/);
+assert.match(apiSource, /row\.status === "seated" \|\| row\.status === "paused"/);
+assert.match(apiSource, /study_cafe_presence\?student_id=eq\.\$\{encodeURIComponent\(row\.student_id\)\}/);
 assert.match(apiSource, /lastHeartbeatAt\.getTime\(\) \+ PRESENCE_HEARTBEAT_GRACE_MS/);
 assert.match(apiSource, /await rolloverActiveSessionIfNeeded\(row\.student_id, staleEndedAt\)/);
 assert.match(apiSource, /await completeActiveSession\(row\.student_id, staleEndedAt\)/);
@@ -89,6 +93,15 @@ assert.match(apiSource, /body\.preserveStudy === true[\s\S]*?await getActiveSess
 assert.match(apiSource, /status: presenceStatus/);
 assert.match(apiSource, /current_subject: activeSession\?\.subject_name \|\| null/);
 assert.match(apiSource, /displayName: normalizeStoredNickname\(row\.display_name\)/);
+assert.match(apiSource, /idleSince: row\.updated_at/);
+assert.match(
+  apiSource,
+  /if \(action === "keep_seat"\)[\s\S]*?updated_at: now\.toISOString\(\)/
+);
+assert.match(
+  apiSource,
+  /await updatePresence\(studentId, \{\s*last_heartbeat_at: now\.toISOString\(\),\s*\}\)/
+);
 assert.match(apiSource, /"todo_create"/);
 assert.match(apiSource, /"todos_load"/);
 assert.match(apiSource, /"todo_toggle"/);
@@ -294,7 +307,7 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.equal(heartbeat.statusCode, 200);
   assert.equal(heartbeat.payload.ok, true);
   assert.match(heartbeat.payload.serverNow, /^\d{4}-\d{2}-\d{2}T/);
-  assert.equal(requests.length, 7);
+  assert.equal(requests.length, 6);
 
   global.fetch = async (url, options) => {
     if (url.endsWith("/rpc/validate_student_device")) {
