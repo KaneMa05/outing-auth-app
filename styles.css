@@ -6379,6 +6379,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
+  pointer-events: none;
 }
 
 .study-cafe-my-seat-actions time {
@@ -6442,6 +6443,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-weight: 900;
   white-space: nowrap;
   box-shadow: 0 5px 14px color-mix(in srgb, var(--room-accent, #075da4) 10%, transparent);
+  pointer-events: auto;
 }
 
 .study-cafe-my-seat-fullscreen-button:hover,
@@ -8135,7 +8137,10 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room .study-cafe-my-seat-card {
-  margin: 10px 10px 2px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 10px 8px 2px;
+  padding-inline: 0;
   border-color: color-mix(in srgb, var(--room-accent) 28%, transparent);
   background:
     radial-gradient(circle at 4% 12%, color-mix(in srgb, var(--room-accent) 18%, transparent), transparent 34%),
@@ -8144,8 +8149,21 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room .study-cafe-my-seat-character {
+  grid-column: 1;
+  width: 100%;
+  justify-self: stretch;
+  place-items: center;
   background: rgba(255, 255, 255, 0.74);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--room-accent) 16%, transparent);
+}
+
+.study-cafe-room .study-cafe-my-seat-scene {
+  margin-inline: auto;
+  transform-origin: 50% 50%;
+}
+
+.study-cafe-room .study-cafe-my-seat-copy {
+  grid-column: 2 / -1;
 }
 
 .study-cafe-room .study-cafe-my-seat-eyebrow,
@@ -9201,10 +9219,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 @media (max-width: 430px) {
   .study-cafe-my-seat-card {
-    grid-template-columns: 82px minmax(0, 1fr);
-    gap: 12px;
     min-height: 112px;
-    padding: 11px 14px 11px 12px;
+    padding-block: 8px;
   }
 
   .study-cafe-my-seat-fullscreen-button {
@@ -9228,7 +9244,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   }
 
   .study-cafe-my-seat-scene {
-    transform: translateY(-8px) scale(0.68);
+    transform: scale(0.62);
   }
 
   .study-cafe-my-seat-title > strong {
@@ -11162,6 +11178,12 @@ body:not([data-app-mode="teacher"]) .btn {
     padding: 12px 12px 16px;
   }
 
+  .study-cafe-room .study-cafe-my-seat-card {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 9px;
+    margin-inline: 11px;
+  }
+
   .study-cafe-my-seat-subject-button {
     width: auto;
     min-width: 136px;
@@ -11238,5 +11260,11 @@ body:not([data-app-mode="teacher"]) .btn {
     grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 12px 10px;
     padding: 14px 14px 18px;
+  }
+
+  .study-cafe-room .study-cafe-my-seat-card {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 10px;
+    margin-inline: 13px;
   }
 }

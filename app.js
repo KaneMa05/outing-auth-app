@@ -212,6 +212,14 @@ let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
 let studyCafeIdleWarningRemaining = 0;
 let studyCafeIdleReleasePending = false;
+let studyCafeSessionRevision = 0;
+const studyTodoEditorState = {
+  dateKey: "",
+  subject: "",
+  draft: "",
+  focused: false,
+};
+const studyTodoTogglePendingIds = new Set();
 
 document.querySelectorAll("[data-route]").forEach((button) => {
   button.addEventListener("click", (event) => {
@@ -950,6 +958,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   }
   studyCafeRemoteState.loading = true;
   studyCafeRemoteState.lastAttemptAt = Date.now();
+  const sessionRevisionAtRequest = studyCafeSessionRevision;
   try {
     const result = await requestStudyCafeAction("load");
     if (!result.ok) {
@@ -967,7 +976,11 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.loaded = true;
     studyCafeRemoteState.error = "";
     studyCafeRemoteState.lastLoadedAt = Date.now();
-    hydrateStudyCafeSnapshot(result);
+    hydrateStudyCafeSnapshot(result, {
+      preserveLocalSession:
+        studyCafeTimerActionPending ||
+        sessionRevisionAtRequest !== studyCafeSessionRevision,
+    });
     if (currentRoute === "home") updateStudyCafeHomeLiveCount();
     if (isStudyCafeRoute() && options.render !== false) renderStudyCafeStateUpdate();
     return true;
@@ -981,7 +994,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   }
 }
 
-function hydrateStudyCafeSnapshot(snapshot) {
+function hydrateStudyCafeSnapshot(snapshot, options = {}) {
   const nextStudyDateKey =
     String(snapshot.studyDate || "").trim() ||
     formatStudyBusinessDateKey(new Date(snapshot.serverNow || Date.now()));
@@ -1022,36 +1035,50 @@ function hydrateStudyCafeSnapshot(snapshot) {
   if (active?.subject && active?.status === "running") {
     totals[active.subject] = Math.max(0, (Number(totals[active.subject]) || 0) - activeElapsedMs);
   }
-  studyCafePreviewState.subjectElapsedMs = totals;
+  if (!options.preserveLocalSession) {
+    studyCafePreviewState.subjectElapsedMs = totals;
+  }
 
   const presence = snapshot.presence;
-  const previousSeatId = studyCafePreviewState.selectedSeatId;
   if (!studyCafePreviewState.nickname && presence?.displayName) {
     studyCafePreviewState.temporaryNickname = String(presence.displayName).trim();
   }
-  studyCafePreviewState.selectedSeatId = presence?.seatNumber
-    ? STUDY_CAFE_PREVIEW_SEATS[Number(presence.seatNumber) - 1]?.id || ""
-    : "";
-  if (!previousSeatId && presence?.seatNumber) {
-    studyCafePreviewState.activeRoomIndex = getStudyCafeRoomIndexForSeat(presence.seatNumber);
+  if (!options.preserveLocalSession) {
+    const previousSeatId = studyCafePreviewState.selectedSeatId;
+    studyCafePreviewState.selectedSeatId = presence?.seatNumber
+      ? STUDY_CAFE_PREVIEW_SEATS[Number(presence.seatNumber) - 1]?.id || ""
+      : "";
+    if (!previousSeatId && presence?.seatNumber) {
+      studyCafePreviewState.activeRoomIndex = getStudyCafeRoomIndexForSeat(presence.seatNumber);
+    }
+    studyCafePreviewState.subject = active?.subject || "";
+    studyCafePreviewState.lastSubject = active?.subject || studyCafePreviewState.lastSubject;
+    studyCafePreviewState.running = active?.status === "running";
+    studyCafePreviewState.paused = active?.status === "paused";
+    studyCafePreviewState.elapsedMs = studyCafePreviewState.paused ? activeElapsedMs : 0;
+    studyCafePreviewState.startedAt = studyCafePreviewState.running ? Date.now() - activeElapsedMs : 0;
+    studyCafePreviewState.subjectStartedAt = studyCafePreviewState.running ? Date.now() - activeElapsedMs : 0;
+    const remoteIdleSince = Date.parse(presence?.idleSince || "");
+    studyCafePreviewState.idleSince =
+      studyCafePreviewState.selectedSeatId && !studyCafePreviewState.running
+        ? Math.max(
+            previousSeatId === studyCafePreviewState.selectedSeatId
+              ? Number(studyCafePreviewState.idleSince) || 0
+              : 0,
+            Number.isFinite(remoteIdleSince) ? remoteIdleSince : Date.now()
+          )
+        : 0;
   }
-  studyCafePreviewState.subject = active?.subject || "";
-  studyCafePreviewState.lastSubject = active?.subject || studyCafePreviewState.lastSubject;
-  studyCafePreviewState.running = active?.status === "running";
-  studyCafePreviewState.paused = active?.status === "paused";
-  studyCafePreviewState.elapsedMs = studyCafePreviewState.paused ? activeElapsedMs : 0;
-  studyCafePreviewState.startedAt = studyCafePreviewState.running ? Date.now() - activeElapsedMs : 0;
-  studyCafePreviewState.subjectStartedAt = studyCafePreviewState.running ? Date.now() - activeElapsedMs : 0;
-  const remoteIdleSince = Date.parse(presence?.idleSince || "");
-  studyCafePreviewState.idleSince =
-    studyCafePreviewState.selectedSeatId && !studyCafePreviewState.running
-      ? Math.max(
-          previousSeatId === studyCafePreviewState.selectedSeatId
-            ? Number(studyCafePreviewState.idleSince) || 0
-            : 0,
-          Number.isFinite(remoteIdleSince) ? remoteIdleSince : Date.now()
-        )
-      : 0;
+}
+
+function beginStudyCafeLocalSessionMutation() {
+  studyCafeSessionRevision += 1;
+  window.clearTimeout(studyCafeRemoteState.requestedRefreshTimer);
+  studyCafeRemoteState.requestedRefreshTimer = null;
+}
+
+function finishStudyCafeLocalSessionMutation() {
+  studyCafeSessionRevision += 1;
 }
 
 async function mutateStudyCafeRemote(action, payload = {}, options = {}) {
@@ -1073,7 +1100,10 @@ async function mutateStudyCafeRemote(action, payload = {}, options = {}) {
         : "스터디카페 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.";
       notify(message);
     }
-    if ((result.ok && action !== "heartbeat") || result.error === "seat_taken") {
+    if (
+      ((result.ok && action !== "heartbeat" && options.refresh !== false) ||
+        result.error === "seat_taken")
+    ) {
       requestStudyCafeRemoteRefresh();
     }
     return result;
@@ -1720,9 +1750,14 @@ function renderStudentStudyTodo() {
 function renderStudyTodoSubjectCard(subject, todos) {
   const subjectTodos = todos.filter((todo) => todo.subject === subject);
   const completedCount = subjectTodos.filter((todo) => todo.completed).length;
+  const editorDateKey = getSelectedStudyTodoDateKey();
+  const editorOpen =
+    studyTodoEditorState.dateKey === editorDateKey &&
+    studyTodoEditorState.subject === subject;
   const textInput = el("input", {
     className: "study-todo-input",
     type: "text",
+    value: editorOpen ? studyTodoEditorState.draft : "",
     maxLength: 80,
     placeholder: `${subject} 할 일 추가`,
     ariaLabel: `${subject} 할 일`,
@@ -1738,31 +1773,76 @@ function renderStudyTodoSubjectCard(subject, todos) {
     },
     "✓"
   );
-  const form = el("form", { className: "study-todo-add-form", hidden: true }, [textInput, submitButton]);
+  const form = el("form", { className: "study-todo-add-form", hidden: !editorOpen }, [textInput, submitButton]);
   const addButton = el(
     "button",
     {
       className: "study-todo-add-button",
       type: "button",
-      ariaLabel: `${subject} 할 일 추가`,
-      ariaExpanded: "false",
+      ariaLabel: `${subject} 할 일 ${editorOpen ? "입력 닫기" : "추가"}`,
+      ariaExpanded: String(editorOpen),
       title: "할 일 추가",
     },
-    "+"
+    editorOpen ? "×" : "+"
   );
   addButton.addEventListener("click", () => {
     const willOpen = form.hidden;
+    if (willOpen) {
+      studyTodoEditorState.dateKey = editorDateKey;
+      studyTodoEditorState.subject = subject;
+      studyTodoEditorState.draft = "";
+      studyTodoEditorState.focused = true;
+    } else {
+      studyTodoEditorState.dateKey = "";
+      studyTodoEditorState.subject = "";
+      studyTodoEditorState.draft = "";
+      studyTodoEditorState.focused = false;
+    }
     form.hidden = !willOpen;
     addButton.setAttribute("aria-expanded", willOpen ? "true" : "false");
     addButton.setAttribute("aria-label", `${subject} 할 일 ${willOpen ? "입력 닫기" : "추가"}`);
     addButton.textContent = willOpen ? "×" : "+";
     if (willOpen) textInput.focus();
   });
+  textInput.addEventListener("input", () => {
+    if (
+      studyTodoEditorState.dateKey === editorDateKey &&
+      studyTodoEditorState.subject === subject
+    ) {
+      studyTodoEditorState.draft = textInput.value;
+    }
+  });
+  textInput.addEventListener("focus", () => {
+    studyTodoEditorState.focused = true;
+  });
+  textInput.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (document.contains(textInput) && document.activeElement !== textInput) {
+        studyTodoEditorState.focused = false;
+      }
+    }, 0);
+  });
+  if (editorOpen && studyTodoEditorState.focused) {
+    window.requestAnimationFrame(() => {
+      if (
+        document.contains(textInput) &&
+        studyTodoEditorState.dateKey === editorDateKey &&
+        studyTodoEditorState.subject === subject &&
+        studyTodoEditorState.focused
+      ) {
+        textInput.focus({ preventScroll: true });
+      }
+    });
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const content = String(textInput.value || "").trim();
     if (!content) return notify("할 일을 입력해주세요.");
     submitButton.disabled = true;
+    studyTodoEditorState.dateKey = "";
+    studyTodoEditorState.subject = "";
+    studyTodoEditorState.draft = "";
+    studyTodoEditorState.focused = false;
     const studyDate = getSelectedStudyTodoDateKey();
     const optimisticTodo = {
       id: `pending-todo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1774,7 +1854,11 @@ function renderStudyTodoSubjectCard(subject, todos) {
     };
     setStudyTodosForDate(studyDate, [...getStudyTodosForDate(studyDate), optimisticTodo]);
     renderStudyCafeStateUpdate();
-    const result = await mutateStudyCafeRemote("todo_create", { subject, content, studyDate });
+    const result = await mutateStudyCafeRemote(
+      "todo_create",
+      { subject, content, studyDate },
+      { refresh: false }
+    );
     if (!result.ok) {
       setStudyTodosForDate(
         studyDate,
@@ -1792,13 +1876,17 @@ function renderStudyTodoSubjectCard(subject, todos) {
       studyDate,
       pending: false,
     };
-    setStudyTodosForDate(
-      studyDate,
-      getStudyTodosForDate(studyDate).map((item) =>
-        item.id === optimisticTodo.id ? todo : item
-      )
-    );
-    renderStudyCafeStateUpdate();
+    const pendingTodoId = optimisticTodo.id;
+    Object.assign(optimisticTodo, todo, { pending: false });
+    const currentTodoItem = Array.from(document.querySelectorAll("[data-study-todo-id]"))
+      .find((item) => item.dataset.studyTodoId === String(pendingTodoId));
+    if (currentTodoItem) {
+      currentTodoItem.dataset.studyTodoId = String(optimisticTodo.id);
+      currentTodoItem.classList.remove("pending");
+      currentTodoItem.querySelectorAll("input, button").forEach((control) => {
+        control.disabled = false;
+      });
+    }
   });
 
   return el("section", { className: "study-todo-subject-card" }, [
@@ -1831,7 +1919,7 @@ function renderStudyTodoItem(todo) {
   const checkbox = el("input", {
     type: "checkbox",
     checked: Boolean(todo.completed),
-    disabled: todo.pending === true,
+    disabled: todo.pending === true || studyTodoTogglePendingIds.has(todo.id),
     ariaLabel: `${todo.content} 완료`,
   });
   checkbox.addEventListener("change", () => updateStudyTodoCompletion(todo, checkbox));
@@ -1840,23 +1928,40 @@ function renderStudyTodoItem(todo) {
     event.stopPropagation();
     if (todo.pending) return;
     if (!confirm(`"${todo.content}" 항목을 삭제할까요?`)) return;
-    deleteButton.disabled = true;
-    const studyDate = getSelectedStudyTodoDateKey();
-    const result = await mutateStudyCafeRemote("todo_delete", { todoId: todo.id, studyDate });
-    if (!result.ok) {
-      deleteButton.disabled = false;
-      return;
-    }
+    const studyDate = todo.studyDate || getSelectedStudyTodoDateKey();
+    const previousTodos = getStudyTodosForDate(studyDate);
+    const previousIndex = previousTodos.findIndex((item) => item.id === todo.id);
     setStudyTodosForDate(
       studyDate,
-      getStudyTodosForDate(studyDate).filter((item) => item.id !== todo.id)
+      previousTodos.filter((item) => item.id !== todo.id)
     );
     renderStudyCafeStateUpdate();
-    notify("할 일을 삭제했습니다.");
+    const result = await mutateStudyCafeRemote(
+      "todo_delete",
+      { todoId: todo.id, studyDate },
+      { refresh: false }
+    );
+    if (!result.ok) {
+      const currentTodos = getStudyTodosForDate(studyDate);
+      if (!currentTodos.some((item) => item.id === todo.id)) {
+        const restoredTodos = [...currentTodos];
+        restoredTodos.splice(
+          Math.min(Math.max(0, previousIndex), restoredTodos.length),
+          0,
+          todo
+        );
+        setStudyTodosForDate(studyDate, restoredTodos);
+      }
+      renderStudyCafeStateUpdate();
+      return;
+    }
   });
   deleteButton.disabled = todo.pending === true;
 
-  return el("label", { className: `study-todo-item ${todo.completed ? "completed" : ""} ${todo.pending ? "pending" : ""}` }, [
+  return el("label", {
+    className: `study-todo-item ${todo.completed ? "completed" : ""} ${todo.pending ? "pending" : ""}`,
+    "data-study-todo-id": todo.id,
+  }, [
     checkbox,
     el("span", {}, todo.content),
     deleteButton,
@@ -1864,19 +1969,12 @@ function renderStudyTodoItem(todo) {
 }
 
 async function updateStudyTodoCompletion(todo, checkbox) {
-  checkbox.disabled = true;
+  if (studyTodoTogglePendingIds.has(todo.id)) return;
+  const previousCompleted = Boolean(todo.completed);
   const completed = checkbox.checked;
-  const result = await mutateStudyCafeRemote("todo_toggle", {
-    todoId: todo.id,
-    completed,
-    studyDate: todo.studyDate || getSelectedStudyTodoDateKey(),
-  });
-  checkbox.disabled = false;
-  if (!result.ok) {
-    checkbox.checked = !completed;
-    return;
-  }
   const studyDate = todo.studyDate || getSelectedStudyTodoDateKey();
+  studyTodoTogglePendingIds.add(todo.id);
+  checkbox.disabled = true;
   setStudyTodosForDate(
     studyDate,
     getStudyTodosForDate(studyDate).map((item) =>
@@ -1884,6 +1982,30 @@ async function updateStudyTodoCompletion(todo, checkbox) {
     )
   );
   renderStudyCafeStateUpdate();
+  const result = await mutateStudyCafeRemote(
+    "todo_toggle",
+    {
+      todoId: todo.id,
+      completed,
+      studyDate,
+    },
+    { refresh: false }
+  );
+  studyTodoTogglePendingIds.delete(todo.id);
+  if (!result.ok) {
+    setStudyTodosForDate(
+      studyDate,
+      getStudyTodosForDate(studyDate).map((item) =>
+        item.id === todo.id ? { ...item, completed: previousCompleted } : item
+      )
+    );
+    renderStudyCafeStateUpdate();
+    return;
+  }
+  const currentTodoItem = Array.from(document.querySelectorAll("[data-study-todo-id]"))
+    .find((item) => item.dataset.studyTodoId === String(todo.id));
+  const currentCheckbox = currentTodoItem?.querySelector('input[type="checkbox"]');
+  if (currentCheckbox) currentCheckbox.disabled = false;
 }
 
 function getStudyTodoDateLabel(key = getSelectedStudyTodoDateKey()) {
@@ -3784,6 +3906,7 @@ function startStudyCafeCountdown(seatId, subject) {
 async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
   if (studyCafeTimerActionPending) return false;
   studyCafeTimerActionPending = true;
+  beginStudyCafeLocalSessionMutation();
   const previousTimerState = {
     elapsedMs: studyCafePreviewState.elapsedMs,
     startedAt: studyCafePreviewState.startedAt,
@@ -3803,7 +3926,8 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
   try {
     const result = await mutateStudyCafeRemote(
       resumeExistingSession ? "timer_resume" : "timer_start",
-      resumeExistingSession ? {} : { subject }
+      resumeExistingSession ? {} : { subject },
+      { refresh: false }
     );
     if (!result.ok) {
       Object.assign(studyCafePreviewState, previousTimerState);
@@ -3820,6 +3944,7 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
     return true;
   } finally {
     studyCafeTimerActionPending = false;
+    finishStudyCafeLocalSessionMutation();
   }
 }
 
@@ -4131,6 +4256,7 @@ async function toggleStudyCafePreviewTimer() {
   if (studyCafePreviewState.running) {
     if (!confirm("공부 타이머를 일시정지할까요?")) return;
     studyCafeTimerActionPending = true;
+    beginStudyCafeLocalSessionMutation();
     const previousTimerState = {
       elapsedMs: studyCafePreviewState.elapsedMs,
       startedAt: studyCafePreviewState.startedAt,
@@ -4150,9 +4276,10 @@ async function toggleStudyCafePreviewTimer() {
     renderStudyCafeStateUpdate();
     let result;
     try {
-      result = await mutateStudyCafeRemote("timer_pause");
+      result = await mutateStudyCafeRemote("timer_pause", {}, { refresh: false });
     } finally {
       studyCafeTimerActionPending = false;
+      finishStudyCafeLocalSessionMutation();
     }
     if (!result?.ok) {
       Object.assign(studyCafePreviewState, previousTimerState);
@@ -4178,13 +4305,19 @@ async function stopStudyCafePreviewTimer(options = {}) {
   if (studyCafeTimerActionPending) return;
   if (!confirm(`${studyCafePreviewState.subject} 공부를 종료할까요?`)) return;
   studyCafeTimerActionPending = true;
-  let result;
-  try {
-    result = await mutateStudyCafeRemote("timer_stop");
-  } finally {
-    studyCafeTimerActionPending = false;
-  }
-  if (!result.ok) return;
+  beginStudyCafeLocalSessionMutation();
+  const previousTimerState = {
+    subject: studyCafePreviewState.subject,
+    pendingSubject: studyCafePreviewState.pendingSubject,
+    running: studyCafePreviewState.running,
+    paused: studyCafePreviewState.paused,
+    elapsedMs: studyCafePreviewState.elapsedMs,
+    startedAt: studyCafePreviewState.startedAt,
+    subjectStartedAt: studyCafePreviewState.subjectStartedAt,
+    subjectElapsedMs: { ...(studyCafePreviewState.subjectElapsedMs || {}) },
+    idleSince: studyCafePreviewState.idleSince,
+    timerFullscreen: studyCafePreviewState.timerFullscreen,
+  };
   cancelStudyCafeCountdown();
   commitCurrentStudySubjectElapsed();
   studyCafePreviewState.subject = "";
@@ -4196,21 +4329,49 @@ async function stopStudyCafePreviewTimer(options = {}) {
   studyCafePreviewState.subjectStartedAt = 0;
   studyCafePreviewState.idleSince = Date.now();
   studyCafePreviewState.timerFullscreen = false;
+  renderStudyCafeStateUpdate();
+  let result;
+  try {
+    result = await mutateStudyCafeRemote("timer_stop", {}, { refresh: false });
+  } finally {
+    studyCafeTimerActionPending = false;
+    finishStudyCafeLocalSessionMutation();
+  }
+  if (!result?.ok) {
+    Object.assign(studyCafePreviewState, previousTimerState);
+    renderStudyCafeStateUpdate();
+    return;
+  }
   invalidateStudyTimerStatsCache();
   if (options.closeModalOnSuccess === true) closeInfoModal();
-  renderStudyCafeStateUpdate();
   notify("과목 공부를 종료했습니다. 현재 좌석은 그대로 유지됩니다.");
 }
 
 async function releaseStudyCafeSeat(options = {}) {
+  if (studyCafeTimerActionPending) return false;
   const seatNumber = STUDY_CAFE_PREVIEW_SEATS.findIndex(
     (seat) => seat.id === studyCafePreviewState.selectedSeatId
   ) + 1;
   if (!seatNumber || (options.skipConfirm !== true && !confirm(`${seatNumber}번 좌석을 비울까요?`))) {
     return false;
   }
-  const result = await mutateStudyCafeRemote("release_seat");
-  if (!result.ok) return false;
+  studyCafeTimerActionPending = true;
+  beginStudyCafeLocalSessionMutation();
+  const previousSeatState = {
+    selectedSeatId: studyCafePreviewState.selectedSeatId,
+    subject: studyCafePreviewState.subject,
+    pendingSubject: studyCafePreviewState.pendingSubject,
+    running: studyCafePreviewState.running,
+    paused: studyCafePreviewState.paused,
+    elapsedMs: studyCafePreviewState.elapsedMs,
+    startedAt: studyCafePreviewState.startedAt,
+    subjectStartedAt: studyCafePreviewState.subjectStartedAt,
+    subjectElapsedMs: { ...(studyCafePreviewState.subjectElapsedMs || {}) },
+    idleSince: studyCafePreviewState.idleSince,
+    timerFullscreen: studyCafePreviewState.timerFullscreen,
+    temporaryNickname: studyCafePreviewState.temporaryNickname,
+    temporaryNicknameAwaitingEntry: studyCafePreviewState.temporaryNicknameAwaitingEntry,
+  };
   cancelStudyCafeCountdown();
   clearStudyCafeIdleWarning();
   studyCafePreviewState.selectedSeatId = "";
@@ -4228,6 +4389,18 @@ async function releaseStudyCafeSeat(options = {}) {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = true;
   }
   render();
+  let result;
+  try {
+    result = await mutateStudyCafeRemote("release_seat", {}, { refresh: false });
+  } finally {
+    studyCafeTimerActionPending = false;
+    finishStudyCafeLocalSessionMutation();
+  }
+  if (!result?.ok) {
+    Object.assign(studyCafePreviewState, previousSeatState);
+    renderStudyCafeStateUpdate();
+    return false;
+  }
   notify(
     options.autoRelease === true
       ? "15분 동안 타이머가 정지되어 좌석이 자동으로 비워졌습니다."
