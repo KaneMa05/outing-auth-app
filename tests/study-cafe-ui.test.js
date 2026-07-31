@@ -56,7 +56,7 @@ assert.match(appSource, /const preserveStudy = options\.preserveStudy === true/)
 assert.match(appSource, /claimStudyCafeSeat\(seatNumber, \{ preserveStudy \}\)/);
 assert.match(
   appSource,
-  /studyCafePreviewState\.selectedSeatId = seatId;\s*renderStudyCafeStateUpdate\(\);\s*closeInfoModal\(\);\s*notify\(/
+  /studyCafePreviewState\.selectedSeatId = seatId;\s*closeInfoModal\(\);\s*renderStudyCafeStateUpdate\(\);\s*notify\(/
 );
 assert.match(styleSource, /\.study-cafe-seat-move-actions/);
 assert.match(styleSource, /html\s*\{[^}]*background: #f4f6f8/);
@@ -156,6 +156,14 @@ assert.match(
 assert.match(appSource, /studyCafeRemoteState\.refreshTimer = window\.setInterval/);
 assert.match(appSource, /studyCafeRemoteState\.heartbeatTimer = window\.setInterval/);
 assert.match(appSource, /const STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS = 2 \* 60 \* 1000/);
+assert.match(
+  appSource,
+  /function ensureStudyCafeRealtimeSubscription\(\)[\s\S]*?channel\("study-cafe-room-public", \{ config: \{ private: false \} \}\)[\s\S]*?"broadcast"[\s\S]*?event: "state-changed"/
+);
+assert.match(
+  appSource,
+  /function scheduleStudyCafeRealtimeRefresh\(\)[\s\S]*?window\.setTimeout\([\s\S]*?requestStudyCafeRemoteRefresh\(0, \{ retryWhenLoading: true \}\)[\s\S]*?\}, 350\)/
+);
 assert.match(
   appSource,
   /function requestStudyCafeRemoteRefresh\(\s*delay = STUDY_CAFE_ACTION_REFRESH_DELAY_MS,\s*options = \{\}/
@@ -675,6 +683,10 @@ assert.match(styleSource, /\.study-cafe-member-seat-scene \.study-cafe-avatar/);
 assert.match(styleSource, /\.study-cafe-member-info-list/);
 assert.match(appSource, /const isPausedSeat = occupant\?\.status === "paused"/);
 assert.match(appSource, /className: "study-cafe-seat-pause-icon"/);
+assert.match(
+  appSource,
+  /studyCafePreviewState\.selectedSeatId = seatId;\s*closeInfoModal\(\);\s*renderStudyCafeStateUpdate\(\);/
+);
 assert.match(appSource, /ariaLabel: "일시정지"/);
 assert.match(appSource, /el\("strong", \{\}, occupant\.name\)/);
 assert.match(appSource, /el\("em", \{\}, occupant\.track\)/);

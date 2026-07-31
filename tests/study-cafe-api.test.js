@@ -43,6 +43,13 @@ const productionMigrationSql = fs.readFileSync("supabase/prepare-study-cafe-prod
 const apiSource = fs.readFileSync("api/study-cafe.js", "utf8");
 assert.match(apiSource, /"ranking"/);
 assert.match(apiSource, /"keep_seat"/);
+assert.match(
+  apiSource,
+  /realtime\/v1\/api\/broadcast\/study-cafe-room-public\/events\/state-changed/
+);
+assert.match(apiSource, /await broadcastStudyCafeStateChange\("seat"/);
+assert.match(apiSource, /await broadcastStudyCafeStateChange\("timer"\)/);
+assert.match(apiSource, /await broadcastStudyCafeStateChange\("profile"\)/);
 assert.match(apiSource, /async function loadStudyRanking\(studentId, period, now\)/);
 assert.match(apiSource, /function getCurrentRankingRange\(period, now = new Date\(\)\)/);
 assert.match(apiSource, /currentSubject: row\.current_subject \|\| ""/);

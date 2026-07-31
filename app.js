@@ -208,6 +208,8 @@ const studyTimerStatsState = {
 let studyCafePreviewClock = null;
 let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
+let studyCafeRealtimeChannel = null;
+let studyCafeRealtimeRefreshTimer = null;
 let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
 let studentStudyRouteTransitionDirection = 0;
@@ -1208,6 +1210,7 @@ function bindStudyCafeLifecycleRefresh() {
 
 function ensureStudyCafeRemoteTimers() {
   bindStudyCafeLifecycleRefresh();
+  ensureStudyCafeRealtimeSubscription();
   ensureStudyCafePreviewClock();
   if (!studyCafeRemoteState.refreshTimer) {
     studyCafeRemoteState.refreshTimer = window.setInterval(() => {
@@ -1227,6 +1230,43 @@ function ensureStudyCafeRemoteTimers() {
       }
     }, 30000);
   }
+}
+
+function ensureStudyCafeRealtimeSubscription() {
+  if (
+    APP_MODE !== "student" ||
+    !remoteStore?.channel ||
+    studyCafeRealtimeChannel
+  ) {
+    return;
+  }
+  studyCafeRealtimeChannel = remoteStore
+    .channel("study-cafe-room-public", { config: { private: false } })
+    .on(
+      "broadcast",
+      { event: "state-changed" },
+      scheduleStudyCafeRealtimeRefresh
+    )
+    .subscribe((status) => {
+      if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+        console.warn(
+          "Study cafe realtime is unavailable; fallback refresh remains active."
+        );
+      }
+    });
+}
+
+function scheduleStudyCafeRealtimeRefresh() {
+  const student = getAuthedStudent();
+  const shouldRefresh =
+    isStudyCafeRoute() ||
+    (currentRoute === "home" && isOnlineStudentExperience(student));
+  if (!shouldRefresh || document.visibilityState === "hidden") return;
+  window.clearTimeout(studyCafeRealtimeRefreshTimer);
+  studyCafeRealtimeRefreshTimer = window.setTimeout(() => {
+    studyCafeRealtimeRefreshTimer = null;
+    requestStudyCafeRemoteRefresh(0, { retryWhenLoading: true });
+  }, 350);
 }
 
 function getStudentDeviceLabel() {
@@ -3795,8 +3835,8 @@ function openStudyCafeSeatMoveModal(seatId, seatNumber, options = {}) {
       return;
     }
     studyCafePreviewState.selectedSeatId = seatId;
-    renderStudyCafeStateUpdate();
     closeInfoModal();
+    renderStudyCafeStateUpdate();
     notify(
       preserveStudy
         ? `${seatNumber}번 좌석으로 이동했습니다. 타이머는 계속 측정됩니다.`

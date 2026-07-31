@@ -116,6 +116,7 @@ module.exports = async function handler(req, res) {
         },
         { Prefer: "return=minimal" }
       );
+      await broadcastStudyCafeStateChange("profile");
       res.status(200).json({ ok: true, avatarTone, ...(nickname === undefined ? {} : { nickname }) });
       return;
     }
@@ -242,6 +243,7 @@ module.exports = async function handler(req, res) {
         }
         throw error;
       }
+      await broadcastStudyCafeStateChange("seat", { seatNumber });
       res.status(200).json({ ok: true, seatNumber });
       return;
     }
@@ -252,6 +254,7 @@ module.exports = async function handler(req, res) {
         "DELETE",
         `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`
       );
+      await broadcastStudyCafeStateChange("seat");
       res.status(200).json({ ok: true });
       return;
     }
@@ -284,6 +287,7 @@ module.exports = async function handler(req, res) {
         last_heartbeat_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
+      await broadcastStudyCafeStateChange("timer");
       res.status(200).json({ ok: true, session: serializeSession(sessions?.[0], now) });
       return;
     }
@@ -311,6 +315,7 @@ module.exports = async function handler(req, res) {
         last_heartbeat_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
+      await broadcastStudyCafeStateChange("timer");
       res.status(200).json({ ok: true, session: serializeSession(rows?.[0], now) });
       return;
     }
@@ -336,6 +341,7 @@ module.exports = async function handler(req, res) {
         last_heartbeat_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
+      await broadcastStudyCafeStateChange("timer");
       res.status(200).json({ ok: true, session: serializeSession(rows?.[0], now) });
       return;
     }
@@ -348,6 +354,7 @@ module.exports = async function handler(req, res) {
         last_heartbeat_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
+      await broadcastStudyCafeStateChange("timer");
       res.status(200).json({ ok: true, session: serializeSession(session, now) });
       return;
     }
@@ -388,6 +395,35 @@ async function authenticateOnlineStudent({ studentId, deviceToken, client }) {
     `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,name,track,is_active&limit=1`
   );
   return Array.isArray(rows) && rows[0]?.id?.startsWith("2") ? rows[0] : null;
+}
+
+async function broadcastStudyCafeStateChange(change, payload = {}) {
+  const supabaseUrl = process.env.SUPABASE_URL || "";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceRoleKey) return;
+  try {
+    const response = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/realtime/v1/api/broadcast/study-cafe-room-public/events/state-changed`,
+      {
+        method: "POST",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          change,
+          ...payload,
+          changedAt: new Date().toISOString(),
+        }),
+      }
+    );
+    if (!response.ok) {
+      console.warn(`Study cafe realtime broadcast failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.warn("Study cafe realtime broadcast failed.", error);
+  }
 }
 
 async function buildStudyCafeSnapshot(student, now) {

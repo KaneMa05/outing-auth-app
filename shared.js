@@ -824,6 +824,9 @@ function startRemoteRefresh() {
     if (!document.hidden) scheduleResumeRemoteRefresh();
   });
   ensureStudentRealtimeSubscription();
+  if (typeof ensureStudyCafeRealtimeSubscription === "function") {
+    ensureStudyCafeRealtimeSubscription();
+  }
   scheduleStudentAutoRefresh();
 }
 
