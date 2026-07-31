@@ -5,6 +5,10 @@ const ALLOWED_ACTIONS = new Set([
   "stats",
   "save_subjects",
   "save_profile",
+  "todos_load",
+  "todo_create",
+  "todo_toggle",
+  "todo_delete",
   "claim_seat",
   "release_seat",
   "timer_start",
@@ -17,7 +21,8 @@ const AVATAR_TONES = new Set(["navy", "blue", "mint", "purple", "orange", "rose"
 const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const PRESENCE_HEARTBEAT_GRACE_MS = 30 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
-const MAX_SEAT_NUMBER = 50;
+const MAX_SEAT_NUMBER = 192;
+const MAX_TODOS_PER_DAY = 60;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -99,6 +104,85 @@ module.exports = async function handler(req, res) {
         { Prefer: "return=minimal" }
       );
       res.status(200).json({ ok: true, avatarTone, ...(nickname === undefined ? {} : { nickname }) });
+      return;
+    }
+
+    if (action === "todos_load") {
+      const studyDate = normalizeTodoStudyDate(body.studyDate, now);
+      const todos = await requestSupabase(
+        "GET",
+        `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
+      );
+      res.status(200).json({
+        ok: true,
+        studyDate,
+        todos: (Array.isArray(todos) ? todos : []).map(serializeTodo),
+      });
+      return;
+    }
+
+    if (action === "todo_create") {
+      const subject = normalizeSubject(body.subject);
+      const content = normalizeTodoContent(body.content);
+      const studyDate = normalizeTodoStudyDate(body.studyDate, now);
+      const existing = await requestSupabase(
+        "GET",
+        `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&select=id`
+      );
+      if (Array.isArray(existing) && existing.length >= MAX_TODOS_PER_DAY) {
+        res.status(409).json({ ok: false, error: "todo_limit_reached" });
+        return;
+      }
+      const rows = await requestSupabase(
+        "POST",
+        "study_cafe_todos",
+        {
+          student_id: studentId,
+          study_date: studyDate,
+          subject_name: subject,
+          content,
+          is_completed: false,
+          updated_at: now.toISOString(),
+        },
+        { Prefer: "return=representation" }
+      );
+      res.status(200).json({ ok: true, todo: serializeTodo(rows?.[0]) });
+      return;
+    }
+
+    if (action === "todo_toggle") {
+      const todoId = normalizeTodoId(body.todoId);
+      const studyDate = normalizeTodoStudyDate(body.studyDate, now);
+      if (body.completed !== true && body.completed !== false) {
+        res.status(400).json({ ok: false, error: "invalid_todo_completed" });
+        return;
+      }
+      const rows = await requestSupabase(
+        "PATCH",
+        `study_cafe_todos?id=eq.${encodeURIComponent(todoId)}&student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}`,
+        {
+          is_completed: body.completed,
+          completed_at: body.completed ? now.toISOString() : null,
+          updated_at: now.toISOString(),
+        },
+        { Prefer: "return=representation" }
+      );
+      if (!Array.isArray(rows) || !rows[0]) {
+        res.status(404).json({ ok: false, error: "todo_not_found" });
+        return;
+      }
+      res.status(200).json({ ok: true, todo: serializeTodo(rows[0]) });
+      return;
+    }
+
+    if (action === "todo_delete") {
+      const todoId = normalizeTodoId(body.todoId);
+      const studyDate = normalizeTodoStudyDate(body.studyDate, now);
+      await requestSupabase(
+        "DELETE",
+        `study_cafe_todos?id=eq.${encodeURIComponent(todoId)}&student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}`
+      );
+      res.status(200).json({ ok: true, todoId });
       return;
     }
 
@@ -280,10 +364,14 @@ async function authenticateOnlineStudent({ studentId, deviceToken, client }) {
 
 async function buildStudyCafeSnapshot(student, now) {
   const studentId = student.id;
-  const [subjects, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
+  const [subjects, todos, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
     requestSupabase(
       "GET",
       `study_cafe_subjects?student_id=eq.${encodeURIComponent(studentId)}&select=name,sort_order&order=sort_order.asc`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
     ),
     requestSupabase(
       "GET",
@@ -348,6 +436,7 @@ async function buildStudyCafeSnapshot(student, now) {
     serverNow: now.toISOString(),
     studyDate: getKstDateKey(now),
     subjects: (Array.isArray(subjects) ? subjects : []).map((row) => row.name),
+    todos: (Array.isArray(todos) ? todos : []).map(serializeTodo),
     profile: {
       avatarTone: normalizeAvatarTone(ownProfile?.avatar_tone),
       nickname: normalizeStoredNickname(ownProfile?.nickname),
@@ -360,6 +449,7 @@ async function buildStudyCafeSnapshot(student, now) {
       return {
         seatNumber: Number(row.seat_number),
         status: row.status,
+        currentSubject: row.current_subject || "",
         name: row.student_id === studentId
           ? normalizeStoredNickname(row.display_name) || normalizeStoredNickname(ownProfile?.nickname) || "나"
           : normalizeStoredNickname(row.display_name) ||
@@ -618,6 +708,49 @@ function normalizeSubjects(value) {
   return subjects;
 }
 
+function normalizeTodoContent(value) {
+  const content = normalizeText(value, 80);
+  if (!content) {
+    const error = new Error("invalid_todo_content");
+    error.status = 400;
+    throw error;
+  }
+  return content;
+}
+
+function normalizeTodoId(value) {
+  const todoId = normalizeText(value, 64);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(todoId)) {
+    const error = new Error("invalid_todo_id");
+    error.status = 400;
+    throw error;
+  }
+  return todoId;
+}
+
+function normalizeTodoStudyDate(value, now = new Date()) {
+  const today = getKstDateKey(now);
+  const studyDate = normalizeText(value, 10) || today;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(studyDate);
+  const year = Number(match?.[1]);
+  const month = Number(match?.[2]);
+  const day = Number(match?.[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const isValid =
+    Boolean(match) &&
+    year >= 2020 &&
+    year <= 2100 &&
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+  if (!isValid) {
+    const error = new Error("invalid_todo_study_date");
+    error.status = 400;
+    throw error;
+  }
+  return studyDate;
+}
+
 function normalizeSeatNumber(value) {
   const seatNumber = Number(value);
   if (!Number.isInteger(seatNumber) || seatNumber < 1 || seatNumber > MAX_SEAT_NUMBER) {
@@ -671,6 +804,19 @@ function serializeSession(session, now) {
     startedAt: session.started_at,
     activeStartedAt: session.active_started_at,
     endedAt: session.ended_at,
+  };
+}
+
+function serializeTodo(todo) {
+  if (!todo) return null;
+  return {
+    id: todo.id,
+    studyDate: todo.study_date,
+    subject: todo.subject_name,
+    content: todo.content,
+    completed: todo.is_completed === true,
+    completedAt: todo.completed_at || null,
+    createdAt: todo.created_at,
   };
 }
 
@@ -817,6 +963,9 @@ module.exports._private = {
   normalizeNickname,
   normalizeSeatNumber,
   normalizeStatsRange,
+  normalizeTodoContent,
+  normalizeTodoId,
+  normalizeTodoStudyDate,
   rolloverActiveSessionIfNeeded,
   normalizeSubject,
   normalizeSubjects,

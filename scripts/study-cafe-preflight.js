@@ -19,6 +19,11 @@ const CHECKS = [
     required: true,
   },
   {
+    name: "Study cafe todos",
+    path: "study_cafe_todos?select=id,student_id,study_date,subject_name,content,is_completed&limit=1",
+    required: true,
+  },
+  {
     name: "활성 온라인 학생",
     path: "students?id=like.2*&is_active=eq.true&select=id&limit=1",
     required: false,

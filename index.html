@@ -22,7 +22,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260729-home-card-copy" />
+    <link rel="stylesheet" href="./styles.css?v=20260731-seat-actions" />
   </head>
   <body>
     <noscript>
@@ -87,10 +87,14 @@
     </footer>
 
     <footer class="student-footer-menu study-cafe-footer-menu" aria-label="스터디카페 메뉴" aria-hidden="true">
-      <button type="button" data-study-cafe-back onclick="window.__studentNav && window.__studentNav('home');">
+      <button type="button" data-study-cafe-back aria-label="학생 홈으로 나가기" title="학생 홈으로 나가기" onclick="window.__studentStudyBack && window.__studentStudyBack();">
         <span class="footer-icon footer-icon-study-back" aria-hidden="true"></span>
         <span>뒤로</span>
       </button>
+      <a href="#study-todo" data-route="study-todo" onclick="window.__studentNav && window.__studentNav('study-todo');">
+        <span class="footer-icon footer-icon-study-todo" aria-hidden="true"></span>
+        <span>투두</span>
+      </a>
       <a href="#study-cafe" data-route="study-cafe" onclick="window.__studentNav && window.__studentNav('study-cafe');">
         <span class="footer-icon footer-icon-study-cafe" aria-hidden="true"></span>
         <span>스터디카페</span>
@@ -124,6 +128,7 @@
           attendance: "출석 체크",
           grades: "성적",
           mypage: "마이페이지",
+          "study-todo": "오늘 플래너",
           "study-cafe": "온라인 스터디카페",
           "study-timer": "과목 타이머",
           "study-ranking": "순공시간 랭킹",
@@ -177,7 +182,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
@@ -205,6 +210,9 @@
         }
         window.__studentFallbackRender = renderFallback;
         window.__studentNav = navFallback;
+        window.__studentStudyBack = function () {
+          navFallback("home");
+        };
         window.__studentUnreleased = unreleasedFallback;
         window.__studentAppReady = function () {
           var app = qs("#app");
@@ -228,7 +236,7 @@
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
           if (!route) return;
-          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
+          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
             if (shouldUseFallback()) {
               event.preventDefault();
               navFallback(route);
@@ -246,8 +254,8 @@
     </script>
     <script src="./config.js?v=20260514-return-photo-time"></script>
     <script src="./supabase.js?v=20260514-return-photo-time" defer></script>
-    <script src="./shared.js?v=20260730-orphan-outing-recovery" defer></script>
+    <script src="./shared.js?v=20260731-study-todo-planner" defer></script>
     <script src="./student.js?v=20260730-orphan-outing-recovery" defer></script>
-    <script src="./app.js?v=20260729-home-card-copy" defer></script>
+    <script src="./app.js?v=20260731-no-double-refresh" defer></script>
   </body>
 </html>

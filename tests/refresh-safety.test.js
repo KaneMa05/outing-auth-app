@@ -84,6 +84,11 @@ assert.match(
 );
 assert.match(
   source,
+  /function scheduleStudentRouteRemoteRefresh\(\)[\s\S]*\["study-todo", "study-cafe", "study-timer", "study-ranking", "study-character"\]\.includes\(currentRoute\)[\s\S]*scheduleStudentAutoRefresh\(\);[\s\S]*return;/,
+  "study cafe routes must not trigger the redundant full student refresh after navigation"
+);
+assert.match(
+  source,
   /const nextOuting = existing \|\| mapped;[\s\S]*Object\.assign\(nextOuting, mapped/,
   "realtime updates must preserve the outing object used by an in-flight photo upload"
 );

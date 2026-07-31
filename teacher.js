@@ -279,17 +279,17 @@ function renderStudyCafeAdmin() {
       el(
         "div",
         { className: "study-cafe-admin-room-list" },
-        ["A룸", "B룸", "C룸", "D룸", "E룸"].map((roomLabel, roomIndex) => {
-          const firstSeat = roomIndex * 10 + 1;
+        ["A룸", "B룸", "C룸", "D룸"].map((roomLabel, roomIndex) => {
+          const firstSeat = roomIndex * 48 + 1;
           return el("section", { className: "study-cafe-admin-room" }, [
             el("div", { className: "study-cafe-admin-room-head" }, [
               el("strong", {}, roomLabel),
-              el("span", {}, `${firstSeat}–${firstSeat + 9}번`),
+              el("span", {}, `${firstSeat}–${firstSeat + 47}번`),
             ]),
             el(
               "div",
               { className: "study-cafe-admin-seat-grid" },
-              Array.from({ length: 10 }, (_, index) => {
+              Array.from({ length: 48 }, (_, index) => {
                 const seatNumber = firstSeat + index;
                 return renderStudyCafeAdminSeat(
                   seatNumber,
@@ -306,7 +306,7 @@ function renderStudyCafeAdmin() {
       el("div", { className: "study-cafe-admin-section-head" }, [
         el("div", {}, [
           el("h3", {}, "온라인 학생 순공시간"),
-          el("p", {}, `${data?.date || "오늘"} 서버 기록 기준 · 오전 4시 갱신`),
+          el("p", {}, `${data?.date || "오늘"} 서버 기록 · 매일 오전 4시에 새 학습일 시작`),
         ]),
         el("span", {}, `${members.length}명`),
       ]),

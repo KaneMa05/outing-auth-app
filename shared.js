@@ -1285,6 +1285,10 @@ function scheduleResumeRemoteRefresh() {
 function scheduleStudentRouteRemoteRefresh() {
   if (APP_MODE !== "student" || !isRemoteRefreshStarted) return;
   window.clearTimeout(studentRouteRefreshTimer);
+  if (["study-todo", "study-cafe", "study-timer", "study-ranking", "study-character"].includes(currentRoute)) {
+    scheduleStudentAutoRefresh();
+    return;
+  }
   studentRouteRefreshTimer = window.setTimeout(async () => {
     studentRouteRefreshTimer = null;
     await refreshStateFromRemote();

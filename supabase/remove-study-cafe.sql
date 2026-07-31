@@ -20,6 +20,7 @@ $$;
 drop function if exists public.replace_study_cafe_subjects(text, jsonb);
 drop table if exists public.study_cafe_presence;
 drop table if exists public.study_cafe_sessions;
+drop table if exists public.study_cafe_todos;
 drop table if exists public.study_cafe_subjects;
 drop table if exists public.study_cafe_profiles;
 

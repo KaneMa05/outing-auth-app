@@ -13,6 +13,9 @@ const {
   normalizeSeatNumber,
   normalizeSubjects,
   normalizeStatsRange,
+  normalizeTodoContent,
+  normalizeTodoId,
+  normalizeTodoStudyDate,
   rolloverActiveSessionIfNeeded,
   summarizeTrack,
 } = handler._private;
@@ -20,20 +23,43 @@ const {
 const migrationSql = fs.readFileSync("supabase/add-study-cafe.sql", "utf8");
 const schemaSql = fs.readFileSync("supabase/schema.sql", "utf8");
 const rollbackSql = fs.readFileSync("supabase/remove-study-cafe.sql", "utf8");
+const seatExpansionSql = fs.readFileSync("supabase/expand-study-cafe-to-192-seats.sql", "utf8");
+const productionMigrationSql = fs.readFileSync("supabase/prepare-study-cafe-production.sql", "utf8");
 const apiSource = fs.readFileSync("api/study-cafe.js", "utf8");
+assert.match(apiSource, /currentSubject: row\.current_subject \|\| ""/);
 for (const sql of [migrationSql, schemaSql]) {
   assert.match(sql, /create table if not exists public\.study_cafe_subjects/);
+  assert.match(sql, /create table if not exists public\.study_cafe_todos/);
   assert.match(sql, /create table if not exists public\.study_cafe_sessions/);
   assert.match(sql, /create unique index if not exists study_cafe_one_active_session_per_student/);
   assert.match(sql, /create table if not exists public\.study_cafe_presence/);
+  assert.match(sql, /seat_number integer not null check \(seat_number between 1 and 192\)/);
+  assert.match(sql, /check \(seat_number between 1 and 192\)/);
+  assert.doesNotMatch(sql, /seat_number between 1 and 50/);
   assert.match(sql, /add column if not exists display_name text/);
   assert.match(sql, /create or replace function public\.replace_study_cafe_subjects/);
   assert.match(sql, /revoke all on public\.study_cafe_sessions from anon/);
+  assert.match(sql, /revoke all on public\.study_cafe_todos from anon/);
 }
+assert.match(seatExpansionSql, /^begin;/);
+assert.match(seatExpansionSql, /drop constraint if exists study_cafe_presence_seat_number_check/);
+assert.match(seatExpansionSql, /check \(seat_number between 1 and 192\)\s+not valid/);
+assert.match(seatExpansionSql, /validate constraint study_cafe_presence_seat_number_check/);
+assert.match(seatExpansionSql, /commit;/);
+assert.match(productionMigrationSql, /^begin;/);
+assert.match(productionMigrationSql, /create table if not exists public\.study_cafe_todos/);
+assert.match(productionMigrationSql, /create index if not exists study_cafe_todos_student_date_idx/);
+assert.match(productionMigrationSql, /alter table public\.study_cafe_todos enable row level security/);
+assert.match(productionMigrationSql, /revoke all on public\.study_cafe_todos from anon/);
+assert.match(productionMigrationSql, /drop constraint if exists study_cafe_presence_seat_number_check/);
+assert.match(productionMigrationSql, /check \(seat_number between 1 and 192\)\s+not valid/);
+assert.match(productionMigrationSql, /validate constraint study_cafe_presence_seat_number_check/);
+assert.match(productionMigrationSql, /commit;/);
 assert.match(migrationSql, /alter publication supabase_realtime add table public\.study_cafe_presence/);
 assert.match(rollbackSql, /alter publication supabase_realtime drop table public\.study_cafe_presence/);
 assert.match(rollbackSql, /drop table if exists public\.study_cafe_presence/);
 assert.match(rollbackSql, /drop table if exists public\.study_cafe_sessions/);
+assert.match(rollbackSql, /drop table if exists public\.study_cafe_todos/);
 assert.doesNotMatch(rollbackSql, /drop table if exists public\.(students|outings|attendance)/);
 assert.match(apiSource, /select=student_id,last_heartbeat_at/);
 assert.match(apiSource, /lastHeartbeatAt\.getTime\(\) \+ PRESENCE_HEARTBEAT_GRACE_MS/);
@@ -42,6 +68,33 @@ assert.match(apiSource, /await completeActiveSession\(row\.student_id, staleEnde
 assert.match(apiSource, /rpc\/replace_study_cafe_subjects/);
 assert.match(apiSource, /display_name: displayName/);
 assert.match(apiSource, /displayName: normalizeStoredNickname\(row\.display_name\)/);
+assert.match(apiSource, /"todo_create"/);
+assert.match(apiSource, /"todos_load"/);
+assert.match(apiSource, /"todo_toggle"/);
+assert.match(apiSource, /"todo_delete"/);
+assert.equal(normalizeTodoContent("  영어 단어 30개  "), "영어 단어 30개");
+assert.throws(() => normalizeTodoContent("   "), /invalid_todo_content/);
+assert.equal(
+  normalizeTodoId("123e4567-e89b-42d3-a456-426614174000"),
+  "123e4567-e89b-42d3-a456-426614174000"
+);
+assert.throws(() => normalizeTodoId("not-a-uuid"), /invalid_todo_id/);
+assert.equal(
+  normalizeTodoStudyDate("2026-07-30", new Date("2026-07-30T03:00:00.000Z")),
+  "2026-07-30"
+);
+assert.equal(
+  normalizeTodoStudyDate("2026-08-12", new Date("2026-07-30T03:00:00.000Z")),
+  "2026-08-12"
+);
+assert.throws(
+  () => normalizeTodoStudyDate("2026-02-31", new Date("2026-07-30T03:00:00.000Z")),
+  /invalid_todo_study_date/
+);
+assert.throws(
+  () => normalizeTodoStudyDate("2019-12-31", new Date("2026-07-30T03:00:00.000Z")),
+  /invalid_todo_study_date/
+);
 
 function createResponse() {
   return {
@@ -94,8 +147,8 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.throws(() => normalizeNickname("a"), /invalid_nickname/);
   assert.throws(() => normalizeNickname("닉네임!"), /invalid_nickname/);
   assert.equal(normalizeSeatNumber(1), 1);
-  assert.equal(normalizeSeatNumber(50), 50);
-  assert.throws(() => normalizeSeatNumber(51), /invalid_seat/);
+  assert.equal(normalizeSeatNumber(192), 192);
+  assert.throws(() => normalizeSeatNumber(193), /invalid_seat/);
   assert.equal(maskName("홍길동"), "홍○○");
   assert.equal(summarizeTrack("경찰직 - 해상교통관제(VTS)(순경)"), "VTS");
   assert.deepEqual(getKstDayBounds(new Date("2026-07-29T14:59:59.000Z")), {
