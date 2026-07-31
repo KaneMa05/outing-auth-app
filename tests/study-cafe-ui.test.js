@@ -54,7 +54,23 @@ assert.match(
   appSource,
   /openStudyCafeSubjectModal\(seat\.id, student, \{[\s\S]*?beforeSelect: async \(\) => \{[\s\S]*?claimStudyCafeSeat\(seatNumber\)/
 );
-assert.match(appSource, /optionButton\.textContent = "좌석 확인 중…"/);
+assert.match(
+  appSource,
+  /selectedSubject = subject;[\s\S]*?node\.classList\.toggle\("selected", selected\)[\s\S]*?confirmButton\.disabled = false/
+);
+assert.match(
+  appSource,
+  /const confirmSelection = async \(\) => \{[\s\S]*?await beforeSelect\(selectedSubject\)[\s\S]*?applyStudyCafeSubjectSelection\(seatId, selectedSubject/
+);
+assert.match(
+  appSource,
+  /openInfoModal\(\{[\s\S]*?className: "study-cafe-subject-modal",[\s\S]*?confirmDisabled: true,[\s\S]*?onConfirm: confirmSelection/
+);
+assert.match(styleSource, /\.study-cafe-subject-option\.selected/);
+assert.match(
+  sharedSource,
+  /function openInfoModal\(\{[\s\S]*?confirmDisabled = false[\s\S]*?return \{ modal, confirmButton \}/
+);
 assert.match(styleSource, /\.study-cafe-seat\.empty\.loading/);
 assert.match(appSource, /mutateStudyCafeRemote\("timer_pause", \{\}, \{ refresh: false \}\)/);
 assert.match(appSource, /mutateStudyCafeRemote\("timer_stop", \{\}, \{ refresh: false \}\)/);

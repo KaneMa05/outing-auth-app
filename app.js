@@ -3829,47 +3829,63 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
     : "";
   const ordered = recent ? [recent, ...subjects.filter((subject) => subject !== recent)] : subjects;
   const subjectOptionButtons = [];
+  let selectedSubject = "";
   let selectionPending = false;
+  let confirmButton = null;
   ordered.forEach((subject) => {
     const optionButton = button(
       subject,
       `study-cafe-subject-option ${subject === recent ? "recent" : ""}`,
       "button",
-      async () => {
+      () => {
         if (selectionPending) return;
-        selectionPending = true;
+        selectedSubject = subject;
         subjectOptionButtons.forEach((node) => {
-          node.disabled = true;
+          const selected = node === optionButton;
+          node.classList.toggle("selected", selected);
+          node.setAttribute("aria-pressed", selected ? "true" : "false");
         });
-        const originalLabel = optionButton.textContent;
-        if (beforeSelect) optionButton.textContent = "좌석 확인 중…";
-        const canContinue = beforeSelect ? await beforeSelect(subject) : true;
-        if (!canContinue) {
-          selectionPending = false;
-          subjectOptionButtons.forEach((node) => {
-            node.disabled = false;
-          });
-          optionButton.textContent = originalLabel;
-          return;
-        }
-        applyStudyCafeSubjectSelection(seatId, subject, { preserveTimer });
-        closeInfoModal();
-        render();
-        if (preserveTimer) notify(`${subject} 과목으로 변경을 준비합니다.`);
+        if (confirmButton) confirmButton.disabled = false;
       }
     );
+    optionButton.setAttribute("aria-pressed", "false");
     subjectOptionButtons.push(optionButton);
   });
-  openInfoModal({
+  const confirmSelection = async () => {
+    if (!selectedSubject || selectionPending) return;
+    selectionPending = true;
+    subjectOptionButtons.forEach((node) => {
+      node.disabled = true;
+    });
+    confirmButton.disabled = true;
+    confirmButton.textContent = beforeSelect ? "좌석 확인 중…" : "적용 중…";
+    const canContinue = beforeSelect ? await beforeSelect(selectedSubject) : true;
+    if (!canContinue) {
+      selectionPending = false;
+      subjectOptionButtons.forEach((node) => {
+        node.disabled = false;
+      });
+      confirmButton.disabled = false;
+      confirmButton.textContent = "확인";
+      return;
+    }
+    applyStudyCafeSubjectSelection(seatId, selectedSubject, { preserveTimer });
+    closeInfoModal();
+    render();
+    if (preserveTimer) notify(`${selectedSubject} 과목으로 변경을 준비합니다.`);
+  };
+  const modalControls = openInfoModal({
     title: preserveTimer ? "공부할 과목을 변경할까요?" : "어떤 과목을 공부할까요?",
     className: "study-cafe-subject-modal",
+    confirmDisabled: true,
+    onConfirm: confirmSelection,
     content: el("div", { className: "study-cafe-subject-picker" }, [
       el(
         "p",
         {},
         preserveTimer
-          ? "현재 자리와 전체 공부시간은 유지되고, 선택한 과목으로 바로 이어집니다."
-          : "과목을 선택하면 캐릭터가 자리에 앉고 타이머가 시작됩니다."
+          ? "과목을 선택한 뒤 확인을 눌러주세요. 현재 자리와 전체 공부시간은 유지되고, 선택한 과목으로 이어집니다."
+          : "과목을 선택하고 확인을 누르면 좌석이 확정되고 타이머 준비가 시작됩니다."
       ),
       el(
         "div",
@@ -3886,6 +3902,7 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
         : null,
     ]),
   });
+  confirmButton = modalControls.confirmButton;
 }
 
 function applyStudyCafeSubjectSelection(seatId, subject, options = {}) {

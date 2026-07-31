@@ -5422,19 +5422,29 @@ function openUnreleasedModal(featureName = "해당 기능") {
   });
 }
 
-function openInfoModal({ title, content, className = "" }) {
+function openInfoModal({
+  title,
+  content,
+  className = "",
+  confirmLabel = "확인",
+  onConfirm = closeInfoModal,
+  confirmDisabled = false,
+}) {
   closeInfoModal();
+  const confirmButton = button(confirmLabel, "btn secondary", "button", onConfirm);
+  confirmButton.disabled = confirmDisabled;
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "안내 닫기" }),
     el("div", { className: ("info-modal-panel " + className).trim() }, [
       el("strong", {}, title),
       content,
-      button("확인", "btn secondary", "button", closeInfoModal),
+      confirmButton,
     ]),
   ]);
   modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
   document.body.appendChild(modal);
   document.addEventListener("keydown", closeInfoModalOnEscape);
+  return { modal, confirmButton };
 }
 
 function openLoadingModal(title, message) {
