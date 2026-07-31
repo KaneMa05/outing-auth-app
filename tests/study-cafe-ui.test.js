@@ -43,7 +43,13 @@ assert.match(appSource, /"좌석을 변경하시겠어요\?"/);
 assert.match(appSource, /function openStudyCafeSeatMoveModal\(seatId, seatNumber, options = \{\}\)/);
 assert.match(appSource, /const preserveStudy = options\.preserveStudy === true/);
 assert.match(appSource, /claimStudyCafeSeat\(seatNumber, \{ preserveStudy \}\)/);
+assert.match(
+  appSource,
+  /studyCafePreviewState\.selectedSeatId = seatId;\s*renderStudyCafeStateUpdate\(\);\s*closeInfoModal\(\);\s*notify\(/
+);
 assert.match(styleSource, /\.study-cafe-seat-move-actions/);
+assert.match(styleSource, /html\s*\{[^}]*background: #f4f6f8/);
+assert.match(indexSource, /apple-mobile-web-app-status-bar-style" content="default"/);
 assert.match(
   appSource,
   /openStudyCafeSubjectModal\(seat\.id, student, \{[\s\S]*?beforeSelect: async \(\) => \{[\s\S]*?claimStudyCafeSeat\(seatNumber\)/
@@ -102,7 +108,19 @@ assert.match(
 assert.match(appSource, /mutateStudyCafeRemote\(\s*"todo_delete"/);
 assert.match(
   appSource,
-  /if \(!confirm\(`"\$\{todo\.content\}" 항목을 삭제할까요\?`\)\) return;[\s\S]*?previousIndex[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote\([\s\S]*?"todo_delete"[\s\S]*?\{ refresh: false \}[\s\S]*?if \(!result\.ok\)/
+  /if \(!confirm\(`"\$\{todo\.content\}" 항목을 삭제할까요\?`\)\) return;[\s\S]*?studyTodoDeletePendingKeys\.add\(deleteKey\)[\s\S]*?previousIndex[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await queueStudyTodoDelete\(todo\.id, studyDate\)[\s\S]*?if \(!result\.ok\)/
+);
+assert.match(
+  appSource,
+  /function queueStudyTodoDelete\(todoId, studyDate\)[\s\S]*?"todo_delete"[\s\S]*?\{ refresh: false \}[\s\S]*?studyTodoDeleteQueue\.then\(runDelete, runDelete\)/
+);
+assert.match(
+  appSource,
+  /preserveLocalTodos:\s*studyTodoDeletePendingKeys\.size > 0 \|\|\s*todoRevisionAtRequest !== studyTodoMutationRevision/
+);
+assert.match(
+  appSource,
+  /if \(!options\.preserveLocalTodos\) \{\s*studyCafeRemoteState\.todos = Array\.isArray\(snapshot\.todos\)/
 );
 assert.match(
   appSource,
@@ -390,6 +408,11 @@ assert.match(
   appSource,
   /footer\.addEventListener\("pointerdown", \(event\) => \{[\s\S]*?activateStudentFooterRoute\(event\)/
 );
+assert.match(appSource, /if \(!window\.PointerEvent\) \{[\s\S]*?footer\.addEventListener\("touchstart"/);
+assert.match(appSource, /function updateStudentFooterIndicator\(footer, preferredButton = null\)/);
+assert.match(appSource, /footer\.dataset\.activeIndex = String/);
+assert.match(appSource, /app\.replaceChildren\(nextView\)/);
+assert.match(appSource, /nextView\.classList\.add\("student-study-route-enter"\)/);
 assert.match(appSource, /studentFooterTapGuardTimer = window\.setTimeout\([\s\S]*?, 450\)/);
 assert.match(styleSource, /body\.student-footer-tap-guard \.study-cafe-seat\s*\{[^}]*pointer-events: none/);
 assert.match(appSource, /seated \? renderStudyCafeMySeatCard\(student, selectedSeatNumber\) : null/);
@@ -398,7 +421,15 @@ assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-badge/);
 assert.match(appSource, /function renderStudyCafeChairBack\(\)/);
 assert.match(
   appSource,
-  /className: "study-cafe-my-seat-character"[\s\S]*?className: "study-cafe-my-seat-scene"[\s\S]*?renderStudyCafeChairBack\(\)[\s\S]*?renderStudyCafeAvatar[\s\S]*?className: "study-cafe-desk"[\s\S]*?renderStudyCafeWritingArms\(\)/
+  /className: "study-cafe-my-seat-character"[\s\S]*?renderStudyCafeSeatedVisual\(studyCafePreviewState\.avatarTone \|\| "navy", true/
+);
+assert.match(
+  appSource,
+  /function renderStudyCafeSeatedVisual\(tone, isMine = false, options = \{\}\)[\s\S]*?renderStudyCafeChairBack\(\)[\s\S]*?renderStudyCafeAvatar\(tone, isMine[\s\S]*?className: "study-cafe-desk"[\s\S]*?renderStudyCafeWritingArms\(\)/
+);
+assert.match(
+  appSource,
+  /occupant\s*\?\s*renderStudyCafeSeatedVisual\(occupant\.tone, isMine\)/
 );
 assert.doesNotMatch(styleSource, /\.study-cafe-avatar\.is-mine::after/);
 assert.match(
@@ -437,26 +468,21 @@ assert.doesNotMatch(
   styleSource,
   /\.study-cafe-my-seat-copy > p,\s*\.study-cafe-my-seat-detail\s*\{[^}]*padding-right/
 );
-assert.match(styleSource, /\.study-cafe-my-seat-scene\s*\{[^}]*width: 100px[^}]*height: 122px[^}]*transform: scale\(0\.76\)/);
 assert.match(
   styleSource,
   /\.study-cafe-room \.study-cafe-my-seat-card\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)[^}]*gap: 7px[^}]*margin: 10px 8px 2px[^}]*padding-inline: 0/
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-character\s*\{[^}]*grid-column: 1[^}]*width: 100%[^}]*justify-self: stretch[^}]*place-items: center/
+  /\.study-cafe-room \.study-cafe-my-seat-character\s*\{[^}]*grid-column: 1[^}]*width: 100%[^}]*height: 122px[^}]*aspect-ratio: auto[^}]*justify-self: stretch[^}]*place-items: center/
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-scene\s*\{[^}]*margin-inline: auto[^}]*transform-origin: 50% 50%/
+  /\.study-cafe-seat-visual\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: auto[^}]*height: auto[^}]*transform: none/
 );
 assert.match(
   styleSource,
   /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*grid-column: 2 \/ -1/
-);
-assert.match(
-  styleSource,
-  /@media \(max-width: 430px\)[\s\S]*?\.study-cafe-my-seat-scene\s*\{[^}]*transform: scale\(0\.62\)/
 );
 assert.match(
   styleSource,
@@ -468,7 +494,6 @@ assert.match(
 );
 assert.match(styleSource, /\.study-cafe-chair-back\s*\{[^}]*z-index: 4[^}]*width: 31px[^}]*border-radius: 7px 7px 5px 5px/);
 assert.match(styleSource, /\.study-cafe-chair-back::after/);
-assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-(?:character|scene) \.study-cafe-chair-back/);
 assert.match(styleSource, /\.study-cafe-member-seat-scene \.study-cafe-chair-back/);
 assert.match(styleSource, /\.study-cafe-my-seat-subject-button/);
 assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-subject-button\.change/);
@@ -700,6 +725,12 @@ assert.match(styleSource, /\.footer-icon-study-character::after\s*\{[^}]*linear-
 assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::before\s*\{[^}]*clip-path/);
 assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::after\s*\{\s*content: "1"/);
 assert.match(styleSource, /\.study-cafe-footer-menu button\.active::after/);
+assert.match(
+  styleSource,
+  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(16\.666667% - 5\.666667px\)[^}]*transform 220ms/s
+);
+assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
+assert.match(styleSource, /@keyframes student-study-route-enter/);
 assert.match(styleSource, /html\s*\{[^}]*scrollbar-gutter: stable/);
 assert.doesNotMatch(
   styleSource,
@@ -713,12 +744,20 @@ assert.doesNotMatch(
 );
 assert.match(
   styleSource,
-  /\.student-footer-menu\s*\{[^}]*will-change: opacity[^}]*opacity 140ms cubic-bezier\(0\.22, 1, 0\.36, 1\)[^}]*visibility 0s linear 140ms/
+  /\.student-footer-menu\s*\{[^}]*will-change: opacity, transform[^}]*opacity 160ms cubic-bezier\(0\.22, 1, 0\.36, 1\)[^}]*transform 240ms cubic-bezier\(0\.22, 1, 0\.36, 1\)[^}]*visibility 0s linear 240ms/
 );
 assert.doesNotMatch(styleSource, /transition-delay: 0s, 220ms/);
 assert.match(
   styleSource,
-  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*opacity: 1[^}]*transition-delay: 0s, 0s/
+  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*opacity: 1[^}]*transition-delay: 0s, 0s, 0s/
+);
+assert.match(
+  styleSource,
+  /body\.student-study-mode \.normal-student-footer\s*\{[^}]*translateX\(calc\(-50% - 28px\)\)/
+);
+assert.match(
+  styleSource,
+  /\.study-cafe-footer-menu\s*\{[^}]*translateX\(calc\(-50% \+ 28px\)\)/
 );
 assert.match(
   styleSource,

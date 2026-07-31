@@ -25,6 +25,7 @@ html {
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
+  background: #f4f6f8;
 }
 
 body {
@@ -4708,10 +4709,11 @@ body:not([data-app-mode="teacher"]) .student-view {
   backface-visibility: hidden;
   isolation: isolate;
   touch-action: manipulation;
-  will-change: opacity;
+  will-change: opacity, transform;
   transition:
-    opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0s linear 140ms;
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 240ms;
 }
 
 body.student-footer-tap-guard .study-cafe-seat {
@@ -4735,7 +4737,7 @@ body.student-study-mode .study-cafe-footer-menu {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
-  transition-delay: 0s, 0s;
+  transition-delay: 0s, 0s, 0s;
 }
 
 .study-cafe-footer-menu {
@@ -4743,16 +4745,51 @@ body.student-study-mode .study-cafe-footer-menu {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-50%);
-  transition-delay: 0s, 140ms;
+  transform: translateX(calc(-50% + 28px));
+  transition-delay: 0s, 0s, 240ms;
+}
+
+.study-cafe-footer-menu::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 7px;
+  z-index: 0;
+  width: calc(16.666667% - 5.666667px);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.study-cafe-footer-menu[data-active-index="1"]::before {
+  transform: translateX(calc(100% + 4px));
+}
+
+.study-cafe-footer-menu[data-active-index="2"]::before {
+  transform: translateX(calc(200% + 8px));
+}
+
+.study-cafe-footer-menu[data-active-index="3"]::before {
+  transform: translateX(calc(300% + 12px));
+}
+
+.study-cafe-footer-menu[data-active-index="4"]::before {
+  transform: translateX(calc(400% + 16px));
+}
+
+.study-cafe-footer-menu[data-active-index="5"]::before {
+  transform: translateX(calc(500% + 20px));
 }
 
 body.student-study-mode .normal-student-footer {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-50%);
-  transition-delay: 0s, 140ms;
+  transform: translateX(calc(-50% - 28px));
+  transition-delay: 0s, 0s, 240ms;
 }
 
 body.student-study-mode .study-cafe-footer-menu {
@@ -4760,7 +4797,7 @@ body.student-study-mode .study-cafe-footer-menu {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%);
-  transition-delay: 0s, 0s;
+  transition-delay: 0s, 0s, 0s;
 }
 
 body.student-online-mode .student-footer-menu [data-route="study-cafe"] {
@@ -4805,6 +4842,7 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
 .study-cafe-footer-menu button,
 .study-cafe-footer-menu a {
   position: relative;
+  z-index: 1;
   overflow: hidden;
   font-size: 0.56rem;
   white-space: nowrap;
@@ -4840,6 +4878,13 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
 .student-footer-menu a.active {
   background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.study-cafe-footer-menu button.active,
+.study-cafe-footer-menu a.active,
+.study-cafe-footer-menu button:active,
+.study-cafe-footer-menu a:active {
+  background: transparent;
 }
 
 .study-cafe-footer-menu button.active::after,
@@ -4973,6 +5018,19 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg);
+}
+
+.student-study-route-enter {
+  animation: student-study-route-enter 190ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes student-study-route-enter {
+  from {
+    transform: translateX(var(--student-study-route-enter-x, 10px));
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .footer-icon-study-todo::before {
@@ -6278,15 +6336,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: inset 0 0 0 1px rgba(72, 145, 198, 0.12);
-}
-
-.study-cafe-my-seat-scene {
-  position: relative;
-  width: 100px;
-  height: 122px;
-  flex: 0 0 auto;
-  transform: scale(0.76);
-  transform-origin: center center;
 }
 
 .study-cafe-my-seat-copy {
@@ -8151,6 +8200,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .study-cafe-room .study-cafe-my-seat-character {
   grid-column: 1;
   width: 100%;
+  height: 122px;
+  aspect-ratio: auto;
   justify-self: stretch;
   place-items: center;
   background: rgba(255, 255, 255, 0.74);
@@ -8158,8 +8209,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room .study-cafe-my-seat-scene {
-  margin-inline: auto;
-  transform-origin: 50% 50%;
+  margin: 0;
+  transform: none;
 }
 
 .study-cafe-room .study-cafe-my-seat-copy {
@@ -8507,6 +8558,14 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   height: 66px;
   transform: translateX(-50%) scale(0.9);
   transform-origin: center top;
+}
+
+.study-cafe-seat-visual {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
 }
 
 .study-cafe-chair-back {
@@ -9243,10 +9302,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
     gap: 6px;
   }
 
-  .study-cafe-my-seat-scene {
-    transform: scale(0.62);
-  }
-
   .study-cafe-my-seat-title > strong {
     font-size: 1.06rem;
   }
@@ -9674,9 +9729,14 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   }
 
   .study-cafe-footer-menu .footer-icon,
+  .study-cafe-footer-menu::before,
   .study-cafe-footer-menu button::after,
   .study-cafe-footer-menu a::after {
     transition: none;
+  }
+
+  .student-study-route-enter {
+    animation: none;
   }
 
   .study-cafe-room-tab {

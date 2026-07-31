@@ -210,9 +210,12 @@ let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
 let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
+let studentStudyRouteTransitionDirection = 0;
 let studyCafeIdleWarningRemaining = 0;
 let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
+let studyTodoMutationRevision = 0;
+let studyTodoDeleteQueue = Promise.resolve();
 const studyTodoEditorState = {
   dateKey: "",
   subject: "",
@@ -220,6 +223,7 @@ const studyTodoEditorState = {
   focused: false,
 };
 const studyTodoTogglePendingIds = new Set();
+const studyTodoDeletePendingKeys = new Set();
 
 document.querySelectorAll("[data-route]").forEach((button) => {
   button.addEventListener("click", (event) => {
@@ -233,10 +237,12 @@ document.querySelectorAll(".student-footer-menu").forEach((footer) => {
     activateStudentFooterTapGuard();
     activateStudentFooterRoute(event);
   }, { passive: true });
-  footer.addEventListener("touchstart", (event) => {
-    activateStudentFooterTapGuard();
-    activateStudentFooterRoute(event);
-  }, { passive: true });
+  if (!window.PointerEvent) {
+    footer.addEventListener("touchstart", (event) => {
+      activateStudentFooterTapGuard();
+      activateStudentFooterRoute(event);
+    }, { passive: true });
+  }
   footer.addEventListener("click", (event) => {
     event.stopPropagation();
   });
@@ -249,6 +255,20 @@ function activateStudentFooterRoute(event) {
   footer.querySelectorAll("[data-route]").forEach((button) => {
     button.classList.toggle("active", button === routeButton);
   });
+  updateStudentFooterIndicator(footer, routeButton);
+}
+
+function updateStudentFooterIndicator(footer, preferredButton = null) {
+  if (!footer) return;
+  const buttons = Array.from(footer.querySelectorAll("[data-route]"))
+    .filter((button) => !button.hidden);
+  const activeButton =
+    preferredButton && buttons.includes(preferredButton)
+      ? preferredButton
+      : buttons.find((button) => button.classList.contains("active"));
+  footer.dataset.activeIndex = String(
+    Math.max(0, activeButton ? buttons.indexOf(activeButton) : 0)
+  );
 }
 
 function activateStudentFooterTapGuard() {
@@ -348,6 +368,13 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
+  const studyRoutes = ["study-todo", "study-cafe", "study-ranking", "study-timer", "study-character"];
+  const currentStudyIndex = studyRoutes.indexOf(currentRoute);
+  const nextStudyIndex = studyRoutes.indexOf(nextRoute);
+  studentStudyRouteTransitionDirection =
+    currentStudyIndex >= 0 && nextStudyIndex >= 0 && currentStudyIndex !== nextStudyIndex
+      ? nextStudyIndex > currentStudyIndex ? 1 : -1
+      : 0;
   if (nextRoute === "study-cafe" && currentRoute !== "study-cafe") {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = false;
   }
@@ -390,6 +417,9 @@ function render() {
   });
   if (APP_MODE !== "teacher") {
     updateStudentNavigationVisibility();
+    document.querySelectorAll(".student-footer-menu").forEach((footer) => {
+      updateStudentFooterIndicator(footer);
+    });
   }
   if (APP_MODE === "teacher") updateTeacherNavSections();
 
@@ -460,11 +490,22 @@ function render() {
           notices: () => requireStudentAuth(renderStudentNoticeList),
         };
 
-  app.innerHTML = "";
   const renderRoute =
     routes[currentRoute] ||
     (APP_MODE !== "teacher" && currentRoute.startsWith("notice-") ? () => requireStudentAuth(renderStudentNoticeDetail) : routes[defaultRoute()]);
-  app.appendChild(APP_MODE === "teacher" ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden())) : renderRoute());
+  const nextView =
+    APP_MODE === "teacher"
+      ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden()))
+      : renderRoute();
+  if (APP_MODE !== "teacher" && studentStudyRouteTransitionDirection && nextView instanceof HTMLElement) {
+    nextView.classList.add("student-study-route-enter");
+    nextView.style.setProperty(
+      "--student-study-route-enter-x",
+      `${studentStudyRouteTransitionDirection * 10}px`
+    );
+  }
+  studentStudyRouteTransitionDirection = 0;
+  app.replaceChildren(nextView);
   app.removeAttribute("data-loading-shell");
   if (APP_MODE !== "teacher" && typeof window.__studentAppReady === "function") window.__studentAppReady();
 }
@@ -942,6 +983,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.ranking = null;
     studyCafeRemoteState.todos = [];
     studyCafeRemoteState.todosByDate = {};
+    studyTodoDeletePendingKeys.clear();
     studyCafeRemoteState.plannerDateKey = "";
     studyCafeRemoteState.plannerLoading = false;
     studyCafeRemoteState.summary = null;
@@ -959,6 +1001,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   studyCafeRemoteState.loading = true;
   studyCafeRemoteState.lastAttemptAt = Date.now();
   const sessionRevisionAtRequest = studyCafeSessionRevision;
+  const todoRevisionAtRequest = studyTodoMutationRevision;
   try {
     const result = await requestStudyCafeAction("load");
     if (!result.ok) {
@@ -980,6 +1023,9 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
       preserveLocalSession:
         studyCafeTimerActionPending ||
         sessionRevisionAtRequest !== studyCafeSessionRevision,
+      preserveLocalTodos:
+        studyTodoDeletePendingKeys.size > 0 ||
+        todoRevisionAtRequest !== studyTodoMutationRevision,
     });
     if (currentRoute === "home") updateStudyCafeHomeLiveCount();
     if (isStudyCafeRoute() && options.render !== false) renderStudyCafeStateUpdate();
@@ -1022,8 +1068,10 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
     ranking: studyCafeRemoteState.ranking,
     summary: snapshot.summary || null,
   };
-  studyCafeRemoteState.todos = Array.isArray(snapshot.todos) ? snapshot.todos : [];
-  studyCafeRemoteState.todosByDate[nextStudyDateKey] = studyCafeRemoteState.todos;
+  if (!options.preserveLocalTodos) {
+    studyCafeRemoteState.todos = Array.isArray(snapshot.todos) ? snapshot.todos : [];
+    studyCafeRemoteState.todosByDate[nextStudyDateKey] = studyCafeRemoteState.todos;
+  }
   studyCafeRemoteState.summary = snapshot.summary || null;
 
   const totals = {};
@@ -1929,6 +1977,10 @@ function renderStudyTodoItem(todo) {
     if (todo.pending) return;
     if (!confirm(`"${todo.content}" 항목을 삭제할까요?`)) return;
     const studyDate = todo.studyDate || getSelectedStudyTodoDateKey();
+    const deleteKey = `${studyDate}:${todo.id}`;
+    if (studyTodoDeletePendingKeys.has(deleteKey)) return;
+    studyTodoDeletePendingKeys.add(deleteKey);
+    studyTodoMutationRevision += 1;
     const previousTodos = getStudyTodosForDate(studyDate);
     const previousIndex = previousTodos.findIndex((item) => item.id === todo.id);
     setStudyTodosForDate(
@@ -1936,11 +1988,9 @@ function renderStudyTodoItem(todo) {
       previousTodos.filter((item) => item.id !== todo.id)
     );
     renderStudyCafeStateUpdate();
-    const result = await mutateStudyCafeRemote(
-      "todo_delete",
-      { todoId: todo.id, studyDate },
-      { refresh: false }
-    );
+    const result = await queueStudyTodoDelete(todo.id, studyDate);
+    studyTodoDeletePendingKeys.delete(deleteKey);
+    studyTodoMutationRevision += 1;
     if (!result.ok) {
       const currentTodos = getStudyTodosForDate(studyDate);
       if (!currentTodos.some((item) => item.id === todo.id)) {
@@ -1966,6 +2016,21 @@ function renderStudyTodoItem(todo) {
     el("span", {}, todo.content),
     deleteButton,
   ]);
+}
+
+function queueStudyTodoDelete(todoId, studyDate) {
+  const runDelete = () =>
+    mutateStudyCafeRemote(
+      "todo_delete",
+      { todoId, studyDate },
+      { refresh: false }
+    );
+  const request = studyTodoDeleteQueue.then(runDelete, runDelete);
+  studyTodoDeleteQueue = request.then(
+    () => undefined,
+    () => undefined
+  );
+  return request;
 }
 
 async function updateStudyTodoCompletion(todo, checkbox) {
@@ -2206,15 +2271,9 @@ function renderStudyCafeMySeatCard(student, seatNumber) {
 
   return el("section", { className: "study-cafe-my-seat-card", ariaLabel: "내 좌석 정보" }, [
     el("div", { className: "study-cafe-my-seat-character", ariaHidden: "true" }, [
-      el("span", { className: "study-cafe-my-seat-scene" }, [
-        renderStudyCafeChairBack(),
-        renderStudyCafeAvatar(studyCafePreviewState.avatarTone || "navy", true, { includeArms: false }),
-        el("span", { className: "study-cafe-desk" }, [
-          el("i", { className: "study-cafe-desk-book" }),
-          el("i", { className: "study-cafe-desk-cup" }),
-        ]),
-        renderStudyCafeWritingArms(),
-      ]),
+      renderStudyCafeSeatedVisual(studyCafePreviewState.avatarTone || "navy", true, {
+        className: "study-cafe-my-seat-scene",
+      }),
     ]),
     el("div", { className: "study-cafe-my-seat-copy" }, [
       el("span", { className: "study-cafe-my-seat-eyebrow" }, "내 좌석"),
@@ -3516,15 +3575,15 @@ function renderStudyCafeSeat(seat, index, student) {
             title: "일시정지",
           })
         : null,
-      occupant ? renderStudyCafeChairBack() : null,
       occupant
-        ? renderStudyCafeAvatar(occupant.tone, isMine, { includeArms: false })
+        ? renderStudyCafeSeatedVisual(occupant.tone, isMine)
         : el("span", { className: "study-cafe-empty-plus" }, "+"),
-      el("span", { className: "study-cafe-desk" }, [
-        el("i", { className: "study-cafe-desk-book" }),
-        el("i", { className: "study-cafe-desk-cup" }),
-      ]),
-      occupant ? renderStudyCafeWritingArms() : null,
+      occupant
+        ? null
+        : el("span", { className: "study-cafe-desk" }, [
+            el("i", { className: "study-cafe-desk-book" }),
+            el("i", { className: "study-cafe-desk-cup" }),
+          ]),
     ]
   );
   if (!occupant) {
@@ -3678,6 +3737,19 @@ function renderStudyCafeAvatar(tone, isMine = false, options = {}) {
   ]);
 }
 
+function renderStudyCafeSeatedVisual(tone, isMine = false, options = {}) {
+  const className = ["study-cafe-seat-visual", options.className].filter(Boolean).join(" ");
+  return el("span", { className, ariaHidden: "true" }, [
+    renderStudyCafeChairBack(),
+    renderStudyCafeAvatar(tone, isMine, { includeArms: false }),
+    el("span", { className: "study-cafe-desk" }, [
+      el("i", { className: "study-cafe-desk-book" }),
+      el("i", { className: "study-cafe-desk-cup" }),
+    ]),
+    renderStudyCafeWritingArms(),
+  ]);
+}
+
 function renderStudyCafeWritingArms() {
   return el("span", { className: "study-cafe-writing-arms", ariaHidden: "true" }, [
     el("i", { className: "study-cafe-avatar-arm left" }),
@@ -3718,8 +3790,8 @@ function openStudyCafeSeatMoveModal(seatId, seatNumber, options = {}) {
       return;
     }
     studyCafePreviewState.selectedSeatId = seatId;
-    closeInfoModal();
     renderStudyCafeStateUpdate();
+    closeInfoModal();
     notify(
       preserveStudy
         ? `${seatNumber}번 좌석으로 이동했습니다. 타이머는 계속 측정됩니다.`
