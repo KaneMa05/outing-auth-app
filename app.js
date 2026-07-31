@@ -260,7 +260,7 @@ function activateStudentFooterRoute(event) {
 
 function updateStudentFooterIndicator(footer, preferredButton = null) {
   if (!footer) return;
-  const buttons = Array.from(footer.querySelectorAll("[data-route]"))
+  const buttons = Array.from(footer.querySelectorAll(":scope > button, :scope > a"))
     .filter((button) => !button.hidden);
   const activeButton =
     preferredButton && buttons.includes(preferredButton)

@@ -410,6 +410,10 @@ assert.match(
 );
 assert.match(appSource, /if \(!window\.PointerEvent\) \{[\s\S]*?footer\.addEventListener\("touchstart"/);
 assert.match(appSource, /function updateStudentFooterIndicator\(footer, preferredButton = null\)/);
+assert.match(
+  appSource,
+  /footer\.querySelectorAll\(":scope > button, :scope > a"\)/
+);
 assert.match(appSource, /footer\.dataset\.activeIndex = String/);
 assert.match(appSource, /app\.replaceChildren\(nextView\)/);
 assert.match(appSource, /nextView\.classList\.add\("student-study-route-enter"\)/);
