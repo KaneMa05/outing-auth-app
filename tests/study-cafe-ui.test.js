@@ -261,7 +261,7 @@ assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-badge/);
 assert.match(appSource, /function renderStudyCafeChairBack\(\)/);
 assert.match(
   appSource,
-  /className: "study-cafe-my-seat-character"[\s\S]*?renderStudyCafeChairBack\(\)[\s\S]*?renderStudyCafeAvatar/
+  /className: "study-cafe-my-seat-character"[\s\S]*?renderStudyCafeChairBack\(\)[\s\S]*?renderStudyCafeAvatar[\s\S]*?className: "study-cafe-desk"[\s\S]*?renderStudyCafeWritingArms\(\)/
 );
 assert.match(
   appSource,
@@ -307,7 +307,7 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /@media \(max-width: 430px\)[\s\S]*?\.study-cafe-my-seat-actions\s*\{[^}]*grid-column: 2[^}]*flex-direction: row/
+  /@media \(max-width: 430px\)[\s\S]*?\.study-cafe-my-seat-actions\s*\{[^}]*top: 13px[^}]*right: 14px[^}]*bottom: 13px/
 );
 assert.match(appSource, /el\("strong", \{\}, "RONPARK STUDYCAFE"\)/);
 assert.match(appSource, /className: `study-cafe-room theme-\$\{activeRoom\.theme\}`/);

@@ -6252,7 +6252,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
+  grid-template-columns: 96px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-height: 132px;
@@ -6289,12 +6289,31 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-my-seat-character .study-cafe-avatar {
-  position: relative;
-  left: auto;
-  top: auto;
+  position: absolute;
+  left: 50%;
+  top: 10px;
   display: block;
-  transform: scale(1.18);
-  transform-origin: center center;
+  transform: translateX(-50%) scale(0.86);
+  transform-origin: center top;
+}
+
+.study-cafe-my-seat-character .study-cafe-chair-back {
+  top: 36px;
+  width: 31px;
+  height: 35px;
+  transform: translateX(-50%);
+}
+
+.study-cafe-my-seat-character .study-cafe-writing-arms {
+  top: 10px;
+  transform: translateX(-50%) scale(0.86);
+}
+
+.study-cafe-my-seat-character .study-cafe-desk {
+  right: 7px;
+  bottom: 10px;
+  left: 7px;
+  height: 21px;
 }
 
 .study-cafe-my-seat-copy {
@@ -6303,6 +6322,12 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   min-width: 0;
   display: grid;
   gap: 5px;
+}
+
+.study-cafe-my-seat-title,
+.study-cafe-my-seat-copy > p,
+.study-cafe-my-seat-detail {
+  padding-right: 86px;
 }
 
 .study-cafe-my-seat-eyebrow {
@@ -6373,9 +6398,11 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-my-seat-actions {
-  position: relative;
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  bottom: 16px;
   z-index: 2;
-  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -8412,13 +8439,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   background: rgba(112, 78, 48, 0.42);
 }
 
-.study-cafe-my-seat-character .study-cafe-chair-back {
-  top: 52%;
-  width: 38px;
-  height: 43px;
-  transform: translate(-50%, -2%);
-}
-
 .study-cafe-writing-arms {
   position: absolute;
   left: 50%;
@@ -9115,13 +9135,15 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   }
 
   .study-cafe-my-seat-actions {
-    grid-column: 2;
-    min-width: 0;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: -2px;
+    top: 13px;
+    right: 14px;
+    bottom: 13px;
+  }
+
+  .study-cafe-my-seat-title,
+  .study-cafe-my-seat-copy > p,
+  .study-cafe-my-seat-detail {
+    padding-right: 72px;
   }
 
   .study-cafe-my-seat-character {
@@ -9129,7 +9151,21 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   }
 
   .study-cafe-my-seat-character .study-cafe-avatar {
-    transform: scale(1.08);
+    top: 5px;
+    transform: translateX(-50%) scale(0.8);
+  }
+
+  .study-cafe-my-seat-character .study-cafe-chair-back {
+    top: 30px;
+  }
+
+  .study-cafe-my-seat-character .study-cafe-writing-arms {
+    top: 5px;
+    transform: translateX(-50%) scale(0.8);
+  }
+
+  .study-cafe-my-seat-character .study-cafe-desk {
+    bottom: 8px;
   }
 
   .study-cafe-my-seat-title > strong {

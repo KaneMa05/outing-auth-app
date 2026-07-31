@@ -2007,7 +2007,12 @@ function renderStudyCafeMySeatCard(student, seatNumber) {
   return el("section", { className: "study-cafe-my-seat-card", ariaLabel: "내 좌석 정보" }, [
     el("div", { className: "study-cafe-my-seat-character", ariaHidden: "true" }, [
       renderStudyCafeChairBack(),
-      renderStudyCafeAvatar(studyCafePreviewState.avatarTone || "navy", true),
+      renderStudyCafeAvatar(studyCafePreviewState.avatarTone || "navy", true, { includeArms: false }),
+      el("span", { className: "study-cafe-desk" }, [
+        el("i", { className: "study-cafe-desk-book" }),
+        el("i", { className: "study-cafe-desk-cup" }),
+      ]),
+      renderStudyCafeWritingArms(),
     ]),
     el("div", { className: "study-cafe-my-seat-copy" }, [
       el("span", { className: "study-cafe-my-seat-eyebrow" }, "내 좌석"),
