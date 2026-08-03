@@ -18,6 +18,8 @@ const apiHandlers = {
   "/api/students": require("./api/students"),
   "/api/student-reset-registration": require("./api/student-reset-registration"),
   "/api/student-devices": require("./api/student-devices"),
+  "/api/study-cafe": require("./api/study-cafe"),
+  "/api/study-cafe-rooms": require("./api/study-cafe-rooms"),
   "/api/reset-student-registration": require("./api/reset-student-registration"),
 };
 

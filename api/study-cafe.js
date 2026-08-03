@@ -10,6 +10,7 @@ const ALLOWED_ACTIONS = new Set([
   "todo_create",
   "todo_toggle",
   "todo_delete",
+  "subject_goal_set",
   "claim_seat",
   "release_seat",
   "timer_start",
@@ -105,7 +106,10 @@ module.exports = async function handler(req, res) {
     if (action === "save_profile") {
       const avatarTone = normalizeAvatarTone(body.avatarTone);
       const nickname = body.nickname === undefined ? undefined : normalizeNickname(body.nickname);
-      await upsertProfile(studentId, avatarTone, nickname, now);
+      const statusMessage = body.statusMessage === undefined
+        ? undefined
+        : normalizeStatusMessage(body.statusMessage);
+      await upsertProfile(studentId, avatarTone, nickname, statusMessage, now);
       await requestSupabase(
         "PATCH",
         `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`,
@@ -117,21 +121,64 @@ module.exports = async function handler(req, res) {
         { Prefer: "return=minimal" }
       );
       await broadcastStudyCafeStateChange("profile");
-      res.status(200).json({ ok: true, avatarTone, ...(nickname === undefined ? {} : { nickname }) });
+      res.status(200).json({
+        ok: true,
+        avatarTone,
+        ...(nickname === undefined ? {} : { nickname }),
+        ...(statusMessage === undefined ? {} : { statusMessage }),
+      });
       return;
     }
 
     if (action === "todos_load") {
       const studyDate = normalizeTodoStudyDate(body.studyDate, now);
-      const todos = await requestSupabase(
-        "GET",
-        `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
-      );
+      const [todos, subjectGoals] = await Promise.all([
+        requestSupabase(
+          "GET",
+          `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
+        ),
+        requestSupabase(
+          "GET",
+          `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&select=study_date,subject_name,target_minutes,result_status,completed_elapsed_seconds,completed_at&order=subject_name.asc`
+        ),
+      ]);
       res.status(200).json({
         ok: true,
         studyDate,
         todos: (Array.isArray(todos) ? todos : []).map(serializeTodo),
+        subjectGoals: (Array.isArray(subjectGoals) ? subjectGoals : []).map(serializeSubjectGoal),
       });
+      return;
+    }
+
+    if (action === "subject_goal_set") {
+      const subject = normalizeSubject(body.subject);
+      const studyDate = normalizeTodoStudyDate(body.studyDate, now);
+      const targetMinutes = normalizeSubjectGoalMinutes(body.targetMinutes);
+      if (!targetMinutes) {
+        await requestSupabase(
+          "DELETE",
+          `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&subject_name=eq.${encodeURIComponent(subject)}`
+        );
+        res.status(200).json({ ok: true, goal: null });
+        return;
+      }
+      const rows = await requestSupabase(
+        "POST",
+        "study_cafe_subject_goals?on_conflict=student_id,study_date,subject_name",
+        {
+          student_id: studentId,
+          study_date: studyDate,
+          subject_name: subject,
+          target_minutes: targetMinutes,
+          result_status: null,
+          completed_elapsed_seconds: 0,
+          completed_at: null,
+          updated_at: now.toISOString(),
+        },
+        { Prefer: "resolution=merge-duplicates,return=representation" }
+      );
+      res.status(200).json({ ok: true, goal: serializeSubjectGoal(rows?.[0]) });
       return;
     }
 
@@ -210,6 +257,7 @@ module.exports = async function handler(req, res) {
         res.status(409).json({ ok: false, error: "seat_taken" });
         return;
       }
+      await leaveOwnStudyRoom(student, now);
       const avatarTone = normalizeAvatarTone(body.avatarTone);
       const displayName = normalizeStoredNickname(body.displayName) || "온라인학생";
       const activeSession = body.preserveStudy === true
@@ -262,7 +310,8 @@ module.exports = async function handler(req, res) {
     if (action === "timer_start") {
       const subject = normalizeSubject(body.subject);
       const presence = await getOwnPresence(studentId);
-      if (!presence) {
+      const roomMembership = presence ? null : await getOwnStudyRoomMembership(studentId);
+      if (!presence && !roomMembership?.seat_number) {
         res.status(409).json({ ok: false, error: "seat_required" });
         return;
       }
@@ -348,6 +397,9 @@ module.exports = async function handler(req, res) {
 
     if (action === "timer_stop") {
       const session = await completeActiveSession(studentId, now);
+      const goal = body.subjectCompleted === true && session?.subject_name
+        ? await completeSubjectGoal(studentId, session.subject_name, now)
+        : null;
       await updatePresence(studentId, {
         status: "seated",
         current_subject: null,
@@ -355,26 +407,45 @@ module.exports = async function handler(req, res) {
         updated_at: now.toISOString(),
       });
       await broadcastStudyCafeStateChange("timer");
-      res.status(200).json({ ok: true, session: serializeSession(session, now) });
+      res.status(200).json({ ok: true, session: serializeSession(session, now), goal: serializeSubjectGoal(goal) });
       return;
     }
 
     const presence = await getOwnPresence(studentId);
-    if (!presence) {
+    const roomMembership = presence ? null : await getOwnStudyRoomMembership(studentId);
+    if (!presence && !roomMembership?.seat_number) {
       res.status(409).json({ ok: false, error: "seat_required" });
       return;
     }
     if (action === "keep_seat") {
-      await updatePresence(studentId, {
-        last_heartbeat_at: now.toISOString(),
-        updated_at: now.toISOString(),
-      });
+      if (presence) {
+        await updatePresence(studentId, {
+          last_heartbeat_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        });
+      } else {
+        await requestSupabase(
+          "PATCH",
+          `study_cafe_room_members?student_id=eq.${encodeURIComponent(studentId)}`,
+          { updated_at: now.toISOString() },
+          { Prefer: "return=minimal" }
+        );
+      }
       res.status(200).json({ ok: true, serverNow: now.toISOString() });
       return;
     }
-    await updatePresence(studentId, {
-      last_heartbeat_at: now.toISOString(),
-    });
+    if (presence) {
+      await updatePresence(studentId, {
+        last_heartbeat_at: now.toISOString(),
+      });
+    } else {
+      await requestSupabase(
+        "PATCH",
+        `study_cafe_room_members?student_id=eq.${encodeURIComponent(studentId)}`,
+        { updated_at: now.toISOString() },
+        { Prefer: "return=minimal" }
+      );
+    }
     res.status(200).json({ ok: true, serverNow: now.toISOString() });
   } catch (error) {
     console.error(error);
@@ -428,7 +499,7 @@ async function broadcastStudyCafeStateChange(change, payload = {}) {
 
 async function buildStudyCafeSnapshot(student, now) {
   const studentId = student.id;
-  const [subjects, todos, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
+  const [subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
     requestSupabase(
       "GET",
       `study_cafe_subjects?student_id=eq.${encodeURIComponent(studentId)}&select=name,sort_order&order=sort_order.asc`
@@ -439,7 +510,11 @@ async function buildStudyCafeSnapshot(student, now) {
     ),
     requestSupabase(
       "GET",
-      "study_cafe_profiles?select=student_id,avatar_tone,nickname"
+      `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=study_date,subject_name,target_minutes,result_status,completed_elapsed_seconds,completed_at&order=subject_name.asc`
+    ),
+    requestSupabase(
+      "GET",
+      "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"
     ),
     requestSupabase(
       "GET",
@@ -455,7 +530,7 @@ async function buildStudyCafeSnapshot(student, now) {
     ),
     requestSupabase(
       "GET",
-      "study_cafe_presence?select=student_id,seat_number,status,avatar_tone,display_name,last_heartbeat_at&order=seat_number.asc"
+      "study_cafe_presence?select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&order=seat_number.asc"
     ),
     requestSupabase(
       "GET",
@@ -501,9 +576,11 @@ async function buildStudyCafeSnapshot(student, now) {
     studyDate: getKstDateKey(now),
     subjects: (Array.isArray(subjects) ? subjects : []).map((row) => row.name),
     todos: (Array.isArray(todos) ? todos : []).map(serializeTodo),
+    subjectGoals: (Array.isArray(subjectGoals) ? subjectGoals : []).map(serializeSubjectGoal),
     profile: {
       avatarTone: normalizeAvatarTone(ownProfile?.avatar_tone),
       nickname: normalizeStoredNickname(ownProfile?.nickname),
+      statusMessage: normalizeStoredStatusMessage(ownProfile?.status_message),
     },
     presence: ownPresence?.[0] ? serializeOwnPresence(ownPresence[0]) : null,
     activeSession: activeSessions?.[0] ? serializeSession(activeSessions[0], now) : null,
@@ -521,6 +598,7 @@ async function buildStudyCafeSnapshot(student, now) {
             maskName(member?.name),
         track: summarizeTrack(member?.track),
         tone: row.student_id === studentId ? normalizeAvatarTone(row.avatar_tone) : avatarToneForId(row.student_id),
+        statusMessage: normalizeStoredStatusMessage(profileMap.get(row.student_id)?.status_message),
         todaySeconds: totalsByStudent.get(row.student_id) || 0,
         isMine: row.student_id === studentId,
       };
@@ -672,6 +750,28 @@ async function getOwnPresence(studentId) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
+async function getOwnStudyRoomMembership(studentId) {
+  const rows = await requestSupabase(
+    "GET",
+    `study_cafe_room_members?student_id=eq.${encodeURIComponent(studentId)}&select=room_id,student_id,role,seat_number&limit=1`
+  );
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function leaveOwnStudyRoom(student, now) {
+  const membership = await getOwnStudyRoomMembership(student.id);
+  if (!membership) return;
+  await requestSupabase("POST", "rpc/leave_study_cafe_room", {
+    p_room_id: membership.room_id,
+    p_student_id: student.id,
+    p_display_name: maskName(student.name),
+  });
+  await broadcastStudyCafeStateChange("room", {
+    roomId: membership.room_id,
+    changedAt: now.toISOString(),
+  });
+}
+
 async function getActiveSession(studentId) {
   const rows = await requestSupabase(
     "GET",
@@ -740,6 +840,40 @@ async function completeActiveSession(studentId, now) {
   return rows?.[0] || { ...session, status: "completed", elapsed_seconds: elapsedSeconds, ended_at: now.toISOString() };
 }
 
+async function completeSubjectGoal(studentId, subject, now) {
+  const studyDate = getKstDateKey(now);
+  const goals = await requestSupabase(
+    "GET",
+    `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&subject_name=eq.${encodeURIComponent(subject)}&select=study_date,subject_name,target_minutes,result_status,completed_elapsed_seconds,completed_at&limit=1`
+  );
+  const goal = Array.isArray(goals) ? goals[0] : null;
+  if (!goal) return null;
+  const bounds = getKstDayBounds(now);
+  const sessions = await requestSupabase(
+    "GET",
+    `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&subject_name=eq.${encodeURIComponent(subject)}&started_at=gte.${encodeURIComponent(bounds.start)}&started_at=lt.${encodeURIComponent(bounds.end)}&select=status,elapsed_seconds,active_started_at`
+  );
+  const completedElapsedSeconds = (Array.isArray(sessions) ? sessions : []).reduce(
+    (total, row) => total + getSessionElapsedSeconds(row, now),
+    0
+  );
+  const resultStatus = completedElapsedSeconds <= Number(goal.target_minutes) * 60
+    ? "on_time"
+    : "overtime";
+  const rows = await requestSupabase(
+    "PATCH",
+    `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${studyDate}&subject_name=eq.${encodeURIComponent(subject)}`,
+    {
+      result_status: resultStatus,
+      completed_elapsed_seconds: completedElapsedSeconds,
+      completed_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+    { Prefer: "return=representation" }
+  );
+  return rows?.[0] || null;
+}
+
 function updatePresence(studentId, changes) {
   return requestSupabase(
     "PATCH",
@@ -749,9 +883,10 @@ function updatePresence(studentId, changes) {
   );
 }
 
-function upsertProfile(studentId, avatarTone, nickname, now) {
+function upsertProfile(studentId, avatarTone, nickname, statusMessage, now) {
   const profile = { student_id: studentId, avatar_tone: avatarTone, updated_at: now.toISOString() };
   if (nickname !== undefined) profile.nickname = nickname;
+  if (statusMessage !== undefined) profile.status_message = statusMessage || null;
   return requestSupabase(
     "POST",
     "study_cafe_profiles?on_conflict=student_id",
@@ -872,6 +1007,17 @@ function normalizeTodoStudyDate(value, now = new Date()) {
   return studyDate;
 }
 
+function normalizeSubjectGoalMinutes(value) {
+  const minutes = Number(value);
+  if (minutes === 0) return 0;
+  if (!Number.isInteger(minutes) || minutes < 60 || minutes > 600 || minutes % 60 !== 0) {
+    const error = new Error("invalid_subject_goal_minutes");
+    error.status = 400;
+    throw error;
+  }
+  return minutes;
+}
+
 function normalizeSeatNumber(value) {
   const seatNumber = Number(value);
   if (!Number.isInteger(seatNumber) || seatNumber < 1 || seatNumber > MAX_SEAT_NUMBER) {
@@ -908,6 +1054,21 @@ function normalizeStoredNickname(value) {
     : "";
 }
 
+function normalizeStatusMessage(value) {
+  const statusMessage = String(value || "").trim().replace(/\s+/g, " ");
+  if (statusMessage.length > 40) {
+    const error = new Error("invalid_status_message");
+    error.status = 400;
+    throw error;
+  }
+  return statusMessage;
+}
+
+function normalizeStoredStatusMessage(value) {
+  const statusMessage = String(value || "").trim().replace(/\s+/g, " ");
+  return statusMessage.length <= 40 ? statusMessage : "";
+}
+
 function getSessionElapsedSeconds(session, now = new Date()) {
   const saved = Math.max(0, Number(session?.elapsed_seconds) || 0);
   if (session?.status !== "running" || !session.active_started_at) return Math.floor(saved);
@@ -938,6 +1099,18 @@ function serializeTodo(todo) {
     completed: todo.is_completed === true,
     completedAt: todo.completed_at || null,
     createdAt: todo.created_at,
+  };
+}
+
+function serializeSubjectGoal(goal) {
+  if (!goal) return null;
+  return {
+    studyDate: goal.study_date,
+    subject: goal.subject_name,
+    targetMinutes: Number(goal.target_minutes) || 0,
+    resultStatus: goal.result_status || null,
+    completedElapsedSeconds: Math.max(0, Number(goal.completed_elapsed_seconds) || 0),
+    completedAt: goal.completed_at || null,
   };
 }
 
@@ -1113,6 +1286,7 @@ module.exports._private = {
   maskName,
   normalizeAvatarTone,
   normalizeNickname,
+  normalizeStatusMessage,
   normalizeRankingPeriod,
   normalizeSeatNumber,
   normalizeStatsRange,

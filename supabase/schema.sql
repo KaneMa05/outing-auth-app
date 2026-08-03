@@ -2165,12 +2165,17 @@ create table if not exists public.study_cafe_profiles (
       char_length(trim(nickname)) between 2 and 10
       and nickname ~ '^[가-힣A-Za-z0-9 ]+$'
     )),
+  status_message text
+    check (status_message is null or char_length(trim(status_message)) between 1 and 40),
   updated_at timestamptz not null default now(),
   check (student_id like '2%')
 );
 
 alter table public.study_cafe_profiles
 add column if not exists nickname text;
+
+alter table public.study_cafe_profiles
+add column if not exists status_message text;
 
 do $$
 begin
@@ -2186,6 +2191,21 @@ begin
       char_length(trim(nickname)) between 2 and 10
       and nickname ~ '^[가-힣A-Za-z0-9 ]+$'
     ));
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'study_cafe_profiles_status_message_check'
+      and conrelid = 'public.study_cafe_profiles'::regclass
+  ) then
+    alter table public.study_cafe_profiles
+    add constraint study_cafe_profiles_status_message_check
+    check (status_message is null or char_length(trim(status_message)) between 1 and 40);
   end if;
 end
 $$;
@@ -2221,6 +2241,24 @@ create table if not exists public.study_cafe_todos (
 
 create index if not exists study_cafe_todos_student_date_idx
 on public.study_cafe_todos(student_id, study_date, created_at);
+
+create table if not exists public.study_cafe_subject_goals (
+  student_id text not null references public.students(id) on delete cascade,
+  study_date date not null,
+  subject_name text not null check (char_length(trim(subject_name)) between 1 and 20),
+  target_minutes integer not null check (target_minutes between 60 and 600 and target_minutes % 60 = 0),
+  result_status text check (result_status is null or result_status in ('on_time', 'overtime')),
+  completed_elapsed_seconds integer not null default 0 check (completed_elapsed_seconds >= 0),
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (student_id, study_date, subject_name),
+  check (student_id like '2%')
+);
+
+create index if not exists study_cafe_subject_goals_student_date_idx
+on public.study_cafe_subject_goals(student_id, study_date);
+
 
 create table if not exists public.study_cafe_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -2341,18 +2379,23 @@ $$;
 alter table public.study_cafe_profiles enable row level security;
 alter table public.study_cafe_subjects enable row level security;
 alter table public.study_cafe_todos enable row level security;
+alter table public.study_cafe_subject_goals enable row level security;
 alter table public.study_cafe_sessions enable row level security;
 alter table public.study_cafe_presence enable row level security;
 
 revoke all on public.study_cafe_profiles from anon;
 revoke all on public.study_cafe_subjects from anon;
 revoke all on public.study_cafe_todos from anon;
+revoke all on public.study_cafe_subject_goals from anon;
 revoke all on public.study_cafe_sessions from anon;
 revoke all on public.study_cafe_presence from anon;
 revoke all on function public.replace_study_cafe_subjects(text, jsonb) from public;
 revoke all on function public.replace_study_cafe_subjects(text, jsonb) from anon;
 revoke all on function public.replace_study_cafe_subjects(text, jsonb) from authenticated;
 grant execute on function public.replace_study_cafe_subjects(text, jsonb) to service_role;
+
+-- Private study rooms and room chat are defined in the complete, rerunnable migration:
+-- supabase/add-study-cafe-rooms.sql
 
 do $$
 begin

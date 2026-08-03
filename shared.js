@@ -5432,17 +5432,20 @@ function openInfoModal({
   confirmLabel = "확인",
   onConfirm = closeInfoModal,
   confirmDisabled = false,
+  showConfirm = true,
 }) {
   closeInfoModal();
-  const confirmButton = button(confirmLabel, "btn secondary", "button", onConfirm);
-  confirmButton.disabled = confirmDisabled;
+  const confirmButton = showConfirm
+    ? button(confirmLabel, "btn secondary", "button", onConfirm)
+    : null;
+  if (confirmButton) confirmButton.disabled = confirmDisabled;
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "안내 닫기" }),
     el("div", { className: ("info-modal-panel " + className).trim() }, [
       el("strong", {}, title),
       content,
       confirmButton,
-    ]),
+    ].filter(Boolean)),
   ]);
   modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
   document.body.appendChild(modal);

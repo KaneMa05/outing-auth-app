@@ -20,7 +20,7 @@ assert.match(teacherSource, /fetch\("\/api\/study-cafe-admin"/);
 assert.match(teacherSource, /runStudyCafeAdminAction\("stop_session"/);
 assert.match(teacherSource, /runStudyCafeAdminAction\("release_seat"/);
 assert.match(teacherSource, /studyCafeAdminState\.refreshTimer = window\.setInterval/);
-assert.match(teacherSource, /\["A룸", "B룸", "C룸", "D룸"\]/);
+assert.match(teacherSource, /\["랭킹룸", "A룸", "B룸", "C룸"\]/);
 assert.match(teacherSource, /activeRoomIndex: 0/);
 assert.match(teacherSource, /activeRoomIndex \* 48 \+ 1/);
 assert.match(teacherSource, /Array\.from\(\{ length: 48 \}/);

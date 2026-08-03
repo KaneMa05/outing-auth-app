@@ -238,7 +238,7 @@ function renderStudyCafeAdmin() {
   const members = Array.isArray(data?.members) ? data.members : [];
   const seatedMembers = members.filter((member) => member.seatNumber);
   const canWrite = hasTeacherPermission("study_cafe.write");
-  const roomLabels = ["A룸", "B룸", "C룸", "D룸"];
+  const roomLabels = ["랭킹룸", "A룸", "B룸", "C룸"];
   const activeRoomIndex = Math.min(
     roomLabels.length - 1,
     Math.max(0, Number(studyCafeAdminState.activeRoomIndex) || 0)
@@ -371,7 +371,7 @@ function renderStudyCafeAdminStat(label, value, unit) {
 function renderStudyCafeAdminSeat(seatNumber, member, canWrite) {
   if (!member) {
     return el("article", { className: "study-cafe-admin-seat empty" }, [
-      el("span", { className: "study-cafe-admin-seat-number" }, `${seatNumber}번`),
+      el("span", { className: "study-cafe-admin-seat-number" }, String(seatNumber)),
       el("strong", {}, "빈 좌석"),
       el("p", {}, "현재 이용 학생 없음"),
     ]);
@@ -381,7 +381,7 @@ function renderStudyCafeAdminSeat(seatNumber, member, canWrite) {
     className: `study-cafe-admin-seat occupied ${member.connected ? "" : "disconnected"}`,
   }, [
     el("div", { className: "study-cafe-admin-seat-top" }, [
-      el("span", { className: "study-cafe-admin-seat-number" }, `${seatNumber}번`),
+      el("span", { className: "study-cafe-admin-seat-number" }, String(seatNumber)),
       renderStudyCafeAdminStatus(member),
     ]),
     el("strong", {}, `${member.name} · ${member.studentId}`),

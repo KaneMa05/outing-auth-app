@@ -11,6 +11,7 @@ const {
   hashDeviceToken,
   maskName,
   normalizeNickname,
+  normalizeStatusMessage,
   normalizeRankingPeriod,
   normalizeSeatNumber,
   normalizeSubjects,
@@ -53,6 +54,10 @@ assert.match(apiSource, /await broadcastStudyCafeStateChange\("profile"\)/);
 assert.match(apiSource, /async function loadStudyRanking\(studentId, period, now\)/);
 assert.match(apiSource, /function getCurrentRankingRange\(period, now = new Date\(\)\)/);
 assert.match(apiSource, /currentSubject: row\.current_subject \|\| ""/);
+assert.match(
+  apiSource,
+  /study_cafe_presence\?select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&order=seat_number\.asc/
+);
 for (const sql of [migrationSql, schemaSql]) {
   assert.match(sql, /create table if not exists public\.study_cafe_subjects/);
   assert.match(sql, /create table if not exists public\.study_cafe_todos/);
@@ -63,6 +68,7 @@ for (const sql of [migrationSql, schemaSql]) {
   assert.match(sql, /check \(seat_number between 1 and 192\)/);
   assert.doesNotMatch(sql, /seat_number between 1 and 50/);
   assert.match(sql, /add column if not exists display_name text/);
+  assert.match(sql, /add column if not exists status_message text/);
   assert.match(sql, /create or replace function public\.replace_study_cafe_subjects/);
   assert.match(sql, /revoke all on public\.study_cafe_sessions from anon/);
   assert.match(sql, /revoke all on public\.study_cafe_todos from anon/);
@@ -73,6 +79,7 @@ assert.match(seatExpansionSql, /check \(seat_number between 1 and 192\)\s+not va
 assert.match(seatExpansionSql, /validate constraint study_cafe_presence_seat_number_check/);
 assert.match(seatExpansionSql, /commit;/);
 assert.match(productionMigrationSql, /^begin;/);
+assert.match(productionMigrationSql, /add column if not exists status_message text/);
 assert.match(productionMigrationSql, /create table if not exists public\.study_cafe_todos/);
 assert.match(productionMigrationSql, /create index if not exists study_cafe_todos_student_date_idx/);
 assert.match(productionMigrationSql, /alter table public\.study_cafe_todos enable row level security/);
@@ -113,6 +120,8 @@ assert.match(apiSource, /"todo_create"/);
 assert.match(apiSource, /"todos_load"/);
 assert.match(apiSource, /"todo_toggle"/);
 assert.match(apiSource, /"todo_delete"/);
+assert.match(apiSource, /"subject_goal_set"/);
+assert.match(apiSource, /study_cafe_subject_goals/);
 assert.equal(normalizeTodoContent("  영어 단어 30개  "), "영어 단어 30개");
 assert.throws(() => normalizeTodoContent("   "), /invalid_todo_content/);
 assert.equal(
@@ -186,6 +195,9 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.throws(() => normalizeSubjects([]), /invalid_subjects/);
   assert.equal(normalizeNickname(" 해경 꿈나무 "), "해경 꿈나무");
   assert.throws(() => normalizeNickname("a"), /invalid_nickname/);
+  assert.equal(normalizeStatusMessage(" 오늘도  집중! "), "오늘도 집중!");
+  assert.equal(normalizeStatusMessage("   "), "");
+  assert.throws(() => normalizeStatusMessage("가".repeat(41)), /invalid_status_message/);
   assert.throws(() => normalizeNickname("닉네임!"), /invalid_nickname/);
   assert.equal(normalizeSeatNumber(1), 1);
   assert.equal(normalizeSeatNumber(192), 192);
