@@ -3626,11 +3626,16 @@ function renderStudyCafeRankingRoomGuide(student) {
   const myRank = selectedSeatNumber
     ? getStudyCafeRankingRoomRank(selectedSeatNumber, student)
     : 0;
+  const rankingGuideMessage = myRank
+    ? "공부시간에 따라 순위와 좌석이 자동으로 변경됩니다."
+    : selectedSeatNumber
+      ? "빈자리를 선택하면 현재 좌석에서 랭킹룸으로 이동합니다."
+      : "빈자리를 선택해 입장하면 공부시간에 따라 좌석이 자동으로 이동합니다.";
   return el("section", { className: "study-cafe-ranking-room-guide" }, [
     el("div", {}, [
       el("span", {}, "RANKING ROOM"),
       el("strong", {}, "랭킹룸 내 오늘 순공 순위"),
-      el("p", {}, "빈자리를 선택해 입장하면 공부시간에 따라 좌석이 자동으로 이동합니다."),
+      el("p", {}, rankingGuideMessage),
     ]),
     el("div", { className: "study-cafe-ranking-room-summary" }, [
       el("span", {}, `${occupancy}/${STUDY_CAFE_ROOM_SIZE}명`),

@@ -739,6 +739,8 @@ assert.match(appSource, /return \[\.\.\.ranked, \.\.\.empty\]/);
 assert.match(appSource, /function getStudyCafeProspectiveRankingRoomRank\(seatNumber, student = getAuthedStudent\(\)\)/);
 assert.match(appSource, /function renderStudyCafeRankingRoomGuide\(student\)/);
 assert.match(appSource, /className: "study-cafe-ranking-room-guide"/);
+assert.match(appSource, /const rankingGuideMessage = myRank/);
+assert.match(appSource, /공부시간에 따라 순위와 좌석이 자동으로 변경됩니다/);
 assert.match(appSource, /function ensureStudyCafeRankingRoomRefresh\(\)/);
 assert.match(appSource, /function refreshStudyCafeRankingRoomView\(\)/);
 assert.match(appSource, /"data-study-cafe-physical-seat-number": String\(seatNumber\)/);
