@@ -33,16 +33,16 @@ assert.match(sharedSource, /student_category: getStudentCategory\(student\)/);
 
 assert.match(appSource, /offline: new Set\(\["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"\]\)/);
 assert.match(appSource, /online_managed: new Set\(\["home", "study-cafe", "grades", "mypage", "notices"\]\)/);
-assert.match(appSource, /lecture: new Set\(\["study-todo", "study-cafe", "study-ranking", "study-timer", "study-character", "mypage", "notices"\]\)/);
+assert.match(appSource, /lecture: new Set\(\["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "notices"\]\)/);
 assert.match(appSource, /category === "online_managed" && !isOnlineManagedStudyCafeEnabled\(\)/);
 assert.match(appSource, /return category === "lecture" \? "study-todo" : "home"/);
-assert.match(appSource, /visibleLectureTabs = new Set\(\["study-todo", "study-cafe", "study-ranking", "study-timer", "mypage"\]\)/);
+assert.match(appSource, /visibleLectureTabs = new Set\(\["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"\]\)/);
 assert.match(appSource, /category === "online_managed" && isOnlineManagedStudyCafeEnabled\(\)/);
 assert.match(appSource, /const onlineMode = lectureMode \|\| onlineManagedMode/);
 assert.match(appSource, /classList\.toggle\("student-online-managed-mode", onlineManagedMode\)/);
 
 const studyFooter = indexSource.match(/<footer class="student-footer-menu study-cafe-footer-menu"[\s\S]*?<\/footer>/)?.[0] || "";
-for (const route of ["study-todo", "study-cafe", "study-ranking", "study-timer", "mypage"]) {
+for (const route of ["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"]) {
   assert.match(studyFooter, new RegExp(`data-route="${route}"`));
 }
 assert.match(studyFooter, /data-study-cafe-back[\s\S]*?hidden/);

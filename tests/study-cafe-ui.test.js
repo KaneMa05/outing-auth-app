@@ -432,6 +432,10 @@ assert.match(appSource, /function openStudyCafeNicknameEditor\(\)/);
 assert.match(appSource, /function normalizeStudyCafeNickname\(value\)/);
 assert.match(appSource, /name: getStudyCafeDisplayName\("나"\)/);
 assert.match(appSource, /"data-study-character-name": "true"/);
+assert.match(appSource, /currentRoute === "study-character"[\s\S]*?button\.closest\("\.student-footer-menu"\)[\s\S]*?\? "mypage"/);
+assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
+assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*grid-column: 1 \/ -1/);
+assert.match(styleSource, /\.study-character-back-button/);
 assert.match(appSource, /className: "study-character-name-edit-button"/);
 assert.match(appSource, /"data-study-character-status-message": "true"/);
 assert.match(appSource, /studyCafePreviewState\.statusMessage\s*\? el\("button"/);
@@ -891,9 +895,10 @@ assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::after\s*\{\s*cont
 assert.match(styleSource, /\.study-cafe-footer-menu button\.active::after/);
 assert.match(
   styleSource,
-  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(20% - 5\.6px\)[^}]*transform 220ms/s
+  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(16\.6667% - 4\.7px\)[^}]*transform 220ms/s
 );
 assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="4"\]::before/);
+assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
 assert.match(styleSource, /@keyframes student-study-route-enter/);
 assert.match(styleSource, /html\s*\{[^}]*scrollbar-gutter: stable/);
 assert.doesNotMatch(
@@ -925,7 +930,7 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(5/
+  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(6/
 );
 assert.doesNotMatch(styleSource, /\[data-route="study-cafe"\]\s*\{[^}]*transform: translateX/);
 assert.match(styleSource, /\.study-character-option-grid/);

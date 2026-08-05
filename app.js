@@ -13,6 +13,8 @@
   seats: "좌석 관리",
   attendance: "출석 관리",
   "study-cafe-admin": "온라인 스터디카페",
+  "question-board": "게시판",
+  "question-board-admin": "게시판 관리",
   mypage: "마이페이지",
   "study-todo": "오늘 플래너",
   "study-cafe": "온라인 스터디카페",
@@ -33,7 +35,7 @@
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"]),
   online_managed: new Set(["home", "study-cafe", "grades", "mypage", "notices"]),
-  lecture: new Set(["study-todo", "study-cafe", "study-ranking", "study-timer", "study-character", "mypage", "notices"]),
+  lecture: new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "notices"]),
 };
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 
@@ -445,11 +447,11 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "study-todo", "study-cafe", "study-timer", "study-ranking", "study-character", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -468,7 +470,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
-  const studyRoutes = ["study-todo", "study-cafe", "study-ranking", "study-timer", "study-character"];
+  const studyRoutes = ["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character"];
   const currentStudyIndex = studyRoutes.indexOf(currentRoute);
   const nextStudyIndex = studyRoutes.indexOf(nextRoute);
   studentStudyRouteTransitionDirection =
@@ -499,6 +501,7 @@ function render() {
   if (String(requestedRoute).split("?")[0] !== currentRoute) {
     history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute}`);
   }
+  if (typeof syncQuestionWriteButton === "function") syncQuestionWriteButton();
 
   if (APP_MODE === "teacher") {
     document.body.classList.toggle("teacher-authenticated", Boolean(teacherAuth.authenticated));
@@ -515,8 +518,14 @@ function render() {
   document.querySelectorAll("[data-route]").forEach((button) => {
     const route = button.dataset.route;
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(route);
+    const activeRoute =
+      APP_MODE !== "teacher" &&
+      currentRoute === "study-character" &&
+      button.closest(".student-footer-menu")
+        ? "mypage"
+        : currentRoute;
     button.hidden = !allowed;
-    button.classList.toggle("active", route === currentRoute);
+    button.classList.toggle("active", route === activeRoute);
   });
   if (APP_MODE !== "teacher") {
     updateStudentNavigationVisibility();
@@ -566,6 +575,7 @@ function render() {
           seats: renderSeatManagement,
           attendance: renderAttendanceManagement,
           "study-cafe-admin": renderStudyCafeAdmin,
+          "question-board-admin": renderQuestionBoardAdmin,
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
@@ -587,6 +597,7 @@ function render() {
           mypage: () => requireStudentAuth(renderStudentMypage),
           "study-todo": () => requireStudentAuth(renderStudentStudyTodo),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
+          "question-board": () => requireStudentAuth(renderQuestionBoard),
           "study-timer": () => requireStudentAuth(renderStudentStudyTimer),
           "study-ranking": () => requireStudentAuth(renderStudentStudyRanking),
           "study-character": () => requireStudentAuth(renderStudentStudyCharacter),
@@ -628,6 +639,7 @@ function getRouteTitle(route) {
     if (route === "grades") return "성적";
     if (route === "study-todo") return "오늘 플래너";
     if (route === "study-cafe") return "온라인 스터디카페";
+    if (route === "question-board") return "게시판";
     if (route === "study-timer") return "과목 타이머";
     if (route === "study-ranking") return "순공시간 랭킹";
     if (route === "study-character") return "캐릭터";
@@ -2450,7 +2462,7 @@ function updateStudentNavigationVisibility() {
     item.hidden = lectureMode || !allowedRoutes.has(item.dataset.route);
   });
   document.querySelectorAll(".study-cafe-footer-menu [data-route]").forEach((item) => {
-    const visibleLectureTabs = new Set(["study-todo", "study-cafe", "study-ranking", "study-timer", "mypage"]);
+    const visibleLectureTabs = new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"]);
     item.hidden = !lectureMode || !visibleLectureTabs.has(item.dataset.route);
   });
   document.querySelectorAll("[data-study-cafe-back]").forEach((item) => { item.hidden = true; });
@@ -4985,6 +4997,9 @@ function renderStudentStudyCharacter() {
   ];
   const characterName = getStudyCafeDisplayName(student.name || "나");
   return el("div", { className: "student-study-character-page" }, [
+    el("div", { className: "study-character-page-head" }, [
+      button("← 마이", "study-character-back-button", "button", () => navigate("mypage")),
+    ]),
     el("section", { className: "study-character-preview-card" }, [
       el("span", {}, "MY CHARACTER"),
       el("div", {
@@ -7220,6 +7235,7 @@ function renderHome() {
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("study_cafe.read") ? moduleCard("온라인 스터디카페", "현재 좌석, 순공시간과 온라인 학생 이용 상태를 관리합니다.", "study-cafe-admin", "운영 중") : null,
+        hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "인강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,

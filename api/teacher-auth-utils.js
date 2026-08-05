@@ -18,6 +18,8 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "fitness.write",
   "study_cafe.read",
   "study_cafe.write",
+  "question_board.read",
+  "question_board.write",
 ];
 
 function getConfig() {

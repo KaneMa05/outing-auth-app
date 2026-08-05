@@ -2,13 +2,16 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const { handleLocalQuestionBoard } = require("./local-question-board");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 3000);
 const LOCAL_STATE_FILE = path.join(ROOT, ".local-dev-state.json");
 const LOCAL_LECTURE_APPLICATIONS_FILE = path.join(ROOT, ".local-lecture-applications.json");
+const LOCAL_QUESTION_BOARD_FILE = path.join(ROOT, ".local-question-board.json");
 
 loadEnv(path.join(ROOT, ".env"));
+loadEnv(path.join(ROOT, ".env.local"));
 
 const apiHandlers = {
   "/api/teacher-login": require("./api/teacher-login"),
@@ -22,6 +25,7 @@ const apiHandlers = {
   "/api/student-devices": require("./api/student-devices"),
   "/api/study-cafe": require("./api/study-cafe"),
   "/api/study-cafe-rooms": require("./api/study-cafe-rooms"),
+  "/api/question-board": require("./api/question-board"),
   "/api/reset-student-registration": require("./api/reset-student-registration"),
 };
 
@@ -45,6 +49,16 @@ http
     if (url.pathname === "/api/lecture-applications") {
       await handleLocalLectureApplications(req, res);
       return;
+    }
+    if (url.pathname === "/api/question-board" && req.method === "POST") {
+      const body = await readLocalJson(req);
+      const localStudent = getLocalPreviewStudent(body);
+      if (localStudent) {
+        const result = handleLocalQuestionBoard({ body, student: localStudent, filePath: LOCAL_QUESTION_BOARD_FILE });
+        sendLocalJson(res, result.status, result.payload);
+        return;
+      }
+      req.body = body;
     }
     const handler = apiHandlers[url.pathname];
     if (handler) {
@@ -157,6 +171,27 @@ function readLocalLectureApplications() {
 
 function writeLocalLectureApplications(applications) {
   fs.writeFileSync(LOCAL_LECTURE_APPLICATIONS_FILE, JSON.stringify(applications, null, 2));
+}
+
+function getLocalPreviewStudent(body) {
+  const studentId = String(body.studentId || "").trim();
+  const deviceToken = String(body.deviceToken || "").trim();
+  if (!fs.existsSync(LOCAL_STATE_FILE)) return null;
+  try {
+    const state = JSON.parse(fs.readFileSync(LOCAL_STATE_FILE, "utf8") || "null");
+    const settings = state?.settings || {};
+    const profile = settings.studentProfiles?.[studentId] || {};
+    const student = Array.isArray(state?.students)
+      ? state.students.find((item) => String(item.id || "") === studentId)
+      : null;
+    const category = String(student?.studentCategory || student?.student_category || "").trim();
+    if (!settings.forceLocalStudentAuth || settings.studentAuthId !== studentId) return null;
+    if (!studentId || !deviceToken || profile.deviceToken !== deviceToken) return null;
+    if (!student || category !== "lecture" || student.isActive === false) return null;
+    return { id: studentId, name: student.name || "인강생 미리보기", track: student.track || profile.track || "" };
+  } catch {
+    return null;
+  }
 }
 
 async function readLocalJson(req) {

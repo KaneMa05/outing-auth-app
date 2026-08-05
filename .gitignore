@@ -5,6 +5,7 @@ node_modules
 config.js
 .local-dev-state.json
 .local-lecture-applications.json
+.local-question-board.json
 .local-*.log
 
 .vercel

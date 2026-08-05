@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v303-lecture-registration-prefill";
+const CACHE_NAME = "outing-auth-app-v305-question-board";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "/supabase.js",
   "/shared.js",
   "/student.js",
+  "/question-board.js",
   "/teacher.js",
   "/teacher-grades.js",
   "/teacher-students.js",
