@@ -2,6 +2,12 @@
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_STUDENT_COHORT = "18";
+const STUDENT_CATEGORY_OPTIONS = [
+  { value: "offline", label: "오프라인 학생" },
+  { value: "online_managed", label: "온라인 관리반" },
+  { value: "lecture", label: "인강생" },
+];
+const STUDENT_CATEGORY_VALUES = new Set(STUDENT_CATEGORY_OPTIONS.map((option) => option.value));
 const DEFAULT_IMPORTANT_NOTICES = [];
 const FINAL_GRADE_SUBJECTS = ["법규", "개론", "형사", "영어", "항해", "기관", "형소법(공판)"];
 const LEGACY_SAMPLE_NOTICE_IDS = new Set(["attendance-guide", "outing-guide"]);
@@ -246,6 +252,20 @@ function expandTrackOptionAlias(option) {
 
 const WEEKLY_POLICE_VTS_TRACK = "경찰직 - 해상교통관제(VTS)(순경)";
 const WEEKLY_GENERAL_VTS_TRACK = "일반직 - 선박교통관제(VTS)";
+const GRADE_RANKING_COMBINED_TRACK_GROUPS = [
+  ["경찰직 - 함정요원 항해(순경)", WEEKLY_POLICE_VTS_TRACK],
+];
+
+function getGradeRankingTrackKey(track) {
+  const normalizedTrack = normalizeCoastGuardTrack(track);
+  const combinedGroup = GRADE_RANKING_COMBINED_TRACK_GROUPS.find((tracks) => tracks.includes(normalizedTrack));
+  return combinedGroup ? combinedGroup.join("||") : normalizedTrack;
+}
+
+function isSameGradeRankingGroup(leftTrack, rightTrack) {
+  return getGradeRankingTrackKey(leftTrack) === getGradeRankingTrackKey(rightTrack);
+}
+
 const WEEKLY_QUESTION_FIXED_TRACKS = [
   "경찰직 - 공채(순경)",
   "경찰직 - 함정요원 항해(순경)",
@@ -507,6 +527,7 @@ function defaultState() {
       completionType: "",
       attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
       attendanceDeadlineEnabled: false,
+      onlineManagedStudyCafeEnabled: false,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
     },
@@ -1942,7 +1963,7 @@ function getStudentRemotePeerIds(studentRows, scopedStudentId, options = {}) {
     .filter((student) =>
       String(student.id || "") === String(scopedStudentId) ||
       options.matchTrack === false ||
-      normalizeCoastGuardTrack(student.track) === track
+      isSameGradeRankingGroup(student.track, track)
     )
     .map((student) => String(student.id || "").trim())
     .filter(Boolean);
@@ -2000,7 +2021,7 @@ async function loadStateFromRemote(options = {}) {
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
   const localSubmissionAnswers = Array.isArray(state.submissionAnswers) ? state.submissionAnswers.map((answer) => ({ ...answer })) : [];
   const localSeatAssignments = JSON.parse(JSON.stringify(state.seatAssignments || {}));
-  let studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+  let studentColumns = "id,name,class_name,student_category,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
   const outingColumns = [
@@ -2184,6 +2205,10 @@ async function loadStateFromRemote(options = {}) {
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
 
+  if (isMissingColumnError(studentResult.error, "student_category") || isMissingColumnError(studentResult.error, "cohort")) {
+    studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
   if (isMissingColumnError(studentResult.error, "attendance_excluded") || isMissingColumnError(studentResult.error, "fitness_excluded")) {
     studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
@@ -2316,18 +2341,28 @@ async function loadStateFromRemote(options = {}) {
     }
   }
 
-  state.students = (studentResult.data || []).map((student) => ({
-    id: student.id,
-    name: student.name,
-    className: student.class_name,
-    track: normalizeCoastGuardTrack(student.track),
-    gender: student.gender || "",
-    passwordHash: "",
-    appRegisteredAt: student.app_registered_at || "",
-    attendanceExcluded: student.attendance_excluded === true || isOnlineClassName(student.class_name),
-    fitnessExcluded: student.fitness_excluded === true,
-    createdAt: student.created_at,
-  }));
+  state.students = (studentResult.data || []).map((student) => {
+    const mappedStudent = {
+      id: student.id,
+      name: student.name,
+      className: student.class_name,
+      studentCategory: normalizeStudentCategory(student.student_category),
+      cohort: student.cohort == null ? "" : String(student.cohort),
+      track: normalizeCoastGuardTrack(student.track),
+      gender: student.gender || "",
+      passwordHash: "",
+      appRegisteredAt: student.app_registered_at || "",
+      attendanceExcluded: student.attendance_excluded === true,
+      fitnessExcluded: student.fitness_excluded === true,
+      createdAt: student.created_at,
+    };
+    mappedStudent.studentCategory = getStudentCategory(mappedStudent);
+    if (!mappedStudent.cohort && mappedStudent.studentCategory !== "lecture") {
+      mappedStudent.cohort = inferLegacyStudentCohort(mappedStudent.id);
+    }
+    mappedStudent.attendanceExcluded = mappedStudent.attendanceExcluded || mappedStudent.studentCategory !== "offline";
+    return mappedStudent;
+  });
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
   if (APP_MODE === "teacher") {
     const apiManagers = await loadManagersFromTeacherApi();
@@ -2387,8 +2422,10 @@ async function saveStateToRemote() {
       id: student.id,
       name: student.name,
       class_name: student.className || state.settings.className || "오프라인반",
+      student_category: getStudentCategory(student),
+      cohort: getStudentCohort(student) ? Number(getStudentCohort(student)) : null,
       track: normalizeCoastGuardTrack(student.track) || null,
-      attendance_excluded: student.attendanceExcluded === true || isOnlineClassName(student.className),
+      attendance_excluded: student.attendanceExcluded === true || getStudentCategory(student) !== "offline",
       fitness_excluded: student.fitnessExcluded === true,
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
@@ -2430,6 +2467,8 @@ async function saveStateToRemote() {
         .update({
           name: row.name,
           class_name: row.class_name,
+          student_category: row.student_category,
+          cohort: row.cohort,
           track: row.track,
           attendance_excluded: row.attendance_excluded,
           fitness_excluded: row.fitness_excluded,
@@ -3272,28 +3311,62 @@ function countOutingStudents(outings) {
 }
 
 function getStudentCohort(student) {
-  const id = String(student?.id || "").trim();
-  if (!/^\d{4,}$/.test(id)) return "";
+  if (getStudentCategory(student) === "lecture") return "";
+  const explicitCohort = String(student?.cohort ?? "").trim();
+  if (/^\d{1,2}$/.test(explicitCohort)) return explicitCohort;
+  return inferLegacyStudentCohort(student?.id);
+}
+
+function inferLegacyStudentCohort(studentId) {
+  const id = String(studentId || "").trim();
+  if (!/^\d{4,5}$/.test(id)) return "";
   return id.slice(0, -3);
+}
+
+function normalizeStudentCategory(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return STUDENT_CATEGORY_VALUES.has(normalized) ? normalized : "";
+}
+
+function getStudentCategory(student) {
+  const explicitCategory = normalizeStudentCategory(student?.studentCategory || student?.student_category);
+  if (explicitCategory) return explicitCategory;
+  const id = String(student?.id || "").trim();
+  if (id.startsWith("2") || /^9\d{5}$/.test(id)) return "lecture";
+  if (isOnlineClassName(student?.className || student?.class_name)) return "online_managed";
+  return "offline";
+}
+
+function getStudentCategoryLabel(studentOrCategory) {
+  const category = typeof studentOrCategory === "string"
+    ? normalizeStudentCategory(studentOrCategory)
+    : getStudentCategory(studentOrCategory);
+  return STUDENT_CATEGORY_OPTIONS.find((option) => option.value === category)?.label || "오프라인 학생";
+}
+
+function studentHasStudyCafeAccess(student) {
+  return ["online_managed", "lecture"].includes(getStudentCategory(student));
 }
 
 function getStudentCohortStats() {
   const counts = new Map();
   state.students.forEach((student) => {
     const cohort = getStudentCohort(student);
-    const key = cohort || "미분류";
+    const key = getStudentCategory(student) === "lecture" ? "lecture" : cohort || "미분류";
     counts.set(key, (counts.get(key) || 0) + 1);
   });
 
   return [...counts.entries()]
     .sort(([a], [b]) => {
+      if (a === "lecture") return 1;
+      if (b === "lecture") return -1;
       if (a === "미분류") return 1;
       if (b === "미분류") return -1;
       return Number(a) - Number(b);
     })
     .map(([cohort, count]) => ({
       value: cohort,
-      label: cohort === "미분류" ? cohort : cohort + "기",
+      label: cohort === "lecture" ? "인강생" : cohort === "미분류" ? cohort : cohort + "기",
       count,
     }));
 }
@@ -3325,12 +3398,17 @@ function statGroup(titleText, stats) {
 }
 
 function getStudentClassTypeStats(cohort = selectedStudentCohort) {
-  const students = state.students.filter((student) => getStudentCohort(student) === cohort);
-  const online = students.filter((student) => String(student.className || "").includes("온라인")).length;
+  const students = state.students.filter((student) =>
+    cohort === "lecture"
+      ? getStudentCategory(student) === "lecture"
+      : getStudentCohort(student) === cohort
+  );
+  const online = students.filter((student) => getStudentCategory(student) === "online_managed").length;
   return {
     total: students.length,
-    offline: students.length - online,
+    offline: students.filter((student) => getStudentCategory(student) === "offline").length,
     online,
+    lecture: students.filter((student) => getStudentCategory(student) === "lecture").length,
   };
 }
 
@@ -3357,8 +3435,9 @@ function studentCountStatGroup() {
     ]),
     el("div", { className: "grid stats" }, [
       stat(selected.label + " 전체", classTypeStats.total, "명"),
-      stat("오프라인반", classTypeStats.offline, "명"),
-      stat("온라인반", classTypeStats.online, "명"),
+      stat("오프라인 학생", classTypeStats.offline, "명"),
+      stat("온라인 관리반", classTypeStats.online, "명"),
+      stat("인강생", classTypeStats.lecture, "명"),
     ]),
   ]);
 }
@@ -3492,7 +3571,7 @@ function isOnlineClassName(className) {
 }
 
 function isAttendanceExcludedStudent(student) {
-  return student?.attendanceExcluded === true || isOnlineClassName(student?.className);
+  return student?.attendanceExcluded === true || getStudentCategory(student) !== "offline";
 }
 
 function isFitnessExcludedStudent(student) {
@@ -4145,16 +4224,18 @@ function applyRemoteAppSettingsFromNotices(notices) {
 }
 
 async function saveAppSettingsToRemote() {
+  const settings = {
+    attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
+    attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
+  };
+  if (APP_MODE === "teacher" && hasTeacherPermission("students.read")) {
+    settings.onlineManagedStudyCafeEnabled = state.settings.onlineManagedStudyCafeEnabled === true;
+  }
   const response = await fetch("/api/app-settings", {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      settings: {
-        attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
-        attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
-      },
-    }),
+    body: JSON.stringify({ settings }),
   });
   const data = await response.json().catch(() => ({ ok: false }));
   if (!response.ok || !data.ok) throw new Error(data.error || "app_settings_save_failed");
@@ -4216,6 +4297,7 @@ function applyRemoteAppSettings(settings) {
   if (!settings) return;
   state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
+  state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
   lastRemoteAppSettingsHadSeatAssignments = Object.prototype.hasOwnProperty.call(settings, "seatAssignments");
   if (
     lastRemoteAppSettingsHadSeatAssignments &&

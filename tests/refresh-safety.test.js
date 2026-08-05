@@ -196,8 +196,14 @@ function createPeerSelector(state) {
     "state",
     "getStudentCohort",
     "normalizeCoastGuardTrack",
+    "isSameGradeRankingGroup",
     `${peerFunctionSource}; return getStudentRemotePeerIds;`
-  )(state, getStudentCohort, normalizeCoastGuardTrack);
+  )(
+    state,
+    getStudentCohort,
+    normalizeCoastGuardTrack,
+    (leftTrack, rightTrack) => normalizeCoastGuardTrack(leftTrack) === normalizeCoastGuardTrack(rightTrack)
+  );
 }
 
 const students = [

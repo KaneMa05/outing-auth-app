@@ -37,10 +37,9 @@ module.exports = async function handler(req, res) {
     const studentId = normalizeText(body.studentId, 64);
     const deviceToken = normalizeText(body.deviceToken, 256);
     if (!studentId || !deviceToken) return sendError(res, 400, "missing_required_fields");
-    if (!studentId.startsWith("2")) return sendError(res, 403, "online_student_only");
-
     const student = await authenticateStudent(studentId, deviceToken, body.client);
     if (!student) return sendError(res, 403, "device_not_active");
+    if (!hasStudyCafeAccess(student)) return sendError(res, 403, "online_student_only");
     await clearStaleRoomSeats();
 
     if (action === "list") {
@@ -376,6 +375,12 @@ function normalizeUuid(value, code) {
   return id;
 }
 
+function hasStudyCafeAccess(student) {
+  const category = String(student?.student_category || "").trim();
+  if (["online_managed", "lecture"].includes(category)) return true;
+  return !category && String(student?.id || "").startsWith("2");
+}
+
 async function authenticateStudent(studentId, deviceToken, client) {
   const validation = await requestStore("POST", "rpc/validate_student_device", {
     p_student_id: studentId,
@@ -384,8 +389,8 @@ async function authenticateStudent(studentId, deviceToken, client) {
     p_client_user_agent: normalizeText(client?.userAgent, 500) || null,
   });
   if (!validation?.valid) return null;
-  const rows = await requestStore("GET", `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,name,track&limit=1`);
-  return rows?.[0]?.id?.startsWith("2") ? rows[0] : null;
+  const rows = await requestStore("GET", `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,name,track,student_category&limit=1`);
+  return rows?.[0] || null;
 }
 
 async function getRoom(roomId, includeSecret = false) {

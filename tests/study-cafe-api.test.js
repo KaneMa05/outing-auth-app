@@ -244,6 +244,15 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.equal(missing.statusCode, 400);
   assert.equal(missing.payload.error, "missing_required_fields");
 
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
+  global.fetch = async (url, options) => {
+    if (url.includes("rpc/validate_student_device")) return jsonResponse({ valid: true });
+    if (url.includes("students?")) {
+      return jsonResponse([{ id: "18001", student_category: "offline", is_active: true }]);
+    }
+    throw new Error(`unexpected offline request: ${options.method} ${url}`);
+  };
   const offline = await invoke({
     action: "load",
     studentId: "18001",
@@ -252,8 +261,6 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.equal(offline.statusCode, 403);
   assert.equal(offline.payload.error, "online_student_only");
 
-  process.env.SUPABASE_URL = "https://example.supabase.co";
-  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
   const rolloverRequests = [];
   global.fetch = async (url, options) => {
     rolloverRequests.push({ url, options });

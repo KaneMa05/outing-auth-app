@@ -1851,7 +1851,9 @@ function getStudentFinalGradeSummary(student, round = 1) {
   const records = getStudentFinalScoreRecords(round);
   const cohort = getStudentCohort(student);
   const registeredTrack = getStudentRegisteredTrack(student);
-  const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
+  const peers = (state.students || []).filter((item) =>
+    getStudentCohort(item) === cohort && isSameGradeRankingGroup(getStudentRegisteredTrack(item), registeredTrack)
+  );
   const peerIds = new Set(peers.map((peer) => String(peer.id)));
   const externalPeers = records
     .filter((record) => {
@@ -1860,7 +1862,7 @@ function getStudentFinalGradeSummary(student, round = 1) {
       if ((state.students || []).some((item) => String(item.id) === studentId)) return false;
       const recordCohort = String(record.cohort || "");
       const recordTrack = normalizeCoastGuardTrack(record.track || "");
-      return (!recordCohort || recordCohort === cohort) && recordTrack === registeredTrack;
+      return (!recordCohort || recordCohort === cohort) && isSameGradeRankingGroup(recordTrack, registeredTrack);
     })
     .map((record) => ({
       id: record.studentId,
@@ -1904,25 +1906,34 @@ function getStudentFinalGradeSummary(student, round = 1) {
       explicitTopPercent: record.topPercent,
     };
   }).filter((summary) => summary.hasScore);
+  const normalizeFinalScores = new Set(summaries.map((summary) => getStudentRegisteredTrack(summary.student))).size > 1;
   const sorted = [...summaries].sort((a, b) => {
+    if (normalizeFinalScores) {
+      const percentCompare = (Number(b.percent) || 0) - (Number(a.percent) || 0);
+      if (percentCompare) return percentCompare;
+    }
     const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
     if (scoreCompare) return scoreCompare;
     const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
     if (wrongCompare) return wrongCompare;
     return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
   });
+  let previousPercent = null;
   let previousScore = null;
   let previousWrong = null;
   let previousRank = 0;
   sorted.forEach((summary, index) => {
+    const percent = Number(summary.percent) || 0;
     const score = Number(summary.score) || 0;
     const wrong = Number(summary.wrongCount) || 0;
-    const rank = score === previousScore && wrong === previousWrong ? previousRank : index + 1;
+    const sameNormalizedScore = !normalizeFinalScores || percent === previousPercent;
+    const rank = sameNormalizedScore && score === previousScore && wrong === previousWrong ? previousRank : index + 1;
     summary.rank = rank;
     summary.total = sorted.length;
     summary.topPercent = calculateStudentTopPercent(rank, sorted.length);
     summary.displayTopPercent = rank ? Math.max(1, Math.ceil(summary.topPercent)) : 0;
     summary.percentile = Math.round((100 - summary.topPercent) * 10) / 10;
+    previousPercent = percent;
     previousScore = score;
     previousWrong = wrong;
     previousRank = rank;
@@ -2084,7 +2095,9 @@ function getStudentWeeklyGradeSummary(exam, student) {
   }, 0);
   const cohort = getStudentCohort(student);
   const registeredTrack = getStudentRegisteredTrack(student);
-  const peers = (state.students || []).filter((item) => getStudentCohort(item) === cohort && getStudentRegisteredTrack(item) === registeredTrack);
+  const peers = (state.students || []).filter((item) =>
+    getStudentCohort(item) === cohort && isSameGradeRankingGroup(getStudentRegisteredTrack(item), registeredTrack)
+  );
   const peerScores = peers.map((peer) => {
     const peerSections = getStudentExamSections(exam, peer);
     const peerMax = peerSections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, peer), section), 0);

@@ -1,8 +1,314 @@
+const LECTURE_APPLICATION_STATUS_LABELS = {
+  pending: "검토 대기",
+  approved: "승인",
+  rejected: "반려",
+  cancelled: "취소",
+};
+const LECTURE_REFERRAL_SOURCE_LABELS = {
+  naver_cafe: "네이버 카페",
+  referral: "지인 추천",
+  youtube: "유튜브",
+  search: "검색",
+  other: "기타",
+};
+const lectureApplicationAdminState = {
+  applications: [],
+  loading: false,
+  loaded: false,
+  error: "",
+  status: "pending",
+};
+
+function renderOnlineManagedStudyCafeTogglePanel() {
+  const enabled = state.settings.onlineManagedStudyCafeEnabled === true;
+  const toggle = el("input", {
+    type: "checkbox",
+    role: "switch",
+    checked: enabled,
+    ariaLabel: "온라인 관리반 스터디카페 메뉴 사용",
+  });
+  const status = el(
+    "strong",
+    { className: "online-managed-toggle-status" },
+    enabled ? "사용 중" : "사용 안 함"
+  );
+
+  toggle.addEventListener("change", async () => {
+    const nextEnabled = toggle.checked;
+    toggle.disabled = true;
+    try {
+      const response = await fetch("/api/app-settings", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settings: { onlineManagedStudyCafeEnabled: nextEnabled },
+        }),
+      });
+      const data = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !data.ok) throw new Error(data.error || "app_settings_save_failed");
+      applyRemoteAppSettings(data.settings);
+      saveState({ skipRemote: true });
+      render();
+      notify(
+        nextEnabled
+          ? "온라인 관리반 스터디카페 메뉴를 활성화했습니다."
+          : "온라인 관리반 메뉴를 기존 방식으로 되돌렸습니다."
+      );
+    } catch (error) {
+      console.error(error);
+      toggle.checked = enabled;
+      toggle.disabled = false;
+      status.textContent = enabled ? "사용 중" : "사용 안 함";
+      notify("온라인 관리반 메뉴 설정을 저장하지 못했습니다.");
+    }
+  });
+
+  return panel("온라인 관리반 메뉴 설정", [
+    el("div", { className: "online-managed-toggle-row" }, [
+      el("div", {}, [
+        el("strong", {}, "스터디카페형 하단 메뉴"),
+        el(
+          "p",
+          { className: "subtle" },
+          enabled
+            ? "온라인 관리반 학생에게 홈·스터디카페·성적·마이 메뉴가 표시됩니다."
+            : "현재 온라인 관리반 학생에게 기존 홈·출석·외출·성적·마이 메뉴가 표시됩니다."
+        ),
+      ]),
+      el("label", { className: "online-managed-toggle-control" }, [toggle, status]),
+    ]),
+    el(
+      "p",
+      { className: "subtle online-managed-toggle-note" },
+      "인강생 메뉴와 학생 등록 방식에는 영향을 주지 않습니다. 스터디카페 준비가 끝난 뒤 켜주세요."
+    ),
+  ]);
+}
+
+function renderLectureApplicationsAdminPanel() {
+  ensureLectureApplicationsLoaded();
+  const applications = lectureApplicationAdminState.applications;
+  const visible = lectureApplicationAdminState.status === "all"
+    ? applications
+    : applications.filter((application) => application.status === lectureApplicationAdminState.status);
+  const statusSelect = el("select", { ariaLabel: "인강생 신청 상태" }, [
+    el("option", { value: "pending" }, "검토 대기"),
+    el("option", { value: "approved" }, "승인"),
+    el("option", { value: "rejected" }, "반려"),
+    el("option", { value: "all" }, "전체"),
+  ]);
+  statusSelect.value = lectureApplicationAdminState.status;
+  statusSelect.addEventListener("change", () => {
+    lectureApplicationAdminState.status = statusSelect.value;
+    render();
+  });
+
+  const head = el("div", { className: "lecture-application-admin-head" }, [
+    el("div", {}, [
+      el("p", { className: "subtle" }, `검토 대기 ${applications.filter((item) => item.status === "pending").length}건`),
+      el("p", { className: "subtle" }, "승인하면 900001번대 등록번호가 자동 발급됩니다."),
+    ]),
+    el("div", { className: "lecture-application-admin-controls" }, [
+      statusSelect,
+      button("새로고침", "mini-btn", "button", () => loadLectureApplications({ force: true })),
+    ]),
+  ]);
+
+  if (lectureApplicationAdminState.loading && !lectureApplicationAdminState.loaded) {
+    return panel("인강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오는 중입니다.")]);
+  }
+  if (lectureApplicationAdminState.error && !lectureApplicationAdminState.loaded) {
+    return panel("인강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오지 못했습니다.")]);
+  }
+
+  const rows = visible.map((application) => el("tr", {}, [
+    el("td", {}, formatDateCompact(application.createdAt)),
+    el("td", {}, application.name),
+    el("td", {}, maskLectureApplicationPhone(application.phone)),
+    el("td", {}, application.track),
+    el("td", {}, formatLectureReferralSource(application)),
+    el("td", {}, application.lectureId),
+    el("td", {}, el("span", { className: `badge lecture-application-${application.status}` }, LECTURE_APPLICATION_STATUS_LABELS[application.status] || application.status)),
+    el("td", {}, application.approvedStudentId || application.rejectionReason || "-"),
+    el("td", { className: "student-admin-actions" }, [
+      button("상세", "mini-btn", "button", () => openLectureApplicationDetail(application)),
+      application.status === "pending" ? button("승인", "mini-btn", "button", () => approveLectureApplication(application)) : null,
+      application.status === "pending" ? button("반려", "mini-btn danger", "button", () => openRejectLectureApplicationModal(application)) : null,
+    ].filter(Boolean)),
+  ]));
+
+  return panel("인강생 신청 관리", [
+    head,
+    table(
+      ["신청일", "이름", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "해당 상태의 신청이 없습니다."))])]
+    ),
+  ]);
+}
+
+function ensureLectureApplicationsLoaded() {
+  if (lectureApplicationAdminState.loaded || lectureApplicationAdminState.loading) return;
+  loadLectureApplications();
+}
+
+async function loadLectureApplications({ force = false } = {}) {
+  if (lectureApplicationAdminState.loading) return;
+  if (lectureApplicationAdminState.loaded && !force) return;
+  lectureApplicationAdminState.loading = true;
+  lectureApplicationAdminState.error = "";
+  if (currentRoute === "students") render();
+  try {
+    const response = await fetch("/api/lecture-applications?status=all", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "lecture_application_load_failed");
+    lectureApplicationAdminState.applications = (data.applications || []).map(mapLectureApplication);
+    lectureApplicationAdminState.loaded = true;
+  } catch (error) {
+    console.error(error);
+    lectureApplicationAdminState.error = error.message || "lecture_application_load_failed";
+  } finally {
+    lectureApplicationAdminState.loading = false;
+    if (currentRoute === "students") render();
+  }
+}
+
+function mapLectureApplication(row) {
+  return {
+    id: row.id,
+    name: row.name || "",
+    phone: row.phone || "",
+    birthDate: row.birth_date || "",
+    gender: row.gender || "",
+    track: row.track || "",
+    referralSource: row.referral_source || "",
+    referralSourceDetail: row.referral_source_detail || "",
+    lectureId: row.lecture_id || "",
+    status: row.status || "pending",
+    rejectionReason: row.rejection_reason || "",
+    approvedStudentId: row.approved_student_id || "",
+    reviewedAt: row.reviewed_at || "",
+    reviewedBy: row.reviewed_by || "",
+    createdAt: row.created_at || "",
+  };
+}
+
+function maskLectureApplicationPhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 10) return "-";
+  return `${digits.slice(0, 3)}-${digits.slice(3, digits.length - 4).replace(/./g, "*")}-${digits.slice(-4)}`;
+}
+
+function formatLectureReferralSource(application) {
+  const label = LECTURE_REFERRAL_SOURCE_LABELS[application.referralSource] || application.referralSource || "-";
+  return application.referralSourceDetail ? `${label} (${application.referralSourceDetail})` : label;
+}
+
+function openLectureApplicationDetail(application) {
+  const detailRows = [
+    ["이름", application.name],
+    ["휴대전화 번호", application.phone],
+    ["생년월일", application.birthDate],
+    ["성별", application.gender],
+    ["직렬", application.track],
+    ["들어온 경로", formatLectureReferralSource(application)],
+    ["인강 아이디", application.lectureId],
+    ["신청 상태", LECTURE_APPLICATION_STATUS_LABELS[application.status] || application.status],
+    ["등록번호", application.approvedStudentId || "-"],
+    ["반려 사유", application.rejectionReason || "-"],
+  ];
+  openInfoModal({
+    title: "인강생 신청 상세",
+    content: el("dl", { className: "lecture-application-detail" }, detailRows.flatMap(([label, value]) => [
+      el("dt", {}, label),
+      el("dd", {}, value || "-"),
+    ])),
+  });
+}
+
+async function approveLectureApplication(application) {
+  if (!confirm(`${application.name} 신청을 승인할까요? 승인하면 인강생 등록번호가 즉시 발급됩니다.`)) return;
+  await reviewLectureApplication(application, "approved", "");
+}
+
+function openRejectLectureApplicationModal(application) {
+  const reasonInput = textarea("reason", "반려 사유를 입력하세요");
+  const submitButton = button("반려하기", "btn danger");
+  const form = el("form", { className: "form-grid" }, [
+    field("신청자", el("strong", {}, `${application.name} (${application.lectureId})`)),
+    field("반려 사유", reasonInput, "full"),
+    el("div", { className: "lecture-application-actions field full" }, [
+      button("취소", "btn secondary", "button", closeInfoModal),
+      submitButton,
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const reason = String(reasonInput.value || "").trim();
+    if (!reason) return notify("반려 사유를 입력해주세요.");
+    submitButton.disabled = true;
+    try {
+      const reviewed = await reviewLectureApplication(application, "rejected", reason);
+      if (reviewed) closeInfoModal();
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+  openInfoModal({ title: "인강생 신청 반려", content: form, showConfirm: false });
+}
+
+async function reviewLectureApplication(application, status, rejectionReason) {
+  try {
+    const response = await fetch("/api/lecture-applications", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: application.id, status, rejectionReason }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "lecture_application_review_failed");
+    const reviewed = mapLectureApplication(data.application || {});
+    const index = lectureApplicationAdminState.applications.findIndex((item) => item.id === application.id);
+    if (index >= 0) lectureApplicationAdminState.applications[index] = reviewed;
+    if (status === "approved" && reviewed.approvedStudentId && !findStudent(reviewed.approvedStudentId)) {
+      state.students.push({
+        id: reviewed.approvedStudentId,
+        name: reviewed.name,
+        className: "인강생",
+        studentCategory: "lecture",
+        cohort: "",
+        track: reviewed.track,
+        gender: reviewed.gender,
+        attendanceExcluded: true,
+        fitnessExcluded: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      });
+      saveState({ skipRemote: true });
+    }
+    render();
+    notify(status === "approved"
+      ? `${reviewed.name} 학생을 승인했습니다. 등록번호는 ${reviewed.approvedStudentId}입니다.`
+      : `${reviewed.name} 학생의 신청을 반려했습니다.`);
+    return true;
+  } catch (error) {
+    console.error(error);
+    notify(error.message === "application_already_reviewed"
+      ? "이미 처리된 신청입니다. 목록을 새로고침해주세요."
+      : "신청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    return false;
+  }
+}
+
 function teacherStudentForm() {
   const selected = selectedStudentCohortCount();
   const visibleStudents = getStudentsInCohort(selected.value);
   const filteredStudents = getFilteredStudentAdminStudents(visibleStudents);
-  const cohortInput = input("cohort", "number", "18", selected.value || "18");
+  const cohortInput = input("cohort", "number", "18", /^\d{1,2}$/.test(selected.value) ? selected.value : DEFAULT_STUDENT_COHORT);
+  const categorySelect = el("select", { name: "studentCategory" }, [
+    el("option", { value: "offline" }, "오프라인 학생"),
+    el("option", { value: "online_managed" }, "온라인 관리반"),
+  ]);
   const trackSelect = el("select", { name: "track" }, [
     el("option", { value: "" }, "선택 안 함"),
     ...getCoastGuardTrackOptions().map((option) => el("option", { value: option }, option)),
@@ -20,6 +326,7 @@ function teacherStudentForm() {
     rows: 8,
   });
   const form = el("form", { className: "form-grid" }, [
+    field("학생 카테고리", categorySelect, "", "인강생 신규 신청은 2차 개발의 승인 화면에서 등록됩니다."),
     field("기수", cohortInput),
     field("기본 반", input("className", "text", "오프라인반", state.settings.className)),
     field("직렬", trackSelect, "", "선택하면 이번 등록 명단에 동일하게 적용됩니다."),
@@ -37,14 +344,15 @@ function teacherStudentForm() {
     const data = formData(form);
     const cohort = String(data.cohort || "").trim();
     if (!isValidCohort(cohort)) return notify("기수를 숫자로 입력해주세요.");
-    const parsed = parseStudentRoster(data.roster, cohort);
+    const studentCategory = normalizeStudentCategory(data.studentCategory) || "offline";
+    const parsed = parseStudentRoster(data.roster, cohort, studentCategory);
     if (!parsed.length) return notify("등록할 학생 번호와 이름을 입력해주세요.");
     const track = resolveStudentTrack(data.track, data.customTrack);
     if (data.track && !track) return notify("기타 직렬을 입력해주세요.");
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
     try {
-      const result = upsertStudents(parsed, data.className, track);
+      const result = upsertStudents(parsed, data.className, track, studentCategory, cohort);
       selectedStudentCohort = cohort;
       await saveStudentsToRemote(parsed.map((student) => student.id));
       saveState({ skipRemote: true });
@@ -65,8 +373,9 @@ function teacherStudentForm() {
     .map((student) => {
       const profile = getStudentProfileForTeacher(student.id);
       return el("tr", {}, [
-        el("td", {}, formatStudentNumber(student.id)),
+        el("td", {}, student.id),
         el("td", {}, student.name),
+        el("td", {}, el("span", { className: `badge student-category-${getStudentCategory(student)}` }, getStudentCategoryLabel(student))),
         el("td", {}, student.className),
         el("td", {}, profile ? el("span", { className: "badge approved" }, "완료") : el("span", { className: "badge" }, "미등록")),
         el("td", {}, formatDateCompact(profile?.authedAt)),
@@ -78,8 +387,8 @@ function teacherStudentForm() {
     });
 
   const studentTable = table(
-    ["번호", "이름", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
-    rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
+    ["등록번호", "이름", "카테고리", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석", "관리"],
+    rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 10 }, el("div", { className: "empty table-empty" }, visibleStudents.length ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."))])]
   );
   studentTable.classList.add("student-admin-table-wrap");
 
@@ -97,6 +406,7 @@ function renderStudentAdminActionMenu(student, profile) {
     el("summary", { className: "mini-btn student-action-menu-trigger" }, "관리"),
     el("div", { className: "student-action-menu-list" }, [
       button("미리보기", "student-action-menu-item", "button", () => openStudentPreview(student.id)),
+      button("카테고리 변경", "student-action-menu-item", "button", () => openStudentCategoryEditModal(student.id)),
       button("반 변경", "student-action-menu-item", "button", () => openStudentClassEditModal(student.id)),
       button("직렬 변경", "student-action-menu-item", "button", () => openStudentTrackEditModal(student.id)),
       button("기기 이력", "student-action-menu-item", "button", () => openStudentRegistrationHistory(student.id)),
@@ -109,6 +419,63 @@ function renderStudentAdminActionMenu(student, profile) {
       button("삭제", "student-action-menu-item danger", "button", () => deleteStudent(student.id)),
     ]),
   ]);
+}
+
+function openStudentCategoryEditModal(studentId) {
+  const student = findStudent(studentId);
+  if (!student) return notify("학생 정보를 찾을 수 없습니다.");
+  const categorySelect = el("select", { name: "studentCategory" }, STUDENT_CATEGORY_OPTIONS.map((option) =>
+    el("option", { value: option.value }, option.label)
+  ));
+  categorySelect.value = getStudentCategory(student);
+  const cohortInput = input("cohort", "number", "예: 18", getStudentCohort(student));
+  const syncCohortState = () => {
+    const lecture = categorySelect.value === "lecture";
+    cohortInput.disabled = lecture;
+    if (lecture) cohortInput.value = "";
+  };
+  categorySelect.addEventListener("change", syncCohortState);
+  syncCohortState();
+
+  const form = el("form", { className: "form-grid" }, [
+    field("학생", el("strong", {}, `${student.name || "-"} (${student.id})`)),
+    field("학생 카테고리", categorySelect),
+    field("기수", cohortInput, "", "인강생은 기수를 사용하지 않습니다."),
+    el("div", { className: "attendance-modal-actions field full" }, [
+      button("취소", "btn secondary", "button", closeInfoModal),
+      button("저장", "btn"),
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    await updateStudentCategory(student.id, data.studentCategory, data.cohort);
+  });
+  openInfoModal({ title: "학생 카테고리 변경", content: form });
+}
+
+async function updateStudentCategory(studentId, nextCategory, nextCohort) {
+  const student = findStudent(studentId);
+  const category = normalizeStudentCategory(nextCategory);
+  const cohort = category === "lecture" ? "" : String(nextCohort || "").trim();
+  if (!student || !category) return notify("학생 카테고리를 확인해주세요.");
+  if (category !== "lecture" && !isValidCohort(cohort)) return notify("기수를 숫자로 입력해주세요.");
+  const previousStudent = { ...student };
+  try {
+    student.studentCategory = category;
+    student.cohort = cohort;
+    if (category !== "offline") student.attendanceExcluded = true;
+    await saveStudentsToRemote([student.id]);
+    saveState({ skipRemote: true });
+    closeInfoModal();
+    render();
+    notify(`${student.name || student.id} 학생을 ${getStudentCategoryLabel(category)}으로 변경했습니다.`);
+  } catch (error) {
+    console.error(error);
+    Object.assign(student, previousStudent);
+    render();
+    notify("학생 카테고리 변경을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
 }
 
 function openStudentClassEditModal(studentId) {
@@ -458,8 +825,14 @@ function formatUserAgentPreview(userAgent) {
 
 function studentAdminSearchControls(totalCount, filteredCount) {
   const search = input("studentAdminSearch", "search", "번호 또는 이름 검색", studentAdminFilters.query);
+  const categorySelect = el("select", { name: "studentCategory" }, [
+    el("option", { value: "all" }, "전체 카테고리"),
+    ...STUDENT_CATEGORY_OPTIONS.map((option) => el("option", { value: option.value }, option.label)),
+  ]);
+  categorySelect.value = studentAdminFilters.category;
   const form = el("form", { className: "teacher-search student-admin-search" }, [
     field("학생 검색", search),
+    field("카테고리", categorySelect),
     el("div", { className: "field" }, [
       el("span", {}, " "),
       button("검색", "btn secondary"),
@@ -469,6 +842,7 @@ function studentAdminSearchControls(totalCount, filteredCount) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     studentAdminFilters.query = search.value;
+    studentAdminFilters.category = categorySelect.value;
     render();
   });
 
@@ -1115,6 +1489,8 @@ async function saveStudentsToRemote(studentIds) {
       id: student.id,
       name: student.name,
       class_name: student.className || state.settings.className || "오프라인반",
+      student_category: getStudentCategory(student),
+      cohort: getStudentCohort(student) ? Number(getStudentCohort(student)) : null,
       track: normalizeCoastGuardTrack(student.track) || null,
       is_active: true,
       attendance_excluded: student.attendanceExcluded === true,
@@ -1150,6 +1526,8 @@ async function saveStudentsToRemote(studentIds) {
       .update({
         name: row.name,
         class_name: row.class_name,
+        student_category: row.student_category,
+        cohort: row.cohort,
         track: row.track,
         attendance_excluded: row.attendance_excluded,
         fitness_excluded: row.fitness_excluded,
@@ -1161,6 +1539,8 @@ async function saveStudentsToRemote(studentIds) {
         .update({
           name: row.name,
           class_name: row.class_name,
+          student_category: row.student_category,
+          cohort: row.cohort,
           track: row.track,
         })
         .eq("id", row.id);
@@ -1174,7 +1554,7 @@ async function saveStudentsToRemote(studentIds) {
 }
 
 
-function parseStudentRoster(value, cohort) {
+function parseStudentRoster(value, cohort, studentCategory = "offline") {
   return String(value || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -1183,7 +1563,9 @@ function parseStudentRoster(value, cohort) {
       const parts = line.includes(",") || line.includes("\t") ? line.split(/[,\t]/) : line.split(/\s+/);
       const studentNumber = Number((parts.shift() || "").trim());
       const name = parts.join(" ").trim();
-      if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 999 || !name) return null;
+      const minimum = studentCategory === "online_managed" ? 200 : 1;
+      const maximum = studentCategory === "online_managed" ? 999 : 199;
+      if (!Number.isInteger(studentNumber) || studentNumber < minimum || studentNumber > maximum || !name) return null;
       return { id: buildStudentId(cohort, studentNumber), name };
     })
     .filter(Boolean);

@@ -31,6 +31,9 @@ html {
 /* Private study rooms */
 .study-room-open-button,
 .study-room-manage-button,
+.study-room-cafe-button,
+.study-room-menu-button,
+.study-room-return-button,
 .study-room-leave-button,
 .study-room-subject-button {
   border: 1px solid rgba(26, 63, 106, 0.18);
@@ -123,16 +126,50 @@ html {
   gap: 7px;
 }
 
-.study-private-room-count {
-  border-radius: 999px;
-  padding: 7px 10px;
-  background: var(--room-accent-soft);
+.study-private-room-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 14px 9px;
+  color: var(--room-muted);
+}
+
+.study-private-room-overview > strong {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.study-private-room-members-link {
+  border: 0;
+  background: transparent;
   color: var(--room-accent);
-  font-size: 0.78rem;
-  font-weight: 800;
+  padding: 3px 0;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--room-accent) 35%, transparent);
+  text-underline-offset: 3px;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.study-private-room-members-link:hover {
+  color: var(--room-ink);
+  text-decoration-color: currentColor;
+}
+
+.study-private-room-members-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--room-accent) 28%, transparent);
+  outline-offset: 2px;
 }
 
 .study-room-manage-button,
+.study-room-cafe-button,
+.study-room-menu-button,
 .study-room-leave-button {
   min-height: 32px;
   border-color: color-mix(in srgb, var(--room-accent) 28%, transparent);
@@ -140,6 +177,25 @@ html {
   color: var(--room-ink);
   padding: 6px 9px;
   font-size: 0.75rem;
+}
+
+.study-room-cafe-button {
+  color: var(--room-accent);
+}
+
+.study-room-menu-button {
+  background: transparent;
+  color: var(--room-muted);
+}
+
+.study-room-return-button {
+  min-height: 29px;
+  border-color: color-mix(in srgb, var(--room-accent) 28%, transparent);
+  border-radius: 8px;
+  background: var(--room-accent-soft);
+  color: var(--room-ink);
+  padding: 5px 8px;
+  font-size: 0.68rem;
 }
 
 .study-room-leave-button {
@@ -185,10 +241,20 @@ html {
 }
 
 .study-private-my-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  width: 104px;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 7px;
+}
+
+.study-private-my-actions .study-room-subject-button,
+.study-private-my-actions .study-private-release-button {
+  width: 100%;
+  min-height: 38px;
+  margin: 0;
+  padding: 7px 9px;
+  font-size: 0.75rem;
+  line-height: 1.2;
 }
 
 .study-private-release-button {
@@ -455,6 +521,7 @@ html {
 .study-room-list-modal .info-modal-panel,
 .study-room-create-modal .info-modal-panel,
 .study-room-manage-modal .info-modal-panel,
+.study-room-members-modal .info-modal-panel,
 .study-room-join-modal .info-modal-panel {
   width: min(94vw, 540px);
 }
@@ -567,7 +634,173 @@ html {
   font-size: 0.8rem;
 }
 
+.study-room-members-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+.study-room-members-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e1e8ef;
+  border-radius: 11px;
+  padding: 10px;
+  background: #f8fafc;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.study-room-members-item.mine {
+  border-color: color-mix(in srgb, var(--accent) 32%, #e1e8ef);
+  background: color-mix(in srgb, var(--accent-soft) 45%, white);
+}
+
+.study-room-members-item.is-clickable {
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.study-room-members-item.is-clickable:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, #e1e8ef);
+  background: color-mix(in srgb, var(--accent-soft) 28%, #f8fafc);
+}
+
+.study-room-members-item.is-clickable:active {
+  transform: translateY(1px);
+}
+
+.study-room-members-item.is-clickable:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.study-room-members-profile {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.study-room-members-avatar {
+  flex: 0 0 auto;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #d8e7f4;
+  color: #315b7d;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.study-room-members-avatar.tone-mint { background: #d9f0e9; color: #277060; }
+.study-room-members-avatar.tone-purple { background: #e8e0f4; color: #67518c; }
+.study-room-members-avatar.tone-orange { background: #f5e5d2; color: #8c5b25; }
+.study-room-members-avatar.tone-rose { background: #f4dfe6; color: #8c4f63; }
+.study-room-members-avatar.tone-navy { background: #dbe2ec; color: #344d6a; }
+
+.study-room-members-profile > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.study-room-members-profile strong {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: #233b51;
+  font-size: 0.82rem;
+}
+
+.study-room-members-profile strong > span:not(.study-room-host-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-room-host-label {
+  flex: 0 0 auto;
+  color: #8a6927;
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+.study-room-members-profile > div > span,
+.study-room-members-meta {
+  color: #708194;
+  font-size: 0.68rem;
+}
+
+.study-room-members-meta {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.study-room-members-meta [class^="status-"] {
+  color: #597086;
+  font-weight: 850;
+}
+
+.study-room-members-meta .status-studying { color: #16805b; }
+.study-room-members-meta .status-paused { color: #9a6b25; }
+
+.study-room-members-item-arrow {
+  color: #8091a2;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
 .study-room-close-button {
+  width: 100%;
+}
+
+.study-room-options-modal .info-modal-panel {
+  width: min(92vw, 420px);
+}
+
+.study-room-options-content {
+  display: grid;
+  gap: 10px;
+}
+
+.study-room-options-summary {
+  display: grid;
+  gap: 4px;
+  border-radius: 11px;
+  padding: 12px;
+  background: #f5f8fb;
+}
+
+.study-room-options-summary > strong {
+  color: #263f56;
+}
+
+.study-room-options-summary > span {
+  color: #708194;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.study-room-options-summary > p {
+  margin: 4px 0 0;
+  color: #64788b;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.study-room-withdraw-button {
+  margin-top: 5px;
   width: 100%;
 }
 
@@ -613,6 +846,7 @@ html {
     align-items: stretch;
     flex-direction: column;
   }
+
 }
 
 body {
@@ -4276,7 +4510,8 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   background: #111;
 }
 
-.info-modal {
+.info-modal,
+.study-cafe-auto-pause-modal {
   position: fixed;
   inset: 0;
   z-index: 210;
@@ -4889,6 +5124,56 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   font-size: 0.88rem;
 }
 
+.online-managed-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.online-managed-toggle-row p {
+  margin: 6px 0 0;
+}
+
+.online-managed-toggle-control {
+  min-width: 116px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+
+.online-managed-toggle-control input {
+  width: 18px;
+  height: 18px;
+}
+
+.online-managed-toggle-status {
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.online-managed-toggle-note {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 620px) {
+  .online-managed-toggle-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .online-managed-toggle-control {
+    align-self: flex-start;
+  }
+}
+
 .attendance-settings-modal {
   gap: 14px;
 }
@@ -5311,13 +5596,16 @@ body.student-footer-tap-guard .study-cafe-seat {
   display: none;
 }
 
-body.student-online-mode .student-footer-menu {
+body.student-online-managed-mode .normal-student-footer {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-body.student-online-mode .study-cafe-footer-menu,
 body.student-study-mode .study-cafe-footer-menu {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.student-footer-menu [hidden] {
+  display: none !important;
 }
 
 .normal-student-footer {
@@ -5328,7 +5616,7 @@ body.student-study-mode .study-cafe-footer-menu {
 }
 
 .study-cafe-footer-menu {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -5343,7 +5631,7 @@ body.student-study-mode .study-cafe-footer-menu {
   bottom: 7px;
   left: 7px;
   z-index: 0;
-  width: calc(16.666667% - 5.666667px);
+  width: calc(20% - 5.6px);
   border-radius: 10px;
   background: var(--accent-soft);
   pointer-events: none;
@@ -5394,6 +5682,21 @@ body.student-online-mode .student-footer-menu [data-route="study-cafe"] {
 body.student-online-mode .student-footer-menu [data-route="attendance"],
 body.student-online-mode .student-footer-menu [data-route="student"] {
   display: none;
+}
+
+.badge.student-category-offline {
+  background: #eef3f7;
+  color: #425c70;
+}
+
+.badge.student-category-online_managed {
+  background: #e8f4ff;
+  color: #1267a4;
+}
+
+.badge.student-category-lecture {
+  background: #f1edff;
+  color: #6947aa;
 }
 
 body[data-app-mode="teacher"] .student-footer-menu {
@@ -9139,6 +9442,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .study-cafe-room .study-cafe-my-seat-copy {
   grid-column: 2 / -1;
+  padding-right: 12px;
 }
 
 .study-cafe-room .study-cafe-my-seat-eyebrow,
@@ -9246,66 +9550,33 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   white-space: nowrap;
 }
 
-.study-cafe-ranking-room-guide {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.study-cafe-room-label-row.actions-only {
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.study-cafe-first-use-guide {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 10px 10px 0;
-  border: 1px solid color-mix(in srgb, var(--room-accent) 34%, transparent);
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--room-accent-soft) 78%, #fff);
-  padding: 11px 12px;
-}
-
-.study-cafe-ranking-room-guide > div:first-child {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.study-cafe-ranking-room-guide > div:first-child > span {
-  color: var(--room-accent);
-  font-size: 0.54rem;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-}
-
-.study-cafe-ranking-room-guide > div:first-child > strong {
-  color: var(--room-ink);
-  font-size: 0.82rem;
-}
-
-.study-cafe-ranking-room-guide p {
-  margin: 0;
+  gap: 7px;
+  margin: 8px 11px 0;
   color: var(--room-muted);
-  font-size: 0.62rem;
+  font-size: 0.65rem;
+  font-weight: 800;
   line-height: 1.4;
 }
 
-.study-cafe-ranking-room-summary {
+.study-cafe-first-use-guide > span {
   display: grid;
-  justify-items: end;
-  gap: 4px;
-}
-
-.study-cafe-ranking-room-summary > span,
-.study-cafe-ranking-room-summary > strong {
-  border-radius: 999px;
-  padding: 4px 7px;
-  font-size: 0.58rem;
+  flex: 0 0 18px;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--room-accent-soft);
+  color: var(--room-accent);
+  font-size: 0.62rem;
   font-weight: 950;
-  white-space: nowrap;
-}
-
-.study-cafe-ranking-room-summary > span {
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--room-muted);
-}
-
-.study-cafe-ranking-room-summary > strong {
-  background: var(--room-accent);
-  color: #fff;
 }
 
 .study-cafe-room-tabs {
@@ -9735,6 +10006,18 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   animation: study-cafe-writing-right 1.2s ease-in-out -0.6s infinite alternate;
 }
 
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm {
+  animation: none;
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm.left {
+  transform: rotate(-13deg);
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm.right {
+  transform: rotate(13deg);
+}
+
 .study-cafe-avatar.mint .study-cafe-avatar-body {
   background: #52b99c;
 }
@@ -9896,6 +10179,30 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-weight: 900;
+}
+
+.study-room-browse-guide {
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 30%, #fff);
+}
+
+.study-room-return-guide-button {
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent-strong);
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.study-cafe-seat.browse-only.empty {
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 .study-cafe-floating-controls {
@@ -11085,6 +11392,55 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   color: var(--accent-strong);
 }
 
+.study-cafe-admin-private-room-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.study-cafe-admin-private-room-tab {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 3px;
+  min-width: 132px;
+  border: 1px solid #dce7f1;
+  border-radius: 12px;
+  background: #f8fbfe;
+  color: #60758a;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.study-cafe-admin-private-room-tab strong {
+  max-width: 180px;
+  overflow: hidden;
+  color: #153451;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-cafe-admin-private-room-tab span {
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.study-cafe-admin-private-room-tab.active {
+  border-color: #76b7e5;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  box-shadow: 0 5px 14px rgba(18, 67, 108, 0.09);
+}
+
+.study-cafe-admin-private-room-tab:focus-visible {
+  outline: 3px solid rgba(0, 111, 191, 0.24);
+  outline-offset: 2px;
+}
+
 .study-cafe-admin-room {
   display: grid;
   gap: 10px;
@@ -11105,6 +11461,42 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   color: #6f8192;
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.study-cafe-admin-private-room {
+  border: 1px solid #dce7f1;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #fbfdff, #f2f7fb);
+  padding: 14px;
+}
+
+.study-cafe-admin-private-room-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.study-cafe-admin-private-room-head strong {
+  color: #153451;
+}
+
+.study-cafe-admin-private-room-head p,
+.study-cafe-admin-private-room-waiting {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.study-cafe-admin-private-room-head > span {
+  flex: 0 0 auto;
+  color: #5d7287;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.study-cafe-admin-seat-grid.private {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .study-cafe-admin-seat-grid {
@@ -11377,9 +11769,14 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
 
 @media (max-width: 680px) {
   .study-cafe-admin-head,
-  .study-cafe-admin-section-head {
+  .study-cafe-admin-section-head,
+  .study-cafe-admin-private-room-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .study-cafe-admin-private-room-head > span {
+    align-self: flex-start;
   }
 
   .study-cafe-admin-head-actions {
@@ -12468,14 +12865,259 @@ body.student-study-mode .sidebar {
 body.student-study-mode .main-shell {
   padding-top: 8px;
 }
+.lecture-application-entry-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #d8e3ef;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(39, 65, 91, 0.08);
+}
 
-@media (max-width: 360px) {
-  .study-cafe-ranking-room-guide {
+.student-browser-install-only-view .lecture-application-entry-card {
+  width: min(620px, 100%);
+}
+
+.lecture-application-entry-card strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #18344d;
+  font-size: 17px;
+}
+
+.lecture-application-entry-card p {
+  margin: 0;
+  color: #64788b;
+  line-height: 1.55;
+}
+
+.lecture-application-status-card {
+  padding: 20px;
+  border: 1px solid #ead9aa;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fffdf7, #fff9e9);
+  box-shadow: 0 10px 28px rgba(91, 72, 25, 0.08);
+}
+
+.lecture-application-status-card.status-approved {
+  border-color: #bde5d6;
+  background: linear-gradient(145deg, #fbfffd, #effbf6);
+}
+
+.lecture-application-status-card.status-rejected,
+.lecture-application-status-card.status-cancelled {
+  border-color: #efc8cb;
+  background: linear-gradient(145deg, #fffdfd, #fff2f3);
+}
+
+.lecture-application-status-content {
+  display: grid;
+  gap: 12px;
+}
+
+.lecture-application-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lecture-application-status-content h3,
+.lecture-application-status-content p {
+  margin: 0;
+}
+
+.lecture-application-status-content h3 {
+  color: #18344d;
+  font-size: 18px;
+}
+
+.lecture-application-status-content > p {
+  color: #64788b;
+  line-height: 1.6;
+}
+
+.lecture-application-status-meta {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 7px 10px;
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+}
+
+.lecture-application-status-meta dt,
+.lecture-application-status-meta dd {
+  margin: 0;
+}
+
+.lecture-application-status-meta dt {
+  color: #718395;
+}
+
+.lecture-application-status-meta dd {
+  color: #29445c;
+  font-weight: 700;
+}
+
+.lecture-application-approved-number {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #cce8dc;
+}
+
+.lecture-application-approved-number span {
+  color: #64788b;
+  font-size: 0.8rem;
+}
+
+.lecture-application-approved-number strong {
+  color: #0d6d4d;
+  font-size: 1.45rem;
+  letter-spacing: 0.04em;
+}
+
+.lecture-application-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.lecture-application-status-error {
+  color: #a44833 !important;
+  font-size: 0.82rem;
+}
+
+.info-modal-panel.lecture-application-modal {
+  width: min(680px, calc(100vw - 28px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.lecture-application-form .student-auth-result {
+  grid-column: 1 / -1;
+}
+
+.lecture-application-consent {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f5f8fb;
+}
+
+.lecture-application-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.lecture-application-actions,
+.lecture-application-admin-controls,
+.lecture-application-admin-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lecture-application-actions {
+  justify-content: flex-end;
+}
+
+.lecture-application-admin-head {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.lecture-application-admin-head p {
+  margin: 2px 0;
+}
+
+.lecture-application-admin-controls select {
+  min-width: 120px;
+}
+
+.badge.lecture-application-pending {
+  color: #8a5b00;
+  background: #fff3cf;
+}
+
+.badge.lecture-application-approved {
+  color: #0d6d4d;
+  background: #dff7ed;
+}
+
+.badge.lecture-application-rejected,
+.badge.lecture-application-cancelled {
+  color: #9f3941;
+  background: #fde8ea;
+}
+
+.lecture-application-detail {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.7fr) minmax(0, 1.8fr);
+  gap: 0;
+  margin: 12px 0 18px;
+  overflow: hidden;
+  border: 1px solid #dfe7ee;
+  border-radius: 14px;
+}
+
+.lecture-application-detail dt,
+.lecture-application-detail dd {
+  margin: 0;
+  padding: 11px 13px;
+  border-bottom: 1px solid #e7edf2;
+}
+
+.lecture-application-detail dt {
+  color: #526b80;
+  background: #f5f8fb;
+  font-weight: 700;
+}
+
+.lecture-application-detail dd {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .lecture-application-entry-card,
+  .lecture-application-admin-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lecture-application-entry-card .btn,
+  .lecture-application-status-actions .btn,
+  .lecture-application-admin-controls,
+  .lecture-application-admin-controls select,
+  .lecture-application-admin-controls .mini-btn {
+    width: 100%;
+  }
+
+  .lecture-application-status-actions {
+    flex-direction: column;
+  }
+
+  .lecture-application-detail {
     grid-template-columns: 1fr;
   }
 
-  .study-cafe-ranking-room-summary {
-    display: flex;
-    justify-content: flex-start;
+  .lecture-application-detail dt,
+  .lecture-application-detail dd {
+    border-bottom: 0;
+  }
+
+  .lecture-application-detail dd {
+    border-bottom: 1px solid #e7edf2;
   }
 }

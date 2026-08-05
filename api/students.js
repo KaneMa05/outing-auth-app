@@ -81,12 +81,16 @@ function normalizeStudentRow(student) {
   const name = String(student.name || "").trim();
   if (!id || !name) return null;
   const className = String(student.class_name || student.className || "오프라인반").trim() || "오프라인반";
+  const studentCategory = normalizeStudentCategory(student.student_category || student.studentCategory, id, className);
+  const cohort = normalizeCohort(student.cohort, id, studentCategory);
   return {
     id,
     name,
     class_name: className,
+    student_category: studentCategory,
+    cohort,
     track: String(student.track || "").trim() || null,
-    attendance_excluded: student.attendance_excluded === true || student.attendanceExcluded === true || isOnlineClassName(className),
+    attendance_excluded: student.attendance_excluded === true || student.attendanceExcluded === true || studentCategory !== "offline",
     fitness_excluded: student.fitness_excluded === true || student.fitnessExcluded === true,
     created_at: student.created_at || student.createdAt || new Date().toISOString(),
   };
@@ -94,6 +98,23 @@ function normalizeStudentRow(student) {
 
 function isOnlineClassName(className) {
   return String(className || "").includes("온라인");
+}
+
+function normalizeStudentCategory(value, studentId, className) {
+  const category = String(value || "").trim().toLowerCase();
+  if (["offline", "online_managed", "lecture"].includes(category)) return category;
+  if (String(studentId || "").startsWith("2") || /^9\d{5}$/.test(String(studentId || ""))) return "lecture";
+  return isOnlineClassName(className) ? "online_managed" : "offline";
+}
+
+function normalizeCohort(value, studentId, studentCategory) {
+  if (studentCategory === "lecture") return null;
+  const explicit = Number(value);
+  if (Number.isInteger(explicit) && explicit >= 1 && explicit <= 99) return explicit;
+  const id = String(studentId || "").trim();
+  if (!/^\d{4,5}$/.test(id)) return null;
+  const inferred = Number(id.slice(0, -3));
+  return Number.isInteger(inferred) && inferred >= 1 && inferred <= 99 ? inferred : null;
 }
 
 async function upsertStudent(row) {
@@ -114,6 +135,8 @@ async function upsertStudent(row) {
   const payload = {
     name: row.name,
     class_name: row.class_name,
+    student_category: row.student_category,
+    cohort: row.cohort,
     track: row.track,
     attendance_excluded: row.attendance_excluded,
     fitness_excluded: row.fitness_excluded,

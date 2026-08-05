@@ -114,7 +114,7 @@ assert.match(
   /function openInfoModal\(\{[\s\S]*?confirmDisabled = false[\s\S]*?return \{ modal, confirmButton \}/
 );
 assert.match(styleSource, /\.study-cafe-seat\.empty\.loading/);
-assert.match(appSource, /mutateStudyCafeRemote\("timer_pause", \{\}, \{ refresh: false \}\)/);
+assert.match(appSource, /mutateStudyCafeRemote\("timer_pause", \{\}, \{[\s\S]*?refresh: false,[\s\S]*?keepalive: automatic/);
 assert.match(appSource, /"timer_stop",\s*\{ subjectCompleted: options\.subjectCompleted === true \}/);
 assert.match(appSource, /className: "study-todo-goal-select"/);
 assert.match(appSource, /○ 목표시간 내 완료 · △ 목표시간 초과 완료/);
@@ -221,15 +221,23 @@ assert.match(appSource, /Date\.now\(\) - studyCafeRemoteState\.lastLoadedAt < ma
 assert.match(appSource, /if \(options\.retryWhenLoading !== false\)/);
 assert.match(appSource, /result\.ok && action !== "heartbeat"/);
 assert.match(appSource, /result\.error === "seat_taken"/);
-assert.match(appSource, /document\.addEventListener\("visibilitychange", refreshWhenActive\)/);
+assert.match(appSource, /document\.addEventListener\("visibilitychange", pauseWhenHidden\)/);
+assert.match(appSource, /window\.addEventListener\("blur", \(\) => scheduleStudyCafeAutoPause\(STUDY_CAFE_FOCUS_PAUSE_DELAY_MS\)\)/);
 assert.match(appSource, /window\.addEventListener\("focus", refreshWhenActive\)/);
 assert.match(appSource, /window\.addEventListener\("pageshow", refreshWhenActive\)/);
+assert.match(appSource, /window\.addEventListener\("pagehide", \(\) => scheduleStudyCafeAutoPause\(0\)\)/);
+assert.match(appSource, /const STUDY_CAFE_FOCUS_PAUSE_DELAY_MS = 1500/);
+assert.match(
+  appSource,
+  /studyCafeRemoteState\.heartbeatTimer = window\.setInterval\([\s\S]*?document\.visibilityState !== "hidden"[\s\S]*?document\.hasFocus\(\)[\s\S]*?mutateStudyCafeRemote\("heartbeat"/
+);
+assert.match(appSource, /keepalive: options\.keepalive === true/);
 assert.match(appSource, /\}, STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS\)/);
 assert.doesNotMatch(
   appSource,
   /studyCafeRemoteState\.refreshTimer = window\.setInterval\([\s\S]*?\}, 15000\)/
 );
-assert.match(appSource, /String\(student\?\.id \|\| ""\)\.trim\(\)\.startsWith\("2"\)/);
+assert.match(appSource, /return getStudentCategory\(student\) === "lecture"/);
 assert.match(appSource, /onlineMode \? renderStudyCafeHomeCard\(student\) : null/);
 assert.match(appSource, /onlineMode \? null : renderStudentImportantNoticeCard\(\)/);
 assert.match(appSource, /function getStudyCafeFocusedCount\(\)/);
@@ -240,15 +248,15 @@ assert.doesNotMatch(appSource, /현재 5명이 함께 공부하고 있어요/);
 assert.match(appSource, /button\("스터디카페 입장", "btn", "button", \(\) => navigate\("study-cafe"\)\)/);
 assert.doesNotMatch(appSource, /seated \? "공부방 보기" : "스터디카페 보기"/);
 assert.match(appSource, /new URLSearchParams\(location\.search\)\.get\("studentMode"\) === "online"/);
-assert.match(appSource, /if \(onlineMode && \["student", "student-verify", "student-return", "student-done", "attendance"\]\.includes\(normalized\)\) return "home"/);
-assert.match(appSource, /if \(!onlineMode && \["study-todo", "study-cafe", "study-timer", "study-ranking", "study-character"\]\.includes\(normalized\)\) return "home"/);
+assert.match(appSource, /const allowedRoutes = getAllowedStudentRoutes\(category\)/);
+assert.match(appSource, /return category === "lecture" \? "study-todo" : "home"/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-online-mode", onlineMode\)/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-study-mode", studyMode\)/);
 assert.match(indexSource, /class="student-footer-menu study-cafe-footer-menu"/);
 assert.match(
   indexSource,
-  /study-cafe-footer-menu[\s\S]*?data-study-cafe-back[\s\S]*?data-route="study-todo"[\s\S]*?data-route="study-cafe"/,
-  "back should remain before the study footer routes"
+  /study-cafe-footer-menu[\s\S]*?data-study-cafe-back[^>]*hidden[\s\S]*?data-route="study-todo"[\s\S]*?data-route="study-cafe"[\s\S]*?data-route="mypage"/,
+  "lecture footer should expose todo, cafe and my while keeping the legacy back action hidden"
 );
 assert.match(indexSource, /footer-icon-study-back/);
 assert.match(indexSource, /footer-icon-home/);
@@ -304,7 +312,7 @@ assert.match(appSource, /if \(button\.matches\("a"\)\) event\.preventDefault\(\)
 assert.doesNotMatch(indexSource, /onclick="window\.__studentNav/);
 assert.match(
   appSource,
-  /function handleRouteHistoryChange\(\)[\s\S]*?if \(nextRoute === currentRoute\) return;[\s\S]*?currentRoute = nextRoute;[\s\S]*?render\(\)/
+  /function handleRouteHistoryChange\(\)[\s\S]*?if \(nextRoute === currentRoute\) \{[\s\S]*?return;[\s\S]*?currentRoute = nextRoute;[\s\S]*?render\(\)/
 );
 assert.match(appSource, /addEventListener\("hashchange", handleRouteHistoryChange\)/);
 assert.match(appSource, /addEventListener\("popstate", handleRouteHistoryChange\)/);
@@ -314,7 +322,27 @@ assert.doesNotMatch(appSource, /number\.textContent = "저장 중"/);
 assert.match(appSource, /function cancelStudyCafeCountdown\(\)/);
 assert.match(
   appSource,
-  /async function toggleStudyCafePreviewTimer\(\)[\s\S]*?if \(!confirm\("공부 타이머를 일시정지할까요\?"\)\) return;[\s\S]*?beginStudyCafeLocalSessionMutation\(\)[\s\S]*?const pausedElapsedMs = getStudyCafeElapsedMs\(\)[\s\S]*?studyCafePreviewState\.running = false[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote\("timer_pause", \{\}, \{ refresh: false \}\)/
+  /async function pauseStudyCafeTimer\(options = \{\}\)[\s\S]*?if \(!automatic && !confirm\("공부 타이머를 일시정지할까요\?"\)\) return false;[\s\S]*?beginStudyCafeLocalSessionMutation\(\)[\s\S]*?const pausedElapsedMs = getStudyCafeElapsedMs\(\)[\s\S]*?studyCafePreviewState\.running = false[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?mutateStudyCafeRemote\("timer_pause"[\s\S]*?keepalive: automatic/
+);
+assert.match(
+  appSource,
+  /function scheduleStudyCafeAutoPause\(delay = 0\)[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+);
+assert.match(
+  appSource,
+  /function showStudyCafeAutoPauseModal\(\)[\s\S]*?button\("계속 공부하기"[\s\S]*?beginStudyCafeTimer\([\s\S]*?true[\s\S]*?button\("공부 종료하기"[\s\S]*?closeAutoPauseModalOnSuccess: true[\s\S]*?button\("일시정지 유지"[\s\S]*?className: "study-cafe-auto-pause-modal"[\s\S]*?role: "alertdialog"[\s\S]*?className: "info-modal-backdrop"[\s\S]*?ariaHidden: "true"[\s\S]*?"타이머가 일시정지되었습니다"[\s\S]*?"다른 앱이나 창으로 이동하여 순공시간 측정을 자동으로 멈췄습니다\."/
+);
+assert.match(
+  appSource,
+  /if \(automatic\) showStudyCafeAutoPauseModal\(\)/
+);
+assert.doesNotMatch(appSource, /studyCafeAutoPauseNoticePending/);
+assert.match(appSource, /function closeStudyCafeAutoPauseModal\(\)[\s\S]*?\.study-cafe-auto-pause-modal/);
+assert.match(appSource, /if \(options\.closeAutoPauseModalOnSuccess === true\) closeStudyCafeAutoPauseModal\(\)/);
+assert.match(styleSource, /\.info-modal,\s*\.study-cafe-auto-pause-modal\s*\{/);
+assert.match(
+  appSource,
+  /async function toggleStudyCafePreviewTimer\(\)[\s\S]*?if \(studyCafePreviewState\.running\) \{\s*await pauseStudyCafeTimer\(\)/
 );
 assert.match(
   appSource,
@@ -550,7 +578,7 @@ assert.ok(
   appSource.indexOf("className: `study-cafe-room theme-${activeRoom.theme}`") <
     appSource.indexOf("seated ? renderStudyCafeMySeatCard(student, selectedSeatNumber) : null") &&
     appSource.indexOf("seated ? renderStudyCafeMySeatCard(student, selectedSeatNumber) : null") <
-      appSource.indexOf('className: "study-cafe-room-label-row"'),
+      appSource.indexOf("className: `study-cafe-room-label-row"),
   "the selected student's seat and character should render inside the study cafe room"
 );
 assert.match(styleSource, /\.study-cafe-my-seat-card/);
@@ -584,6 +612,11 @@ assert.match(
 assert.match(
   styleSource,
   /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*grid-column: 2 \/ -1/
+);
+assert.match(
+  styleSource,
+  /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*padding-right: 12px/,
+  "the selected-seat controls should keep breathing room from the card edge"
 );
 assert.match(
   styleSource,
@@ -737,10 +770,13 @@ assert.match(
 );
 assert.match(appSource, /return \[\.\.\.ranked, \.\.\.empty\]/);
 assert.match(appSource, /function getStudyCafeProspectiveRankingRoomRank\(seatNumber, student = getAuthedStudent\(\)\)/);
-assert.match(appSource, /function renderStudyCafeRankingRoomGuide\(student\)/);
-assert.match(appSource, /className: "study-cafe-ranking-room-guide"/);
-assert.match(appSource, /const rankingGuideMessage = myRank/);
-assert.match(appSource, /공부시간에 따라 순위와 좌석이 자동으로 변경됩니다/);
+assert.match(appSource, /function renderStudyCafeFirstUseGuide\(roomIndex\)/);
+assert.match(appSource, /className: "study-cafe-first-use-guide"/);
+assert.match(appSource, /function hasUsedStudyCafe\(student = getAuthedStudent\(\)\)/);
+assert.match(appSource, /function hasUsedStudyCafeRankingRoom\(student = getAuthedStudent\(\)\)/);
+assert.match(appSource, /markStudyCafeRankingRoomAsUsed\(\)/);
+assert.match(appSource, /오늘 순공시간 순으로 좌석과 순위가 자동으로 바뀌는 방이에요/);
+assert.doesNotMatch(appSource, /className: "study-cafe-ranking-room-guide"/);
 assert.match(appSource, /function ensureStudyCafeRankingRoomRefresh\(\)/);
 assert.match(appSource, /function refreshStudyCafeRankingRoomView\(\)/);
 assert.match(appSource, /"data-study-cafe-physical-seat-number": String\(seatNumber\)/);
@@ -794,7 +830,9 @@ assert.match(styleSource, /\.study-cafe-avatar\s*\{[^}]*top: 46px/);
 assert.match(styleSource, /\.study-cafe-avatar\s*\{[^}]*z-index: 5/);
 assert.match(appSource, /function renderStudyCafeWritingArms\(\)/);
 assert.match(appSource, /includeArms: false/);
+assert.match(appSource, /const showWritingArms = options\.showWritingArms !== false/);
 assert.match(styleSource, /\.study-cafe-writing-arms\s*\{[^}]*z-index: 7/);
+assert.match(styleSource, /\.study-cafe-seat-visual\.is-idle \.study-cafe-avatar-arm\s*\{[^}]*animation: none/);
 assert.doesNotMatch(styleSource, /\.study-cafe-desk::before/);
 assert.doesNotMatch(styleSource, /\.study-cafe-desk::after/);
 assert.match(styleSource, /@keyframes study-cafe-writing-left/);
@@ -853,9 +891,9 @@ assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::after\s*\{\s*cont
 assert.match(styleSource, /\.study-cafe-footer-menu button\.active::after/);
 assert.match(
   styleSource,
-  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(16\.666667% - 5\.666667px\)[^}]*transform 220ms/s
+  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(20% - 5\.6px\)[^}]*transform 220ms/s
 );
-assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
+assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="4"\]::before/);
 assert.match(styleSource, /@keyframes student-study-route-enter/);
 assert.match(styleSource, /html\s*\{[^}]*scrollbar-gutter: stable/);
 assert.doesNotMatch(
@@ -887,7 +925,7 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /body\.student-online-mode \.study-cafe-footer-menu,\s*body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(6/
+  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(5/
 );
 assert.doesNotMatch(styleSource, /\[data-route="study-cafe"\]\s*\{[^}]*transform: translateX/);
 assert.match(styleSource, /\.study-character-option-grid/);

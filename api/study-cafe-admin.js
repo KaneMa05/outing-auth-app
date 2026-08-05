@@ -48,26 +48,56 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const completedSession = await completeActiveSession(studentId, now);
     if (action === "stop_session") {
-      await requestSupabase(
-        "PATCH",
-        `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`,
-        {
-          status: "seated",
-          current_subject: null,
-          updated_at: now.toISOString(),
-        },
-        { Prefer: "return=minimal" }
-      );
-      res.status(200).json({ ok: true, stopped: Boolean(completedSession) });
+      const location = await getStudentSeatLocation(studentId);
+      const completedSession = await completeActiveSession(studentId, now);
+      if (!completedSession) {
+        res.status(409).json({ ok: false, error: "active_session_not_found" });
+        return;
+      }
+      if (location.publicPresence) {
+        await requestSupabase(
+          "PATCH",
+          `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`,
+          {
+            status: "seated",
+            current_subject: null,
+            updated_at: now.toISOString(),
+          },
+          { Prefer: "return=minimal" }
+        );
+      }
+      await broadcastStudyCafeAdminChange("timer", location.privateMembership?.room_id || "");
+      res.status(200).json({ ok: true, stopped: true });
       return;
     }
 
-    await requestSupabase(
-      "DELETE",
-      `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`
-    );
+    const location = await getStudentSeatLocation(studentId);
+    if (!location.publicPresence && !location.privateMembership?.seat_number) {
+      res.status(409).json({ ok: false, error: "seat_not_found" });
+      return;
+    }
+    const completedSession = await completeActiveSession(studentId, now);
+    const releaseRequests = [];
+    if (location.publicPresence) {
+      releaseRequests.push(requestSupabase(
+        "DELETE",
+        `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`
+      ));
+    }
+    if (location.privateMembership?.seat_number) {
+      releaseRequests.push(requestSupabase(
+        "PATCH",
+        `study_cafe_room_members?student_id=eq.${encodeURIComponent(studentId)}`,
+        {
+          seat_number: null,
+          updated_at: now.toISOString(),
+        },
+        { Prefer: "return=minimal" }
+      ));
+    }
+    await Promise.all(releaseRequests);
+    await broadcastStudyCafeAdminChange("seat", location.privateMembership?.room_id || "");
     res.status(200).json({ ok: true, released: true, stopped: Boolean(completedSession) });
   } catch (error) {
     console.error(error);
@@ -78,10 +108,10 @@ module.exports = async function handler(req, res) {
 async function loadDashboard(now) {
   await rolloverActiveSessionsIfNeeded(now);
   const bounds = getKstDayBounds(now);
-  const [students, profiles, presenceRows, activeSessions, todaySessions] = await Promise.all([
+  const [students, profiles, presenceRows, activeSessions, todaySessions, roomRows, roomMemberRows] = await Promise.all([
     requestSupabase(
       "GET",
-      "students?id=like.2*&is_active=eq.true&select=id,name,track&order=id.asc"
+      "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track,student_category&order=id.asc"
     ),
     requestSupabase(
       "GET",
@@ -97,18 +127,31 @@ async function loadDashboard(now) {
     ),
     requestSupabase(
       "GET",
-      `study_cafe_sessions?started_at=gte.${encodeURIComponent(bounds.start)}&started_at=lt.${encodeURIComponent(bounds.end)}&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at`
+      `study_cafe_sessions?started_at=gte.${encodeURIComponent(bounds.start)}&started_at=lt.${encodeURIComponent(bounds.end)}&select=student_id,status,elapsed_seconds,active_started_at`
+    ),
+    requestSupabase(
+      "GET",
+      "study_cafe_rooms?is_active=eq.true&select=id,name,description,capacity,theme,access_type,host_student_id,created_at,updated_at&order=updated_at.desc&limit=100"
+    ),
+    requestSupabase(
+      "GET",
+      "study_cafe_room_members?select=room_id,student_id,role,seat_number,joined_at,updated_at&order=joined_at.asc"
     ),
   ]);
 
   const studentRows = Array.isArray(students) ? students : [];
   const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((row) => [row.student_id, row]));
   const presenceMap = new Map((Array.isArray(presenceRows) ? presenceRows : []).map((row) => [row.student_id, row]));
+  const rooms = Array.isArray(roomRows) ? roomRows : [];
+  const roomMembers = Array.isArray(roomMemberRows) ? roomMemberRows : [];
+  const roomMap = new Map(rooms.map((row) => [row.id, row]));
+  const roomMembershipMap = new Map(roomMembers.map((row) => [row.student_id, row]));
   const activeMap = new Map((Array.isArray(activeSessions) ? activeSessions : []).map((row) => [row.student_id, row]));
   const totals = aggregateSessionSeconds(Array.isArray(todaySessions) ? todaySessions : [], now);
   const ids = new Set([
     ...studentRows.map((row) => row.id),
     ...presenceMap.keys(),
+    ...roomMembershipMap.keys(),
     ...activeMap.keys(),
     ...totals.keys(),
   ]);
@@ -118,10 +161,12 @@ async function loadDashboard(now) {
     const student = studentMap.get(studentId) || {};
     const profile = profileMap.get(studentId) || {};
     const presence = presenceMap.get(studentId) || null;
+    const roomMembership = roomMembershipMap.get(studentId) || null;
+    const room = roomMembership ? roomMap.get(roomMembership.room_id) || null : null;
     const active = activeMap.get(studentId) || null;
-    const lastHeartbeatAt = presence?.last_heartbeat_at || "";
+    const lastHeartbeatAt = presence?.last_heartbeat_at || roomMembership?.updated_at || "";
     const connected = Boolean(
-      presence &&
+      (presence || roomMembership) &&
       lastHeartbeatAt &&
       new Date(lastHeartbeatAt).getTime() >= staleCutoff
     );
@@ -130,8 +175,16 @@ async function loadDashboard(now) {
       name: student.name || "이름 미등록",
       track: student.track || "직렬 미등록",
       avatarTone: presence?.avatar_tone || profile.avatar_tone || "navy",
-      seatNumber: presence ? Number(presence.seat_number) : null,
-      presenceStatus: presence?.status || "offline",
+      seatNumber: presence
+        ? Number(presence.seat_number)
+        : roomMembership?.seat_number
+          ? Number(roomMembership.seat_number)
+          : null,
+      locationType: presence ? "public" : roomMembership ? "private" : "offline",
+      roomId: room?.id || null,
+      roomName: room?.name || "",
+      roomRole: roomMembership?.role || "",
+      presenceStatus: presence?.status || (roomMembership?.seat_number ? "seated" : "offline"),
       currentSubject: active?.subject_name || presence?.current_subject || "",
       sessionStatus: active?.status || "",
       sessionElapsedSeconds: active ? getSessionElapsedSeconds(active, now) : 0,
@@ -157,6 +210,20 @@ async function loadDashboard(now) {
       pausedCount: members.filter((member) => member.sessionStatus === "paused" && member.connected).length,
       totalSeconds: members.reduce((sum, member) => sum + member.todaySeconds, 0),
     },
+    privateRooms: rooms.map((room) => {
+      const membersInRoom = roomMembers.filter((member) => member.room_id === room.id);
+      return {
+        id: room.id,
+        name: room.name,
+        description: room.description || "",
+        capacity: Math.max(2, Number(room.capacity) || 2),
+        theme: room.theme || "oak",
+        locked: room.access_type === "password",
+        hostStudentId: room.host_student_id,
+        memberCount: membersInRoom.length,
+        seatedCount: membersInRoom.filter((member) => member.seat_number).length,
+      };
+    }),
     members,
   };
 }
@@ -167,6 +234,24 @@ async function getActiveSession(studentId) {
     `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&status=in.(running,paused)&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at&order=started_at.desc&limit=1`
   );
   return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function getStudentSeatLocation(studentId) {
+  const encodedStudentId = encodeURIComponent(studentId);
+  const [presenceRows, membershipRows] = await Promise.all([
+    requestSupabase(
+      "GET",
+      `study_cafe_presence?student_id=eq.${encodedStudentId}&select=student_id,seat_number&limit=1`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_room_members?student_id=eq.${encodedStudentId}&select=room_id,student_id,seat_number&limit=1`
+    ),
+  ]);
+  return {
+    publicPresence: Array.isArray(presenceRows) ? presenceRows[0] || null : null,
+    privateMembership: Array.isArray(membershipRows) ? membershipRows[0] || null : null,
+  };
 }
 
 async function completeActiveSession(studentId, now) {
@@ -215,6 +300,41 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   return response.json().catch(() => null);
 }
 
+async function broadcastStudyCafeAdminChange(change, roomId = "") {
+  const supabaseUrl = process.env.SUPABASE_URL || "";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceRoleKey) return;
+  const baseUrl = supabaseUrl.replace(/\/$/, "");
+  const headers = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+  const changedAt = new Date().toISOString();
+  const broadcasts = [
+    fetch(`${baseUrl}/realtime/v1/api/broadcast/study-cafe-room-public/events/state-changed`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ change, source: "admin", changedAt }),
+    }),
+  ];
+  if (roomId) {
+    broadcasts.push(fetch(`${baseUrl}/realtime/v1/api/broadcast/study-cafe-room-public/events/room-changed`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ roomId, change: `admin-${change}`, changedAt }),
+    }));
+  }
+  try {
+    const responses = await Promise.all(broadcasts);
+    responses.forEach((response) => {
+      if (!response.ok) console.warn(`Study cafe admin realtime broadcast failed: ${response.status}`);
+    });
+  } catch (error) {
+    console.warn("Study cafe admin realtime broadcast failed.", error);
+  }
+}
+
 function readTeacherSession(req) {
   const { secret } = getConfig();
   const request = req?.headers ? req : { ...req, headers: {} };
@@ -230,7 +350,7 @@ async function readJson(req) {
 
 function normalizeStudentId(value) {
   const studentId = String(value || "").trim().slice(0, 64);
-  return studentId.startsWith("2") ? studentId : "";
+  return /^\d{4,6}$/.test(studentId) ? studentId : "";
 }
 
 function getSessionElapsedSeconds(session, now = new Date()) {

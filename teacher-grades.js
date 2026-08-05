@@ -260,6 +260,15 @@ function getGradeManagementStudents(cohort = selectedStudentCohort) {
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
 }
 
+function getGradeRankingStudents(cohort = selectedStudentCohort) {
+  return getStudentsInCohort(cohort)
+    .filter((student) =>
+      !gradeManagementTrackFilter ||
+      isSameGradeRankingGroup(getTeacherStudentRegisteredTrack(student), gradeManagementTrackFilter)
+    )
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+}
+
 function getWeeklyExams() {
   const cohort = getSelectedWeeklyExamCohort();
   return [...(state.exams || [])]
@@ -1891,12 +1900,15 @@ function renderWeeklyExamScoresPanel(cohort = selectedStudentCohort) {
   }
   scheduleTeacherWeeklyGradeDataRefresh(requiredExams);
   const students = getGradeManagementStudents(cohort);
+  const rankingStudents = getGradeRankingStudents(cohort);
   const gradeLookup = createWeeklyGradeLookup();
   const weeklySubjectHeaders = gradeManagementTrackFilter
     ? getWeeklyGradeSubjectHeaders(exam, gradeManagementTrackFilter, gradeLookup)
     : getWeeklyGradeSubjectHeadersForStudents(exam, students, gradeLookup);
-  const summaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(exam, student, gradeLookup)));
-  const previousSummaries = applyWeeklyGradeRanksByTrack(students.map((student) => getWeeklyGradeStudentSummary(previousExam, student, gradeLookup)));
+  const rankedSummaries = applyWeeklyGradeRanksByTrack(rankingStudents.map((student) => getWeeklyGradeStudentSummary(exam, student, gradeLookup)));
+  const rankedSummaryByStudent = new Map(rankedSummaries.map((summary) => [String(summary.student.id), summary]));
+  const summaries = students.map((student) => rankedSummaryByStudent.get(String(student.id))).filter(Boolean);
+  const previousSummaries = applyWeeklyGradeRanksByTrack(rankingStudents.map((student) => getWeeklyGradeStudentSummary(previousExam, student, gradeLookup)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
   const headers = ["번호", "이름", "직렬", ...weeklySubjectHeaders, "틀린 개수", "이번 등수", "백분율", "전회차 등수", "전회차 대비 등수 등락", "관리"];
   const displaySummaries = gradeManagementTrackFilter ? sortGradeSummariesForDisplay(summaries) : sortWeeklyGradeSummariesByTrack(summaries);
@@ -2188,14 +2200,18 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
 
   const round = Number(finalExamGradeFilters.round) || 1;
   const students = getGradeManagementStudents(cohort);
+  const rankingStudents = getGradeRankingStudents(cohort);
   const records = getFinalMockScoreRecords(round);
   const previousRecords = getFinalMockScoreRecords(round - 1);
   const recordByStudent = new Map(records.map((record) => [String(record.studentId || "").trim(), record]));
   const participants = getFinalMockGradeParticipants(cohort, students, records);
-  const previousParticipants = getFinalMockGradeParticipants(cohort, students, previousRecords);
+  const rankingParticipants = getFinalMockGradeParticipants(cohort, rankingStudents, records, { matchRankingGroup: true });
+  const previousParticipants = getFinalMockGradeParticipants(cohort, rankingStudents, previousRecords, { matchRankingGroup: true });
   const previousSummaries = applyGradeRanksByTrack(previousParticipants.map((student) => getFinalMockGradeStudentSummary(student, previousRecords)));
   const previousRankByStudent = new Map(previousSummaries.map((summary) => [String(summary.student.id), summary.rank]));
-  const summaries = applyGradeRanksByTrack(participants.map((student) => getFinalMockGradeStudentSummary(student, records)));
+  const rankedSummaries = applyGradeRanksByTrack(rankingParticipants.map((student) => getFinalMockGradeStudentSummary(student, records)));
+  const rankedSummaryByStudent = new Map(rankedSummaries.map((summary) => [String(summary.student.id), summary]));
+  const summaries = participants.map((student) => rankedSummaryByStudent.get(String(student.id))).filter(Boolean);
   const registered = participants.map((student) => recordByStudent.get(String(student.id))).filter(Boolean);
   const headers = [
     "번호",
@@ -3233,7 +3249,7 @@ function getWeeklySummarySectionCorrectCount(item) {
 function applyWeeklyGradeRanksByTrack(summaries) {
   const groups = new Map();
   summaries.forEach((summary) => {
-    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    const track = getGradeRankingTrackKey(getTeacherStudentRegisteredTrack(summary.student)) || "미분류";
     if (!groups.has(track)) groups.set(track, []);
     groups.get(track).push(summary);
   });
@@ -3278,24 +3294,34 @@ function applyWeeklyGradeRanksByTrack(summaries) {
   return summaries;
 }
 
-function applyGradeRanks(summaries) {
+function applyGradeRanks(summaries, options = {}) {
   const ranked = summaries.filter((summary) => summary.hasScore !== false && (summary.submittedCount > 0 || Number(summary.score) > 0 || Number(summary.maxScore) > 0 && summary.status === "등록 완료"));
   const sorted = [...ranked].sort((a, b) => {
+    if (options.normalizeByMaxScore) {
+      const percentA = Number(a.maxScore) > 0 ? (Number(a.score) || 0) / Number(a.maxScore) : 0;
+      const percentB = Number(b.maxScore) > 0 ? (Number(b.score) || 0) / Number(b.maxScore) : 0;
+      const percentCompare = percentB - percentA;
+      if (percentCompare) return percentCompare;
+    }
     const scoreCompare = (Number(b.score) || 0) - (Number(a.score) || 0);
     if (scoreCompare) return scoreCompare;
     const wrongCompare = (Number(a.wrongCount) || 0) - (Number(b.wrongCount) || 0);
     if (wrongCompare) return wrongCompare;
     return String(a.student.id).localeCompare(String(b.student.id), "ko-KR", { numeric: true });
   });
+  let previousPercent = null;
   let previousScore = null;
   let previousWrong = null;
   let previousRank = 0;
   sorted.forEach((summary, index) => {
+    const percent = Number(summary.maxScore) > 0 ? (Number(summary.score) || 0) / Number(summary.maxScore) : 0;
     const score = Number(summary.score) || 0;
     const wrong = Number(summary.wrongCount) || 0;
-    const rank = score === previousScore && wrong === previousWrong ? previousRank : index + 1;
+    const sameNormalizedScore = !options.normalizeByMaxScore || percent === previousPercent;
+    const rank = sameNormalizedScore && score === previousScore && wrong === previousWrong ? previousRank : index + 1;
     summary.rank = rank;
     summary.topPercent = calculateGradePercentile(rank, sorted.length);
+    previousPercent = percent;
     previousScore = score;
     previousWrong = wrong;
     previousRank = rank;
@@ -3312,23 +3338,27 @@ function applyGradeRanks(summaries) {
 function applyGradeRanksByTrack(summaries) {
   const groups = new Map();
   summaries.forEach((summary) => {
-    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    const track = getGradeRankingTrackKey(getTeacherStudentRegisteredTrack(summary.student)) || "미분류";
     if (!groups.has(track)) groups.set(track, []);
     groups.get(track).push(summary);
   });
-  groups.forEach((items) => applyGradeRanks(items));
+  groups.forEach((items) => {
+    const trackCount = new Set(items.map((summary) => getTeacherStudentRegisteredTrack(summary.student))).size;
+    applyGradeRanks(items, { normalizeByMaxScore: trackCount > 1 });
+  });
   return summaries;
 }
 
 function applyTeacherPreviewFinalSubjectRanks(summaries = []) {
   const groups = new Map();
   summaries.forEach((summary) => {
-    const track = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
-    const subjects = getTeacherPreviewFinalSubjectHeadersForTrack(track);
+    const studentTrack = getTeacherStudentRegisteredTrack(summary.student) || "미분류";
+    const rankingTrack = getGradeRankingTrackKey(studentTrack);
+    const subjects = getTeacherPreviewFinalSubjectHeadersForTrack(studentTrack);
     subjects.forEach((subject) => {
       const subjectScore = summary.subjectScores?.[subject];
       if (!subjectScore || subjectScore.status === "empty") return;
-      const key = `${track}::${subject}`;
+      const key = `${rankingTrack}::${subject}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push({ summary, subjectScore });
     });
@@ -3498,7 +3528,7 @@ function getFinalMockScoreRecords(round) {
   }));
 }
 
-function getFinalMockGradeParticipants(cohort, students = [], records = []) {
+function getFinalMockGradeParticipants(cohort, students = [], records = [], options = {}) {
   const registeredIds = new Set(students.map((student) => String(student.id)));
   const allStudentIds = new Set((state.students || []).map((student) => String(student.id)));
   const participants = [...students];
@@ -3508,7 +3538,12 @@ function getFinalMockGradeParticipants(cohort, students = [], records = []) {
     if (allStudentIds.has(studentId)) return;
     if (record.cohort && String(record.cohort) !== String(cohort || "")) return;
     const track = normalizeCoastGuardTrack(record.track);
-    if (gradeManagementTrackFilter && track !== gradeManagementTrackFilter) return;
+    if (
+      gradeManagementTrackFilter &&
+      (options.matchRankingGroup
+        ? !isSameGradeRankingGroup(track, gradeManagementTrackFilter)
+        : track !== gradeManagementTrackFilter)
+    ) return;
     participants.push({
       id: studentId,
       name: record.studentName || studentId,

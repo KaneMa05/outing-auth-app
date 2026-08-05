@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v295-status-message-modal";
+const CACHE_NAME = "outing-auth-app-v303-lecture-registration-prefill";
 const APP_SHELL = [
   "/",
   "/index.html",

@@ -4,11 +4,14 @@
 };
 const studentAdminFilters = {
   query: "",
+  category: "all",
 };
 const deviceHistoryFilters = {
   query: "",
   eventType: "all",
 };
+const STUDY_CAFE_ADMIN_SAFETY_REFRESH_INTERVAL_MS = 60 * 1000;
+const STUDY_CAFE_ADMIN_REALTIME_REFRESH_DELAY_MS = 350;
 const studyCafeAdminState = {
   loading: false,
   loaded: false,
@@ -16,8 +19,12 @@ const studyCafeAdminState = {
   data: null,
   lastLoadedAt: 0,
   refreshTimer: null,
+  realtimeChannel: null,
+  realtimeRefreshTimer: null,
+  lifecycleRefreshBound: false,
   actionStudentId: "",
   activeRoomIndex: 0,
+  activePrivateRoomId: "",
 };
 let previewStudentId = "";
 let penaltySortMode = "id";
@@ -236,9 +243,10 @@ function renderStudyCafeAdmin() {
 
   const summary = data?.summary || {};
   const members = Array.isArray(data?.members) ? data.members : [];
-  const seatedMembers = members.filter((member) => member.seatNumber);
+  const seatedMembers = members.filter((member) => member.seatNumber && member.locationType !== "private");
+  const privateRooms = Array.isArray(data?.privateRooms) ? data.privateRooms : [];
   const canWrite = hasTeacherPermission("study_cafe.write");
-  const roomLabels = ["랭킹룸", "A룸", "B룸", "C룸"];
+  const roomLabels = ["랭킹 열람실", "A 열람실", "B 열람실", "C 열람실"];
   const activeRoomIndex = Math.min(
     roomLabels.length - 1,
     Math.max(0, Number(studyCafeAdminState.activeRoomIndex) || 0)
@@ -289,7 +297,7 @@ function renderStudyCafeAdmin() {
       ]),
       el(
         "div",
-        { className: "study-cafe-admin-room-tabs", role: "tablist", ariaLabel: "스터디카페 룸 선택" },
+        { className: "study-cafe-admin-room-tabs", role: "tablist", ariaLabel: "스터디카페 열람실 선택" },
         roomLabels.map((roomLabel, roomIndex) => {
           const firstSeat = roomIndex * 48 + 1;
           const occupiedCount = seatedMembers.filter(
@@ -341,6 +349,7 @@ function renderStudyCafeAdmin() {
         ),
       ]),
     ]),
+    privateRooms.length ? renderStudyCafeAdminPrivateRooms(privateRooms, members, canWrite) : null,
     el("section", { className: "study-cafe-admin-section" }, [
       el("div", { className: "study-cafe-admin-section-head" }, [
         el("div", {}, [
@@ -354,6 +363,72 @@ function renderStudyCafeAdmin() {
             renderStudyCafeAdminMember(member, canWrite)
           ))
         : el("div", { className: "empty study-cafe-admin-empty" }, "등록번호가 2로 시작하는 활성 온라인 학생이 없습니다."),
+    ]),
+  ]);
+}
+
+function renderStudyCafeAdminPrivateRooms(rooms, members, canWrite) {
+  const selectedRoom = rooms.find((room) => room.id === studyCafeAdminState.activePrivateRoomId) || rooms[0];
+  studyCafeAdminState.activePrivateRoomId = selectedRoom.id;
+  const roomMembers = members.filter((member) => member.roomId === selectedRoom.id);
+  const seatedMembers = roomMembers.filter((member) => member.seatNumber);
+  return el("section", { className: "study-cafe-admin-section" }, [
+    el("div", { className: "study-cafe-admin-section-head" }, [
+      el("div", {}, [
+        el("h3", {}, "개설 스터디룸"),
+        el("p", {}, "학생이 만든 방의 구성원과 좌석 이용 상태를 확인합니다."),
+      ]),
+      el("span", {}, `${rooms.length}개 방`),
+    ]),
+    el("div", { className: "study-cafe-admin-private-room-tabs", role: "tablist", ariaLabel: "개설 스터디룸 선택" },
+      rooms.map((room) => {
+        const isActive = room.id === selectedRoom.id;
+        return el("button", {
+          className: `study-cafe-admin-private-room-tab ${isActive ? "active" : ""}`,
+          type: "button",
+          role: "tab",
+          ariaSelected: String(isActive),
+          ariaControls: "study-cafe-admin-private-room",
+          onclick: () => {
+            studyCafeAdminState.activePrivateRoomId = room.id;
+            render();
+          },
+        }, [
+          el("strong", {}, room.name),
+          el("span", {}, `${room.memberCount}/${room.capacity}명`),
+        ]);
+      })
+    ),
+    el("section", {
+      className: `study-cafe-admin-room study-cafe-admin-private-room theme-${selectedRoom.theme || "oak"}`,
+      id: "study-cafe-admin-private-room",
+      role: "tabpanel",
+    }, [
+      el("div", { className: "study-cafe-admin-private-room-head" }, [
+        el("div", {}, [
+          el("strong", {}, selectedRoom.name),
+          el("p", {}, selectedRoom.description || "방 소개가 없습니다."),
+        ]),
+        el("span", {}, [
+          selectedRoom.locked ? "비밀번호 방 · " : "공개 방 · ",
+          `${roomMembers.length}/${selectedRoom.capacity}명 · ${seatedMembers.length}석 사용 중`,
+        ]),
+      ]),
+      el("div", { className: "study-cafe-admin-seat-grid private" },
+        Array.from({ length: selectedRoom.capacity }, (_, index) => {
+          const seatNumber = index + 1;
+          return renderStudyCafeAdminSeat(
+            seatNumber,
+            seatedMembers.find((member) => member.seatNumber === seatNumber),
+            canWrite
+          );
+        })
+      ),
+      roomMembers.some((member) => !member.seatNumber)
+        ? el("p", { className: "study-cafe-admin-private-room-waiting" },
+            `입장 후 좌석을 선택하지 않은 학생 ${roomMembers.filter((member) => !member.seatNumber).length}명`
+          )
+        : null,
     ]),
   ]);
 }
@@ -391,18 +466,18 @@ function renderStudyCafeAdminSeat(seatNumber, member, canWrite) {
     canWrite
       ? el("div", { className: "study-cafe-admin-seat-actions" }, [
           active
-            ? button(
+            ? renderStudyCafeAdminActionButton(
                 "타이머 종료",
                 "mini-btn",
-                "button",
-                () => runStudyCafeAdminAction("stop_session", member)
+                "stop_session",
+                member
               )
             : null,
-          button(
+          renderStudyCafeAdminActionButton(
             "좌석 비우기",
             "mini-btn danger",
-            "button",
-            () => runStudyCafeAdminAction("release_seat", member)
+            "release_seat",
+            member
           ),
         ])
       : null,
@@ -423,7 +498,7 @@ function renderStudyCafeAdminMember(member, canWrite) {
       ]),
       el("p", {}, [
         summarizeStudyCafeTrack(member.track),
-        member.seatNumber ? ` · ${member.seatNumber}번 좌석` : " · 좌석 없음",
+        ` · ${formatStudyCafeAdminMemberLocation(member)}`,
         active && member.currentSubject ? ` · ${member.currentSubject}` : "",
       ]),
     ]),
@@ -434,16 +509,23 @@ function renderStudyCafeAdminMember(member, canWrite) {
     canWrite && member.seatNumber
       ? el("div", { className: "study-cafe-admin-member-actions" }, [
           active
-            ? button("타이머 종료", "mini-btn", "button", () =>
-                runStudyCafeAdminAction("stop_session", member)
-              )
+            ? renderStudyCafeAdminActionButton("타이머 종료", "mini-btn", "stop_session", member)
             : null,
-          button("좌석 비우기", "mini-btn danger", "button", () =>
-            runStudyCafeAdminAction("release_seat", member)
-          ),
+          renderStudyCafeAdminActionButton("좌석 비우기", "mini-btn danger", "release_seat", member),
         ])
       : null,
   ]);
+}
+
+function formatStudyCafeAdminMemberLocation(member) {
+  if (member.locationType === "private") {
+    const role = member.roomRole === "host" ? " · 방장" : "";
+    return `${member.roomName || "개별 스터디룸"}${member.seatNumber ? ` ${member.seatNumber}번 좌석` : " · 좌석 선택 전"}${role}`;
+  }
+  if (!member.seatNumber) return "좌석 없음";
+  const roomLabels = ["랭킹 열람실", "A 열람실", "B 열람실", "C 열람실"];
+  const roomIndex = Math.max(0, Math.min(3, Math.floor((member.seatNumber - 1) / 48)));
+  return `${roomLabels[roomIndex]} ${member.seatNumber}번 좌석`;
 }
 
 function renderStudyCafeAdminStatus(member) {
@@ -500,22 +582,82 @@ async function loadStudyCafeAdminDashboard(options = {}) {
 }
 
 function ensureStudyCafeAdminRefresh() {
+  bindStudyCafeAdminLifecycleRefresh();
+  ensureStudyCafeAdminRealtimeSubscription();
   if (studyCafeAdminState.refreshTimer) return;
   studyCafeAdminState.refreshTimer = window.setInterval(() => {
-    if (currentRoute === "study-cafe-admin" && !studyCafeAdminState.loading) {
+    if (isStudyCafeAdminRefreshActive() && !studyCafeAdminState.loading) {
       loadStudyCafeAdminDashboard({ force: true });
     }
-  }, 15000);
+  }, STUDY_CAFE_ADMIN_SAFETY_REFRESH_INTERVAL_MS);
+}
+
+function isStudyCafeAdminRefreshActive() {
+  return currentRoute === "study-cafe-admin" && document.visibilityState !== "hidden";
+}
+
+function bindStudyCafeAdminLifecycleRefresh() {
+  if (studyCafeAdminState.lifecycleRefreshBound) return;
+  studyCafeAdminState.lifecycleRefreshBound = true;
+  const refreshWhenActive = () => {
+    if (!isStudyCafeAdminRefreshActive() || studyCafeAdminState.loading) return;
+    loadStudyCafeAdminDashboard({ force: true });
+  };
+  document.addEventListener("visibilitychange", refreshWhenActive);
+  window.addEventListener("focus", refreshWhenActive);
+  window.addEventListener("pageshow", refreshWhenActive);
+}
+
+function ensureStudyCafeAdminRealtimeSubscription() {
+  if (
+    APP_MODE !== "teacher" ||
+    !remoteStore?.channel ||
+    studyCafeAdminState.realtimeChannel
+  ) {
+    return;
+  }
+  studyCafeAdminState.realtimeChannel = remoteStore
+    .channel("study-cafe-room-public", { config: { private: false } })
+    .on("broadcast", { event: "state-changed" }, scheduleStudyCafeAdminRealtimeRefresh)
+    .on("broadcast", { event: "room-changed" }, scheduleStudyCafeAdminRealtimeRefresh)
+    .subscribe((status) => {
+      if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+        console.warn("Study cafe admin realtime is unavailable; safety refresh remains active.");
+      }
+    });
+}
+
+function scheduleStudyCafeAdminRealtimeRefresh() {
+  if (!isStudyCafeAdminRefreshActive()) return;
+  window.clearTimeout(studyCafeAdminState.realtimeRefreshTimer);
+  studyCafeAdminState.realtimeRefreshTimer = window.setTimeout(() => {
+    studyCafeAdminState.realtimeRefreshTimer = null;
+    if (!isStudyCafeAdminRefreshActive() || studyCafeAdminState.loading) return;
+    loadStudyCafeAdminDashboard({ force: true });
+  }, STUDY_CAFE_ADMIN_REALTIME_REFRESH_DELAY_MS);
+}
+
+function renderStudyCafeAdminActionButton(label, className, action, member) {
+  const pending = studyCafeAdminState.actionStudentId === member.studentId;
+  const node = button(
+    pending ? "처리 중..." : label,
+    className,
+    "button",
+    () => runStudyCafeAdminAction(action, member)
+  );
+  node.disabled = Boolean(studyCafeAdminState.actionStudentId);
+  return node;
 }
 
 async function runStudyCafeAdminAction(action, member) {
   if (!hasTeacherPermission("study_cafe.write") || studyCafeAdminState.actionStudentId) return;
   const release = action === "release_seat";
   const question = release
-    ? `${member.name} 학생의 ${member.seatNumber}번 좌석을 비울까요? 실행 중인 타이머도 종료됩니다.`
+    ? `${member.name} 학생의 ${formatStudyCafeAdminMemberLocation(member)}을 비울까요? 실행 중인 타이머도 종료됩니다.`
     : `${member.name} 학생의 현재 타이머를 종료할까요? 좌석은 유지됩니다.`;
   if (!confirm(question)) return;
   studyCafeAdminState.actionStudentId = member.studentId;
+  render();
   try {
     const response = await fetch("/api/study-cafe-admin", {
       method: "POST",
@@ -525,7 +667,18 @@ async function runStudyCafeAdminAction(action, member) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.ok !== true) {
-      notify(data.error === "forbidden" ? "스터디카페 제어 권한이 없습니다." : "요청을 처리하지 못했습니다.");
+      const message = data.error === "forbidden"
+        ? "스터디카페 제어 권한이 없습니다."
+        : data.error === "active_session_not_found"
+          ? "이미 종료된 타이머입니다. 현황을 새로고침했습니다."
+          : data.error === "seat_not_found"
+            ? "이미 비워진 좌석입니다. 현황을 새로고침했습니다."
+            : "요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.";
+      notify(message);
+      if (response.status === 409) {
+        studyCafeAdminState.loaded = false;
+        await loadStudyCafeAdminDashboard({ force: true });
+      }
       return;
     }
     notify(release ? `${member.name} 학생의 좌석을 비웠습니다.` : `${member.name} 학생의 타이머를 종료했습니다.`);
@@ -536,6 +689,7 @@ async function runStudyCafeAdminAction(action, member) {
     notify("스터디카페 관리 서버에 연결하지 못했습니다.");
   } finally {
     studyCafeAdminState.actionStudentId = "";
+    if (currentRoute === "study-cafe-admin") render();
   }
 }
 
@@ -1004,13 +1158,17 @@ function formatStudentNumber(studentId) {
 }
 
 function getStudentsInCohort(cohort = selectedStudentCohort) {
-  return [...state.students].filter((student) => !cohort || getStudentCohort(student) === cohort);
+  return [...state.students].filter((student) =>
+    !cohort ||
+    (cohort === "lecture" ? getStudentCategory(student) === "lecture" : getStudentCohort(student) === cohort)
+  );
 }
 
 function getFilteredStudentAdminStudents(students) {
   const query = studentAdminFilters.query.trim().toLowerCase();
-  if (!query) return students;
   return students.filter((student) => {
+    if (studentAdminFilters.category !== "all" && getStudentCategory(student) !== studentAdminFilters.category) return false;
+    if (!query) return true;
     const id = String(student.id || "").trim();
     const displayNumber = formatStudentNumber(id);
     const numberWithoutLeadingZero = displayNumber.replace(/^0+/, "") || displayNumber;
@@ -1790,7 +1948,11 @@ function photoMiniList(photos = []) {
 
 function renderStudentsAdmin() {
   if (!hasTeacherPermission("students.read")) return renderForbidden();
-  return el("div", { className: "grid" }, [teacherStudentForm()]);
+  return el("div", { className: "grid" }, [
+    renderOnlineManagedStudyCafeTogglePanel(),
+    renderLectureApplicationsAdminPanel(),
+    teacherStudentForm(),
+  ]);
 }
 
 function renderDeviceHistoryAdmin() {
@@ -1993,23 +2155,27 @@ function getTeacherStudentRegisteredTrack(student) {
   return normalizeCoastGuardTrack(student?.track || profile?.track || profile?.initialTrack);
 }
 
-function upsertStudents(students, className, track = "") {
+function upsertStudents(students, className, track = "", studentCategory = "offline", cohort = "") {
   let created = 0;
   let updated = 0;
   const nextTrack = normalizeCoastGuardTrack(track);
   const nextClassName = String(className || "").trim() || state.settings.className;
+  const nextCategory = normalizeStudentCategory(studentCategory) || "offline";
+  const nextCohort = nextCategory === "lecture" ? "" : String(cohort || "").trim();
   students.forEach((student) => {
     const existing = findStudent(student.id);
     const payload = {
       id: student.id,
       name: student.name,
       className: nextClassName,
+      studentCategory: nextCategory,
+      cohort: nextCohort || inferLegacyStudentCohort(student.id),
       track: nextTrack || normalizeCoastGuardTrack(existing?.track),
       gender: existing?.gender || "",
       passwordHash: existing?.passwordHash || "",
       deviceToken: existing?.deviceToken || "",
       appRegisteredAt: existing?.appRegisteredAt || "",
-      attendanceExcluded: existing?.attendanceExcluded === true || isOnlineClassName(nextClassName),
+      attendanceExcluded: existing?.attendanceExcluded === true || nextCategory !== "offline",
       fitnessExcluded: existing?.fitnessExcluded === true,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };

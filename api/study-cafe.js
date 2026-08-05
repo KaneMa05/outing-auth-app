@@ -49,11 +49,6 @@ module.exports = async function handler(req, res) {
       res.status(400).json({ ok: false, error: "missing_required_fields" });
       return;
     }
-    if (!studentId.startsWith("2")) {
-      res.status(403).json({ ok: false, error: "online_student_only" });
-      return;
-    }
-
     const student = await authenticateOnlineStudent({
       studentId,
       deviceToken,
@@ -61,6 +56,10 @@ module.exports = async function handler(req, res) {
     });
     if (!student) {
       res.status(403).json({ ok: false, error: "device_not_active" });
+      return;
+    }
+    if (!hasStudyCafeAccess(student)) {
+      res.status(403).json({ ok: false, error: "online_student_only" });
       return;
     }
 
@@ -453,6 +452,12 @@ module.exports = async function handler(req, res) {
   }
 };
 
+function hasStudyCafeAccess(student) {
+  const category = String(student?.student_category || "").trim();
+  if (["online_managed", "lecture"].includes(category)) return true;
+  return !category && String(student?.id || "").startsWith("2");
+}
+
 async function authenticateOnlineStudent({ studentId, deviceToken, client }) {
   const validation = await requestSupabase("POST", "rpc/validate_student_device", {
     p_student_id: studentId,
@@ -463,9 +468,9 @@ async function authenticateOnlineStudent({ studentId, deviceToken, client }) {
   if (!validation || validation.valid !== true) return null;
   const rows = await requestSupabase(
     "GET",
-    `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,name,track,is_active&limit=1`
+    `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,name,track,student_category,is_active&limit=1`
   );
-  return Array.isArray(rows) && rows[0]?.id?.startsWith("2") ? rows[0] : null;
+  return Array.isArray(rows) ? rows[0] || null : null;
 }
 
 async function broadcastStudyCafeStateChange(change, payload = {}) {

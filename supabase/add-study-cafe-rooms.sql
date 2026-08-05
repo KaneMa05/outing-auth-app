@@ -17,7 +17,6 @@ create table if not exists public.study_cafe_rooms (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   closed_at timestamptz,
-  check (host_student_id like '2%'),
   check (
     (access_type = 'public' and password_hash is null and password_salt is null)
     or
@@ -48,6 +47,9 @@ $$;
 create index if not exists study_cafe_rooms_active_updated_idx
 on public.study_cafe_rooms(is_active, updated_at desc);
 
+create index if not exists study_cafe_rooms_host_student_idx
+on public.study_cafe_rooms(host_student_id);
+
 create table if not exists public.study_cafe_room_members (
   room_id uuid not null references public.study_cafe_rooms(id) on delete cascade,
   student_id text not null references public.students(id) on delete cascade,
@@ -58,7 +60,6 @@ create table if not exists public.study_cafe_room_members (
   updated_at timestamptz not null default now(),
   primary key (room_id, student_id),
   unique (student_id),
-  check (student_id like '2%'),
   check (seat_number is null or seat_number between 1 and 20)
 );
 
@@ -72,6 +73,111 @@ where seat_number is not null;
 
 create index if not exists study_cafe_room_members_room_joined_idx
 on public.study_cafe_room_members(room_id, joined_at);
+
+-- Repair legacy inconsistencies before installing the invariant below. Active rooms
+-- without members are closed; every other active room gets exactly one host.
+do $$
+declare
+  v_room record;
+  v_next_host text;
+begin
+  for v_room in
+    select id, host_student_id
+    from public.study_cafe_rooms
+    where is_active = true
+    for update
+  loop
+    select member.student_id into v_next_host
+    from public.study_cafe_room_members member
+    where member.room_id = v_room.id
+    order by
+      (member.student_id = v_room.host_student_id) desc,
+      (member.role = 'host') desc,
+      member.joined_at asc,
+      member.student_id asc
+    limit 1;
+
+    if v_next_host is null then
+      update public.study_cafe_rooms
+      set is_active = false, closed_at = coalesce(closed_at, now()), updated_at = now()
+      where id = v_room.id;
+    else
+      update public.study_cafe_room_members
+      set role = 'member'
+      where room_id = v_room.id and role = 'host' and student_id <> v_next_host;
+      update public.study_cafe_room_members
+      set role = 'host'
+      where room_id = v_room.id and student_id = v_next_host;
+      update public.study_cafe_rooms
+      set host_student_id = v_next_host
+      where id = v_room.id and host_student_id <> v_next_host;
+    end if;
+  end loop;
+end
+$$;
+
+-- A deferred cross-table invariant lets create/leave transactions change both
+-- tables atomically while preventing an active room from ever committing without
+-- exactly one matching host membership.
+create or replace function public.enforce_study_cafe_room_host()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_room_id uuid;
+  v_room public.study_cafe_rooms%rowtype;
+  v_host_count integer;
+begin
+  v_room_id := coalesce(
+    to_jsonb(new) ->> 'room_id',
+    to_jsonb(old) ->> 'room_id',
+    to_jsonb(new) ->> 'id',
+    to_jsonb(old) ->> 'id'
+  )::uuid;
+
+  select * into v_room
+  from public.study_cafe_rooms
+  where id = v_room_id;
+
+  if v_room.id is null or not v_room.is_active then
+    return null;
+  end if;
+
+  select count(*) into v_host_count
+  from public.study_cafe_room_members
+  where room_id = v_room_id
+    and role = 'host'
+    and student_id = v_room.host_student_id;
+
+  if v_host_count <> 1 or exists (
+    select 1
+    from public.study_cafe_room_members
+    where room_id = v_room_id
+      and role = 'host'
+      and student_id <> v_room.host_student_id
+  ) then
+    raise exception 'active_room_host_required' using errcode = '23514';
+  end if;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists study_cafe_rooms_require_host on public.study_cafe_rooms;
+create constraint trigger study_cafe_rooms_require_host
+after insert or update on public.study_cafe_rooms
+deferrable initially deferred
+for each row execute function public.enforce_study_cafe_room_host();
+
+drop trigger if exists study_cafe_room_members_require_host on public.study_cafe_room_members;
+create constraint trigger study_cafe_room_members_require_host
+after insert or update or delete on public.study_cafe_room_members
+deferrable initially deferred
+for each row execute function public.enforce_study_cafe_room_host();
+
+revoke all on function public.enforce_study_cafe_room_host() from public, anon, authenticated;
 
 create table if not exists public.study_cafe_room_messages (
   id uuid primary key default gen_random_uuid(),
@@ -90,6 +196,12 @@ create table if not exists public.study_cafe_room_messages (
 
 create index if not exists study_cafe_room_messages_room_created_idx
 on public.study_cafe_room_messages(room_id, created_at desc);
+
+create index if not exists study_cafe_room_messages_student_idx
+on public.study_cafe_room_messages(student_id);
+
+create index if not exists study_cafe_room_messages_deleted_by_student_idx
+on public.study_cafe_room_messages(deleted_by_student_id);
 
 drop function if exists public.create_study_cafe_room(text, text, text, integer, text, text, text);
 
