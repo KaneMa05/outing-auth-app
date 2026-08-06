@@ -2085,7 +2085,8 @@ async function loadStateFromRemote(options = {}) {
     "deleted_at",
     "deleted_by",
   ].join(",");
-  const noticeColumns = "id,title,body,is_published,created_at,updated_at";
+  const noticeColumns = "id,title,body,target_audience,is_published,created_at,updated_at";
+  const legacyNoticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
   const examColumns = "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
   const examSectionColumns = "id,exam_id,track,subject,question_count,total_score,is_active,created_at";
@@ -2176,7 +2177,7 @@ async function loadStateFromRemote(options = {}) {
   let photoResult = remoteResults[3];
   let attendanceResult = remoteResults[4];
   let penaltyResult = remoteResults[5];
-  const noticeResult = remoteResults[6];
+  let noticeResult = remoteResults[6];
   let trackOptionResult = remoteResults[7];
   const attendanceHolidayResult = remoteResults[8];
   let examResult = remoteResults[9];
@@ -2290,6 +2291,9 @@ async function loadStateFromRemote(options = {}) {
     else penaltyResult = await penaltyResult;
   }
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
+  if (isMissingColumnError(noticeResult.error, "target_audience")) {
+    noticeResult = await remoteStore.from("notices").select(legacyNoticeColumns).order("created_at", { ascending: false });
+  }
   if (noticeResult.error && !isMissingRelationError(noticeResult.error, "notices")) throw noticeResult.error;
   if (trackOptionResult.error && !isMissingRelationError(trackOptionResult.error, "track_options")) throw trackOptionResult.error;
   if (attendanceHolidayResult.error && !isMissingRelationError(attendanceHolidayResult.error, "attendance_holidays")) throw attendanceHolidayResult.error;
@@ -2534,15 +2538,20 @@ async function saveStateToRemote() {
         id: notice.id,
         title: String(notice.title || "").trim(),
         body: String(notice.body || "").trim(),
+        target_audience: normalizeNoticeTargetAudience(notice.targetAudience),
         is_published: notice.isPublished !== false,
         created_at: notice.createdAt || new Date().toISOString(),
         updated_at: notice.updatedAt || new Date().toISOString(),
       }));
 
     if (noticeRows.length) {
-      const { error } = await remoteStore
+      let { error } = await remoteStore
         .from("notices")
         .upsert(noticeRows, { onConflict: "id" });
+      if (isMissingColumnError(error, "target_audience")) {
+        const legacyNoticeRows = noticeRows.map(({ target_audience, ...row }) => row);
+        ({ error } = await remoteStore.from("notices").upsert(legacyNoticeRows, { onConflict: "id" }));
+      }
       if (error && !isMissingRelationError(error, "notices")) throw error;
     }
 
@@ -4214,6 +4223,7 @@ function mapNoticeFromRemote(notice) {
     id: notice.id,
     title: notice.title || "",
     body: notice.body || "",
+    targetAudience: normalizeNoticeTargetAudience(notice.target_audience),
     isPublished: notice.is_published !== false,
     createdAt: notice.created_at,
     updatedAt: notice.updated_at || notice.created_at,
@@ -4319,10 +4329,27 @@ function applyRemoteAppSettings(settings) {
   }
 }
 
-function getImportantNotices({ publishedOnly = false } = {}) {
+function normalizeNoticeTargetAudience(value) {
+  return value === "lecture" ? "lecture" : "academy";
+}
+
+function getNoticeTargetAudienceLabel(value) {
+  return normalizeNoticeTargetAudience(value) === "lecture"
+    ? "수강생"
+    : "오프라인 학생 · 온라인 관리반";
+}
+
+function noticeMatchesStudentCategory(notice, studentCategory) {
+  if (!studentCategory) return true;
+  const expectedAudience = studentCategory === "lecture" ? "lecture" : "academy";
+  return normalizeNoticeTargetAudience(notice?.targetAudience) === expectedAudience;
+}
+
+function getImportantNotices({ publishedOnly = false, studentCategory = "" } = {}) {
   return removeLegacySampleNotices(state.notices || [])
     .filter((notice) => String(notice.title || "").trim())
     .filter((notice) => !publishedOnly || notice.isPublished !== false)
+    .filter((notice) => noticeMatchesStudentCategory(notice, studentCategory))
     .sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
 }
 

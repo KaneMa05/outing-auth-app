@@ -17,6 +17,17 @@ assert.match(appSource, /"study-ranking": \(\) => requireStudentAuth\(renderStud
 assert.match(appSource, /"study-character": \(\) => requireStudentAuth\(renderStudentStudyCharacter\)/);
 assert.match(appSource, /fetch\("\/api\/study-cafe"/);
 assert.match(appSource, /function ensureStudyCafeRemoteLoaded\(options = \{\}\)/);
+assert.match(styleSource, /\.study-todo-goal-select\s*\{[^}]*min-height: 40px[^}]*font-size: 0\.8rem/);
+assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*width: 42px[^}]*height: 42px/);
+assert.match(
+  appSource,
+  /if \(studyCafeRemoteState\.loading\) \{\s*await waitForStudyCafeRemoteLoad\(\);\s*return studyCafeRemoteState\.loaded && studyCafeRemoteState\.available === true;/
+);
+assert.match(appSource, /function waitForStudyCafeRemoteLoad\(\)/);
+assert.match(
+  appSource,
+  /await ensureStudyCafeRemoteLoaded\(\{\s*render: false,\s*force: studyCafeRemoteState\.available === false,\s*\}\)/
+);
 assert.match(appSource, /if \(isStudyCafeLocalPreview\(\)\) return \{ ok: true, localOnly: true \}/);
 assert.match(appSource, /return \{ ok: false, error: studyCafeRemoteState\.error \|\| "study_cafe_unavailable" \}/);
 assert.match(appSource, /function hydrateStudyCafeSnapshot\(snapshot, options = \{\}\)/);
@@ -433,7 +444,7 @@ assert.match(styleSource, /\.study-todo-subject-actions\s*\{[^}]*display: flex/)
 assert.doesNotMatch(styleSource, /\.study-todo-subject-head > div\s*\{/);
 assert.match(styleSource, /\.study-todo-item\.completed/);
 assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*border-radius: 50%/);
-assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*min-width: 30px[^}]*flex: 0 0 30px[^}]*aspect-ratio: 1/);
+assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*min-width: 42px[^}]*flex: 0 0 42px[^}]*aspect-ratio: 1/);
 assert.match(styleSource, /\.study-todo-add-form\[hidden\]\s*\{[^}]*display: none/);
 assert.match(appSource, /function openStudyCafeNicknameEditor\(\)/);
 assert.match(appSource, /function normalizeStudyCafeNickname\(value\)/);

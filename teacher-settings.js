@@ -399,6 +399,11 @@ function noticeAdminPanel() {
     rows: 8,
   }, editingNotice?.body || "");
   bodyInput.required = true;
+  const targetAudienceInput = el("select", { name: "targetAudience" }, [
+    el("option", { value: "academy" }, "오프라인 학생 · 온라인 관리반"),
+    el("option", { value: "lecture" }, "수강생"),
+  ]);
+  targetAudienceInput.value = normalizeNoticeTargetAudience(editingNotice?.targetAudience);
   const publishedInput = el("input", { name: "isPublished", type: "checkbox", checked: editingNotice?.isPublished !== false });
   const submitButton = button(editingNotice ? "공지 수정" : "공지 등록", "btn");
   const formActions = [submitButton];
@@ -412,6 +417,7 @@ function noticeAdminPanel() {
   const form = el("form", { className: "form-grid notice-admin-form" }, [
     field("제목", titleInput, "full"),
     field("내용", bodyInput, "full"),
+    field("공지 대상", targetAudienceInput, "full"),
     el("label", { className: "notice-publish-toggle" }, [
       publishedInput,
       el("span", {}, "학생 홈에 공개"),
@@ -434,6 +440,7 @@ function noticeAdminPanel() {
         id: editingNotice?.id,
         title,
         body,
+        targetAudience: normalizeNoticeTargetAudience(data.targetAudience),
         isPublished: Boolean(data.isPublished),
       });
       const savedNotice = editingNotice?.id ? getImportantNoticeById(editingNotice.id) : state.notices[0];
@@ -460,6 +467,7 @@ function noticeAdminPanel() {
           el("strong", {}, notice.title),
           notice.body ? el("p", { className: "notice-admin-preview" }, notice.body.replace(/\s+/g, " ").slice(0, 80)) : null,
         ]),
+        el("td", {}, el("span", { className: `badge notice-target-${normalizeNoticeTargetAudience(notice.targetAudience)}` }, getNoticeTargetAudienceLabel(notice.targetAudience))),
         el("td", {}, notice.isPublished !== false ? el("span", { className: "badge approved" }, "공개") : el("span", { className: "badge" }, "숨김")),
         el("td", {}, formatDateCompact(notice.createdAt)),
         el("td", { className: "student-admin-actions" }, [
@@ -476,20 +484,21 @@ function noticeAdminPanel() {
     panel(editingNotice ? "공지 수정" : "공지 등록", [form]),
     panel("공지 목록", [
       table(
-        ["제목", "상태", "등록일", "관리"],
-        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 4 }, el("div", { className: "empty table-empty" }, "등록된 공지글이 없습니다."))])]
+        ["제목", "공지 대상", "상태", "등록일", "관리"],
+        rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "등록된 공지글이 없습니다."))])]
       ),
     ]),
   ]);
 }
 
-function upsertNotice({ id, title, body, isPublished }) {
+function upsertNotice({ id, title, body, targetAudience, isPublished }) {
   state.notices = state.notices || [];
   const now = new Date().toISOString();
   const existing = id ? state.notices.find((notice) => notice.id === id) : null;
   if (existing) {
     existing.title = title;
     existing.body = body;
+    existing.targetAudience = normalizeNoticeTargetAudience(targetAudience);
     existing.isPublished = isPublished;
     existing.updatedAt = now;
     return existing;
@@ -498,6 +507,7 @@ function upsertNotice({ id, title, body, isPublished }) {
     id: createId(),
     title,
     body,
+    targetAudience: normalizeNoticeTargetAudience(targetAudience),
     isPublished,
     createdAt: now,
     updatedAt: now,
@@ -531,16 +541,27 @@ async function saveNoticeToRemote(notice, options = {}) {
   const payload = {
     title: String(notice.title || "").trim(),
     body: String(notice.body || "").trim(),
+    target_audience: normalizeNoticeTargetAudience(notice.targetAudience),
     is_published: notice.isPublished !== false,
     updated_at: notice.updatedAt || new Date().toISOString(),
   };
-  const result = options.update
+  let result = options.update
     ? await remoteStore.from("notices").update(payload).eq("id", notice.id)
     : await remoteStore.from("notices").insert({
         id: notice.id,
         ...payload,
         created_at: notice.createdAt || new Date().toISOString(),
       });
+  if (isMissingColumnError(result.error, "target_audience")) {
+    const { target_audience, ...legacyPayload } = payload;
+    result = options.update
+      ? await remoteStore.from("notices").update(legacyPayload).eq("id", notice.id)
+      : await remoteStore.from("notices").insert({
+          id: notice.id,
+          ...legacyPayload,
+          created_at: notice.createdAt || new Date().toISOString(),
+        });
+  }
   const { error } = result;
   if (error) throw error;
 }

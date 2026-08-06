@@ -6714,6 +6714,16 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   line-height: 1.45;
 }
 
+.badge.notice-target-academy {
+  background: #e8f2ff;
+  color: #175f9e;
+}
+
+.badge.notice-target-lecture {
+  background: #ede9fe;
+  color: #6d3cc4;
+}
+
 .student-summary-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -7332,17 +7342,17 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .study-todo-goal-select {
-  min-height: 30px;
+  min-height: 40px;
   border: 1px solid #d6e1eb;
   border-radius: 9px;
   background: #f7fafc;
   color: #385169;
-  padding: 4px 24px 4px 8px;
-  font-size: 0.7rem;
+  padding: 6px 26px 6px 10px;
+  font-size: 0.8rem;
   font-weight: 850;
 }
 
@@ -7514,10 +7524,10 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-todo-add-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -12049,7 +12059,7 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   user-select: none;
 }
 
-.student-push-settings-link {
+.student-settings-link {
   width: 100%;
   color: var(--ink);
   font: inherit;

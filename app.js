@@ -1873,7 +1873,10 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   studyCafeRemoteState.studentId = String(student.id);
   ensureStudyCafeRemoteTimers();
   const force = options.force === true;
-  if (studyCafeRemoteState.loading) return false;
+  if (studyCafeRemoteState.loading) {
+    await waitForStudyCafeRemoteLoad();
+    return studyCafeRemoteState.loaded && studyCafeRemoteState.available === true;
+  }
   const retryDue = Date.now() - studyCafeRemoteState.lastAttemptAt >= 15000;
   if (!force && (studyCafeRemoteState.loaded || (studyCafeRemoteState.available === false && !retryDue))) {
     return studyCafeRemoteState.loaded;
@@ -1939,6 +1942,22 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   } finally {
     studyCafeRemoteState.loading = false;
   }
+}
+
+function waitForStudyCafeRemoteLoad() {
+  if (!studyCafeRemoteState.loading) return Promise.resolve();
+  return new Promise((resolve) => {
+    let checks = 0;
+    const checkLoaded = () => {
+      checks += 1;
+      if (!studyCafeRemoteState.loading || checks >= 100) {
+        resolve();
+        return;
+      }
+      window.setTimeout(checkLoaded, 50);
+    };
+    checkLoaded();
+  });
 }
 
 function hydrateStudyCafeSnapshot(snapshot, options = {}) {
@@ -2038,7 +2057,10 @@ function finishStudyCafeLocalSessionMutation() {
 
 async function mutateStudyCafeRemote(action, payload = {}, options = {}) {
   if (studyCafeRemoteState.available !== true) {
-    await ensureStudyCafeRemoteLoaded({ render: false });
+    await ensureStudyCafeRemoteLoaded({
+      render: false,
+      force: studyCafeRemoteState.available === false,
+    });
   }
   if (studyCafeRemoteState.available !== true) {
     if (isStudyCafeLocalPreview()) return { ok: true, localOnly: true };
@@ -2338,7 +2360,7 @@ function renderLectureStudentHome(student) {
   ensureStudyCafeRemoteLoaded({ render: false });
   ensureStudyCafePreviewClock();
   const summary = getLectureHomeSummary();
-  const notices = getImportantNotices({ publishedOnly: true });
+  const notices = getStudentImportantNotices();
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     el("section", { className: "student-dday-card" }, [
       el("div", {}, [
@@ -2575,7 +2597,7 @@ function isRunningStandalone() {
 }
 
 function renderStudentImportantNoticeCard() {
-  const notices = getImportantNotices({ publishedOnly: true }).slice(0, 2);
+  const notices = getStudentImportantNotices().slice(0, 2);
   if (!notices.length) return null;
   return el("section", { className: "student-notice-card" }, [
     el("div", { className: "student-notice-head" }, [
@@ -2598,7 +2620,7 @@ function renderStudentNoticeRow(notice) {
 }
 
 function renderStudentNoticeList() {
-  const notices = getImportantNotices({ publishedOnly: true });
+  const notices = getStudentImportantNotices();
   return el("div", { className: "grid student-view student-notices" }, [
     el("section", { className: "student-notices-panel" }, [
       el("div", { className: "student-notices-head" }, [
@@ -2616,7 +2638,7 @@ function renderStudentNoticeList() {
 
 function renderStudentNoticeDetail() {
   const noticeId = currentRoute.replace(/^notice-/, "");
-  const notice = getImportantNoticeById(noticeId, { publishedOnly: true });
+  const notice = getStudentImportantNoticeById(noticeId);
   if (!notice) {
     return el("div", { className: "grid student-view student-notices" }, [
       el("section", { className: "student-notices-panel" }, [
@@ -2643,6 +2665,22 @@ function renderStudentNoticeDetail() {
       ]),
     ]),
   ]);
+}
+
+function getStudentImportantNotices() {
+  const student = getAuthedStudent();
+  return getImportantNotices({
+    publishedOnly: true,
+    studentCategory: getStudentCategory(student),
+  });
+}
+
+function getStudentImportantNoticeById(id) {
+  const student = getAuthedStudent();
+  return getImportantNoticeById(id, {
+    publishedOnly: true,
+    studentCategory: getStudentCategory(student),
+  });
 }
 
 function formatNoticeDate(value) {
@@ -2764,15 +2802,15 @@ function renderStudentMypage() {
       ]),
     ]),
     category === "lecture"
-      ? el("section", { className: "student-history-button-card student-character-card" }, [
+      ? button("", "student-history-button-card student-settings-link student-character-card", "button", () => navigate("study-character"), [
           el("div", { className: "student-history-head" }, [
             el("h2", {}, "캐릭터"),
           ]),
-          button("캐릭터 설정", "btn secondary", "button", () => navigate("study-character")),
+          el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
         ])
       : null,
     !isOnlineStudentExperience(student) ? renderStudentOutingHistoryButton(student.id) : null,
-    renderStudentPenaltyHistoryButton(student.id),
+    category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),
@@ -2781,10 +2819,10 @@ function renderStudentMypage() {
 
 function renderStudentPushNotificationCard(student, profile) {
   ensureStudentPushNotificationLoaded(student, profile);
-  return button("", "student-history-button-card student-push-settings-link", "button", () => navigate("push-settings"), [
+  return button("", "student-history-button-card student-settings-link student-push-settings-link", "button", () => navigate("push-settings"), [
     el("div", { className: "student-history-head" }, [
       el("h2", {}, "앱 알림 설정"),
-      el("span", {}, studentPushNotificationState.subscribed ? "알림 종류별 수신 설정" : "꺼짐"),
+      studentPushNotificationState.subscribed ? null : el("span", {}, "꺼짐"),
     ]),
     el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
   ]);
@@ -5943,14 +5981,10 @@ function renderStudentStudyRanking() {
       : el("section", { className: "study-ranking-podium-section empty" }, [
           el("strong", {}, rankingLoading
             ? `${getStudyRankingPeriodLabel()} 랭킹을 불러오는 중입니다.`
-            : hasLiveRanking
-              ? `아직 ${getStudyRankingPeriodLabel()} 순공 기록이 없습니다.`
-              : "랭킹 서버에 연결하고 있습니다."),
+            : `아직 ${getStudyRankingPeriodLabel()} 순공 기록이 없습니다.`),
           el("p", {}, rankingLoading
             ? "잠시만 기다려주세요."
-            : hasLiveRanking
-              ? "타이머 기록이 생기면 랭킹에 반영됩니다."
-              : "연결되면 실제 기록만 표시됩니다."),
+            : "타이머를 켜고 공부를 시작해 첫 기록을 남겨보세요."),
         ]),
     el("section", { className: "study-ranking-summary" }, [
       el("div", {}, [

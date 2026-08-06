@@ -145,10 +145,25 @@ create table if not exists public.notices (
   id text primary key,
   title text not null,
   body text not null,
+  target_audience text not null default 'academy' check (target_audience in ('academy', 'lecture')),
   is_published boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.notices
+add column if not exists target_audience text not null default 'academy';
+
+update public.notices
+set target_audience = 'academy'
+where target_audience not in ('academy', 'lecture');
+
+alter table public.notices
+drop constraint if exists notices_target_audience_check;
+
+alter table public.notices
+add constraint notices_target_audience_check
+check (target_audience in ('academy', 'lecture'));
 
 create table if not exists public.student_registration_events (
   id uuid primary key default gen_random_uuid(),
@@ -1041,6 +1056,9 @@ on public.penalties (student_id, created_at desc);
 create index if not exists notices_created_at_idx
 on public.notices (created_at desc);
 
+create index if not exists notices_target_audience_published_created_at_idx
+on public.notices (target_audience, is_published, created_at desc);
+
 create index if not exists outings_created_at_idx
 on public.outings (created_at desc);
 
@@ -1643,6 +1661,7 @@ grant select (
   id,
   title,
   body,
+  target_audience,
   is_published,
   created_at,
   updated_at
@@ -1652,6 +1671,7 @@ grant insert (
   id,
   title,
   body,
+  target_audience,
   is_published,
   created_at,
   updated_at
@@ -1660,6 +1680,7 @@ grant insert (
 grant update (
   title,
   body,
+  target_audience,
   is_published,
   created_at,
   updated_at
