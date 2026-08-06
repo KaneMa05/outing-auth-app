@@ -1,4 +1,5 @@
 const QUESTION_BOARD_DEFAULT_SUBJECTS = [
+  "자유",
   "해양경찰학개론",
   "해사법규",
   "형사법",
@@ -63,7 +64,7 @@ function renderQuestionBoard() {
   if (!student || getStudentCategory(student) !== "lecture") {
     syncQuestionWriteButton();
     return el("div", { className: "grid student-view" }, [
-      panel("게시판", [el("div", { className: "empty" }, "인강생만 이용할 수 있습니다.")]),
+      panel("게시판", [el("div", { className: "empty" }, "수강생만 이용할 수 있습니다.")]),
     ]);
   }
   if (questionBoardState.studentId !== student.id) resetQuestionBoardState(student.id);
@@ -683,7 +684,7 @@ function renderQuestionBoardAdmin() {
     refreshQuestionBoardAdminList();
   });
   return el("div", { className: "grid question-board-admin-page" }, [
-    panel("인강생 게시판", [
+    panel("수강생 게시판", [
       el("p", { className: "subtle" }, "과목별 게시글을 확인하고 선생님 댓글을 등록하거나 부적절한 내용을 숨길 수 있습니다."),
       questionBoardAdminState.reports.length
         ? el("div", { className: "question-admin-report-alert" }, `검토 대기 신고 ${questionBoardAdminState.reports.length}건`)
@@ -940,7 +941,7 @@ function renderQuestionBoardError(message, retry) {
 
 function questionBoardErrorMessage(error) {
   const messages = {
-    lecture_student_only: "인강생 인증을 확인할 수 없습니다. 앱을 다시 등록해주세요.",
+    lecture_student_only: "수강생 인증을 확인할 수 없습니다. 앱을 다시 등록해주세요.",
     service_role_not_configured: "게시판 서버 설정이 아직 완료되지 않았습니다.",
     question_board_store_unavailable: "게시판 데이터베이스 준비가 필요합니다.",
     post_not_found: "삭제되었거나 볼 수 없는 게시글입니다.",

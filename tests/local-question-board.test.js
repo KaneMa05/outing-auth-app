@@ -6,10 +6,11 @@ const { SUBJECTS, handleLocalQuestionBoard } = require("../local-question-board"
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "local-question-board-"));
 const filePath = path.join(tempDir, "board.json");
-const student = { id: "900001", name: "인강생 미리보기", track: "해경" };
+const student = { id: "900001", name: "수강생 미리보기", track: "해경" };
 const call = (action, payload = {}) => handleLocalQuestionBoard({ body: { action, ...payload }, student, filePath });
 
 try {
+  assert.equal(SUBJECTS[0], "자유");
   assert.deepEqual(call("subjects").payload.subjects, SUBJECTS);
   const created = call("create", { subject: SUBJECTS[0], title: "첫 질문", body: "질문 내용입니다." });
   assert.equal(created.status, 201);

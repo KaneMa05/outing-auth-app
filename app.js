@@ -38,7 +38,7 @@
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
   online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notices"]),
-  lecture: new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
+  lecture: new Set(["home", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
 };
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
@@ -290,6 +290,7 @@ const studyTimerStatsState = {
   error: "",
 };
 let studyCafePreviewClock = null;
+let studyCafeLocalFallback = false;
 let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
 let studyCafeRealtimeChannel = null;
@@ -483,15 +484,14 @@ function normalizeRoute(route) {
     const category = getStudentCategory(authedStudent);
     const allowedRoutes = getAllowedStudentRoutes(category);
     if (normalized.startsWith("notice-")) return normalized;
-    if (!allowedRoutes.has(normalized)) return category === "lecture" ? "study-todo" : "home";
+    if (!allowedRoutes.has(normalized)) return "home";
   }
   if (studentRoutes.includes(normalized) || normalized.startsWith("notice-")) return normalized;
   return "home";
 }
 
 function defaultRoute() {
-  const student = APP_MODE === "student" ? getAuthedStudent() : null;
-  return student && getStudentCategory(student) === "lecture" ? "study-todo" : "home";
+  return "home";
 }
 
 function navigate(route) {
@@ -544,14 +544,13 @@ function render() {
   document.querySelectorAll("[data-route]").forEach((button) => {
     const route = button.dataset.route;
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(route);
+    const inStudentFooter = APP_MODE !== "teacher" && button.closest(".student-footer-menu");
     const activeRoute =
-      APP_MODE !== "teacher" &&
-      currentRoute === "study-character" &&
-      button.closest(".student-footer-menu")
+      inStudentFooter && ["study-character", "push-settings"].includes(currentRoute)
         ? "mypage"
-        : currentRoute === "push-settings" && button.closest(".student-footer-menu")
-          ? "mypage"
-        : currentRoute;
+        : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notices"].includes(currentRoute)
+          ? "home"
+          : currentRoute;
     button.hidden = !allowed;
     button.classList.toggle("active", route === activeRoute);
   });
@@ -825,7 +824,7 @@ function renderStudentAuth() {
       genderField.hidden = true;
       studentNameNode.textContent = `${selectedStudent.name} 선생님`;
       authTitle.textContent = "선생님 로그인";
-      authDescription.textContent = "등록번호와 비밀번호로 인강생 앱을 이용합니다.";
+      authDescription.textContent = "등록번호와 비밀번호로 수강생 앱을 이용합니다.";
       submitButton.textContent = "로그인";
       lookupResult.className = "student-auth-result success";
       lookupResult.textContent = `${selectedStudent.name} 선생님 계정이 확인되었습니다.`;
@@ -1012,10 +1011,10 @@ function renderLectureApplicationEntryCard() {
   }
   return el("section", { className: "lecture-application-entry-card" }, [
     el("div", {}, [
-      el("strong", {}, "신규 인강생인가요?"),
-      el("p", {}, "등록 신청 후 관리자가 수강 정보를 확인하면 인강생 등록번호를 발급해드립니다."),
+      el("strong", {}, "신규 수강생인가요?"),
+      el("p", {}, "등록 신청 후 관리자가 수강 정보를 확인하면 수강생 등록번호를 발급해드립니다."),
     ]),
-    button("인강생 등록 신청", "btn secondary", "button", openLectureApplicationModal),
+    button("수강생 등록 신청", "btn secondary", "button", openLectureApplicationModal),
   ]);
 }
 
@@ -1414,7 +1413,7 @@ function openLectureApplicationModal() {
       saveLectureApplicationReceipt(receipt);
       render();
       openInfoModal({
-        title: "인강생 등록 신청 완료",
+        title: "수강생 등록 신청 완료",
         content: renderLectureApplicationStatusCard(receipt, { modal: true }),
       });
     } catch (error) {
@@ -1428,7 +1427,7 @@ function openLectureApplicationModal() {
   });
 
   openInfoModal({
-    title: "인강생 등록 신청",
+    title: "수강생 등록 신청",
     content: form,
     className: "lecture-application-modal",
     showConfirm: false,
@@ -1854,6 +1853,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   const student = getAuthedStudent();
   if (!isOnlineStudentExperience(student)) return false;
   if (studyCafeRemoteState.studentId && studyCafeRemoteState.studentId !== String(student.id)) {
+    studyCafeLocalFallback = false;
     studyCafeRemoteState.available = null;
     studyCafeRemoteState.loaded = false;
     studyCafeRemoteState.room = null;
@@ -1891,10 +1891,27 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
         return false;
       }
       if (result.error === "device_not_active") {
+        if (isLocalStudentPreview()) {
+          const localStudyDateKey = formatStudyBusinessDateKey(new Date());
+          studyCafeLocalFallback = true;
+          studyCafeRemoteState.available = false;
+          studyCafeRemoteState.loaded = true;
+          studyCafeRemoteState.error = "";
+          studyCafeRemoteState.studyDateKey ||= localStudyDateKey;
+          studyCafeRemoteState.plannerDateKey ||= localStudyDateKey;
+          if (!Object.prototype.hasOwnProperty.call(studyCafeRemoteState.todosByDate, localStudyDateKey)) {
+            setStudyTodosForDate(localStudyDateKey, []);
+          }
+          studyCafeRemoteState.subjectGoalsByDate[localStudyDateKey] ||= [];
+          notify("로컬 미리보기 모드로 전환했습니다.");
+          if (isStudyCafeRoute() && options.render !== false) renderStudyCafeStateUpdate();
+          return true;
+        }
         notify("현재 기기 인증이 만료되었습니다. 다시 등록해주세요.");
       }
       return false;
     }
+    studyCafeLocalFallback = false;
     studyCafeRemoteState.available = true;
     studyCafeRemoteState.loaded = true;
     studyCafeRemoteState.error = "";
@@ -1908,7 +1925,10 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
         studyTodoDeletePendingKeys.size > 0 ||
         todoRevisionAtRequest !== studyTodoMutationRevision,
     });
-    if (currentRoute === "home") updateStudyCafeHomeLiveCount();
+    if (currentRoute === "home") {
+      updateStudyCafeHomeLiveCount();
+      updateLectureHomeSummary();
+    }
     if (isStudyCafeRoute() && options.render !== false) renderStudyCafeStateUpdate();
     return true;
   } catch (error) {
@@ -2250,6 +2270,7 @@ function getStudentDeviceLabel() {
 
 function renderStudentHome() {
   const student = getAuthedStudent();
+  if (getStudentCategory(student) === "lecture") return renderLectureStudentHome(student);
   const onlineMode = isOnlineStudentExperience(student);
   const activeOuting = !onlineMode && student ? getActiveOuting(student.id) : null;
   const todayAttendance = !onlineMode && student ? getStudentAttendanceForDate(student.id) : null;
@@ -2311,6 +2332,98 @@ function renderStudentHome() {
         ])
       : null,
   ]);
+}
+
+function renderLectureStudentHome(student) {
+  ensureStudyCafeRemoteLoaded({ render: false });
+  ensureStudyCafePreviewClock();
+  const summary = getLectureHomeSummary();
+  const notices = getImportantNotices({ publishedOnly: true });
+  return el("div", { className: "grid student-view student-home lecture-student-home" }, [
+    el("section", { className: "student-dday-card" }, [
+      el("div", {}, [
+        el("span", {}, COAST_GUARD_EXAM_LABEL),
+        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
+      ]),
+      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
+    ]),
+    el("section", { className: "lecture-home-summary-card" }, [
+      el("div", { className: "lecture-home-section-head" }, [
+        el("div", {}, [
+          el("span", {}, "TODAY"),
+          el("h2", {}, "오늘의 학습"),
+        ]),
+        button("플래너 보기", "lecture-home-text-link", "button", () => navigate("study-todo")),
+      ]),
+      el("div", { className: "lecture-home-summary-grid" }, [
+        button("", "lecture-home-summary-item", "button", () => navigate("study-todo"), [
+          el("span", {}, "플래너"),
+          el("strong", { "data-lecture-home-planner": "true" }, summary.plannerLabel),
+        ]),
+        button("", "lecture-home-summary-item", "button", () => navigate("study-timer"), [
+          el("span", {}, "오늘 순공시간"),
+          el("strong", { "data-lecture-home-time": "true" }, summary.totalTimeLabel),
+        ]),
+      ]),
+    ]),
+    renderStudyCafeHomeCard(student),
+    el("section", { className: "lecture-home-shortcuts-card" }, [
+      el("div", { className: "lecture-home-section-head" }, [
+        el("div", {}, [
+          el("span", {}, "QUICK MENU"),
+          el("h2", {}, "바로가기"),
+        ]),
+      ]),
+      el("div", { className: "lecture-home-shortcut-grid" }, [
+        renderLectureHomeShortcut("study-timer", "footer-icon-study-timer", "타이머", summary.timerDescription),
+        renderLectureHomeShortcut("question-board", "footer-icon-question-board", "자유 게시판", "질문과 답변을 확인해요"),
+        renderLectureHomeShortcut("study-ranking", "footer-icon-study-ranking", "순공 랭킹", "일·주·월 순위를 확인해요"),
+        renderLectureHomeShortcut("notices", "lecture-home-notice-icon", "공지사항", notices.length ? `공지 ${notices.length}개 확인` : "새로운 안내를 확인해요"),
+      ]),
+    ]),
+  ]);
+}
+
+function getLectureHomeSummary() {
+  const studyDateKey = studyCafeRemoteState.studyDateKey || formatStudyBusinessDateKey(new Date());
+  const todos = getStudyTodosForDate(studyDateKey).filter((todo) => todo.pending !== true);
+  const completedCount = todos.filter((todo) => todo.completed).length;
+  const totalTimeLabel = formatStudyCafeElapsed(getStudySubjectTotalElapsedMs()).slice(0, 5);
+  const activeSubject = String(studyCafePreviewState.subject || "").trim();
+  return {
+    plannerLabel: todos.length ? `${completedCount}/${todos.length} 완료` : "계획 없음",
+    totalTimeLabel,
+    timerDescription: activeSubject
+      ? `${activeSubject} · ${formatStudyCafeElapsed(getStudySubjectElapsedMs(activeSubject))}`
+      : "과목별 시간과 통계를 확인해요",
+  };
+}
+
+function renderLectureHomeShortcut(route, iconClass, title, description) {
+  const descriptionAttributes = route === "study-timer"
+    ? { "data-lecture-home-timer-copy": "true" }
+    : {};
+  return button("", "lecture-home-shortcut", "button", () => navigate(route), [
+    el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
+      el("span", { className: `footer-icon ${iconClass}` }),
+    ]),
+    el("span", { className: "lecture-home-shortcut-copy" }, [
+      el("strong", {}, title),
+      el("span", descriptionAttributes, description),
+    ]),
+    el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
+  ]);
+}
+
+function updateLectureHomeSummary() {
+  const planner = document.querySelector("[data-lecture-home-planner]");
+  const time = document.querySelector("[data-lecture-home-time]");
+  const timerCopy = document.querySelector("[data-lecture-home-timer-copy]");
+  if (!planner && !time && !timerCopy) return;
+  const summary = getLectureHomeSummary();
+  if (planner) planner.textContent = summary.plannerLabel;
+  if (time) time.textContent = summary.totalTimeLabel;
+  if (timerCopy) timerCopy.textContent = summary.timerDescription;
 }
 
 function renderStudentPushOptInPrompt(student) {
@@ -2654,7 +2767,6 @@ function renderStudentMypage() {
       ? el("section", { className: "student-history-button-card student-character-card" }, [
           el("div", { className: "student-history-head" }, [
             el("h2", {}, "캐릭터"),
-            el("span", {}, "스터디카페 캐릭터와 프로필을 설정합니다."),
           ]),
           button("캐릭터 설정", "btn secondary", "button", () => navigate("study-character")),
         ])
@@ -2910,7 +3022,7 @@ function isOnlineStudyStudent(student) {
 
 function isStudyCafeLocalPreview() {
   if (!isLocalStudentPreview()) return false;
-  return new URLSearchParams(location.search).get("studentMode") === "online";
+  return studyCafeLocalFallback || new URLSearchParams(location.search).get("studentMode") === "online";
 }
 
 function isOnlineStudentExperience(student) {
@@ -2963,7 +3075,7 @@ function updateStudentNavigationVisibility() {
     item.hidden = lectureMode || !allowedRoutes.has(item.dataset.route);
   });
   document.querySelectorAll(".study-cafe-footer-menu [data-route]").forEach((item) => {
-    const visibleLectureTabs = new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"]);
+    const visibleLectureTabs = new Set(["home", "study-todo", "study-cafe", "mypage"]);
     item.hidden = !lectureMode || !visibleLectureTabs.has(item.dataset.route);
   });
   document.querySelectorAll("[data-study-cafe-back]").forEach((item) => { item.hidden = true; });
@@ -7017,6 +7129,7 @@ function ensureStudyCafePreviewClock() {
     document.querySelectorAll("[data-study-subject-time]").forEach((time) => {
       time.textContent = formatStudyCafeElapsed(getStudySubjectElapsedMs(time.dataset.studySubjectTime));
     });
+    updateLectureHomeSummary();
   }, 1000);
 }
 
@@ -7736,7 +7849,7 @@ function renderHome() {
         hasTeacherPermission("penalties.read") ? moduleCard("상/벌점 관리", "상/벌점 부여, 누적 점수, 지도 기록을 관리합니다.", "penalties", "운영 중") : null,
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("study_cafe.read") ? moduleCard("온라인 스터디카페", "현재 좌석, 순공시간과 온라인 학생 이용 상태를 관리합니다.", "study-cafe-admin", "운영 중") : null,
-        hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "인강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
+        hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,

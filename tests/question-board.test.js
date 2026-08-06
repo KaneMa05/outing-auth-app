@@ -17,11 +17,12 @@ const lectureFooter = indexSource.match(/<footer class="student-footer-menu stud
 const footerRoutes = [...lectureFooter.matchAll(/data-route="([^"]+)"/g)]
   .map((match) => match[1])
   .filter((route) => route !== "study-character");
-assert.deepEqual(footerRoutes, ["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"]);
+assert.deepEqual(footerRoutes, ["home", "study-todo", "study-cafe", "mypage"]);
 assert.match(appSource, /"question-board": \(\) => requireStudentAuth\(renderQuestionBoard\)/);
 assert.match(appSource, /lecture: new Set\(\[[^\]]*"question-board"/);
-assert.match(appSource, /visibleLectureTabs = new Set\(\[[^\]]*"question-board"/);
-assert.match(styleSource, /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*repeat\(6/);
+assert.match(appSource, /renderLectureHomeShortcut\("question-board"/);
+assert.doesNotMatch(appSource, /visibleLectureTabs = new Set\(\[[^\]]*"question-board"/);
+assert.match(styleSource, /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*repeat\(4/);
 assert.match(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*box-shadow:\s*0 4px 0 currentColor, 0 8px 0 currentColor/);
 assert.doesNotMatch(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*background:\s*white/);
 
@@ -48,6 +49,9 @@ assert.match(boardSource, /questionBoardState\.draftSubject = subject;\s*questio
 assert.match(boardSource, /"question-write-subject-button"/);
 assert.match(boardSource, /className: "question-board-empty question-board-list-empty"/);
 assert.match(boardSource, /const QUESTION_BOARD_DEFAULT_SUBJECTS/);
+assert.match(boardSource, /const QUESTION_BOARD_DEFAULT_SUBJECTS = \[\s*"자유"/);
+assert.match(apiSource, /const FALLBACK_SUBJECTS = \["자유"/);
+assert.match(apiSource, /new Set\(\["자유", \.\.\.configured, \.\.\.FALLBACK_SUBJECTS\]\)/);
 assert.match(boardSource, /function renderQuestionBoardEmptyState\(searching = false\)/);
 assert.match(boardSource, /function renderQuestionBoardGuide\(\)/);
 assert.match(boardSource, /questionBoardState\.loading = false;\s*questionBoardState\.loaded = true;/);

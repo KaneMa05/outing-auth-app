@@ -60,6 +60,7 @@ assert.equal(validateApplication(normalizeApplication({ ...validBody, privacyCon
 assert.equal(validateApplication(normalizeApplication({ ...validBody, referralSource: "other" })), "referral_detail_required");
 
 const migration = fs.readFileSync("supabase/add-lecture-applications.sql", "utf8");
+const labelUpdate = fs.readFileSync("supabase/update-lecture-student-label.sql", "utf8");
 const pushMigration = fs.readFileSync("supabase/add-lecture-application-push-subscriptions.sql", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
 const serviceWorkerSource = fs.readFileSync("sw.js", "utf8");
@@ -77,6 +78,9 @@ assert.match(migration, /where status in \('pending', 'approved'\)/);
 assert.match(migration, /lecture_applications_approved_student_idx/);
 assert.match(migration, /lookup_token_hash text/);
 assert.match(migration, /lecture_applications_lookup_token_idx/);
+assert.match(labelUpdate, /create or replace function public\.approve_lecture_application\(\)/);
+assert.match(labelUpdate, /new\.name,\s*'수강생',\s*'lecture'/);
+assert.match(labelUpdate, /update public\.students\s*set class_name = '수강생'\s*where student_category = 'lecture'\s*and class_name = '인강생'/);
 assert.match(pushMigration, /create table if not exists public\.lecture_application_push_subscriptions/);
 assert.match(pushMigration, /alter table public\.lecture_application_push_subscriptions enable row level security/);
 assert.match(pushMigration, /revoke all on table public\.lecture_application_push_subscriptions from anon, authenticated/);

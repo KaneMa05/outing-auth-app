@@ -87,7 +87,7 @@ function renderTeacherAccountsAdmin() {
   const countLabel = `${teacherAccountAdminState.accounts.length} / ${teacherAccountAdminState.limit}명`;
   return el("div", { className: "grid" }, [
     panel("선생님 계정 등록", [
-      el("p", { className: "subtle" }, "1~10번 등록번호를 선생님에게 배정합니다. 선생님은 학생 앱에서 이 번호로 로그인하며 인강생 화면을 그대로 사용합니다."),
+      el("p", { className: "subtle" }, "1~10번 등록번호를 선생님에게 배정합니다. 선생님은 학생 앱에서 이 번호로 로그인하며 수강생 화면을 그대로 사용합니다."),
       form,
     ]),
     panel("등록된 선생님", [

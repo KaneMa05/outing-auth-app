@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v309-notification-icons";
+const CACHE_NAME = "outing-auth-app-v311-learner-board-copy";
 const APP_SHELL = [
   "/",
   "/index.html",

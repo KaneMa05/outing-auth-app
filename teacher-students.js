@@ -81,7 +81,7 @@ function renderOnlineManagedStudyCafeTogglePanel() {
     el(
       "p",
       { className: "subtle online-managed-toggle-note" },
-      "인강생 메뉴와 학생 등록 방식에는 영향을 주지 않습니다. 스터디카페 준비가 끝난 뒤 켜주세요."
+      "수강생 메뉴와 학생 등록 방식에는 영향을 주지 않습니다. 스터디카페 준비가 끝난 뒤 켜주세요."
     ),
   ]);
 }
@@ -92,7 +92,7 @@ function renderLectureApplicationsAdminPanel() {
   const visible = lectureApplicationAdminState.status === "all"
     ? applications
     : applications.filter((application) => application.status === lectureApplicationAdminState.status);
-  const statusSelect = el("select", { ariaLabel: "인강생 신청 상태" }, [
+  const statusSelect = el("select", { ariaLabel: "수강생 신청 상태" }, [
     el("option", { value: "pending" }, "검토 대기"),
     el("option", { value: "approved" }, "승인"),
     el("option", { value: "rejected" }, "반려"),
@@ -116,10 +116,10 @@ function renderLectureApplicationsAdminPanel() {
   ]);
 
   if (lectureApplicationAdminState.loading && !lectureApplicationAdminState.loaded) {
-    return panel("인강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오는 중입니다.")]);
+    return panel("수강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오는 중입니다.")]);
   }
   if (lectureApplicationAdminState.error && !lectureApplicationAdminState.loaded) {
-    return panel("인강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오지 못했습니다.")]);
+    return panel("수강생 신청 관리", [head, el("div", { className: "empty" }, "신청 목록을 불러오지 못했습니다.")]);
   }
 
   const rows = visible.map((application) => el("tr", {}, [
@@ -138,7 +138,7 @@ function renderLectureApplicationsAdminPanel() {
     ].filter(Boolean)),
   ]));
 
-  return panel("인강생 신청 관리", [
+  return panel("수강생 신청 관리", [
     head,
     table(
       ["신청일", "이름", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
@@ -218,7 +218,7 @@ function openLectureApplicationDetail(application) {
     ["반려 사유", application.rejectionReason || "-"],
   ];
   openInfoModal({
-    title: "인강생 신청 상세",
+    title: "수강생 신청 상세",
     content: el("dl", { className: "lecture-application-detail" }, detailRows.flatMap(([label, value]) => [
       el("dt", {}, label),
       el("dd", {}, value || "-"),
@@ -227,7 +227,7 @@ function openLectureApplicationDetail(application) {
 }
 
 async function approveLectureApplication(application) {
-  if (!confirm(`${application.name} 신청을 승인할까요? 승인하면 인강생 등록번호가 즉시 발급됩니다.`)) return;
+  if (!confirm(`${application.name} 신청을 승인할까요? 승인하면 수강생 등록번호가 즉시 발급됩니다.`)) return;
   await reviewLectureApplication(application, "approved", "");
 }
 
@@ -254,7 +254,7 @@ function openRejectLectureApplicationModal(application) {
       submitButton.disabled = false;
     }
   });
-  openInfoModal({ title: "인강생 신청 반려", content: form, showConfirm: false });
+  openInfoModal({ title: "수강생 신청 반려", content: form, showConfirm: false });
 }
 
 async function reviewLectureApplication(application, status, rejectionReason) {
@@ -274,7 +274,7 @@ async function reviewLectureApplication(application, status, rejectionReason) {
       state.students.push({
         id: reviewed.approvedStudentId,
         name: reviewed.name,
-        className: "인강생",
+        className: "수강생",
         studentCategory: "lecture",
         cohort: "",
         track: reviewed.track,
@@ -312,7 +312,7 @@ function renderStudentPushAdminPanel() {
     el("option", { value: "all" }, "전체 학생"),
     el("option", { value: "category:offline" }, "오프라인 학생"),
     el("option", { value: "category:online_managed" }, "온라인 관리반"),
-    el("option", { value: "category:lecture" }, "인강생"),
+    el("option", { value: "category:lecture" }, "수강생"),
     el("option", { value: "students" }, "학생 직접 선택"),
   ]);
   const titleInput = input("title", "text", "예: 오늘 수업 안내");
@@ -504,7 +504,7 @@ function renderStudentPushHistory() {
 function formatStudentPushTarget(message) {
   if (message.target_type === "all") return "전체";
   if (message.target_type === "category") {
-    return { offline: "오프라인", online_managed: "온라인 관리반", lecture: "인강생" }[message.target_category] || "그룹";
+    return { offline: "오프라인", online_managed: "온라인 관리반", lecture: "수강생" }[message.target_category] || "그룹";
   }
   return "직접 선택";
 }
@@ -535,7 +535,7 @@ function teacherStudentForm() {
     rows: 8,
   });
   const form = el("form", { className: "form-grid" }, [
-    field("학생 카테고리", categorySelect, "", "인강생 신규 신청은 2차 개발의 승인 화면에서 등록됩니다."),
+    field("학생 카테고리", categorySelect, "", "수강생 신규 신청은 2차 개발의 승인 화면에서 등록됩니다."),
     field("기수", cohortInput),
     field("기본 반", input("className", "text", "오프라인반", state.settings.className)),
     field("직렬", trackSelect, "", "선택하면 이번 등록 명단에 동일하게 적용됩니다."),
@@ -649,7 +649,7 @@ function openStudentCategoryEditModal(studentId) {
   const form = el("form", { className: "form-grid" }, [
     field("학생", el("strong", {}, `${student.name || "-"} (${student.id})`)),
     field("학생 카테고리", categorySelect),
-    field("기수", cohortInput, "", "인강생은 기수를 사용하지 않습니다."),
+    field("기수", cohortInput, "", "수강생은 기수를 사용하지 않습니다."),
     el("div", { className: "attendance-modal-actions field full" }, [
       button("취소", "btn secondary", "button", closeInfoModal),
       button("저장", "btn"),

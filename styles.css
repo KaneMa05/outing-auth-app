@@ -5601,7 +5601,7 @@ body.student-online-managed-mode .normal-student-footer {
 }
 
 body.student-study-mode .study-cafe-footer-menu {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .student-footer-menu [hidden] {
@@ -5616,7 +5616,7 @@ body.student-study-mode .study-cafe-footer-menu {
 }
 
 .study-cafe-footer-menu {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -5631,7 +5631,7 @@ body.student-study-mode .study-cafe-footer-menu {
   bottom: 7px;
   left: 7px;
   z-index: 0;
-  width: calc(16.6667% - 4.7px);
+  width: calc(25% - 5.25px);
   border-radius: 10px;
   background: var(--accent-soft);
   pointer-events: none;
@@ -5649,14 +5649,6 @@ body.student-study-mode .study-cafe-footer-menu {
 
 .study-cafe-footer-menu[data-active-index="3"]::before {
   transform: translateX(calc(300% + 12px));
-}
-
-.study-cafe-footer-menu[data-active-index="4"]::before {
-  transform: translateX(calc(400% + 16px));
-}
-
-.study-cafe-footer-menu[data-active-index="5"]::before {
-  transform: translateX(calc(500% + 20px));
 }
 
 body.student-study-mode .normal-student-footer {
@@ -6121,6 +6113,193 @@ body:not([data-app-mode="teacher"]):has(input:focus, textarea:focus) .student-fo
 
 body:not([data-app-mode="teacher"]) .student-home {
   gap: 10px;
+}
+
+.lecture-home-summary-card,
+.lecture-home-shortcuts-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.lecture-home-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lecture-home-section-head > div {
+  min-width: 0;
+}
+
+.lecture-home-section-head span {
+  display: block;
+  margin-bottom: 3px;
+  color: #4a91c5;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.lecture-home-section-head h2 {
+  margin: 0;
+  color: #20384c;
+  font-size: 1.06rem;
+}
+
+.lecture-home-text-link {
+  border: 0;
+  background: transparent;
+  color: #267cb7;
+  padding: 5px 0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.lecture-home-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.lecture-home-summary-item {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  border: 0;
+  border-radius: 13px;
+  background: #f3f8fc;
+  padding: 13px 14px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lecture-home-summary-item span {
+  color: #6f8494;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.lecture-home-summary-item strong {
+  overflow: hidden;
+  color: #1e4f72;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lecture-home-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.lecture-home-shortcut {
+  min-width: 0;
+  min-height: 92px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e4edf4;
+  border-radius: 14px;
+  background: #fff;
+  padding: 13px 10px 13px 13px;
+  color: #31556f;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lecture-home-shortcut:active {
+  background: #f2f8fc;
+}
+
+.lecture-home-shortcut-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #eaf5fd;
+  color: #287eb9;
+}
+
+.lecture-home-shortcut-icon .footer-icon {
+  flex: 0 0 24px;
+}
+
+.lecture-home-shortcut-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.lecture-home-shortcut-copy strong {
+  color: #20384c;
+  font-size: 0.85rem;
+}
+
+.lecture-home-shortcut-copy > span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #768a99;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lecture-home-shortcut-chevron {
+  color: #98aab7;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.lecture-home-notice-icon::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 3px;
+  width: 16px;
+  height: 19px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  background: linear-gradient(currentColor, currentColor) 3px 6px / 9px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 3px 11px / 7px 2px no-repeat;
+}
+
+.lecture-home-notice-icon::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 1px;
+  width: 8px;
+  height: 4px;
+  border-radius: 3px 3px 1px 1px;
+  background: currentColor;
+}
+
+@media (max-width: 360px) {
+  .lecture-home-shortcut {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 9px;
+  }
+
+  .lecture-home-shortcut-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .lecture-home-shortcut-chevron {
+    display: none;
+  }
 }
 
 body.student-browser-install-only .sidebar,

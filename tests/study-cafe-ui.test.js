@@ -248,15 +248,21 @@ assert.doesNotMatch(appSource, /현재 5명이 함께 공부하고 있어요/);
 assert.match(appSource, /button\("스터디카페 입장", "btn", "button", \(\) => navigate\("study-cafe"\)\)/);
 assert.doesNotMatch(appSource, /seated \? "공부방 보기" : "스터디카페 보기"/);
 assert.match(appSource, /new URLSearchParams\(location\.search\)\.get\("studentMode"\) === "online"/);
+assert.match(appSource, /let studyCafeLocalFallback = false/);
+assert.match(appSource, /result\.error === "device_not_active"[\s\S]*?isLocalStudentPreview\(\)[\s\S]*?studyCafeLocalFallback = true/);
+assert.match(appSource, /return studyCafeLocalFallback \|\| new URLSearchParams/);
+assert.match(appSource, /studyCafeRemoteState\.studentId && studyCafeRemoteState\.studentId !== String\(student\.id\)[\s\S]*?studyCafeLocalFallback = false/);
+assert.match(appSource, /studyCafeLocalFallback = false;\s*studyCafeRemoteState\.available = true/);
+assert.match(appSource, /function ensureStudyCafePreviewClock\(\)[\s\S]*?updateLectureHomeSummary\(\);[\s\S]*?}, 1000\);/);
 assert.match(appSource, /const allowedRoutes = getAllowedStudentRoutes\(category\)/);
-assert.match(appSource, /return category === "lecture" \? "study-todo" : "home"/);
+assert.match(appSource, /function defaultRoute\(\) \{\s*return "home";/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-online-mode", onlineMode\)/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-study-mode", studyMode\)/);
 assert.match(indexSource, /class="student-footer-menu study-cafe-footer-menu"/);
 assert.match(
   indexSource,
-  /study-cafe-footer-menu[\s\S]*?data-study-cafe-back[^>]*hidden[\s\S]*?data-route="study-todo"[\s\S]*?data-route="study-cafe"[\s\S]*?data-route="mypage"/,
-  "lecture footer should expose todo, cafe and my while keeping the legacy back action hidden"
+  /study-cafe-footer-menu[\s\S]*?data-study-cafe-back[^>]*hidden[\s\S]*?data-route="home"[\s\S]*?data-route="study-todo"[\s\S]*?data-route="study-cafe"[\s\S]*?data-route="mypage"/,
+  "lecture footer should expose home, planner, cafe and my while keeping the legacy back action hidden"
 );
 assert.match(indexSource, /footer-icon-study-back/);
 assert.match(indexSource, /footer-icon-home/);
@@ -270,7 +276,8 @@ assert.doesNotMatch(indexSource, /window\.__studentStudyBack[\s\S]*?window\.hist
 const studyFooterSource = indexSource.match(
   /<footer class="student-footer-menu study-cafe-footer-menu"[\s\S]*?<\/footer>/
 )?.[0] || "";
-assert.doesNotMatch(studyFooterSource, /data-route="home"/);
+assert.match(studyFooterSource, /data-route="home"/);
+assert.doesNotMatch(studyFooterSource, /data-route="(?:question-board|study-ranking|study-timer)"/);
 assert.doesNotMatch(indexSource, /student-header-identity/);
 assert.doesNotMatch(indexSource, /data-student-header-name/);
 assert.doesNotMatch(indexSource, /data-student-header-track/);
@@ -432,7 +439,8 @@ assert.match(appSource, /function openStudyCafeNicknameEditor\(\)/);
 assert.match(appSource, /function normalizeStudyCafeNickname\(value\)/);
 assert.match(appSource, /name: getStudyCafeDisplayName\("나"\)/);
 assert.match(appSource, /"data-study-character-name": "true"/);
-assert.match(appSource, /currentRoute === "study-character"[\s\S]*?button\.closest\("\.student-footer-menu"\)[\s\S]*?\? "mypage"/);
+assert.match(appSource, /inStudentFooter && \["study-character", "push-settings"\]\.includes\(currentRoute\)[\s\S]*?\? "mypage"/);
+assert.match(appSource, /inStudentFooter && \["study-timer", "study-ranking", "question-board", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
 assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
 assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*grid-column: 1 \/ -1/);
 assert.match(styleSource, /\.study-character-back-button/);
@@ -895,10 +903,10 @@ assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::after\s*\{\s*cont
 assert.match(styleSource, /\.study-cafe-footer-menu button\.active::after/);
 assert.match(
   styleSource,
-  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(16\.6667% - 4\.7px\)[^}]*transform 220ms/s
+  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(25% - 5\.25px\)[^}]*transform 220ms/s
 );
-assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="4"\]::before/);
-assert.match(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
+assert.doesNotMatch(styleSource, /\.study-cafe-footer-menu\[data-active-index="4"\]::before/);
+assert.doesNotMatch(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
 assert.match(styleSource, /@keyframes student-study-route-enter/);
 assert.match(styleSource, /html\s*\{[^}]*scrollbar-gutter: stable/);
 assert.doesNotMatch(
@@ -930,7 +938,7 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(6/
+  /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*grid-template-columns: repeat\(4/
 );
 assert.doesNotMatch(styleSource, /\[data-route="study-cafe"\]\s*\{[^}]*transform: translateX/);
 assert.match(styleSource, /\.study-character-option-grid/);

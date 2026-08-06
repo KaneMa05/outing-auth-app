@@ -5,7 +5,7 @@ const DEFAULT_STUDENT_COHORT = "18";
 const STUDENT_CATEGORY_OPTIONS = [
   { value: "offline", label: "오프라인 학생" },
   { value: "online_managed", label: "온라인 관리반" },
-  { value: "lecture", label: "인강생" },
+  { value: "lecture", label: "수강생" },
 ];
 const STUDENT_CATEGORY_VALUES = new Set(STUDENT_CATEGORY_OPTIONS.map((option) => option.value));
 const DEFAULT_IMPORTANT_NOTICES = [];
@@ -3376,7 +3376,7 @@ function getStudentCohortStats() {
     })
     .map(([cohort, count]) => ({
       value: cohort,
-      label: cohort === "lecture" ? "인강생" : cohort === "미분류" ? cohort : cohort + "기",
+      label: cohort === "lecture" ? "수강생" : cohort === "미분류" ? cohort : cohort + "기",
       count,
     }));
 }
@@ -3447,7 +3447,7 @@ function studentCountStatGroup() {
       stat(selected.label + " 전체", classTypeStats.total, "명"),
       stat("오프라인 학생", classTypeStats.offline, "명"),
       stat("온라인 관리반", classTypeStats.online, "명"),
-      stat("인강생", classTypeStats.lecture, "명"),
+      stat("수강생", classTypeStats.lecture, "명"),
     ]),
   ]);
 }

@@ -254,7 +254,7 @@ async function sendReviewPushNotifications(application) {
   );
   const approved = application.status === "approved";
   const payload = JSON.stringify({
-    title: approved ? "인강생 등록이 승인되었습니다" : "인강생 등록 신청 결과가 도착했습니다",
+    title: approved ? "수강생 등록이 승인되었습니다" : "수강생 등록 신청 결과가 도착했습니다",
     body: approved
       ? `등록번호 ${application.approved_student_id || ""}가 발급되었습니다. 앱에서 확인해주세요.`
       : "신청이 반려되었습니다. 앱에서 사유를 확인해주세요.",

@@ -27,7 +27,7 @@ const TEACHER_ACTIONS = new Set([
   "teacher_comment_visibility",
   "teacher_report_review",
 ]);
-const FALLBACK_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "해사영어", "항해학", "기관학", "형사법(공판)"];
+const FALLBACK_SUBJECTS = ["자유", "해양경찰학개론", "해사법규", "형사법", "해사영어", "항해학", "기관학", "형사법(공판)"];
 const QUESTION_IMAGE_BUCKET = "question-board-images";
 const QUESTION_IMAGE_LIMIT = 3;
 const QUESTION_IMAGE_MAX_BYTES = 900 * 1024;
@@ -322,7 +322,7 @@ async function loadSubjectsForTrack(track) {
   } catch (error) {
     if (error.storeStatus !== 404) console.warn("Question subjects fallback used.", error.message);
   }
-  return [...new Set([...configured, ...FALLBACK_SUBJECTS])];
+  return [...new Set(["자유", ...configured, ...FALLBACK_SUBJECTS])];
 }
 
 async function requireAllowedSubject(subject, track) {
@@ -367,7 +367,7 @@ async function loadPendingReports() {
 }
 
 function serializePost(row, { studentId, authors, counts, teacher }) {
-  const author = authors.get(row.student_id) || { name: "인강생", type: "student" };
+  const author = authors.get(row.student_id) || { name: "수강생", type: "student" };
   return {
     id: row.id,
     subject: row.subject,
@@ -388,7 +388,7 @@ function serializePost(row, { studentId, authors, counts, teacher }) {
 }
 
 function serializeComment(row, { studentId, authors, teacher }) {
-  const author = authors.get(row.student_id) || { name: "인강생", type: "student" };
+  const author = authors.get(row.student_id) || { name: "수강생", type: "student" };
   return {
     id: row.id,
     authorType: row.author_type,
@@ -619,7 +619,7 @@ function hashDeviceToken(value) {
 
 function maskName(value) {
   const name = normalizeText(value, 40);
-  if (!name) return "인강생";
+  if (!name) return "수강생";
   if (name.length === 1) return `${name}○`;
   return `${name[0]}${"○".repeat(Math.min(2, name.length - 1))}`;
 }

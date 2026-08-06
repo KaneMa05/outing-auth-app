@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
       const now = new Date().toISOString();
       const payload = {
         name: displayName,
-        class_name: "인강생",
+        class_name: "수강생",
         student_category: "lecture",
         account_type: "teacher",
         position: "선생님",

@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 
-const SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "해사영어", "항해학", "기관학", "형사법(공판)"];
+const SUBJECTS = ["자유", "해양경찰학개론", "해사법규", "형사법", "해사영어", "항해학", "기관학", "형사법(공판)"];
 
 function handleLocalQuestionBoard({ body, student, filePath }) {
   const action = text(body.action, 40);
@@ -50,7 +50,7 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
     const images = localImages(body.images);
     if (!images) return failure(400, "invalid_image");
     const post = {
-      id: crypto.randomUUID(), studentId: student.id, authorName: student.name || "인강생 미리보기",
+      id: crypto.randomUUID(), studentId: student.id, authorName: student.name || "수강생 미리보기",
       subject, title, body: content, images, status: "open", viewCount: 0, isHidden: false,
       createdAt: now, updatedAt: now, deletedAt: "",
     };
@@ -94,7 +94,7 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
     if (content.length < 1) return failure(400, "invalid_comment");
     const comment = {
       id: crypto.randomUUID(), postId: post.id, studentId: student.id,
-      authorType: "student", authorName: student.name || "인강생 미리보기", body: content,
+      authorType: "student", authorName: student.name || "수강생 미리보기", body: content,
       isHidden: false, createdAt: now, updatedAt: now, deletedAt: "",
     };
     store.comments.push(comment);

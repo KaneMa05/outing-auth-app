@@ -98,7 +98,7 @@ begin
     ) values (
       next_student_id,
       new.name,
-      '인강생',
+      '수강생',
       'lecture',
       null,
       new.track,

@@ -199,7 +199,7 @@ function getLocalPreviewStudent(body) {
     if (!settings.forceLocalStudentAuth || settings.studentAuthId !== studentId) return null;
     if (!studentId || !deviceToken || profile.deviceToken !== deviceToken) return null;
     if (!student || category !== "lecture" || student.isActive === false) return null;
-    return { id: studentId, name: student.name || "인강생 미리보기", track: student.track || profile.track || "" };
+    return { id: studentId, name: student.name || "수강생 미리보기", track: student.track || profile.track || "" };
   } catch {
     return null;
   }
