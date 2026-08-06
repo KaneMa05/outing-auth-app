@@ -24,6 +24,11 @@ const CHECKS = [
     required: true,
   },
   {
+    name: "Study cafe subject goals",
+    path: "study_cafe_subject_goals?select=student_id,study_date,subject_name,target_minutes&limit=1",
+    required: true,
+  },
+  {
     name: "활성 온라인 학생",
     path: "students?id=like.2*&is_active=eq.true&select=id&limit=1",
     required: false,

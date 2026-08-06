@@ -1,4 +1,12 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const preflightSource = fs.readFileSync(
+  path.join(__dirname, "..", "scripts", "study-cafe-preflight.js"),
+  "utf8"
+);
+assert.match(preflightSource, /study_cafe_subject_goals\?select=/);
 
 const {
   parseContentRange,
