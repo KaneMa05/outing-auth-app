@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v308-question-board-images";
+const CACHE_NAME = "outing-auth-app-v309-notification-icons";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -20,6 +20,8 @@ const APP_SHELL = [
   "/app-icon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/notification-icon.png",
+  "/notification-badge.png",
   "/apple-touch-icon.png"
 ];
 
@@ -66,8 +68,8 @@ self.addEventListener("push", (event) => {
   }
   event.waitUntil(self.registration.showNotification(data.title || "등록 신청 결과", {
     body: data.body || "검수 결과를 앱에서 확인해주세요.",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/notification-icon.png",
+    badge: "/notification-badge.png",
     tag: data.tag || "lecture-application-review",
     data: { url: data.url || "/" },
   }));
