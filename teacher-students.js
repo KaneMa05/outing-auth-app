@@ -1507,9 +1507,10 @@ async function saveStudentsToRemote(studentIds) {
   }
   if (!remoteStore) return;
 
-  const { error } = await remoteStore.from("students").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
+  const clientRows = rows.map(({ student_category, cohort, ...row }) => row);
+  const { error } = await remoteStore.from("students").upsert(clientRows, { onConflict: "id", ignoreDuplicates: true });
   if (isMissingColumnError(error, "attendance_excluded") || isMissingColumnError(error, "fitness_excluded")) {
-    const fallbackRows = rows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
+    const fallbackRows = clientRows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
     const { error: fallbackError } = await remoteStore.from("students").upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
     if (fallbackError) throw fallbackError;
   } else if (isExpectedProfileRewriteError(error)) {
@@ -1526,8 +1527,6 @@ async function saveStudentsToRemote(studentIds) {
       .update({
         name: row.name,
         class_name: row.class_name,
-        student_category: row.student_category,
-        cohort: row.cohort,
         track: row.track,
         attendance_excluded: row.attendance_excluded,
         fitness_excluded: row.fitness_excluded,
@@ -1563,9 +1562,7 @@ function parseStudentRoster(value, cohort, studentCategory = "offline") {
       const parts = line.includes(",") || line.includes("\t") ? line.split(/[,\t]/) : line.split(/\s+/);
       const studentNumber = Number((parts.shift() || "").trim());
       const name = parts.join(" ").trim();
-      const minimum = studentCategory === "online_managed" ? 200 : 1;
-      const maximum = studentCategory === "online_managed" ? 999 : 199;
-      if (!Number.isInteger(studentNumber) || studentNumber < minimum || studentNumber > maximum || !name) return null;
+      if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 999 || !name) return null;
       return { id: buildStudentId(cohort, studentNumber), name };
     })
     .filter(Boolean);

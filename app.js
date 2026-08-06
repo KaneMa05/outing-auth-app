@@ -2396,7 +2396,7 @@ function renderStudentMypage() {
           button("캐릭터 설정", "btn secondary", "button", () => navigate("study-character")),
         ])
       : null,
-    category === "offline" ? renderStudentOutingHistoryButton(student.id) : null,
+    !isOnlineStudentExperience(student) ? renderStudentOutingHistoryButton(student.id) : null,
     renderStudentPenaltyHistoryButton(student.id),
     renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),

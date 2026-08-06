@@ -25,6 +25,13 @@ assert.match(schemaSource, /add column if not exists cohort smallint/);
 assert.match(migrationSource, /when id like '2%' then 'lecture'/);
 assert.match(migrationSource, /when class_name like '%온라인%' then 'online_managed'/);
 assert.match(migrationSource, /alter column student_category set not null/);
+assert.match(migrationSource, /grant select \(student_category, cohort\) on public\.students to anon/);
+assert.doesNotMatch(migrationSource, /grant (?:insert|update) \(student_category, cohort\) on public\.students to anon/);
+const studentSelectGrant = schemaSource.match(/grant select \([\s\S]*?\) on public\.students to anon;/)?.[0] || "";
+assert.match(studentSelectGrant, /student_category/);
+assert.match(studentSelectGrant, /cohort/);
+const registrationEventsTable = schemaSource.match(/create table if not exists public\.student_registration_events \([\s\S]*?\n\);/)?.[0] || "";
+assert.doesNotMatch(registrationEventsTable, /board_type/);
 
 assert.match(sharedSource, /function getStudentCategory\(student\)/);
 assert.match(sharedSource, /if \(id\.startsWith\("2"\) \|\| \/\^9\\d\{5\}\$\/\.test\(id\)\) return "lecture"/);
@@ -40,6 +47,7 @@ assert.match(appSource, /visibleLectureTabs = new Set\(\["study-todo", "study-ca
 assert.match(appSource, /category === "online_managed" && isOnlineManagedStudyCafeEnabled\(\)/);
 assert.match(appSource, /const onlineMode = lectureMode \|\| onlineManagedMode/);
 assert.match(appSource, /classList\.toggle\("student-online-managed-mode", onlineManagedMode\)/);
+assert.match(appSource, /!isOnlineStudentExperience\(student\) \? renderStudentOutingHistoryButton\(student\.id\) : null/);
 
 const studyFooter = indexSource.match(/<footer class="student-footer-menu study-cafe-footer-menu"[\s\S]*?<\/footer>/)?.[0] || "";
 for (const route of ["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "mypage"]) {
@@ -48,9 +56,11 @@ for (const route of ["study-todo", "study-cafe", "question-board", "study-rankin
 assert.match(studyFooter, /data-study-cafe-back[\s\S]*?hidden/);
 assert.match(studyFooter, /data-route="study-character" hidden/);
 
-assert.match(teacherStudentsSource, /studentCategory === "online_managed" \? 200 : 1/);
-assert.match(teacherStudentsSource, /studentCategory === "online_managed" \? 999 : 199/);
+assert.match(teacherStudentsSource, /studentNumber < 1 \|\| studentNumber > 999/);
+assert.doesNotMatch(teacherStudentsSource, /studentCategory === "online_managed" \? 200 : 1/);
 assert.match(teacherStudentsSource, /openStudentCategoryEditModal/);
+assert.match(sharedSource, /clientRosterRows = rosterRows\.map\(\(\{ student_category, cohort, \.\.\.row \}\) => row\)/);
+assert.match(teacherStudentsSource, /clientRows = rows\.map\(\(\{ student_category, cohort, \.\.\.row \}\) => row\)/);
 assert.match(studentsApiSource, /student_category: studentCategory/);
 assert.match(studyCafeApiSource, /\["online_managed", "lecture"\]\.includes\(category\)/);
 assert.match(roomsApiSource, /\["online_managed", "lecture"\]\.includes\(category\)/);

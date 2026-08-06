@@ -2431,13 +2431,16 @@ async function saveStateToRemote() {
       is_active: true,
       created_at: student.createdAt || new Date().toISOString(),
     }));
+  // Category and cohort are managed through the authenticated teacher API.
+  // Keep anonymous browser writes limited to the legacy roster columns.
+  const clientRosterRows = rosterRows.map(({ student_category, cohort, ...row }) => row);
 
-  if (rosterRows.length) {
+  if (clientRosterRows.length) {
     const { error } = await remoteStore
       .from("students")
-      .upsert(rosterRows, { onConflict: "id", ignoreDuplicates: true });
+      .upsert(clientRosterRows, { onConflict: "id", ignoreDuplicates: true });
     if (isMissingColumnError(error, "attendance_excluded") || isMissingColumnError(error, "fitness_excluded")) {
-      const fallbackRows = rosterRows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
+      const fallbackRows = clientRosterRows.map(({ attendance_excluded, fitness_excluded, ...row }) => row);
       const { error: fallbackError } = await remoteStore
         .from("students")
         .upsert(fallbackRows, { onConflict: "id", ignoreDuplicates: true });
@@ -2468,8 +2471,6 @@ async function saveStateToRemote() {
         .update({
           name: row.name,
           class_name: row.class_name,
-          student_category: row.student_category,
-          cohort: row.cohort,
           track: row.track,
           attendance_excluded: row.attendance_excluded,
           fitness_excluded: row.fitness_excluded,

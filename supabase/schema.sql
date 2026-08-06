@@ -150,7 +150,6 @@ create table if not exists public.notices (
 create table if not exists public.student_registration_events (
   id uuid primary key default gen_random_uuid(),
   student_id text not null references public.students(id) on delete cascade,
-  board_type text not null default 'subject' check (board_type in ('subject', 'notice', 'free')),
   student_name text,
   event_type text not null check (event_type in ('registered', 'reset')),
   device_token text,
@@ -1424,6 +1423,8 @@ grant select (
   id,
   name,
   class_name,
+  student_category,
+  cohort,
   track,
   gender,
   app_registered_at,

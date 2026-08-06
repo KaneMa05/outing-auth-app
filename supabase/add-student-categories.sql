@@ -50,3 +50,7 @@ begin
     check (cohort between 1 and 99);
   end if;
 end $$;
+
+-- The browser reads these fields to choose the correct student experience.
+-- Category changes remain server-only; do not grant anon insert/update here.
+grant select (student_category, cohort) on public.students to anon;
