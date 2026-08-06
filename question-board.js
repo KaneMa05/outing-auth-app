@@ -276,6 +276,7 @@ function renderQuestionPostCard(post) {
     post.imageCount ? el("span", { className: "question-post-image-count" }, `사진 ${post.imageCount}장`) : null,
     el("div", { className: "question-post-meta" }, [
       el("span", {}, post.authorName),
+      post.authorType === "teacher" ? el("span", { className: "teacher-answer-badge" }, "선생님") : null,
       el("span", {}, formatQuestionBoardDate(post.createdAt)),
       el("span", {}, `조회 ${post.viewCount}`),
       el("span", { className: "question-comment-count" }, `댓글 ${post.commentCount}`),
@@ -327,7 +328,7 @@ function renderQuestionPostDetail() {
   const actions = [
     post.isOwn ? button("수정", "mini-btn", "button", () => editQuestionPost(post)) : null,
     post.isOwn ? button("삭제", "mini-btn danger", "button", () => deleteQuestionPost(post)) : null,
-    !post.isOwn ? button("신고", "mini-btn", "button", () => reportQuestionTarget("post", post.id)) : null,
+    !post.isOwn && post.authorType !== "teacher" ? button("신고", "mini-btn", "button", () => reportQuestionTarget("post", post.id)) : null,
   ].filter(Boolean);
 
   return el("div", { className: "question-board-page question-detail-page student-view" }, [
@@ -339,6 +340,7 @@ function renderQuestionPostDetail() {
       el("h2", {}, post.title),
       el("div", { className: "question-post-meta" }, [
         el("span", {}, post.authorName),
+        post.authorType === "teacher" ? el("span", { className: "teacher-answer-badge" }, "선생님") : null,
         el("span", {}, formatQuestionBoardDate(post.createdAt)),
         el("span", {}, `조회 ${post.viewCount}`),
       ]),

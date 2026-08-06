@@ -6,6 +6,9 @@ create table if not exists public.students (
   class_name text not null default '오프라인반',
   student_category text not null default 'offline'
     check (student_category in ('offline', 'online_managed', 'lecture')),
+  account_type text not null default 'student'
+    check (account_type in ('student', 'teacher')),
+  position text,
   cohort smallint check (cohort between 1 and 99),
   phone text,
   track text,
@@ -315,6 +318,30 @@ create table if not exists public.final_exam_scores (
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+alter table public.students add column if not exists account_type text not null default 'student';
+alter table public.students add column if not exists position text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'students_teacher_account_check'
+      and conrelid = 'public.students'::regclass
+  ) then
+    alter table public.students add constraint students_teacher_account_check
+    check (
+      (account_type = 'student' and position is null and id !~ '^(10|[1-9])$')
+      or (
+        account_type = 'teacher'
+        and position = '선생님'
+        and id ~ '^(10|[1-9])$'
+        and student_category = 'lecture'
+      )
+    );
+  end if;
+end
+$$;
 
 create table if not exists public.student_devices (
   id uuid primary key default gen_random_uuid(),
@@ -1424,6 +1451,8 @@ grant select (
   name,
   class_name,
   student_category,
+  account_type,
+  position,
   cohort,
   track,
   gender,
@@ -2452,7 +2481,7 @@ create table if not exists public.question_comments (
   deleted_at timestamptz,
   deleted_by text,
   check ((author_type = 'student' and student_id is not null and teacher_name is null)
-    or (author_type = 'teacher' and student_id is null and char_length(trim(teacher_name)) between 1 and 80))
+    or (author_type = 'teacher' and char_length(trim(teacher_name)) between 1 and 80))
 );
 
 create table if not exists public.question_reports (

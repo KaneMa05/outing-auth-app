@@ -151,10 +151,12 @@ async function handleStudentAction(res, action, body, student) {
     await enforceCommentRateLimit(student.id);
     const post = await requireVisiblePost(body.postId);
     const content = normalizeRequired(body.body, 2000, "invalid_comment", 1, true);
+    const teacherAccount = student.account_type === "teacher";
     const rows = await requestSupabase("POST", "question_comments", {
       post_id: post.id,
-      author_type: "student",
+      author_type: teacherAccount ? "teacher" : "student",
       student_id: student.id,
+      teacher_name: teacherAccount ? formatTeacherName(student.name) : null,
       body: content,
       updated_at: new Date().toISOString(),
     }, { Prefer: "return=representation" });
@@ -164,7 +166,7 @@ async function handleStudentAction(res, action, body, student) {
   if (action === "comment_delete") {
     const commentId = normalizeUuid(body.commentId);
     if (!commentId) throw httpError("invalid_comment", 400);
-    const rows = await requestSupabase("GET", `question_comments?id=eq.${commentId}&student_id=eq.${encodeURIComponent(student.id)}&author_type=eq.student&deleted_at=is.null&select=id&limit=1`);
+    const rows = await requestSupabase("GET", `question_comments?id=eq.${commentId}&student_id=eq.${encodeURIComponent(student.id)}&deleted_at=is.null&select=id&limit=1`);
     if (!rows?.[0]) throw httpError("comment_not_found", 404);
     await requestSupabase("PATCH", `question_comments?id=eq.${commentId}`, {
       deleted_at: new Date().toISOString(),
@@ -333,11 +335,14 @@ async function loadAuthorMap(studentIds) {
   if (!ids.length) return new Map();
   const filter = ids.map((id) => encodeURIComponent(id)).join(",");
   const [students, profiles] = await Promise.all([
-    requestSupabase("GET", `students?id=in.(${filter})&select=id,name`),
+    requestSupabase("GET", `students?id=in.(${filter})&select=id,name,account_type,position`),
     requestSupabase("GET", `study_cafe_profiles?student_id=in.(${filter})&select=student_id,nickname`),
   ]);
   const profileMap = new Map((profiles || []).map((row) => [row.student_id, normalizeText(row.nickname, 20)]));
-  return new Map((students || []).map((row) => [row.id, profileMap.get(row.id) || maskName(row.name)]));
+  return new Map((students || []).map((row) => [row.id, {
+    name: row.account_type === "teacher" ? formatTeacherName(row.name) : profileMap.get(row.id) || maskName(row.name),
+    type: row.account_type === "teacher" ? "teacher" : "student",
+  }]));
 }
 
 async function loadCommentCounts(postIds) {
@@ -362,6 +367,7 @@ async function loadPendingReports() {
 }
 
 function serializePost(row, { studentId, authors, counts, teacher }) {
+  const author = authors.get(row.student_id) || { name: "인강생", type: "student" };
   return {
     id: row.id,
     subject: row.subject,
@@ -371,7 +377,8 @@ function serializePost(row, { studentId, authors, counts, teacher }) {
     status: row.status,
     viewCount: Number(row.view_count) || 0,
     commentCount: counts.get(row.id) || 0,
-    authorName: authors.get(row.student_id) || "인강생",
+    authorName: author.name,
+    authorType: author.type,
     isOwn: Boolean(studentId && row.student_id === studentId),
     isHidden: teacher && row.is_hidden === true,
     hiddenReason: teacher ? row.hidden_reason || "" : "",
@@ -381,12 +388,13 @@ function serializePost(row, { studentId, authors, counts, teacher }) {
 }
 
 function serializeComment(row, { studentId, authors, teacher }) {
+  const author = authors.get(row.student_id) || { name: "인강생", type: "student" };
   return {
     id: row.id,
     authorType: row.author_type,
-    authorName: row.author_type === "teacher" ? row.teacher_name || "선생님" : authors.get(row.student_id) || "인강생",
+    authorName: row.author_type === "teacher" ? row.teacher_name || "선생님" : author.name,
     body: row.body,
-    isOwn: row.author_type === "student" && Boolean(studentId && row.student_id === studentId),
+    isOwn: Boolean(studentId && row.student_id === studentId),
     isHidden: teacher && row.is_hidden === true,
     hiddenReason: teacher ? row.hidden_reason || "" : "",
     createdAt: row.created_at,
@@ -405,8 +413,13 @@ async function authenticateLectureStudent(body) {
     p_client_user_agent: normalizeText(body.client?.userAgent, 500) || null,
   });
   if (!validation || validation.valid !== true) return null;
-  const rows = await requestSupabase("GET", `students?id=eq.${encodeURIComponent(studentId)}&student_category=eq.lecture&is_active=eq.true&select=id,name,track,student_category&limit=1`);
+  const rows = await requestSupabase("GET", `students?id=eq.${encodeURIComponent(studentId)}&student_category=eq.lecture&is_active=eq.true&select=id,name,track,student_category,account_type,position&limit=1`);
   return rows?.[0] || null;
+}
+
+function formatTeacherName(name) {
+  const value = normalizeText(name, 60) || "선생님";
+  return value.endsWith("선생님") ? value : `${value} 선생님`;
 }
 
 async function requireOwnedPost(value, studentId) {

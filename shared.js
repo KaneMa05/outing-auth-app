@@ -139,6 +139,7 @@ const routePermissions = {
   "study-cafe-admin": "study_cafe.read",
   "question-board-admin": "question_board.read",
   notices: "notices.read",
+  "teacher-accounts": "accounts.write",
   managers: "managers.read",
   students: "students.read",
   "student-push": "notices.write",
@@ -172,7 +173,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -2023,7 +2024,7 @@ async function loadStateFromRemote(options = {}) {
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
   const localSubmissionAnswers = Array.isArray(state.submissionAnswers) ? state.submissionAnswers.map((answer) => ({ ...answer })) : [];
   const localSeatAssignments = JSON.parse(JSON.stringify(state.seatAssignments || {}));
-  let studentColumns = "id,name,class_name,student_category,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+  let studentColumns = "id,name,class_name,student_category,account_type,position,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
   const trackOptionColumns = "label,is_active,sort_order,created_at";
   let managerColumns = "id,name,cohort,role,memo,is_active,created_at";
   const outingColumns = [
@@ -2207,6 +2208,10 @@ async function loadStateFromRemote(options = {}) {
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
 
+  if (isMissingColumnError(studentResult.error, "account_type") || isMissingColumnError(studentResult.error, "position")) {
+    studentColumns = "id,name,class_name,student_category,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
   if (isMissingColumnError(studentResult.error, "student_category") || isMissingColumnError(studentResult.error, "cohort")) {
     studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
@@ -2349,6 +2354,8 @@ async function loadStateFromRemote(options = {}) {
       name: student.name,
       className: student.class_name,
       studentCategory: normalizeStudentCategory(student.student_category),
+      accountType: student.account_type === "teacher" ? "teacher" : "student",
+      position: student.position || "",
       cohort: student.cohort == null ? "" : String(student.cohort),
       track: normalizeCoastGuardTrack(student.track),
       gender: student.gender || "",
@@ -2364,7 +2371,7 @@ async function loadStateFromRemote(options = {}) {
     }
     mappedStudent.attendanceExcluded = mappedStudent.attendanceExcluded || mappedStudent.studentCategory !== "offline";
     return mappedStudent;
-  });
+  }).filter((student) => APP_MODE !== "teacher" || student.accountType !== "teacher");
   if (!managerResult.error) state.managers = (managerResult.data || []).map(mapManagerFromRemote);
   if (APP_MODE === "teacher") {
     const apiManagers = await loadManagersFromTeacherApi();

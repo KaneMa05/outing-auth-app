@@ -1,3 +1,151 @@
+const teacherAccountAdminState = {
+  accounts: [],
+  limit: 10,
+  loaded: false,
+  loading: false,
+  error: "",
+};
+
+function renderTeacherAccountsAdmin() {
+  if (!hasTeacherPermission("accounts.write")) return renderForbidden();
+  if (!teacherAccountAdminState.loaded && !teacherAccountAdminState.loading) loadTeacherAccounts();
+
+  const registrationNumberInput = input("registrationNumber", "number", "1~10");
+  registrationNumberInput.required = true;
+  registrationNumberInput.min = "1";
+  registrationNumberInput.max = "10";
+  registrationNumberInput.inputMode = "numeric";
+  const displayNameInput = input("displayName", "text", "홍길동");
+  displayNameInput.required = true;
+  displayNameInput.maxLength = 40;
+  const passwordInput = input("password", "password", "8자 이상");
+  passwordInput.required = true;
+  passwordInput.minLength = 8;
+  passwordInput.maxLength = 128;
+  passwordInput.autocomplete = "new-password";
+  const passwordConfirmInput = input("passwordConfirm", "password", "비밀번호 다시 입력");
+  passwordConfirmInput.required = true;
+  passwordConfirmInput.minLength = 8;
+  passwordConfirmInput.maxLength = 128;
+  passwordConfirmInput.autocomplete = "new-password";
+  const submitButton = button("선생님 계정 등록", "btn");
+  const form = el("form", { className: "form-grid teacher-account-form" }, [
+    field("등록번호", registrationNumberInput),
+    field("선생님 이름", displayNameInput),
+    field("비밀번호", passwordInput),
+    field("비밀번호 확인", passwordConfirmInput),
+    el("div", { className: "field" }, [
+      el("span", {}, "직급"),
+      el("div", { className: "readonly-field" }, "선생님"),
+    ]),
+    el("div", { className: "field" }, [el("span", {}, " "), submitButton]),
+  ]);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formData(form);
+    if (data.password !== data.passwordConfirm) return notify("비밀번호 확인이 일치하지 않습니다.");
+    submitButton.disabled = true;
+    submitButton.textContent = "등록 중...";
+    try {
+      const response = await fetch("/api/teacher-accounts", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registrationNumber: data.registrationNumber, displayName: data.displayName, password: data.password }),
+      });
+      const result = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !result.ok) throw new Error(result.error || "teacher_account_save_failed");
+      form.reset();
+      teacherAccountAdminState.loaded = false;
+      await loadTeacherAccounts();
+      notify("선생님 계정을 등록했습니다.");
+    } catch (error) {
+      console.error(error);
+      const messages = {
+        registration_number_in_use: "해당 번호는 학생 등록번호로 사용 중입니다.",
+        invalid_registration_number: "등록번호는 1번부터 10번까지 선택해주세요.",
+        invalid_password: "비밀번호는 8자 이상 입력해주세요.",
+      };
+      notify(messages[error.message] || "선생님 계정을 등록하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      submitButton.disabled = false;
+      submitButton.textContent = "선생님 계정 등록";
+    }
+  });
+
+  const rows = teacherAccountAdminState.accounts.map((account) => {
+    const deleteButton = button("사용 중지", "mini-btn danger", "button", () => deleteTeacherAccount(account));
+    return el("tr", {}, [
+      el("td", {}, account.name),
+      el("td", {}, `${account.id}번`),
+      el("td", {}, account.position || "선생님"),
+      el("td", {}, formatDateCompact(account.created_at)),
+      el("td", { className: "student-admin-actions" }, [deleteButton]),
+    ]);
+  });
+
+  const countLabel = `${teacherAccountAdminState.accounts.length} / ${teacherAccountAdminState.limit}명`;
+  return el("div", { className: "grid" }, [
+    panel("선생님 계정 등록", [
+      el("p", { className: "subtle" }, "1~10번 등록번호를 선생님에게 배정합니다. 선생님은 학생 앱에서 이 번호로 로그인하며 인강생 화면을 그대로 사용합니다."),
+      form,
+    ]),
+    panel("등록된 선생님", [
+      el("div", { className: "teacher-account-summary" }, [
+        el("strong", {}, countLabel),
+        teacherAccountAdminState.loading ? el("span", { className: "subtle" }, "불러오는 중...") : null,
+      ]),
+      teacherAccountAdminState.error
+        ? el("div", { className: "empty" }, "선생님 계정 목록을 불러오지 못했습니다.")
+        : table(
+            ["이름", "등록번호", "직급", "등록일", "관리"],
+            rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "등록된 선생님 계정이 없습니다."))])]
+          ),
+    ]),
+  ]);
+}
+
+async function loadTeacherAccounts() {
+  teacherAccountAdminState.loading = true;
+  teacherAccountAdminState.error = "";
+  try {
+    const response = await fetch("/api/teacher-accounts", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) throw new Error(data.error || "teacher_account_load_failed");
+    teacherAccountAdminState.accounts = Array.isArray(data.accounts) ? data.accounts : [];
+    teacherAccountAdminState.limit = Number(data.limit) || 10;
+    teacherAccountAdminState.loaded = true;
+  } catch (error) {
+    console.error(error);
+    teacherAccountAdminState.error = error.message || "teacher_account_load_failed";
+    teacherAccountAdminState.loaded = true;
+  } finally {
+    teacherAccountAdminState.loading = false;
+    if (currentRoute === "teacher-accounts") render();
+  }
+}
+
+async function deleteTeacherAccount(account) {
+  if (!account?.id) return;
+  if (!confirm(`${account.name} 선생님의 학생 앱 로그인을 중지할까요?`)) return;
+  try {
+    const response = await fetch("/api/teacher-accounts", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: account.id }),
+    });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) throw new Error(data.error || "teacher_account_delete_failed");
+    teacherAccountAdminState.loaded = false;
+    await loadTeacherAccounts();
+    notify("선생님 계정 사용을 중지했습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("선생님 계정 사용을 중지하지 못했습니다.");
+  }
+}
+
 function trackOptionAdminPanel() {
   const draftOptions = ensureTrackOptionDraft();
   const isDirty = isTrackOptionDraftDirty();

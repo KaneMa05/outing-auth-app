@@ -13641,3 +13641,22 @@ body.student-study-mode .main-shell {
   .question-detail-images { grid-template-columns: 1fr; }
   .question-detail-image-link:first-child:last-child { grid-column: auto; }
 }
+.readonly-field {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0 12px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.teacher-account-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}

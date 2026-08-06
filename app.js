@@ -23,6 +23,7 @@
   "study-ranking": "순공시간 랭킹",
   "study-character": "캐릭터",
   teacher: "외출 관리",
+  "teacher-accounts": "선생님 계정",
   managers: "담당자 등록",
   students: "학생 등록",
   "student-push": "학생 푸시 알림",
@@ -472,7 +473,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -604,6 +605,7 @@ function render() {
           "study-cafe-admin": renderStudyCafeAdmin,
           "question-board-admin": renderQuestionBoardAdmin,
           notices: renderNoticesAdmin,
+          "teacher-accounts": renderTeacherAccountsAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
           "student-push": renderStudentPushAdmin,
@@ -758,12 +760,21 @@ function getStudentProfile(studentId) {
   return ensureStudentProfiles()[String(studentId || "").trim()];
 }
 
+function isTeacherAppAccount(student) {
+  const registrationNumber = Number(String(student?.id || "").trim());
+  return student?.accountType === "teacher"
+    || student?.account_type === "teacher"
+    || (Number.isInteger(registrationNumber) && registrationNumber >= 1 && registrationNumber <= 10);
+}
+
 function renderStudentAuth() {
   const idInput = input("studentId", "text", "예: 18004", state.settings.studentAuthId || "");
   const lookupResult = el("div", { className: "student-auth-result", ariaLive: "polite" });
   const resetRequestArea = el("div", { className: "student-auth-reset-request", hidden: true });
   const profileArea = el("div", { className: "student-auth-profile", hidden: true });
   const studentNameNode = el("strong", { className: "student-auth-name" }, "-");
+  const authTitle = el("h2", {}, "학생 등록");
+  const authDescription = el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요.");
   let selectedStudent = null;
 
   const showResetRequestButton = (student) => {
@@ -803,11 +814,30 @@ function renderStudentAuth() {
 
     if (!selectedStudent) {
       lookupResult.className = "student-auth-result error";
-      lookupResult.textContent = "관리자가 등록한 학생 고유번호를 찾을 수 없습니다.";
+      lookupResult.textContent = "등록된 번호를 찾을 수 없습니다.";
       return;
     }
 
     const profile = getStudentProfile(selectedStudent.id) || {};
+    if (isTeacherAppAccount(selectedStudent)) {
+      trackField.hidden = true;
+      customTrackField.hidden = true;
+      genderField.hidden = true;
+      studentNameNode.textContent = `${selectedStudent.name} 선생님`;
+      authTitle.textContent = "선생님 로그인";
+      authDescription.textContent = "등록번호와 비밀번호로 인강생 앱을 이용합니다.";
+      submitButton.textContent = "로그인";
+      lookupResult.className = "student-auth-result success";
+      lookupResult.textContent = `${selectedStudent.name} 선생님 계정이 확인되었습니다.`;
+      profileArea.hidden = false;
+      return;
+    }
+
+    authTitle.textContent = "학생 등록";
+    authDescription.textContent = "고유번호를 입력해 본인 정보를 확인해주세요.";
+    submitButton.textContent = "시작하기";
+    trackField.hidden = false;
+    genderField.hidden = false;
     const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || profile.initialTrack || profile.track);
     const registeredGender = selectedStudent.gender || profile.gender || "";
     const approvedLectureStudent = getStudentCategory(selectedStudent) === "lecture";
@@ -855,21 +885,23 @@ function renderStudentAuth() {
   const genderSelect = select("gender", ["남", "여"]);
   const passwordInput = input("password", "password", "비밀번호");
 
+  const trackField = field("직렬", trackSelect);
+  const genderField = field("성별", genderSelect);
   profileArea.append(
     field("이름", studentNameNode),
-    field("직렬", trackSelect),
+    trackField,
     customTrackField,
-    field("성별", genderSelect),
+    genderField,
     field("본인 비밀번호", passwordInput, "", "다음 접속 때 본인 확인에 사용합니다.")
   );
 
   const submitButton = button("시작하기", "btn");
   const form = el("form", { className: "student-auth-card" }, [
     el("div", {}, [
-      el("h2", {}, "학생 등록"),
-      el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요."),
+      authTitle,
+      authDescription,
     ]),
-    field("학생 고유번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "예: 18기 4번 -> 18004"),
+    field("등록번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "학생 고유번호 또는 선생님 번호 1~10"),
     lookupResult,
     resetRequestArea,
     profileArea,
@@ -894,7 +926,8 @@ function renderStudentAuth() {
     const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || existingProfile?.initialTrack || existingProfile?.track);
     const finalTrack = registeredTrack || resolveStudentTrack(data.track, data.customTrack);
     const finalGender = selectedStudent.gender || existingProfile?.gender || data.gender;
-    if (!finalTrack || !finalGender || !data.password) {
+    if (!data.password) return notify("비밀번호를 입력해주세요.");
+    if (!finalTrack || !finalGender) {
       return notify("직렬, 성별, 비밀번호를 모두 입력해주세요.");
     }
 
@@ -959,7 +992,9 @@ function renderStudentAuth() {
     currentRoute = "home";
     if (location.hash !== "#home") location.hash = "home";
     render();
-    notify(`${selectedStudent.name}님 인증되었습니다.`);
+    notify(isTeacherAppAccount(selectedStudent)
+      ? `${selectedStudent.name} 선생님으로 로그인했습니다.`
+      : `${selectedStudent.name}님 인증되었습니다.`);
   });
 
   return el("div", { className: "grid student-view" }, [form, renderLectureApplicationEntryCard(), renderStudentAuthInstallCard()].filter(Boolean));
