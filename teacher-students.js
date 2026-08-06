@@ -475,7 +475,7 @@ async function loadStudentPushAdminData({ force = false } = {}) {
     studentPushAdminState.error = error.message || "student_push_load_failed";
   } finally {
     studentPushAdminState.loading = false;
-    if (currentRoute === "students") render();
+    if (currentRoute === "student-push") render();
   }
 }
 

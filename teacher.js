@@ -1960,9 +1960,13 @@ function renderStudentsAdmin() {
   return el("div", { className: "grid" }, [
     renderOnlineManagedStudyCafeTogglePanel(),
     renderLectureApplicationsAdminPanel(),
-    hasTeacherPermission("notices.write") ? renderStudentPushAdminPanel() : null,
     teacherStudentForm(),
   ].filter(Boolean));
+}
+
+function renderStudentPushAdmin() {
+  if (!hasTeacherPermission("notices.write")) return renderForbidden();
+  return el("div", { className: "grid student-push-admin" }, [renderStudentPushAdminPanel()]);
 }
 
 function renderDeviceHistoryAdmin() {

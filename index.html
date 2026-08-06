@@ -23,7 +23,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260805-question-board-position" />
+    <link rel="stylesheet" href="./styles.css?v=20260806-push-settings" />
   </head>
   <body>
     <noscript>
@@ -137,6 +137,7 @@
           attendance: "출석 체크",
           grades: "성적",
           mypage: "마이페이지",
+          "push-settings": "푸시 알림 설정",
           "study-todo": "오늘 플래너",
           "study-cafe": "온라인 스터디카페",
           "study-timer": "과목 타이머",
@@ -191,7 +192,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
@@ -245,7 +246,7 @@
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
           if (!route) return;
-          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
+          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
             if (shouldUseFallback()) {
               event.preventDefault();
               navFallback(route);
@@ -263,9 +264,9 @@
     </script>
     <script src="./config.js?v=20260514-return-photo-time"></script>
     <script src="./supabase.js?v=20260514-return-photo-time" defer></script>
-    <script src="./shared.js?v=20260805-online-managed-toggle" defer></script>
+    <script src="./shared.js?v=20260806-push-settings" defer></script>
     <script src="./student.js?v=20260730-orphan-outing-recovery" defer></script>
-    <script src="./question-board.js?v=20260805-question-board-portal" defer></script>
-    <script src="./app.js?v=20260805-question-board-portal" defer></script>
+    <script src="./question-board.js?v=20260806-question-board-images" defer></script>
+    <script src="./app.js?v=20260806-push-settings-by-category" defer></script>
   </body>
 </html>

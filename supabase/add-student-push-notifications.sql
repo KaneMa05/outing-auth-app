@@ -5,6 +5,9 @@ create table if not exists public.student_push_subscriptions (
   endpoint text not null check (endpoint ~ '^https://'),
   p256dh text not null check (char_length(p256dh) between 20 and 512),
   auth text not null check (char_length(auth) between 8 and 512),
+  enabled boolean not null default true,
+  notification_preferences jsonb not null default '{"admin":true,"study":true,"study_cafe":true,"question_board":true}'::jsonb
+    check (jsonb_typeof(notification_preferences) = 'object'),
   user_agent text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

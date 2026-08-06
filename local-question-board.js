@@ -47,9 +47,11 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
     if (!SUBJECTS.includes(subject)) return failure(400, "invalid_subject");
     if (title.length < 2) return failure(400, "invalid_title");
     if (content.length < 2) return failure(400, "invalid_body");
+    const images = localImages(body.images);
+    if (!images) return failure(400, "invalid_image");
     const post = {
       id: crypto.randomUUID(), studentId: student.id, authorName: student.name || "인강생 미리보기",
-      subject, title, body: content, status: "open", viewCount: 0, isHidden: false,
+      subject, title, body: content, images, status: "open", viewCount: 0, isHidden: false,
       createdAt: now, updatedAt: now, deletedAt: "",
     };
     store.posts.unshift(post);
@@ -66,7 +68,12 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
     if (!SUBJECTS.includes(subject)) return failure(400, "invalid_subject");
     if (title.length < 2) return failure(400, "invalid_title");
     if (content.length < 2) return failure(400, "invalid_body");
-    Object.assign(post, { subject, title, body: content, updatedAt: now });
+    const retained = Array.isArray(body.retainedImagePaths)
+      ? (post.images || []).filter((image) => body.retainedImagePaths.includes(image.path))
+      : (post.images || []);
+    const added = localImages(body.images);
+    if (!added || retained.length + added.length > 3) return failure(400, "too_many_images");
+    Object.assign(post, { subject, title, body: content, images: [...retained, ...added], updatedAt: now });
     writeStore(filePath, store);
     return success({ postId: post.id });
   }
@@ -122,11 +129,26 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
 function serializePost(post, store, studentId) {
   return {
     id: post.id, subject: post.subject, title: post.title, body: post.body,
+    imageCount: Array.isArray(post.images) ? post.images.length : 0,
+    images: (post.images || []).map((image) => ({ path: image.path, url: image.data })),
     status: post.status, viewCount: Number(post.viewCount) || 0,
     commentCount: store.comments.filter((comment) => comment.postId === post.id && !comment.deletedAt && !comment.isHidden).length,
     authorName: post.authorName, isOwn: post.studentId === studentId, isHidden: false,
     hiddenReason: "", createdAt: post.createdAt, updatedAt: post.updatedAt,
   };
+}
+
+function localImages(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 3) return null;
+  const images = [];
+  for (const image of value) {
+    const data = String(image?.data || "");
+    const contentType = String(image?.contentType || "").toLowerCase();
+    if (!/^image\/(?:jpeg|png|webp)$/.test(contentType) || !data.startsWith(`data:${contentType};base64,`)) return null;
+    images.push({ path: `local/${crypto.randomUUID()}.jpg`, data, contentType });
+  }
+  return images;
 }
 
 function serializeComment(comment, studentId) {

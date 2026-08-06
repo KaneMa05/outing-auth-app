@@ -8,6 +8,20 @@ const QUESTION_BOARD_DEFAULT_SUBJECTS = [
   "형사법(공판)",
 ];
 
+const QUESTION_IMAGE_ACCEPTED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
+]);
+const QUESTION_IMAGE_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+const QUESTION_IMAGE_MAX_SOURCE_PIXELS = 50 * 1000 * 1000;
+const QUESTION_IMAGE_MAX_OUTPUT_BYTES = 900 * 1024;
+const QUESTION_IMAGE_MAX_EDGE = 1600;
+
 const questionBoardState = {
   studentId: "",
   subjects: [...QUESTION_BOARD_DEFAULT_SUBJECTS],
@@ -22,6 +36,10 @@ const questionBoardState = {
   error: "",
   editingPost: null,
   draftSubject: "",
+  draftTitle: "",
+  draftBody: "",
+  draftImages: [],
+  retainedImagePaths: [],
   subjectPickerReturnMode: "list",
 };
 
@@ -78,6 +96,10 @@ function resetQuestionBoardState(studentId) {
     error: "",
     editingPost: null,
     draftSubject: "",
+    draftTitle: "",
+    draftBody: "",
+    draftImages: [],
+    retainedImagePaths: [],
     subjectPickerReturnMode: "list",
   });
 }
@@ -175,6 +197,10 @@ function ensureQuestionWriteButton() {
     writeButton = button("+ 글쓰기", "question-write-button", "button", () => {
       questionBoardState.editingPost = null;
       questionBoardState.draftSubject = "";
+      questionBoardState.draftTitle = "";
+      questionBoardState.draftBody = "";
+      questionBoardState.draftImages = [];
+      questionBoardState.retainedImagePaths = [];
       openQuestionSubjectPicker("list");
     });
     writeButton.id = "question-board-write-button";
@@ -247,6 +273,7 @@ function renderQuestionPostCard(post) {
     ]),
     el("strong", { className: "question-post-title" }, post.title),
     el("p", { className: "question-post-preview" }, compactQuestionText(post.body)),
+    post.imageCount ? el("span", { className: "question-post-image-count" }, `사진 ${post.imageCount}장`) : null,
     el("div", { className: "question-post-meta" }, [
       el("span", {}, post.authorName),
       el("span", {}, formatQuestionBoardDate(post.createdAt)),
@@ -316,6 +343,7 @@ function renderQuestionPostDetail() {
         el("span", {}, `조회 ${post.viewCount}`),
       ]),
       el("div", { className: "question-detail-body" }, post.body),
+      renderQuestionPostImages(post.images || [], post.title),
       actions.length ? el("div", { className: "question-detail-actions" }, actions) : null,
     ]),
     el("section", { className: "question-comments-section" }, [
@@ -406,14 +434,47 @@ function renderQuestionPostForm() {
     el("span", {}, questionBoardState.draftSubject),
     el("span", { className: "question-write-subject-chevron", ariaHidden: "true" }),
   );
-  const titleInput = input("title", "text", "제목을 입력하세요", editing?.title || "");
+  const titleInput = input("title", "text", "제목을 입력하세요", questionBoardState.draftTitle || editing?.title || "");
   titleInput.maxLength = 120;
-  const bodyInput = el("textarea", { name: "body", rows: 10, maxLength: 5000, placeholder: "문제와 궁금한 부분을 구체적으로 적어주세요." }, editing?.body || "");
+  const bodyInput = el("textarea", { name: "body", rows: 10, maxLength: 5000, placeholder: "문제와 궁금한 부분을 구체적으로 적어주세요." }, questionBoardState.draftBody || editing?.body || "");
+  titleInput.addEventListener("input", () => { questionBoardState.draftTitle = titleInput.value; });
+  bodyInput.addEventListener("input", () => { questionBoardState.draftBody = bodyInput.value; });
+  const imageInput = el("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/heic,image/heif", multiple: true, className: "question-image-input" });
+  const imagePicker = el("div", { className: "question-image-picker" }, [
+    el("div", { className: "question-image-picker-head" }, [
+      el("strong", {}, "사진 첨부"),
+      el("span", {}, "최대 3장"),
+    ]),
+    el("label", { className: "question-image-add" }, [el("span", { ariaHidden: "true" }, "+"), el("span", {}, "사진 선택"), imageInput]),
+    renderQuestionImageDrafts(),
+    el("small", {}, "사진은 업로드에 알맞게 자동으로 축소됩니다."),
+  ]);
+  imageInput.addEventListener("change", async () => {
+    const available = 3 - questionBoardState.retainedImagePaths.length - questionBoardState.draftImages.length;
+    const files = [...(imageInput.files || [])].slice(0, Math.max(0, available));
+    if (!files.length) return notify(available > 0 ? "사진 파일을 선택해주세요." : "사진은 최대 3장까지 첨부할 수 있습니다.");
+    imageInput.disabled = true;
+    try {
+      const processed = [];
+      for (const file of files) processed.push(await prepareQuestionImage(file));
+      questionBoardState.draftTitle = titleInput.value;
+      questionBoardState.draftBody = bodyInput.value;
+      questionBoardState.draftImages.push(...processed);
+      render();
+    } catch (error) {
+      console.error(error);
+      if (error.message === "image_source_too_large") notify("사진 원본 용량 또는 해상도가 너무 큽니다. 다른 사진을 선택해주세요.");
+      else if (error.message === "image_too_large") notify("사진 용량을 줄이지 못했습니다. 다른 사진을 선택해주세요.");
+      else notify("JPG, PNG, WebP 또는 HEIC 사진을 선택해주세요.");
+      imageInput.disabled = false;
+    }
+  });
   const submitButton = button(editing ? "글 수정" : "등록", "btn", "submit");
   const form = el("form", { className: "question-write-form" }, [
     subjectButton,
     field("제목", titleInput, "", "2~120자로 입력해주세요."),
     field("내용", bodyInput, "", "개인정보나 연락처는 작성하지 마세요."),
+    imagePicker,
     el("div", { className: "question-write-actions" }, [button("취소", "btn secondary", "button", closeQuestionForm), submitButton]),
   ]);
   form.addEventListener("submit", async (event) => {
@@ -429,10 +490,16 @@ function renderQuestionPostForm() {
         subject: submittedSubject,
         title: values.title,
         body: values.body,
+        images: questionBoardState.draftImages.map(({ data, contentType }) => ({ data, contentType })),
+        retainedImagePaths: questionBoardState.retainedImagePaths,
       });
       questionBoardState.editingPost = null;
       questionBoardState.subject = submittedSubject;
       questionBoardState.draftSubject = "";
+      questionBoardState.draftTitle = "";
+      questionBoardState.draftBody = "";
+      questionBoardState.draftImages = [];
+      questionBoardState.retainedImagePaths = [];
       questionBoardState.loaded = false;
       await loadQuestionBoardHome({ silent: true });
       await openQuestionPost(editing?.id || data.postId);
@@ -453,6 +520,10 @@ function renderQuestionPostForm() {
 function closeQuestionForm() {
   questionBoardState.editingPost = null;
   questionBoardState.draftSubject = "";
+  questionBoardState.draftTitle = "";
+  questionBoardState.draftBody = "";
+  questionBoardState.draftImages = [];
+  questionBoardState.retainedImagePaths = [];
   questionBoardState.mode = questionBoardState.detail ? "detail" : "list";
   render();
   scrollAppToTop();
@@ -469,9 +540,80 @@ function closeQuestionDetail() {
 function editQuestionPost(post) {
   questionBoardState.editingPost = post;
   questionBoardState.draftSubject = post.subject;
+  questionBoardState.draftTitle = post.title;
+  questionBoardState.draftBody = post.body;
+  questionBoardState.draftImages = [];
+  questionBoardState.retainedImagePaths = (post.images || []).map((image) => image.path).filter(Boolean);
   questionBoardState.mode = "form";
   render();
   scrollAppToTop();
+}
+
+function renderQuestionImageDrafts() {
+  const existing = (questionBoardState.editingPost?.images || [])
+    .filter((image) => questionBoardState.retainedImagePaths.includes(image.path))
+    .map((image) => ({ ...image, existing: true }));
+  const added = questionBoardState.draftImages.map((image, index) => ({ ...image, index, existing: false }));
+  const images = [...existing, ...added];
+  if (!images.length) return el("div", { className: "question-image-preview-list empty" }, "선택한 사진이 없습니다.");
+  return el("div", { className: "question-image-preview-list" }, images.map((image) => {
+    const remove = button("×", "question-image-remove", "button", () => {
+      if (image.existing) questionBoardState.retainedImagePaths = questionBoardState.retainedImagePaths.filter((path) => path !== image.path);
+      else questionBoardState.draftImages.splice(image.index, 1);
+      render();
+    });
+    remove.setAttribute("aria-label", "첨부 사진 삭제");
+    return el("div", { className: "question-image-preview" }, [el("img", { src: image.url || image.data, alt: "첨부 사진 미리보기" }), remove]);
+  }));
+}
+
+function renderQuestionPostImages(images, title) {
+  if (!images.length) return null;
+  return el("div", { className: "question-detail-images" }, images.map((image, index) => {
+    const link = el("a", { href: image.url, target: "_blank", rel: "noopener", className: "question-detail-image-link" }, [
+      el("img", { src: image.url, alt: `${title} 첨부 사진 ${index + 1}`, loading: "lazy" }),
+    ]);
+    return link;
+  }));
+}
+
+async function prepareQuestionImage(file) {
+  const contentType = String(file?.type || "").toLowerCase();
+  const hasHeicExtension = /\.(?:heic|heif)$/i.test(String(file?.name || ""));
+  if (!file || (!QUESTION_IMAGE_ACCEPTED_TYPES.has(contentType) && !hasHeicExtension)) throw new Error("invalid_image_type");
+  if (file.size > QUESTION_IMAGE_MAX_SOURCE_BYTES) throw new Error("image_source_too_large");
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const node = new Image();
+      node.onload = () => resolve(node);
+      node.onerror = () => reject(new Error("invalid_image_type"));
+      node.src = sourceUrl;
+    });
+    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth * image.naturalHeight > QUESTION_IMAGE_MAX_SOURCE_PIXELS) {
+      throw new Error("image_source_too_large");
+    }
+    const scale = Math.min(1, QUESTION_IMAGE_MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    let quality = 0.84;
+    let data = canvas.toDataURL("image/jpeg", quality);
+    while (questionImageByteLength(data) > QUESTION_IMAGE_MAX_OUTPUT_BYTES && quality > 0.48) {
+      quality -= 0.08;
+      data = canvas.toDataURL("image/jpeg", quality);
+    }
+    if (questionImageByteLength(data) > QUESTION_IMAGE_MAX_OUTPUT_BYTES) throw new Error("image_too_large");
+    return { data, contentType: "image/jpeg" };
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function questionImageByteLength(dataUrl) {
+  const base64 = String(dataUrl).split(",")[1] || "";
+  return Math.floor(base64.length * 3 / 4);
 }
 
 async function reloadQuestionDetail(postId) {
@@ -659,6 +801,7 @@ function renderQuestionBoardAdminDetail() {
       el("h2", {}, post.title),
       el("p", { className: "subtle" }, `${post.authorName} · ${formatQuestionBoardDate(post.createdAt)} · 조회 ${post.viewCount}`),
       el("div", { className: "question-detail-body" }, post.body),
+      renderQuestionPostImages(post.images || [], post.title),
       el("div", { className: "question-detail-actions" }, [
         button(post.isHidden ? "숨김 해제" : "게시글 숨김", post.isHidden ? "mini-btn" : "mini-btn danger", "button", () => toggleAdminPostVisibility(post)),
       ]),
@@ -805,6 +948,10 @@ function questionBoardErrorMessage(error) {
     invalid_comment: "댓글 내용을 입력해주세요.",
     post_rate_limited: "하루에 게시글은 최대 20개까지 등록할 수 있습니다.",
     comment_rate_limited: "댓글을 너무 빠르게 등록하고 있습니다. 잠시 후 다시 시도해주세요.",
+    too_many_images: "사진은 최대 3장까지 첨부할 수 있습니다.",
+    invalid_image: "JPG, PNG, WebP 사진만 첨부할 수 있습니다.",
+    image_too_large: "사진 용량이 너무 큽니다. 다른 사진을 선택해주세요.",
+    question_image_store_unavailable: "사진 저장소를 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
     already_reported: "이미 신고한 내용입니다.",
     forbidden: "이 기능을 사용할 권한이 없습니다.",
     unauthorized: "관리자 로그인이 필요합니다.",

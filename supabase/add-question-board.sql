@@ -7,6 +7,7 @@ create table if not exists public.question_posts (
   subject text not null check (char_length(trim(subject)) between 1 and 40),
   title text not null check (char_length(trim(title)) between 2 and 120),
   body text not null check (char_length(trim(body)) between 2 and 5000),
+  image_paths text[] not null default '{}'::text[],
   status text not null default 'open' check (status in ('open', 'answered')),
   view_count integer not null default 0 check (view_count >= 0),
   is_hidden boolean not null default false,
@@ -19,6 +20,30 @@ create table if not exists public.question_posts (
 
 alter table public.question_posts
 add column if not exists board_type text not null default 'subject';
+
+alter table public.question_posts
+add column if not exists image_paths text[] not null default '{}'::text[];
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'question_posts_image_paths_limit_check'
+      and conrelid = 'public.question_posts'::regclass
+  ) then
+    alter table public.question_posts
+    add constraint question_posts_image_paths_limit_check
+    check (coalesce(cardinality(image_paths), 0) <= 3);
+  end if;
+end
+$$;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('question-board-images', 'question-board-images', false, 1048576, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 do $$
 begin

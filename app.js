@@ -16,6 +16,7 @@
   "question-board": "게시판",
   "question-board-admin": "게시판 관리",
   mypage: "마이페이지",
+  "push-settings": "푸시 알림 설정",
   "study-todo": "오늘 플래너",
   "study-cafe": "온라인 스터디카페",
   "study-timer": "과목 타이머",
@@ -24,6 +25,7 @@
   teacher: "외출 관리",
   managers: "담당자 등록",
   students: "학생 등록",
+  "student-push": "학생 푸시 알림",
   "device-history": "기기 등록 이력",
   "student-preview": "학생 미리보기",
   "track-options": "직렬 항목 관리",
@@ -33,11 +35,20 @@
   notices: "공지 관리",
 };
 const STUDENT_CATEGORY_ROUTES = {
-  offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "notices"]),
-  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "notices"]),
-  lecture: new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "notices"]),
+  offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
+  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notices"]),
+  lecture: new Set(["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
 };
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
+const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
+const STUDENT_PUSH_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+const STUDENT_PUSH_PROMPT_MAX_DISMISSALS = 3;
+const STUDENT_PUSH_PREFERENCE_OPTIONS = [
+  { key: "admin", title: "관리자 안내", description: "개인·그룹 안내 및 중요 전달사항", categories: ["offline", "online_managed", "lecture"] },
+  { key: "study", title: "학습 알림", description: "주간평가, 성적 및 학습 일정", categories: ["offline", "online_managed", "lecture"] },
+  { key: "study_cafe", title: "스터디카페", description: "스터디방, 좌석 및 이용 안내", categories: ["online_managed", "lecture"] },
+  { key: "question_board", title: "게시판", description: "질문 답변과 댓글 안내", categories: ["lecture"] },
+];
 
 function isOnlineManagedStudyCafeEnabled() {
   return state.settings.onlineManagedStudyCafeEnabled === true;
@@ -325,8 +336,10 @@ const studentPushNotificationState = {
   available: null,
   publicKey: "",
   subscribed: false,
+  preferences: Object.fromEntries(STUDENT_PUSH_PREFERENCE_OPTIONS.map((option) => [option.key, true])),
   error: "",
 };
+const studentPushReturnVisitStudentId = APP_MODE === "student" ? String(getAuthedStudent()?.id || "") : "";
 
 document.querySelectorAll("[data-route]").forEach((button) => {
   button.addEventListener("click", (event) => {
@@ -459,11 +472,11 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "managers", "students", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -535,6 +548,8 @@ function render() {
       currentRoute === "study-character" &&
       button.closest(".student-footer-menu")
         ? "mypage"
+        : currentRoute === "push-settings" && button.closest(".student-footer-menu")
+          ? "mypage"
         : currentRoute;
     button.hidden = !allowed;
     button.classList.toggle("active", route === activeRoute);
@@ -591,6 +606,7 @@ function render() {
           notices: renderNoticesAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
+          "student-push": renderStudentPushAdmin,
           "device-history": renderDeviceHistoryAdmin,
           "student-preview": renderStudentPreviewAdmin,
           "track-options": renderTrackOptionsAdmin,
@@ -607,6 +623,7 @@ function render() {
           attendance: () => requireStudentAuth(renderStudentAttendance),
           grades: () => requireStudentAuth(renderStudentGrades),
           mypage: () => requireStudentAuth(renderStudentMypage),
+          "push-settings": () => requireStudentAuth(renderStudentPushSettings),
           "study-todo": () => requireStudentAuth(renderStudentStudyTodo),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
           "question-board": () => requireStudentAuth(renderQuestionBoard),
@@ -632,6 +649,10 @@ function render() {
   }
   studentStudyRouteTransitionDirection = 0;
   app.replaceChildren(nextView);
+  if (APP_MODE !== "teacher") {
+    const pushPrompt = renderStudentPushOptInPrompt(getAuthedStudent());
+    if (pushPrompt) app.appendChild(pushPrompt);
+  }
   app.removeAttribute("data-loading-shell");
   if (APP_MODE !== "teacher" && typeof window.__studentAppReady === "function") window.__studentAppReady();
 }
@@ -2257,6 +2278,53 @@ function renderStudentHome() {
   ]);
 }
 
+function renderStudentPushOptInPrompt(student) {
+  if (!student?.id || studentPushReturnVisitStudentId !== String(student.id)) return null;
+  const profile = getStudentProfile(student.id) || {};
+  ensureStudentPushNotificationLoaded(student, profile);
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const preference = readStudentPushPromptPreference(student.id);
+  const canPrompt = supported
+    && studentPushNotificationState.loaded
+    && studentPushNotificationState.available === true
+    && !studentPushNotificationState.subscribed
+    && !studentPushNotificationState.loading
+    && Notification.permission !== "denied"
+    && !(isIosDevice() && !isStandaloneWebApp())
+    && preference.dismissals < STUDENT_PUSH_PROMPT_MAX_DISMISSALS
+    && preference.nextPromptAt <= Date.now();
+  if (!canPrompt) return null;
+
+  const enableButton = button("알림 켜기", "btn", "button", () => enableStudentPushNotifications(student, profile));
+  const laterButton = button("나중에", "btn secondary", "button", () => {
+    localStorage.setItem(studentPushPromptKey(student.id), JSON.stringify({
+      dismissals: preference.dismissals + 1,
+      nextPromptAt: Date.now() + STUDENT_PUSH_PROMPT_SNOOZE_MS,
+    }));
+    render();
+  });
+  return el("section", { className: "student-push-optin-prompt", role: "region", ariaLabel: "앱 알림 안내" }, [
+    el("strong", {}, "중요 공지 및 알림을 받아보세요"),
+    el("div", { className: "student-push-optin-actions" }, [laterButton, enableButton]),
+  ]);
+}
+
+function studentPushPromptKey(studentId) {
+  return `${STUDENT_PUSH_PROMPT_STORAGE_KEY}:${String(studentId || "")}`;
+}
+
+function readStudentPushPromptPreference(studentId) {
+  try {
+    const value = JSON.parse(localStorage.getItem(studentPushPromptKey(studentId)) || "{}");
+    return {
+      dismissals: Math.max(0, Number(value.dismissals) || 0),
+      nextPromptAt: Math.max(0, Number(value.nextPromptAt) || 0),
+    };
+  } catch {
+    return { dismissals: 0, nextPromptAt: 0 };
+  }
+}
+
 function renderHomeScreenInstallCard() {
   if (isRunningStandalone()) return null;
   return el("section", { className: "student-install-card" }, [
@@ -2566,35 +2634,72 @@ function renderStudentMypage() {
 
 function renderStudentPushNotificationCard(student, profile) {
   ensureStudentPushNotificationLoaded(student, profile);
-  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-  let statusText = "이 기기에서는 푸시 알림을 지원하지 않습니다.";
-  let action = null;
-  if (supported && studentPushNotificationState.loading && !studentPushNotificationState.loaded) {
-    statusText = "알림 설정을 확인하고 있습니다.";
-  } else if (supported && studentPushNotificationState.available === false) {
-    statusText = "현재 알림 서비스를 준비 중입니다.";
-  } else if (supported && Notification.permission === "denied") {
-    statusText = "브라우저 설정에서 이 사이트의 알림을 허용해주세요.";
-  } else if (supported && studentPushNotificationState.subscribed) {
-    statusText = "관리자가 보내는 개인·그룹 알림을 이 기기에서 받습니다.";
-    action = button("알림 끄기", "btn secondary", "button", () => disableStudentPushNotifications(student, profile));
-  } else if (supported && studentPushNotificationState.available) {
-    statusText = isIosDevice() && !isStandaloneWebApp()
-      ? "iPhone·iPad는 홈 화면에 앱을 추가한 뒤 설치된 앱에서 켤 수 있습니다."
-      : "안드로이드를 포함한 현재 기기에서 관리자 알림을 받을 수 있습니다.";
-    action = button("알림 켜기", "btn secondary", "button", () => enableStudentPushNotifications(student, profile));
-  }
-  if (action) action.disabled = studentPushNotificationState.loading;
-  return el("section", { className: `student-history-button-card student-push-card${studentPushNotificationState.subscribed ? " enabled" : ""}` }, [
+  return button("", "student-history-button-card student-push-settings-link", "button", () => navigate("push-settings"), [
     el("div", { className: "student-history-head" }, [
-      el("h2", {}, "앱 알림"),
-      el("span", {}, statusText),
-      studentPushNotificationState.error
-        ? el("small", { className: "student-push-error" }, "알림 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.")
-        : null,
-    ].filter(Boolean)),
-    action,
-  ].filter(Boolean));
+      el("h2", {}, "앱 알림 설정"),
+      el("span", {}, studentPushNotificationState.subscribed ? "알림 종류별 수신 설정" : "꺼짐"),
+    ]),
+    el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
+  ]);
+}
+
+function renderStudentPushSettings() {
+  const student = getAuthedStudent();
+  const profile = getStudentProfile(student.id) || {};
+  const category = getStudentCategory(student);
+  ensureStudentPushNotificationLoaded(student, profile);
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const canToggle = supported
+    && studentPushNotificationState.available === true
+    && Notification.permission !== "denied"
+    && !(isIosDevice() && !isStandaloneWebApp());
+  const masterToggle = renderStudentPushSettingsToggle({
+    checked: studentPushNotificationState.subscribed,
+    disabled: !canToggle || studentPushNotificationState.loading,
+    ariaLabel: "전체 앱 알림",
+    onChange: async (checked) => {
+      if (checked) await enableStudentPushNotifications(student, profile);
+      else await disableStudentPushNotifications(student, profile);
+    },
+  });
+  const preferenceRows = getStudentPushPreferenceOptions(category).map((option) =>
+    el("div", { className: "student-push-setting-row" }, [
+      el("div", {}, [el("strong", {}, option.title), el("p", {}, option.description)]),
+      renderStudentPushSettingsToggle({
+        checked: studentPushNotificationState.preferences[option.key] !== false,
+        disabled: !studentPushNotificationState.subscribed || studentPushNotificationState.loading,
+        ariaLabel: option.title,
+        onChange: (checked) => updateStudentPushPreference(option.key, checked, student, profile),
+      }),
+    ])
+  );
+  return el("div", { className: "grid student-view student-push-settings-page" }, [
+    button("‹ 마이페이지", "student-push-settings-back", "button", () => navigate("mypage")),
+    el("section", { className: "student-push-settings-card" }, [
+      el("div", { className: "student-push-setting-row master" }, [
+        el("div", {}, [el("strong", {}, "전체 앱 알림"), el("p", {}, "이 기기에서 앱 알림을 받습니다.")]),
+        masterToggle,
+      ]),
+      el("div", { className: "student-push-setting-list" }, preferenceRows),
+    ]),
+  ]);
+}
+
+function getStudentPushPreferenceOptions(category) {
+  return STUDENT_PUSH_PREFERENCE_OPTIONS.filter((option) => option.categories.includes(category));
+}
+
+function renderStudentPushSettingsToggle({ checked, disabled, ariaLabel, onChange }) {
+  const inputNode = el("input", { type: "checkbox", role: "switch", checked, disabled, ariaLabel });
+  inputNode.addEventListener("change", async () => {
+    inputNode.disabled = true;
+    await onChange(inputNode.checked);
+    render();
+  });
+  return el("label", { className: "student-push-toggle" }, [
+    inputNode,
+    el("span", { className: "student-push-toggle-track", "aria-hidden": "true" }),
+  ]);
 }
 
 async function ensureStudentPushNotificationLoaded(student, profile, options = {}) {
@@ -2607,6 +2712,7 @@ async function ensureStudentPushNotificationLoaded(student, profile, options = {
       available: null,
       publicKey: "",
       subscribed: false,
+      preferences: Object.fromEntries(STUDENT_PUSH_PREFERENCE_OPTIONS.map((option) => [option.key, true])),
       error: "",
     });
   }
@@ -2636,6 +2742,7 @@ async function ensureStudentPushNotificationLoaded(student, profile, options = {
         if (statusResponse.status === 403 && status.error === "device_not_active") throw new Error("device_not_active");
         if (!statusResponse.ok || !status.ok) throw new Error(status.error || "push_status_failed");
         studentPushNotificationState.subscribed = status.subscribed === true;
+        studentPushNotificationState.preferences = normalizeStudentPushPreferences(status.preferences);
       }
     }
     studentPushNotificationState.loaded = true;
@@ -2645,7 +2752,7 @@ async function ensureStudentPushNotificationLoaded(student, profile, options = {
     studentPushNotificationState.error = error.message || "push_status_failed";
   } finally {
     studentPushNotificationState.loading = false;
-    if (currentRoute === "mypage") render();
+    if (APP_MODE !== "teacher") render();
   }
 }
 
@@ -2668,14 +2775,17 @@ async function enableStudentPushNotifications(student, profile) {
     const response = await fetch("/api/student-push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildStudentPushRequest("subscribe", student, profile, subscription)),
+      body: JSON.stringify({
+        ...buildStudentPushRequest("subscribe", student, profile, subscription),
+        preferences: studentPushNotificationState.preferences,
+      }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || "push_subscription_failed");
     studentPushNotificationState.subscribed = true;
+    studentPushNotificationState.preferences = normalizeStudentPushPreferences(data.preferences || studentPushNotificationState.preferences);
     studentPushNotificationState.loaded = true;
     studentPushNotificationState.error = "";
-    notify("관리자 앱 알림을 켰습니다.");
   } catch (error) {
     console.error(error);
     studentPushNotificationState.error = error.message || "push_subscription_failed";
@@ -2705,7 +2815,6 @@ async function disableStudentPushNotifications(student, profile) {
     }
     studentPushNotificationState.subscribed = false;
     studentPushNotificationState.error = "";
-    notify("관리자 앱 알림을 껐습니다.");
   } catch (error) {
     console.error(error);
     studentPushNotificationState.error = error.message || "push_unsubscribe_failed";
@@ -2714,6 +2823,41 @@ async function disableStudentPushNotifications(student, profile) {
     studentPushNotificationState.loading = false;
     render();
   }
+}
+
+async function updateStudentPushPreference(key, enabled, student, profile) {
+  const previous = { ...studentPushNotificationState.preferences };
+  studentPushNotificationState.preferences = { ...previous, [key]: enabled };
+  studentPushNotificationState.loading = true;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) throw new Error("push_subscription_missing");
+    const response = await fetch("/api/student-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...buildStudentPushRequest("preferences", student, profile, subscription),
+        preferences: studentPushNotificationState.preferences,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "push_preferences_failed");
+    studentPushNotificationState.preferences = normalizeStudentPushPreferences(data.preferences);
+    studentPushNotificationState.error = "";
+  } catch (error) {
+    console.error(error);
+    studentPushNotificationState.preferences = previous;
+    studentPushNotificationState.error = error.message || "push_preferences_failed";
+    notify("알림 종류 설정을 변경하지 못했습니다.");
+  } finally {
+    studentPushNotificationState.loading = false;
+  }
+}
+
+function normalizeStudentPushPreferences(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries(STUDENT_PUSH_PREFERENCE_OPTIONS.map((option) => [option.key, source[option.key] !== false]));
 }
 
 function buildStudentPushRequest(action, student, profile, subscription) {

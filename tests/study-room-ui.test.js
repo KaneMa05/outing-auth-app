@@ -12,6 +12,7 @@ assert.match(app, /function openStudyRoomListModal\(\)/);
 assert.match(app, /ariaLabel: "스터디방 목록 열기"/);
 assert.match(app, /el\("span", \{\}, "스터디방 목록"\)/);
 assert.match(app, /className: `study-cafe-room-label-row[\s\S]*?className: "study-room-open-button"/);
+assert.match(styles, /\.study-cafe-room-label-row\.actions-only\s*\{[^}]*justify-content: flex-start/);
 assert.match(app, /function openStudyRoomCreateModal\(\)/);
 assert.match(app, /mutateStudyRoom\("create", \{[\s\S]*?theme: "oak"/);
 assert.match(app, /field\("방 색상 테마", themeSelect\)/);

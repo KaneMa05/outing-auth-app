@@ -12,6 +12,8 @@ const SUBSCRIPTIONS_TABLE = "student_push_subscriptions";
 const MESSAGES_TABLE = "student_push_messages";
 const MAX_TARGET_STUDENTS = 1000;
 const SEND_BATCH_SIZE = 50;
+const PUSH_PREFERENCE_KEYS = ["admin", "study", "study_cafe", "question_board"];
+const DEFAULT_PUSH_PREFERENCES = Object.freeze(Object.fromEntries(PUSH_PREFERENCE_KEYS.map((key) => [key, true])));
 
 module.exports = async function handler(req, res) {
   try {
@@ -19,7 +21,7 @@ module.exports = async function handler(req, res) {
       const body = await readJson(req);
       const action = normalizeText(body.action, 30);
       if (action === "config") return handleConfig(res);
-      if (["status", "subscribe", "unsubscribe"].includes(action)) {
+      if (["status", "subscribe", "unsubscribe", "preferences"].includes(action)) {
         await handleStudentSubscription(action, body, req, res);
         return;
       }
@@ -36,12 +38,12 @@ module.exports = async function handler(req, res) {
       if (!session) return;
       const [messages, subscriptions, activeDevices] = await Promise.all([
         requestSupabase("GET", `${MESSAGES_TABLE}?select=id,title,body,target_type,target_category,target_student_ids,target_count,subscribed_count,sent_count,failed_count,created_by,created_at&order=created_at.desc&limit=20`),
-        requestSupabase("GET", `${SUBSCRIPTIONS_TABLE}?select=student_id,device_token_hash`),
+        requestSupabase("GET", `${SUBSCRIPTIONS_TABLE}?select=student_id,device_token_hash,enabled,notification_preferences`),
         requestSupabase("GET", "student_devices?revoked_at=is.null&select=student_id,device_token_hash"),
       ]);
       const activeDeviceKeys = new Set((activeDevices || []).map((row) => `${row.student_id}:${row.device_token_hash}`));
       const subscribedStudentIds = [...new Set((subscriptions || [])
-        .filter((row) => activeDeviceKeys.has(`${row.student_id}:${row.device_token_hash}`))
+        .filter((row) => row.enabled !== false && normalizePushPreferences(row.notification_preferences).admin && activeDeviceKeys.has(`${row.student_id}:${row.device_token_hash}`))
         .map((row) => String(row.student_id || ""))
         .filter(Boolean))];
       res.status(200).json({ ok: true, messages: messages || [], subscribedStudentIds });
@@ -86,17 +88,34 @@ async function handleStudentSubscription(action, body, req, res) {
   if (action === "status") {
     const rows = await requestSupabase(
       "GET",
-      `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(studentId)}&device_token_hash=eq.${deviceTokenHash}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}&select=id&limit=1`
+      `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(studentId)}&device_token_hash=eq.${deviceTokenHash}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}&select=id,enabled,notification_preferences&limit=1`
     );
-    res.status(200).json({ ok: true, subscribed: Boolean(rows?.length) });
+    res.status(200).json({
+      ok: true,
+      subscribed: Boolean(rows?.length && rows[0].enabled !== false),
+      preferences: normalizePushPreferences(rows?.[0]?.notification_preferences),
+    });
     return;
   }
   if (action === "unsubscribe") {
     await requestSupabase(
-      "DELETE",
-      `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(studentId)}&device_token_hash=eq.${deviceTokenHash}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}`
+      "PATCH",
+      `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(studentId)}&device_token_hash=eq.${deviceTokenHash}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}`,
+      { enabled: false, updated_at: new Date().toISOString() },
+      { Prefer: "return=minimal" }
     );
     res.status(200).json({ ok: true, subscribed: false });
+    return;
+  }
+  if (action === "preferences") {
+    const preferences = normalizePushPreferences(body.preferences);
+    await requestSupabase(
+      "PATCH",
+      `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(studentId)}&device_token_hash=eq.${deviceTokenHash}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}`,
+      { notification_preferences: preferences, updated_at: new Date().toISOString() },
+      { Prefer: "return=minimal" }
+    );
+    res.status(200).json({ ok: true, preferences });
     return;
   }
   if (!isPushConfigured()) {
@@ -113,12 +132,14 @@ async function handleStudentSubscription(action, body, req, res) {
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth,
+      enabled: true,
+      notification_preferences: normalizePushPreferences(body.preferences),
       user_agent: normalizeText(req.headers?.["user-agent"], 500) || null,
       updated_at: new Date().toISOString(),
     },
     { Prefer: "resolution=merge-duplicates,return=minimal" }
   );
-  res.status(200).json({ ok: true, subscribed: true });
+  res.status(200).json({ ok: true, subscribed: true, preferences: normalizePushPreferences(body.preferences) });
 }
 
 async function handleAdminSend(body, req, res) {
@@ -149,11 +170,15 @@ async function handleAdminSend(body, req, res) {
   }
   const studentIds = students.map((student) => student.id);
   const [subscriptions, activeDevices] = await Promise.all([
-    loadRowsByStudentIds(SUBSCRIPTIONS_TABLE, "id,student_id,device_token_hash,endpoint,p256dh,auth", studentIds),
+    loadRowsByStudentIds(SUBSCRIPTIONS_TABLE, "id,student_id,device_token_hash,endpoint,p256dh,auth,enabled,notification_preferences", studentIds),
     loadActiveDevicesByStudentIds(studentIds),
   ]);
   const activeDeviceKeys = new Set(activeDevices.map((row) => `${row.student_id}:${row.device_token_hash}`));
-  const activeSubscriptions = (subscriptions || []).filter((row) => activeDeviceKeys.has(`${row.student_id}:${row.device_token_hash}`));
+  const activeSubscriptions = (subscriptions || []).filter((row) =>
+    row.enabled !== false
+    && normalizePushPreferences(row.notification_preferences).admin
+    && activeDeviceKeys.has(`${row.student_id}:${row.device_token_hash}`)
+  );
   const subscriptionsByEndpoint = new Map();
   activeSubscriptions.forEach((row) => {
     if (row.endpoint && !subscriptionsByEndpoint.has(row.endpoint)) subscriptionsByEndpoint.set(row.endpoint, row);
@@ -305,6 +330,11 @@ function normalizeStudentIds(value) {
   return [...new Set(value.map((item) => normalizeText(item, 64)).filter((item) => /^[0-9A-Za-z_-]{1,64}$/.test(item)))].slice(0, MAX_TARGET_STUDENTS);
 }
 
+function normalizePushPreferences(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(PUSH_PREFERENCE_KEYS.map((key) => [key, source[key] !== false]));
+}
+
 function normalizeText(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
 }
@@ -386,4 +416,5 @@ module.exports._private = {
   normalizePushSubscription,
   normalizeStudentIds,
   normalizeTargetType,
+  normalizePushPreferences,
 };

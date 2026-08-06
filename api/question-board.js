@@ -28,6 +28,10 @@ const TEACHER_ACTIONS = new Set([
   "teacher_report_review",
 ]);
 const FALLBACK_SUBJECTS = ["해양경찰학개론", "해사법규", "형사법", "해사영어", "항해학", "기관학", "형사법(공판)"];
+const QUESTION_IMAGE_BUCKET = "question-board-images";
+const QUESTION_IMAGE_LIMIT = 3;
+const QUESTION_IMAGE_MAX_BYTES = 900 * 1024;
+const QUESTION_REQUEST_MAX_BYTES = 4 * 1024 * 1024;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -84,16 +88,26 @@ async function handleStudentAction(res, action, body, student) {
     await requireAllowedSubject(subject, student.track);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
-    const rows = await requestSupabase("POST", "question_posts", {
-      student_id: student.id,
-      board_type: "subject",
-      subject,
-      title,
-      body: content,
-      status: "open",
-      updated_at: new Date().toISOString(),
-    }, { Prefer: "return=representation" });
-    res.status(201).json({ ok: true, postId: rows?.[0]?.id || "" });
+    const postId = crypto.randomUUID();
+    const uploadedPaths = await uploadQuestionImages(body.images, student.id, postId);
+    let rows;
+    try {
+      rows = await requestSupabase("POST", "question_posts", {
+        id: postId,
+        student_id: student.id,
+        board_type: "subject",
+        subject,
+        title,
+        body: content,
+        image_paths: uploadedPaths,
+        status: "open",
+        updated_at: new Date().toISOString(),
+      }, { Prefer: "return=representation" });
+    } catch (error) {
+      await deleteQuestionImages(uploadedPaths);
+      throw error;
+    }
+    res.status(201).json({ ok: true, postId: rows?.[0]?.id || postId });
     return;
   }
   if (action === "update") {
@@ -102,12 +116,24 @@ async function handleStudentAction(res, action, body, student) {
     await requireAllowedSubject(subject, student.track);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
-    await requestSupabase("PATCH", `question_posts?id=eq.${post.id}`, {
-      subject,
-      title,
-      body: content,
-      updated_at: new Date().toISOString(),
-    }, { Prefer: "return=minimal" });
+    const currentPaths = normalizeStoredImagePaths(post.image_paths);
+    const retainedPaths = normalizeRetainedImagePaths(body.retainedImagePaths, currentPaths);
+    const incomingImages = normalizeQuestionImages(body.images);
+    if (retainedPaths.length + incomingImages.length > QUESTION_IMAGE_LIMIT) throw httpError("too_many_images", 400);
+    const uploadedPaths = await uploadQuestionImages(incomingImages, student.id, post.id, { normalized: true });
+    try {
+      await requestSupabase("PATCH", `question_posts?id=eq.${post.id}`, {
+        subject,
+        title,
+        body: content,
+        image_paths: [...retainedPaths, ...uploadedPaths],
+        updated_at: new Date().toISOString(),
+      }, { Prefer: "return=minimal" });
+    } catch (error) {
+      await deleteQuestionImages(uploadedPaths);
+      throw error;
+    }
+    await deleteQuestionImages(currentPaths.filter((path) => !retainedPaths.includes(path)));
     res.status(200).json({ ok: true });
     return;
   }
@@ -117,6 +143,7 @@ async function handleStudentAction(res, action, body, student) {
       deleted_at: new Date().toISOString(),
       deleted_by: student.id,
     }, { Prefer: "return=minimal" });
+    await deleteQuestionImages(normalizeStoredImagePaths(post.image_paths));
     res.status(200).json({ ok: true });
     return;
   }
@@ -244,7 +271,7 @@ async function handleTeacherAction(req, res, action, body) {
 }
 
 async function loadPostList({ studentId, body, teacher = false }) {
-  const rows = await requestSupabase("GET", `question_posts?board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,status,view_count,is_hidden,hidden_reason,created_at,updated_at&order=created_at.desc&limit=200`);
+  const rows = await requestSupabase("GET", `question_posts?board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,image_paths,status,view_count,is_hidden,hidden_reason,created_at,updated_at&order=created_at.desc&limit=200`);
   const visibleRows = teacher ? rows || [] : (rows || []).filter((row) => row.is_hidden !== true);
   const subject = normalizeText(body.subject, 40);
   const status = ["open", "answered"].includes(body.status) ? body.status : "";
@@ -269,14 +296,16 @@ async function loadPostList({ studentId, body, teacher = false }) {
 }
 
 async function loadPostDetail(postId, { studentId = "", teacher = false } = {}) {
-  const rows = await requestSupabase("GET", `question_posts?id=eq.${postId}&board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,status,view_count,is_hidden,hidden_reason,created_at,updated_at&limit=1`);
+  const rows = await requestSupabase("GET", `question_posts?id=eq.${postId}&board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,image_paths,status,view_count,is_hidden,hidden_reason,created_at,updated_at&limit=1`);
   const post = rows?.[0];
   if (!post || (!teacher && post.is_hidden)) return null;
   const comments = await requestSupabase("GET", `question_comments?post_id=eq.${postId}&deleted_at=is.null&select=id,post_id,author_type,student_id,teacher_name,body,is_hidden,hidden_reason,created_at,updated_at&order=created_at.asc`);
   const studentIds = [post.student_id, ...(comments || []).map((row) => row.student_id)].filter(Boolean);
   const authors = await loadAuthorMap(studentIds);
+  const serializedPost = serializePost(post, { studentId, authors, counts: new Map([[post.id, (comments || []).filter((row) => teacher || !row.is_hidden).length]]), teacher });
+  serializedPost.images = await signQuestionImages(normalizeStoredImagePaths(post.image_paths));
   return {
-    post: serializePost(post, { studentId, authors, counts: new Map([[post.id, (comments || []).filter((row) => teacher || !row.is_hidden).length]]), teacher }),
+    post: serializedPost,
     comments: (comments || [])
       .filter((row) => teacher || !row.is_hidden)
       .map((row) => serializeComment(row, { studentId, authors, teacher })),
@@ -338,6 +367,7 @@ function serializePost(row, { studentId, authors, counts, teacher }) {
     subject: row.subject,
     title: row.title,
     body: row.body,
+    imageCount: normalizeStoredImagePaths(row.image_paths).length,
     status: row.status,
     viewCount: Number(row.view_count) || 0,
     commentCount: counts.get(row.id) || 0,
@@ -382,7 +412,7 @@ async function authenticateLectureStudent(body) {
 async function requireOwnedPost(value, studentId) {
   const postId = normalizeUuid(value);
   if (!postId) throw httpError("invalid_post", 400);
-  const rows = await requestSupabase("GET", `question_posts?id=eq.${postId}&board_type=eq.subject&student_id=eq.${encodeURIComponent(studentId)}&deleted_at=is.null&select=id&limit=1`);
+  const rows = await requestSupabase("GET", `question_posts?id=eq.${postId}&board_type=eq.subject&student_id=eq.${encodeURIComponent(studentId)}&deleted_at=is.null&select=id,image_paths&limit=1`);
   if (!rows?.[0]) throw httpError("post_not_found", 404);
   return rows[0];
 }
@@ -444,10 +474,113 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   return response.json().catch(() => null);
 }
 
+function normalizeQuestionImages(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > QUESTION_IMAGE_LIMIT) throw httpError("too_many_images", 400);
+  return value.map((image) => {
+    const contentType = normalizeText(image?.contentType, 40).toLowerCase();
+    const match = String(image?.data || "").match(/^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=]+)$/i);
+    if (!match || match[1].toLowerCase() !== contentType) throw httpError("invalid_image", 400);
+    const buffer = Buffer.from(match[2], "base64");
+    if (!buffer.length || buffer.length > QUESTION_IMAGE_MAX_BYTES || !hasValidImageSignature(buffer, contentType)) {
+      throw httpError(buffer.length > QUESTION_IMAGE_MAX_BYTES ? "image_too_large" : "invalid_image", 400);
+    }
+    return { contentType, buffer };
+  });
+}
+
+function hasValidImageSignature(buffer, contentType) {
+  if (contentType === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  if (contentType === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (contentType === "image/webp") return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
+  return false;
+}
+
+function normalizeStoredImagePaths(value) {
+  return Array.isArray(value)
+    ? value.map((path) => normalizeText(path, 500)).filter((path) => /^[a-zA-Z0-9/_-]+\.(?:jpg|png|webp)$/.test(path)).slice(0, QUESTION_IMAGE_LIMIT)
+    : [];
+}
+
+function normalizeRetainedImagePaths(value, currentPaths) {
+  if (!Array.isArray(value)) return currentPaths;
+  const requested = [...new Set(value.map((path) => normalizeText(path, 500)))];
+  if (requested.some((path) => !currentPaths.includes(path))) throw httpError("invalid_image", 400);
+  return currentPaths.filter((path) => requested.includes(path));
+}
+
+async function uploadQuestionImages(value, studentId, postId, options = {}) {
+  const images = options.normalized ? value : normalizeQuestionImages(value);
+  const uploaded = [];
+  try {
+    for (const image of images) {
+      const extension = image.contentType === "image/png" ? "png" : image.contentType === "image/webp" ? "webp" : "jpg";
+      const safeStudentId = String(studentId).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
+      const path = `${safeStudentId}/${postId}/${crypto.randomUUID()}.${extension}`;
+      await requestStorage("POST", `object/${QUESTION_IMAGE_BUCKET}/${path}`, image.buffer, {
+        "Content-Type": image.contentType,
+        "Cache-Control": "3600",
+        "x-upsert": "false",
+      });
+      uploaded.push(path);
+    }
+    return uploaded;
+  } catch (error) {
+    await deleteQuestionImages(uploaded);
+    throw error;
+  }
+}
+
+async function signQuestionImages(paths) {
+  return Promise.all(paths.map(async (path) => {
+    const data = await requestStorage("POST", `object/sign/${QUESTION_IMAGE_BUCKET}/${path}`, JSON.stringify({ expiresIn: 3600 }), { "Content-Type": "application/json" });
+    const signedPath = data?.signedURL || data?.signedUrl || "";
+    const supabaseUrl = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+    return { path, url: signedPath.startsWith("http") ? signedPath : `${supabaseUrl}/storage/v1${signedPath}` };
+  }));
+}
+
+async function deleteQuestionImages(paths) {
+  for (const path of normalizeStoredImagePaths(paths)) {
+    try {
+      await requestStorage("DELETE", `object/${QUESTION_IMAGE_BUCKET}`, JSON.stringify({ prefixes: [path] }), { "Content-Type": "application/json" });
+    } catch (error) {
+      console.warn("Question image cleanup failed.", path, error.message);
+    }
+  }
+}
+
+async function requestStorage(method, path, body, extraHeaders = {}) {
+  const supabaseUrl = process.env.SUPABASE_URL || "";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceRoleKey) throw httpError("service_role_not_configured", 503);
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/storage/v1/${path}`, {
+    method,
+    headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, ...extraHeaders },
+    body,
+  });
+  if (!response.ok) {
+    const error = httpError("question_image_store_unavailable", response.status === 404 ? 503 : 502);
+    error.storeStatus = response.status;
+    error.detail = await response.text().catch(() => "");
+    throw error;
+  }
+  if (response.status === 204) return null;
+  return response.json().catch(() => null);
+}
+
 async function readJson(req) {
-  if (req.body && typeof req.body === "object") return req.body;
+  if (req.body && typeof req.body === "object") {
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > QUESTION_REQUEST_MAX_BYTES) throw httpError("payload_too_large", 413);
+    return req.body;
+  }
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let byteLength = 0;
+  for await (const chunk of req) {
+    byteLength += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, "utf8");
+    if (byteLength > QUESTION_REQUEST_MAX_BYTES) throw httpError("payload_too_large", 413);
+    chunks.push(chunk);
+  }
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
@@ -489,4 +622,5 @@ module.exports._private = {
   maskName,
   normalizeRequired,
   normalizeUuid,
+  normalizeQuestionImages,
 };
