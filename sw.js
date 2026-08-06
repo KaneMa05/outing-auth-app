@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v305-question-board";
+const CACHE_NAME = "outing-auth-app-v306-lecture-review-push";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -54,5 +54,36 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(self.registration.showNotification(data.title || "등록 신청 결과", {
+    body: data.body || "검수 결과를 앱에서 확인해주세요.",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: data.tag || "lecture-application-review",
+    data: { url: data.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+      const client = clients.find((item) => new URL(item.url).origin === self.location.origin);
+      if (client) {
+        if ("navigate" in client) await client.navigate(targetUrl);
+        return client.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    })
   );
 });

@@ -3,7 +3,7 @@ const fs = require("node:fs");
 
 const handler = require("../api/lecture-applications");
 const { COOKIE_NAME, createSessionToken } = require("../api/teacher-auth-utils");
-const { hashLookupToken, normalizeApplication, validateApplication } = handler._private;
+const { hashLookupToken, normalizeApplication, normalizePushSubscription, validateApplication } = handler._private;
 
 function createResponse() {
   return {
@@ -60,7 +60,9 @@ assert.equal(validateApplication(normalizeApplication({ ...validBody, privacyCon
 assert.equal(validateApplication(normalizeApplication({ ...validBody, referralSource: "other" })), "referral_detail_required");
 
 const migration = fs.readFileSync("supabase/add-lecture-applications.sql", "utf8");
+const pushMigration = fs.readFileSync("supabase/add-lecture-application-push-subscriptions.sql", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
+const serviceWorkerSource = fs.readFileSync("sw.js", "utf8");
 const teacherStudentsSource = fs.readFileSync("teacher-students.js", "utf8");
 const teacherSource = fs.readFileSync("teacher.js", "utf8");
 const styleSource = fs.readFileSync("styles.css", "utf8");
@@ -75,6 +77,10 @@ assert.match(migration, /where status in \('pending', 'approved'\)/);
 assert.match(migration, /lecture_applications_approved_student_idx/);
 assert.match(migration, /lookup_token_hash text/);
 assert.match(migration, /lecture_applications_lookup_token_idx/);
+assert.match(pushMigration, /create table if not exists public\.lecture_application_push_subscriptions/);
+assert.match(pushMigration, /alter table public\.lecture_application_push_subscriptions enable row level security/);
+assert.match(pushMigration, /revoke all on table public\.lecture_application_push_subscriptions from anon, authenticated/);
+assert.match(pushMigration, /grant select, insert, update, delete on table public\.lecture_application_push_subscriptions to service_role/);
 assert.match(appSource, /function openLectureApplicationModal\(\)/);
 assert.match(appSource, /LECTURE_APPLICATION_RECEIPT_STORAGE_KEY/);
 assert.match(appSource, /function renderLectureApplicationStatusCard\(application/);
@@ -91,6 +97,11 @@ assert.match(appSource, /field\("생년월일", birthDateInput\)/);
 assert.match(appSource, /field\("인강 아이디"/);
 assert.match(appSource, /privacyConsent: true/);
 assert.match(appSource, /renderStudentBrowserInstallOnly\(\)[\s\S]*?renderLectureApplicationEntryCard\(\)/);
+assert.match(appSource, /function enableLectureApplicationPush\(application\)/);
+assert.match(appSource, /action: "subscribe"/);
+assert.match(appSource, /Notification\.requestPermission\(\)/);
+assert.match(serviceWorkerSource, /addEventListener\("push"/);
+assert.match(serviceWorkerSource, /addEventListener\("notificationclick"/);
 assert.match(teacherStudentsSource, /function renderLectureApplicationsAdminPanel\(\)/);
 assert.match(teacherStudentsSource, /maskLectureApplicationPhone\(application\.phone\)/);
 assert.match(teacherStudentsSource, /function approveLectureApplication\(application\)/);
@@ -106,6 +117,9 @@ const originalEnv = {
   url: process.env.SUPABASE_URL,
   key: process.env.SUPABASE_SERVICE_ROLE_KEY,
   secret: process.env.TEACHER_SESSION_SECRET,
+  vapidSubject: process.env.VAPID_SUBJECT,
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
 };
 
 (async () => {
@@ -156,6 +170,40 @@ const originalEnv = {
   assert.equal(statusResponse.statusCode, 200);
   assert.equal(statusResponse.payload.application.status, "pending");
   assert.equal(statusResponse.payload.application.applicationId, statusApplicationId);
+
+  assert.equal(normalizePushSubscription({ endpoint: "http://example.com", keys: { p256dh: "x".repeat(24), auth: "y".repeat(12) } }), null);
+  process.env.VAPID_SUBJECT = "mailto:test@example.com";
+  process.env.VAPID_PUBLIC_KEY = "test-public-key";
+  process.env.VAPID_PRIVATE_KEY = "test-private-key";
+  let subscriptionBody;
+  let subscriptionRequestCount = 0;
+  global.fetch = async (url, options) => {
+    subscriptionRequestCount += 1;
+    if (subscriptionRequestCount === 1) {
+      assert.equal(options.method, "GET");
+      assert.match(String(url), /lecture_applications\?id=eq\./);
+      return jsonResponse([{ id: statusApplicationId, status: "pending" }]);
+    }
+    assert.equal(options.method, "POST");
+    assert.match(String(url), /lecture_application_push_subscriptions\?on_conflict=application_id,endpoint/);
+    subscriptionBody = JSON.parse(options.body);
+    return jsonResponse(null);
+  };
+  const subscriptionResponse = await invoke("POST", {
+    action: "subscribe",
+    applicationId: statusApplicationId,
+    lookupToken: statusLookupToken,
+    subscription: {
+      endpoint: "https://push.example.com/subscription/123",
+      keys: { p256dh: "p".repeat(24), auth: "a".repeat(12) },
+    },
+  }, "", "10.0.0.9");
+  assert.equal(subscriptionResponse.statusCode, 200);
+  assert.equal(subscriptionResponse.payload.subscribed, true);
+  assert.equal(subscriptionBody.application_id, statusApplicationId);
+  delete process.env.VAPID_SUBJECT;
+  delete process.env.VAPID_PUBLIC_KEY;
+  delete process.env.VAPID_PRIVATE_KEY;
 
   global.fetch = async () => jsonResponse({ code: "23505", message: "duplicate key" }, 409);
   const duplicate = await invoke("POST", validBody, "", "10.0.0.3");
@@ -209,4 +257,10 @@ const originalEnv = {
   else process.env.SUPABASE_SERVICE_ROLE_KEY = originalEnv.key;
   if (originalEnv.secret === undefined) delete process.env.TEACHER_SESSION_SECRET;
   else process.env.TEACHER_SESSION_SECRET = originalEnv.secret;
+  if (originalEnv.vapidSubject === undefined) delete process.env.VAPID_SUBJECT;
+  else process.env.VAPID_SUBJECT = originalEnv.vapidSubject;
+  if (originalEnv.vapidPublicKey === undefined) delete process.env.VAPID_PUBLIC_KEY;
+  else process.env.VAPID_PUBLIC_KEY = originalEnv.vapidPublicKey;
+  if (originalEnv.vapidPrivateKey === undefined) delete process.env.VAPID_PRIVATE_KEY;
+  else process.env.VAPID_PRIVATE_KEY = originalEnv.vapidPrivateKey;
 });

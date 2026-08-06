@@ -314,6 +314,9 @@ const lectureApplicationReceiptState = {
   loading: false,
   loaded: false,
   error: "",
+  pushConfigLoading: false,
+  pushAvailable: null,
+  pushPublicKey: "",
 };
 
 document.querySelectorAll("[data-route]").forEach((button) => {
@@ -979,6 +982,151 @@ function clearLectureApplicationReceipt() {
   lectureApplicationReceiptState.error = "";
 }
 
+async function ensureLectureApplicationPushConfigLoaded() {
+  if (lectureApplicationReceiptState.pushAvailable !== null || lectureApplicationReceiptState.pushConfigLoading) return;
+  lectureApplicationReceiptState.pushConfigLoading = true;
+  try {
+    const response = await fetch("/api/lecture-applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "push-config" }),
+    });
+    const data = await response.json().catch(() => ({}));
+    lectureApplicationReceiptState.pushAvailable = Boolean(response.ok && data.ok && data.available && data.publicKey);
+    lectureApplicationReceiptState.pushPublicKey = lectureApplicationReceiptState.pushAvailable ? data.publicKey : "";
+  } catch (error) {
+    console.error(error);
+    lectureApplicationReceiptState.pushAvailable = false;
+  } finally {
+    lectureApplicationReceiptState.pushConfigLoading = false;
+    render();
+  }
+}
+
+function renderLectureApplicationPushAction(application, status) {
+  if (status !== "pending") return null;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return el("p", { className: "lecture-application-push-note" }, "이 브라우저에서는 검수 결과 푸시 알림을 지원하지 않습니다.");
+  }
+  ensureLectureApplicationPushConfigLoaded();
+  if (lectureApplicationReceiptState.pushConfigLoading || lectureApplicationReceiptState.pushAvailable === null) {
+    return el("p", { className: "lecture-application-push-note" }, "푸시 알림 사용 가능 여부를 확인하고 있습니다.");
+  }
+  if (!lectureApplicationReceiptState.pushAvailable) return null;
+  if (application.pushEnabled) {
+    return el("div", { className: "lecture-application-push-box enabled" }, [
+      el("div", {}, [
+        el("strong", {}, "검수 결과 알림이 켜져 있습니다"),
+        el("p", {}, "승인 또는 반려 처리가 끝나면 이 기기로 알려드립니다."),
+      ]),
+      button("알림 끄기", "mini-btn", "button", () => disableLectureApplicationPush(application)),
+    ]);
+  }
+  if (Notification.permission === "denied") {
+    return el("p", { className: "lecture-application-push-note error" }, "브라우저 설정에서 이 사이트의 알림을 허용하면 검수 결과를 받을 수 있습니다.");
+  }
+  return el("div", { className: "lecture-application-push-box" }, [
+    el("div", {}, [
+      el("strong", {}, "검수 완료 알림 받기"),
+      el("p", {}, isIosDevice() && !isStandaloneWebApp()
+        ? "iPhone·iPad는 먼저 공유 버튼에서 ‘홈 화면에 추가’한 뒤 설치된 앱에서 켤 수 있습니다."
+        : "승인 또는 반려 처리가 끝나면 이 기기로 알려드립니다."),
+    ]),
+    button("알림 켜기", "btn secondary", "button", () => enableLectureApplicationPush(application)),
+  ]);
+}
+
+async function enableLectureApplicationPush(application) {
+  if (isIosDevice() && !isStandaloneWebApp()) {
+    notify("iPhone·iPad에서는 홈 화면에 앱을 추가한 뒤 설치된 앱에서 알림을 켜주세요.");
+    return;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      render();
+      notify("알림 권한이 허용되지 않았습니다.");
+      return;
+    }
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    const existing = await registration.pushManager.getSubscription();
+    const subscription = existing || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(lectureApplicationReceiptState.pushPublicKey),
+    });
+    const response = await fetch("/api/lecture-applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "subscribe",
+        applicationId: application.applicationId,
+        lookupToken: application.lookupToken,
+        subscription: subscription.toJSON(),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "push_subscription_failed");
+    updateLectureApplicationPushReceipt(true);
+    render();
+    notify("검수 결과 알림을 켰습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("알림을 켜지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
+}
+
+async function disableLectureApplicationPush(application) {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      const response = await fetch("/api/lecture-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "unsubscribe",
+          applicationId: application.applicationId,
+          lookupToken: application.lookupToken,
+          subscription: subscription.toJSON(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "push_unsubscribe_failed");
+      await subscription.unsubscribe();
+    }
+    updateLectureApplicationPushReceipt(false);
+    render();
+    notify("검수 결과 알림을 껐습니다.");
+  } catch (error) {
+    console.error(error);
+    notify("알림 설정을 변경하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
+}
+
+function updateLectureApplicationPushReceipt(enabled) {
+  const receipt = getLectureApplicationReceipt();
+  if (!receipt) return;
+  const nextReceipt = { ...receipt, pushEnabled: enabled === true };
+  localStorage.setItem(LECTURE_APPLICATION_RECEIPT_STORAGE_KEY, JSON.stringify(nextReceipt));
+  lectureApplicationReceiptState.application = { ...(lectureApplicationReceiptState.application || nextReceipt), pushEnabled: enabled === true };
+}
+
+function isIosDevice() {
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneWebApp() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+}
+
 async function ensureLectureApplicationStatusLoaded(receipt, options = {}) {
   if (!receipt?.applicationId || !receipt?.lookupToken) return;
   const sameApplication = lectureApplicationReceiptState.applicationId === receipt.applicationId;
@@ -1078,6 +1226,7 @@ function renderLectureApplicationStatusCard(application, options = {}) {
     lectureApplicationReceiptState.error
       ? el("p", { className: "lecture-application-status-error" }, "상태를 새로 확인하지 못했습니다. 마지막 확인 상태를 표시합니다.")
       : null,
+    renderLectureApplicationPushAction(application, status),
     actions.length ? el("div", { className: "lecture-application-status-actions" }, actions) : null,
   ].filter(Boolean));
 
@@ -2391,8 +2540,11 @@ function renderStudentMypage() {
       ]),
     ]),
     category === "lecture"
-      ? panel("캐릭터", [
-          el("p", { className: "subtle" }, "스터디카페에서 사용할 캐릭터와 프로필을 설정합니다."),
+      ? el("section", { className: "student-history-button-card student-character-card" }, [
+          el("div", { className: "student-history-head" }, [
+            el("h2", {}, "캐릭터"),
+            el("span", {}, "스터디카페 캐릭터와 프로필을 설정합니다."),
+          ]),
           button("캐릭터 설정", "btn secondary", "button", () => navigate("study-character")),
         ])
       : null,

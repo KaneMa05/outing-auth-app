@@ -13043,6 +13043,41 @@ body.student-study-mode .main-shell {
   font-size: 0.82rem;
 }
 
+.lecture-application-push-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d6e4f0;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.lecture-application-push-box.enabled {
+  border-color: #bde5d6;
+  background: #f3fcf8;
+}
+
+.lecture-application-push-box strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #18344d;
+  font-size: 0.92rem;
+}
+
+.lecture-application-push-box p,
+.lecture-application-push-note {
+  margin: 0;
+  color: #64788b;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.lecture-application-push-note.error {
+  color: #a44833;
+}
+
 .info-modal-panel.lecture-application-modal {
   width: min(680px, calc(100vw - 28px));
   max-height: calc(100dvh - 32px);
@@ -13154,6 +13189,16 @@ body.student-study-mode .main-shell {
 
   .lecture-application-status-actions {
     flex-direction: column;
+  }
+
+  .lecture-application-push-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lecture-application-push-box .btn,
+  .lecture-application-push-box .mini-btn {
+    width: 100%;
   }
 
   .lecture-application-detail {

@@ -287,9 +287,15 @@ async function reviewLectureApplication(application, status, rejectionReason) {
       saveState({ skipRemote: true });
     }
     render();
-    notify(status === "approved"
+    const reviewMessage = status === "approved"
       ? `${reviewed.name} 학생을 승인했습니다. 등록번호는 ${reviewed.approvedStudentId}입니다.`
-      : `${reviewed.name} 학생의 신청을 반려했습니다.`);
+      : `${reviewed.name} 학생의 신청을 반려했습니다.`;
+    const notification = data.notification || {};
+    notify(notification.failed > 0
+      ? `${reviewMessage} 다만 푸시 알림 전송에 실패했습니다.`
+      : notification.sent > 0
+        ? `${reviewMessage} 학생에게 푸시 알림도 보냈습니다.`
+        : reviewMessage);
     return true;
   } catch (error) {
     console.error(error);

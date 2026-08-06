@@ -100,6 +100,12 @@ async function handleLocalLectureApplications(req, res) {
         application: mapLocalPublicApplicationStatus(application),
       });
     }
+    if (body.action === "push-config") {
+      return sendLocalJson(res, 200, { ok: true, available: false, publicKey: "", localPreview: true });
+    }
+    if (body.action === "subscribe" || body.action === "unsubscribe") {
+      return sendLocalJson(res, 503, { ok: false, error: "push_not_configured", localPreview: true });
+    }
 
     const now = new Date().toISOString();
     const lookupToken = crypto.randomBytes(32).toString("base64url");
@@ -152,7 +158,11 @@ async function handleLocalLectureApplications(req, res) {
     application.reviewed_by = "local-admin";
     application.updated_at = application.reviewed_at;
     writeLocalLectureApplications(applications);
-    return sendLocalJson(res, 200, { ok: true, application });
+    return sendLocalJson(res, 200, {
+      ok: true,
+      application,
+      notification: { configured: false, sent: 0, failed: 0 },
+    });
   }
 
   res.setHeader("Allow", "GET, POST, PATCH");
