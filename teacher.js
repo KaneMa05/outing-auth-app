@@ -10,6 +10,15 @@ const deviceHistoryFilters = {
   query: "",
   eventType: "all",
 };
+const studentPushAdminState = {
+  loading: false,
+  loaded: false,
+  sending: false,
+  error: "",
+  messages: [],
+  subscribedStudentIds: new Set(),
+  selectedStudentIds: new Set(),
+};
 const STUDY_CAFE_ADMIN_SAFETY_REFRESH_INTERVAL_MS = 60 * 1000;
 const STUDY_CAFE_ADMIN_REALTIME_REFRESH_DELAY_MS = 350;
 const studyCafeAdminState = {
@@ -1951,8 +1960,9 @@ function renderStudentsAdmin() {
   return el("div", { className: "grid" }, [
     renderOnlineManagedStudyCafeTogglePanel(),
     renderLectureApplicationsAdminPanel(),
+    hasTeacherPermission("notices.write") ? renderStudentPushAdminPanel() : null,
     teacherStudentForm(),
-  ]);
+  ].filter(Boolean));
 }
 
 function renderDeviceHistoryAdmin() {

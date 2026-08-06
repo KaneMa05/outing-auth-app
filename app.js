@@ -318,6 +318,15 @@ const lectureApplicationReceiptState = {
   pushAvailable: null,
   pushPublicKey: "",
 };
+const studentPushNotificationState = {
+  studentId: "",
+  loading: false,
+  loaded: false,
+  available: null,
+  publicKey: "",
+  subscribed: false,
+  error: "",
+};
 
 document.querySelectorAll("[data-route]").forEach((button) => {
   button.addEventListener("click", (event) => {
@@ -1092,7 +1101,6 @@ async function disableLectureApplicationPush(application) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "push_unsubscribe_failed");
-      await subscription.unsubscribe();
     }
     updateLectureApplicationPushReceipt(false);
     render();
@@ -2550,9 +2558,171 @@ function renderStudentMypage() {
       : null,
     !isOnlineStudentExperience(student) ? renderStudentOutingHistoryButton(student.id) : null,
     renderStudentPenaltyHistoryButton(student.id),
+    renderStudentPushNotificationCard(student, profile),
     renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),
   ]);
+}
+
+function renderStudentPushNotificationCard(student, profile) {
+  ensureStudentPushNotificationLoaded(student, profile);
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  let statusText = "이 기기에서는 푸시 알림을 지원하지 않습니다.";
+  let action = null;
+  if (supported && studentPushNotificationState.loading && !studentPushNotificationState.loaded) {
+    statusText = "알림 설정을 확인하고 있습니다.";
+  } else if (supported && studentPushNotificationState.available === false) {
+    statusText = "현재 알림 서비스를 준비 중입니다.";
+  } else if (supported && Notification.permission === "denied") {
+    statusText = "브라우저 설정에서 이 사이트의 알림을 허용해주세요.";
+  } else if (supported && studentPushNotificationState.subscribed) {
+    statusText = "관리자가 보내는 개인·그룹 알림을 이 기기에서 받습니다.";
+    action = button("알림 끄기", "btn secondary", "button", () => disableStudentPushNotifications(student, profile));
+  } else if (supported && studentPushNotificationState.available) {
+    statusText = isIosDevice() && !isStandaloneWebApp()
+      ? "iPhone·iPad는 홈 화면에 앱을 추가한 뒤 설치된 앱에서 켤 수 있습니다."
+      : "안드로이드를 포함한 현재 기기에서 관리자 알림을 받을 수 있습니다.";
+    action = button("알림 켜기", "btn secondary", "button", () => enableStudentPushNotifications(student, profile));
+  }
+  if (action) action.disabled = studentPushNotificationState.loading;
+  return el("section", { className: `student-history-button-card student-push-card${studentPushNotificationState.subscribed ? " enabled" : ""}` }, [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "앱 알림"),
+      el("span", {}, statusText),
+      studentPushNotificationState.error
+        ? el("small", { className: "student-push-error" }, "알림 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.")
+        : null,
+    ].filter(Boolean)),
+    action,
+  ].filter(Boolean));
+}
+
+async function ensureStudentPushNotificationLoaded(student, profile, options = {}) {
+  if (!student?.id || !profile?.deviceToken) return;
+  if (studentPushNotificationState.studentId !== String(student.id)) {
+    Object.assign(studentPushNotificationState, {
+      studentId: String(student.id),
+      loading: false,
+      loaded: false,
+      available: null,
+      publicKey: "",
+      subscribed: false,
+      error: "",
+    });
+  }
+  if (studentPushNotificationState.loading || (studentPushNotificationState.loaded && options.force !== true)) return;
+  studentPushNotificationState.loading = true;
+  studentPushNotificationState.error = "";
+  try {
+    const configResponse = await fetch("/api/student-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "config" }),
+    });
+    const config = await configResponse.json().catch(() => ({}));
+    studentPushNotificationState.available = Boolean(configResponse.ok && config.ok && config.available && config.publicKey);
+    studentPushNotificationState.publicKey = studentPushNotificationState.available ? config.publicKey : "";
+    studentPushNotificationState.subscribed = false;
+    if (studentPushNotificationState.available && Notification.permission === "granted") {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const statusResponse = await fetch("/api/student-push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildStudentPushRequest("status", student, profile, subscription)),
+        });
+        const status = await statusResponse.json().catch(() => ({}));
+        if (statusResponse.status === 403 && status.error === "device_not_active") throw new Error("device_not_active");
+        if (!statusResponse.ok || !status.ok) throw new Error(status.error || "push_status_failed");
+        studentPushNotificationState.subscribed = status.subscribed === true;
+      }
+    }
+    studentPushNotificationState.loaded = true;
+  } catch (error) {
+    console.error(error);
+    studentPushNotificationState.loaded = true;
+    studentPushNotificationState.error = error.message || "push_status_failed";
+  } finally {
+    studentPushNotificationState.loading = false;
+    if (currentRoute === "mypage") render();
+  }
+}
+
+async function enableStudentPushNotifications(student, profile) {
+  if (!profile?.deviceToken) return notify("현재 기기 등록 정보를 찾을 수 없습니다.");
+  if (isIosDevice() && !isStandaloneWebApp()) {
+    notify("iPhone·iPad에서는 홈 화면에 앱을 추가한 뒤 설치된 앱에서 알림을 켜주세요.");
+    return;
+  }
+  studentPushNotificationState.loading = true;
+  render();
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("notification_permission_denied");
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(studentPushNotificationState.publicKey),
+    });
+    const response = await fetch("/api/student-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildStudentPushRequest("subscribe", student, profile, subscription)),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "push_subscription_failed");
+    studentPushNotificationState.subscribed = true;
+    studentPushNotificationState.loaded = true;
+    studentPushNotificationState.error = "";
+    notify("관리자 앱 알림을 켰습니다.");
+  } catch (error) {
+    console.error(error);
+    studentPushNotificationState.error = error.message || "push_subscription_failed";
+    notify(error.message === "notification_permission_denied"
+      ? "알림 권한이 허용되지 않았습니다."
+      : "알림을 켜지 못했습니다. 잠시 후 다시 시도해주세요.");
+  } finally {
+    studentPushNotificationState.loading = false;
+    render();
+  }
+}
+
+async function disableStudentPushNotifications(student, profile) {
+  studentPushNotificationState.loading = true;
+  render();
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      const response = await fetch("/api/student-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildStudentPushRequest("unsubscribe", student, profile, subscription)),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "push_unsubscribe_failed");
+    }
+    studentPushNotificationState.subscribed = false;
+    studentPushNotificationState.error = "";
+    notify("관리자 앱 알림을 껐습니다.");
+  } catch (error) {
+    console.error(error);
+    studentPushNotificationState.error = error.message || "push_unsubscribe_failed";
+    notify("알림 설정을 변경하지 못했습니다.");
+  } finally {
+    studentPushNotificationState.loading = false;
+    render();
+  }
+}
+
+function buildStudentPushRequest(action, student, profile, subscription) {
+  return {
+    action,
+    studentId: String(student.id),
+    deviceToken: profile.deviceToken,
+    subscription: subscription.toJSON(),
+  };
 }
 
 function isOnlineStudyStudent(student) {

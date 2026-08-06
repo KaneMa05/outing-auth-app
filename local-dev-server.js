@@ -23,6 +23,7 @@ const apiHandlers = {
   "/api/students": require("./api/students"),
   "/api/student-reset-registration": require("./api/student-reset-registration"),
   "/api/student-devices": require("./api/student-devices"),
+  "/api/student-push": require("./api/student-push"),
   "/api/study-cafe": require("./api/study-cafe"),
   "/api/study-cafe-rooms": require("./api/study-cafe-rooms"),
   "/api/question-board": require("./api/question-board"),

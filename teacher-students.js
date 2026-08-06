@@ -306,6 +306,209 @@ async function reviewLectureApplication(application, status, rejectionReason) {
   }
 }
 
+function renderStudentPushAdminPanel() {
+  ensureStudentPushAdminLoaded();
+  const targetSelect = el("select", { name: "target" }, [
+    el("option", { value: "all" }, "전체 학생"),
+    el("option", { value: "category:offline" }, "오프라인 학생"),
+    el("option", { value: "category:online_managed" }, "온라인 관리반"),
+    el("option", { value: "category:lecture" }, "인강생"),
+    el("option", { value: "students" }, "학생 직접 선택"),
+  ]);
+  const titleInput = input("title", "text", "예: 오늘 수업 안내");
+  titleInput.maxLength = 80;
+  const bodyInput = textarea("body", "알림 내용을 입력하세요.");
+  bodyInput.maxLength = 300;
+  const targetSummary = el("div", { className: "student-push-target-summary", ariaLive: "polite" });
+  const directTargets = el("div", { className: "student-push-direct-targets", hidden: true });
+  const sendButton = button("푸시 알림 보내기", "btn");
+  const form = el("form", { className: "form-grid student-push-admin-form" }, [
+    el("p", { className: "subtle field full" }, "알림을 허용한 학생의 등록 기기로 전송됩니다. 발송 전 대상 인원을 확인해주세요."),
+    field("발송 대상", targetSelect, "full"),
+    directTargets,
+    targetSummary,
+    field("알림 제목", titleInput, "full"),
+    field("알림 내용", bodyInput, "full", "최대 300자이며, 알림을 누르면 학생 앱 홈으로 이동합니다."),
+    el("div", { className: "field full student-push-send-actions" }, [sendButton]),
+  ]);
+
+  const updateTargets = () => {
+    const direct = targetSelect.value === "students";
+    directTargets.hidden = !direct;
+    if (direct && !directTargets.childElementCount) renderStudentPushDirectTargets(directTargets, updateTargets);
+    const targetIds = resolveStudentPushTargetIds(targetSelect.value, studentPushAdminState.selectedStudentIds);
+    const subscribedCount = targetIds.filter((id) => studentPushAdminState.subscribedStudentIds.has(id)).length;
+    targetSummary.replaceChildren(
+      el("strong", {}, `대상 ${targetIds.length}명`),
+      el("span", {}, `알림 허용 ${subscribedCount}명`)
+    );
+    sendButton.disabled = studentPushAdminState.sending || !targetIds.length;
+  };
+  targetSelect.addEventListener("change", updateTargets);
+  updateTargets();
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (studentPushAdminState.sending) return;
+    const title = String(titleInput.value || "").trim();
+    const messageBody = String(bodyInput.value || "").trim();
+    const targetIds = resolveStudentPushTargetIds(targetSelect.value, studentPushAdminState.selectedStudentIds);
+    if (!title || !messageBody) return notify("알림 제목과 내용을 입력해주세요.");
+    if (!targetIds.length) return notify("발송할 학생을 선택해주세요.");
+    const subscribedCount = targetIds.filter((id) => studentPushAdminState.subscribedStudentIds.has(id)).length;
+    if (!confirm(`대상 ${targetIds.length}명 중 현재 알림 허용 학생은 ${subscribedCount}명입니다. 푸시 알림을 보낼까요?`)) return;
+
+    studentPushAdminState.sending = true;
+    sendButton.disabled = true;
+    setButtonLoading(sendButton, "발송 중");
+    try {
+      const target = buildStudentPushAdminTarget(targetSelect.value, studentPushAdminState.selectedStudentIds);
+      const response = await fetch("/api/student-push", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", title, body: messageBody, ...target }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "student_push_send_failed");
+      titleInput.value = "";
+      bodyInput.value = "";
+      studentPushAdminState.loaded = false;
+      await loadStudentPushAdminData({ force: true });
+      notify(`대상 ${data.targetCount}명 중 ${data.subscribedStudentCount}명이 알림을 허용했습니다. ${data.sentCount}개 기기 전송 성공${data.failedCount ? `, ${data.failedCount}개 실패` : ""}.`);
+    } catch (error) {
+      console.error(error);
+      notify("푸시 알림을 보내지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      studentPushAdminState.sending = false;
+      sendButton.disabled = false;
+      sendButton.textContent = "푸시 알림 보내기";
+    }
+  });
+
+  const history = renderStudentPushHistory();
+  return panel("학생 푸시 알림", [
+    el("div", { className: "student-push-admin-status" }, [
+      el("strong", {}, `알림 허용 학생 ${studentPushAdminState.subscribedStudentIds.size}명`),
+      button("새로고침", "mini-btn", "button", () => loadStudentPushAdminData({ force: true })),
+    ]),
+    studentPushAdminState.error ? el("div", { className: "empty" }, "푸시 알림 현황을 불러오지 못했습니다.") : null,
+    form,
+    history,
+  ].filter(Boolean));
+}
+
+function renderStudentPushDirectTargets(container, onChange) {
+  const searchInput = input("studentPushSearch", "search", "학생번호 또는 이름 검색");
+  const list = el("div", { className: "student-push-student-list" });
+  const selectedCount = el("strong", {}, "");
+  const renderList = () => {
+    const query = String(searchInput.value || "").trim().toLowerCase();
+    const students = getStudentPushEligibleStudents()
+      .filter((student) => !query || `${student.id} ${student.name}`.toLowerCase().includes(query))
+      .slice(0, 200);
+    selectedCount.textContent = `${studentPushAdminState.selectedStudentIds.size}명 선택`;
+    list.replaceChildren(...students.map((student) => {
+      const checkbox = el("input", { type: "checkbox", value: student.id, checked: studentPushAdminState.selectedStudentIds.has(String(student.id)) });
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) studentPushAdminState.selectedStudentIds.add(String(student.id));
+        else studentPushAdminState.selectedStudentIds.delete(String(student.id));
+        selectedCount.textContent = `${studentPushAdminState.selectedStudentIds.size}명 선택`;
+        onChange();
+      });
+      return el("label", { className: "student-push-student-option" }, [
+        checkbox,
+        el("span", {}, `${student.name} (${student.id})`),
+        studentPushAdminState.subscribedStudentIds.has(String(student.id)) ? el("small", {}, "알림 허용") : null,
+      ].filter(Boolean));
+    }));
+  };
+  searchInput.addEventListener("input", renderList);
+  container.append(
+    el("div", { className: "student-push-direct-head" }, [searchInput, selectedCount]),
+    list
+  );
+  renderList();
+}
+
+function getStudentPushEligibleStudents() {
+  return (state.students || [])
+    .filter((student) => student.isActive !== false)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+}
+
+function resolveStudentPushTargetIds(targetValue, selectedIds) {
+  const students = getStudentPushEligibleStudents();
+  if (targetValue === "all") return students.map((student) => String(student.id));
+  if (targetValue.startsWith("category:")) {
+    const category = targetValue.slice("category:".length);
+    return students.filter((student) => getStudentCategory(student) === category).map((student) => String(student.id));
+  }
+  const activeIds = new Set(students.map((student) => String(student.id)));
+  return [...selectedIds].filter((id) => activeIds.has(String(id)));
+}
+
+function buildStudentPushAdminTarget(targetValue, selectedIds) {
+  if (targetValue === "all") return { targetType: "all" };
+  if (targetValue.startsWith("category:")) return { targetType: "category", targetCategory: targetValue.slice("category:".length) };
+  return { targetType: "students", studentIds: [...selectedIds] };
+}
+
+function ensureStudentPushAdminLoaded() {
+  if (studentPushAdminState.loaded || studentPushAdminState.loading) return;
+  loadStudentPushAdminData();
+}
+
+async function loadStudentPushAdminData({ force = false } = {}) {
+  if (studentPushAdminState.loading || (studentPushAdminState.loaded && !force)) return;
+  studentPushAdminState.loading = true;
+  studentPushAdminState.error = "";
+  try {
+    const response = await fetch("/api/student-push", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "student_push_load_failed");
+    studentPushAdminState.messages = Array.isArray(data.messages) ? data.messages : [];
+    studentPushAdminState.subscribedStudentIds = new Set((data.subscribedStudentIds || []).map(String));
+    studentPushAdminState.loaded = true;
+  } catch (error) {
+    console.error(error);
+    studentPushAdminState.error = error.message || "student_push_load_failed";
+  } finally {
+    studentPushAdminState.loading = false;
+    if (currentRoute === "students") render();
+  }
+}
+
+function renderStudentPushHistory() {
+  if (studentPushAdminState.loading && !studentPushAdminState.loaded) {
+    return el("div", { className: "empty" }, "발송 이력을 불러오는 중입니다.");
+  }
+  const messages = studentPushAdminState.messages || [];
+  if (!messages.length) return el("div", { className: "empty" }, "아직 발송한 푸시 알림이 없습니다.");
+  const rows = messages.map((message) => el("tr", {}, [
+    el("td", {}, formatDateCompact(message.created_at)),
+    el("td", {}, message.title || "-"),
+    el("td", {}, formatStudentPushTarget(message)),
+    el("td", {}, `${Number(message.target_count) || 0}명`),
+    el("td", {}, `${Number(message.subscribed_count) || 0}명`),
+    el("td", {}, `${Number(message.sent_count) || 0}기기`),
+    el("td", {}, Number(message.failed_count) ? `${message.failed_count}건` : "-"),
+    el("td", {}, message.created_by || "-"),
+  ]));
+  return el("div", { className: "student-push-history" }, [
+    el("h3", {}, "최근 발송 이력"),
+    table(["발송일", "제목", "대상", "학생", "허용", "성공", "실패", "발송자"], rows),
+  ]);
+}
+
+function formatStudentPushTarget(message) {
+  if (message.target_type === "all") return "전체";
+  if (message.target_type === "category") {
+    return { offline: "오프라인", online_managed: "온라인 관리반", lecture: "인강생" }[message.target_category] || "그룹";
+  }
+  return "직접 선택";
+}
+
 function teacherStudentForm() {
   const selected = selectedStudentCohortCount();
   const visibleStudents = getStudentsInCohort(selected.value);
