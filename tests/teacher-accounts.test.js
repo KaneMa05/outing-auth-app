@@ -51,6 +51,9 @@ function jsonResponse(status, data) {
     assert.match(migrationSql, /question_comments_author_identity_check/);
 
     const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+    const sharedSource = fs.readFileSync(path.join(__dirname, "..", "shared.js"), "utf8");
+    const indexSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const teacherHtmlSource = fs.readFileSync(path.join(__dirname, "..", "teacher.html"), "utf8");
     const questionApiSource = fs.readFileSync(path.join(__dirname, "..", "api", "question-board.js"), "utf8");
     const questionUiSource = fs.readFileSync(path.join(__dirname, "..", "question-board.js"), "utf8");
     assert.match(appSource, /function isTeacherAppAccount/);
@@ -60,6 +63,9 @@ function jsonResponse(status, data) {
     assert.match(questionApiSource, /teacherAccount \? "teacher" : "student"/);
     assert.match(questionApiSource, /formatTeacherName\(student\.name\)/);
     assert.match(questionUiSource, /post\.authorType === "teacher"/);
+    assert.match(sharedSource, /\.filter\(\(student\) => student\.id && student\.name && student\.accountType !== "teacher"\)/);
+    assert.match(indexSource, /shared\.js\?v=20260807-teacher-sync-guard/);
+    assert.match(teacherHtmlSource, /shared\.js\?v=20260807-teacher-sync-guard/);
 
     const token = createSessionToken("test-session-secret", {
       username: "bootstrap-admin",

@@ -2430,7 +2430,7 @@ async function loadStateFromRemote(options = {}) {
 
 async function saveStateToRemote() {
   const rosterRows = state.students
-    .filter((student) => student.id && student.name)
+    .filter((student) => student.id && student.name && student.accountType !== "teacher")
     .map((student) => ({
       id: student.id,
       name: student.name,
