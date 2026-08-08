@@ -1,5 +1,39 @@
--- Apply during the release that renames the lecture student label.
--- Safe to run again: the function replacement and data update are idempotent.
+-- Classify registration applications and require administrators to assign
+-- registration numbers for offline and online-managed students.
+alter table public.lecture_applications
+add column if not exists course_type text,
+add column if not exists cohort smallint;
+
+update public.lecture_applications
+set course_type = 'lecture'
+where course_type is null;
+
+alter table public.lecture_applications
+alter column course_type set default 'lecture',
+alter column course_type set not null,
+alter column lecture_id drop not null,
+alter column lecture_id_normalized drop not null;
+
+alter table public.lecture_applications
+drop constraint if exists lecture_applications_course_type_check;
+
+alter table public.lecture_applications
+drop constraint if exists lecture_applications_cohort_check;
+
+alter table public.lecture_applications
+add constraint lecture_applications_course_type_check
+check (course_type in ('offline', 'online_managed', 'lecture'));
+
+alter table public.lecture_applications
+add constraint lecture_applications_cohort_check
+check (cohort is null or cohort between 1 and 99);
+
+drop index if exists public.lecture_applications_active_lecture_id_idx;
+create unique index lecture_applications_active_lecture_id_idx
+on public.lecture_applications (lecture_id_normalized)
+where status in ('pending', 'approved')
+  and course_type = 'lecture'
+  and lecture_id_normalized is not null;
 
 create or replace function public.approve_lecture_application()
 returns trigger
@@ -86,8 +120,3 @@ begin
   return new;
 end;
 $$;
-
-update public.students
-set class_name = '수강생'
-where student_category = 'lecture'
-  and class_name = '인강생';

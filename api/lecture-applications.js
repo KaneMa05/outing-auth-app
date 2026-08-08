@@ -18,6 +18,8 @@ const APPLICATION_COLUMNS = [
   "birth_date",
   "gender",
   "track",
+  "course_type",
+  "cohort",
   "referral_source",
   "referral_source_detail",
   "lecture_id",
@@ -39,6 +41,8 @@ const PUBLIC_STATUS_COLUMNS = [
   "updated_at",
 ].join(",");
 const REFERRAL_SOURCES = new Set(["naver_cafe", "referral", "youtube", "search", "other"]);
+const COURSE_TYPES = new Set(["offline", "online_managed", "lecture"]);
+const MANUAL_REGISTRATION_COURSE_TYPES = new Set(["offline", "online_managed"]);
 const PUBLIC_RATE_WINDOW_MS = 10 * 60 * 1000;
 const PUBLIC_RATE_LIMIT = 5;
 const publicAttempts = new Map();
@@ -121,6 +125,8 @@ module.exports = async function handler(req, res) {
       const id = String(body.id || "").trim();
       const status = normalizeStatus(body.status);
       const rejectionReason = cleanText(body.rejectionReason, 300);
+      const registrationNumber = cleanText(body.registrationNumber, 30);
+      const cohort = cleanText(body.cohort, 3);
       if (!id || !["approved", "rejected"].includes(status)) {
         res.status(400).json({ ok: false, error: "invalid_review" });
         return;
@@ -130,18 +136,60 @@ module.exports = async function handler(req, res) {
         return;
       }
 
+      let pendingApplication = null;
+      if (status === "approved") {
+        const pendingRows = await requestSupabase(
+          "GET",
+          `${TABLE}?id=eq.${encodeURIComponent(id)}&status=eq.pending&select=id,course_type&limit=1`
+        );
+        pendingApplication = pendingRows?.[0] || null;
+        if (!pendingApplication) {
+          res.status(409).json({ ok: false, error: "application_already_reviewed" });
+          return;
+        }
+        if (MANUAL_REGISTRATION_COURSE_TYPES.has(pendingApplication.course_type)) {
+          if (!isValidCohort(cohort)) {
+            res.status(400).json({ ok: false, error: "invalid_cohort" });
+            return;
+          }
+          if (!registrationNumber) {
+            res.status(400).json({ ok: false, error: "registration_number_required" });
+            return;
+          }
+          if (!isRegistrationNumberForCohort(registrationNumber, cohort)) {
+            res.status(400).json({ ok: false, error: "registration_number_cohort_mismatch" });
+            return;
+          }
+        }
+      }
+
       const payload = {
         status,
         rejection_reason: status === "rejected" ? rejectionReason : null,
+        approved_student_id: status === "approved" && MANUAL_REGISTRATION_COURSE_TYPES.has(pendingApplication?.course_type)
+          ? registrationNumber
+          : null,
+        cohort: status === "approved" && MANUAL_REGISTRATION_COURSE_TYPES.has(pendingApplication?.course_type)
+          ? Number(cohort)
+          : null,
         reviewed_by: session.username || "admin",
         reviewed_at: new Date().toISOString(),
       };
-      const rows = await requestSupabase(
-        "PATCH",
-        `${TABLE}?id=eq.${encodeURIComponent(id)}&status=eq.pending&select=${APPLICATION_COLUMNS}`,
-        payload,
-        { Prefer: "return=representation" }
-      );
+      let rows;
+      try {
+        rows = await requestSupabase(
+          "PATCH",
+          `${TABLE}?id=eq.${encodeURIComponent(id)}&status=eq.pending&select=${APPLICATION_COLUMNS}`,
+          payload,
+          { Prefer: "return=representation" }
+        );
+      } catch (error) {
+        if (isRegistrationNumberInUseError(error)) {
+          res.status(409).json({ ok: false, error: "registration_number_in_use" });
+          return;
+        }
+        throw error;
+      }
       if (!rows?.length) {
         res.status(409).json({ ok: false, error: "application_already_reviewed" });
         return;
@@ -361,10 +409,11 @@ function normalizeApplication(body) {
     birth_date: cleanText(body.birthDate, 10),
     gender: cleanText(body.gender, 2),
     track: cleanText(body.track, 100),
+    course_type: cleanText(body.courseType || "lecture", 30),
     referral_source: cleanText(body.referralSource, 30),
     referral_source_detail: cleanText(body.referralSourceDetail, 100) || null,
-    lecture_id: lectureId,
-    lecture_id_normalized: lectureId.normalize("NFKC").toLowerCase().replace(/\s+/g, ""),
+    lecture_id: lectureId || null,
+    lecture_id_normalized: lectureId ? lectureId.normalize("NFKC").toLowerCase().replace(/\s+/g, "") : null,
     privacy_consent_at: body.privacyConsent === true ? new Date().toISOString() : null,
   };
 }
@@ -375,9 +424,10 @@ function validateApplication(application) {
   if (!isValidBirthDate(application.birth_date)) return "invalid_birth_date";
   if (!["남", "여"].includes(application.gender)) return "invalid_gender";
   if (!application.track) return "invalid_track";
+  if (!COURSE_TYPES.has(application.course_type)) return "invalid_course_type";
   if (!REFERRAL_SOURCES.has(application.referral_source)) return "invalid_referral_source";
   if (application.referral_source === "other" && !application.referral_source_detail) return "referral_detail_required";
-  if (application.lecture_id_normalized.length < 2) return "invalid_lecture_id";
+  if (application.course_type === "lecture" && String(application.lecture_id_normalized || "").length < 2) return "invalid_lecture_id";
   if (!application.privacy_consent_at) return "privacy_consent_required";
   return "";
 }
@@ -386,6 +436,20 @@ function isValidBirthDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value && value >= "1900-01-01" && value <= new Date().toISOString().slice(0, 10);
+}
+
+function isValidCohort(value) {
+  return /^\d{1,2}$/.test(String(value || "").trim())
+    && Number(value) >= 1
+    && Number(value) <= 99;
+}
+
+function isRegistrationNumberForCohort(registrationNumber, cohort) {
+  const normalizedCohort = String(cohort || "").trim();
+  const value = String(registrationNumber || "").trim();
+  if (!isValidCohort(normalizedCohort) || !value.startsWith(normalizedCohort)) return false;
+  const suffix = value.slice(normalizedCohort.length);
+  return /^\d{3}$/.test(suffix) && Number(suffix) >= 1;
 }
 
 function normalizeStatus(value) {
@@ -410,6 +474,13 @@ function allowPublicApplication(ip) {
 function isDuplicateApplicationError(error) {
   const details = `${error?.message || ""} ${error?.details || ""}`;
   return details.includes("23505") || details.includes("lecture_applications_active_phone_idx") || details.includes("lecture_applications_active_lecture_id_idx");
+}
+
+function isRegistrationNumberInUseError(error) {
+  const details = `${error?.message || ""} ${error?.details || ""}`;
+  return details.includes("registration_number_in_use")
+    || details.includes("students_pkey")
+    || details.includes("duplicate key value violates unique constraint");
 }
 
 async function requestSupabase(method, path, body, extraHeaders = {}) {
@@ -446,6 +517,8 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
 module.exports._private = {
   hashLookupToken,
   isPushConfigured,
+  isRegistrationNumberForCohort,
+  isValidCohort,
   isValidBirthDate,
   normalizePushSubscription,
   normalizeApplication,

@@ -11,6 +11,11 @@ const LECTURE_REFERRAL_SOURCE_LABELS = {
   search: "검색",
   other: "기타",
 };
+const LECTURE_APPLICATION_COURSE_TYPE_LABELS = {
+  offline: "오프라인반",
+  online_managed: "온라인 관리반",
+  lecture: "인강생",
+};
 const lectureApplicationAdminState = {
   applications: [],
   loading: false,
@@ -107,7 +112,7 @@ function renderLectureApplicationsAdminPanel() {
   const head = el("div", { className: "lecture-application-admin-head" }, [
     el("div", {}, [
       el("p", { className: "subtle" }, `검토 대기 ${applications.filter((item) => item.status === "pending").length}건`),
-      el("p", { className: "subtle" }, "승인하면 900001번대 등록번호가 자동 발급됩니다."),
+      el("p", { className: "subtle" }, "오프라인반·온라인 관리반은 관리자가 등록번호를 입력하고, 인강생은 자동 발급됩니다."),
     ]),
     el("div", { className: "lecture-application-admin-controls" }, [
       statusSelect,
@@ -125,6 +130,7 @@ function renderLectureApplicationsAdminPanel() {
   const rows = visible.map((application) => el("tr", {}, [
     el("td", {}, formatDateCompact(application.createdAt)),
     el("td", {}, application.name),
+    el("td", {}, formatLectureApplicationCourseType(application.courseType)),
     el("td", {}, maskLectureApplicationPhone(application.phone)),
     el("td", {}, application.track),
     el("td", {}, formatLectureReferralSource(application)),
@@ -141,8 +147,8 @@ function renderLectureApplicationsAdminPanel() {
   return panel("수강생 신청 관리", [
     head,
     table(
-      ["신청일", "이름", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 9 }, el("div", { className: "empty table-empty" }, "해당 상태의 신청이 없습니다."))])]
+      ["신청일", "이름", "수강 구분", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 10 }, el("div", { className: "empty table-empty" }, "해당 상태의 신청이 없습니다."))])]
     ),
   ]);
 }
@@ -181,6 +187,8 @@ function mapLectureApplication(row) {
     birthDate: row.birth_date || "",
     gender: row.gender || "",
     track: row.track || "",
+    courseType: row.course_type || "lecture",
+    cohort: row.cohort ? String(row.cohort) : "",
     referralSource: row.referral_source || "",
     referralSourceDetail: row.referral_source_detail || "",
     lectureId: row.lecture_id || "",
@@ -204,9 +212,15 @@ function formatLectureReferralSource(application) {
   return application.referralSourceDetail ? `${label} (${application.referralSourceDetail})` : label;
 }
 
+function formatLectureApplicationCourseType(courseType) {
+  return LECTURE_APPLICATION_COURSE_TYPE_LABELS[courseType] || "인강생";
+}
+
 function openLectureApplicationDetail(application) {
   const detailRows = [
     ["이름", application.name],
+    ["수강 구분", formatLectureApplicationCourseType(application.courseType)],
+    ["기수", application.cohort ? `${application.cohort}기` : "-"],
     ["휴대전화 번호", application.phone],
     ["생년월일", application.birthDate],
     ["성별", application.gender],
@@ -227,8 +241,97 @@ function openLectureApplicationDetail(application) {
 }
 
 async function approveLectureApplication(application) {
-  if (!confirm(`${application.name} 신청을 승인할까요? 승인하면 수강생 등록번호가 즉시 발급됩니다.`)) return;
-  await reviewLectureApplication(application, "approved", "");
+  if (["offline", "online_managed"].includes(application.courseType)) {
+    openManualLectureApplicationApprovalModal(application);
+    return;
+  }
+  if (!confirm(`${application.name} 인강생 신청을 승인할까요? 승인하면 등록번호가 즉시 자동 발급됩니다.`)) return;
+  await reviewLectureApplication(application, "approved", "", "");
+}
+
+function openManualLectureApplicationApprovalModal(application) {
+  const cohortOptions = getManualApplicationCohortOptions();
+  const cohortSelect = el("select", { name: "cohort" }, [
+    el("option", { value: "" }, "기수를 선택하세요"),
+    ...cohortOptions.map((cohort) => el("option", { value: cohort }, `${cohort}기`)),
+    el("option", { value: "custom" }, "새 기수 입력"),
+  ]);
+  const customCohortInput = input("customCohort", "number", "예: 18");
+  customCohortInput.min = "1";
+  customCohortInput.max = "99";
+  const customCohortField = field("새 기수", customCohortInput, "full");
+  customCohortField.hidden = true;
+  const registrationNumberInput = input("registrationNumber", "text", "등록번호");
+  registrationNumberInput.inputMode = "numeric";
+  registrationNumberInput.maxLength = 30;
+  const selectedCohort = () => cohortSelect.value === "custom"
+    ? String(customCohortInput.value || "").trim()
+    : String(cohortSelect.value || "").trim();
+  const updateSuggestedRegistrationNumber = () => {
+    const cohort = selectedCohort();
+    registrationNumberInput.value = isValidCohort(cohort) ? suggestNextManualRegistrationNumber(cohort) : "";
+  };
+  cohortSelect.addEventListener("change", () => {
+    customCohortField.hidden = cohortSelect.value !== "custom";
+    if (customCohortField.hidden) customCohortInput.value = "";
+    updateSuggestedRegistrationNumber();
+  });
+  customCohortInput.addEventListener("input", updateSuggestedRegistrationNumber);
+  const submitButton = button("승인하기", "btn");
+  const form = el("form", { className: "form-grid" }, [
+    field("신청자", el("strong", {}, `${application.name} · ${formatLectureApplicationCourseType(application.courseType)}`), "full"),
+    field("기수", cohortSelect, "full"),
+    customCohortField,
+    field("등록번호", registrationNumberInput, "full", "다음 등록번호가 자동 입력됩니다. 필요하면 수정해주세요."),
+    el("div", { className: "lecture-application-actions field full" }, [
+      button("취소", "btn secondary", "button", closeInfoModal),
+      submitButton,
+    ]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const cohort = selectedCohort();
+    const registrationNumber = String(registrationNumberInput.value || "").trim();
+    if (!isValidCohort(cohort)) return notify("기수를 선택하거나 숫자로 입력해주세요.");
+    if (!isRegistrationNumberForCohort(registrationNumber, cohort)) {
+      return notify(`${cohort}기 등록번호는 ${cohort}001부터 ${cohort}999 사이로 입력해주세요.`);
+    }
+    submitButton.disabled = true;
+    try {
+      const reviewed = await reviewLectureApplication(application, "approved", "", registrationNumber, cohort);
+      if (reviewed) closeInfoModal();
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+  openInfoModal({ title: "수강생 신청 승인", content: form, showConfirm: false });
+}
+
+function getManualApplicationCohortOptions() {
+  return [...new Set((state.students || [])
+    .filter((student) => getStudentCategory(student) !== "lecture")
+    .map((student) => getStudentCohort(student))
+    .filter(isValidCohort))]
+    .sort((a, b) => Number(a) - Number(b));
+}
+
+function suggestNextManualRegistrationNumber(cohort) {
+  const normalizedCohort = String(cohort || "").trim();
+  if (!isValidCohort(normalizedCohort)) return "";
+  const maxSequence = (state.students || []).reduce((maxValue, student) => {
+    const value = String(student?.id || "").trim();
+    if (!isRegistrationNumberForCohort(value, normalizedCohort)) return maxValue;
+    return Math.max(maxValue, Number(value.slice(normalizedCohort.length)));
+  }, 0);
+  return maxSequence >= 999 ? "" : buildStudentId(normalizedCohort, maxSequence + 1);
+}
+
+function isRegistrationNumberForCohort(registrationNumber, cohort) {
+  const normalizedCohort = String(cohort || "").trim();
+  const value = String(registrationNumber || "").trim();
+  if (!isValidCohort(normalizedCohort) || !value.startsWith(normalizedCohort)) return false;
+  const suffix = value.slice(normalizedCohort.length);
+  return /^\d{3}$/.test(suffix) && Number(suffix) >= 1;
 }
 
 function openRejectLectureApplicationModal(application) {
@@ -257,13 +360,13 @@ function openRejectLectureApplicationModal(application) {
   openInfoModal({ title: "수강생 신청 반려", content: form, showConfirm: false });
 }
 
-async function reviewLectureApplication(application, status, rejectionReason) {
+async function reviewLectureApplication(application, status, rejectionReason, registrationNumber = "", cohort = "") {
   try {
     const response = await fetch("/api/lecture-applications", {
       method: "PATCH",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: application.id, status, rejectionReason }),
+      body: JSON.stringify({ id: application.id, status, rejectionReason, registrationNumber, cohort }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || "lecture_application_review_failed");
@@ -274,12 +377,14 @@ async function reviewLectureApplication(application, status, rejectionReason) {
       state.students.push({
         id: reviewed.approvedStudentId,
         name: reviewed.name,
-        className: "수강생",
-        studentCategory: "lecture",
-        cohort: "",
+        className: application.courseType === "offline"
+          ? "오프라인반"
+          : application.courseType === "online_managed" ? "온라인 관리반" : "수강생",
+        studentCategory: application.courseType,
+        cohort: reviewed.cohort || "",
         track: reviewed.track,
         gender: reviewed.gender,
-        attendanceExcluded: true,
+        attendanceExcluded: application.courseType !== "offline",
         fitnessExcluded: false,
         isActive: true,
         createdAt: new Date().toISOString(),
@@ -301,7 +406,15 @@ async function reviewLectureApplication(application, status, rejectionReason) {
     console.error(error);
     notify(error.message === "application_already_reviewed"
       ? "이미 처리된 신청입니다. 목록을 새로고침해주세요."
-      : "신청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      : error.message === "registration_number_in_use"
+        ? "이미 사용 중인 등록번호입니다. 다른 번호를 입력해주세요."
+        : error.message === "invalid_cohort"
+          ? "기수를 1부터 99 사이의 숫자로 선택해주세요."
+          : error.message === "registration_number_cohort_mismatch"
+            ? "등록번호가 선택한 기수와 일치하지 않습니다."
+        : error.message === "registration_number_required"
+          ? "등록번호를 입력해주세요."
+          : "신청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
     return false;
   }
 }

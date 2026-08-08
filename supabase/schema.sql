@@ -1176,11 +1176,14 @@ create table if not exists public.lecture_applications (
   birth_date date not null check (birth_date between date '1900-01-01' and current_date),
   gender text not null check (gender in ('남', '여')),
   track text not null check (char_length(track) between 1 and 100),
+  course_type text not null default 'lecture'
+    check (course_type in ('offline', 'online_managed', 'lecture')),
+  cohort smallint check (cohort is null or cohort between 1 and 99),
   referral_source text not null
     check (referral_source in ('naver_cafe', 'referral', 'youtube', 'search', 'other')),
   referral_source_detail text,
-  lecture_id text not null check (char_length(lecture_id) between 2 and 80),
-  lecture_id_normalized text not null check (char_length(lecture_id_normalized) between 2 and 80),
+  lecture_id text check (lecture_id is null or char_length(lecture_id) between 2 and 80),
+  lecture_id_normalized text check (lecture_id_normalized is null or char_length(lecture_id_normalized) between 2 and 80),
   lookup_token_hash text check (lookup_token_hash is null or lookup_token_hash ~ '^[0-9a-f]{64}$'),
   privacy_consent_at timestamptz not null,
   status text not null default 'pending'
@@ -1199,7 +1202,9 @@ where status in ('pending', 'approved');
 
 create unique index if not exists lecture_applications_active_lecture_id_idx
 on public.lecture_applications (lecture_id_normalized)
-where status in ('pending', 'approved');
+where status in ('pending', 'approved')
+  and course_type = 'lecture'
+  and lecture_id_normalized is not null;
 
 create index if not exists lecture_applications_status_created_idx
 on public.lecture_applications (status, created_at desc);
@@ -1238,6 +1243,8 @@ set search_path = public, pg_temp
 as $$
 declare
   next_student_id text;
+  next_class_name text;
+  next_attendance_excluded boolean;
 begin
   new.updated_at := now();
 
@@ -1246,10 +1253,34 @@ begin
   end if;
 
   if new.status = 'approved' and old.status <> 'approved' then
-    loop
-      next_student_id := (900000 + nextval('public.lecture_student_number_seq'))::text;
-      exit when not exists (select 1 from public.students where id = next_student_id);
-    end loop;
+    if new.course_type in ('offline', 'online_managed') then
+      next_student_id := nullif(btrim(new.approved_student_id), '');
+      if new.cohort is null or new.cohort < 1 or new.cohort > 99 then
+        raise exception 'invalid_cohort';
+      end if;
+      if next_student_id is null then
+        raise exception 'registration_number_required';
+      end if;
+      if next_student_id !~ ('^' || new.cohort::text || '[0-9]{3}$')
+        or right(next_student_id, 3) = '000' then
+        raise exception 'registration_number_cohort_mismatch';
+      end if;
+      if exists (select 1 from public.students where id = next_student_id) then
+        raise exception 'registration_number_in_use';
+      end if;
+    else
+      loop
+        next_student_id := (900000 + nextval('public.lecture_student_number_seq'))::text;
+        exit when not exists (select 1 from public.students where id = next_student_id);
+      end loop;
+    end if;
+
+    next_class_name := case new.course_type
+      when 'offline' then '오프라인반'
+      when 'online_managed' then '온라인 관리반'
+      else '수강생'
+    end;
+    next_attendance_excluded := new.course_type <> 'offline';
 
     insert into public.students (
       id,
@@ -1266,12 +1297,12 @@ begin
     ) values (
       next_student_id,
       new.name,
-      '수강생',
-      'lecture',
-      null,
+      next_class_name,
+      new.course_type,
+      case when new.course_type = 'lecture' then null else new.cohort end,
       new.track,
       new.gender,
-      true,
+      next_attendance_excluded,
       false,
       true,
       now()

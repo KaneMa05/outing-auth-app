@@ -117,6 +117,8 @@ async function handleLocalLectureApplications(req, res) {
       birth_date: String(body.birthDate || "").trim(),
       gender: String(body.gender || "").trim(),
       track: String(body.track || "").trim(),
+      course_type: ["offline", "online_managed", "lecture"].includes(body.courseType) ? body.courseType : "lecture",
+      cohort: null,
       referral_source: String(body.referralSource || "").trim(),
       referral_source_detail: String(body.referralSourceDetail || "").trim(),
       lecture_id: String(body.lectureId || "").trim(),
@@ -152,8 +154,27 @@ async function handleLocalLectureApplications(req, res) {
     application.status = String(body.status || application.status);
     application.rejection_reason = application.status === "rejected" ? String(body.rejectionReason || "") : "";
     if (application.status === "approved" && !application.approved_student_id) {
-      const approvedCount = applications.filter((item) => item.approved_student_id).length;
-      application.approved_student_id = String(900001 + approvedCount);
+      if (["offline", "online_managed"].includes(application.course_type)) {
+        const registrationNumber = String(body.registrationNumber || "").trim();
+        const cohort = String(body.cohort || "").trim();
+        if (!/^\d{1,2}$/.test(cohort) || Number(cohort) < 1 || Number(cohort) > 99) {
+          return sendLocalJson(res, 400, { ok: false, error: "invalid_cohort" });
+        }
+        const suffix = registrationNumber.startsWith(cohort) ? registrationNumber.slice(cohort.length) : "";
+        if (!registrationNumber) {
+          return sendLocalJson(res, 400, { ok: false, error: "registration_number_required" });
+        }
+        if (!/^\d{3}$/.test(suffix) || Number(suffix) < 1) {
+          return sendLocalJson(res, 400, { ok: false, error: "registration_number_cohort_mismatch" });
+        }
+        const inUse = applications.some((item) => item !== application && item.approved_student_id === registrationNumber);
+        if (inUse) return sendLocalJson(res, 409, { ok: false, error: "registration_number_in_use" });
+        application.approved_student_id = registrationNumber;
+        application.cohort = Number(cohort);
+      } else {
+        const approvedCount = applications.filter((item) => item.approved_student_id).length;
+        application.approved_student_id = String(900001 + approvedCount);
+      }
     }
     application.reviewed_at = new Date().toISOString();
     application.reviewed_by = "local-admin";

@@ -28,6 +28,6 @@ assert.doesNotMatch(
 assert.match(indexSource, /shared\.js\?v=20260807-teacher-sync-guard/);
 assert.match(indexSource, /student\.js\?v=20260730-orphan-outing-recovery/);
 assert.match(teacherSource, /shared\.js\?v=20260807-teacher-sync-guard/);
-assert.match(serviceWorkerSource, /outing-auth-app-v311-learner-board-copy/);
+assert.match(serviceWorkerSource, /outing-auth-app-v312-application-course-type/);
 
 console.log("orphan outing recovery tests passed");

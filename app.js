@@ -840,8 +840,10 @@ function renderStudentAuth() {
     const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || profile.initialTrack || profile.track);
     const registeredGender = selectedStudent.gender || profile.gender || "";
     const approvedLectureStudent = getStudentCategory(selectedStudent) === "lecture";
-    const hasRegisteredTrack = Boolean((selectedStudent.appRegisteredAt || approvedLectureStudent) && registeredTrack);
-    const hasRegisteredGender = Boolean((selectedStudent.appRegisteredAt || approvedLectureStudent) && registeredGender);
+    const applicationReceipt = getLectureApplicationReceipt();
+    const approvedApplicationStudent = applicationReceipt?.approvedStudentId === selectedStudent.id;
+    const hasRegisteredTrack = Boolean((selectedStudent.appRegisteredAt || approvedLectureStudent || approvedApplicationStudent) && registeredTrack);
+    const hasRegisteredGender = Boolean((selectedStudent.appRegisteredAt || approvedLectureStudent || approvedApplicationStudent) && registeredGender);
 
     trackSelect.disabled = hasRegisteredTrack;
     customTrackInput.disabled = hasRegisteredTrack;
@@ -863,7 +865,7 @@ function renderStudentAuth() {
     lookupResult.className = "student-auth-result success";
     lookupResult.textContent = selectedStudent.appRegisteredAt
       ? `${selectedStudent.name} 학생이 확인되었습니다. 기존 비밀번호로 이 기기를 추가 등록할 수 있습니다.`
-      : approvedLectureStudent
+      : approvedLectureStudent || approvedApplicationStudent
         ? "신청 정보가 확인되었습니다. 사용할 비밀번호만 설정해주세요."
         : `${selectedStudent.name} 학생이 확인되었습니다.`;
     profileArea.hidden = false;
@@ -900,7 +902,7 @@ function renderStudentAuth() {
       authTitle,
       authDescription,
     ]),
-    field("등록번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "학생 고유번호 또는 선생님 번호 1~10"),
+    field("등록번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "발급받은 수강생 등록번호를 입력해주세요."),
     lookupResult,
     resetRequestArea,
     profileArea,
@@ -984,7 +986,7 @@ function renderStudentAuth() {
     selectedStudent.passwordHash = passwordHash;
     selectedStudent.deviceToken = deviceToken;
     selectedStudent.appRegisteredAt = authedAt;
-    if (getStudentCategory(selectedStudent) === "lecture") clearLectureApplicationReceipt();
+    if (getLectureApplicationReceipt()?.approvedStudentId === studentId) clearLectureApplicationReceipt();
     state.settings.studentAuthId = studentId;
     state.settings.lastStudentId = studentId;
     saveState({ skipRemote: true });
@@ -1298,6 +1300,12 @@ function renderLectureApplicationStatusCard(application, options = {}) {
 }
 
 function openLectureApplicationModal() {
+  const courseTypeSelect = el("select", { name: "courseType" }, [
+    el("option", { value: "" }, "수강 구분을 선택하세요"),
+    el("option", { value: "offline" }, "오프라인반"),
+    el("option", { value: "online_managed" }, "온라인 관리반"),
+    el("option", { value: "lecture" }, "인강생"),
+  ]);
   const trackSelect = select("track", ["", ...getCoastGuardTrackOptions()]);
   trackSelect.querySelector("option[value='']").textContent = "직렬을 선택하세요";
   trackSelect.value = "";
@@ -1327,11 +1335,20 @@ function openLectureApplicationModal() {
 
   const phoneInput = el("input", { name: "phone", type: "tel", inputMode: "numeric", autocomplete: "tel", placeholder: "010-1234-5678", maxLength: 13 });
   const birthDateInput = el("input", { name: "birthDate", type: "date", autocomplete: "bday", max: new Date().toISOString().slice(0, 10) });
+  const lectureIdInput = input("lectureId", "text", "인강 수강에 사용하는 아이디");
+  const lectureIdField = field("인강 아이디", lectureIdInput, "full", "관리자가 실제 수강 정보와 대조합니다.");
+  lectureIdField.hidden = true;
+  courseTypeSelect.addEventListener("change", () => {
+    lectureIdField.hidden = courseTypeSelect.value !== "lecture";
+    lectureIdInput.required = courseTypeSelect.value === "lecture";
+    if (lectureIdField.hidden) lectureIdInput.value = "";
+  });
   const privacyConsent = el("input", { name: "privacyConsent", type: "checkbox", value: "yes" });
   const result = el("div", { className: "student-auth-result", ariaLive: "polite" });
   const submitButton = button("신청하기", "btn");
   const form = el("form", { className: "form-grid lecture-application-form" }, [
-    el("p", { className: "subtle field full" }, "입력한 정보는 인강 수강 여부 확인과 등록번호 발급에만 사용됩니다."),
+    el("p", { className: "subtle field full" }, "입력한 정보는 수강 정보 확인과 등록번호 발급에만 사용됩니다."),
+    field("수강 구분", courseTypeSelect, "full"),
     field("이름", input("name", "text", "이름")),
     field("휴대전화 번호", phoneInput),
     field("생년월일", birthDateInput),
@@ -1340,7 +1357,7 @@ function openLectureApplicationModal() {
     customTrackField,
     field("들어온 경로", referralSelect),
     referralDetailField,
-    field("인강 아이디", input("lectureId", "text", "인강 수강에 사용하는 아이디"), "full", "관리자가 실제 수강 정보와 대조합니다."),
+    lectureIdField,
     el("label", { className: "lecture-application-consent field full" }, [
       privacyConsent,
       el("span", {}, "개인정보 수집·이용에 동의합니다."),
@@ -1358,7 +1375,8 @@ function openLectureApplicationModal() {
     const track = resolveStudentTrack(data.track, data.customTrack);
     result.className = "student-auth-result";
     result.textContent = "";
-    if (!data.name || !data.phone || !data.birthDate || !data.gender || !track || !data.referralSource || !data.lectureId) {
+    if (!data.courseType || !data.name || !data.phone || !data.birthDate || !data.gender || !track || !data.referralSource
+      || (data.courseType === "lecture" && !data.lectureId)) {
       result.className = "student-auth-result error";
       result.textContent = "필수 항목을 모두 입력해주세요.";
       return;
@@ -1386,6 +1404,7 @@ function openLectureApplicationModal() {
           birthDate: data.birthDate,
           gender: data.gender,
           track,
+          courseType: data.courseType,
           referralSource: data.referralSource,
           referralSourceDetail: data.referralSourceDetail,
           lectureId: data.lectureId,
@@ -1520,7 +1539,6 @@ function isLocalStudentPreview() {
 function renderStudentBrowserInstallOnly() {
   return el("div", { className: "student-browser-install-only-view" }, [
     button("앱으로 이용하기", "btn student-browser-install-button", "button", installToHomeScreen),
-    renderLectureApplicationEntryCard(),
   ]);
 }
 

@@ -13417,10 +13417,6 @@ body.student-study-mode .main-shell {
   box-shadow: 0 10px 28px rgba(39, 65, 91, 0.08);
 }
 
-.student-browser-install-only-view .lecture-application-entry-card {
-  width: min(620px, 100%);
-}
-
 .lecture-application-entry-card strong {
   display: block;
   margin-bottom: 5px;
@@ -13573,7 +13569,24 @@ body.student-study-mode .main-shell {
 .info-modal-panel.lecture-application-modal {
   width: min(680px, calc(100vw - 28px));
   max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.lecture-application-form,
+.lecture-application-form .field,
+.lecture-application-form input,
+.lecture-application-form select,
+.lecture-application-form textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lecture-application-form input[type="date"] {
+  display: block;
+  width: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .lecture-application-form .student-auth-result {
