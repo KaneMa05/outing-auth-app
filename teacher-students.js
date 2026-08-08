@@ -137,19 +137,22 @@ function renderLectureApplicationsAdminPanel() {
     el("td", {}, application.lectureId),
     el("td", {}, el("span", { className: `badge lecture-application-${application.status}` }, LECTURE_APPLICATION_STATUS_LABELS[application.status] || application.status)),
     el("td", {}, application.approvedStudentId || application.rejectionReason || "-"),
-    el("td", { className: "student-admin-actions" }, [
+    el("td", {}, el("div", { className: "lecture-application-row-actions" }, [
       button("상세", "mini-btn", "button", () => openLectureApplicationDetail(application)),
       application.status === "pending" ? button("승인", "mini-btn", "button", () => approveLectureApplication(application)) : null,
       application.status === "pending" ? button("반려", "mini-btn danger", "button", () => openRejectLectureApplicationModal(application)) : null,
-    ].filter(Boolean)),
+    ].filter(Boolean))),
   ]));
+
+  const applicationTable = table(
+    ["신청일", "이름", "수강 구분", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
+    rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 10 }, el("div", { className: "empty table-empty" }, "해당 상태의 신청이 없습니다."))])]
+  );
+  applicationTable.classList.add("lecture-application-table-wrap");
 
   return panel("수강생 신청 관리", [
     head,
-    table(
-      ["신청일", "이름", "수강 구분", "휴대전화", "직렬", "들어온 경로", "인강 아이디", "상태", "처리 결과", "관리"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 10 }, el("div", { className: "empty table-empty" }, "해당 상태의 신청이 없습니다."))])]
-    ),
+    applicationTable,
   ]);
 }
 

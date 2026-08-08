@@ -13634,6 +13634,21 @@ body.student-study-mode .main-shell {
   min-width: 120px;
 }
 
+.lecture-application-table-wrap .responsive-table th {
+  white-space: nowrap;
+}
+
+.lecture-application-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.lecture-application-row-actions .mini-btn {
+  min-width: 68px;
+}
+
 .badge.lecture-application-pending {
   color: #8a5b00;
   background: #fff3cf;
