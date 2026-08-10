@@ -415,7 +415,7 @@ assert.match(appSource, /ariaLabel: "다음 날짜"/);
 assert.doesNotMatch(appSource, /\{ offset: -1, label: "어제" \}/);
 assert.match(appSource, /const subjects = getStudyTimerSubjects\(student\)/);
 assert.match(appSource, /const subjectSet = new Set\(subjects\)/);
-assert.match(appSource, /ariaLabel: `\$\{subject\} 할 일 \$\{editorOpen \? "입력 닫기" : "추가"\}`/);
+assert.match(appSource, /ariaLabel: `\$\{subject\} 학습 내용 \$\{editorOpen \? "입력 닫기" : "추가"\}`/);
 assert.match(appSource, /className: "study-todo-add-button"[\s\S]*?type: "button"[\s\S]*?editorOpen \? "×" : "\+"/);
 assert.match(appSource, /const studyTodoEditorState = \{[\s\S]*?dateKey: ""[\s\S]*?subject: ""[\s\S]*?draft: ""[\s\S]*?focused: false/);
 assert.match(appSource, /className: "study-todo-add-form", hidden: !editorOpen/);

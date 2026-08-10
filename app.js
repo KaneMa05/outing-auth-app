@@ -3403,8 +3403,8 @@ function renderStudyTodoSubjectCard(subject, todos) {
     type: "text",
     value: editorOpen ? studyTodoEditorState.draft : "",
     maxLength: 80,
-    placeholder: `${subject} 할 일 추가`,
-    ariaLabel: `${subject} 할 일`,
+    placeholder: `${subject} 학습 내용 추가`,
+    ariaLabel: `${subject} 학습 내용`,
     autocomplete: "off",
   });
   const submitButton = el(
@@ -3412,7 +3412,7 @@ function renderStudyTodoSubjectCard(subject, todos) {
     {
       className: "study-todo-submit-button",
       type: "submit",
-      ariaLabel: `${subject} 할 일 등록`,
+      ariaLabel: `${subject} 학습 내용 등록`,
       title: "등록",
     },
     "✓"
@@ -3423,9 +3423,9 @@ function renderStudyTodoSubjectCard(subject, todos) {
     {
       className: "study-todo-add-button",
       type: "button",
-      ariaLabel: `${subject} 할 일 ${editorOpen ? "입력 닫기" : "추가"}`,
+      ariaLabel: `${subject} 학습 내용 ${editorOpen ? "입력 닫기" : "추가"}`,
       ariaExpanded: String(editorOpen),
-      title: "할 일 추가",
+      title: "학습 내용 추가",
     },
     editorOpen ? "×" : "+"
   );
@@ -3444,7 +3444,7 @@ function renderStudyTodoSubjectCard(subject, todos) {
     }
     form.hidden = !willOpen;
     addButton.setAttribute("aria-expanded", willOpen ? "true" : "false");
-    addButton.setAttribute("aria-label", `${subject} 할 일 ${willOpen ? "입력 닫기" : "추가"}`);
+    addButton.setAttribute("aria-label", `${subject} 학습 내용 ${willOpen ? "입력 닫기" : "추가"}`);
     addButton.textContent = willOpen ? "×" : "+";
     if (willOpen) textInput.focus();
   });
@@ -3481,7 +3481,7 @@ function renderStudyTodoSubjectCard(subject, todos) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const content = String(textInput.value || "").trim();
-    if (!content) return notify("할 일을 입력해주세요.");
+    if (!content) return notify("학습 내용을 입력해주세요.");
     submitButton.disabled = true;
     studyTodoEditorState.dateKey = "";
     studyTodoEditorState.subject = "";
