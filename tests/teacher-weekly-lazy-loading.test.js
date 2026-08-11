@@ -35,6 +35,61 @@ assert.match(
   "teacher grade data should be loaded from the selected exam sections"
 );
 assert.match(
+  sharedSource,
+  /async function loadTeacherWeeklyGradeExamSummaryData\([\s\S]*loadExamSubmissionsBySectionIds\(sectionIds, examSubmissionColumns\)[\s\S]*teacherWeeklyGradeSummaryLoadedExamIds\.add/,
+  "individual history should batch-load submission summaries for all requested exams"
+);
+const summaryLoaderSource = sharedSource.match(
+  /async function loadTeacherWeeklyGradeExamSummaryData\([\s\S]*?\n}\n\nasync function ensureTeacherWeeklyGradeSummaryDataForExamIds/
+)?.[0].replace(/\n\nasync function ensureTeacherWeeklyGradeSummaryDataForExamIds$/, "") || "";
+assert.ok(summaryLoaderSource, "weekly summary loader should be available");
+assert.doesNotMatch(
+  summaryLoaderSource,
+  /loadSubmissionAnswersBySubmissionIds/,
+  "individual history must not download per-question answers"
+);
+
+const summaryState = {
+  examSections: [
+    { id: "section-a", examId: "exam-1" },
+    { id: "section-b", examId: "exam-2" },
+    { id: "section-other", examId: "exam-other" },
+  ],
+  examSubmissions: [
+    { id: "old-a", examSectionId: "section-a" },
+    { id: "keep-other", examSectionId: "section-other" },
+  ],
+};
+const summaryLoadedIds = new Set();
+const summaryRequests = [];
+const loadTeacherWeeklyGradeExamSummaryData = new Function(
+  "APP_MODE",
+  "remoteStore",
+  "state",
+  "loadExamSubmissionsBySectionIds",
+  "isMissingRelationError",
+  "mapExamSubmissionFromRemote",
+  "teacherWeeklyGradeSummaryLoadedExamIds",
+  `${summaryLoaderSource}; return loadTeacherWeeklyGradeExamSummaryData;`
+)(
+  "teacher",
+  {},
+  summaryState,
+  async (sectionIds, columns) => {
+    summaryRequests.push({ sectionIds, columns });
+    return {
+      data: [
+        { id: "new-a", examSectionId: "section-a" },
+        { id: "new-b", examSectionId: "section-b" },
+      ],
+      error: null,
+    };
+  },
+  () => false,
+  (row) => row,
+  summaryLoadedIds
+);
+assert.match(
   gradeSource,
   /requestTeacherWeeklyGradeDataForExams\(\[exam\]\)[\s\S]*선택한 주차의 응시 데이터를 불러오는 중입니다/,
   "the weekly absence screen should wait for its selected exam"
@@ -115,6 +170,12 @@ const loadExamSubmissions = new Function(
   assert.equal(result.error, null);
   assert.equal(result.data.length, remoteRows.length, "section submissions must not stop at the server's first 1,000 rows");
   assert.deepEqual(requestedRanges, [[0, 999], [1000, 1999]]);
+  await loadTeacherWeeklyGradeExamSummaryData(["exam-1", "exam-2"]);
+  assert.equal(summaryRequests.length, 1, "multiple exam summaries should use one batched loader call");
+  assert.deepEqual(summaryRequests[0].sectionIds, ["section-a", "section-b"]);
+  assert.match(summaryRequests[0].columns, /score,correct_count/);
+  assert.deepEqual(summaryState.examSubmissions.map((item) => item.id), ["keep-other", "new-a", "new-b"]);
+  assert.deepEqual([...summaryLoadedIds].sort(), ["exam-1", "exam-2"]);
   console.log("teacher weekly lazy loading tests passed");
 })().catch((error) => {
   console.error(error);

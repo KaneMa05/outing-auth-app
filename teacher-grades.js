@@ -189,9 +189,9 @@ function renderGradeManagementStudentHistory(student) {
   const exams = [...(state.exams || [])]
     .filter((exam) => String(exam.cohort || "") === String(getStudentCohort(student) || ""))
     .sort((a, b) => Number(a.weekNumber) - Number(b.weekNumber) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
-  const unloadedExams = exams.filter((exam) => !isTeacherWeeklyGradeDataLoaded(exam.id));
+  const unloadedExams = exams.filter((exam) => !isTeacherWeeklyGradeSummaryDataLoaded(exam.id));
   if (unloadedExams.length) {
-    requestTeacherWeeklyGradeDataForExams(unloadedExams);
+    requestTeacherWeeklyGradeSummaryDataForExams(unloadedExams);
     return panel(`${student.name || "학생"} 전체 성적`, [
       renderGradeManagementStudentHistoryHeader(student),
       renderDataLoadingState(`주간평가 전체 ${exams.length}개 회차의 성적을 불러오는 중입니다.`),
@@ -215,8 +215,9 @@ function renderGradeManagementStudentHistoryHeader(student) {
 
 function getGradeManagementStudentWeeklyHistory(student, exams = []) {
   const cohortStudents = getStudentsInCohort(getStudentCohort(student));
+  const gradeLookup = createWeeklyGradeLookup();
   return exams.map((exam) => {
-    const summaries = applyWeeklyGradeRanksByTrack(cohortStudents.map((item) => getWeeklyGradeStudentSummary(exam, item)));
+    const summaries = applyWeeklyGradeRanksByTrack(cohortStudents.map((item) => getWeeklyGradeStudentSummary(exam, item, gradeLookup)));
     const summary = summaries.find((item) => String(item.student.id) === String(student.id)) || null;
     const total = summaries.filter((item) =>
       item.submittedCount > 0 &&

@@ -49,8 +49,13 @@ assert.match(
 );
 assert.match(
   gradeSource,
-  /const unloadedExams = exams\.filter\(\(exam\) => !isTeacherWeeklyGradeDataLoaded\(exam\.id\)\);[\s\S]*requestTeacherWeeklyGradeDataForExams\(unloadedExams\)/,
-  "full weekly data should load only after an individual student is selected"
+  /const unloadedExams = exams\.filter\(\(exam\) => !isTeacherWeeklyGradeSummaryDataLoaded\(exam\.id\)\);[\s\S]*requestTeacherWeeklyGradeSummaryDataForExams\(unloadedExams\)/,
+  "weekly summary data should load only after an individual student is selected"
+);
+assert.match(
+  gradeSource,
+  /const gradeLookup = createWeeklyGradeLookup\(\);[\s\S]*getWeeklyGradeStudentSummary\(exam, item, gradeLookup\)/,
+  "weekly history should reuse one indexed lookup across all exams and students"
 );
 assert.match(gradeSource, /"주간평가 전체 이력"/);
 assert.match(gradeSource, /"파이널 모의고사 전체 이력"/);

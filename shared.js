@@ -103,6 +103,8 @@ let lastTeacherOutingSignature = "";
 let teacherBaseDataLoaded = false;
 const teacherWeeklyGradeLoadedExamIds = new Set();
 const teacherWeeklyGradeLoadPromises = new Map();
+const teacherWeeklyGradeSummaryLoadedExamIds = new Set();
+const teacherWeeklyGradeSummaryLoadPromises = new Map();
 const teacherFitnessLoadedScopeKeys = new Set();
 const teacherFitnessLoadPromises = new Map();
 let studentExamDataLastLoadedAt = 0;
@@ -785,6 +787,8 @@ async function initRemoteStore() {
     if (APP_MODE === "teacher") {
       teacherBaseDataLoaded = false;
       teacherWeeklyGradeLoadedExamIds.clear();
+      teacherWeeklyGradeSummaryLoadedExamIds.clear();
+      teacherWeeklyGradeSummaryLoadPromises.clear();
       teacherFitnessLoadedScopeKeys.clear();
       await refreshTeacherOutingsFromRemote({ allowWhileLoading: true, renderImmediately: true });
       // Keep the lightweight outing refresh alive even if an unrelated admin dataset fails below.
@@ -1726,6 +1730,72 @@ function isTeacherWeeklyGradeDataLoaded(examId) {
   return teacherWeeklyGradeLoadedExamIds.has(String(examId));
 }
 
+function isTeacherWeeklyGradeSummaryDataLoaded(examId) {
+  if (!examId || APP_MODE !== "teacher") return true;
+  if (!remoteStore && !isRemoteLoading) return true;
+  if (!teacherBaseDataLoaded) return false;
+  const normalizedExamId = String(examId);
+  return teacherWeeklyGradeLoadedExamIds.has(normalizedExamId) || teacherWeeklyGradeSummaryLoadedExamIds.has(normalizedExamId);
+}
+
+async function loadTeacherWeeklyGradeExamSummaryData(examIds) {
+  const normalizedExamIds = [...new Set((examIds || []).map((examId) => String(examId || "").trim()).filter(Boolean))];
+  if (!normalizedExamIds.length || APP_MODE !== "teacher" || !remoteStore) return false;
+  const examIdSet = new Set(normalizedExamIds);
+  const sectionIds = (state.examSections || [])
+    .filter((section) => examIdSet.has(String(section.examId || "")))
+    .map((section) => section.id)
+    .filter(Boolean);
+  const examSubmissionColumns = "id,exam_section_id,student_id,student_name,track,status,score,correct_count,submitted_at,created_at";
+  const submissionResult = await loadExamSubmissionsBySectionIds(sectionIds, examSubmissionColumns);
+  if (submissionResult.error && !isMissingRelationError(submissionResult.error, "exam_submissions")) throw submissionResult.error;
+  const remoteSubmissions = submissionResult.error ? [] : (submissionResult.data || []).map(mapExamSubmissionFromRemote);
+  const targetSectionIds = new Set(sectionIds);
+  state.examSubmissions = [
+    ...(state.examSubmissions || []).filter((submission) => !targetSectionIds.has(submission.examSectionId)),
+    ...remoteSubmissions,
+  ];
+  normalizedExamIds.forEach((examId) => teacherWeeklyGradeSummaryLoadedExamIds.add(examId));
+  return true;
+}
+
+async function ensureTeacherWeeklyGradeSummaryDataForExamIds(examIds) {
+  if (APP_MODE !== "teacher" || !remoteStore || isRemoteLoading || !teacherBaseDataLoaded) return false;
+  const normalizedIds = [...new Set((examIds || []).map((examId) => String(examId || "").trim()).filter(Boolean))];
+  if (!normalizedIds.length) return true;
+  const pendingPromises = normalizedIds
+    .map((examId) => teacherWeeklyGradeLoadPromises.get(examId) || teacherWeeklyGradeSummaryLoadPromises.get(examId))
+    .filter(Boolean);
+  if (pendingPromises.length) await Promise.all([...new Set(pendingPromises)]);
+  const missingIds = normalizedIds.filter((examId) => !isTeacherWeeklyGradeSummaryDataLoaded(examId));
+  if (!missingIds.length) return true;
+  const request = loadTeacherWeeklyGradeExamSummaryData(missingIds)
+    .finally(() => {
+      missingIds.forEach((examId) => {
+        if (teacherWeeklyGradeSummaryLoadPromises.get(examId) === request) {
+          teacherWeeklyGradeSummaryLoadPromises.delete(examId);
+        }
+      });
+    });
+  missingIds.forEach((examId) => teacherWeeklyGradeSummaryLoadPromises.set(examId, request));
+  await request;
+  return true;
+}
+
+function requestTeacherWeeklyGradeSummaryDataForExams(exams) {
+  const examIds = (exams || []).map((exam) => exam?.id).filter(Boolean);
+  if (!teacherBaseDataLoaded) return;
+  if (!examIds.length || examIds.every(isTeacherWeeklyGradeSummaryDataLoaded)) return;
+  ensureTeacherWeeklyGradeSummaryDataForExamIds(examIds)
+    .then((loaded) => {
+      if (loaded && typeof render === "function") render();
+    })
+    .catch((error) => {
+      console.error("Failed to load weekly grade summary data", error);
+      notify("주간평가 성적 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+    });
+}
+
 async function loadTeacherWeeklyGradeExamData(examId, options = {}) {
   const normalizedExamId = String(examId || "").trim();
   if (!normalizedExamId || APP_MODE !== "teacher" || !remoteStore) return false;
@@ -1759,6 +1829,7 @@ async function loadTeacherWeeklyGradeExamData(examId, options = {}) {
     ...remoteAnswers,
   ];
   teacherWeeklyGradeLoadedExamIds.add(normalizedExamId);
+  teacherWeeklyGradeSummaryLoadedExamIds.add(normalizedExamId);
   if (options.reconcile !== false) {
     const reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
     await persistReconciledExamSubmissionGrades(reconciledExamGrades);
