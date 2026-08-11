@@ -69,6 +69,7 @@ function openWeeklyExamAnswerView() {
 function renderGradesManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
   const selected = selectedStudentCohortCount();
+  const selectedStudent = getGradeManagementSelectedStudent(selected.value);
   const typeSelect = select("gradeType", ["weekly", "final"]);
   typeSelect.querySelector("option[value='weekly']").textContent = "주간평가";
   typeSelect.querySelector("option[value='final']").textContent = "파이널 모의고사";
@@ -97,11 +98,183 @@ function renderGradesManagement() {
         field("성적 구분", typeSelect),
         field("직렬", trackSelect),
       ]),
+      renderGradeManagementStudentSearch(selected.value, selectedStudent),
     ]),
-    gradeManagementMode === "weekly"
-      ? renderWeeklyExamScoresPanel(selected.value)
-      : renderFinalMockScoresPanel(selected.value),
+    selectedStudent
+      ? renderGradeManagementStudentHistory(selectedStudent)
+      : gradeManagementMode === "weekly"
+        ? renderWeeklyExamScoresPanel(selected.value)
+        : renderFinalMockScoresPanel(selected.value),
   ]);
+}
+
+function getGradeManagementSelectedStudent(cohort = selectedStudentCohort) {
+  const selectedId = String(gradeManagementSelectedStudentId || "").trim();
+  if (!selectedId) return null;
+  const student = getStudentsInCohort(cohort)
+    .find((item) => String(item.id || "").trim() === selectedId) || null;
+  if (!student) gradeManagementSelectedStudentId = "";
+  return student;
+}
+
+function getGradeManagementStudentSearchMatches(cohort = selectedStudentCohort, query = gradeManagementStudentQuery) {
+  const normalizedQuery = String(query || "").trim().toLowerCase();
+  if (!normalizedQuery) return [];
+  return getStudentsInCohort(cohort)
+    .filter((student) => [student.id, student.name, getTeacherStudentRegisteredTrack(student)]
+      .some((value) => String(value || "").toLowerCase().includes(normalizedQuery)))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+}
+
+function selectGradeManagementStudent(student) {
+  if (!student) return;
+  gradeManagementSelectedStudentId = String(student.id || "").trim();
+  gradeManagementStudentQuery = `${student.name || "학생"} (${formatStudentNumber(student.id)})`;
+  render();
+}
+
+function renderGradeManagementStudentSearch(cohort = selectedStudentCohort, selectedStudent = null) {
+  const searchInput = input("gradeStudentSearch", "search", "이름 또는 학생번호 검색", gradeManagementStudentQuery);
+  searchInput.autocomplete = "off";
+  const form = el("form", { className: "teacher-search grade-management-student-search" }, [
+    field("학생 개인 조회", searchInput, "", "학생을 선택하면 주간평가 전 주차와 파이널 전 회차가 함께 표시됩니다."),
+    el("div", { className: "field" }, [
+      el("span", {}, " "),
+      el("div", { className: "action-row" }, [
+        button("검색", "btn secondary"),
+        selectedStudent || gradeManagementStudentQuery
+          ? button("초기화", "mini-btn", "button", () => {
+              gradeManagementStudentQuery = "";
+              gradeManagementSelectedStudentId = "";
+              render();
+            })
+          : null,
+      ]),
+    ]),
+  ]);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    gradeManagementStudentQuery = String(searchInput.value || "").trim();
+    gradeManagementSelectedStudentId = "";
+    const matches = getGradeManagementStudentSearchMatches(cohort, gradeManagementStudentQuery);
+    const exactMatches = matches.filter((student) =>
+      String(student.id || "").trim().toLowerCase() === gradeManagementStudentQuery.toLowerCase() ||
+      String(student.name || "").trim().toLowerCase() === gradeManagementStudentQuery.toLowerCase()
+    );
+    if (exactMatches.length === 1) return selectGradeManagementStudent(exactMatches[0]);
+    if (matches.length === 1) return selectGradeManagementStudent(matches[0]);
+    render();
+  });
+
+  const matches = selectedStudent ? [] : getGradeManagementStudentSearchMatches(cohort);
+  const result = gradeManagementStudentQuery && !selectedStudent
+    ? el("div", { className: "grade-management-student-results" }, [
+        matches.length
+          ? el("div", { className: "action-row" }, matches.slice(0, 20).map((student) =>
+              button(
+                `${student.name || "학생"} · ${formatStudentNumber(student.id)} · ${formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(student))}`,
+                "mini-btn secondary",
+                "button",
+                () => selectGradeManagementStudent(student)
+              )
+            ))
+          : el("div", { className: "empty" }, "검색된 학생이 없습니다."),
+        matches.length > 20 ? el("p", { className: "subtle" }, `검색 결과 ${matches.length}명 중 20명만 표시됩니다. 검색어를 더 입력해주세요.`) : null,
+      ])
+    : null;
+  return el("div", { className: "grade-management-student-search-wrap" }, [form, result]);
+}
+
+function renderGradeManagementStudentHistory(student) {
+  const exams = [...(state.exams || [])]
+    .filter((exam) => String(exam.cohort || "") === String(getStudentCohort(student) || ""))
+    .sort((a, b) => Number(a.weekNumber) - Number(b.weekNumber) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  const unloadedExams = exams.filter((exam) => !isTeacherWeeklyGradeDataLoaded(exam.id));
+  if (unloadedExams.length) {
+    requestTeacherWeeklyGradeDataForExams(unloadedExams);
+    return panel(`${student.name || "학생"} 전체 성적`, [
+      renderGradeManagementStudentHistoryHeader(student),
+      renderDataLoadingState(`주간평가 전체 ${exams.length}개 회차의 성적을 불러오는 중입니다.`),
+    ]);
+  }
+
+  return panel(`${student.name || "학생"} 전체 성적`, [
+    renderGradeManagementStudentHistoryHeader(student),
+    renderGradeManagementStudentWeeklyHistory(student, exams),
+    renderGradeManagementStudentFinalHistory(student),
+  ]);
+}
+
+function renderGradeManagementStudentHistoryHeader(student) {
+  return el("div", { className: "detail-grid grade-management-student-summary" }, [
+    el("div", { className: "detail-item" }, [el("span", {}, "학생번호"), el("strong", {}, formatStudentNumber(student.id))]),
+    el("div", { className: "detail-item" }, [el("span", {}, "이름"), el("strong", {}, student.name || "-")]),
+    el("div", { className: "detail-item" }, [el("span", {}, "직렬"), el("strong", {}, getTeacherStudentRegisteredTrack(student) || "-")]),
+  ]);
+}
+
+function getGradeManagementStudentWeeklyHistory(student, exams = []) {
+  const cohortStudents = getStudentsInCohort(getStudentCohort(student));
+  return exams.map((exam) => {
+    const summaries = applyWeeklyGradeRanksByTrack(cohortStudents.map((item) => getWeeklyGradeStudentSummary(exam, item)));
+    const summary = summaries.find((item) => String(item.student.id) === String(student.id)) || null;
+    const total = summaries.filter((item) =>
+      item.submittedCount > 0 &&
+      Number(item.maxScore) > 0 &&
+      isSameGradeRankingGroup(getTeacherStudentRegisteredTrack(item.student), getTeacherStudentRegisteredTrack(student))
+    ).length;
+    return { exam, summary, total };
+  });
+}
+
+function renderGradeManagementStudentWeeklyHistory(student, exams = []) {
+  const histories = getGradeManagementStudentWeeklyHistory(student, exams);
+  const subjects = WEEKLY_EXAM_SUBJECTS.filter((subject) =>
+    histories.some(({ summary }) => summary?.subjectScores?.[subject])
+  );
+  const headers = ["주차", ...subjects.map(formatWeeklyGradeReportSubjectHeader), "총점", "오답", "석차", "백분율", "상태"];
+  const rows = histories.map(({ exam, summary, total }) => {
+    const submitted = Boolean(summary?.submittedCount);
+    return el("tr", {}, [
+      el("td", {}, `${Number(exam.weekNumber) || 1}주차`),
+      ...subjects.map((subject) => el("td", {}, formatGradeManagementHistorySubjectScore(summary?.subjectScores?.[subject]))),
+      el("td", {}, submitted ? `${Number(summary.score) || 0}/${Number(summary.maxScore) || 0}` : "-"),
+      el("td", {}, submitted ? formatWeeklyWrongCountCell(summary) : "-"),
+      el("td", {}, summary?.rank ? `${summary.rank}/${total}` : "-"),
+      el("td", {}, summary?.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
+      el("td", {}, submitted ? `${summary.submittedCount}/${summary.subjectCount}과목` : "미응시"),
+    ]);
+  });
+  return el("section", { className: "grade-management-history-section" }, [
+    el("h3", {}, "주간평가 전체 이력"),
+    table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "등록된 주간평가가 없습니다."))])]),
+  ]);
+}
+
+function renderGradeManagementStudentFinalHistory(student) {
+  const rounds = getTeacherPreviewFinalRoundOptions(student);
+  const summaries = rounds
+    .map((round) => getTeacherPreviewFinalSummary(student, round))
+    .filter((summary) => summary?.hasScore);
+  const subjects = getFinalGradeSubjectsForTrack(getTeacherStudentRegisteredTrack(student), getGradeSubjectHeaders());
+  const headers = ["회차", ...subjects.map((subject) => formatFinalGradeTableSubjectHeader(subject, getTeacherStudentRegisteredTrack(student))), "총점", "오답", "석차", "백분율"];
+  const rows = summaries.map((summary) => el("tr", {}, [
+    el("td", {}, `${Number(summary.round) || 1}회차`),
+    ...subjects.map((subject) => el("td", {}, formatGradeManagementHistorySubjectScore(summary.subjectScores?.[subject]))),
+    el("td", {}, `${Number(summary.score) || 0}/${Number(summary.maxScore) || 0}`),
+    el("td", {}, summary.wrongCount === "" ? "-" : String(Number(summary.wrongCount) || 0)),
+    el("td", {}, summary.rank ? `${summary.rank}/${summary.total || "-"}` : "-"),
+    el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
+  ]));
+  return el("section", { className: "grade-management-history-section" }, [
+    el("h3", {}, "파이널 모의고사 전체 이력"),
+    table(headers, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: headers.length }, el("div", { className: "empty table-empty" }, "등록된 파이널 모의고사 성적이 없습니다."))])]),
+  ]);
+}
+
+function formatGradeManagementHistorySubjectScore(subjectScore) {
+  if (!subjectScore || subjectScore.status === "empty" || subjectScore.status === "missing") return "-";
+  return String(Number(subjectScore.score) || 0);
 }
 
 function renderWeeklyExamAbsenceManagement() {
@@ -2676,8 +2849,8 @@ function formatWeeklyGradeReportTrackLabel(track) {
     "경찰직 - 해경학과 기관(경장)": "해경학과 기관",
     "경찰직 - 함정요원 항해(순경)": "함정 항해",
     "경찰직 - 함정요원 기관(순경)": "함정 기관",
-    "경찰직 - 해상교통관제(VTS)(순경)": "VTS",
-    "일반직 - 선박교통관제(VTS)": "선박관제",
+    "경찰직 - 해상교통관제(VTS)(순경)": "경찰직 VTS",
+    "일반직 - 선박교통관제(VTS)": "일반직 VTS",
     "경찰직 - 경위 공채(해양-기관)": "간부 기관",
     "경찰직 - 경위 공채(해양-항해)": "간부 항해",
   };

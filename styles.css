@@ -4906,6 +4906,30 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   align-items: end;
 }
 
+.grade-management-student-search-wrap {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.grade-management-student-results .action-row {
+  justify-content: flex-start;
+}
+
+.grade-management-student-summary {
+  margin-bottom: 18px;
+}
+
+.grade-management-history-section + .grade-management-history-section {
+  margin-top: 24px;
+}
+
+.grade-management-history-section h3 {
+  margin: 0 0 10px;
+}
+
 .duplicate-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

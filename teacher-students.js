@@ -1465,7 +1465,7 @@ function getTeacherPreviewWeeklySummary(student, exam) {
   summary.total = summaries.filter((item) =>
     item.submittedCount > 0 &&
     Number(item.maxScore) > 0 &&
-    getTeacherStudentRegisteredTrack(item.student) === track
+    isSameGradeRankingGroup(getTeacherStudentRegisteredTrack(item.student), track)
   ).length;
   return summary;
 }
@@ -1569,7 +1569,7 @@ function getTeacherPreviewFinalSummary(student, round) {
   summary.round = round;
   summary.total = summaries.filter((item) =>
     item.hasScore &&
-    getTeacherStudentRegisteredTrack(item.student) === track
+    isSameGradeRankingGroup(getTeacherStudentRegisteredTrack(item.student), track)
   ).length;
   return summary;
 }

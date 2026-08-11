@@ -99,6 +99,25 @@ const shipRowIndex = reportRows.findIndex((item) => item.student.track === shipN
 const policeVtsRowIndex = reportRows.findIndex((item) => item.student.track === policeVtsTrack);
 assert.equal(policeVtsRowIndex + 1, shipRowIndex, "combined tracks should be adjacent and ordered by their shared rank");
 
+const reportTrackLabelSource = extractFunction(
+  teacherGradeSource,
+  "formatWeeklyGradeReportTrackLabel",
+  "formatWeeklyGradeReportScoreCell"
+);
+assert.ok(reportTrackLabelSource, "weekly report track label function should be available");
+const formatWeeklyGradeReportTrackLabel = new Function(
+  "normalizeCoastGuardTrack",
+  `${reportTrackLabelSource}; return formatWeeklyGradeReportTrackLabel;`
+)(normalizeCoastGuardTrack);
+assert.equal(formatWeeklyGradeReportTrackLabel(policeVtsTrack), "경찰직 VTS");
+assert.equal(formatWeeklyGradeReportTrackLabel("경찰직 - 해상교통관제(VTS)(순경)"), "경찰직 VTS");
+assert.equal(formatWeeklyGradeReportTrackLabel("일반직 - 선박교통관제(VTS)"), "일반직 VTS");
+assert.notEqual(
+  formatWeeklyGradeReportTrackLabel(policeVtsTrack),
+  formatWeeklyGradeReportTrackLabel("일반직 - 선박교통관제(VTS)"),
+  "police and general-service VTS labels must remain distinct"
+);
+
 assert.match(
   teacherGradeSource,
   /gradeRankingGroupKey: getGradeRankingTrackKey\(getTeacherStudentRegisteredTrack\(summary\.student\)\)/,
@@ -113,6 +132,11 @@ assert.equal(
   (studentSource.match(/isSameGradeRankingGroup\(getStudentRegisteredTrack\(item\), registeredTrack\)/g) || []).length,
   2,
   "weekly and final student views should both use the combined peer group"
+);
+assert.equal(
+  (fs.readFileSync("teacher-students.js", "utf8").match(/isSameGradeRankingGroup\(getTeacherStudentRegisteredTrack\(item\.student\), track\)/g) || []).length,
+  2,
+  "teacher student previews should show combined weekly and final participant totals"
 );
 assert.match(sharedSource, /isSameGradeRankingGroup\(student\.track, track\)/, "scoped refresh should load both tracks");
 
