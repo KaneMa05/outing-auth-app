@@ -2595,6 +2595,7 @@ function downloadWeeklyGradeReport(exam, cohort = selectedStudentCohort, weekNum
     return {
       summary,
       previousRank,
+      gradeRankingGroupKey: getGradeRankingTrackKey(getTeacherStudentRegisteredTrack(summary.student)),
       cells: [
         formatStudentNumber(summary.student.id),
         summary.student.name || "",
@@ -2637,8 +2638,10 @@ function sortWeeklyGradeReportSummaries(summaries = [], groupByTrack = false) {
   const sorted = sortGradeSummariesForDisplay(summaries);
   if (!groupByTrack) return sorted;
   return sorted.sort((a, b) => {
-    const trackCompare = formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(a.student))
-      .localeCompare(formatWeeklyGradeReportTrackLabel(getTeacherStudentRegisteredTrack(b.student)), "ko-KR");
+    const rankingTrackA = getGradeRankingTrackKey(getTeacherStudentRegisteredTrack(a.student));
+    const rankingTrackB = getGradeRankingTrackKey(getTeacherStudentRegisteredTrack(b.student));
+    const trackCompare = formatWeeklyGradeReportTrackLabel(String(rankingTrackA).split("||")[0])
+      .localeCompare(formatWeeklyGradeReportTrackLabel(String(rankingTrackB).split("||")[0]), "ko-KR");
     if (trackCompare) return trackCompare;
     const rankA = Number(a.rank) || 0;
     const rankB = Number(b.rank) || 0;
@@ -2693,17 +2696,17 @@ function buildWeeklyGradeReportHtml({ titleText, headers, rows }) {
     return `<col style="width:${width}px">`;
   }).join("");
   const bodyRows = rows.length
-    ? rows.map(({ summary, previousRank, cells }, index) => {
+    ? rows.map(({ summary, previousRank, gradeRankingGroupKey, cells }, index) => {
         const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
         const deltaClass = delta.direction === "up" ? "rank-up" : delta.direction === "down" ? "rank-down" : "";
-        const previousTrack = String(rows[index - 1]?.cells?.[2] || "");
-        const currentTrack = String(cells[2] || "");
-        const nextTrack = String(rows[index + 1]?.cells?.[2] || "");
-        const rowClasses = currentTrack
+        const previousGroup = String(rows[index - 1]?.gradeRankingGroupKey || "");
+        const currentGroup = String(gradeRankingGroupKey || "");
+        const nextGroup = String(rows[index + 1]?.gradeRankingGroupKey || "");
+        const rowClasses = currentGroup
           ? [
               "track-group",
-              currentTrack !== previousTrack ? "track-start" : "",
-              currentTrack !== nextTrack ? "track-end" : "",
+              currentGroup !== previousGroup ? "track-start" : "",
+              currentGroup !== nextGroup ? "track-end" : "",
             ].filter(Boolean)
           : [];
         const rowClass = rowClasses.length ? ` class="${rowClasses.join(" ")}"` : "";
@@ -2779,14 +2782,14 @@ function buildWeeklyGradeReportSheetXml({ titleText, headers, rows }) {
     buildXlsxInlineStringCell(`${getExcelColumnName(index + 1)}3`, header, 2)
   ).join("")}</row>`;
   const bodyRows = rows.length
-    ? rows.map(({ summary, previousRank, cells }, rowIndex) => {
+    ? rows.map(({ summary, previousRank, gradeRankingGroupKey, cells }, rowIndex) => {
         const rowNumber = rowIndex + 4;
         const delta = getWeeklyGradeReportRankDelta(summary.rank, previousRank);
-        const previousTrack = String(rows[rowIndex - 1]?.cells?.[2] || "");
-        const currentTrack = String(cells[2] || "");
-        const nextTrack = String(rows[rowIndex + 1]?.cells?.[2] || "");
-        const isTrackStart = Boolean(currentTrack && currentTrack !== previousTrack);
-        const isTrackEnd = Boolean(currentTrack && currentTrack !== nextTrack);
+        const previousGroup = String(rows[rowIndex - 1]?.gradeRankingGroupKey || "");
+        const currentGroup = String(gradeRankingGroupKey || "");
+        const nextGroup = String(rows[rowIndex + 1]?.gradeRankingGroupKey || "");
+        const isTrackStart = Boolean(currentGroup && currentGroup !== previousGroup);
+        const isTrackEnd = Boolean(currentGroup && currentGroup !== nextGroup);
         const cellsXml = cells.map((cell, columnIndex) =>
           buildWeeklyGradeReportXlsxDataCell(`${getExcelColumnName(columnIndex + 1)}${rowNumber}`, cell, getWeeklyGradeReportXlsxCellStyleId({
             columnNumber: columnIndex + 1,

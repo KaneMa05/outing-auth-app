@@ -72,6 +72,43 @@ assert.equal(final[0].rank, 2, "final ranks should compare normalized scores acr
 assert.equal(final[1].rank, 1);
 assert.equal(final[2].rank, 1);
 
+const reportSortSource = extractFunction(
+  teacherGradeSource,
+  "sortWeeklyGradeReportSummaries",
+  "formatWeeklyGradeReportSubjectHeader"
+);
+assert.ok(reportSortSource, "weekly report sort function should be available");
+const sortWeeklyGradeReportSummaries = new Function(
+  "sortGradeSummariesForDisplay",
+  "getTeacherStudentRegisteredTrack",
+  "getGradeRankingTrackKey",
+  "formatWeeklyGradeReportTrackLabel",
+  `${reportSortSource}; return sortWeeklyGradeReportSummaries;`
+)(
+  (summaries) => [...summaries],
+  getTeacherStudentRegisteredTrack,
+  getGradeRankingTrackKey,
+  (track) => track
+);
+const reportRows = sortWeeklyGradeReportSummaries([
+  { student: { id: "1", track: shipNavigationTrack }, rank: 2, score: 80, wrongCount: 4 },
+  { student: { id: "3", track: publicRecruitTrack }, rank: 1, score: 70, wrongCount: 6 },
+  { student: { id: "2", track: policeVtsTrack }, rank: 1, score: 90, wrongCount: 2 },
+], true);
+const shipRowIndex = reportRows.findIndex((item) => item.student.track === shipNavigationTrack);
+const policeVtsRowIndex = reportRows.findIndex((item) => item.student.track === policeVtsTrack);
+assert.equal(policeVtsRowIndex + 1, shipRowIndex, "combined tracks should be adjacent and ordered by their shared rank");
+
+assert.match(
+  teacherGradeSource,
+  /gradeRankingGroupKey: getGradeRankingTrackKey\(getTeacherStudentRegisteredTrack\(summary\.student\)\)/,
+  "download rows should retain their combined ranking group"
+);
+assert.ok(
+  (teacherGradeSource.match(/rows\[[^\]]+\]\?\.gradeRankingGroupKey/g) || []).length >= 4,
+  "HTML and XLSX group borders should use the combined ranking group"
+);
+
 assert.equal(
   (studentSource.match(/isSameGradeRankingGroup\(getStudentRegisteredTrack\(item\), registeredTrack\)/g) || []).length,
   2,
