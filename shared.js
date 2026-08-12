@@ -116,6 +116,7 @@ let studentInteractionPausedUntil = 0;
 let isStudentInteractionTrackingStarted = false;
 let isStudentPullRefreshStarted = false;
 let appSettingsApiLastLoadedAt = 0;
+let curriculumQuestReleaseVerified = false;
 let lastRemoteAppSettingsHadSeatAssignments = false;
 let studentPullStartY = 0;
 let studentPullDistance = 0;
@@ -140,6 +141,7 @@ const routePermissions = {
   attendance: "attendance.read",
   "study-cafe-admin": "study_cafe.read",
   "question-board-admin": "question_board.read",
+  "curriculum-admin": "curriculum.read",
   notices: "notices.read",
   "teacher-accounts": "accounts.write",
   managers: "managers.read",
@@ -175,7 +177,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -533,6 +535,7 @@ function defaultState() {
       attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
       attendanceDeadlineEnabled: false,
       onlineManagedStudyCafeEnabled: false,
+      curriculumQuestEnabled: false,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
     },
@@ -4375,6 +4378,8 @@ async function loadAppSettingsFromApi() {
   const now = Date.now();
   if (appSettingsApiLastLoadedAt && now - appSettingsApiLastLoadedAt < APP_SETTINGS_API_FALLBACK_INTERVAL_MS) return;
   appSettingsApiLastLoadedAt = now;
+  state.settings.curriculumQuestEnabled = false;
+  curriculumQuestReleaseVerified = false;
   try {
     const response = await fetch("/api/app-settings", { credentials: "same-origin" });
     const data = await response.json().catch(() => ({ ok: false }));
@@ -4389,6 +4394,11 @@ function applyRemoteAppSettings(settings) {
   state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
   state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
+  state.settings.curriculumQuestEnabled = settings.curriculumQuestEnabled === true;
+  curriculumQuestReleaseVerified = true;
+  if (typeof window.__enforceCurriculumQuestVisibility === "function") {
+    window.__enforceCurriculumQuestVisibility();
+  }
   lastRemoteAppSettingsHadSeatAssignments = Object.prototype.hasOwnProperty.call(settings, "seatAssignments");
   if (
     lastRemoteAppSettingsHadSeatAssignments &&

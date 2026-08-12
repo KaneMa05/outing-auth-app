@@ -9,6 +9,9 @@ const PORT = Number(process.env.PORT || 3000);
 const LOCAL_STATE_FILE = path.join(ROOT, ".local-dev-state.json");
 const LOCAL_LECTURE_APPLICATIONS_FILE = path.join(ROOT, ".local-lecture-applications.json");
 const LOCAL_QUESTION_BOARD_FILE = path.join(ROOT, ".local-question-board.json");
+const LOCAL_CURRICULUM_FILE = path.join(ROOT, ".local-curriculum.json");
+const LOCAL_CURRICULUM_PROGRESS_FILE = path.join(ROOT, ".local-curriculum-progress.json");
+const LOCAL_APP_SETTINGS_FILE = path.join(ROOT, ".local-app-settings.json");
 
 loadEnv(path.join(ROOT, ".env"));
 loadEnv(path.join(ROOT, ".env.local"));
@@ -47,8 +50,20 @@ http
       await handleLocalState(req, res);
       return;
     }
+    if (url.pathname === "/api/app-settings") {
+      await handleLocalAppSettings(req, res);
+      return;
+    }
     if (url.pathname === "/api/lecture-applications") {
       await handleLocalLectureApplications(req, res);
+      return;
+    }
+    if (url.pathname === "/api/curriculum") {
+      await handleLocalCurriculum(req, res, url);
+      return;
+    }
+    if (url.pathname === "/api/curriculum-progress") {
+      await handleLocalCurriculumProgress(req, res);
       return;
     }
     if (url.pathname === "/api/question-board" && req.method === "POST") {
@@ -203,6 +218,161 @@ function readLocalLectureApplications() {
 
 function writeLocalLectureApplications(applications) {
   fs.writeFileSync(LOCAL_LECTURE_APPLICATIONS_FILE, JSON.stringify(applications, null, 2));
+}
+
+async function handleLocalCurriculum(req, res, url) {
+  const admin = url.searchParams.get("admin") === "1";
+  if ((admin || req.method === "POST") && !readLocalTeacherSession(req)) {
+    return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+  }
+  const subjects = readLocalCurriculum();
+  if (req.method === "GET") {
+    const enabled = readLocalAppSettings().curriculumQuestEnabled === true;
+    return sendLocalJson(res, 200, {
+      ok: true,
+      enabled: admin ? undefined : enabled,
+      subjects: admin || enabled ? (admin ? subjects : subjects.filter((subject) => subject.isPublished !== false)) : [],
+      localPreview: true,
+    });
+  }
+  if (req.method === "POST") {
+    const body = await readLocalJson(req);
+    if (body.action === "save_subject" && body.subject?.id) {
+      const nextSubject = JSON.parse(JSON.stringify(body.subject));
+      const index = subjects.findIndex((subject) => subject.id === nextSubject.id);
+      if (index >= 0) subjects[index] = nextSubject;
+      else subjects.push(nextSubject);
+      writeLocalCurriculum(subjects);
+      return sendLocalJson(res, 200, { ok: true, subject: nextSubject, localPreview: true });
+    }
+    if (body.action === "delete_subject") {
+      const nextSubjects = subjects.filter((subject) => subject.id !== String(body.subjectId || ""));
+      writeLocalCurriculum(nextSubjects);
+      return sendLocalJson(res, 200, { ok: true, localPreview: true });
+    }
+    return sendLocalJson(res, 400, { ok: false, error: "unsupported_action" });
+  }
+  res.setHeader("Allow", "GET, POST");
+  return sendLocalJson(res, 405, { ok: false, error: "method_not_allowed" });
+}
+
+function readLocalCurriculum() {
+  if (!fs.existsSync(LOCAL_CURRICULUM_FILE)) return [];
+  try {
+    const value = JSON.parse(fs.readFileSync(LOCAL_CURRICULUM_FILE, "utf8") || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalCurriculum(subjects) {
+  fs.writeFileSync(LOCAL_CURRICULUM_FILE, JSON.stringify(subjects, null, 2));
+}
+
+function readLocalTeacherSession(req) {
+  const { COOKIE_NAME, getConfig, readCookie, readSessionToken } = require("./api/teacher-auth-utils");
+  const { secret } = getConfig();
+  return readSessionToken(readCookie(req, COOKIE_NAME), secret);
+}
+
+async function handleLocalCurriculumProgress(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return sendLocalJson(res, 405, { ok: false, error: "method_not_allowed" });
+  }
+  if (readLocalAppSettings().curriculumQuestEnabled !== true) {
+    return sendLocalJson(res, 404, { ok: false, error: "curriculum_disabled" });
+  }
+  const body = await readLocalJson(req);
+  const student = getLocalPreviewStudent(body);
+  if (!student) return sendLocalJson(res, 403, { ok: false, error: "lecture_student_only" });
+  const store = readLocalCurriculumProgress();
+  const progress = store[student.id] || { lectureIds: [], stages: {} };
+  const action = String(body.action || "");
+  if (action === "load") {
+    return sendLocalJson(res, 200, {
+      ok: true,
+      subjects: readLocalCurriculum().filter((subject) => subject.isPublished !== false),
+      progress: serializeLocalCurriculumProgress(progress),
+      localPreview: true,
+    });
+  }
+  if (action === "set_lecture") {
+    const lectureId = String(body.lectureId || "").trim();
+    progress.lectureIds = [...new Set(progress.lectureIds || [])].filter((id) => id !== lectureId);
+    if (body.completed === true && lectureId) progress.lectureIds.push(lectureId);
+  } else if (action === "set_stage_task") {
+    const stageId = String(body.stageId || "").trim();
+    progress.stages[stageId] ||= { consolidation: false, mbt: false, completed: false };
+    if (["consolidation", "mbt"].includes(body.task)) progress.stages[stageId][body.task] = body.completed === true;
+    if (body.completed !== true) progress.stages[stageId].completed = false;
+  } else if (action === "complete_stage") {
+    const stageId = String(body.stageId || "").trim();
+    progress.stages[stageId] ||= { consolidation: false, mbt: false, completed: false };
+    progress.stages[stageId].completed = true;
+  } else {
+    return sendLocalJson(res, 400, { ok: false, error: "unsupported_action" });
+  }
+  store[student.id] = progress;
+  fs.writeFileSync(LOCAL_CURRICULUM_PROGRESS_FILE, JSON.stringify(store, null, 2));
+  return sendLocalJson(res, 200, { ok: true, progress: serializeLocalCurriculumProgress(progress), localPreview: true });
+}
+
+async function handleLocalAppSettings(req, res) {
+  if (req.method === "GET") {
+    return sendLocalJson(res, 200, { ok: true, settings: readLocalAppSettings(), localPreview: true });
+  }
+  if (req.method === "POST") {
+    if (!readLocalTeacherSession(req)) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+    const body = await readLocalJson(req);
+    const rawSettings = body.settings || body;
+    const currentSettings = readLocalAppSettings();
+    const settings = {
+      ...currentSettings,
+      ...(rawSettings && typeof rawSettings === "object" ? rawSettings : {}),
+      curriculumQuestEnabled: Object.prototype.hasOwnProperty.call(rawSettings || {}, "curriculumQuestEnabled")
+        ? rawSettings.curriculumQuestEnabled === true
+        : currentSettings.curriculumQuestEnabled === true,
+    };
+    fs.writeFileSync(LOCAL_APP_SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    return sendLocalJson(res, 200, { ok: true, settings, localPreview: true });
+  }
+  res.setHeader("Allow", "GET, POST");
+  return sendLocalJson(res, 405, { ok: false, error: "method_not_allowed" });
+}
+
+function readLocalAppSettings() {
+  const defaults = {
+    attendanceDeadline: "08:50",
+    attendanceDeadlineEnabled: false,
+    onlineManagedStudyCafeEnabled: false,
+    curriculumQuestEnabled: false,
+  };
+  if (!fs.existsSync(LOCAL_APP_SETTINGS_FILE)) return defaults;
+  try {
+    const saved = JSON.parse(fs.readFileSync(LOCAL_APP_SETTINGS_FILE, "utf8") || "{}");
+    return { ...defaults, ...(saved && typeof saved === "object" ? saved : {}), curriculumQuestEnabled: saved?.curriculumQuestEnabled === true };
+  } catch {
+    return defaults;
+  }
+}
+
+function readLocalCurriculumProgress() {
+  if (!fs.existsSync(LOCAL_CURRICULUM_PROGRESS_FILE)) return {};
+  try {
+    const value = JSON.parse(fs.readFileSync(LOCAL_CURRICULUM_PROGRESS_FILE, "utf8") || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function serializeLocalCurriculumProgress(progress) {
+  return {
+    lectureIds: [...new Set(progress.lectureIds || [])],
+    stages: Object.entries(progress.stages || {}).map(([stageId, value]) => ({ stageId, ...value })),
+  };
 }
 
 function getLocalPreviewStudent(body) {

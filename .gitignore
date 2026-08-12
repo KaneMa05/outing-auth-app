@@ -6,6 +6,9 @@ config.js
 .local-dev-state.json
 .local-lecture-applications.json
 .local-question-board.json
+.local-curriculum.json
+.local-curriculum-progress.json
+.local-app-settings.json
 .local-*.log
 
 .vercel

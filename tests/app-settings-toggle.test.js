@@ -62,6 +62,7 @@ const originalEnv = {
   await handler(createRequest(), publicResponse);
   assert.equal(publicResponse.statusCode, 200);
   assert.equal(publicResponse.payload.settings.onlineManagedStudyCafeEnabled, true);
+  assert.equal(publicResponse.payload.settings.curriculumQuestEnabled, false);
 
   const managerToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "manager",
@@ -79,6 +80,14 @@ const originalEnv = {
     forbiddenResponse
   );
   assert.equal(forbiddenResponse.statusCode, 403);
+  assert.equal(fetchCalled, false);
+
+  const curriculumForbiddenResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { curriculumQuestEnabled: true } }, managerToken),
+    curriculumForbiddenResponse
+  );
+  assert.equal(curriculumForbiddenResponse.statusCode, 403);
   assert.equal(fetchCalled, false);
 
   const adminToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
@@ -108,6 +117,14 @@ const originalEnv = {
   assert.equal(adminResponse.statusCode, 200);
   assert.equal(adminResponse.payload.settings.onlineManagedStudyCafeEnabled, true);
   assert.equal(savedSettings.onlineManagedStudyCafeEnabled, true);
+
+  const curriculumAdminResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { curriculumQuestEnabled: true } }, adminToken),
+    curriculumAdminResponse
+  );
+  assert.equal(curriculumAdminResponse.statusCode, 200);
+  assert.equal(curriculumAdminResponse.payload.settings.curriculumQuestEnabled, true);
 
   console.log("app settings toggle tests passed");
 })()

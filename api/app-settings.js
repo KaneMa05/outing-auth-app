@@ -33,6 +33,10 @@ module.exports = async function handler(req, res) {
         rawSettings,
         "onlineManagedStudyCafeEnabled"
       );
+      const writesCurriculumQuest = Object.prototype.hasOwnProperty.call(
+        rawSettings,
+        "curriculumQuestEnabled"
+      );
       if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
@@ -42,6 +46,10 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (writesOnlineManagedStudyCafe && !hasPermission(session, "students.read")) {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      if (writesCurriculumQuest && !hasPermission(session, "curriculum.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
@@ -106,6 +114,7 @@ function normalizeSettings(settings) {
     attendanceDeadline: normalizeAttendanceDeadlineValue(settings.attendanceDeadline),
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
     onlineManagedStudyCafeEnabled: settings.onlineManagedStudyCafeEnabled === true,
+    curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
   };
   if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {
     normalized.seatAssignments = normalizeSeatAssignments(settings.seatAssignments);

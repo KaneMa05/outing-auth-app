@@ -15,6 +15,7 @@
   "study-cafe-admin": "온라인 스터디카페",
   "question-board": "게시판",
   "question-board-admin": "게시판 관리",
+  "curriculum-admin": "커리큘럼 관리",
   mypage: "마이페이지",
   "push-settings": "푸시 알림 설정",
   "study-todo": "오늘 플래너",
@@ -22,6 +23,7 @@
   "study-timer": "과목 타이머",
   "study-ranking": "순공시간 랭킹",
   "study-character": "캐릭터",
+  curriculum: "커리큘럼 퀘스트",
   teacher: "외출 관리",
   "teacher-accounts": "선생님 계정",
   managers: "담당자 등록",
@@ -38,8 +40,76 @@
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
   online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notices"]),
-  lecture: new Set(["home", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
+  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
 };
+
+const CURRICULUM_QUEST_SUBJECTS = [
+  {
+    id: "criminal-law",
+    name: "형사법",
+    shortName: "형사",
+    totalStages: 27,
+    completedStages: 0,
+    targetTracks: ["경찰직 - 공채(순경)"],
+    partLabel: "형법 1~18단계 · 형사소송법 19~27단계",
+    tone: "indigo",
+    stageTitles: [
+      "형법의 기본개념", "죄형법정주의", "범죄론의 기초", "구성요건론", "인과관계와 객관적 귀속",
+      "고의와 과실", "결과적 가중범", "위법성의 기초", "위법성 조각사유", "책임론",
+      "미수론", "공범론", "죄수론", "형벌론", "개인적 법익에 관한 죄", "사회적 법익에 관한 죄",
+      "국가적 법익에 관한 죄", "형법 종합정리", "수사의 기본원칙", "수사의 조건", "임의수사",
+      "체포와 구속", "압수와 수색", "수사의 종결", "증거법의 기초", "전문증거", "형사소송법 종합정리",
+    ],
+  },
+  {
+    id: "coast-guard-intro",
+    name: "해양경찰학개론",
+    shortName: "개론",
+    totalStages: 19,
+    completedStages: 0,
+    targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"],
+    partLabel: "해양경찰학개론 26상반기 과정",
+    tone: "teal",
+    stageTitles: [
+      "해양경찰의 개념", "해양경찰의 역사", "해양경찰 조직", "해양경찰 작용", "해양경찰 관리",
+      "해양경찰 통제", "해양경찰의 직무", "해상안전 관리", "해양범죄 수사", "해양오염 방제",
+      "해양경비", "해양수색과 구조", "해양정보", "외사 활동", "정보통신", "장비 관리",
+      "주요 법령 정리", "기출 쟁점 정리", "개론 종합정리",
+    ],
+  },
+  {
+    id: "maritime-law",
+    name: "해사법규",
+    shortName: "법규",
+    totalStages: 14,
+    completedStages: 0,
+    targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"],
+    partLabel: "해사법규 26상반기 과정",
+    tone: "violet",
+    stageTitles: [
+      "법규 기초", "해양경찰 관련 법령", "선박법", "선박안전법", "해양경찰 경비",
+      "해사안전법", "선원법", "수상레저안전법", "유선 및 도선사업법", "해양환경관리법",
+      "수난구호법", "국제해상충돌예방규칙", "기출 쟁점 정리", "법규 종합정리",
+    ],
+  },
+];
+let curriculumQuestSelectedSubjectId = CURRICULUM_QUEST_SUBJECTS[0].id;
+let curriculumQuestSelectedStage = CURRICULUM_QUEST_SUBJECTS[0].completedStages + 1;
+let curriculumQuestView = "map";
+const curriculumQuestProgress = {
+  loaded: false,
+  persistent: false,
+  lectureIds: new Set(),
+  stages: new Map(),
+};
+const curriculumQuestTaskState = Object.fromEntries(
+  CURRICULUM_QUEST_SUBJECTS.map((subject) => [
+    subject.id,
+    createCurriculumQuestTaskState(subject, subject.completedStages + 1),
+  ])
+);
+let curriculumQuestCatalogLoading = false;
+let curriculumQuestCatalogLoaded = false;
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
 const STUDENT_PUSH_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -55,11 +125,19 @@ function isOnlineManagedStudyCafeEnabled() {
   return state.settings.onlineManagedStudyCafeEnabled === true;
 }
 
+function isCurriculumQuestEnabled() {
+  return curriculumQuestReleaseVerified === true && state.settings.curriculumQuestEnabled === true;
+}
+
 function getAllowedStudentRoutes(category) {
   if (category === "online_managed" && !isOnlineManagedStudyCafeEnabled()) {
     return STUDENT_CATEGORY_ROUTES.offline;
   }
-  return STUDENT_CATEGORY_ROUTES[category] || STUDENT_CATEGORY_ROUTES.offline;
+  const routes = STUDENT_CATEGORY_ROUTES[category] || STUDENT_CATEGORY_ROUTES.offline;
+  if (category === "lecture" && !isCurriculumQuestEnabled()) {
+    return new Set([...routes].filter((route) => route !== "curriculum"));
+  }
+  return routes;
 }
 const COAST_GUARD_EXAM_DATE = "2026-10-24";
 const COAST_GUARD_EXAM_LABEL = "해양경찰 필기시험";
@@ -453,6 +531,13 @@ window.addEventListener("hashchange", handleRouteHistoryChange);
 window.addEventListener("popstate", handleRouteHistoryChange);
 
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
+window.__enforceCurriculumQuestVisibility = () => {
+  if (APP_MODE === "teacher" || isCurriculumQuestEnabled()) return;
+  if (String(location.hash || "").replace(/^#/, "").split("?")[0] !== "curriculum" && currentRoute !== "curriculum") return;
+  currentRoute = "home";
+  history.replaceState(null, "", `${location.pathname}${location.search}#home`);
+  render();
+};
 render();
 if (APP_MODE === "teacher") {
   initTeacherAuth();
@@ -474,11 +559,12 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
+  if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "curriculum", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -496,7 +582,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
-  const studyRoutes = ["study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character"];
+  const studyRoutes = ["curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character"];
   const currentStudyIndex = studyRoutes.indexOf(currentRoute);
   const nextStudyIndex = studyRoutes.indexOf(nextRoute);
   studentStudyRouteTransitionDirection =
@@ -603,6 +689,7 @@ function render() {
           attendance: renderAttendanceManagement,
           "study-cafe-admin": renderStudyCafeAdmin,
           "question-board-admin": renderQuestionBoardAdmin,
+          "curriculum-admin": renderCurriculumAdmin,
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
           managers: renderManagersAdmin,
@@ -625,6 +712,7 @@ function render() {
           grades: () => requireStudentAuth(renderStudentGrades),
           mypage: () => requireStudentAuth(renderStudentMypage),
           "push-settings": () => requireStudentAuth(renderStudentPushSettings),
+          curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
           "study-todo": () => requireStudentAuth(renderStudentStudyTodo),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
           "question-board": () => requireStudentAuth(renderQuestionBoard),
@@ -662,7 +750,7 @@ function renderStudyCafeStateUpdate() {
   render();
   app
     .querySelector(
-      ".student-study-todo-page, .student-study-cafe-page, .student-study-timer-page, .student-study-ranking-page, .student-study-character-page"
+      ".student-curriculum-page, .student-study-todo-page, .student-study-cafe-page, .student-study-timer-page, .student-study-ranking-page, .student-study-character-page"
     )
     ?.classList.add("study-view-static");
 }
@@ -677,6 +765,7 @@ function getRouteTitle(route) {
     if (route === "study-timer") return "과목 타이머";
     if (route === "study-ranking") return "순공시간 랭킹";
     if (route === "study-character") return "캐릭터";
+    if (route === "curriculum") return "커리큘럼 퀘스트";
     if (route === "notices" || route.startsWith("notice-")) return "중요 공지";
   }
   return routeTitles[route] || routeTitles.student;
@@ -2387,6 +2476,7 @@ function renderLectureStudentHome(student) {
       ]),
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
+    isCurriculumQuestEnabled() ? renderCurriculumQuestHomeCard(student) : null,
     el("section", { className: "lecture-home-summary-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
         el("div", {}, [
@@ -2420,6 +2510,484 @@ function renderLectureStudentHome(student) {
         renderLectureHomeShortcut("study-ranking", "footer-icon-study-ranking", "순공 랭킹", "일·주·월 순위를 확인해요"),
         renderLectureHomeShortcut("notices", "lecture-home-notice-icon", "공지사항", notices.length ? `공지 ${notices.length}개 확인` : "새로운 안내를 확인해요"),
       ]),
+    ]),
+  ]);
+}
+
+function getCurriculumQuestSubject(subjectId = curriculumQuestSelectedSubjectId) {
+  return CURRICULUM_QUEST_SUBJECTS.find((subject) => subject.id === subjectId) || CURRICULUM_QUEST_SUBJECTS[0];
+}
+
+function getCurriculumStageLectures(subjectId, stageNumber) {
+  const subject = getCurriculumQuestSubject(subjectId);
+  const managedStage = subject?.stages?.find((stage) => Number(stage.stageNumber) === Number(stageNumber));
+  if (managedStage && Array.isArray(managedStage.lectures)) return managedStage.lectures;
+  const stages = window.CURRICULUM_QUEST_LECTURES?.[subjectId] || {};
+  const lectures = Array.isArray(stages[String(stageNumber)]) ? stages[String(stageNumber)] : [];
+  return lectures.map((lecture, index) => ({
+    ...lecture,
+    id: lecture.id || `${subjectId}-stage-${stageNumber}-lecture-${index + 1}`,
+  }));
+}
+
+function getCurriculumStage(subject, stageNumber) {
+  return subject?.stages?.find((stage) => Number(stage.stageNumber) === Number(stageNumber)) || null;
+}
+
+function getCurriculumStageId(subject, stageNumber) {
+  return getCurriculumStage(subject, stageNumber)?.id || `${subject.id}-stage-${stageNumber}`;
+}
+
+async function loadCurriculumQuestCatalog() {
+  if (curriculumQuestCatalogLoading || curriculumQuestCatalogLoaded) return;
+  curriculumQuestCatalogLoading = true;
+  try {
+    const student = getAuthedStudent();
+    const profile = getStudentProfile(student?.id) || {};
+    const canLoadProgress = Boolean(student?.id && profile.deviceToken);
+    const response = await fetch(canLoadProgress ? "/api/curriculum-progress" : "/api/curriculum", {
+      method: canLoadProgress ? "POST" : "GET",
+      credentials: "same-origin",
+      headers: canLoadProgress ? { "Content-Type": "application/json" } : undefined,
+      body: canLoadProgress ? JSON.stringify(curriculumProgressRequestBody("load")) : undefined,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "curriculum_load_failed");
+    const shouldReplaceCatalog = Array.isArray(data.subjects)
+      && (data.subjects.length > 0 || (canLoadProgress && normalizeCoastGuardTrack(student?.track) !== "경찰직 - 공채(순경)"));
+    if (shouldReplaceCatalog) {
+      const subjects = data.subjects.map((subject, subjectIndex) => {
+        const stages = Array.isArray(subject.stages) ? subject.stages : [];
+        return {
+          ...subject,
+          sortOrder: Number(subject.sortOrder) || subjectIndex + 1,
+          totalStages: stages.length,
+          completedStages: 0,
+          partLabel: "",
+          stageTitles: stages.map((stage) => stage.title),
+          stages,
+        };
+      });
+      CURRICULUM_QUEST_SUBJECTS.splice(0, CURRICULUM_QUEST_SUBJECTS.length, ...subjects);
+      if (CURRICULUM_QUEST_SUBJECTS.length && !CURRICULUM_QUEST_SUBJECTS.some((subject) => subject.id === curriculumQuestSelectedSubjectId)) {
+        curriculumQuestSelectedSubjectId = CURRICULUM_QUEST_SUBJECTS[0].id;
+      }
+    }
+    if (canLoadProgress) applyCurriculumQuestProgress(data.progress || {});
+  } catch (error) {
+    console.warn("Managed curriculum is unavailable; using the bundled curriculum.", error);
+    const student = getAuthedStudent();
+    if (student && normalizeCoastGuardTrack(student.track) !== "경찰직 - 공채(순경)") {
+      CURRICULUM_QUEST_SUBJECTS.splice(0, CURRICULUM_QUEST_SUBJECTS.length);
+    }
+  } finally {
+    curriculumQuestCatalogLoading = false;
+    curriculumQuestCatalogLoaded = true;
+    if (currentRoute === "curriculum") render();
+  }
+}
+
+function curriculumProgressRequestBody(action, payload = {}) {
+  const student = getAuthedStudent();
+  const profile = getStudentProfile(student?.id) || {};
+  return {
+    action,
+    studentId: student?.id || "",
+    deviceToken: profile.deviceToken || "",
+    client: {
+      displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+      userAgent: navigator.userAgent || "",
+    },
+    ...payload,
+  };
+}
+
+async function saveCurriculumQuestProgress(action, payload) {
+  const response = await fetch("/api/curriculum-progress", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(curriculumProgressRequestBody(action, payload)),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) throw new Error(data.error || "curriculum_progress_save_failed");
+  applyCurriculumQuestProgress(data.progress || {});
+  return data;
+}
+
+function applyCurriculumQuestProgress(progress) {
+  curriculumQuestProgress.loaded = true;
+  curriculumQuestProgress.persistent = true;
+  curriculumQuestProgress.lectureIds = new Set(Array.isArray(progress.lectureIds) ? progress.lectureIds : []);
+  curriculumQuestProgress.stages = new Map(
+    (Array.isArray(progress.stages) ? progress.stages : []).map((stage) => [stage.stageId, stage])
+  );
+  CURRICULUM_QUEST_SUBJECTS.forEach((subject) => {
+    let completedStages = 0;
+    for (let stageNumber = 1; stageNumber <= subject.totalStages; stageNumber += 1) {
+      const stageProgress = curriculumQuestProgress.stages.get(getCurriculumStageId(subject, stageNumber));
+      if (!stageProgress?.completed) break;
+      completedStages = stageNumber;
+    }
+    subject.completedStages = completedStages;
+    const activeStage = Math.min(completedStages + 1, subject.totalStages);
+    curriculumQuestTaskState[subject.id] = createCurriculumQuestTaskState(subject, activeStage);
+  });
+}
+
+function getCurriculumLectureKey(stageNumber, lecture, index) {
+  return `${stageNumber}:${lecture.no}:${index}`;
+}
+
+function createCurriculumQuestTaskState(subject, stageNumber, preview = false) {
+  const lectures = getCurriculumStageLectures(subject.id, stageNumber);
+  const stageProgress = curriculumQuestProgress.stages.get(getCurriculumStageId(subject, stageNumber)) || {};
+  return {
+    stageNumber,
+    lectures: Object.fromEntries(
+      lectures.map((lecture, index) => [
+        getCurriculumLectureKey(stageNumber, lecture, index),
+        curriculumQuestProgress.lectureIds.has(lecture.id) || (!curriculumQuestProgress.loaded && preview && index < 2),
+      ])
+    ),
+    consolidation: stageProgress.consolidation === true,
+    mbt: stageProgress.mbt === true,
+  };
+}
+
+function getCurriculumStageTitle(subject, stageNumber) {
+  const firstTitle = String(getCurriculumStageLectures(subject.id, stageNumber)[0]?.title || "").trim();
+  if (!firstTitle) return subject.stageTitles[stageNumber - 1] || `${stageNumber}단계`;
+  if (/^(?:전과목)?OT(?:-|$)/i.test(firstTitle)) return "오리엔테이션";
+  return firstTitle
+    .replace(/^\[[^\]]+\]/, "")
+    .replace(/\(1\)(?:심화)?$/, "")
+    .trim();
+}
+
+function isCurriculumOrientationStage(subject, stageNumber) {
+  const stage = getCurriculumStage(subject, stageNumber);
+  return stage?.requiresWrapUp === false || getCurriculumStageTitle(subject, stageNumber) === "오리엔테이션";
+}
+
+function renderCurriculumQuestHomeCard(student) {
+  const subject = getCurriculumQuestSubject();
+  if (!subject) {
+    return el("section", { className: "curriculum-home-card empty" }, [
+      el("div", { className: "curriculum-home-main" }, [
+        el("div", {}, [el("strong", {}, "등록된 커리큘럼이 없습니다."), el("p", {}, "직렬별 커리큘럼이 등록되면 이곳에 표시됩니다.")]),
+      ]),
+    ]);
+  }
+  const nextStage = Math.min(subject.completedStages + 1, subject.totalStages);
+  const lectureCount = getCurriculumStageLectures(subject.id, nextStage).length;
+  const percent = Math.round((subject.completedStages / subject.totalStages) * 100);
+  return el("section", { className: "curriculum-home-card" }, [
+    el("div", { className: "curriculum-home-card-top" }, [
+      el("span", { className: "curriculum-home-eyebrow" }, "오늘의 퀘스트"),
+      el("span", { className: "curriculum-home-progress-label" }, `${subject.completedStages}/${subject.totalStages}단계`),
+    ]),
+    el("div", { className: "curriculum-home-main" }, [
+      el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
+      el("div", {}, [
+        el("strong", {}, subject.name),
+        el("p", {}, `${nextStage}단계 · 이론강의 ${lectureCount}강`),
+      ]),
+    ]),
+    el("span", { className: "curriculum-progress-track", ariaLabel: `${subject.name} ${percent}% 완료` }, [
+      el("i", { style: `width:${percent}%` }),
+    ]),
+    button("계속하기", "btn curriculum-home-continue", "button", () => {
+      curriculumQuestView = "map";
+      curriculumQuestSelectedStage = nextStage;
+      navigate("curriculum");
+    }),
+  ]);
+}
+
+function renderCurriculumQuest() {
+  if (!isCurriculumQuestEnabled()) return renderStudentHome();
+  if (!curriculumQuestCatalogLoaded && !curriculumQuestCatalogLoading) loadCurriculumQuestCatalog();
+  if (curriculumQuestCatalogLoaded && !CURRICULUM_QUEST_SUBJECTS.length) {
+    return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
+      el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("span", {}, "CURRICULUM QUEST"), el("h2", {}, "퀘스트맵")])]),
+      el("div", { className: "curriculum-content-sheet" }, [
+        el("div", { className: "curriculum-admin-empty" }, [el("strong", {}, "등록된 커리큘럼이 없습니다."), el("p", {}, "현재 직렬에 적용된 커리큘럼이 아직 없습니다.")]),
+      ]),
+    ]);
+  }
+  return curriculumQuestView === "detail"
+    ? renderCurriculumQuestStageDetail()
+    : renderCurriculumQuestMap();
+}
+
+function renderCurriculumQuestMap() {
+  const subject = getCurriculumQuestSubject();
+  const percent = Math.round((subject.completedStages / subject.totalStages) * 100);
+  return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
+    el("header", { className: "curriculum-page-head" }, [
+      el("div", {}, [
+        el("span", {}, "CURRICULUM QUEST"),
+        el("h2", {}, "퀘스트맵"),
+      ]),
+      el("span", { className: "curriculum-map-badge" }, getCurriculumTrackBadge()),
+    ]),
+    el("div", { className: "curriculum-content-sheet" }, [
+      el("nav", { className: "curriculum-subject-tabs", ariaLabel: "커리큘럼 과목 선택" },
+        CURRICULUM_QUEST_SUBJECTS.map((item) => button(
+          item.name,
+          `curriculum-subject-tab ${item.id === subject.id ? "active" : ""}`,
+          "button",
+          () => {
+            curriculumQuestSelectedSubjectId = item.id;
+            curriculumQuestSelectedStage = Math.min(item.completedStages + 1, item.totalStages);
+            render();
+          }
+        ))
+      ),
+      el("section", { className: "curriculum-overview-card" }, [
+        el("div", { className: "curriculum-overview-copy" }, [
+          el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
+          el("div", {}, [
+            el("h3", {}, subject.name),
+          ]),
+        ]),
+        el("div", { className: "curriculum-overview-progress" }, [
+          el("span", {}, `진행률 ${percent}%`),
+          el("strong", {}, `${subject.completedStages}/${subject.totalStages}`),
+        ]),
+        el("span", { className: "curriculum-progress-track", ariaLabel: `${subject.name} ${percent}% 완료` }, [
+          el("i", { style: `width:${percent}%` }),
+        ]),
+      ]),
+      el("section", { className: "curriculum-stage-list", ariaLabel: `${subject.name} 단계 목록` },
+        subject.stageTitles.map((title, index) => renderCurriculumStageCard(subject, index + 1, title))
+      ),
+      el("p", { className: "curriculum-local-note" }, "로컬 UI 미리보기 · 완료 상태는 새로고침하면 초기화됩니다."),
+    ]),
+  ]);
+}
+
+function getCurriculumTrackBadge() {
+  const track = normalizeCoastGuardTrack(getAuthedStudent()?.track || "");
+  if (track === "경찰직 - 함정요원 항해(순경)") return "함정요원·항해";
+  if (track === "경찰직 - 함정요원 기관(순경)") return "함정요원·기관";
+  return "공채";
+}
+
+function renderCurriculumStageCard(subject, stageNumber, title) {
+  const completed = stageNumber <= subject.completedStages;
+  const current = stageNumber === subject.completedStages + 1;
+  const locked = stageNumber > subject.completedStages + 1;
+  const status = completed ? "완료" : current ? "진행 중" : "잠김";
+  const lectureCount = getCurriculumStageLectures(subject.id, stageNumber).length;
+  const orientationStage = isCurriculumOrientationStage(subject, stageNumber);
+  const taskState = curriculumQuestTaskState[subject.id];
+  const currentLectureCount = current && taskState?.stageNumber === stageNumber
+    ? Object.values(taskState.lectures || {}).filter(Boolean).length
+    : 0;
+  const phaseLabel = subject.id === "criminal-law" && stageNumber === 1
+    ? "PART 1 · 형법"
+    : subject.id === "criminal-law" && stageNumber === 19
+      ? "PART 2 · 형사소송법"
+      : "";
+  const card = button(
+    "",
+    `curriculum-stage-card ${completed ? "completed" : current ? "current" : "locked"}`,
+    "button",
+    () => {
+      if (locked) return;
+      curriculumQuestSelectedStage = stageNumber;
+      curriculumQuestView = "detail";
+      render();
+      scrollAppToTop();
+    },
+    [
+      el("span", { className: "curriculum-stage-node", ariaHidden: "true" }, completed ? "✓" : locked ? "" : "●"),
+      el("span", { className: "curriculum-stage-body" }, [
+        el("span", { className: "curriculum-stage-topline" }, [
+          el("small", {}, `${stageNumber}단계`),
+          el("span", { className: `curriculum-stage-status ${completed ? "completed" : current ? "current" : "locked"}` }, status),
+        ]),
+        el("strong", { className: "curriculum-stage-title" }, getCurriculumStageTitle(subject, stageNumber)),
+        el("span", { className: "curriculum-stage-meta" }, [
+          el("span", { className: completed ? "done" : current && currentLectureCount ? "active" : "" },
+            completed ? `✓ ${lectureCount}/${lectureCount}강` : current ? `${currentLectureCount}/${lectureCount}강` : `강의 ${lectureCount}`),
+          orientationStage ? null : el("span", { className: completed || (current && taskState?.consolidation) ? "done" : "" }, completed ? "✓ 단권화" : "단권화"),
+          orientationStage ? null : el("span", { className: completed || (current && taskState?.mbt) ? "done" : "" }, completed ? "✓ MBT" : "MBT"),
+        ].filter(Boolean)),
+      ]),
+      el("span", { className: "curriculum-stage-chevron", ariaHidden: "true" }, locked ? "" : "›"),
+    ]
+  );
+  card.disabled = locked;
+  return el("div", { className: `curriculum-stage-entry ${phaseLabel ? "has-phase" : ""}` }, [
+    phaseLabel ? el("div", { className: "curriculum-phase-label" }, [
+      el("span", {}, phaseLabel),
+      el("i", { ariaHidden: "true" }),
+    ]) : null,
+    card,
+  ]);
+}
+
+function renderCurriculumQuestStageDetail() {
+  const subject = getCurriculumQuestSubject();
+  const stageNumber = Math.min(Math.max(1, curriculumQuestSelectedStage), subject.totalStages);
+  const stageId = getCurriculumStageId(subject, stageNumber);
+  const isCompletedStage = stageNumber <= subject.completedStages;
+  const lectures = getCurriculumStageLectures(subject.id, stageNumber);
+  const orientationStage = isCurriculumOrientationStage(subject, stageNumber);
+  let taskState = curriculumQuestTaskState[subject.id];
+  if (!taskState || taskState.stageNumber !== stageNumber) {
+    taskState = createCurriculumQuestTaskState(subject, stageNumber);
+    curriculumQuestTaskState[subject.id] = taskState;
+  }
+  const completedLectureCount = isCompletedStage
+    ? lectures.length
+    : lectures.filter((lecture, index) => taskState.lectures[getCurriculumLectureKey(stageNumber, lecture, index)]).length;
+  const lecturesCompleted = completedLectureCount === lectures.length;
+  const totalItemCount = lectures.length + (orientationStage ? 0 : 2);
+  const completedItemCount = isCompletedStage
+    ? totalItemCount
+    : completedLectureCount + (orientationStage ? 0 : Number(taskState.consolidation) + Number(taskState.mbt));
+  const allCompleted = completedItemCount === totalItemCount;
+  const finishButton = button(
+    isCompletedStage ? "퀘스트맵으로 돌아가기" : "단계 완료하기",
+    "btn curriculum-stage-finish",
+    "button",
+    async () => {
+      if (isCompletedStage) {
+        curriculumQuestView = "map";
+        render();
+        return;
+      }
+      if (!allCompleted) return;
+      finishButton.disabled = true;
+      try {
+        await saveCurriculumQuestProgress("complete_stage", { stageId });
+      } catch (error) {
+        console.error(error);
+        finishButton.disabled = false;
+        notify("단계 완료 기록을 저장하지 못했습니다. 다시 시도해주세요.");
+        return;
+      }
+      curriculumQuestSelectedStage = Math.min(stageNumber + 1, subject.totalStages);
+      curriculumQuestView = "map";
+      render();
+      notify(`${subject.name} ${stageNumber}단계를 완료했습니다.`);
+      scrollAppToTop();
+    }
+  );
+  finishButton.disabled = !isCompletedStage && !allCompleted;
+
+  return el("div", { className: "student-curriculum-page curriculum-detail-page" }, [
+    el("div", { className: "curriculum-detail-navy" }, [
+      button("← 퀘스트맵", "curriculum-back-button", "button", () => {
+        curriculumQuestView = "map";
+        render();
+      }),
+      el("section", { className: `curriculum-detail-hero ${subject.tone}` }, [
+        el("span", { className: "curriculum-detail-kicker" }, `${subject.name} · ${stageNumber}단계`),
+        el("h2", {}, getCurriculumStageTitle(subject, stageNumber)),
+        el("p", {}, `${completedItemCount}/${totalItemCount}개 항목 완료 · 이론강의 ${lectures.length}강`),
+        el("span", { className: "curriculum-progress-track light", ariaLabel: `${completedItemCount}/${totalItemCount} 완료` }, [
+          el("i", { style: `width:${Math.round((completedItemCount / totalItemCount) * 100)}%` }),
+        ]),
+      ]),
+    ]),
+    el("div", { className: "curriculum-content-sheet curriculum-detail-sheet" }, [
+      el("section", { className: "curriculum-lecture-section" }, [
+      el("div", { className: "curriculum-detail-section-head" }, [
+        el("div", {}, [
+          el("span", { className: "curriculum-section-number" }, "01"),
+          el("div", {}, [
+            el("strong", {}, "이론강의"),
+            el("small", {}, `${lectures.length}강을 모두 들어주세요`),
+          ]),
+        ]),
+        el("span", { className: `curriculum-section-count ${lecturesCompleted ? "completed" : ""}` }, `${completedLectureCount}/${lectures.length}강`),
+      ]),
+      el("div", { className: "curriculum-lecture-list" }, lectures.map((lecture, index) => {
+        const lectureKey = getCurriculumLectureKey(stageNumber, lecture, index);
+        const checked = isCompletedStage || Boolean(taskState.lectures[lectureKey]);
+        const checkbox = el("input", {
+          type: "checkbox",
+          checked,
+          disabled: isCompletedStage,
+          ariaLabel: `${lecture.no} ${lecture.title} 수강 완료`,
+        });
+        checkbox.addEventListener("change", () => {
+          const previous = Boolean(taskState.lectures[lectureKey]);
+          taskState.lectures[lectureKey] = checkbox.checked;
+          if (checkbox.checked) curriculumQuestProgress.lectureIds.add(lecture.id);
+          else curriculumQuestProgress.lectureIds.delete(lecture.id);
+          render();
+          saveCurriculumQuestProgress("set_lecture", { lectureId: lecture.id, completed: checkbox.checked })
+            .then(() => { if (currentRoute === "curriculum") render(); })
+            .catch((error) => {
+              console.error(error);
+              taskState.lectures[lectureKey] = previous;
+              if (previous) curriculumQuestProgress.lectureIds.add(lecture.id);
+              else curriculumQuestProgress.lectureIds.delete(lecture.id);
+              notify("강의 완료 기록을 저장하지 못했습니다.");
+              if (currentRoute === "curriculum") render();
+            });
+        });
+        return el("label", { className: `curriculum-lecture-row ${checked ? "completed" : ""}` }, [
+          checkbox,
+          el("span", { className: "curriculum-lecture-check", ariaHidden: "true" }, checked ? "✓" : ""),
+          el("span", { className: "curriculum-lecture-copy" }, [
+            el("strong", {}, lecture.no),
+            el("span", {}, lecture.title),
+          ]),
+        ]);
+      })),
+      ]),
+      orientationStage ? null : el("section", { className: "curriculum-after-lecture-section", ariaLabel: `${stageNumber}단계 마무리 퀘스트` }, [
+      el("div", { className: "curriculum-detail-section-head compact" }, [
+        el("div", {}, [
+          el("span", { className: "curriculum-section-number" }, "02"),
+          el("div", {}, [
+            el("strong", {}, "학습 마무리"),
+            el("small", {}, "단권화와 MBT를 완료해주세요"),
+          ]),
+        ]),
+      ]),
+      [
+        { id: "consolidation", label: "단권화 작업", copy: "학습한 내용을 단권화 교재에 정리했어요." },
+        { id: "mbt", label: "MBT 풀이", copy: "이 단계의 MBT를 끝까지 풀었어요." },
+      ].map((task) => {
+        const checked = isCompletedStage || Boolean(taskState[task.id]);
+        const checkbox = el("input", { type: "checkbox", checked, disabled: isCompletedStage, ariaLabel: `${task.label} 완료` });
+        checkbox.addEventListener("change", () => {
+          const previous = Boolean(taskState[task.id]);
+          taskState[task.id] = checkbox.checked;
+          render();
+          saveCurriculumQuestProgress("set_stage_task", { stageId, task: task.id, completed: checkbox.checked })
+            .then(() => { if (currentRoute === "curriculum") render(); })
+            .catch((error) => {
+              console.error(error);
+              taskState[task.id] = previous;
+              notify(`${task.label} 기록을 저장하지 못했습니다.`);
+              if (currentRoute === "curriculum") render();
+            });
+        });
+        return el("label", { className: `curriculum-finish-task ${checked ? "completed" : ""}` }, [
+          checkbox,
+          el("span", { className: "curriculum-finish-icon", ariaHidden: "true" }, checked ? "✓" : ""),
+          el("span", { className: "curriculum-finish-copy" }, [
+            el("strong", {}, task.label),
+            el("span", {}, task.copy),
+          ]),
+        ]);
+      }),
+      ]),
+      el("p", { className: "curriculum-stage-helper" }, isCompletedStage
+        ? "이미 완료한 단계입니다."
+        : orientationStage
+          ? "오리엔테이션 강의를 체크하면 다음 단계가 열립니다."
+          : "모든 강의와 단권화, MBT를 체크하면 다음 단계가 열립니다."),
+      finishButton,
     ]),
   ]);
 }
@@ -7902,6 +8470,7 @@ function renderHome() {
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("study_cafe.read") ? moduleCard("온라인 스터디카페", "현재 좌석, 순공시간과 온라인 학생 이용 상태를 관리합니다.", "study-cafe-admin", "운영 중") : null,
         hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
+        hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 단계와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,
