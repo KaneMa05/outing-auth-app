@@ -176,7 +176,7 @@ function renderQuestionPostList() {
     : questionBoardState.error
       ? renderQuestionBoardError(questionBoardState.error, () => loadQuestionBoardHome())
       : questionBoardState.posts.length
-        ? el("div", { className: "question-post-list" }, questionBoardState.posts.map(renderQuestionPostCard))
+        ? el("div", { className: "question-post-list question-post-board-list" }, questionBoardState.posts.map(renderQuestionPostCard))
         : renderQuestionBoardEmptyState(Boolean(questionBoardState.search));
 
   return el("div", { className: "question-board-page student-view" }, [
@@ -267,20 +267,41 @@ function setQuestionFilter(boardState, key, value, admin) {
   else refreshQuestionBoardList();
 }
 
-function renderQuestionPostCard(post) {
-  const card = el("button", { className: "question-post-card", type: "button" }, [
-    el("div", { className: "question-post-card-top" }, [
-      el("span", { className: "question-subject-tag" }, post.subject),
+function renderQuestionPostCard(post, boardStyle = true) {
+  if (!boardStyle) {
+    const adminCard = el("button", { className: "question-post-card", type: "button" }, [
+      el("div", { className: "question-post-card-top" }, [
+        el("span", { className: "question-subject-tag" }, post.subject),
+      ]),
+      el("strong", { className: "question-post-title" }, post.title),
+      el("p", { className: "question-post-preview" }, compactQuestionText(post.body)),
+      post.imageCount ? el("span", { className: "question-post-image-count" }, `사진 ${post.imageCount}장`) : null,
+      el("div", { className: "question-post-meta" }, [
+        el("span", {}, post.authorName),
+        post.authorType === "teacher" ? el("span", { className: "teacher-answer-badge" }, "선생님") : null,
+        el("span", {}, formatQuestionBoardDate(post.createdAt)),
+        el("span", {}, `조회 ${post.viewCount}`),
+        el("span", { className: "question-comment-count" }, `댓글 ${post.commentCount}`),
+      ]),
+    ]);
+    adminCard.addEventListener("click", () => openQuestionPost(post.id));
+    return adminCard;
+  }
+
+  const card = el("button", { className: "question-post-card question-post-row", type: "button" }, [
+    el("div", { className: "question-post-main" }, [
+      el("strong", { className: "question-post-title" }, post.title),
+      el("div", { className: "question-post-meta" }, [
+        el("span", { className: "question-post-author" }, post.authorName),
+        post.authorType === "teacher" ? el("span", { className: "teacher-answer-badge" }, "선생님") : null,
+        el("span", {}, formatQuestionBoardDate(post.createdAt)),
+        el("span", {}, `조회 ${post.viewCount}`),
+        post.imageCount ? el("span", { className: "question-post-image-count" }, `사진 ${post.imageCount}`) : null,
+      ]),
     ]),
-    el("strong", { className: "question-post-title" }, post.title),
-    el("p", { className: "question-post-preview" }, compactQuestionText(post.body)),
-    post.imageCount ? el("span", { className: "question-post-image-count" }, `사진 ${post.imageCount}장`) : null,
-    el("div", { className: "question-post-meta" }, [
-      el("span", {}, post.authorName),
-      post.authorType === "teacher" ? el("span", { className: "teacher-answer-badge" }, "선생님") : null,
-      el("span", {}, formatQuestionBoardDate(post.createdAt)),
-      el("span", {}, `조회 ${post.viewCount}`),
-      el("span", { className: "question-comment-count" }, `댓글 ${post.commentCount}`),
+    el("span", { className: "question-post-comment-summary", ariaLabel: `댓글 ${post.commentCount}개` }, [
+      el("strong", {}, String(post.commentCount)),
+      el("small", {}, "댓글"),
     ]),
   ]);
   card.addEventListener("click", () => openQuestionPost(post.id));
@@ -760,7 +781,7 @@ async function refreshQuestionBoardAdminList() {
 }
 
 function renderQuestionAdminCard(post) {
-  const card = renderQuestionPostCard(post);
+  const card = renderQuestionPostCard(post, false);
   card.classList.add("question-admin-card");
   if (post.isHidden) card.classList.add("hidden-content");
   card.addEventListener("click", (event) => {

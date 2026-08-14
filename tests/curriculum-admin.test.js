@@ -13,10 +13,13 @@ const teacherHtml = read("teacher.html");
 const sharedSource = read("shared.js");
 const schemaSource = read("supabase/add-curriculum-management.sql");
 const localServerSource = read("local-dev-server.js");
+const localSetupSource = read("scripts/setup-local-curriculum.js");
+const packageJson = JSON.parse(read("package.json"));
+const { restructureCurriculumIntoSessions } = require("../scripts/curriculum-sessions");
 
 assert.match(appSource, /"curriculum-admin": renderCurriculumAdmin/);
 assert.match(appSource, /loadCurriculumQuestCatalog/);
-assert.match(appSource, /isCurriculumQuestEnabled\(\) \? renderCurriculumQuestHomeCard/);
+assert.doesNotMatch(appSource, /renderCurriculumQuestHomeCard|lecture-home-summary-card/);
 assert.match(appSource, /route !== "curriculum"/);
 assert.match(adminSource, /function renderCurriculumAdmin\(/);
 assert.match(adminSource, /function addCurriculumAdminSubject\(/);
@@ -36,7 +39,32 @@ assert.match(schemaSource, /target_tracks text\[\]/);
 assert.match(schemaSource, /requires_wrap_up boolean/);
 assert.match(localServerSource, /handleLocalCurriculum/);
 assert.match(localServerSource, /curriculum_disabled/);
+assert.match(sharedSource, /createLocalDevStoreUrl\(\) \|\| !loadedAppSettingsFromNotices/);
+assert.match(sharedSource, /Object\.assign\(state, mergeDefaultState\(data\.state\)\);[\s\S]*?await loadAppSettingsFromApi\(\);[\s\S]*?saveStateToLocalStorage\(\);/);
+assert.match(localSetupSource, /includeUnpublished: true/);
+assert.match(localSetupSource, /curriculumQuestEnabled: true/);
+assert.match(localSetupSource, /localState\.settings = \{ \.\.\.\(localState\.settings \|\| \{\}\), curriculumQuestEnabled: true \}/);
+assert.equal(packageJson.scripts["curriculum:local"], "node scripts/setup-local-curriculum.js");
+assert.equal(packageJson.scripts["dev:local"], "node local-dev-server.js");
 assert.doesNotMatch(read("index.html"), /curriculum-data\.js/);
+
+const sessionCatalog = restructureCurriculumIntoSessions([{
+  id: "subject-a",
+  stages: [{
+    id: "unit-1",
+    isPublished: true,
+    requiresWrapUp: true,
+    lectures: [
+      { id: "lecture-1", no: "1강", title: "첫 강의", sortOrder: 1 },
+      { id: "lecture-2", no: "2강", title: "둘째 강의", sortOrder: 2 },
+    ],
+  }],
+}], { "subject-a": [{ date: "2026-06-21", end: 2 }] });
+assert.equal(sessionCatalog[0].totalStages, 1);
+assert.equal(sessionCatalog[0].stages[0].id, "subject-a-session-1");
+assert.equal(sessionCatalog[0].stages[0].scheduledDate, "2026-06-21");
+assert.equal(sessionCatalog[0].stages[0].title, "첫 강의 외 1강");
+assert.equal(sessionCatalog[0].stages[0].lectures[1].id, "lecture-2");
 
 const normalized = handler._test.normalizeSubject({
   id: "criminal-law",

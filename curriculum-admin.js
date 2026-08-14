@@ -30,7 +30,7 @@ function renderCurriculumAdmin() {
       el("div", {}, [
         el("span", {}, "CURRICULUM BUILDER"),
         el("h2", {}, "커리큘럼 관리"),
-        el("p", {}, "과목과 단계, 단계별 강의를 구성하고 학생 화면 공개 여부를 설정합니다."),
+        el("p", {}, "과목과 회차, 회차별 강의를 구성하고 학생 화면 공개 여부를 설정합니다."),
       ]),
       hasTeacherPermission("curriculum.write")
         ? button("+ 과목 추가", "btn", "button", addCurriculumAdminSubject)
@@ -110,7 +110,7 @@ function renderCurriculumAdminSubjectRail(selectedSubject) {
         el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
         el("span", {}, [
           el("strong", {}, subject.name),
-          el("small", {}, `${subject.stages.length}단계 · ${countCurriculumAdminLectures(subject)}강`),
+          el("small", {}, `${subject.stages.length}회차 · ${countCurriculumAdminLectures(subject)}강`),
         ]),
         el("i", { className: subject.isPublished === false ? "draft" : "published" }, subject.isPublished === false ? "비공개" : "공개"),
       ]
@@ -147,7 +147,7 @@ function renderCurriculumAdminEditor(subject, selectedStage) {
       renderCurriculumAdminStageRail(subject, selectedStage, canWrite),
       selectedStage
         ? renderCurriculumAdminStageEditor(subject, selectedStage, canWrite)
-        : el("div", { className: "curriculum-admin-empty" }, [el("strong", {}, "단계를 추가해주세요"), el("p", {}, "각 단계 안에 실제 수강할 강의를 등록할 수 있습니다.")]),
+        : el("div", { className: "curriculum-admin-empty" }, [el("strong", {}, "회차를 추가해주세요"), el("p", {}, "각 회차 안에 실제 수강할 강의를 등록할 수 있습니다.")]),
     ]),
   ]);
 }
@@ -155,7 +155,7 @@ function renderCurriculumAdminEditor(subject, selectedStage) {
 function renderCurriculumAdminStageRail(subject, selectedStage, canWrite) {
   return el("aside", { className: "curriculum-admin-stage-rail" }, [
     el("div", { className: "curriculum-admin-rail-title" }, [
-      el("strong", {}, "단계"),
+      el("strong", {}, "회차"),
       el("span", {}, `${subject.stages.length}개`),
     ]),
     el("div", { className: "curriculum-admin-stage-list" }, subject.stages.map((stage, index) => button(
@@ -168,10 +168,10 @@ function renderCurriculumAdminStageRail(subject, selectedStage, canWrite) {
       },
       [
         el("span", {}, String(index + 1).padStart(2, "0")),
-        el("span", {}, [el("strong", {}, stage.title), el("small", {}, `${stage.lectures.length}강 · 단권화 · MBT`)]),
+        el("span", {}, [el("strong", {}, stage.title), el("small", {}, `${stage.lectures.length}강 · 기출 분석/학습 · MBT`)]),
       ]
     ))),
-    canWrite ? button("+ 단계 추가", "curriculum-admin-add-stage", "button", () => addCurriculumAdminStage(subject)) : null,
+    canWrite ? button("+ 회차 추가", "curriculum-admin-add-stage", "button", () => addCurriculumAdminStage(subject)) : null,
   ].filter(Boolean));
 }
 
@@ -179,17 +179,17 @@ function renderCurriculumAdminStageEditor(subject, stage, canWrite) {
   const stageIndex = subject.stages.findIndex((item) => item.id === stage.id);
   return el("section", { className: "curriculum-admin-stage-editor" }, [
     el("div", { className: "curriculum-admin-section-head" }, [
-      el("div", {}, [el("span", {}, `${stageIndex + 1}단계`), el("h3", {}, stage.title)]),
+      el("div", {}, [el("span", {}, `${stageIndex + 1}회차`), el("h3", {}, stage.title)]),
       canWrite ? el("div", { className: "curriculum-admin-actions compact" }, [
         button("↑", "mini-btn", "button", () => moveCurriculumAdminItem(subject.stages, stageIndex, -1, subject)),
         button("↓", "mini-btn", "button", () => moveCurriculumAdminItem(subject.stages, stageIndex, 1, subject)),
-        button("단계 삭제", "mini-btn danger", "button", () => deleteCurriculumAdminStage(subject, stage)),
+        button("회차 삭제", "mini-btn danger", "button", () => deleteCurriculumAdminStage(subject, stage)),
       ]) : null,
     ].filter(Boolean)),
     el("div", { className: "curriculum-admin-stage-fields" }, [
-      curriculumAdminField("단계명", stage.title, "단계 제목", (value) => { stage.title = value; }, 160),
+      curriculumAdminField("회차명", stage.title, "회차 제목", (value) => { stage.title = value; }, 160),
       curriculumAdminToggle("학생에게 공개", stage.isPublished !== false, (checked) => { stage.isPublished = checked; }),
-      curriculumAdminToggle("학습 마무리 사용", stage.requiresWrapUp !== false, (checked) => { stage.requiresWrapUp = checked; }),
+      curriculumAdminToggle("기출 분석/학습 사용", stage.requiresWrapUp !== false, (checked) => { stage.requiresWrapUp = checked; }),
     ]),
     el("div", { className: "curriculum-admin-lecture-head" }, [
       el("div", {}, [el("strong", {}, "강의 구성"), el("span", {}, `${stage.lectures.length}강`)]),
@@ -197,13 +197,13 @@ function renderCurriculumAdminStageEditor(subject, stage, canWrite) {
     ].filter(Boolean)),
     stage.lectures.length
       ? el("div", { className: "curriculum-admin-lecture-list" }, stage.lectures.map((lecture, index) => renderCurriculumAdminLectureRow(subject, stage, lecture, index, canWrite)))
-      : el("div", { className: "curriculum-admin-empty lecture" }, [el("strong", {}, "등록된 강의가 없습니다."), el("p", {}, "강의 추가 버튼으로 이 단계의 체크리스트를 구성하세요.")]),
+      : el("div", { className: "curriculum-admin-empty lecture" }, [el("strong", {}, "등록된 강의가 없습니다."), el("p", {}, "강의 추가 버튼으로 이 회차의 체크리스트를 구성하세요.")]),
     stage.requiresWrapUp === false ? el("div", { className: "curriculum-admin-fixed-tasks disabled" }, [
-      el("span", {}, "오리엔테이션 단계"),
-      el("strong", {}, "학습 마무리 없음"),
+      el("span", {}, "오리엔테이션 회차"),
+      el("strong", {}, "기출 분석/학습 없음"),
     ]) : el("div", { className: "curriculum-admin-fixed-tasks" }, [
-      el("span", {}, "단계 공통 과업"),
-      el("strong", {}, "단권화 작업"),
+      el("span", {}, "회차 공통 과업"),
+      el("strong", {}, subject.id === "criminal-law" ? "기출 분석 및 OX 학습" : "기출 분석 및 단권화"),
       el("strong", {}, "MBT 풀이"),
     ]),
     canWrite ? button("변경사항 저장", "btn curriculum-admin-save-bottom", "button", () => saveCurriculumAdminSubject(subject)) : null,
@@ -310,7 +310,7 @@ function normalizeCurriculumAdminSubject(subject) {
     stages: stages.map((stage, stageIndex) => ({
       id: stage.id || createCurriculumAdminId(`${subject.id}-stage`),
       stageNumber: stageIndex + 1,
-      title: stage.title || `${stageIndex + 1}단계`,
+      title: stage.title || `${stageIndex + 1}회차`,
       sortOrder: stageIndex + 1,
       isPublished: stage.isPublished !== false,
       requiresWrapUp: stage.requiresWrapUp !== false,
@@ -353,7 +353,7 @@ function addCurriculumAdminStage(subject) {
   const stage = {
     id: createCurriculumAdminId(`${subject.id}-stage`),
     stageNumber: subject.stages.length + 1,
-    title: `${subject.stages.length + 1}단계`,
+    title: `${subject.stages.length + 1}회차`,
     sortOrder: subject.stages.length + 1,
     isPublished: true,
     requiresWrapUp: true,
@@ -387,7 +387,7 @@ function moveCurriculumAdminItem(items, index, offset, subject) {
 }
 
 function deleteCurriculumAdminStage(subject, stage) {
-  if (!confirm(`'${stage.title}' 단계를 삭제할까요?`)) return;
+  if (!confirm(`'${stage.title}' 회차를 삭제할까요?`)) return;
   const index = subject.stages.findIndex((item) => item.id === stage.id);
   subject.stages.splice(index, 1);
   subject.stages.forEach((item, itemIndex) => { item.stageNumber = itemIndex + 1; item.sortOrder = itemIndex + 1; });
@@ -399,7 +399,7 @@ async function saveCurriculumAdminSubject(subject) {
   if (curriculumAdminState.saving) return;
   if (!subject.name.trim() || !subject.shortName.trim()) return notify("과목명과 짧은 이름을 입력해주세요.");
   if (subject.stages.some((stage) => !stage.title.trim() || stage.lectures.some((lecture) => !lecture.no.trim() || !lecture.title.trim()))) {
-    return notify("비어 있는 단계명 또는 강의 정보를 확인해주세요.");
+    return notify("비어 있는 회차명 또는 강의 정보를 확인해주세요.");
   }
   curriculumAdminState.saving = true;
   render();

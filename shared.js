@@ -826,10 +826,12 @@ async function initLocalDevStore() {
       const localStudentAuth = getLocalStudentAuthSettings();
       Object.assign(state, mergeDefaultState(data.state));
       if (!state.settings?.forceLocalStudentAuth) restoreLocalStudentAuthSettings(localStudentAuth);
+      await loadAppSettingsFromApi();
       saveStateToLocalStorage();
       render();
       return;
     }
+    await loadAppSettingsFromApi();
     if (hasLocalDevStateData(state)) scheduleLocalDevSave();
   } catch (error) {
     console.error(error);
@@ -2471,7 +2473,7 @@ async function loadStateFromRemote(options = {}) {
     loadedAppSettingsFromNotices = applyRemoteAppSettingsFromNotices(remoteNotices);
     state.notices = remoteNotices;
   }
-  if (!loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
+  if (createLocalDevStoreUrl() || !loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
   await migrateLocalSeatAssignmentsToRemoteIfNeeded(localSeatAssignments);
   state.notices = removeLegacySampleNotices(state.notices);
   if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));

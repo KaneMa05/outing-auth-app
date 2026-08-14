@@ -7,6 +7,7 @@ const ALLOWED_ACTIONS = new Set([
   "save_subjects",
   "save_profile",
   "todos_load",
+  "todo_month_summary",
   "todo_create",
   "todo_toggle",
   "todo_delete",
@@ -146,6 +147,21 @@ module.exports = async function handler(req, res) {
         studyDate,
         todos: (Array.isArray(todos) ? todos : []).map(serializeTodo),
         subjectGoals: (Array.isArray(subjectGoals) ? subjectGoals : []).map(serializeSubjectGoal),
+      });
+      return;
+    }
+
+    if (action === "todo_month_summary") {
+      const monthKey = normalizeTodoMonthKey(body.monthKey, now);
+      const { startDate, endDate } = getTodoMonthBounds(monthKey);
+      const rows = await requestSupabase(
+        "GET",
+        `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=gte.${startDate}&study_date=lt.${endDate}&select=study_date,is_completed&order=study_date.asc`
+      );
+      res.status(200).json({
+        ok: true,
+        monthKey,
+        plans: summarizeTodoMonth(rows),
       });
       return;
     }
@@ -1012,6 +1028,42 @@ function normalizeTodoStudyDate(value, now = new Date()) {
   return studyDate;
 }
 
+function normalizeTodoMonthKey(value, now = new Date()) {
+  const currentMonth = getKstDateKey(now).slice(0, 7);
+  const monthKey = normalizeText(value, 7) || currentMonth;
+  const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
+  const year = Number(match?.[1]);
+  const month = Number(match?.[2]);
+  if (!match || year < 2020 || year > 2100 || month < 1 || month > 12) {
+    const error = new Error("invalid_todo_month");
+    error.status = 400;
+    throw error;
+  }
+  return monthKey;
+}
+
+function getTodoMonthBounds(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(year, month, 1));
+  return {
+    startDate: `${monthKey}-01`,
+    endDate: `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`,
+  };
+}
+
+function summarizeTodoMonth(rows) {
+  const summaries = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const studyDate = normalizeDateKey(row?.study_date);
+    if (!studyDate) return;
+    const summary = summaries.get(studyDate) || { studyDate, total: 0, completed: 0 };
+    summary.total += 1;
+    if (row.is_completed === true) summary.completed += 1;
+    summaries.set(studyDate, summary);
+  });
+  return [...summaries.values()];
+}
+
 function normalizeSubjectGoalMinutes(value) {
   const minutes = Number(value);
   if (minutes === 0) return 0;
@@ -1297,9 +1349,12 @@ module.exports._private = {
   normalizeStatsRange,
   normalizeTodoContent,
   normalizeTodoId,
+  normalizeTodoMonthKey,
   normalizeTodoStudyDate,
   rolloverActiveSessionIfNeeded,
   normalizeSubject,
   normalizeSubjects,
+  getTodoMonthBounds,
+  summarizeTodoMonth,
   summarizeTrack,
 };

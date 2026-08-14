@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v315-vessel-curriculum";
+const CACHE_NAME = "outing-auth-app-v317-curriculum-local-preview";
 const APP_SHELL = [
   "/",
   "/index.html",

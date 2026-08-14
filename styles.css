@@ -7564,7 +7564,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .student-notice-list.full {
-  gap: 10px;
+  gap: 0;
+  margin: 0 -2px;
 }
 
 .student-notice-title {
@@ -7607,6 +7608,74 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-size: 0.74rem;
 }
 
+.student-notice-row {
+  min-height: 94px;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  gap: 14px;
+  padding: 17px 2px;
+  border: 0;
+  border-bottom: 1px solid #e7edf2;
+  border-radius: 0;
+  background: transparent;
+}
+
+.student-notice-row:first-child {
+  border-top: 1px solid #e7edf2;
+}
+
+.student-notice-row:active {
+  background: #f7f9fb;
+  transform: none;
+}
+
+.student-notice-row:focus-visible {
+  outline: 2px solid #2e88c9;
+  outline-offset: -2px;
+}
+
+.student-notice-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.student-notice-row .student-notice-title-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #1f2e3a;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.student-notice-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  color: #919aa2;
+  font-size: 0.7rem;
+}
+
+.student-notice-meta > span {
+  color: #737f89;
+}
+
+.student-notice-row-action {
+  width: 54px;
+  min-height: 58px;
+  display: grid;
+  place-content: center;
+  border-radius: 15px;
+  background: #f4f6f8;
+  color: #89949d;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
 .student-notices {
   gap: 10px;
 }
@@ -7619,6 +7688,13 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   border: 0;
   border-radius: 18px;
   background: #fff;
+}
+
+.student-notices-panel {
+  gap: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .student-notice-detail-head {
@@ -8044,6 +8120,115 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   gap: 12px;
 }
 
+.student-planner-hub {
+  width: 100%;
+  min-width: 0;
+}
+
+.student-planner-hub.curriculum .student-curriculum-page {
+  max-width: none;
+  padding-bottom: 0;
+}
+
+.student-planner-hub.curriculum .curriculum-page-head {
+  margin: 0;
+  padding: 10px 0 14px;
+  background: transparent;
+}
+
+.student-planner-hub.curriculum .curriculum-page-head h2 {
+  color: #20384c;
+  font-size: 1.15rem;
+}
+
+.student-planner-hub.curriculum .curriculum-page-head > div > span {
+  color: #4a91c5;
+}
+
+.student-planner-hub.curriculum .curriculum-map-badge {
+  border-color: #dbe4ed;
+  background: #ffffff;
+  color: #52677c !important;
+}
+
+.student-planner-hub.curriculum .curriculum-content-sheet {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.student-planner-hub.curriculum .curriculum-detail-page {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+
+.student-planner-hub.curriculum .curriculum-detail-navy {
+  margin: 0;
+  padding: 0 16px 22px;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 10px 26px rgba(6, 43, 95, 0.16);
+}
+
+.student-planner-hub.curriculum .curriculum-back-button {
+  padding: 15px 0 8px;
+}
+
+.student-planner-hub.curriculum .curriculum-detail-hero {
+  padding: 7px 0 0;
+}
+
+.student-planner-hub.curriculum .curriculum-detail-sheet {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.student-planner-hub.curriculum .curriculum-lecture-section {
+  margin-top: 0;
+}
+
+.student-planner-hub.curriculum .curriculum-after-lecture-section {
+  margin-top: 12px;
+}
+
+.student-planner-view-switch {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 8px 0 14px;
+  padding: 4px;
+  border: 1px solid #dbe4ed;
+  border-radius: 14px;
+  background: #edf2f7;
+}
+
+.student-planner-view-option {
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #64768a;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.student-planner-view-option.active {
+  background: #fff;
+  color: #175ea8;
+  box-shadow: 0 1px 4px rgba(18, 61, 105, 0.14);
+}
+
+.student-planner-view-option:focus-visible {
+  outline: 2px solid #2b73bd;
+  outline-offset: 1px;
+}
+
 .study-cafe-planner-entry-guide {
   display: grid;
   gap: 12px;
@@ -8102,40 +8287,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   text-align: center;
 }
 
-.study-todo-page-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 11px;
-  border-radius: 18px;
-  background: #fff;
-  padding: 13px 14px;
-}
-
-.study-todo-page-head > div {
-  min-width: 0;
-}
-
-.study-todo-page-head span {
-  display: block;
-  color: var(--accent);
-  font-size: 0.66rem;
-  font-weight: 900;
-}
-
-.study-todo-page-head h2 {
-  margin: 2px 0 0;
-  font-size: 1.12rem;
-}
-
-.study-todo-page-head > strong {
-  border-radius: 999px;
-  background: var(--accent-soft);
-  padding: 6px 9px;
-  color: var(--accent-strong);
-  font-size: 0.74rem;
-}
-
 .study-todo-date-navigation {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 40px;
@@ -8162,9 +8313,10 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .study-todo-date-current {
   min-width: 0;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
 }
 
@@ -8173,10 +8325,252 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-size: 0.9rem;
 }
 
-.study-todo-date-current span {
-  color: var(--accent);
-  font-size: 0.66rem;
+.study-todo-calendar-button {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+
+.study-todo-calendar-icon {
+  position: relative;
+  width: 17px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+
+.study-todo-calendar-icon::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  border-top: 2px solid currentColor;
+}
+
+.study-todo-calendar-icon::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 3px;
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow: 7px 0 currentColor;
+}
+
+.study-todo-calendar-button:focus-visible {
+  outline: 2px solid #2b73bd;
+  outline-offset: 2px;
+}
+
+.study-todo-calendar-page-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.study-todo-calendar-page-head h2 {
+  grid-column: 2;
+  margin: 0;
+  color: #20384c;
+  font-size: 1.08rem;
+  text-align: center;
+}
+
+.study-todo-calendar-back {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent-strong);
+  padding: 0;
+  font-size: 1.35rem;
   font-weight: 900;
+  cursor: pointer;
+}
+
+.study-todo-month-calendar {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce6ef;
+  border-radius: 14px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.study-todo-month-calendar-head {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.study-todo-month-calendar-head strong {
+  color: #24364a;
+  font-size: 0.94rem;
+  text-align: center;
+}
+
+.study-todo-month-calendar-head button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: var(--accent-strong);
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.study-todo-month-weekdays,
+.study-todo-month-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px 4px;
+}
+
+.study-todo-month-weekdays span {
+  color: #718093;
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.study-todo-month-weekdays span:first-child {
+  color: #c45454;
+}
+
+.study-todo-month-day {
+  min-width: 0;
+  aspect-ratio: 1 / 1.05;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #40556a;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.study-todo-month-day span {
+  line-height: 1;
+}
+
+.study-todo-month-day i {
+  width: min(30px, calc(100% - 4px));
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  background: #e3e7eb;
+}
+
+.study-todo-month-day.plan-not-started i,
+.study-todo-month-legend i.not-started {
+  background: #78838e;
+}
+
+.study-todo-month-day.plan-progress-low i,
+.study-todo-month-legend i.progress-low {
+  background: #dff3e8;
+}
+
+.study-todo-month-day.plan-progress-mid i,
+.study-todo-month-legend i.progress-mid {
+  background: #91d5ae;
+}
+
+.study-todo-month-day:nth-child(7n + 1):not(.blank) {
+  color: #c45454;
+}
+
+.study-todo-month-day.today {
+  border-color: #efb04b;
+}
+
+.study-todo-month-day.selected {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.study-todo-month-day.plan-completed i,
+.study-todo-month-legend i.completed {
+  background: #27a269;
+}
+
+.study-todo-month-day.blank {
+  visibility: hidden;
+}
+
+.study-todo-month-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: #6a7c8e;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.study-todo-month-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.study-todo-month-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: #e3e7eb;
+}
+
+.study-todo-month-legend b {
+  font: inherit;
+}
+
+.study-todo-month-calendar-head button:focus-visible,
+.study-todo-month-day:focus-visible {
+  outline: 2px solid #2b73bd;
+  outline-offset: 1px;
+}
+
+.study-todo-calendar-selected-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 3px 0;
+}
+
+.study-todo-calendar-selected-date span {
+  color: #6a7c8e;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.study-todo-calendar-selected-date strong {
+  color: #20384c;
+  font-size: 0.82rem;
 }
 
 .study-todo-date-loading {
@@ -8185,17 +8579,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-size: 0.7rem;
   font-weight: 800;
   text-align: center;
-}
-
-.study-todo-home-button {
-  min-height: 32px;
-  border: 0;
-  border-radius: 9px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  padding: 6px 9px;
-  font-size: 0.7rem;
-  font-weight: 900;
 }
 
 .study-todo-progress-card {
@@ -8331,18 +8714,6 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   padding: 6px 26px 6px 10px;
   font-size: 0.8rem;
   font-weight: 850;
-}
-
-.study-todo-goal-legend {
-  width: 100%;
-  justify-self: stretch;
-  box-sizing: border-box;
-  margin: -2px 0 0;
-  padding-right: 2px;
-  color: #718296;
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-align: right;
 }
 
 .study-todo-goal-result {
@@ -14227,11 +14598,12 @@ body:not([data-app-mode="teacher"]) .btn {
     gap: 16px;
   }
 
-  .study-todo-page-head,
   .study-todo-date-navigation,
+  .study-todo-calendar-page-head,
+  .study-todo-month-calendar,
+  .study-todo-calendar-selected-date,
   .study-todo-date-loading,
   .study-todo-progress-card,
-  .study-todo-goal-legend,
   .study-todo-subject-list {
     grid-column: 1 / -1;
   }
@@ -14733,22 +15105,35 @@ body.student-study-mode .main-shell {
 .question-status-tabs { display: flex; gap: 6px; }
 .question-status-tabs .question-filter-button { min-height: 30px; padding: 5px 11px; border: 0; background: #eef3f7; box-shadow: none; font-size: .7rem; }
 .question-status-tabs .question-filter-button.active { background: #dceeff; color: #146ca9; }
-.question-board-list-section { display: grid; gap: 8px; }
+.question-board-list-section { display: grid; gap: 6px; }
 .question-board-list-head, .question-comments-head { display: flex; align-items: center; justify-content: space-between; color: #24445f; }
 .question-board-list-head > span, .question-comments-head > span { color: #8a9aaa; font-size: .72rem; }
 .question-post-list { overflow: hidden; border: 1px solid #e1e9ef; border-radius: 16px; background: #fff; }
 .question-post-card { width: 100%; display: grid; gap: 8px; padding: 16px; border: 0; border-bottom: 1px solid #e7edf2; background: #fff; color: inherit; text-align: left; cursor: pointer; }
 .question-post-card:last-child { border-bottom: 0; }
 .question-post-card:active { background: #f7fafc; }
+.question-post-board-list { margin: 0 -2px; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+.question-post-row { min-height: 94px; grid-template-columns: minmax(0,1fr) 54px; align-items: center; gap: 14px; padding: 17px 2px; background: transparent; }
+.question-post-row:first-child { border-top: 1px solid #e7edf2; }
+.question-post-row:last-child { border-bottom: 1px solid #e7edf2; }
+.question-post-row:active { background: #f7f9fb; }
+.question-post-row:focus-visible { outline: 2px solid #2e88c9; outline-offset: -2px; }
+.question-post-main { min-width: 0; display: grid; gap: 9px; }
 .question-post-card-top, .question-admin-detail-head { display: flex; align-items: center; gap: 7px; }
 .question-subject-tag, .question-status-badge, .teacher-answer-badge, .question-hidden-badge { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 8px; border-radius: 7px; font-size: .65rem; font-weight: 900; }
 .question-subject-tag { background: #eaf4fc; color: #2773a9; }
 .question-status-badge.open { background: #fff4dc; color: #9b6712; }
 .question-status-badge.answered { background: #e8f7ef; color: #24764b; }
 .question-post-title { color: #1f3548; font-size: .98rem; line-height: 1.42; }
+.question-post-row .question-post-title { display: -webkit-box; overflow: hidden; color: #1f2e3a; line-height: 1.45; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .question-post-preview { display: -webkit-box; margin: 0; overflow: hidden; color: #677b8c; font-size: .78rem; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .question-post-meta { display: flex; flex-wrap: wrap; gap: 5px 10px; color: #92a0ac; font-size: .67rem; }
+.question-post-row .question-post-meta { align-items: center; gap: 5px 9px; color: #919aa2; font-size: .7rem; }
+.question-post-author { color: #737f89; }
 .question-comment-count { color: #477797 !important; font-weight: 800; }
+.question-post-comment-summary { width: 54px; min-height: 58px; display: grid; place-content: center; gap: 2px; border-radius: 15px; background: #f4f6f8; color: #8a949d; text-align: center; }
+.question-post-comment-summary strong { color: #25323c; font-size: .95rem; line-height: 1; }
+.question-post-comment-summary small { font-size: .66rem; line-height: 1.2; }
 .question-write-button { position: fixed; right: 20px; right: max(20px, calc((100vw - 420px) / 2 + 20px)); bottom: 100px; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); z-index: 35; min-height: 48px; padding: 11px 17px; border: 0; border-radius: 99px; background: linear-gradient(135deg, #238ed4, #1678bd); color: #fff; font-size: .86rem; font-weight: 900; box-shadow: 0 10px 24px rgba(24,113,177,.3); cursor: pointer; pointer-events: auto; touch-action: manipulation; }
 .question-board-empty, .question-board-loading { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 9px; padding: 26px; border: 1px dashed #d7e2eb; border-radius: 16px; background: #fbfdff; color: #8193a2; text-align: center; }
 .question-board-empty strong { color: #486174; }
@@ -14794,6 +15179,8 @@ body.student-study-mode .main-shell {
 .question-image-preview img { width: 100%; height: 100%; object-fit: cover; }
 .question-image-remove { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: rgba(22, 34, 43, .78); color: #fff; font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .question-post-image-count { width: fit-content; margin-top: -2px; padding: 4px 8px; border-radius: 999px; background: #edf5fa; color: #52738b; font-size: .7rem; font-weight: 850; }
+.question-post-row .question-post-image-count { display: inline-flex; align-items: center; gap: 4px; margin-top: 0; padding: 0; border-radius: 0; background: transparent; color: #6d8495; font-size: .68rem; font-weight: 800; }
+.question-post-row .question-post-image-count::before { content: ""; width: 12px; height: 10px; display: inline-block; border: 1.5px solid currentColor; border-radius: 3px; background: linear-gradient(145deg, transparent 52%, currentColor 53% 61%, transparent 62%); opacity: .75; }
 .question-detail-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
 .question-detail-image-link { display: block; overflow: hidden; border-radius: 12px; background: #edf1f4; }
 .question-detail-image-link:first-child:last-child { grid-column: 1 / -1; }

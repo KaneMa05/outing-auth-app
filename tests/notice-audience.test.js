@@ -33,5 +33,11 @@ assert.match(appSource, /function getStudentImportantNotices\(\)/);
 assert.match(appSource, /studentCategory: getStudentCategory\(student\)/);
 assert.match(appSource, /getStudentImportantNoticeById\(noticeId\)/);
 assert.doesNotMatch(appSource, /getImportantNoticeById\(noticeId, \{ publishedOnly: true \}\)/);
+assert.match(appSource, /renderStudentNoticeRow\(notice, true\)/);
+assert.match(appSource, /"student-notice-title student-notice-row"/);
+
+const styleSource = read("styles.css");
+assert.match(styleSource, /\.student-notice-row\s*\{[^}]*border: 0[^}]*border-bottom: 1px solid/);
+assert.match(styleSource, /\.student-notices-panel\s*\{[^}]*padding: 0[^}]*background: transparent/);
 
 console.log("notice audience tests passed");

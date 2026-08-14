@@ -18,8 +18,11 @@ const {
   normalizeStatsRange,
   normalizeTodoContent,
   normalizeTodoId,
+  normalizeTodoMonthKey,
   normalizeTodoStudyDate,
+  getTodoMonthBounds,
   rolloverActiveSessionIfNeeded,
+  summarizeTodoMonth,
   summarizeTrack,
 } = handler._private;
 
@@ -118,6 +121,7 @@ assert.match(
 );
 assert.match(apiSource, /"todo_create"/);
 assert.match(apiSource, /"todos_load"/);
+assert.match(apiSource, /"todo_month_summary"/);
 assert.match(apiSource, /"todo_toggle"/);
 assert.match(apiSource, /"todo_delete"/);
 assert.match(apiSource, /"subject_goal_set"/);
@@ -145,6 +149,20 @@ assert.throws(
   () => normalizeTodoStudyDate("2019-12-31", new Date("2026-07-30T03:00:00.000Z")),
   /invalid_todo_study_date/
 );
+assert.equal(normalizeTodoMonthKey("2026-08"), "2026-08");
+assert.throws(() => normalizeTodoMonthKey("2026-13"), /invalid_todo_month/);
+assert.deepEqual(getTodoMonthBounds("2026-12"), {
+  startDate: "2026-12-01",
+  endDate: "2027-01-01",
+});
+assert.deepEqual(summarizeTodoMonth([
+  { study_date: "2026-08-03", is_completed: false },
+  { study_date: "2026-08-03", is_completed: true },
+  { study_date: "2026-08-07", is_completed: true },
+]), [
+  { studyDate: "2026-08-03", total: 2, completed: 1 },
+  { studyDate: "2026-08-07", total: 1, completed: 1 },
+]);
 
 function createResponse() {
   return {

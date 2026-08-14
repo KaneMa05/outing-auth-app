@@ -51,7 +51,7 @@ const CURRICULUM_QUEST_SUBJECTS = [
     totalStages: 27,
     completedStages: 0,
     targetTracks: ["경찰직 - 공채(순경)"],
-    partLabel: "형법 1~18단계 · 형사소송법 19~27단계",
+    partLabel: "형법 1~8회차 · 형사소송법 9~12회차",
     tone: "indigo",
     stageTitles: [
       "형법의 기본개념", "죄형법정주의", "범죄론의 기초", "구성요건론", "인과관계와 객관적 귀속",
@@ -96,6 +96,9 @@ const CURRICULUM_QUEST_SUBJECTS = [
 let curriculumQuestSelectedSubjectId = CURRICULUM_QUEST_SUBJECTS[0].id;
 let curriculumQuestSelectedStage = CURRICULUM_QUEST_SUBJECTS[0].completedStages + 1;
 let curriculumQuestView = "map";
+let studyPlannerHubView = "planner";
+let studyTodoCalendarOpen = false;
+let studyTodoCalendarMonthKey = "";
 const curriculumQuestProgress = {
   loaded: false,
   persistent: false,
@@ -280,6 +283,8 @@ const studyCafeRemoteState = {
   todos: [],
   todosByDate: {},
   subjectGoalsByDate: {},
+  todoMonthSummaries: {},
+  todoMonthSummaryLoading: new Set(),
   plannerDateKey: "",
   plannerLoading: false,
   summary: null,
@@ -713,7 +718,7 @@ function render() {
           mypage: () => requireStudentAuth(renderStudentMypage),
           "push-settings": () => requireStudentAuth(renderStudentPushSettings),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
-          "study-todo": () => requireStudentAuth(renderStudentStudyTodo),
+          "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
           "question-board": () => requireStudentAuth(renderQuestionBoard),
           "study-timer": () => requireStudentAuth(renderStudentStudyTimer),
@@ -1968,6 +1973,8 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.todos = [];
     studyCafeRemoteState.todosByDate = {};
     studyCafeRemoteState.subjectGoalsByDate = {};
+    studyCafeRemoteState.todoMonthSummaries = {};
+    studyCafeRemoteState.todoMonthSummaryLoading.clear();
     studyCafeRankingPreviousRanks.clear();
     clearStudyCafePlannerEntryState();
     studyTodoDeletePendingKeys.clear();
@@ -2077,6 +2084,8 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
     studyCafeRemoteState.todos = [];
     studyCafeRemoteState.todosByDate = {};
     studyCafeRemoteState.subjectGoalsByDate = {};
+    studyCafeRemoteState.todoMonthSummaries = {};
+    studyCafeRemoteState.todoMonthSummaryLoading.clear();
     studyCafeRankingPreviousRanks.clear();
     studyCafeRemoteState.plannerDateKey = nextStudyDateKey;
     if (formatStudyTimerDateKey(studyTimerStatsState.anchorDate) === previousStudyDateKey) {
@@ -2476,26 +2485,6 @@ function renderLectureStudentHome(student) {
       ]),
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
-    isCurriculumQuestEnabled() ? renderCurriculumQuestHomeCard(student) : null,
-    el("section", { className: "lecture-home-summary-card" }, [
-      el("div", { className: "lecture-home-section-head" }, [
-        el("div", {}, [
-          el("span", {}, "TODAY"),
-          el("h2", {}, "오늘의 학습"),
-        ]),
-        button("플래너 보기", "lecture-home-text-link", "button", () => navigate("study-todo")),
-      ]),
-      el("div", { className: "lecture-home-summary-grid" }, [
-        button("", "lecture-home-summary-item", "button", () => navigate("study-todo"), [
-          el("span", {}, "플래너"),
-          el("strong", { "data-lecture-home-planner": "true" }, summary.plannerLabel),
-        ]),
-        button("", "lecture-home-summary-item", "button", () => navigate("study-timer"), [
-          el("span", {}, "오늘 순공시간"),
-          el("strong", { "data-lecture-home-time": "true" }, summary.totalTimeLabel),
-        ]),
-      ]),
-    ]),
     renderStudyCafeHomeCard(student),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
@@ -2583,7 +2572,7 @@ async function loadCurriculumQuestCatalog() {
   } finally {
     curriculumQuestCatalogLoading = false;
     curriculumQuestCatalogLoaded = true;
-    if (currentRoute === "curriculum") render();
+    if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) render();
   }
 }
 
@@ -2656,8 +2645,10 @@ function createCurriculumQuestTaskState(subject, stageNumber, preview = false) {
 }
 
 function getCurriculumStageTitle(subject, stageNumber) {
+  const managedTitle = String(getCurriculumStage(subject, stageNumber)?.title || "").trim();
+  if (managedTitle) return managedTitle;
   const firstTitle = String(getCurriculumStageLectures(subject.id, stageNumber)[0]?.title || "").trim();
-  if (!firstTitle) return subject.stageTitles[stageNumber - 1] || `${stageNumber}단계`;
+  if (!firstTitle) return subject.stageTitles[stageNumber - 1] || `${stageNumber}회차`;
   if (/^(?:전과목)?OT(?:-|$)/i.test(firstTitle)) return "오리엔테이션";
   return firstTitle
     .replace(/^\[[^\]]+\]/, "")
@@ -2670,39 +2661,20 @@ function isCurriculumOrientationStage(subject, stageNumber) {
   return stage?.requiresWrapUp === false || getCurriculumStageTitle(subject, stageNumber) === "오리엔테이션";
 }
 
-function renderCurriculumQuestHomeCard(student) {
-  const subject = getCurriculumQuestSubject();
-  if (!subject) {
-    return el("section", { className: "curriculum-home-card empty" }, [
-      el("div", { className: "curriculum-home-main" }, [
-        el("div", {}, [el("strong", {}, "등록된 커리큘럼이 없습니다."), el("p", {}, "직렬별 커리큘럼이 등록되면 이곳에 표시됩니다.")]),
-      ]),
-    ]);
+function getCurriculumAnalysisTaskLabel(subject) {
+  return subject?.id === "criminal-law"
+    ? "기출 분석 및 OX 학습"
+    : "기출 분석 및 단권화";
+}
+
+function getCurriculumAnalysisTaskDescription(subject) {
+  if (subject?.id === "criminal-law") {
+    return "선지별 옳은 이유와 옳지 않은 이유를 파악한 후, 선지별로 OX를 표시해 주세요.";
   }
-  const nextStage = Math.min(subject.completedStages + 1, subject.totalStages);
-  const lectureCount = getCurriculumStageLectures(subject.id, nextStage).length;
-  const percent = Math.round((subject.completedStages / subject.totalStages) * 100);
-  return el("section", { className: "curriculum-home-card" }, [
-    el("div", { className: "curriculum-home-card-top" }, [
-      el("span", { className: "curriculum-home-eyebrow" }, "오늘의 퀘스트"),
-      el("span", { className: "curriculum-home-progress-label" }, `${subject.completedStages}/${subject.totalStages}단계`),
-    ]),
-    el("div", { className: "curriculum-home-main" }, [
-      el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
-      el("div", {}, [
-        el("strong", {}, subject.name),
-        el("p", {}, `${nextStage}단계 · 이론강의 ${lectureCount}강`),
-      ]),
-    ]),
-    el("span", { className: "curriculum-progress-track", ariaLabel: `${subject.name} ${percent}% 완료` }, [
-      el("i", { style: `width:${percent}%` }),
-    ]),
-    button("계속하기", "btn curriculum-home-continue", "button", () => {
-      curriculumQuestView = "map";
-      curriculumQuestSelectedStage = nextStage;
-      navigate("curriculum");
-    }),
-  ]);
+  if (["navigation-technique", "marine-engineering", "maritime-english"].includes(subject?.id)) {
+    return "선지별 옳은 이유와 옳지 않은 이유를 파악한 후, 이론서에 단권화해 주세요.";
+  }
+  return "기출을 분석하고 단권화 교재에 정리해 주세요.";
 }
 
 function renderCurriculumQuest() {
@@ -2710,7 +2682,7 @@ function renderCurriculumQuest() {
   if (!curriculumQuestCatalogLoaded && !curriculumQuestCatalogLoading) loadCurriculumQuestCatalog();
   if (curriculumQuestCatalogLoaded && !CURRICULUM_QUEST_SUBJECTS.length) {
     return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
-      el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("span", {}, "CURRICULUM QUEST"), el("h2", {}, "퀘스트맵")])]),
+      el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("h2", {}, "커리큘럼")])]),
       el("div", { className: "curriculum-content-sheet" }, [
         el("div", { className: "curriculum-admin-empty" }, [el("strong", {}, "등록된 커리큘럼이 없습니다."), el("p", {}, "현재 직렬에 적용된 커리큘럼이 아직 없습니다.")]),
       ]),
@@ -2727,8 +2699,7 @@ function renderCurriculumQuestMap() {
   return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
     el("header", { className: "curriculum-page-head" }, [
       el("div", {}, [
-        el("span", {}, "CURRICULUM QUEST"),
-        el("h2", {}, "퀘스트맵"),
+        el("h2", {}, "커리큘럼"),
       ]),
       el("span", { className: "curriculum-map-badge" }, getCurriculumTrackBadge()),
     ]),
@@ -2760,7 +2731,7 @@ function renderCurriculumQuestMap() {
           el("i", { style: `width:${percent}%` }),
         ]),
       ]),
-      el("section", { className: "curriculum-stage-list", ariaLabel: `${subject.name} 단계 목록` },
+      el("section", { className: "curriculum-stage-list", ariaLabel: `${subject.name} 회차 목록` },
         subject.stageTitles.map((title, index) => renderCurriculumStageCard(subject, index + 1, title))
       ),
       el("p", { className: "curriculum-local-note" }, "로컬 UI 미리보기 · 완료 상태는 새로고침하면 초기화됩니다."),
@@ -2788,7 +2759,7 @@ function renderCurriculumStageCard(subject, stageNumber, title) {
     : 0;
   const phaseLabel = subject.id === "criminal-law" && stageNumber === 1
     ? "PART 1 · 형법"
-    : subject.id === "criminal-law" && stageNumber === 19
+    : subject.id === "criminal-law" && stageNumber === 9
       ? "PART 2 · 형사소송법"
       : "";
   const card = button(
@@ -2806,14 +2777,14 @@ function renderCurriculumStageCard(subject, stageNumber, title) {
       el("span", { className: "curriculum-stage-node", ariaHidden: "true" }, completed ? "✓" : locked ? "" : "●"),
       el("span", { className: "curriculum-stage-body" }, [
         el("span", { className: "curriculum-stage-topline" }, [
-          el("small", {}, `${stageNumber}단계`),
+          el("small", {}, `${stageNumber}회차`),
           el("span", { className: `curriculum-stage-status ${completed ? "completed" : current ? "current" : "locked"}` }, status),
         ]),
         el("strong", { className: "curriculum-stage-title" }, getCurriculumStageTitle(subject, stageNumber)),
         el("span", { className: "curriculum-stage-meta" }, [
           el("span", { className: completed ? "done" : current && currentLectureCount ? "active" : "" },
             completed ? `✓ ${lectureCount}/${lectureCount}강` : current ? `${currentLectureCount}/${lectureCount}강` : `강의 ${lectureCount}`),
-          orientationStage ? null : el("span", { className: completed || (current && taskState?.consolidation) ? "done" : "" }, completed ? "✓ 단권화" : "단권화"),
+          orientationStage ? null : el("span", { className: completed || (current && taskState?.consolidation) ? "done" : "" }, `${completed ? "✓ " : ""}${getCurriculumAnalysisTaskLabel(subject)}`),
           orientationStage ? null : el("span", { className: completed || (current && taskState?.mbt) ? "done" : "" }, completed ? "✓ MBT" : "MBT"),
         ].filter(Boolean)),
       ]),
@@ -2852,7 +2823,7 @@ function renderCurriculumQuestStageDetail() {
     : completedLectureCount + (orientationStage ? 0 : Number(taskState.consolidation) + Number(taskState.mbt));
   const allCompleted = completedItemCount === totalItemCount;
   const finishButton = button(
-    isCompletedStage ? "퀘스트맵으로 돌아가기" : "단계 완료하기",
+    isCompletedStage ? "커리큘럼으로 돌아가기" : "회차 완료하기",
     "btn curriculum-stage-finish",
     "button",
     async () => {
@@ -2868,13 +2839,13 @@ function renderCurriculumQuestStageDetail() {
       } catch (error) {
         console.error(error);
         finishButton.disabled = false;
-        notify("단계 완료 기록을 저장하지 못했습니다. 다시 시도해주세요.");
+        notify("회차 완료 기록을 저장하지 못했습니다. 다시 시도해주세요.");
         return;
       }
       curriculumQuestSelectedStage = Math.min(stageNumber + 1, subject.totalStages);
       curriculumQuestView = "map";
       render();
-      notify(`${subject.name} ${stageNumber}단계를 완료했습니다.`);
+      notify(`${subject.name} ${stageNumber}회차를 완료했습니다.`);
       scrollAppToTop();
     }
   );
@@ -2882,12 +2853,12 @@ function renderCurriculumQuestStageDetail() {
 
   return el("div", { className: "student-curriculum-page curriculum-detail-page" }, [
     el("div", { className: "curriculum-detail-navy" }, [
-      button("← 퀘스트맵", "curriculum-back-button", "button", () => {
+      button("← 커리큘럼", "curriculum-back-button", "button", () => {
         curriculumQuestView = "map";
         render();
       }),
       el("section", { className: `curriculum-detail-hero ${subject.tone}` }, [
-        el("span", { className: "curriculum-detail-kicker" }, `${subject.name} · ${stageNumber}단계`),
+        el("span", { className: "curriculum-detail-kicker" }, `${subject.name} · ${stageNumber}회차`),
         el("h2", {}, getCurriculumStageTitle(subject, stageNumber)),
         el("p", {}, `${completedItemCount}/${totalItemCount}개 항목 완료 · 이론강의 ${lectures.length}강`),
         el("span", { className: "curriculum-progress-track light", ariaLabel: `${completedItemCount}/${totalItemCount} 완료` }, [
@@ -2943,19 +2914,23 @@ function renderCurriculumQuestStageDetail() {
         ]);
       })),
       ]),
-      orientationStage ? null : el("section", { className: "curriculum-after-lecture-section", ariaLabel: `${stageNumber}단계 마무리 퀘스트` }, [
+      orientationStage ? null : el("section", { className: "curriculum-after-lecture-section", ariaLabel: `${stageNumber}회차 마무리 퀘스트` }, [
       el("div", { className: "curriculum-detail-section-head compact" }, [
         el("div", {}, [
           el("span", { className: "curriculum-section-number" }, "02"),
           el("div", {}, [
-            el("strong", {}, "학습 마무리"),
-            el("small", {}, "단권화와 MBT를 완료해주세요"),
+            el("strong", {}, "기출 분석/학습"),
+            el("small", {}, `${getCurriculumAnalysisTaskLabel(subject)}와 MBT를 완료해주세요`),
           ]),
         ]),
       ]),
       [
-        { id: "consolidation", label: "단권화 작업", copy: "학습한 내용을 단권화 교재에 정리했어요." },
-        { id: "mbt", label: "MBT 풀이", copy: "이 단계의 MBT를 끝까지 풀었어요." },
+        {
+          id: "consolidation",
+          label: getCurriculumAnalysisTaskLabel(subject),
+          copy: getCurriculumAnalysisTaskDescription(subject),
+        },
+        { id: "mbt", label: "MBT 풀이", copy: "학습 범위 MBT 풀이 후 75~80점을 달성해야 합니다." },
       ].map((task) => {
         const checked = isCompletedStage || Boolean(taskState[task.id]);
         const checkbox = el("input", { type: "checkbox", checked, disabled: isCompletedStage, ariaLabel: `${task.label} 완료` });
@@ -2983,10 +2958,10 @@ function renderCurriculumQuestStageDetail() {
       }),
       ]),
       el("p", { className: "curriculum-stage-helper" }, isCompletedStage
-        ? "이미 완료한 단계입니다."
+        ? "이미 완료한 회차입니다."
         : orientationStage
-          ? "오리엔테이션 강의를 체크하면 다음 단계가 열립니다."
-          : "모든 강의와 단권화, MBT를 체크하면 다음 단계가 열립니다."),
+          ? "오리엔테이션 강의를 체크하면 다음 회차가 열립니다."
+          : `강의와 ${getCurriculumAnalysisTaskLabel(subject)}, MBT를 체크하면 다음 회차가 열립니다.`),
       finishButton,
     ]),
   ]);
@@ -3198,7 +3173,19 @@ function renderStudentImportantNoticeCard() {
   ]);
 }
 
-function renderStudentNoticeRow(notice) {
+function renderStudentNoticeRow(notice, boardStyle = false) {
+  if (boardStyle) {
+    return button("", "student-notice-title student-notice-row", "button", () => navigate(`notice-${notice.id}`), [
+      el("span", { className: "student-notice-row-main" }, [
+        el("strong", { className: "student-notice-title-text" }, notice.title),
+        el("small", { className: "student-notice-meta" }, [
+          el("span", {}, "공지사항"),
+          el("time", {}, formatNoticeDate(notice.createdAt)),
+        ]),
+      ]),
+      el("span", { className: "student-notice-row-action", ariaHidden: "true" }, ">"),
+    ]);
+  }
   return button("", "student-notice-title", "button", () => navigate(`notice-${notice.id}`), [
     el("span", { className: "student-notice-title-text" }, notice.title),
     el("span", { className: "student-notice-arrow", ariaHidden: "true" }, ">"),
@@ -3216,7 +3203,7 @@ function renderStudentNoticeList() {
       el(
         "div",
         { className: "student-notice-list full" },
-        notices.length ? notices.map((notice) => renderStudentNoticeRow(notice)) : el("div", { className: "empty" }, "등록된 중요 공지가 없습니다.")
+        notices.length ? notices.map((notice) => renderStudentNoticeRow(notice, true)) : el("div", { className: "empty" }, "등록된 중요 공지가 없습니다.")
       ),
     ]),
   ]);
@@ -3793,6 +3780,47 @@ function renderStudyCafeMiniAvatar(tone) {
   ]);
 }
 
+function renderStudentPlannerHub() {
+  const curriculumAvailable = isCurriculumQuestEnabled();
+  if (!curriculumAvailable) studyPlannerHubView = "planner";
+  const activeView = curriculumAvailable ? studyPlannerHubView : "planner";
+  if (activeView === "planner" && studyTodoCalendarOpen) {
+    return el("div", { className: "student-planner-hub planner calendar-page" }, [
+      renderStudentStudyTodo(),
+    ]);
+  }
+  return el("div", { className: `student-planner-hub ${activeView}` }, [
+    curriculumAvailable ? renderStudentPlannerViewSwitch(activeView) : null,
+    activeView === "curriculum" ? renderCurriculumQuest() : renderStudentStudyTodo(),
+  ].filter(Boolean));
+}
+
+function renderStudentPlannerViewSwitch(activeView) {
+  const options = [
+    { id: "planner", label: "오늘의 할 일" },
+    { id: "curriculum", label: "커리큘럼" },
+  ];
+  return el("div", { className: "student-planner-view-switch", role: "tablist", ariaLabel: "학습 화면 선택" },
+    options.map((option) => {
+      const control = button(
+        option.label,
+        `student-planner-view-option ${activeView === option.id ? "active" : ""}`,
+        "button",
+        () => {
+          if (studyPlannerHubView === option.id) return;
+          studyPlannerHubView = option.id;
+          if (option.id === "curriculum") curriculumQuestView = "map";
+          render();
+          scrollAppToTop();
+        }
+      );
+      control.setAttribute("role", "tab");
+      control.setAttribute("aria-selected", String(activeView === option.id));
+      return control;
+    })
+  );
+}
+
 function renderStudentStudyTodo() {
   const student = getAuthedStudent();
   if (!isOnlineStudentExperience(student)) {
@@ -3815,17 +3843,7 @@ function renderStudentStudyTodo() {
     .filter((todo) => subjectSet.has(String(todo.subject || "").trim()));
   const completedCount = todos.filter((todo) => todo.completed).length;
   const progress = todos.length ? Math.round((completedCount / todos.length) * 100) : 0;
-
-  return el("div", { className: "student-study-todo-page" }, [
-    el("header", { className: "study-todo-page-head" }, [
-      button("홈", "study-todo-home-button", "button", () => navigate("home")),
-      el("div", {}, [
-        el("span", {}, getStudyTodoDateLabel(selectedDateKey)),
-        el("h2", {}, `${selectedDateLabel} 플래너`),
-      ]),
-      el("strong", {}, `${completedCount}/${todos.length}`),
-    ]),
-    renderStudyTodoDateNavigation(selectedDateKey),
+  const plannerContent = [
     renderStudyCafePlannerEntryGuide(todos, selectedDateKey),
     studyCafeRemoteState.plannerLoading
       ? el("p", { className: "study-todo-date-loading" }, "플래너를 불러오는 중입니다.")
@@ -3842,12 +3860,41 @@ function renderStudentStudyTodo() {
         ? `${todos.length - completedCount}개의 할 일이 남아 있어요.`
         : `${selectedDateLabel} 할 일을 과목별로 작성해보세요.`),
     ]),
-    el("p", { className: "study-todo-goal-legend" }, "○ 목표시간 내 완료 · △ 목표시간 초과 완료"),
     el(
       "div",
       { className: "study-todo-subject-list" },
       subjects.map((subject) => renderStudyTodoSubjectCard(subject, todos))
     ),
+  ];
+
+  if (studyTodoCalendarOpen) {
+    return el("div", { className: "student-study-todo-page calendar-page" }, [
+      el("header", { className: "study-todo-calendar-page-head" }, [
+        el("button", {
+          className: "study-todo-calendar-back",
+          type: "button",
+          textContent: "‹",
+          ariaLabel: "오늘의 할 일로 돌아가기",
+          onclick: () => {
+            studyTodoCalendarOpen = false;
+            renderStudyCafeStateUpdate();
+            scrollAppToTop();
+          },
+        }),
+        el("h2", {}, "월간 플래너"),
+      ]),
+      renderStudyTodoMonthlyCalendar(selectedDateKey),
+      el("div", { className: "study-todo-calendar-selected-date" }, [
+        el("span", {}, "선택한 날짜"),
+        el("strong", {}, getStudyTodoDateLabel(selectedDateKey)),
+      ]),
+      ...plannerContent,
+    ]);
+  }
+
+  return el("div", { className: "student-study-todo-page" }, [
+    renderStudyTodoDateNavigation(selectedDateKey),
+    ...plannerContent,
   ]);
 }
 
@@ -4273,6 +4320,19 @@ function getStudyTodosForDate(studyDate) {
 
 function setStudyTodosForDate(studyDate, todos) {
   studyCafeRemoteState.todosByDate[studyDate] = Array.isArray(todos) ? todos : [];
+  const monthKey = studyDate.slice(0, 7);
+  const monthSummary = studyCafeRemoteState.todoMonthSummaries[monthKey];
+  if (monthSummary) {
+    const dayTodos = studyCafeRemoteState.todosByDate[studyDate];
+    if (dayTodos.length) {
+      monthSummary[studyDate] = {
+        total: dayTodos.length,
+        completed: dayTodos.filter((todo) => todo.completed).length,
+      };
+    } else {
+      delete monthSummary[studyDate];
+    }
+  }
   if (studyDate === studyCafeRemoteState.studyDateKey) {
     studyCafeRemoteState.todos = studyCafeRemoteState.todosByDate[studyDate];
   }
@@ -4347,7 +4407,6 @@ function getStudyTodoDateKeyByOffset(offset, fromDateKey = "") {
 function renderStudyTodoDateNavigation(selectedDateKey) {
   const previousDateKey = getStudyTodoDateKeyByOffset(-1, selectedDateKey);
   const nextDateKey = getStudyTodoDateKeyByOffset(1, selectedDateKey);
-  const relativeLabel = getStudyTodoRelativeDateLabel(selectedDateKey);
   return el(
     "nav",
     { className: "study-todo-date-navigation", ariaLabel: "플래너 날짜 선택" },
@@ -4360,8 +4419,21 @@ function renderStudyTodoDateNavigation(selectedDateKey) {
         onclick: () => selectStudyTodoDate(previousDateKey),
       }),
       el("div", { className: "study-todo-date-current", ariaLive: "polite" }, [
+        el("button", {
+          className: "study-todo-calendar-button",
+          type: "button",
+          title: "월간 플래너 열기",
+          ariaLabel: "월간 플래너 열기",
+          onclick: () => {
+            studyTodoCalendarOpen = true;
+            studyTodoCalendarMonthKey = selectedDateKey.slice(0, 7);
+            renderStudyCafeStateUpdate();
+            scrollAppToTop();
+          },
+        }, [
+          el("span", { className: "study-todo-calendar-icon", ariaHidden: "true" }),
+        ]),
         el("strong", {}, getStudyTodoDateLabel(selectedDateKey)),
-        el("span", {}, relativeLabel),
       ]),
       el("button", {
         className: "study-todo-date-arrow",
@@ -4374,9 +4446,148 @@ function renderStudyTodoDateNavigation(selectedDateKey) {
   );
 }
 
+function renderStudyTodoMonthlyCalendar(selectedDateKey) {
+  const monthKey = /^\d{4}-\d{2}$/.test(studyTodoCalendarMonthKey)
+    ? studyTodoCalendarMonthKey
+    : selectedDateKey.slice(0, 7);
+  const [year, month] = monthKey.split("-").map(Number);
+  const leadingDays = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const todayKey = formatStudyBusinessDateKey(new Date());
+  ensureStudyTodoMonthSummary(monthKey);
+  const monthSummary = studyCafeRemoteState.todoMonthSummaries[monthKey] || {};
+  const shiftMonth = (offset) => {
+    const nextMonth = new Date(year, month - 1 + offset, 1);
+    studyTodoCalendarMonthKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
+    renderStudyCafeStateUpdate();
+  };
+
+  return el("section", { className: "study-todo-month-calendar", ariaLabel: `${year}년 ${month}월 달력` }, [
+    el("header", { className: "study-todo-month-calendar-head" }, [
+      el("button", {
+        type: "button",
+        textContent: "‹",
+        ariaLabel: "이전 달",
+        onclick: () => shiftMonth(-1),
+      }),
+      el("strong", {}, `${year}년 ${month}월`),
+      el("button", {
+        type: "button",
+        textContent: "›",
+        ariaLabel: "다음 달",
+        onclick: () => shiftMonth(1),
+      }),
+    ]),
+    el("div", { className: "study-todo-month-weekdays" },
+      ["일", "월", "화", "수", "목", "금", "토"].map((day) => el("span", {}, day))
+    ),
+    el("div", { className: "study-todo-month-days" }, [
+      ...Array.from({ length: leadingDays }, () => el("span", { className: "study-todo-month-day blank" })),
+      ...Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+        const selected = dateKey === selectedDateKey;
+        const today = dateKey === todayKey;
+        const plan = monthSummary[dateKey];
+        const hasPlan = Number(plan?.total) > 0;
+        const completionRate = hasPlan
+          ? Math.round((Number(plan.completed) / Number(plan.total)) * 100)
+          : 0;
+        const planCompleted = hasPlan && completionRate === 100;
+        const planProgressClass = !hasPlan
+          ? ""
+          : planCompleted
+            ? "plan-completed"
+            : completionRate === 0
+              ? "plan-not-started"
+              : completionRate > 50
+                ? "plan-progress-mid"
+                : "plan-progress-low";
+        return el("button", {
+          className: `study-todo-month-day ${selected ? "selected" : ""} ${today ? "today" : ""} ${hasPlan ? "has-plan" : ""} ${planProgressClass}`,
+          type: "button",
+          ariaLabel: `${month}월 ${day}일${hasPlan ? `, 플랜 ${plan.total}개, ${completionRate}% 달성` : ", 플랜 없음"}${selected ? ", 선택됨" : ""}`,
+          ariaPressed: String(selected),
+          onclick: () => selectStudyTodoDate(dateKey),
+        }, [
+          el("i", { className: hasPlan ? "has-plan" : "no-plan", ariaHidden: "true" }),
+          el("span", {}, String(day)),
+        ]);
+      }),
+    ]),
+    el("div", { className: "study-todo-month-legend" }, [
+      el("span", {}, [
+        el("i", { className: "no-plan", ariaHidden: "true" }),
+        el("b", {}, "플랜 없음"),
+      ]),
+      el("span", {}, [
+        el("i", { className: "not-started", ariaHidden: "true" }),
+        el("b", {}, "플랜 있음"),
+      ]),
+      el("span", {}, [
+        el("i", { className: "progress-low", ariaHidden: "true" }),
+        el("b", {}, "50% 이하"),
+      ]),
+      el("span", {}, [
+        el("i", { className: "progress-mid", ariaHidden: "true" }),
+        el("b", {}, "51~99%"),
+      ]),
+      el("span", {}, [
+        el("i", { className: "completed", ariaHidden: "true" }),
+        el("b", {}, "100% 달성"),
+      ]),
+    ]),
+  ]);
+}
+
+async function ensureStudyTodoMonthSummary(monthKey) {
+  if (Object.prototype.hasOwnProperty.call(studyCafeRemoteState.todoMonthSummaries, monthKey)) return;
+  if (studyCafeRemoteState.todoMonthSummaryLoading.has(monthKey)) return;
+  if (studyCafeRemoteState.available == null && !isStudyCafeLocalPreview()) return;
+  if (isStudyCafeLocalPreview() || studyCafeRemoteState.available === false) {
+    const localSummary = {};
+    Object.entries(studyCafeRemoteState.todosByDate).forEach(([studyDate, todos]) => {
+      if (!studyDate.startsWith(`${monthKey}-`) || !Array.isArray(todos) || !todos.length) return;
+      localSummary[studyDate] = {
+        total: todos.length,
+        completed: todos.filter((todo) => todo.completed).length,
+      };
+    });
+    studyCafeRemoteState.todoMonthSummaries[monthKey] = localSummary;
+    return;
+  }
+  studyCafeRemoteState.todoMonthSummaryLoading.add(monthKey);
+  const result = await requestStudyCafeAction("todo_month_summary", { monthKey });
+  studyCafeRemoteState.todoMonthSummaryLoading.delete(monthKey);
+  if (!result.ok) return;
+  const summary = {};
+  (Array.isArray(result.plans) ? result.plans : []).forEach((plan) => {
+    const studyDate = String(plan?.studyDate || "");
+    if (!studyDate.startsWith(`${monthKey}-`)) return;
+    summary[studyDate] = {
+      total: Math.max(0, Number(plan.total) || 0),
+      completed: Math.max(0, Number(plan.completed) || 0),
+    };
+  });
+  Object.entries(studyCafeRemoteState.todosByDate).forEach(([studyDate, todos]) => {
+    if (!studyDate.startsWith(`${monthKey}-`) || !Array.isArray(todos)) return;
+    if (!todos.length) {
+      delete summary[studyDate];
+      return;
+    }
+    summary[studyDate] = {
+      total: todos.length,
+      completed: todos.filter((todo) => todo.completed).length,
+    };
+  });
+  studyCafeRemoteState.todoMonthSummaries[monthKey] = summary;
+  if (currentRoute === "study-todo" && studyTodoCalendarOpen) renderStudyCafeStateUpdate();
+}
+
 async function selectStudyTodoDate(studyDate) {
   if (studyCafeRemoteState.plannerLoading) return;
   studyCafeRemoteState.plannerDateKey = studyDate;
+  if (studyTodoCalendarOpen) studyTodoCalendarMonthKey = studyDate.slice(0, 7);
   if (Object.prototype.hasOwnProperty.call(studyCafeRemoteState.todosByDate, studyDate)) {
     renderStudyCafeStateUpdate();
     return;
@@ -8470,7 +8681,7 @@ function renderHome() {
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("study_cafe.read") ? moduleCard("온라인 스터디카페", "현재 좌석, 순공시간과 온라인 학생 이용 상태를 관리합니다.", "study-cafe-admin", "운영 중") : null,
         hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
-        hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 단계와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
+        hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 회차와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,

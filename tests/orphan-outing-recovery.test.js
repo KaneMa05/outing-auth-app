@@ -25,9 +25,9 @@ assert.doesNotMatch(
   /mergedOutings\.push|drafts\.forEach/,
   "an outing missing from the server must not be restored from a local photo draft"
 );
-assert.match(indexSource, /shared\.js\?v=20260812-curriculum-release/);
+assert.match(indexSource, /shared\.js\?v=20260812-curriculum-local-preview-2/);
 assert.match(indexSource, /student\.js\?v=20260730-orphan-outing-recovery/);
-assert.match(teacherSource, /shared\.js\?v=20260812-curriculum-release/);
-assert.match(serviceWorkerSource, /outing-auth-app-v315-vessel-curriculum/);
+assert.match(teacherSource, /shared\.js\?v=20260812-curriculum-local-preview-2/);
+assert.match(serviceWorkerSource, /outing-auth-app-v317-curriculum-local-preview/);
 
 console.log("orphan outing recovery tests passed");

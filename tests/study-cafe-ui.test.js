@@ -8,7 +8,49 @@ const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const styleSource = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const sharedSource = fs.readFileSync(path.join(root, "shared.js"), "utf8");
 
-assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentStudyTodo\)/);
+assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentPlannerHub\)/);
+assert.match(appSource, /function renderStudentPlannerHub\(\)/);
+assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView\)/);
+assert.match(appSource, /label: "오늘의 할 일"[\s\S]*?label: "커리큘럼"/);
+assert.doesNotMatch(appSource, /className: "study-todo-page-head"/);
+assert.doesNotMatch(styleSource, /\.study-todo-page-head\s*\{/);
+assert.match(appSource, /className: "study-todo-calendar-button"/);
+assert.match(appSource, /function renderStudyTodoMonthlyCalendar\(selectedDateKey\)/);
+assert.match(appSource, /function ensureStudyTodoMonthSummary\(monthKey\)/);
+assert.match(appSource, /requestStudyCafeAction\("todo_month_summary", \{ monthKey \}\)/);
+assert.match(appSource, /const completionRate = hasPlan[\s\S]*?Number\(plan\.completed\) \/ Number\(plan\.total\)/);
+assert.match(appSource, /completionRate === 0[\s\S]*?"plan-not-started"[\s\S]*?completionRate > 50/);
+assert.match(appSource, /className: hasPlan \? "has-plan" : "no-plan"/);
+assert.match(appSource, /"플랜 없음"/);
+assert.match(appSource, /"플랜 있음"/);
+assert.match(appSource, /"50% 이하"/);
+assert.match(appSource, /"51~99%"/);
+assert.match(appSource, /"100% 달성"/);
+assert.match(appSource, /className: "student-study-todo-page calendar-page"/);
+assert.match(appSource, /className: "study-todo-calendar-page-head"/);
+assert.match(appSource, /el\("h2", \{\}, "월간 플래너"\)/);
+assert.match(appSource, /studyTodoCalendarOpen = false;[\s\S]*?renderStudyCafeStateUpdate\(\)/);
+assert.match(appSource, /onclick: \(\) => selectStudyTodoDate\(dateKey\)/);
+assert.doesNotMatch(appSource, /className: "study-todo-date-picker"/);
+assert.doesNotMatch(appSource, /el\("span", \{\}, relativeLabel\)/);
+assert.match(styleSource, /\.study-todo-calendar-icon\s*\{/);
+assert.match(styleSource, /\.study-todo-calendar-page-head\s*\{/);
+assert.match(styleSource, /\.study-todo-month-days\s*\{[\s\S]*?grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
+assert.match(styleSource, /\.study-todo-month-day i\s*\{[\s\S]*?width: min\(30px, calc\(100% - 4px\)\)[\s\S]*?border-radius: 8px/);
+assert.match(styleSource, /\.study-todo-month-day\s*\{[^}]*aspect-ratio: 1 \/ 1\.05/);
+assert.match(styleSource, /\.study-todo-month-day\.plan-not-started i,[\s\S]*?background: #78838e/);
+assert.match(styleSource, /\.study-todo-month-day\.plan-progress-low i,[\s\S]*?background: #dff3e8/);
+assert.match(styleSource, /\.study-todo-month-day\.plan-progress-mid i,[\s\S]*?background: #91d5ae/);
+assert.match(styleSource, /\.study-todo-month-day\.plan-completed i,[\s\S]*?background: #27a269/);
+assert.match(styleSource, /\.student-planner-view-switch\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+assert.match(
+  styleSource,
+  /\.student-planner-hub\.curriculum \.curriculum-page-head\s*\{[^}]*background: transparent/
+);
+assert.match(
+  styleSource,
+  /\.student-planner-hub\.curriculum \.curriculum-content-sheet\s*\{[^}]*background: transparent[^}]*box-shadow: none/
+);
 assert.match(appSource, /"study-cafe": \(\) => requireStudentAuth\(renderStudentStudyCafe\)/);
 assert.match(styleSource, /body\.student-study-mode \.sidebar\s*\{[^}]*display: none/);
 assert.match(styleSource, /body\.student-study-mode \.main-shell\s*\{[^}]*padding-top: 8px/);
@@ -128,7 +170,7 @@ assert.match(styleSource, /\.study-cafe-seat\.empty\.loading/);
 assert.match(appSource, /mutateStudyCafeRemote\("timer_pause", \{\}, \{[\s\S]*?refresh: false,[\s\S]*?keepalive: automatic/);
 assert.match(appSource, /"timer_stop",\s*\{ subjectCompleted: options\.subjectCompleted === true \}/);
 assert.match(appSource, /className: "study-todo-goal-select"/);
-assert.match(appSource, /○ 목표시간 내 완료 · △ 목표시간 초과 완료/);
+assert.doesNotMatch(appSource, /○ 목표시간 내 완료 · △ 목표시간 초과 완료/);
 assert.match(appSource, /function openStudySubjectCompletionModal\(subject, studyDate, goal, options = \{\}\)/);
 assert.match(appSource, /"중지만 하기"/);
 assert.match(appSource, /"완료하고 종료"/);
@@ -136,11 +178,7 @@ assert.doesNotMatch(appSource, /predictedStatus/);
 assert.match(appSource, /const shortLabel = onTime \? "목표 내" : "시간 초과"/);
 assert.match(styleSource, /\.study-todo-goal-result\.on-time/);
 assert.match(styleSource, /\.study-todo-goal-result\.overtime/);
-assert.match(styleSource, /\.study-todo-goal-legend\s*\{[^}]*width: 100%[^}]*justify-self: stretch[^}]*text-align: right/);
-assert.match(
-  styleSource,
-  /@media \(min-width: 768px\)[\s\S]*?\.study-todo-progress-card,\s*\.study-todo-goal-legend,\s*\.study-todo-subject-list\s*\{\s*grid-column: 1 \/ -1;/
-);
+assert.doesNotMatch(styleSource, /\.study-todo-goal-legend/);
 assert.match(appSource, /function renderStudyCafeFloatingActions\(student\)/);
 assert.match(appSource, /className: "study-cafe-floating-menu-button"/);
 assert.match(appSource, /className: "study-cafe-floating-action-menu"/);
