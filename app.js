@@ -2486,6 +2486,7 @@ function renderLectureStudentHome(student) {
       el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
     ]),
     renderStudyCafeHomeCard(student),
+    renderQuestionBoardHomePreview(student),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
         el("div", {}, [
@@ -2493,9 +2494,8 @@ function renderLectureStudentHome(student) {
           el("h2", {}, "바로가기"),
         ]),
       ]),
-      el("div", { className: "lecture-home-shortcut-grid" }, [
+      el("div", { className: "lecture-home-shortcut-grid compact-three" }, [
         renderLectureHomeShortcut("study-timer", "footer-icon-study-timer", "타이머", summary.timerDescription),
-        renderLectureHomeShortcut("question-board", "footer-icon-question-board", "자유 게시판", "질문과 답변을 확인해요"),
         renderLectureHomeShortcut("study-ranking", "footer-icon-study-ranking", "순공 랭킹", "일·주·월 순위를 확인해요"),
         renderLectureHomeShortcut("notices", "lecture-home-notice-icon", "공지사항", notices.length ? `공지 ${notices.length}개 확인` : "새로운 안내를 확인해요"),
       ]),

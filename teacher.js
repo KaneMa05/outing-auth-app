@@ -1189,10 +1189,6 @@ function getFilteredStudentAdminStudents(students) {
   });
 }
 
-function isTeacherReasonAttendanceCheck(check) {
-  return String(check?.photoPath || "").startsWith("teacher-reason/");
-}
-
 function isAttendanceCompleteCheck(check) {
   return check?.status === "present"
     || check?.status === "pre_arrival_verified"

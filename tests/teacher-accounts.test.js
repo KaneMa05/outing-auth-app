@@ -64,8 +64,8 @@ function jsonResponse(status, data) {
     assert.match(questionApiSource, /formatTeacherName\(student\.name\)/);
     assert.match(questionUiSource, /post\.authorType === "teacher"/);
     assert.match(sharedSource, /\.filter\(\(student\) => student\.id && student\.name && student\.accountType !== "teacher"\)/);
-    assert.match(indexSource, /shared\.js\?v=20260812-curriculum-local-preview-2/);
-    assert.match(teacherHtmlSource, /shared\.js\?v=20260812-curriculum-local-preview-2/);
+    assert.match(indexSource, /shared\.js\?v=20260819-teacher-reason-photo/);
+    assert.match(teacherHtmlSource, /shared\.js\?v=20260819-teacher-reason-photo/);
 
     const token = createSessionToken("test-session-secret", {
       username: "bootstrap-admin",

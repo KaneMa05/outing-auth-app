@@ -57,7 +57,102 @@ const questionBoardAdminState = {
   loaded: false,
   error: "",
 };
+const questionBoardHomePreviewState = {
+  studentId: "",
+  posts: [],
+  loading: false,
+  loaded: false,
+  error: "",
+};
 let questionBoardSearchTimer = null;
+
+function ensureQuestionBoardHomePreview(student) {
+  const studentId = String(student?.id || "");
+  if (!studentId) return;
+  if (questionBoardHomePreviewState.studentId !== studentId) {
+    Object.assign(questionBoardHomePreviewState, {
+      studentId,
+      posts: [],
+      loading: false,
+      loaded: false,
+      error: "",
+    });
+  }
+  if (questionBoardHomePreviewState.loaded || questionBoardHomePreviewState.loading) return;
+  loadQuestionBoardHomePreview();
+}
+
+async function loadQuestionBoardHomePreview() {
+  questionBoardHomePreviewState.loading = true;
+  questionBoardHomePreviewState.error = "";
+  try {
+    const data = await requestQuestionBoard("list", { subject: "자유", pageSize: 2 });
+    questionBoardHomePreviewState.posts = (Array.isArray(data.posts) ? data.posts : []).slice(0, 2);
+  } catch (error) {
+    console.error(error);
+    questionBoardHomePreviewState.error = questionBoardErrorMessage(error);
+  } finally {
+    questionBoardHomePreviewState.loading = false;
+    questionBoardHomePreviewState.loaded = true;
+    if (currentRoute === "home") render();
+  }
+}
+
+function renderQuestionBoardHomePreview(student) {
+  ensureQuestionBoardHomePreview(student);
+  const rows = questionBoardHomePreviewState.posts.map((post) => {
+    const row = button("", "lecture-home-board-row", "button", () => openQuestionBoardPostFromHome(post.id), [
+      el("span", { className: "lecture-home-board-main" }, [
+        el("strong", {}, post.title),
+        el("span", { className: "lecture-home-board-meta" }, [
+          el("span", {}, post.authorName),
+          el("time", {}, formatQuestionBoardDate(post.createdAt)),
+          el("span", {}, `조회 ${post.viewCount}`),
+        ]),
+      ]),
+      el("span", { className: "lecture-home-board-comments", ariaLabel: `댓글 ${post.commentCount}개` }, [
+        el("strong", {}, String(post.commentCount)),
+        el("small", {}, "댓글"),
+      ]),
+    ]);
+    return row;
+  });
+  const content = questionBoardHomePreviewState.loading
+    ? el("div", { className: "lecture-home-board-state" }, "게시글을 불러오는 중입니다.")
+    : questionBoardHomePreviewState.error
+      ? el("div", { className: "lecture-home-board-state" }, "게시글을 불러오지 못했습니다.")
+      : rows.length
+        ? el("div", { className: "lecture-home-board-list" }, rows)
+        : el("div", { className: "lecture-home-board-state" }, "등록된 게시글이 없습니다.");
+  return el("section", { className: "lecture-home-board-card" }, [
+    el("div", { className: "lecture-home-section-head" }, [
+      el("div", {}, [
+        el("span", {}, "COMMUNITY"),
+        el("h2", {}, "자유 게시판"),
+      ]),
+      button("전체보기", "lecture-home-text-link", "button", openQuestionBoardListFromHome),
+    ]),
+    content,
+  ]);
+}
+
+function openQuestionBoardListFromHome() {
+  const student = getAuthedStudent();
+  if (student && questionBoardState.studentId !== student.id) resetQuestionBoardState(student.id);
+  questionBoardState.mode = "list";
+  questionBoardState.detail = null;
+  questionBoardState.search = "";
+  questionBoardState.subject = "자유";
+  questionBoardState.loaded = false;
+  navigate("question-board");
+}
+
+function openQuestionBoardPostFromHome(postId) {
+  const student = getAuthedStudent();
+  if (student && questionBoardState.studentId !== student.id) resetQuestionBoardState(student.id);
+  openQuestionPost(postId);
+  navigate("question-board");
+}
 
 function renderQuestionBoard() {
   const student = getAuthedStudent();
@@ -68,6 +163,7 @@ function renderQuestionBoard() {
     ]);
   }
   if (questionBoardState.studentId !== student.id) resetQuestionBoardState(student.id);
+  if (questionBoardHomePreviewState.studentId === String(student.id)) questionBoardHomePreviewState.loaded = false;
   syncQuestionWriteButton();
   if (!questionBoardState.loaded && !questionBoardState.loading) loadQuestionBoardHome();
 

@@ -16,12 +16,14 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
     const subject = text(body.subject, 40);
     const status = text(body.status, 20);
     const search = text(body.search, 120).toLocaleLowerCase("ko");
+    const pageSize = Math.max(1, Math.min(30, Number(body.pageSize) || 30));
     const posts = store.posts
       .filter((post) => !post.deletedAt && !post.isHidden)
       .filter((post) => !subject || post.subject === subject)
       .filter((post) => !status || post.status === status)
       .filter((post) => !search || `${post.title} ${post.body}`.toLocaleLowerCase("ko").includes(search))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, pageSize)
       .map((post) => serializePost(post, store, student.id));
     return success({ posts });
   }

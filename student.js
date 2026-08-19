@@ -446,7 +446,10 @@ function photoCaptureInput(name, options = {}) {
   const inputNode = fileInput(name);
   inputNode.disabled = disabled;
   inputNode.className = "visually-hidden-file";
-  const status = el("span", { className: `photo-input-status ${options.initialStatus ? "selected" : ""}` }, disabled ? "인증 가능 시간이 지났습니다." : options.initialStatus || "사진을 촬영해주세요.");
+  const status = el("span", {
+    className: `photo-input-status ${options.initialStatus ? "selected" : ""}`,
+    ariaLive: "polite",
+  }, disabled ? "인증 가능 시간이 지났습니다." : options.initialStatus || "사진을 촬영해주세요.");
   const preview = el("div", { className: "photo-input-preview", hidden: true });
   if (options.initialPreviewSrc) {
     preview.appendChild(el("img", { src: options.initialPreviewSrc, alt: "저장된 사진 미리보기", loading: "lazy" }));
@@ -456,6 +459,7 @@ function photoCaptureInput(name, options = {}) {
   let pickerInProgress = false;
   const fallbackTrigger = button("사진 선택", "btn secondary photo-input-button", "button", () => {
     if (disabled) return;
+    if (typeof options.onSelectionStarted === "function") options.onSelectionStarted();
     pickerInProgress = true;
     markStudentFilePickerOpen();
     inputNode.value = "";
@@ -474,6 +478,7 @@ function photoCaptureInput(name, options = {}) {
   };
   const trigger = button("인증하기", "btn secondary photo-input-button", "button", () => {
     if (disabled) return;
+    if (typeof options.onSelectionStarted === "function") options.onSelectionStarted();
     pickerInProgress = true;
     markStudentFilePickerOpen();
     setPhotoInputLoading(trigger, status, true, "사진 선택 중...");
@@ -538,7 +543,7 @@ function photoCaptureInput(name, options = {}) {
     }
     setPhotoInputLoading(trigger, status, true, "미리보기 준비 중...");
     if (thumbnailPreview) {
-      renderPhotoThumbnailPreview(file, preview, () => currentPreviewRequestId === previewRequestId);
+      await renderPhotoThumbnailPreview(file, preview, () => currentPreviewRequestId === previewRequestId);
       await finishPhotoSelection(file, () => currentPreviewRequestId === previewRequestId, trigger, status, onFileSelected, options);
       return;
     }
@@ -646,6 +651,8 @@ function setPhotoInputLoading(trigger, status, loading, text) {
 async function finishPhotoSelection(file, isCurrentSelection, trigger, status, onFileSelected, options = {}) {
   if (!file) return;
   if (typeof isCurrentSelection === "function" && !isCurrentSelection()) return;
+  if (options.retakeText) trigger.textContent = options.retakeText;
+  if (typeof options.onSelectionReady === "function") options.onSelectionReady(file);
   if (!onFileSelected) {
     status.textContent = options.selectedText || "사진이 선택되었습니다. 아래 버튼을 눌러 인증을 완료해주세요.";
     status.className = "photo-input-status selected";
@@ -746,7 +753,7 @@ function createAttendanceForm(student, options = {}) {
   if (isAttendanceHoliday()) return renderStudentAttendanceHoliday(getAttendanceHoliday());
   const isOpen = isAttendanceCheckOpen();
   const submitButton = button("출석 인증하기", "btn");
-  submitButton.disabled = !isOpen;
+  submitButton.disabled = true;
   const preArrivalButton = options.showPreArrival
     ? button("등원 전 사유신청", "btn", "button", () => {
         if (!isAttendanceCheckOpen()) return notify("출석 인정 시간이 지나 사유신청을 할 수 없습니다.");
@@ -758,7 +765,20 @@ function createAttendanceForm(student, options = {}) {
   if (preArrivalButton) preArrivalButton.disabled = !isOpen;
   const form = el("form", { className: "form-grid attendance-form" }, [
     field("출석 학생", el("strong", {}, student ? student.name + " (" + student.id + ")" : "-")),
-    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", { disabled: !isOpen, thumbnailPreview: true }), "full"),
+    field("출석 확인 현장 사진", photoCaptureInput("attendancePhoto", {
+      disabled: !isOpen,
+      thumbnailPreview: true,
+      retakeText: "사진 다시 찍기",
+      selectedText: "✓ 사진 촬영 완료 · 아직 출석 인증 전입니다. 아래 출석 인증하기 버튼을 눌러주세요.",
+      onSelectionStarted: () => {
+        submitButton.disabled = true;
+        submitButton.classList.remove("attendance-submit-ready");
+      },
+      onSelectionReady: () => {
+        submitButton.disabled = false;
+        submitButton.classList.add("attendance-submit-ready");
+      },
+    }), "full"),
     el("div", { className: "field full" }, [
       submitButton,
       preArrivalButton,

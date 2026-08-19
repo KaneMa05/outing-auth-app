@@ -4875,7 +4875,12 @@ function setAttendanceDeadline(value, enabled, options = {}) {
 }
 
 function getAttendancePhotoSrc(check) {
+  if (isTeacherReasonAttendanceCheck(check)) return "";
   return check?._localPhotoUrl || check?.photoUrl || check?.photoDataUrl || getAttendancePublicPhotoUrl(check?.photoPath) || "";
+}
+
+function isTeacherReasonAttendanceCheck(check) {
+  return String(check?.photoPath || "").startsWith("teacher-reason/");
 }
 
 function getAttendanceThumbnailSrc(check) {

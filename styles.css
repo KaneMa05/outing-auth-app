@@ -1429,6 +1429,22 @@ body:not([data-app-mode="teacher"]) .photo-input-button {
   color: var(--accent);
 }
 
+.attendance-form .photo-input-status.loading,
+.attendance-form .photo-input-status.selected {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid #9bc8ee;
+  border-radius: 8px;
+  background: #eef7ff;
+  color: var(--accent-strong);
+  line-height: 1.45;
+}
+
+.attendance-submit-ready {
+  box-shadow: 0 0 0 3px rgba(7, 93, 164, 0.14);
+}
+
 .photo-input-status.loading {
   color: var(--accent-strong);
 }
@@ -7093,7 +7109,8 @@ body:not([data-app-mode="teacher"]) .student-home {
 }
 
 .lecture-home-summary-card,
-.lecture-home-shortcuts-card {
+.lecture-home-shortcuts-card,
+.lecture-home-board-card {
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -7174,6 +7191,106 @@ body:not([data-app-mode="teacher"]) .student-home {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
+}
+
+.lecture-home-shortcut-grid.compact-three {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lecture-home-shortcut-grid.compact-three .lecture-home-shortcut {
+  min-height: 72px;
+}
+
+.lecture-home-board-list {
+  display: grid;
+}
+
+.lecture-home-board-row {
+  width: 100%;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid #e7edf2;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lecture-home-board-row:first-child {
+  border-top: 1px solid #e7edf2;
+}
+
+.lecture-home-board-row:active {
+  background: #f7f9fb;
+}
+
+.lecture-home-board-row:focus-visible {
+  outline: 2px solid #2e88c9;
+  outline-offset: -2px;
+}
+
+.lecture-home-board-main {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.lecture-home-board-main > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #20384c;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lecture-home-board-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  color: #8a99a5;
+  font-size: 0.64rem;
+}
+
+.lecture-home-board-comments {
+  width: 48px;
+  min-height: 50px;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  border-radius: 14px;
+  background: #f3f6f8;
+  color: #89949d;
+  text-align: center;
+}
+
+.lecture-home-board-comments strong {
+  color: #263642;
+  font-size: 0.84rem;
+  line-height: 1;
+}
+
+.lecture-home-board-comments small {
+  font-size: 0.6rem;
+}
+
+.lecture-home-board-state {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  border-top: 1px solid #e7edf2;
+  border-bottom: 1px solid #e7edf2;
+  color: #8595a2;
+  font-size: 0.72rem;
+  text-align: center;
 }
 
 .lecture-home-shortcut {
@@ -15150,13 +15267,22 @@ body.student-study-mode .main-shell {
 .question-board-loading { grid-auto-flow: column; min-height: 120px; }
 .question-back-button { justify-self: start; min-height: 36px; padding: 7px 12px; border: 1px solid #d9e3eb; border-radius: 99px; background: #fff; color: #4e6c83; font-size: .75rem; font-weight: 800; cursor: pointer; }
 .question-detail-card, .question-comments-section, .question-write-card { display: grid; gap: 14px; padding: 18px; border: 1px solid #e0e8ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 25px rgba(35,68,95,.06); }
+.question-detail-page { margin: -4px -18px 0; padding: 4px 18px 28px; background: #fff; gap: 0 !important; }
+.question-detail-page .question-back-button { margin-bottom: 4px; }
+.question-detail-page .question-detail-card,
+.question-detail-page .question-comments-section { padding: 20px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.question-detail-page .question-comments-section { padding-top: 26px; }
 .question-detail-card h2 { margin: 0; color: #1b354b; font-size: 1.25rem; line-height: 1.45; }
 .question-detail-body, .question-comment-body { color: #344e63; font-size: .87rem; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .question-detail-body { min-height: 100px; padding-top: 14px; border-top: 1px solid #edf1f4; }
+.question-detail-page .question-detail-body { padding-top: 4px; border-top: 0; }
 .question-detail-actions, .question-comment-actions, .question-write-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .question-comment-list { display: grid; gap: 10px; }
 .question-comment { display: grid; gap: 9px; padding: 13px; border: 1px solid #e5ebf0; border-radius: 13px; background: #fbfcfd; }
 .question-comment.teacher { border-color: #bddcf3; background: #f1f8fe; }
+.question-detail-page .question-comment { padding: 15px 0; border: 0; border-bottom: 1px solid #edf1f4; border-radius: 0; background: transparent; }
+.question-detail-page .question-comment:first-child { border-top: 1px solid #edf1f4; }
+.question-detail-page .question-comment.teacher { background: transparent; }
 .question-comment-head { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: #324e64; font-size: .73rem; }
 .question-comment-head > span:last-child { margin-left: auto; color: #94a2ad; font-size: .65rem; }
 .teacher-answer-badge { background: #d8edfc; color: #176da8; }

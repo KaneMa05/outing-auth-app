@@ -56,9 +56,11 @@ for (const route of ["home", "study-todo", "study-cafe", "mypage"]) {
 for (const route of ["question-board", "study-ranking", "study-timer"]) {
   assert.doesNotMatch(studyFooter, new RegExp(`data-route="${route}"`));
 }
-for (const route of ["study-timer", "question-board", "study-ranking", "notices"]) {
+for (const route of ["study-timer", "study-ranking", "notices"]) {
   assert.match(appSource, new RegExp(`renderLectureHomeShortcut\\("${route}"`));
 }
+assert.doesNotMatch(appSource, /renderLectureHomeShortcut\("question-board"/);
+assert.match(appSource, /renderQuestionBoardHomePreview\(student\)/);
 assert.match(studyFooter, /data-study-cafe-back[\s\S]*?hidden/);
 assert.match(studyFooter, /data-route="study-character" hidden/);
 

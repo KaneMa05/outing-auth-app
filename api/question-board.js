@@ -285,7 +285,7 @@ async function loadPostList({ studentId, body, teacher = false }) {
     return true;
   });
   const page = Math.max(1, Math.min(1000, Number(body.page) || 1));
-  const pageSize = 30;
+  const pageSize = Math.max(1, Math.min(30, Number(body.pageSize) || 30));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const authors = await loadAuthorMap(pageRows.map((row) => row.student_id));
   const counts = await loadCommentCounts(pageRows.map((row) => row.id));

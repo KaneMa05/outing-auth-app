@@ -20,7 +20,8 @@ const footerRoutes = [...lectureFooter.matchAll(/data-route="([^"]+)"/g)]
 assert.deepEqual(footerRoutes, ["home", "study-todo", "study-cafe", "mypage"]);
 assert.match(appSource, /"question-board": \(\) => requireStudentAuth\(renderQuestionBoard\)/);
 assert.match(appSource, /lecture: new Set\(\[[^\]]*"question-board"/);
-assert.match(appSource, /renderLectureHomeShortcut\("question-board"/);
+assert.doesNotMatch(appSource, /renderLectureHomeShortcut\("question-board"/);
+assert.match(appSource, /renderQuestionBoardHomePreview\(student\)/);
 assert.doesNotMatch(appSource, /visibleLectureTabs = new Set\(\[[^\]]*"question-board"/);
 assert.match(styleSource, /body\.student-study-mode \.study-cafe-footer-menu\s*\{[^}]*repeat\(4/);
 assert.match(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*box-shadow:\s*0 4px 0 currentColor, 0 8px 0 currentColor/);
@@ -49,6 +50,12 @@ assert.match(boardSource, /questionBoardState\.draftSubject = subject;\s*questio
 assert.match(boardSource, /"question-write-subject-button"/);
 assert.match(boardSource, /className: "question-board-empty question-board-list-empty"/);
 assert.match(boardSource, /const QUESTION_BOARD_DEFAULT_SUBJECTS/);
+assert.match(boardSource, /requestQuestionBoard\("list", \{ subject: "자유", pageSize: 2 \}\)/);
+assert.match(boardSource, /function renderQuestionBoardHomePreview\(student\)/);
+assert.match(boardSource, /function openQuestionBoardPostFromHome\(postId\)/);
+assert.match(styleSource, /\.lecture-home-board-row\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) 48px/);
+assert.match(styleSource, /\.lecture-home-shortcut-grid\.compact-three\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(styleSource, /\.lecture-home-shortcut-grid\.compact-three \.lecture-home-shortcut\s*\{[^}]*min-height: 72px/);
 assert.match(boardSource, /const QUESTION_BOARD_DEFAULT_SUBJECTS = \[\s*"자유"/);
 assert.match(apiSource, /const FALLBACK_SUBJECTS = \["자유"/);
 assert.match(apiSource, /new Set\(\["자유", \.\.\.configured, \.\.\.FALLBACK_SUBJECTS\]\)/);
@@ -60,6 +67,9 @@ assert.match(styleSource, /\.question-board-list-empty\s*\{[^}]*min-height: 0[^}
 assert.match(boardSource, /className: "question-post-comment-summary"/);
 assert.match(boardSource, /renderQuestionPostCard\(post, false\)/);
 assert.match(styleSource, /\.question-post-board-list\s*\{[^}]*border: 0[^}]*border-radius: 0[^}]*background: transparent/);
+assert.match(styleSource, /\.question-detail-page\s*\{[^}]*background: #fff[^}]*gap: 0/);
+assert.match(styleSource, /\.question-detail-page \.question-detail-card,[\s\S]*?\.question-detail-page \.question-comments-section\s*\{[^}]*border: 0[^}]*border-radius: 0[^}]*box-shadow: none/);
+assert.match(styleSource, /\.question-detail-page \.question-detail-body\s*\{[^}]*border-top: 0/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*z-index: 35[^}]*pointer-events: auto[^}]*touch-action: manipulation/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*bottom: 100px;[^}]*env\(safe-area-inset-bottom, 0px\)/);
 assert.match(styleSource, /\.question-subject-picker-overlay\s*\{[^}]*position: fixed[^}]*z-index: 120/);
@@ -97,6 +107,7 @@ assert.match(schemaSource, /question-board-images/);
 assert.match(schemaSource, /image_paths text\[\]/);
 assert.match(schemaSource, /cardinality\(image_paths\).*<= 3/);
 assert.match(apiSource, /board_type=eq\.subject/);
+assert.match(apiSource, /Math\.max\(1, Math\.min\(30, Number\(body\.pageSize\) \|\| 30\)\)/);
 
 const { maskName, normalizeRequired, normalizeUuid } = handler._private;
 assert.equal(maskName("홍길동"), "홍○○");
