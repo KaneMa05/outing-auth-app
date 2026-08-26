@@ -118,6 +118,7 @@ function createLectureHallSeatGroups() {
     { row: 10, zone: "lower-left", seats: [107, 108] },
     { row: 10, zone: "lower-center", seats: [109, 110, 111, 112] },
     { row: 10, zone: "lower-right", seats: [113, 114, 115, 116] },
+    { row: 11, zone: "lower-left", seats: [117, 118] },
     { row: 11, zone: "lower-center", seats: [119, 120, 121, 122] },
     { row: 11, zone: "lower-right", seats: [123, 124, 125, 126] },
   ].forEach((group) => groups.push(group));
