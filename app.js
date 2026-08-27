@@ -4000,28 +4000,20 @@ function updateStudentNavigationVisibility() {
 
 function renderStudyCafeHomeCard(student) {
   ensureStudyCafeRemoteLoaded({ render: false });
-  const seated = Boolean(studyCafePreviewState.selectedSeatId);
-  const active = Boolean(studyCafePreviewState.selectedSeatId && studyCafePreviewState.subject);
   const focusedCount = getStudyCafeFocusedCount();
-  const selectedSeatNumber = STUDY_CAFE_PREVIEW_SEATS.findIndex(
-    (seat) => seat.id === studyCafePreviewState.selectedSeatId
-  ) + 1;
-  const title = active
-    ? `${studyCafePreviewState.subject} 공부 중`
-    : seated
-      ? `${selectedSeatNumber}번 좌석 이용 중`
-      : "론박스터디 온라인 스터디카페";
-  const titleNode = !active && !seated
-    ? el("strong", { className: "student-study-cafe-card-title branded", ariaLabel: title }, [
-        el("span", { className: "brand" }, "론박스터디"),
-        el("span", { className: "online" }, "온라인"),
-        el("span", { className: "study" }, "스터디"),
-        el("span", { className: "cafe" }, "카페"),
-      ])
-    : el("strong", { className: "student-study-cafe-card-title" }, title);
+  const titleNode = el(
+    "strong",
+    { className: "student-study-cafe-card-title branded", ariaLabel: "론박스터디 온라인 스터디카페" },
+    [
+      el("span", { className: "brand" }, "론박스터디"),
+      el("span", { className: "online" }, "온라인"),
+      el("span", { className: "study" }, "스터디"),
+      el("span", { className: "cafe" }, "카페"),
+    ]
+  );
   return el("section", { className: "student-study-cafe-card" }, [
     el("div", { className: "student-study-cafe-card-copy" }, [
-      el("span", { className: "student-study-cafe-card-kicker" }, active ? "집중 타이머" : seated ? "좌석 이용 중" : "ONLINE STUDY CAFE"),
+      el("span", { className: "student-study-cafe-card-kicker" }, "ONLINE STUDY CAFE"),
       titleNode,
       el("span", { className: "student-study-cafe-operating-hours" }, [
         el("span", {}, "운영 시간 :"),

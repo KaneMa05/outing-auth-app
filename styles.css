@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Hakgyoansim Poster B";
+  src: url("./fonts/HakgyoansimPosterB.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gong Gothic Light";
+  src: url("./fonts/GongGothicLight.woff") format("woff");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
 :root {
   --bg: #f3f7fb;
   --surface: #ffffff;
@@ -864,6 +880,17 @@ body {
   font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+body.student-online-mode {
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+body.student-online-mode h1,
+body.student-online-mode h2,
+body.student-online-mode h3,
+body.student-online-mode .student-study-cafe-card-title {
+  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
 .student-refresh-indicator {
@@ -5658,13 +5685,28 @@ body.student-online-mode .online-student-header {
 
 .online-student-logo {
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   color: #08294f;
+  font-family: Arial, "Helvetica Neue", sans-serif;
   font-size: 1.08rem;
   font-weight: 800;
   letter-spacing: 0.025em;
   line-height: 1;
+}
+
+.online-student-logo-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.online-student-logo-copy {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .online-student-logo strong,
@@ -8631,7 +8673,7 @@ body.student-online-mode.student-home-route .student-study-cafe-card-title.brand
   justify-content: center;
   gap: 0.14em;
   max-width: 100%;
-  font-family: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: clamp(1.85rem, 7.8vw, 2.3rem);
   font-weight: 400;
   letter-spacing: -0.012em;
