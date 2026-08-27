@@ -14,10 +14,17 @@ assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView\)/)
 assert.match(appSource, /function renderStudentPlannerSoloHeader\(\)/);
 assert.match(appSource, /curriculumAvailable && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
 assert.match(appSource, /function renderStudentPlannerMonthAction\(\)/);
+assert.match(appSource, /el\("strong", \{\}, "등록된 D-day"\)/);
+assert.doesNotMatch(appSource, /관리자 지정 D-day|관리자 지정 일정/);
 assert.match(appSource, /className: "student-planner-solo-header"/);
-assert.match(appSource, /className: "student-planner-view-switch single"[\s\S]*?el\("h2", \{ className: "student-planner-view-option active" \}, "오늘의 할 일"\)/);
+assert.match(appSource, /el\("h2", \{ className: "student-planner-solo-title" \}, "오늘의 할 일"\)/);
 assert.doesNotMatch(appSource, /className: "student-planner-solo-spacer"/);
-assert.match(styleSource, /\.student-planner-solo-header \.student-planner-view-switch\.single\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(styleSource, /\.student-planner-solo-title\s*\{[^}]*min-height: 50px[^}]*border: 1px solid #dbe4ed/);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.student-planner-solo-title\s*\{[^}]*background: rgba\(255, 255, 255, 0\.09\)[^}]*color: #f2f6f8/,
+  "a planner-only heading should look like a static section label rather than an active tab"
+);
 assert.match(appSource, /className: "study-todo-calendar-button student-planner-month-button"/);
 assert.match(appSource, /className: "student-planner-month-label" \}, "월간 플래너"/);
 assert.match(appSource, /label: "오늘의 할 일"[\s\S]*?label: "커리큘럼"/);

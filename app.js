@@ -3800,7 +3800,7 @@ function readStudentDdayPreference(student = getAuthedStudent()) {
       };
     }
   } catch {
-    // 손상된 개인 설정은 관리자 지정 D-day로 복구합니다.
+    // 손상된 개인 설정은 등록된 D-day로 복구합니다.
   }
   return { mode: "admin" };
 }
@@ -3846,7 +3846,7 @@ function openStudentDdayModal() {
     el("label", { className: "student-dday-choice" }, [
       adminRadio,
       el("span", {}, [
-        el("strong", {}, "관리자 지정 D-day"),
+        el("strong", {}, "등록된 D-day"),
         el("small", {}, `${adminDday.label} · ${formatExamDate(adminDday.date)} · ${formatDday(adminDday.date)}`),
       ]),
     ]),
@@ -3923,7 +3923,7 @@ function openAdminStudentDdayModal() {
           body: JSON.stringify({
             settings: {
               studentDday: {
-                label: String(labelInput.value || "관리자 지정 일정").trim().slice(0, 40) || "관리자 지정 일정",
+                label: String(labelInput.value || "등록된 일정").trim().slice(0, 40) || "등록된 일정",
                 date,
               },
             },
@@ -4116,9 +4116,7 @@ function renderStudentPlannerHub() {
 function renderStudentPlannerSoloHeader() {
   const selectedDateKey = getSelectedStudyTodoDateKey();
   return el("header", { className: "student-planner-solo-header" }, [
-    el("div", { className: "student-planner-view-switch single", ariaLabel: "학습 화면" }, [
-      el("h2", { className: "student-planner-view-option active" }, "오늘의 할 일"),
-    ]),
+    el("h2", { className: "student-planner-solo-title" }, "오늘의 할 일"),
     renderStudentPlannerMonthButton(selectedDateKey),
   ]);
 }
