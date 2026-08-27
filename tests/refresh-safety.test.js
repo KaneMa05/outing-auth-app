@@ -89,6 +89,31 @@ assert.match(
 );
 assert.match(
   source,
+  /function isStudentInteractiveTarget\(target\)[\s\S]*?button, a,[\s\S]*?\[role='dialog'\],[\s\S]*?\[role='alertdialog'\]/,
+  "touches on modal controls must not begin the pull-to-refresh gesture"
+);
+assert.match(
+  source,
+  /function shouldPauseStudentRemoteRefresh\(\)[\s\S]*?hasOpenAppModal\(\)/,
+  "student refresh gestures must pause while an app modal is open"
+);
+assert.match(
+  source,
+  /function openInfoModal\([\s\S]*?closeLoadingModal\(\);[\s\S]*?closeInfoModal\(\);/,
+  "opening the next information modal must remove a stale loading overlay"
+);
+assert.match(
+  source,
+  /function closeLoadingModal\(\)[\s\S]*?querySelectorAll\("\.loading-modal"\)[\s\S]*?resetStudentPullRefresh\(\)/,
+  "closing loading UI must remove every overlay and reset the top refresh indicator"
+);
+assert.match(
+  source,
+  /function closeInfoModal\(\)[\s\S]*?resetStudentPullRefresh\(\)/,
+  "closing an information modal must clear an interrupted pull-to-refresh indicator"
+);
+assert.match(
+  source,
   /const nextOuting = existing \|\| mapped;[\s\S]*Object\.assign\(nextOuting, mapped/,
   "realtime updates must preserve the outing object used by an in-flight photo upload"
 );

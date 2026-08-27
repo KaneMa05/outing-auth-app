@@ -21,6 +21,10 @@ module.exports = async function handler(req, res) {
       const body = await readJson(req);
       const action = normalizeText(body.action, 30);
       if (action === "config") return handleConfig(res);
+      if (action === "inbox") {
+        await handleStudentInbox(body, req, res);
+        return;
+      }
       if (["status", "subscribe", "unsubscribe", "preferences"].includes(action)) {
         await handleStudentSubscription(action, body, req, res);
         return;
@@ -64,6 +68,51 @@ function handleConfig(res) {
     available: isPushConfigured(),
     publicKey: isPushConfigured() ? String(process.env.VAPID_PUBLIC_KEY || "").trim() : "",
   });
+}
+
+async function handleStudentInbox(body, req, res) {
+  const studentId = normalizeText(body.studentId, 64);
+  const deviceToken = normalizeText(body.deviceToken, 256);
+  if (!studentId || !deviceToken) {
+    res.status(400).json({ ok: false, error: "missing_required_fields" });
+    return;
+  }
+  const validation = await validateStudentDevice(studentId, hashDeviceToken(deviceToken), req);
+  if (validation?.error || validation?.valid !== true) {
+    res.status(403).json({ ok: false, error: "device_not_active" });
+    return;
+  }
+  const students = await requestSupabase(
+    "GET",
+    `students?id=eq.${encodeURIComponent(studentId)}&is_active=eq.true&select=id,student_category&limit=1`
+  );
+  const student = students?.[0];
+  if (!student) {
+    res.status(404).json({ ok: false, error: "student_not_found" });
+    return;
+  }
+  const rows = await requestSupabase(
+    "GET",
+    `${MESSAGES_TABLE}?select=id,title,body,target_type,target_category,target_student_ids,created_at&order=created_at.desc&limit=100`
+  );
+  const messages = (rows || [])
+    .filter((message) => isMessageForStudent(message, studentId, student.student_category))
+    .slice(0, 50)
+    .map((message) => ({
+      id: message.id,
+      title: message.title || "알림",
+      body: message.body || "",
+      createdAt: message.created_at,
+    }));
+  res.status(200).json({ ok: true, messages });
+}
+
+function isMessageForStudent(message, studentId, studentCategory) {
+  if (message?.target_type === "all") return true;
+  if (message?.target_type === "category") return message.target_category === studentCategory;
+  if (message?.target_type !== "students") return false;
+  return Array.isArray(message.target_student_ids)
+    && message.target_student_ids.map(String).includes(String(studentId));
 }
 
 async function handleStudentSubscription(action, body, req, res) {

@@ -66,6 +66,15 @@ http
       await handleLocalCurriculumProgress(req, res);
       return;
     }
+    if (url.pathname === "/api/student-push" && req.method === "POST") {
+      const body = await readLocalJson(req);
+      if (body.action === "inbox") {
+        const localStudent = getLocalPreviewStudent(body);
+        if (!localStudent) return sendLocalJson(res, 403, { ok: false, error: "device_not_active" });
+        return sendLocalJson(res, 200, { ok: true, messages: [], localPreview: true });
+      }
+      req.body = body;
+    }
     if (url.pathname === "/api/question-board" && req.method === "POST") {
       const body = await readLocalJson(req);
       const localStudent = getLocalPreviewStudent(body);
@@ -348,6 +357,7 @@ function readLocalAppSettings() {
     attendanceDeadlineEnabled: false,
     onlineManagedStudyCafeEnabled: false,
     curriculumQuestEnabled: false,
+    studentDday: null,
   };
   if (!fs.existsSync(LOCAL_APP_SETTINGS_FILE)) return defaults;
   try {

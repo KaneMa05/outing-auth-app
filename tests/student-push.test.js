@@ -68,6 +68,9 @@ assert.match(appSource, /STUDENT_PUSH_PROMPT_SNOOZE_MS = 7 \* 24 \* 60 \* 60 \* 
 assert.match(appSource, /STUDENT_PUSH_PROMPT_MAX_DISMISSALS = 3/);
 assert.match(appSource, /"push-settings": \(\) => requireStudentAuth\(renderStudentPushSettings\)/);
 assert.match(appSource, /function renderStudentPushSettings\(\)/);
+assert.match(appSource, /notifications: \(\) => requireStudentAuth\(renderStudentNotifications\)/);
+assert.match(appSource, /function renderStudentNotifications\(\)/);
+assert.match(appSource, /action: "inbox"/);
 assert.match(appSource, /const category = getStudentCategory\(student\)/);
 assert.match(appSource, /function getStudentPushPreferenceOptions\(category\)/);
 assert.match(appSource, /categories: \["offline", "online_managed", "lecture"\]/);
@@ -175,6 +178,30 @@ const originalEnv = {
   const unsubscribeBody = JSON.parse(subscribeRequests.at(-1).options.body);
   assert.equal(unsubscribeBody.enabled, false);
   assert.equal(subscribeRequests[1].options.body.includes("device-token"), false);
+
+  global.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes("rpc/validate_student_device")) return jsonResponse({ valid: true });
+    if (value.includes("students?id=eq.18001")) {
+      return jsonResponse([{ id: "18001", student_category: "lecture" }]);
+    }
+    if (value.includes("student_push_messages?select=")) {
+      return jsonResponse([
+        { id: "all", title: "전체", body: "전체 알림", target_type: "all", target_student_ids: [], created_at: "2026-08-27T00:00:00Z" },
+        { id: "category", title: "강의반", body: "반 알림", target_type: "category", target_category: "lecture", target_student_ids: [], created_at: "2026-08-26T00:00:00Z" },
+        { id: "direct", title: "개별", body: "개별 알림", target_type: "students", target_student_ids: ["18001"], created_at: "2026-08-25T00:00:00Z" },
+        { id: "other", title: "다른 학생", body: "제외", target_type: "students", target_student_ids: ["18002"], created_at: "2026-08-24T00:00:00Z" },
+      ]);
+    }
+    throw new Error(`unexpected inbox request: ${value}`);
+  };
+  const inbox = await invoke("POST", {
+    action: "inbox",
+    studentId: "18001",
+    deviceToken: "device-token",
+  });
+  assert.equal(inbox.statusCode, 200);
+  assert.deepEqual(inbox.payload.messages.map((message) => message.id), ["all", "category", "direct"]);
 
   const unauthorized = await invoke("GET");
   assert.equal(unauthorized.statusCode, 401);

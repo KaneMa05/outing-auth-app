@@ -11,10 +11,17 @@ const sharedSource = fs.readFileSync(path.join(root, "shared.js"), "utf8");
 assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentPlannerHub\)/);
 assert.match(appSource, /function renderStudentPlannerHub\(\)/);
 assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView\)/);
+assert.match(appSource, /function renderStudentPlannerSoloHeader\(\)/);
+assert.match(appSource, /curriculumAvailable && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
+assert.match(appSource, /function renderStudentPlannerMonthAction\(\)/);
+assert.match(appSource, /className: "student-planner-solo-header"/);
+assert.match(appSource, /el\("h2", \{\}, "오늘의 할 일"\)/);
+assert.match(appSource, /className: "study-todo-calendar-button student-planner-month-button"/);
+assert.match(appSource, /className: "student-planner-month-label" \}, "월간 플래너"/);
 assert.match(appSource, /label: "오늘의 할 일"[\s\S]*?label: "커리큘럼"/);
 assert.doesNotMatch(appSource, /className: "study-todo-page-head"/);
 assert.doesNotMatch(styleSource, /\.study-todo-page-head\s*\{/);
-assert.match(appSource, /className: "study-todo-calendar-button"/);
+assert.match(appSource, /className: "study-todo-calendar-button student-planner-month-button"/);
 assert.match(appSource, /function renderStudyTodoMonthlyCalendar\(selectedDateKey\)/);
 assert.match(appSource, /function ensureStudyTodoMonthSummary\(monthKey\)/);
 assert.match(appSource, /requestStudyCafeAction\("todo_month_summary", \{ monthKey \}\)/);
@@ -163,6 +170,14 @@ assert.match(appSource, /seatButton\.click\(\)/);
 assert.match(styleSource, /\.study-cafe-planner-entry-guide\.ready/);
 assert.match(styleSource, /\.study-cafe-todo-redirect-seat/);
 assert.match(
+  styleSource,
+  /body\.student-online-mode \.study-cafe-planner-entry-actions \.btn\s*\{[^}]*background: #477f8c[^}]*color: #fff/
+);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.study-cafe-planner-entry-actions \.btn\.secondary\s*\{[^}]*background: #e8f1f3[^}]*color: #365f6a/
+);
+assert.match(
   sharedSource,
   /function openInfoModal\(\{[\s\S]*?confirmDisabled = false[\s\S]*?return \{ modal, confirmButton \}/
 );
@@ -288,10 +303,20 @@ assert.doesNotMatch(
 );
 assert.match(appSource, /return getStudentCategory\(student\) === "lecture"/);
 assert.match(appSource, /onlineMode \? renderStudyCafeHomeCard\(student\) : null/);
+assert.match(appSource, /className: "student-study-cafe-card-title branded"/);
+assert.match(appSource, /className: "brand" \}, "론박스터디"[\s\S]*?className: "online" \}, "온라인"[\s\S]*?className: "study" \}, "스터디"[\s\S]*?className: "cafe" \}, "카페"/);
+assert.match(appSource, /론박스터디 온라인 스터디카페/);
+assert.match(appSource, /seated \? "좌석 이용 중" : "ONLINE STUDY CAFE"/);
+assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-size: clamp\(1\.85rem, 7\.8vw, 2\.3rem\)/);
+assert.match(indexSource, /family=Jua&display=swap/);
+assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-family: "Jua"/);
+assert.doesNotMatch(styleSource, /\.student-study-cafe-card-title\.branded \.study\s*\{/);
 assert.match(appSource, /onlineMode \? null : renderStudentImportantNoticeCard\(\)/);
 assert.match(appSource, /function getStudyCafeFocusedCount\(\)/);
 assert.match(appSource, /function updateStudyCafeHomeLiveCount\(\)/);
 assert.match(appSource, /data-study-cafe-home-live-count/);
+assert.match(appSource, /className: "student-study-cafe-operating-hours"[\s\S]*?"운영 시간 :"[\s\S]*?"24시간"/);
+assert.match(appSource, /className: "student-study-cafe-live-badge" \}, "LIVE"/);
 assert.match(appSource, /const focusedCount = getStudyCafeFocusedCount\(\)/);
 assert.doesNotMatch(appSource, /현재 5명이 함께 공부하고 있어요/);
 assert.match(appSource, /button\("스터디카페 입장", "btn", "button", \(\) => navigate\("study-cafe"\)\)/);
@@ -306,6 +331,34 @@ assert.match(appSource, /function ensureStudyCafePreviewClock\(\)[\s\S]*?updateL
 assert.match(appSource, /const allowedRoutes = getAllowedStudentRoutes\(category\)/);
 assert.match(appSource, /function defaultRoute\(\) \{\s*return "home";/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-online-mode", onlineMode\)/);
+assert.match(appSource, /function openStudentDdayModal\(\)/);
+assert.match(appSource, /function openAdminStudentDdayModal\(\)/);
+assert.match(appSource, /mode: "custom"[\s\S]*?mode: "admin"/);
+assert.match(indexSource, /data-online-student-dday/);
+assert.match(appSource, /document\.body\.classList\.toggle\("student-home-route", APP_MODE !== "teacher" && currentRoute === "home"\)/);
+assert.match(styleSource, /body\.student-online-mode\s*\{[^}]*--student-page-bg: #0b2746[^}]*linear-gradient\(165deg, #0a223e/);
+assert.match(styleSource, /body\.student-online-mode\.student-home-route\s*\{[^}]*--student-page-bg: #0b2746/);
+assert.doesNotMatch(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.content-area\s*\{[^}]*background:/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.study-timer-page-head,[\s\S]*?background: transparent/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.panel,[\s\S]*?box-shadow: none/);
+assert.match(styleSource, /--online-brand-accent: #2a8c82/);
+assert.doesNotMatch(styleSource, /--online-toss-blue|#3182f6|rgba\(49, 130, 246/);
+assert.match(styleSource, /body\.student-online-mode \.student-planner-view-option\.active\s*\{[^}]*background: var\(--online-brand-accent\)[^}]*color: #fff/);
+assert.match(styleSource, /body\.student-online-mode \.study-todo-progress-track i\s*\{[^}]*background: var\(--online-brand-accent\)/);
+assert.match(styleSource, /body\.student-online-mode \.student-mypage \.student-avatar\s*\{[^}]*rgba\(42, 140, 130, 0\.2\)[^}]*color: #83d0c5/);
+assert.match(styleSource, /body\.student-online-mode \.normal-student-footer\s*\{[^}]*background: rgba\(14, 42, 67, 0\.96\)/);
+assert.match(styleSource, /body\.student-online-mode \.study-todo-date-navigation,[\s\S]*?background: #e9f0f2/);
+assert.match(styleSource, /body\.student-online-mode \.study-todo-item\s*\{[^}]*background: #dde7ea/);
+assert.match(styleSource, /body\.student-online-mode \.student-mypage \.student-profile-card,[\s\S]*?background: #e9f0f2/);
+assert.match(styleSource, /body\.student-online-mode \.student-mypage \.student-install-card \.btn\.secondary\s*\{[^}]*background: #d8ebe7[^}]*color: #176d68/);
+assert.match(styleSource, /body\.student-online-mode \.student-planner-hub\.curriculum \.curriculum-subject-tab\.active\s*\{[^}]*background: #2a8c82/);
+assert.match(styleSource, /body\.student-online-mode \.student-planner-hub\.curriculum \.curriculum-stage-list::before\s*\{[^}]*display: none/);
+assert.match(styleSource, /body\.student-online-mode \.student-planner-hub\.curriculum \.curriculum-lecture-row,[\s\S]*?background: #f7f9fa/);
+assert.match(styleSource, /body\.student-online-mode\.student-home-route \.student-study-cafe-card\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)[^}]*min-height: 286px/);
+assert.match(styleSource, /body\.student-online-mode\.student-home-route \.student-study-cafe-card > \.btn\s*\{[^}]*width: 100%[^}]*min-height: 52px/);
+assert.match(styleSource, /\.lecture-home-shortcuts-card\s*\{[^}]*background: #d5dee8/);
+assert.match(styleSource, /body\.student-online-mode\.student-home-route \.lecture-home-board-card\s*\{[^}]*linear-gradient\(145deg, #f1f7fa/);
+assert.match(styleSource, /body\.student-online-mode\.student-home-route \.lecture-home-board-comments\s*\{[^}]*background: #edf4f8/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-study-mode", studyMode\)/);
 assert.match(indexSource, /class="student-footer-menu study-cafe-footer-menu"/);
 assert.match(
@@ -489,7 +542,7 @@ assert.match(appSource, /function normalizeStudyCafeNickname\(value\)/);
 assert.match(appSource, /name: getStudyCafeDisplayName\("나"\)/);
 assert.match(appSource, /"data-study-character-name": "true"/);
 assert.match(appSource, /inStudentFooter && \["study-character", "push-settings"\]\.includes\(currentRoute\)[\s\S]*?\? "mypage"/);
-assert.match(appSource, /inStudentFooter && \["study-timer", "study-ranking", "question-board", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
+assert.match(appSource, /inStudentFooter && \["study-timer", "study-ranking", "question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
 assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
 assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*grid-column: 1 \/ -1/);
 assert.match(styleSource, /\.study-character-back-button/);
@@ -556,6 +609,15 @@ assert.match(appSource, /function openStudyTimerFullscreen\(\)/);
 assert.match(appSource, /function closeStudyTimerFullscreen\(\)/);
 assert.match(appSource, /function renderStudyTimerFullscreen\(student\)/);
 assert.match(appSource, /timerFullscreen: false/);
+assert.match(appSource, /timerFullscreenReturnRoute: ""/);
+assert.match(
+  appSource,
+  /function openStudyTimerFullscreen\(\)[\s\S]*?timerFullscreenReturnRoute = currentRoute === "study-cafe" \? "study-cafe" : ""/
+);
+assert.match(
+  appSource,
+  /function closeStudyTimerFullscreen\(\)[\s\S]*?const returnRoute = studyCafePreviewState\.timerFullscreenReturnRoute[\s\S]*?timerFullscreenReturnRoute = ""[\s\S]*?returnRoute === "study-cafe"[\s\S]*?navigate\(returnRoute\)/
+);
 assert.match(appSource, /ariaLabel: "타이머 전체화면 모드"/);
 assert.match(appSource, /document\.querySelectorAll\("\[data-study-total-time\]"\)/);
 assert.doesNotMatch(appSource, /button\("과목 편집", "study-subject-edit-button"/);
@@ -711,23 +773,27 @@ assert.match(
 );
 assert.match(
   styleSource,
+  /\.study-cafe-my-seat-actions time\s*\{[^}]*padding: 6px 9px[^}]*font-size: 0\.92rem/
+);
+assert.match(
+  styleSource,
   /@media \(max-width: 430px\)[\s\S]*?\.study-cafe-my-seat-actions\s*\{[^}]*top: 11px[^}]*right: 14px[^}]*bottom: 11px/
 );
 assert.match(appSource, /el\("strong", \{\}, "RONPARK STUDYCAFE"\)/);
 assert.match(appSource, /className: `study-cafe-room theme-\$\{activeRoom\.theme\} \$\{rankingRoomActive/);
+assert.match(appSource, /\$\{seated \? "has-selected-seat" : ""\}/);
 assert.match(appSource, /ariaLabel: `\$\{activeRoom\.label\} \$\{activeRoom\.mood\} 좌석 배치`/);
 assert.match(appSource, /theme: "oak", label: "랭킹룸", mood: "오늘 순공 랭킹"/);
-assert.match(appSource, /theme: "dawn", label: "A룸", mood: "밝고 차분한 톤"/);
-assert.match(appSource, /theme: "forest", label: "B룸", mood: "편안한 그린톤"/);
-assert.match(appSource, /theme: "night", label: "C룸", mood: "차분한 딥블루톤"/);
-assert.match(appSource, /STUDY_CAFE_ROOM_THEMES\.slice\(0, 4\)/);
+assert.match(appSource, /theme: "dawn", label: "자유석", mood: "편안하게 집중하는 공간"/);
+assert.doesNotMatch(appSource, /label: "[ABC]룸"/);
+assert.match(appSource, /const STUDY_CAFE_ROOMS = STUDY_CAFE_ROOM_THEMES\.map/);
 assert.match(styleSource, /\.study-cafe-room\.theme-dawn/);
 assert.match(styleSource, /\.study-cafe-room\.theme-forest/);
 assert.match(styleSource, /\.study-cafe-room\.theme-classic/);
 assert.match(styleSource, /\.study-cafe-room\.theme-night/);
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-seat\.mine\s*\{[^}]*var\(--room-accent-soft\)[^}]*var\(--room-accent\)/
+  /\.study-cafe-room \.study-cafe-seat\.mine\s*\{[^}]*background: rgba\(255, 255, 255, 0\.94\)[^}]*box-shadow: inset 0 0 0 3px #6ca6a3/
 );
 assert.match(
   styleSource,
@@ -787,7 +853,7 @@ assert.match(styleSource, /\.study-cafe-seat-grid/);
 assert.match(
   styleSource,
   /\.study-cafe-seat-grid\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/,
-  "student study cafe seats should use a dense four-column layout"
+  "student study cafe seats should use a four-column mobile layout"
 );
 assert.match(
   styleSource,
@@ -806,22 +872,68 @@ assert.match(
   /body\.student-study-mode \.brand,\s*body\.student-study-mode \.main-shell\s*\{[^}]*width: min\(1120px, calc\(100% - 64px\)\)/
 );
 assert.match(styleSource, /\.study-cafe-room-tabs/);
-assert.match(styleSource, /\.study-cafe-room-tabs\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+assert.match(styleSource, /\.study-cafe-room-tabs\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(styleSource, /\.study-cafe-room-tab\.active/);
+assert.match(appSource, /className: "study-cafe-seat-section-head"[\s\S]*?"좌석 현황"/);
+assert.match(
+  styleSource,
+  /\.study-cafe-seat-section-head::after\s*\{[^}]*height: 1px[^}]*background: rgba\(64, 108, 120, 0\.32\)/,
+  "room tabs and the seat list should be separated by a subtle labeled divider"
+);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.info-modal\s*\{[^}]*--accent: #477f8c[^}]*--study-room-modal-action: #477f8c/,
+  "online-student modals should inherit the light study cafe action palette"
+);
+assert.match(
+  styleSource,
+  /\.study-room-create-button,[\s\S]*?\.study-room-join-button\s*\{[^}]*background: var\(--study-room-modal-action, #477f8c\)/,
+  "study room modal actions should not use the legacy saturated blue"
+);
 assert.match(appSource, /className: "study-cafe-seat-number"/);
-assert.match(appSource, /className: "study-cafe-seat-number" }, displaySeatLabel/);
+assert.match(appSource, /displaySeatLabel \? el\("span", \{ className: "study-cafe-seat-number" \}, displaySeatLabel\) : null/);
 assert.match(appSource, /function getStudyCafeSeatOccupant\(seat, seatNumber, student\)/);
 assert.match(appSource, /`\$\{selectedSeatNumber\}번 좌석에서 집중 중`/);
 assert.match(appSource, /const STUDY_CAFE_ROOM_SIZE = 48/);
-assert.match(appSource, /const STUDY_CAFE_SEAT_COUNT = 192/);
+assert.match(appSource, /const STUDY_CAFE_SEAT_COUNT = 96/);
 assert.match(appSource, /const STUDY_CAFE_RANKING_ROOM_INDEX = 0/);
 assert.match(appSource, /const STUDY_CAFE_RANKING_REFRESH_INTERVAL_MS = 15 \* 1000/);
 assert.match(appSource, /label: "랭킹룸"/);
-assert.match(appSource, /label: "A룸"/);
-assert.match(appSource, /label: "B룸"/);
-assert.match(appSource, /label: "C룸"/);
+assert.match(appSource, /label: "자유석"/);
+assert.match(appSource, /endSeat: \(index \+ 1\) \* STUDY_CAFE_ROOM_SIZE/);
+assert.match(styleSource, /\.study-cafe-room\s*\{[^}]*--room-floor: #dcebed[^}]*--room-muted: #4e6d79[^}]*--room-accent: #347a78[^}]*--room-button: #477f8c/);
+assert.match(styleSource, /\.study-cafe-room\.theme-dawn\s*\{[^}]*--room-floor: #e1ebf1[^}]*--room-muted: #526c7a[^}]*--room-accent: #3f797f[^}]*--room-button: #4b7f8e/);
+assert.match(styleSource, /\.study-cafe-room\s*\{[^}]*--room-desk: #6b4b38[^}]*--room-desk-top: #81604a[^}]*--room-desk-edge: #463225/);
+assert.match(styleSource, /\.study-cafe-room\.theme-dawn\s*\{[^}]*--room-desk: #6b4b38[^}]*--room-desk-top: #81604a[^}]*--room-desk-edge: #463225/);
+assert.match(styleSource, /\.study-cafe-room-tab\s*\{[^}]*background: rgba\(255, 255, 255, 0\.78\)/);
+assert.match(styleSource, /\.study-cafe-room-tab\.active\s*\{[^}]*background: var\(--room-button\)[^}]*color: #fff/);
+assert.match(styleSource, /\.study-cafe-seat\.empty\s*\{[^}]*var\(--room-accent\)[^}]*rgba\(255, 255, 255, 0\.46\)/);
+assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-seat:not\(\.mine\)\s*\{[^}]*border-color: transparent[^}]*background: transparent/);
+assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-empty-plus\s*\{[^}]*display: none/);
+assert.match(styleSource, /\.study-cafe-room\.ranking-room\.has-selected-seat \.study-cafe-seat\.empty \.study-cafe-seat-number\s*\{[^}]*display: none/);
+assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-copy p\s*\{[^}]*color: #58717d/);
+assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-card::after\s*\{[^}]*display: none/);
+assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-card\s*\{[^}]*background: #edf6f7/);
+assert.match(styleSource, /\.study-cafe-room \.study-cafe-seat\.mine\s*\{[^}]*background: rgba\(255, 255, 255, 0\.94\)[^}]*#6ca6a3/);
+assert.match(appSource, /className: "study-cafe-empty-plus" \}, "\+ 입장"/);
+assert.match(styleSource, /\.study-cafe-empty-plus\s*\{[^}]*border-radius: 9px[^}]*background: var\(--room-button\)/);
+assert.match(styleSource, /\.study-cafe-floating-menu-button\s*\{[^}]*min-width: 104px[^}]*border-radius: 12px[^}]*background: var\(--study-cafe-button\)/);
+assert.match(styleSource, /\.study-cafe-countdown-number\s*\{[^}]*border-radius: 14px/);
+assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-release-button,[\s\S]*?\.study-cafe-room \.study-cafe-my-seat-fullscreen-button\s*\{[^}]*background: var\(--room-button\)[^}]*color: #fff/);
+assert.match(styleSource, /\.study-cafe-seat-name\s*\{[^}]*background: #315b68[^}]*color: #ffffff/);
+assert.match(styleSource, /\.study-cafe-seat-name em\s*\{[^}]*color: #d8e8ec/);
+assert.match(styleSource, /\.study-cafe-member-time\s*\{[^}]*background: color-mix\(in srgb, var\(--room-accent\) 24%, white\)[^}]*color: #12374a/);
+assert.match(appSource, /normalizedSeat <= STUDY_CAFE_ROOM_SIZE[\s\S]*?STUDY_CAFE_RANKING_ROOM_INDEX[\s\S]*?: 1/);
+assert.match(appSource, /room\.endSeat - room\.startSeat \+ 1/);
 assert.match(appSource, /Array\.from\(\{ length: STUDY_CAFE_SEAT_COUNT \}/);
 assert.match(appSource, /function renderStudyCafeRoomTabs\(student\)/);
+assert.match(appSource, /function openStudyCafeRankingGuideModal\(\)/);
+assert.match(appSource, /data-study-cafe-ranking-help/);
+assert.match(appSource, /오늘 누적된 순공시간이 긴 순서대로/);
+assert.match(appSource, /순위는 15초마다 갱신/);
+assert.match(appSource, /공부 중 이동해도 타이머는 유지됩니다/);
+assert.match(styleSource, /\.study-cafe-ranking-help-button/);
+assert.match(styleSource, /\.study-cafe-ranking-guide-list/);
 assert.match(appSource, /function selectStudyCafeRoom\(roomIndex, student\)/);
 assert.match(appSource, /function renderStudyCafeRoomSeatNodes\(roomIndex, student, options = \{\}\)/);
 assert.match(appSource, /function getStudyCafeRankingRoomEntries\(student, options = \{\}\)/);
@@ -841,7 +953,7 @@ assert.doesNotMatch(appSource, /className: "study-cafe-ranking-room-guide"/);
 assert.match(appSource, /function ensureStudyCafeRankingRoomRefresh\(\)/);
 assert.match(appSource, /function refreshStudyCafeRankingRoomView\(\)/);
 assert.match(appSource, /"data-study-cafe-physical-seat-number": String\(seatNumber\)/);
-assert.match(appSource, /rankingRoom\s*\? occupant \? String\(rank\) : "입장"/);
+assert.match(appSource, /rankingRoom\s*\? occupant \? String\(rank\) : ""/);
 assert.doesNotMatch(appSource, /study-cafe-ranking-entry-label/);
 assert.match(appSource, /className: `study-cafe-rank-change/);
 assert.match(appSource, /studying: occupant\.status === "studying"/);

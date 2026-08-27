@@ -37,6 +37,7 @@ module.exports = async function handler(req, res) {
         rawSettings,
         "curriculumQuestEnabled"
       );
+      const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday");
       if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
@@ -50,6 +51,10 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (writesCurriculumQuest && !hasPermission(session, "curriculum.write")) {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      if (writesStudentDday && !hasPermission(session, "notices.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
@@ -115,11 +120,22 @@ function normalizeSettings(settings) {
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
     onlineManagedStudyCafeEnabled: settings.onlineManagedStudyCafeEnabled === true,
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
+    studentDday: normalizeStudentDday(settings.studentDday),
   };
   if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {
     normalized.seatAssignments = normalizeSeatAssignments(settings.seatAssignments);
   }
   return normalized;
+}
+
+function normalizeStudentDday(value) {
+  if (!value || typeof value !== "object") return null;
+  const date = String(value.date || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00:00`).getTime())) return null;
+  return {
+    label: String(value.label || "관리자 지정 일정").trim().slice(0, 40) || "관리자 지정 일정",
+    date,
+  };
 }
 
 function normalizeAttendanceDeadlineValue(value) {

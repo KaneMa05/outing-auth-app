@@ -90,6 +90,14 @@ const originalEnv = {
   assert.equal(curriculumForbiddenResponse.statusCode, 403);
   assert.equal(fetchCalled, false);
 
+  const ddayForbiddenResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { studentDday: { label: "시험", date: "2026-10-24" } } }, managerToken),
+    ddayForbiddenResponse
+  );
+  assert.equal(ddayForbiddenResponse.statusCode, 403);
+  assert.equal(fetchCalled, false);
+
   const adminToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "admin",
     role: "admin",
@@ -125,6 +133,17 @@ const originalEnv = {
   );
   assert.equal(curriculumAdminResponse.statusCode, 200);
   assert.equal(curriculumAdminResponse.payload.settings.curriculumQuestEnabled, true);
+
+  const ddayAdminResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { studentDday: { label: "  해양경찰 시험  ", date: "2026-10-24" } } }, adminToken),
+    ddayAdminResponse
+  );
+  assert.equal(ddayAdminResponse.statusCode, 200);
+  assert.deepEqual(ddayAdminResponse.payload.settings.studentDday, {
+    label: "해양경찰 시험",
+    date: "2026-10-24",
+  });
 
   console.log("app settings toggle tests passed");
 })()

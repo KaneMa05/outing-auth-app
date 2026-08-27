@@ -553,12 +553,17 @@ html {
   border: 0;
   border-radius: 9px;
   padding: 8px 11px;
-  background: #176fae;
+  background: var(--study-room-modal-action, #477f8c);
   color: #fff;
   font: inherit;
   font-size: 0.76rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.study-room-create-button:hover,
+.study-room-join-button:hover {
+  background: var(--study-room-modal-action-hover, #3b6f7b);
 }
 
 .study-room-list {
@@ -5557,6 +5562,28 @@ body:not([data-app-mode="teacher"]) {
   background: var(--student-page-bg);
 }
 
+body.student-online-mode {
+  --student-page-bg: #0b2746;
+  background-color: #0b2746;
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(60, 126, 190, 0.42) 0, transparent 34%),
+    radial-gradient(circle at 94% 28%, rgba(33, 157, 150, 0.24) 0, transparent 32%),
+    radial-gradient(circle at 12% 82%, rgba(112, 78, 169, 0.2) 0, transparent 34%),
+    linear-gradient(165deg, #0a223e 0%, #10345a 48%, #0a2949 100%);
+  background-attachment: fixed;
+}
+
+body.student-online-mode.student-home-route {
+  --student-page-bg: #0b2746;
+  background-color: #0b2746;
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(60, 126, 190, 0.42) 0, transparent 34%),
+    radial-gradient(circle at 94% 28%, rgba(33, 157, 150, 0.24) 0, transparent 32%),
+    radial-gradient(circle at 12% 82%, rgba(112, 78, 169, 0.2) 0, transparent 34%),
+    linear-gradient(165deg, #0a223e 0%, #10345a 48%, #0a2949 100%);
+  background-attachment: fixed;
+}
+
 body:not([data-app-mode="teacher"])::after {
   content: "";
   position: fixed;
@@ -5596,6 +5623,342 @@ body:not([data-app-mode="teacher"]) .main-shell {
   width: min(420px, 100%);
   margin: 0 auto;
   padding: 4px 18px var(--student-content-bottom);
+}
+
+.online-student-header {
+  display: none;
+}
+
+body.student-online-mode .sidebar {
+  display: none;
+}
+
+body.student-online-mode .main-shell {
+  padding-top: calc(14px + var(--student-safe-top));
+}
+
+body.student-online-mode .online-student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+  margin-bottom: 12px;
+}
+
+.online-student-logo,
+.online-student-notice-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.online-student-logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: #08294f;
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  line-height: 1;
+}
+
+.online-student-logo strong,
+.online-student-logo span {
+  font: inherit;
+  color: inherit;
+}
+
+.online-student-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.online-student-dday {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: #e8f0fa;
+  color: #174f8f;
+  padding: 0 9px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.online-student-dday:active {
+  background: #d8e5f4;
+}
+
+.student-dday-modal,
+.admin-student-dday-modal {
+  width: min(420px, calc(100% - 28px));
+}
+
+.student-dday-settings,
+.admin-student-dday-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.student-dday-choice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid #d2deea;
+  border-radius: 12px;
+  background: #f7f9fb;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.student-dday-choice:has(input:checked) {
+  border-color: #5a91c3;
+  background: #edf5fc;
+}
+
+.student-dday-choice input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.student-dday-choice span {
+  display: grid;
+  gap: 4px;
+}
+
+.student-dday-choice strong {
+  color: #20384c;
+  font-size: 0.86rem;
+}
+
+.student-dday-choice small {
+  color: #687d90;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.student-dday-custom-fields {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e0e7ee;
+  padding-top: 12px;
+}
+
+.student-dday-custom-fields.disabled {
+  opacity: 0.48;
+}
+
+.admin-student-dday-settings > p {
+  margin: 0;
+  color: #667b8e;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.online-student-notice-button {
+  position: relative;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: #173a60;
+}
+
+.online-student-notice-button:active {
+  background: rgba(8, 41, 79, 0.08);
+}
+
+.online-student-notice-button > span {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 17px;
+  border: 2px solid currentColor;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  border-bottom: 0;
+  transform: translateY(1px);
+}
+
+.online-student-notice-button > span::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.online-student-notice-button > span::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.online-student-notice-button > b {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 2px solid var(--student-page-bg);
+  border-radius: 999px;
+  background: #e54848;
+  color: #fff;
+  padding: 0 3px;
+  font-size: 0.52rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.online-student-notice-button > b[hidden] {
+  display: none;
+}
+
+body.student-online-mode .online-student-logo,
+body.student-online-mode .online-student-notice-button {
+  color: #fff;
+}
+
+body.student-online-mode .online-student-dday {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+body.student-online-mode .student-notification-page-head h2,
+body.student-online-mode .student-notices-head h2,
+body.student-online-mode .student-planner-solo-header h2 {
+  color: #fff;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-page-head h2 {
+  color: #fff;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-page-head > div > span {
+  color: #9fd3e7;
+}
+
+.student-notification-page {
+  display: grid;
+  gap: 12px !important;
+}
+
+.student-notification-page-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 6px;
+}
+
+.student-notification-page-head h2 {
+  margin: 0;
+  color: #20384c;
+  font-size: 1.08rem;
+  text-align: center;
+}
+
+.student-notification-back {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent-strong);
+  padding: 0;
+  font-size: 1.35rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.student-notification-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #ccd8e4;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.student-notification-item {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border-bottom: 1px solid #e3e9ef;
+}
+
+.student-notification-item:last-child {
+  border-bottom: 0;
+}
+
+.student-notification-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-notification-item-head strong {
+  color: #20384c;
+  font-size: 0.88rem;
+}
+
+.student-notification-item-head time {
+  flex: 0 0 auto;
+  color: #7b8d9d;
+  font-size: 0.64rem;
+}
+
+.student-notification-item p,
+.student-notification-empty p {
+  margin: 0;
+  color: #667b8e;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.student-notification-empty {
+  display: grid;
+  gap: 6px;
+  border-radius: 18px;
+  background: #fff;
+  padding: 28px 20px;
+  color: #687d90;
+  text-align: center;
+}
+
+.student-notification-empty strong {
+  color: #20384c;
+}
+
+.student-notification-empty.error {
+  color: var(--danger);
 }
 
 body:not([data-app-mode="teacher"]) .content-area,
@@ -7118,6 +7481,11 @@ body:not([data-app-mode="teacher"]) .student-home {
   background: #fff;
 }
 
+.lecture-home-shortcuts-card {
+  border: 1px solid #c7d3df;
+  background: #d5dee8;
+}
+
 .lecture-home-section-head {
   display: flex;
   align-items: end;
@@ -7301,17 +7669,20 @@ body:not([data-app-mode="teacher"]) .student-home {
   grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  border: 1px solid #e4edf4;
+  border: 1px solid #b9c8d6;
   border-radius: 14px;
   background: #fff;
   padding: 13px 10px 13px 13px;
   color: #31556f;
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 3px 9px rgba(24, 55, 83, 0.08);
 }
 
 .lecture-home-shortcut:active {
-  background: #f2f8fc;
+  border-color: #8eabc2;
+  background: #eef5fa;
+  box-shadow: 0 1px 4px rgba(24, 55, 83, 0.1);
 }
 
 .lecture-home-shortcut-icon {
@@ -8144,15 +8515,63 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .student-study-cafe-live-count {
-  display: block;
-  width: fit-content;
-  margin: 9px 0;
-  border-radius: 999px;
-  background: rgba(2, 39, 76, 0.26);
-  padding: 5px 8px;
+  display: inline-block;
   color: #e6f7ff;
   font-size: 0.72rem;
   font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-study-cafe-operating-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  color: #4f6e88;
+  font-size: 0.75rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.student-study-cafe-operating-hours strong {
+  display: inline;
+  color: #173f67;
+  font: inherit;
+  font-weight: 900;
+}
+
+.student-study-cafe-live-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin: 10px 0;
+  border-radius: 999px;
+  background: rgba(2, 39, 76, 0.26);
+  padding: 6px 9px 6px 6px;
+}
+
+.student-study-cafe-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: #e83f4f;
+  color: #fff;
+  padding: 4px 7px;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.student-study-cafe-live-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
 }
 
 .student-study-cafe-card > .btn {
@@ -8165,6 +8584,217 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   color: var(--accent-strong);
   padding: 10px 13px;
   font-size: 0.86rem;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: space-between;
+  align-items: stretch;
+  gap: 20px;
+  min-height: 286px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 88% 13%, rgba(255, 218, 151, 0.42) 0 58px, transparent 59px),
+    radial-gradient(circle at 10% 70%, rgba(99, 196, 176, 0.18) 0 72px, transparent 73px),
+    radial-gradient(circle at 85% 80%, rgba(151, 116, 203, 0.16) 0 76px, transparent 77px),
+    linear-gradient(145deg, #fbfdff 0%, #e6f1fb 48%, #f3ecfb 100%);
+  padding: 26px 22px 20px;
+  color: #102f52;
+  box-shadow: 0 14px 30px rgba(1, 15, 31, 0.3);
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-copy {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-kicker {
+  margin-bottom: 8px;
+  color: #247b7f;
+  font-family: Arial, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-title {
+  color: #102f52;
+  font-size: 1.46rem;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-title.branded {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.14em;
+  max-width: 100%;
+  font-family: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: clamp(1.85rem, 7.8vw, 2.3rem);
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  line-height: 1.18;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 3px 8px rgba(23, 63, 104, 0.1);
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-title.branded span {
+  display: inline;
+  color: #173f68;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card-title.branded .brand {
+  flex: 0 0 100%;
+  color: #173f68;
+  margin-bottom: 3px;
+  font-size: 0.86em;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-live-count {
+  color: #174d78;
+  font-size: 0.78rem;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-live-row {
+  margin: 10px auto 12px;
+  background: #d5e7f5;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-avatar-stack {
+  justify-content: center;
+  min-height: 38px;
+}
+
+body.student-online-mode.student-home-route .study-cafe-mini-avatar,
+body.student-online-mode.student-home-route .student-study-cafe-avatar-more {
+  width: 36px;
+  height: 36px;
+  border-color: #fff;
+}
+
+body.student-online-mode.student-home-route .study-cafe-mini-avatar-hair {
+  left: 8px;
+  top: 5px;
+  width: 16px;
+}
+
+body.student-online-mode.student-home-route .study-cafe-mini-avatar-face {
+  left: 10px;
+  top: 11px;
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card > .btn {
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  border-radius: 15px;
+  background: linear-gradient(100deg, #153f6d 0%, #315f9f 52%, #238b87 100%);
+  color: #fff;
+  font-size: 0.94rem;
+  font-weight: 900;
+  box-shadow: 0 7px 16px rgba(13, 47, 80, 0.24);
+}
+
+body.student-online-mode.student-home-route .student-study-cafe-card > .btn:active {
+  background: linear-gradient(100deg, #0d3158 0%, #264e85 52%, #18716e 100%);
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcuts-card {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: linear-gradient(145deg, #e8eef5 0%, #d8e2ec 100%);
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcut-grid.compact-three .lecture-home-shortcut:nth-child(1) {
+  border-color: #a9c5e3;
+  background: linear-gradient(135deg, #f7fbff 0%, #dceafb 100%);
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcut-grid.compact-three .lecture-home-shortcut:nth-child(2) {
+  border-color: #dcc58f;
+  background: linear-gradient(135deg, #fffdf6 0%, #f5e6bd 100%);
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcut-grid.compact-three .lecture-home-shortcut:nth-child(3) {
+  border-color: #9fcfbe;
+  background: linear-gradient(135deg, #f5fcf9 0%, #d5eee5 100%);
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcut-grid.compact-three .lecture-home-shortcut:nth-child(2) .lecture-home-shortcut-icon {
+  background: #f3dca5;
+  color: #a86b12;
+}
+
+body.student-online-mode.student-home-route .lecture-home-shortcut-grid.compact-three .lecture-home-shortcut:nth-child(3) .lecture-home-shortcut-icon {
+  background: #c5e8dc;
+  color: #187963;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-card {
+  overflow: hidden;
+  border: 1px solid #c7ddd9;
+  background: linear-gradient(145deg, #f1f7fa 0%, #e6f2ef 100%);
+  box-shadow: 0 3px 10px rgba(1, 16, 33, 0.12);
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-card .lecture-home-section-head > div > span {
+  color: #28817b;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-card .lecture-home-section-head h2 {
+  color: #203d50;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-card .lecture-home-text-link {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #32776f;
+  padding: 6px 2px;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-card .lecture-home-text-link::after {
+  content: "  ›";
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-list {
+  gap: 8px;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-row,
+body.student-online-mode.student-home-route .lecture-home-board-row:first-child {
+  min-height: 74px;
+  border: 1px solid #d8e4e8;
+  border-radius: 12px;
+  background: #fff;
+  padding: 11px 10px 11px 13px;
+  box-shadow: 0 3px 8px rgba(34, 70, 91, 0.06);
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-row:active {
+  border-color: #a9cbc4;
+  background: #f5faf9;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-comments {
+  border: 1px solid #cfdee7;
+  background: #edf4f8;
+  color: #6f8798;
+  box-shadow: none;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-comments strong {
+  color: #315c78;
+}
+
+body.student-online-mode.student-home-route .lecture-home-board-state {
+  border: 1px solid #d8e4e8;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .student-study-cafe-avatar-stack {
@@ -8346,6 +8976,70 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   outline-offset: 1px;
 }
 
+.student-planner-solo-header {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 14px;
+  padding: 4px 0;
+}
+
+.student-planner-solo-header h2 {
+  grid-column: 2;
+  margin: 0;
+  color: #20384c;
+  font-size: 1.08rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.student-planner-solo-spacer {
+  grid-column: 1;
+  width: 112px;
+  height: 36px;
+}
+
+.study-todo-calendar-button.student-planner-month-button {
+  grid-column: 3;
+  width: max-content;
+  min-width: 112px;
+  height: 40px;
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  justify-self: end;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.student-planner-month-button .study-todo-calendar-icon {
+  width: 17px;
+  height: 15px;
+  flex: 0 0 17px;
+}
+
+.student-planner-month-label {
+  display: inline-block;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.student-planner-month-action {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 8px;
+}
+
+.student-planner-month-action .student-planner-month-button {
+  grid-column: auto;
+}
+
 .study-cafe-planner-entry-guide {
   display: grid;
   gap: 12px;
@@ -8395,6 +9089,31 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   min-height: 40px;
   padding-inline: 10px;
   font-size: 0.76rem;
+}
+
+body.student-online-mode .study-cafe-planner-entry-actions .btn {
+  border: 1px solid #477f8c;
+  border-radius: 10px;
+  background: #477f8c;
+  color: #fff;
+  box-shadow: none;
+}
+
+body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary {
+  border-color: #ccdde1;
+  background: #e8f1f3;
+  color: #365f6a;
+}
+
+body.student-online-mode .study-cafe-planner-entry-actions .btn:hover,
+body.student-online-mode .study-cafe-planner-entry-actions .btn:focus-visible {
+  background: #3b6f7b;
+}
+
+body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:hover,
+body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-visible {
+  background: #dce9ec;
+  color: #2d5661;
 }
 
 .study-cafe-planner-entry-waiting {
@@ -9171,11 +9890,12 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .study-cafe-my-seat-actions time {
   border-radius: 9px;
   background: #fff;
-  padding: 5px 7px;
+  padding: 6px 9px;
   color: var(--accent-strong);
-  font-size: 0.76rem;
+  font-size: 0.92rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.015em;
 }
 
 .study-cafe-my-seat-subject-button {
@@ -11008,53 +11728,54 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room {
-  --room-border: #c9baa2;
-  --room-floor: #f2ede4;
-  --room-grid: rgba(102, 83, 61, 0.052);
-  --room-glow: rgba(255, 252, 242, 0.74);
-  --room-toolbar: rgba(250, 248, 243, 0.96);
-  --room-ink: #484138;
-  --room-muted: #70675b;
-  --room-accent: #7a674f;
-  --room-accent-soft: #e9e1d5;
-  --room-seat: rgba(255, 253, 249, 0.56);
-  --room-desk: #ae895f;
-  --room-desk-top: #c7a47a;
-  --room-desk-edge: #80664a;
-  --room-chair-border: #88715a;
-  --room-chair-top: #ece2d4;
-  --room-chair-bottom: #cdb99e;
+  --room-border: #91b5bd;
+  --room-floor: #dcebed;
+  --room-grid: rgba(48, 94, 108, 0.075);
+  --room-toolbar: rgba(247, 251, 252, 0.98);
+  --room-ink: #173a46;
+  --room-muted: #4e6d79;
+  --room-accent: #347a78;
+  --room-accent-soft: #d8eae9;
+  --room-button: #477f8c;
+  --room-button-hover: #3b6f7b;
+  --room-seat: rgba(248, 252, 252, 0.88);
+  --room-desk: #6b4b38;
+  --room-desk-top: #81604a;
+  --room-desk-edge: #463225;
+  --room-chair-border: #4a7486;
+  --room-chair-top: #6a96a5;
+  --room-chair-bottom: #3d6679;
   position: relative;
   overflow: hidden;
-  border: 6px solid var(--room-border);
+  border: 5px solid var(--room-border);
   border-radius: 22px;
   background:
-    radial-gradient(circle at 88% 4%, var(--room-glow), transparent 34%),
     linear-gradient(90deg, var(--room-grid) 1px, transparent 1px),
     linear-gradient(var(--room-grid) 1px, transparent 1px),
     var(--room-floor);
-  background-size: 100% 100%, 24px 24px, 24px 24px, auto;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.38);
+  background-size: 24px 24px, 24px 24px, auto;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78), 0 10px 28px rgba(20, 55, 70, 0.14);
   transition: border-color 180ms ease, background-color 180ms ease;
 }
 
 .study-cafe-room.theme-dawn {
-  --room-border: #b9c5cb;
-  --room-floor: #edf1f2;
-  --room-grid: rgba(74, 94, 105, 0.05);
-  --room-glow: rgba(250, 253, 254, 0.78);
-  --room-toolbar: rgba(248, 250, 250, 0.96);
-  --room-ink: #3e4d54;
-  --room-muted: #68777e;
-  --room-accent: #607985;
-  --room-accent-soft: #dfe7e9;
-  --room-seat: rgba(255, 255, 255, 0.58);
-  --room-desk: #a48b70;
-  --room-desk-top: #bba38a;
-  --room-desk-edge: #786754;
-  --room-chair-border: #78858a;
-  --room-chair-top: #e8eceb;
-  --room-chair-bottom: #c3cccd;
+  --room-border: #9ab8c4;
+  --room-floor: #e1ebf1;
+  --room-grid: rgba(54, 88, 111, 0.07);
+  --room-toolbar: rgba(248, 251, 253, 0.98);
+  --room-ink: #193848;
+  --room-muted: #526c7a;
+  --room-accent: #3f797f;
+  --room-accent-soft: #dce9eb;
+  --room-button: #4b7f8e;
+  --room-button-hover: #3e6f7d;
+  --room-seat: rgba(250, 252, 253, 0.9);
+  --room-desk: #6b4b38;
+  --room-desk-top: #81604a;
+  --room-desk-edge: #463225;
+  --room-chair-border: #507a92;
+  --room-chair-top: #709aae;
+  --room-chair-bottom: #426b83;
 }
 
 .study-cafe-room.theme-forest {
@@ -11119,11 +11840,13 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   gap: 7px;
   margin: 10px 8px 2px;
   padding-inline: 0;
-  border-color: color-mix(in srgb, var(--room-accent) 28%, transparent);
-  background:
-    radial-gradient(circle at 4% 12%, color-mix(in srgb, var(--room-accent) 18%, transparent), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.92), var(--room-accent-soft));
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--room-accent) 13%, transparent);
+  border-color: #9abac1;
+  background: #edf6f7;
+  box-shadow: 0 8px 20px rgba(36, 76, 89, 0.12);
+}
+
+.study-cafe-room .study-cafe-my-seat-card::after {
+  display: none;
 }
 
 .study-cafe-room .study-cafe-my-seat-character {
@@ -11133,7 +11856,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   aspect-ratio: auto;
   justify-self: stretch;
   place-items: center;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.72);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--room-accent) 16%, transparent);
 }
 
@@ -11153,22 +11876,62 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room .study-cafe-my-seat-subject-button {
-  background: var(--room-accent);
+  background: var(--room-button);
+  color: #fff;
 }
 
 .study-cafe-room .study-cafe-my-seat-title > strong {
   color: var(--room-ink);
 }
 
+.study-cafe-room .study-cafe-my-seat-copy p {
+  color: #58717d;
+}
+
+.study-cafe-room .study-cafe-my-seat-copy p strong {
+  color: var(--room-ink);
+}
+
+.study-cafe-room .study-cafe-my-seat-detail > span {
+  color: #607985;
+}
+
+.study-cafe-room .study-cafe-my-seat-actions time {
+  background: #dcebed;
+  color: var(--room-ink);
+}
+
+.study-cafe-room .study-cafe-my-seat-release-button,
+.study-cafe-room .study-cafe-my-seat-fullscreen-button {
+  border-color: var(--room-button);
+  background: var(--room-button);
+  color: #fff;
+  box-shadow: none;
+}
+
+.study-cafe-room .study-cafe-my-seat-fullscreen-button:hover,
+.study-cafe-room .study-cafe-my-seat-fullscreen-button:focus-visible {
+  background: var(--room-button-hover);
+  color: #fff;
+}
+
+.study-cafe-room .study-room-open-button,
+.study-cafe-room .study-room-return-button,
+.study-cafe-room .study-cafe-ranking-help-button {
+  border-color: var(--room-button);
+  background: var(--room-button);
+  color: #fff;
+}
+
 .study-cafe-room .study-cafe-seat.mine {
-  background: color-mix(in srgb, var(--room-accent-soft) 78%, white);
-  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--room-accent) 72%, white);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 0 0 3px #6ca6a3, 0 5px 14px rgba(43, 93, 99, 0.14);
 }
 
 .study-cafe-room .study-cafe-seat.mine .study-cafe-seat-number,
 .study-cafe-room .study-cafe-seat.mine .study-cafe-seat-name,
 .study-cafe-room .study-cafe-seat.mine .study-cafe-member-time {
-  background: var(--room-accent);
+  background: var(--room-button);
 }
 
 .study-cafe-room .study-cafe-seat.empty {
@@ -11218,13 +11981,44 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   white-space: nowrap;
 }
 
-.study-cafe-room-identity > span {
+.study-cafe-room-identity-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.study-cafe-room-mood {
   overflow: hidden;
   color: var(--room-accent);
   font-size: 0.58rem;
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.study-cafe-ranking-help-button {
+  flex: 0 0 auto;
+  min-height: 22px;
+  border: 1px solid color-mix(in srgb, var(--room-accent) 28%, transparent);
+  border-radius: 999px;
+  background: var(--room-accent-soft);
+  color: var(--room-accent);
+  padding: 3px 7px;
+  font: inherit;
+  font-size: 0.54rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.study-cafe-ranking-help-button[hidden] {
+  display: none;
+}
+
+.study-cafe-ranking-help-button:focus-visible {
+  outline: 2px solid var(--room-accent);
+  outline-offset: 2px;
 }
 
 .study-cafe-room-toolbar-actions {
@@ -11239,7 +12033,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 12px 13px 3px;
+  border-bottom: 1px solid rgba(72, 116, 129, 0.14);
+  background: rgba(242, 248, 249, 0.88);
+  padding: 10px 13px 8px;
   color: var(--room-muted);
   font-size: 0.72rem;
   font-weight: 900;
@@ -11281,11 +12077,76 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   font-weight: 950;
 }
 
+.info-modal-panel.study-cafe-ranking-guide-modal {
+  width: min(390px, 100%);
+  border: 1px solid #ead9b1;
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fffdf7 0%, #f8f0dc 100%);
+}
+
+.study-cafe-ranking-guide-content {
+  display: grid;
+  gap: 14px;
+}
+
+.study-cafe-ranking-guide-summary {
+  color: #705a30 !important;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.study-cafe-ranking-guide-list {
+  display: grid;
+  gap: 8px;
+}
+
+.study-cafe-ranking-guide-list article {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid rgba(161, 124, 56, 0.16);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 11px;
+}
+
+.study-cafe-ranking-guide-list article > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #e2bd68, #b88432);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 950;
+  box-shadow: 0 4px 9px rgba(143, 101, 31, 0.18);
+}
+
+.study-cafe-ranking-guide-list article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.study-cafe-ranking-guide-list article strong {
+  color: #4f3d1e;
+  font-size: 0.78rem;
+}
+
+.study-cafe-ranking-guide-list article p {
+  color: #796a50;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
 .study-cafe-room-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
-  padding: 10px 10px 2px;
+  border-bottom: 1px solid rgba(72, 116, 129, 0.18);
+  background: rgba(242, 248, 249, 0.76);
+  padding: 10px;
 }
 
 .study-cafe-room-tab {
@@ -11295,9 +12156,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   gap: 1px;
   min-width: 0;
   min-height: 48px;
-  border: 1px solid color-mix(in srgb, var(--room-accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--room-accent) 32%, white);
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.78);
   padding: 7px 2px 5px;
   color: var(--room-muted);
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease,
@@ -11334,17 +12195,36 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-room-tab.active {
-  border-color: var(--room-accent);
-  background: var(--room-accent-soft);
-  color: var(--room-accent);
-  box-shadow: 0 3px 9px color-mix(in srgb, var(--room-accent) 18%, transparent);
+  border-color: var(--room-button);
+  background: var(--room-button);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(20, 70, 67, 0.24);
+}
+
+.study-cafe-seat-section-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 11px 10px 0;
+  color: var(--room-muted);
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.study-cafe-seat-section-head::after {
+  content: "";
+  min-width: 0;
+  height: 1px;
+  flex: 1;
+  background: rgba(64, 108, 120, 0.32);
 }
 
 .study-cafe-seat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px 7px;
-  padding: 9px 9px 14px;
+  padding: 8px 9px 14px;
 }
 
 .study-cafe-seat-grid.room-changed {
@@ -11382,7 +12262,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   border: 0;
   border-radius: 13px;
   background: var(--room-seat);
-  color: #3d342a;
+  color: var(--room-ink);
   padding: 8px 5px 5px;
   transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
@@ -11392,14 +12272,33 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-seat.empty {
-  border: 2px dashed rgba(117, 91, 59, 0.25);
-  background: rgba(255, 255, 255, 0.28);
+  border: 2px dashed color-mix(in srgb, var(--room-accent) 32%, transparent);
+  background: rgba(255, 255, 255, 0.46);
 }
 
 .study-cafe-seat.empty:hover,
 .study-cafe-seat.empty:focus-visible {
-  background: rgba(255, 255, 255, 0.7);
-  outline: 3px solid rgba(7, 93, 164, 0.18);
+  background: color-mix(in srgb, var(--room-accent-soft) 84%, white 16%);
+  outline: 3px solid color-mix(in srgb, var(--room-accent) 24%, transparent);
+}
+
+.study-cafe-room.has-selected-seat .study-cafe-seat:not(.mine) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.study-cafe-room.has-selected-seat .study-cafe-seat.empty:hover,
+.study-cafe-room.has-selected-seat .study-cafe-seat.empty:focus-visible {
+  background: color-mix(in srgb, var(--room-accent-soft) 68%, transparent);
+}
+
+.study-cafe-room.has-selected-seat .study-cafe-empty-plus {
+  display: none;
+}
+
+.study-cafe-room.ranking-room.has-selected-seat .study-cafe-seat.empty .study-cafe-seat-number {
+  display: none;
 }
 
 .study-cafe-seat.mine {
@@ -11414,7 +12313,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   z-index: 9;
   min-width: 24px;
   border-radius: 6px;
-  background: rgba(91, 69, 46, 0.82);
+  background: color-mix(in srgb, var(--room-accent) 72%, #102f4d);
   padding: 3px 4px;
   color: #fff;
   font-size: 0.5rem;
@@ -11476,9 +12375,10 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   justify-items: end;
   gap: 1px;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  background: #315b68;
   padding: 3px 4px;
-  color: #465567;
+  color: #ffffff;
   text-align: right;
 }
 
@@ -11491,13 +12391,14 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-seat-name strong {
+  color: #ffffff;
   font-size: 0.55rem;
   font-style: normal;
   font-weight: 900;
 }
 
 .study-cafe-seat-name em {
-  color: #718093;
+  color: #d8e8ec;
   font-size: 0.45rem;
   font-style: normal;
   font-weight: 800;
@@ -11518,14 +12419,15 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   top: 29px;
   z-index: 8;
   border-radius: 6px;
-  background: rgba(41, 65, 84, 0.9);
+  background: color-mix(in srgb, var(--room-accent) 24%, white);
   padding: 3px 4px;
-  color: #fff;
+  color: #12374a;
   font-size: 0.5rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(4, 23, 38, 0.18);
 }
 
 .study-cafe-seat.mine .study-cafe-member-time {
@@ -11746,8 +12648,8 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   right: 7%;
   bottom: 16px;
   z-index: 6;
-  height: 24px;
-  border-radius: 7px;
+  height: 18px;
+  border-radius: 5px;
   background: #b98d5c;
   box-shadow: inset 0 4px 0 #d2ab7c, 0 7px 0 #856440;
 }
@@ -11792,18 +12694,20 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .study-cafe-empty-plus {
   position: absolute;
   left: 50%;
-  top: 52px;
+  top: 54px;
   z-index: 8;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--accent);
-  box-shadow: 0 5px 14px rgba(58, 51, 42, 0.12);
-  font-size: 1.45rem;
-  font-weight: 700;
+  width: auto;
+  min-width: 54px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--room-button);
+  padding: 0 8px;
+  color: #fff;
+  box-shadow: none;
+  font-size: 0.62rem;
+  font-weight: 900;
   transform: translateX(-50%);
 }
 
@@ -11908,10 +12812,40 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-floating-controls {
+  --study-cafe-button: #477f8c;
+  --study-cafe-button-hover: #3b6f7b;
+  --study-cafe-button-soft: #e8f1f3;
   position: fixed;
   inset: 0;
   z-index: 36;
   pointer-events: none;
+}
+
+/* Keep every online-student modal on the same muted action palette. */
+body.student-online-mode .info-modal {
+  --accent: #477f8c;
+  --accent-strong: #2d5661;
+  --accent-soft: #e8f1f3;
+  --surface-soft: #e8f1f3;
+  --study-room-modal-action: #477f8c;
+  --study-room-modal-action-hover: #3b6f7b;
+}
+
+body.student-online-mode .info-modal-panel .btn:not(.secondary):not(.danger) {
+  background: #477f8c;
+}
+
+body.student-online-mode .info-modal-panel .btn:not(.secondary):not(.danger):hover {
+  background: #3b6f7b;
+}
+
+body.student-online-mode .info-modal-panel .btn.secondary {
+  background: #e8f1f3;
+  color: #2d5661;
+}
+
+body.student-online-mode .info-modal-panel .btn.secondary:hover {
+  background: #dce9ec;
 }
 
 .study-cafe-floating-controls.open {
@@ -11922,15 +12856,19 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   position: absolute;
   right: max(18px, calc((100vw - 420px) / 2 + 18px));
   bottom: calc(var(--student-footer-bottom) + 78px);
-  width: 58px;
-  height: 58px;
-  display: grid;
+  width: auto;
+  min-width: 104px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   place-items: center;
   align-content: center;
-  gap: 0;
+  gap: 7px;
   border: 0;
-  border-radius: 50%;
-  background: var(--accent-strong);
+  border-radius: 12px;
+  background: var(--study-cafe-button);
+  padding: 0 13px;
   color: #fff;
   box-shadow: 0 10px 26px rgba(7, 58, 108, 0.3);
   pointer-events: auto;
@@ -11938,19 +12876,19 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 }
 
 .study-cafe-floating-menu-button > span {
-  font-size: 1.45rem;
+  font-size: 1.05rem;
   font-weight: 900;
-  line-height: 0.72;
+  line-height: 1;
 }
 
 .study-cafe-floating-menu-button > small {
-  margin-top: 5px;
-  font-size: 0.48rem;
+  margin-top: 0;
+  font-size: 0.66rem;
   font-weight: 900;
 }
 
 .study-cafe-floating-controls.open .study-cafe-floating-menu-button {
-  background: #244563;
+  background: var(--study-cafe-button-hover);
   box-shadow: 0 8px 22px rgba(24, 48, 70, 0.34);
   transform: scale(0.96);
 }
@@ -11979,11 +12917,11 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   grid-template-columns: auto 42px;
   align-items: center;
   gap: 9px;
-  border: 0;
-  border-radius: 999px;
+  border: 1px solid rgba(47, 129, 120, 0.24);
+  border-radius: 12px;
   background: #fff;
-  padding: 3px 3px 3px 14px;
-  color: #244563;
+  padding: 3px 7px 3px 14px;
+  color: var(--study-cafe-button);
   box-shadow: 0 8px 22px rgba(18, 52, 82, 0.2);
   animation: study-cafe-action-rise 180ms ease-out both;
 }
@@ -12006,16 +12944,16 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  border-radius: 8px;
+  background: var(--study-cafe-button-soft);
+  color: var(--study-cafe-button);
   font-size: 0.9rem;
   font-weight: 900;
 }
 
 .study-cafe-floating-action.stop > span {
-  background: #ffebe8;
-  color: #b3473f;
+  background: var(--study-cafe-button-soft);
+  color: var(--study-cafe-button);
 }
 
 .study-cafe-floating-action:focus-visible {
@@ -12067,9 +13005,9 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .study-cafe-countdown-number {
   display: grid;
   place-items: center;
-  width: 92px;
-  height: 92px;
-  border-radius: 50%;
+  width: 112px;
+  height: 72px;
+  border-radius: 14px;
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 3.1rem;
@@ -12079,7 +13017,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .study-cafe-countdown-overlay.go .study-cafe-countdown-number {
   width: 112px;
-  border-radius: 999px;
+  border-radius: 14px;
   font-size: 1.45rem;
 }
 
@@ -14795,7 +15733,7 @@ body:not([data-app-mode="teacher"]) .btn {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border-radius: 999px;
+    border-radius: 12px;
     padding: 0 15px;
   }
 
@@ -15366,4 +16304,699 @@ body.student-study-mode .main-shell {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+/* Online student surface hierarchy: one background, one content-card level. */
+body.student-online-mode:not(.student-home-route) .content-area {
+  gap: 12px;
+}
+
+body.student-online-mode:not(.student-home-route) .study-timer-page-head,
+body.student-online-mode:not(.student-home-route) .study-ranking-page-head {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  padding: 7px 3px 9px;
+  box-shadow: none;
+}
+
+body.student-online-mode:not(.student-home-route) .study-timer-page-head h2,
+body.student-online-mode:not(.student-home-route) .study-ranking-page-head h2 {
+  color: #fff;
+}
+
+body.student-online-mode:not(.student-home-route) .study-timer-page-head > div span,
+body.student-online-mode:not(.student-home-route) .study-ranking-page-head > div span {
+  color: #9fd3e7;
+}
+
+body.student-online-mode:not(.student-home-route) .study-timer-active-chip,
+body.student-online-mode:not(.student-home-route) .study-ranking-my-chip {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-head:not(.compact) {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 7px 2px 14px;
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-head:not(.compact) h2 {
+  color: #fff;
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-head:not(.compact) > p {
+  color: rgba(225, 239, 248, 0.78);
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-kicker {
+  color: #9fd3e7;
+}
+
+body.student-online-mode:not(.student-home-route) .student-push-settings-back {
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+body.student-online-mode:not(.student-home-route) .panel,
+body.student-online-mode:not(.student-home-route) .student-profile-card,
+body.student-online-mode:not(.student-home-route) .student-history-button-card,
+body.student-online-mode:not(.student-home-route) .student-push-settings-card,
+body.student-online-mode:not(.student-home-route) .student-notice-detail,
+body.student-online-mode:not(.student-home-route) .student-notification-list,
+body.student-online-mode:not(.student-home-route) .student-notification-empty,
+body.student-online-mode:not(.student-home-route) .study-character-preview-card,
+body.student-online-mode:not(.student-home-route) .study-character-options-card,
+body.student-online-mode:not(.student-home-route) .study-todo-progress-card,
+body.student-online-mode:not(.student-home-route) .study-todo-subject-card,
+body.student-online-mode:not(.student-home-route) .study-todo-month-calendar {
+  border: 1px solid #d5e0e7;
+  box-shadow: none;
+}
+
+/* Planner and My use one restrained navy/mint surface palette. */
+body.student-online-mode .student-planner-view-switch {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.student-online-mode .student-planner-view-option {
+  color: rgba(232, 241, 247, 0.76);
+}
+
+body.student-online-mode .student-planner-view-option.active {
+  background: #fff;
+  color: #17475f;
+  box-shadow: none;
+}
+
+body.student-online-mode .study-todo-calendar-button,
+body.student-online-mode .study-todo-calendar-back,
+body.student-online-mode .study-todo-month-calendar-head button {
+  background: #edf3f5;
+  color: #24566c;
+}
+
+body.student-online-mode .study-cafe-planner-entry-guide,
+body.student-online-mode .study-cafe-planner-entry-guide.ready {
+  border-color: #d4e2e3;
+  background: #f4f8f8;
+}
+
+body.student-online-mode .study-cafe-planner-entry-guide.ready {
+  border-color: #b9d9d2;
+}
+
+body.student-online-mode .study-cafe-planner-entry-copy > span,
+body.student-online-mode .study-todo-progress-card > div strong {
+  color: #176d68;
+}
+
+body.student-online-mode .study-todo-progress-card {
+  border-color: #d4e2e3;
+  background: #f4f8f8;
+}
+
+body.student-online-mode .study-todo-progress-track {
+  background: #d9e8e5;
+}
+
+body.student-online-mode .study-todo-progress-track i {
+  background: #2b8d83;
+}
+
+body.student-online-mode .study-todo-current-subject,
+body.student-online-mode .study-todo-goal-result.on-time {
+  background: #e3f1ee;
+  color: #176d68 !important;
+}
+
+body.student-online-mode .study-todo-add-button,
+body.student-online-mode .study-todo-submit-button {
+  background: #24566c;
+  box-shadow: none;
+}
+
+body.student-online-mode .student-mypage .student-profile-card,
+body.student-online-mode .student-mypage .student-history-button-card {
+  border-color: #d5e0e7;
+  background: #fff;
+}
+
+body.student-online-mode .student-mypage .student-avatar {
+  background: #e3f1ee;
+  color: #176d68;
+}
+
+body.student-online-mode .student-mypage .student-profile-item {
+  border-top-color: #e3eaee;
+}
+
+body.student-online-mode .student-mypage .student-profile-note {
+  background: #f3f6f7;
+}
+
+body.student-online-mode .student-mypage .mini-btn {
+  border-color: #cbdeda;
+  background: #edf5f3;
+  color: #176d68;
+}
+
+body.student-online-mode .student-mypage .student-settings-chevron {
+  color: #4a7c7a;
+}
+
+body.student-online-mode .normal-student-footer button.active,
+body.student-online-mode .normal-student-footer a.active,
+body.student-online-mode .normal-student-footer button:active,
+body.student-online-mode .normal-student-footer a:active {
+  background: #e3f1ee;
+  color: #176d68;
+}
+
+/* Brand dark UI for Planner and My: simple hierarchy with one RONPARK accent. */
+body.student-online-mode {
+  --online-brand-accent: #2a8c82;
+  --online-ui-surface: #163a59;
+  --online-ui-surface-strong: #1b4263;
+  --online-ui-text: #f2f4f6;
+  --online-ui-muted: #9bb1c3;
+  --online-ui-line: rgba(255, 255, 255, 0.09);
+}
+
+body.student-online-mode .student-planner-view-switch {
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 5px;
+}
+
+body.student-online-mode .student-planner-view-option {
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .student-planner-view-option.active {
+  background: var(--online-brand-accent);
+  color: #fff;
+}
+
+body.student-online-mode .study-todo-calendar-button,
+body.student-online-mode .study-todo-calendar-back,
+body.student-online-mode .study-todo-month-calendar-head button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.09);
+  color: #dce9f3;
+}
+
+body.student-online-mode .student-planner-month-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body.student-online-mode .study-todo-date-navigation,
+body.student-online-mode .study-todo-progress-card,
+body.student-online-mode .study-todo-subject-card,
+body.student-online-mode .study-todo-month-calendar,
+body.student-online-mode .study-cafe-planner-entry-guide,
+body.student-online-mode .study-cafe-planner-entry-guide.ready {
+  border: 1px solid var(--online-ui-line);
+  background: var(--online-ui-surface);
+  box-shadow: none;
+}
+
+body.student-online-mode .study-todo-date-arrow {
+  background: rgba(255, 255, 255, 0.07);
+  color: #dce9f3;
+}
+
+body.student-online-mode .study-todo-date-current strong,
+body.student-online-mode .study-todo-month-calendar-head strong,
+body.student-online-mode .study-todo-calendar-selected-date strong,
+body.student-online-mode .study-todo-subject-head strong,
+body.student-online-mode .study-cafe-planner-entry-copy > strong {
+  color: var(--online-ui-text);
+}
+
+body.student-online-mode .study-todo-progress-card > div span,
+body.student-online-mode .study-todo-progress-card p,
+body.student-online-mode .study-todo-subject-head span,
+body.student-online-mode .study-todo-calendar-selected-date span,
+body.student-online-mode .study-cafe-planner-entry-copy > p,
+body.student-online-mode .study-cafe-planner-entry-waiting,
+body.student-online-mode .study-todo-date-loading {
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .study-todo-progress-card > div strong,
+body.student-online-mode .study-cafe-planner-entry-copy > span {
+  color: #83d0c5;
+}
+
+body.student-online-mode .study-todo-progress-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.student-online-mode .study-todo-progress-track i {
+  background: var(--online-brand-accent);
+}
+
+body.student-online-mode .study-todo-goal-select,
+body.student-online-mode .study-todo-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--online-ui-surface-strong);
+  color: var(--online-ui-text);
+}
+
+body.student-online-mode .study-todo-item {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+body.student-online-mode .study-todo-item > span {
+  color: #dce7ef;
+}
+
+body.student-online-mode .study-todo-delete-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .study-todo-add-button,
+body.student-online-mode .study-todo-submit-button {
+  background: var(--online-brand-accent);
+}
+
+body.student-online-mode .study-todo-current-subject,
+body.student-online-mode .study-todo-goal-result.on-time {
+  background: rgba(42, 140, 130, 0.19);
+  color: #83d0c5 !important;
+}
+
+body.student-online-mode .study-todo-month-weekdays span,
+body.student-online-mode .study-todo-month-legend,
+body.student-online-mode .study-todo-month-day {
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .study-todo-month-day.selected {
+  border-color: var(--online-brand-accent);
+  background: var(--online-brand-accent);
+  color: #fff;
+}
+
+body.student-online-mode .student-mypage .student-profile-card,
+body.student-online-mode .student-mypage .student-history-button-card {
+  border: 1px solid var(--online-ui-line);
+  background: var(--online-ui-surface);
+  box-shadow: none;
+}
+
+body.student-online-mode .student-mypage .student-profile-head h2,
+body.student-online-mode .student-mypage .student-profile-item strong,
+body.student-online-mode .student-mypage .student-history-head h2 {
+  color: var(--online-ui-text);
+}
+
+body.student-online-mode .student-mypage .student-profile-head span,
+body.student-online-mode .student-mypage .student-profile-item span,
+body.student-online-mode .student-mypage .student-history-head span {
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .student-mypage .student-avatar {
+  background: rgba(42, 140, 130, 0.2);
+  color: #83d0c5;
+}
+
+body.student-online-mode .student-mypage .student-profile-item {
+  border-top-color: var(--online-ui-line);
+}
+
+body.student-online-mode .student-mypage .student-profile-note {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--online-ui-muted);
+}
+
+body.student-online-mode .student-mypage .mini-btn {
+  border: 0;
+  background: rgba(42, 140, 130, 0.18);
+  color: #83d0c5;
+}
+
+body.student-online-mode .student-mypage .student-settings-chevron {
+  color: #74bbb3;
+}
+
+body.student-online-mode .normal-student-footer {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(14, 42, 67, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 12, 28, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+body.student-online-mode .normal-student-footer button,
+body.student-online-mode .normal-student-footer a {
+  color: #8fa6b9;
+}
+
+body.student-online-mode .normal-student-footer button.active,
+body.student-online-mode .normal-student-footer a.active,
+body.student-online-mode .normal-student-footer button:active,
+body.student-online-mode .normal-student-footer a:active {
+  background: rgba(42, 140, 130, 0.2);
+  color: #83d0c5;
+}
+
+/* Planner uses a brighter tonal surface while keeping the shared navy app background. */
+body.student-online-mode .student-planner-view-switch {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+body.student-online-mode .student-planner-view-option {
+  color: rgba(239, 246, 249, 0.82);
+}
+
+body.student-online-mode .study-todo-calendar-button,
+body.student-online-mode .study-todo-calendar-back,
+body.student-online-mode .study-todo-month-calendar-head button,
+body.student-online-mode .study-todo-date-arrow {
+  background: #dce7ea;
+  color: #214b60;
+}
+
+body.student-online-mode .study-todo-date-navigation,
+body.student-online-mode .study-todo-progress-card,
+body.student-online-mode .study-todo-subject-card,
+body.student-online-mode .study-todo-month-calendar,
+body.student-online-mode .study-cafe-planner-entry-guide,
+body.student-online-mode .study-cafe-planner-entry-guide.ready {
+  border-color: #d0dde2;
+  background: #e9f0f2;
+}
+
+body.student-online-mode .study-todo-date-current strong,
+body.student-online-mode .study-todo-month-calendar-head strong,
+body.student-online-mode .study-todo-calendar-selected-date strong,
+body.student-online-mode .study-todo-subject-head strong,
+body.student-online-mode .study-cafe-planner-entry-copy > strong {
+  color: #173b52;
+}
+
+body.student-online-mode .study-todo-progress-card > div span,
+body.student-online-mode .study-todo-progress-card p,
+body.student-online-mode .study-todo-subject-head span,
+body.student-online-mode .study-todo-calendar-selected-date span,
+body.student-online-mode .study-cafe-planner-entry-copy > p,
+body.student-online-mode .study-cafe-planner-entry-waiting,
+body.student-online-mode .study-todo-date-loading {
+  color: #60798c;
+}
+
+body.student-online-mode .study-todo-progress-card > div strong,
+body.student-online-mode .study-cafe-planner-entry-copy > span {
+  color: #1f766f;
+}
+
+body.student-online-mode .study-todo-progress-track {
+  background: #d3e2e1;
+}
+
+body.student-online-mode .study-todo-goal-select,
+body.student-online-mode .study-todo-input {
+  border-color: #cad8de;
+  background: #f7f9fa;
+  color: #24465a;
+}
+
+body.student-online-mode .study-todo-item {
+  background: #dde7ea;
+}
+
+body.student-online-mode .study-todo-item > span {
+  color: #29495c;
+}
+
+body.student-online-mode .study-todo-delete-button {
+  background: #d3dfe3;
+  color: #637988;
+}
+
+body.student-online-mode .study-todo-current-subject,
+body.student-online-mode .study-todo-goal-result.on-time {
+  background: #d8ebe7;
+  color: #176d68 !important;
+}
+
+body.student-online-mode .study-todo-month-weekdays span,
+body.student-online-mode .study-todo-month-legend,
+body.student-online-mode .study-todo-month-day {
+  color: #607486;
+}
+
+/* My uses the same bright blue-gray surfaces as Planner. */
+body.student-online-mode .student-mypage .student-profile-card,
+body.student-online-mode .student-mypage .student-history-button-card,
+body.student-online-mode .student-mypage .student-install-card {
+  border: 1px solid #d0dde2;
+  background: #e9f0f2;
+  box-shadow: none;
+}
+
+body.student-online-mode .student-mypage .student-profile-head h2,
+body.student-online-mode .student-mypage .student-profile-item strong,
+body.student-online-mode .student-mypage .student-history-head h2,
+body.student-online-mode .student-mypage .student-install-card strong {
+  color: #173b52;
+}
+
+body.student-online-mode .student-mypage .student-profile-head span,
+body.student-online-mode .student-mypage .student-profile-item span,
+body.student-online-mode .student-mypage .student-history-head span,
+body.student-online-mode .student-mypage .student-install-card p {
+  color: #60798c;
+}
+
+body.student-online-mode .student-mypage .student-avatar {
+  background: #d8ebe7;
+  color: #176d68;
+}
+
+body.student-online-mode .student-mypage .student-profile-item {
+  border-top-color: #d3dfe3;
+}
+
+body.student-online-mode .student-mypage .student-profile-note {
+  background: #dde7ea;
+  color: #60798c;
+}
+
+body.student-online-mode .student-mypage .mini-btn,
+body.student-online-mode .student-mypage .student-install-card .btn.secondary {
+  border: 1px solid #bdd7d2;
+  background: #d8ebe7;
+  color: #176d68;
+}
+
+body.student-online-mode .student-mypage .student-settings-chevron {
+  color: #2a7770;
+}
+
+/* Curriculum tab follows Planner's bright surfaces and clear item boundaries. */
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-tabs {
+  gap: 5px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  padding: 5px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-tab {
+  flex: 1 0 auto;
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(239, 246, 249, 0.82);
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-tab.active {
+  background: #2a8c82;
+  color: #fff;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-overview-card,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-section,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-after-lecture-section,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card {
+  border: 1px solid #d0dde2;
+  background: #e9f0f2;
+  box-shadow: none;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-mark,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-mark.indigo,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-mark.teal,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-mark.violet {
+  background: #2a8c82;
+  box-shadow: none;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-overview-copy h3,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-title,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-detail-section-head strong,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-copy span,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-copy strong,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-copy strong {
+  color: #173b52;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-overview-copy p,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-overview-progress,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-topline small,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-detail-section-head small,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-copy span,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-copy span {
+  color: #60798c;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-overview-progress strong,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-copy strong {
+  color: #1f766f;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-progress-track {
+  background: #d3e2e1;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-progress-track i {
+  background: #2a8c82;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-list {
+  gap: 12px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-list::before {
+  display: none;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-phase-label {
+  color: #84c9c0;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-phase-label span {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-phase-label i {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card {
+  min-height: 104px;
+  padding: 14px 15px 14px 4px;
+  border-radius: 16px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.current {
+  border-color: #72b9b1;
+  background: #f1f6f7;
+  box-shadow: inset 0 0 0 1px rgba(42, 140, 130, 0.12);
+  transform: none;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.completed {
+  border-color: #bdd8d3;
+  background: #e3eeed;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.locked {
+  border-color: #d0dbe0;
+  background: #dfe7ea;
+  opacity: 1;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card::after {
+  background: #b8c8cf;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.current::after,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.completed::after {
+  background: #2a8c82;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.current .curriculum-stage-node,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-card.completed .curriculum-stage-node {
+  border-color: #2a8c82;
+  background: #2a8c82;
+  color: #fff;
+  box-shadow: none;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-meta > span {
+  border-color: #cad8de;
+  background: #f5f8f9;
+  color: #60798c;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-meta > span.active,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-meta > span.done,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-status.current,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-stage-status.completed {
+  border-color: #bdd8d3;
+  background: #d8ebe7;
+  color: #176d68;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-section,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-after-lecture-section {
+  border-radius: 16px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-detail-section-head {
+  border-bottom-color: #cfdbdf;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-section-number,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-section-count.completed {
+  background: #d8ebe7;
+  color: #176d68;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-list,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-list {
+  display: grid;
+  gap: 8px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-row,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-task {
+  min-height: 58px;
+  border: 1px solid #d4e0e4;
+  border-radius: 12px;
+  background: #f7f9fa;
+  padding: 9px 11px;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-check,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-icon,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-check {
+  border-color: #afc3cb;
+  background: #fff;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-lecture-row.completed .curriculum-lecture-check,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-finish-task.completed .curriculum-finish-icon,
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card.completed .curriculum-task-check {
+  border-color: #2a8c82;
+  background: #2a8c82;
+}
+
+body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card.completed {
+  border-color: #bdd8d3;
+  background: #e3eeed;
 }

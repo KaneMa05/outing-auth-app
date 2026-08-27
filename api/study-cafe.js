@@ -26,7 +26,7 @@ const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const PRESENCE_HEARTBEAT_GRACE_MS = 30 * 1000;
 const IDLE_PRESENCE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
-const MAX_SEAT_NUMBER = 192;
+const MAX_SEAT_NUMBER = 96;
 const MAX_TODOS_PER_DAY = 60;
 
 module.exports = async function handler(req, res) {

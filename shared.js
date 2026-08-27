@@ -536,6 +536,7 @@ function defaultState() {
       attendanceDeadlineEnabled: false,
       onlineManagedStudyCafeEnabled: false,
       curriculumQuestEnabled: false,
+      studentDday: null,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
     },
@@ -1343,7 +1344,11 @@ function startStudentInteractionTracking() {
 }
 
 function isStudentInteractiveTarget(target) {
-  return Boolean(target?.closest?.(".student-view form, .student-auth-card, .photo-input-control"));
+  return Boolean(
+    target?.closest?.(
+      ".student-view form, .student-auth-card, .photo-input-control, button, a, [role='button'], [role='dialog'], [role='alertdialog']"
+    )
+  );
 }
 
 function markStudentInteraction() {
@@ -1504,6 +1509,7 @@ function shouldPreserveStudentAuthForm() {
 function shouldPauseStudentRemoteRefresh() {
   if (APP_MODE !== "student") return false;
   return (
+    hasOpenAppModal() ||
     hasActiveStudentExamDraft() ||
     isStudentInteractionPaused() ||
     isStudentFilePickerOpen() ||
@@ -1606,6 +1612,14 @@ function hasLocalDevStateData(snapshot) {
     snapshot?.fitnessScores?.length ||
     snapshot?.notices?.length
     || Object.keys(snapshot?.seatAssignments || {}).length
+  );
+}
+
+function hasOpenAppModal() {
+  return Boolean(
+    document.querySelector(
+      '[role="dialog"], [role="alertdialog"], .photo-modal, .study-cafe-auto-pause-modal'
+    )
   );
 }
 
@@ -4397,6 +4411,9 @@ function applyRemoteAppSettings(settings) {
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
   state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
   state.settings.curriculumQuestEnabled = settings.curriculumQuestEnabled === true;
+  state.settings.studentDday = settings.studentDday && typeof settings.studentDday === "object"
+    ? settings.studentDday
+    : null;
   curriculumQuestReleaseVerified = true;
   if (typeof window.__enforceCurriculumQuestVisibility === "function") {
     window.__enforceCurriculumQuestVisibility();
@@ -5641,6 +5658,7 @@ function openInfoModal({
   confirmDisabled = false,
   showConfirm = true,
 }) {
+  closeLoadingModal();
   closeInfoModal();
   const confirmButton = showConfirm
     ? button(confirmLabel, "btn secondary", "button", onConfirm)
@@ -5661,6 +5679,7 @@ function openInfoModal({
 }
 
 function openLoadingModal(title, message) {
+  resetStudentPullRefresh();
   closeLoadingModal();
   const modal = el("div", { className: "loading-modal", role: "alertdialog", ariaModal: "true", ariaLive: "assertive" }, [
     el("div", { className: "loading-modal-backdrop" }),
@@ -5674,7 +5693,8 @@ function openLoadingModal(title, message) {
 }
 
 function closeLoadingModal() {
-  document.querySelector(".loading-modal")?.remove();
+  document.querySelectorAll(".loading-modal").forEach((modal) => modal.remove());
+  resetStudentPullRefresh();
 }
 
 function closeInfoModal() {
@@ -5683,6 +5703,7 @@ function closeInfoModal() {
     modal.remove();
   });
   document.removeEventListener("keydown", closeInfoModalOnEscape);
+  resetStudentPullRefresh();
 }
 
 function closeInfoModalOnEscape(event) {

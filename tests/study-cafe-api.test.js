@@ -218,8 +218,8 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.throws(() => normalizeStatusMessage("가".repeat(41)), /invalid_status_message/);
   assert.throws(() => normalizeNickname("닉네임!"), /invalid_nickname/);
   assert.equal(normalizeSeatNumber(1), 1);
-  assert.equal(normalizeSeatNumber(192), 192);
-  assert.throws(() => normalizeSeatNumber(193), /invalid_seat/);
+  assert.equal(normalizeSeatNumber(96), 96);
+  assert.throws(() => normalizeSeatNumber(97), /invalid_seat/);
   assert.equal(maskName("홍길동"), "홍○○");
   assert.equal(summarizeTrack("경찰직 - 해상교통관제(VTS)(순경)"), "VTS");
   assert.deepEqual(getKstDayBounds(new Date("2026-07-29T14:59:59.000Z")), {

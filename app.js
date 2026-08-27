@@ -29,6 +29,7 @@
   managers: "담당자 등록",
   students: "학생 등록",
   "student-push": "학생 푸시 알림",
+  notifications: "알림",
   "device-history": "기기 등록 이력",
   "student-preview": "학생 미리보기",
   "track-options": "직렬 항목 관리",
@@ -39,8 +40,8 @@
 };
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
-  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notices"]),
-  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notices"]),
+  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notifications", "notices"]),
+  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notifications", "notices"]),
 };
 
 const CURRICULUM_QUEST_SUBJECTS = [
@@ -115,6 +116,8 @@ let curriculumQuestCatalogLoading = false;
 let curriculumQuestCatalogLoaded = false;
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
+const STUDENT_DDAY_STORAGE_KEY = "ronpark_student_dday_v1";
+const STUDENT_NOTIFICATION_READ_STORAGE_KEY = "ronpark_student_notification_read_v1";
 const STUDENT_PUSH_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 const STUDENT_PUSH_PROMPT_MAX_DISMISSALS = 3;
 const STUDENT_PUSH_PREFERENCE_OPTIONS = [
@@ -168,7 +171,7 @@ const COAST_GUARD_TRACK_OPTIONS = [
   "기타",
 ];
 const STUDY_CAFE_ROOM_SIZE = 48;
-const STUDY_CAFE_SEAT_COUNT = 192;
+const STUDY_CAFE_SEAT_COUNT = 96;
 const STUDY_CAFE_RANKING_ROOM_INDEX = 0;
 const STUDY_CAFE_RANKING_REFRESH_INTERVAL_MS = 15 * 1000;
 const STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
@@ -177,12 +180,9 @@ const STUDY_CAFE_USED_STORAGE_KEY = "ronpark-study-cafe-used";
 const STUDY_CAFE_RANKING_USED_STORAGE_KEY = "ronpark-study-cafe-ranking-used";
 const STUDY_CAFE_ROOM_THEMES = [
   { theme: "oak", label: "랭킹룸", mood: "오늘 순공 랭킹" },
-  { theme: "dawn", label: "A룸", mood: "밝고 차분한 톤" },
-  { theme: "forest", label: "B룸", mood: "편안한 그린톤" },
-  { theme: "night", label: "C룸", mood: "차분한 딥블루톤" },
-  { theme: "classic", label: "E룸", mood: "정돈된 클래식톤" },
+  { theme: "dawn", label: "자유석", mood: "편안하게 집중하는 공간" },
 ];
-const STUDY_CAFE_ROOMS = STUDY_CAFE_ROOM_THEMES.slice(0, 4).map((roomTheme, index) => ({
+const STUDY_CAFE_ROOMS = STUDY_CAFE_ROOM_THEMES.map((roomTheme, index) => ({
   id: `room-${index + 1}`,
   ...roomTheme,
   startSeat: index * STUDY_CAFE_ROOM_SIZE + 1,
@@ -204,18 +204,6 @@ const STUDY_CAFE_PREVIEW_OCCUPANTS = {
   71: { name: "송○○", track: "VTS", tone: "orange", todaySeconds: 13418 },
   85: { name: "권○○", track: "구조", tone: "rose", todaySeconds: 9564 },
   94: { name: "남○○", track: "정보통신", tone: "mint", todaySeconds: 4822 },
-  99: { name: "장○○", track: "공채(순경)", tone: "blue", todaySeconds: 12306 },
-  105: { name: "신○○", track: "특공", tone: "orange", todaySeconds: 7041 },
-  112: { name: "문○○", track: "구급", tone: "purple", todaySeconds: 10283 },
-  121: { name: "배○○", track: "방제·화공", tone: "mint", todaySeconds: 5960 },
-  134: { name: "백○○", track: "함정요원", tone: "rose", todaySeconds: 14218 },
-  143: { name: "허○○", track: "VTS", tone: "blue", todaySeconds: 8637 },
-  148: { name: "유○○", track: "해경학과", tone: "purple", todaySeconds: 7398 },
-  153: { name: "고○○", track: "공채(순경)", tone: "mint", todaySeconds: 11844 },
-  161: { name: "노○○", track: "구조", tone: "orange", todaySeconds: 6527 },
-  170: { name: "심○○", track: "정보통신", tone: "rose", todaySeconds: 9840 },
-  181: { name: "차○○", track: "방제·환경", tone: "blue", todaySeconds: 5319 },
-  190: { name: "주○○", track: "함정요원", tone: "purple", todaySeconds: 12972 },
 };
 const STUDY_CAFE_PREVIEW_SEATS = Array.from({ length: STUDY_CAFE_SEAT_COUNT }, (_, index) => {
   const seatNumber = index + 1;
@@ -266,6 +254,7 @@ const studyCafePreviewState = {
   idleSince: 0,
   customSubjects: null,
   timerFullscreen: false,
+  timerFullscreenReturnRoute: "",
   avatarTone: "navy",
   nickname: "",
   statusMessage: "",
@@ -424,6 +413,13 @@ const studentPushNotificationState = {
   preferences: Object.fromEntries(STUDENT_PUSH_PREFERENCE_OPTIONS.map((option) => [option.key, true])),
   error: "",
 };
+const studentNotificationInboxState = {
+  studentId: "",
+  loaded: false,
+  loading: false,
+  messages: [],
+  error: "",
+};
 const studentPushReturnVisitStudentId = APP_MODE === "student" ? String(getAuthedStudent()?.id || "") : "";
 
 document.querySelectorAll("[data-route]").forEach((button) => {
@@ -431,6 +427,10 @@ document.querySelectorAll("[data-route]").forEach((button) => {
     if (button.matches("a")) event.preventDefault();
     navigate(button.dataset.route);
   });
+});
+
+document.querySelectorAll("[data-online-student-dday]").forEach((button) => {
+  button.addEventListener("click", openStudentDdayModal);
 });
 
 document.querySelectorAll(".student-footer-menu").forEach((footer) => {
@@ -569,7 +569,7 @@ function normalizeRoute(route) {
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "curriculum", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notifications", "curriculum", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -629,6 +629,7 @@ function render() {
     "study-timer-fullscreen-mode",
     currentRoute === "study-timer" && studyCafePreviewState.timerFullscreen
   );
+  document.body.classList.toggle("student-home-route", APP_MODE !== "teacher" && currentRoute === "home");
   const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp();
   document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
 
@@ -639,7 +640,7 @@ function render() {
     const activeRoute =
       inStudentFooter && ["study-character", "push-settings"].includes(currentRoute)
         ? "mypage"
-        : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notices"].includes(currentRoute)
+        : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notifications", "notices"].includes(currentRoute)
           ? "home"
           : currentRoute;
     button.hidden = !allowed;
@@ -666,6 +667,9 @@ function render() {
       }
       if (currentRoute === "penalties" && hasTeacherPermission("penalties.write")) {
         topActions.appendChild(button("상/벌점 부여", "btn", "button", openPenaltyModal));
+      }
+      if (currentRoute === "notices" && hasTeacherPermission("notices.write")) {
+        topActions.appendChild(button("D-day 설정", "btn secondary", "button", openAdminStudentDdayModal));
       }
       if (currentRoute !== "weekly-exams") topActions.appendChild(button("로그아웃", "btn secondary", "button", logoutTeacher));
     }
@@ -717,6 +721,7 @@ function render() {
           grades: () => requireStudentAuth(renderStudentGrades),
           mypage: () => requireStudentAuth(renderStudentMypage),
           "push-settings": () => requireStudentAuth(renderStudentPushSettings),
+          notifications: () => requireStudentAuth(renderStudentNotifications),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
           "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
@@ -2417,13 +2422,15 @@ function renderStudentHome() {
   const needsAttendance = !todayAttendance && !holiday && isAttendanceCheckOpen();
   const homeAction = getStudentHomeAction(activeOuting);
   return el("div", { className: "grid student-view student-home" }, [
-    el("section", { className: "student-dday-card" }, [
-      el("div", {}, [
-        el("span", {}, COAST_GUARD_EXAM_LABEL),
-        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
-      ]),
-      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
-    ]),
+    onlineMode
+      ? null
+      : el("section", { className: "student-dday-card" }, [
+          el("div", {}, [
+            el("span", {}, COAST_GUARD_EXAM_LABEL),
+            el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
+          ]),
+          el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
+        ]),
     onlineMode ? renderStudyCafeHomeCard(student) : null,
     onlineMode ? null : renderStudentImportantNoticeCard(),
     !onlineMode && holiday && !todayAttendance
@@ -2478,13 +2485,6 @@ function renderLectureStudentHome(student) {
   const summary = getLectureHomeSummary();
   const notices = getStudentImportantNotices();
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
-    el("section", { className: "student-dday-card" }, [
-      el("div", {}, [
-        el("span", {}, COAST_GUARD_EXAM_LABEL),
-        el("strong", {}, formatDday(COAST_GUARD_EXAM_DATE)),
-      ]),
-      el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
-    ]),
     renderStudyCafeHomeCard(student),
     renderQuestionBoardHomePreview(student),
     el("section", { className: "lecture-home-shortcuts-card" }, [
@@ -3443,6 +3443,133 @@ function renderStudentPushSettings() {
   ]);
 }
 
+function getStudentNotificationReadStorageKey(studentId) {
+  return `${STUDENT_NOTIFICATION_READ_STORAGE_KEY}:${String(studentId || "guest")}`;
+}
+
+function getReadStudentNotificationIds(studentId) {
+  try {
+    const value = JSON.parse(localStorage.getItem(getStudentNotificationReadStorageKey(studentId)) || "[]");
+    return new Set(Array.isArray(value) ? value.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markStudentNotificationsRead(studentId, messages) {
+  const ids = (messages || []).map((message) => String(message.id || "")).filter(Boolean).slice(0, 200);
+  localStorage.setItem(getStudentNotificationReadStorageKey(studentId), JSON.stringify(ids));
+}
+
+function updateStudentNotificationBadge(student = getAuthedStudent()) {
+  const readIds = getReadStudentNotificationIds(student?.id);
+  const unreadCount = studentNotificationInboxState.studentId === String(student?.id || "")
+    ? studentNotificationInboxState.messages.filter((message) => !readIds.has(String(message.id))).length
+    : 0;
+  document.querySelectorAll("[data-student-notification-badge]").forEach((badge) => {
+    badge.hidden = unreadCount === 0;
+    badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+  });
+}
+
+function ensureStudentNotificationInboxLoaded(student = getAuthedStudent()) {
+  if (!student?.id || !isOnlineStudentExperience(student)) return;
+  const studentId = String(student.id);
+  if (studentNotificationInboxState.studentId !== studentId) {
+    studentNotificationInboxState.studentId = studentId;
+    studentNotificationInboxState.loaded = false;
+    studentNotificationInboxState.loading = false;
+    studentNotificationInboxState.messages = [];
+    studentNotificationInboxState.error = "";
+  }
+  if (studentNotificationInboxState.loaded || studentNotificationInboxState.loading) {
+    updateStudentNotificationBadge(student);
+    return;
+  }
+  const profile = getStudentProfile(student.id) || {};
+  if (!profile.deviceToken) {
+    studentNotificationInboxState.loaded = true;
+    updateStudentNotificationBadge(student);
+    return;
+  }
+  studentNotificationInboxState.loading = true;
+  fetch("/api/student-push", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "inbox",
+      studentId: student.id,
+      deviceToken: profile.deviceToken,
+    }),
+  })
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "student_notification_inbox_failed");
+      studentNotificationInboxState.messages = Array.isArray(data.messages) ? data.messages : [];
+      studentNotificationInboxState.loaded = true;
+      studentNotificationInboxState.error = "";
+    })
+    .catch((error) => {
+      console.error(error);
+      studentNotificationInboxState.error = error.message || "student_notification_inbox_failed";
+    })
+    .finally(() => {
+      studentNotificationInboxState.loading = false;
+      updateStudentNotificationBadge(student);
+      if (currentRoute === "notifications") render();
+    });
+}
+
+function renderStudentNotifications() {
+  const student = getAuthedStudent();
+  ensureStudentNotificationInboxLoaded(student);
+  if (studentNotificationInboxState.loading && !studentNotificationInboxState.loaded) {
+    return el("div", { className: "grid student-view student-notification-page" }, [
+      renderStudentNotificationPageHead(),
+      el("div", { className: "student-notification-empty" }, "알림을 불러오는 중입니다."),
+    ]);
+  }
+  const messages = studentNotificationInboxState.messages || [];
+  if (studentNotificationInboxState.loaded) {
+    markStudentNotificationsRead(student.id, messages);
+    window.requestAnimationFrame(() => updateStudentNotificationBadge(student));
+  }
+  return el("div", { className: "grid student-view student-notification-page" }, [
+    renderStudentNotificationPageHead(),
+    studentNotificationInboxState.error
+      ? el("div", { className: "student-notification-empty error" }, "알림 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
+      : messages.length
+        ? el("section", { className: "student-notification-list" }, messages.map(renderStudentNotificationItem))
+        : el("div", { className: "student-notification-empty" }, [
+            el("strong", {}, "받은 알림이 없습니다"),
+            el("p", {}, "새로운 알림이 도착하면 이곳에서 확인할 수 있습니다."),
+          ]),
+  ]);
+}
+
+function renderStudentNotificationPageHead() {
+  return el("header", { className: "student-notification-page-head" }, [
+    button("‹", "student-notification-back", "button", () => navigate("home")),
+    el("h2", {}, "알림"),
+    el("span", { ariaHidden: "true" }),
+  ]);
+}
+
+function renderStudentNotificationItem(message) {
+  const createdAt = message.createdAt ? new Date(message.createdAt) : null;
+  const dateLabel = createdAt && !Number.isNaN(createdAt.getTime())
+    ? new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(createdAt)
+    : "";
+  return el("article", { className: "student-notification-item" }, [
+    el("div", { className: "student-notification-item-head" }, [
+      el("strong", {}, message.title || "알림"),
+      dateLabel ? el("time", {}, dateLabel) : null,
+    ]),
+    el("p", {}, message.body || ""),
+  ].filter(Boolean));
+}
+
 function getStudentPushPreferenceOptions(category) {
   return STUDENT_PUSH_PREFERENCE_OPTIONS.filter((option) => option.categories.includes(category));
 }
@@ -3645,6 +3772,178 @@ function isOnlineStudentExperience(student) {
   );
 }
 
+function getAdminStudentDday() {
+  const configured = state.settings.studentDday;
+  const date = String(configured?.date || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(new Date(`${date}T00:00:00`).getTime())) {
+    return {
+      mode: "admin",
+      label: String(configured.label || COAST_GUARD_EXAM_LABEL).trim() || COAST_GUARD_EXAM_LABEL,
+      date,
+    };
+  }
+  return { mode: "admin", label: COAST_GUARD_EXAM_LABEL, date: COAST_GUARD_EXAM_DATE };
+}
+
+function getStudentDdayStorageKey(studentId) {
+  return `${STUDENT_DDAY_STORAGE_KEY}:${String(studentId || "guest")}`;
+}
+
+function readStudentDdayPreference(student = getAuthedStudent()) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(getStudentDdayStorageKey(student?.id)) || "{}");
+    if (saved.mode === "custom" && /^\d{4}-\d{2}-\d{2}$/.test(String(saved.date || ""))) {
+      return {
+        mode: "custom",
+        label: String(saved.label || "나의 D-day").trim() || "나의 D-day",
+        date: String(saved.date),
+      };
+    }
+  } catch {
+    // 손상된 개인 설정은 관리자 지정 D-day로 복구합니다.
+  }
+  return { mode: "admin" };
+}
+
+function getSelectedStudentDday(student = getAuthedStudent()) {
+  const preference = readStudentDdayPreference(student);
+  return preference.mode === "custom" ? preference : getAdminStudentDday();
+}
+
+function updateStudentDdayHeader() {
+  const selected = getSelectedStudentDday();
+  document.querySelectorAll("[data-online-student-dday]").forEach((item) => {
+    item.textContent = formatDday(selected.date);
+    item.title = `${selected.label} · ${formatExamDate(selected.date)} · 눌러서 변경`;
+    item.setAttribute("aria-label", `${selected.label} ${formatDday(selected.date)}, D-day 설정 열기`);
+  });
+}
+
+function openStudentDdayModal() {
+  const student = getAuthedStudent();
+  if (!student || !isOnlineStudentExperience(student)) return;
+  const adminDday = getAdminStudentDday();
+  const preference = readStudentDdayPreference(student);
+  const customSelected = preference.mode === "custom";
+  const adminRadio = el("input", { type: "radio", name: "studentDdayMode", value: "admin", checked: !customSelected });
+  const customRadio = el("input", { type: "radio", name: "studentDdayMode", value: "custom", checked: customSelected });
+  const labelInput = input("studentDdayLabel", "text", "예: 나의 시험일", customSelected ? preference.label : "나의 D-day");
+  const dateInput = input("studentDdayDate", "date", "", customSelected ? preference.date : adminDday.date);
+  labelInput.maxLength = 40;
+  const customFields = el("div", { className: "student-dday-custom-fields" }, [
+    field("D-day 이름", labelInput),
+    field("날짜", dateInput),
+  ]);
+  const syncCustomFields = () => {
+    const disabled = !customRadio.checked;
+    labelInput.disabled = disabled;
+    dateInput.disabled = disabled;
+    customFields.classList.toggle("disabled", disabled);
+  };
+  adminRadio.addEventListener("change", syncCustomFields);
+  customRadio.addEventListener("change", syncCustomFields);
+  const content = el("div", { className: "student-dday-settings" }, [
+    el("label", { className: "student-dday-choice" }, [
+      adminRadio,
+      el("span", {}, [
+        el("strong", {}, "관리자 지정 D-day"),
+        el("small", {}, `${adminDday.label} · ${formatExamDate(adminDday.date)} · ${formatDday(adminDday.date)}`),
+      ]),
+    ]),
+    el("label", { className: "student-dday-choice" }, [
+      customRadio,
+      el("span", {}, [
+        el("strong", {}, "직접 설정"),
+        el("small", {}, "이 기기에서 사용할 개인 D-day를 설정합니다."),
+      ]),
+    ]),
+    customFields,
+  ]);
+  syncCustomFields();
+  openInfoModal({
+    title: "D-day 설정",
+    className: "student-dday-modal",
+    content,
+    confirmLabel: "저장",
+    onConfirm: () => {
+      if (customRadio.checked) {
+        const date = String(dateInput.value || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          notify("D-day 날짜를 선택해주세요.");
+          dateInput.focus();
+          return;
+        }
+        localStorage.setItem(getStudentDdayStorageKey(student.id), JSON.stringify({
+          mode: "custom",
+          label: String(labelInput.value || "나의 D-day").trim().slice(0, 40) || "나의 D-day",
+          date,
+        }));
+      } else {
+        localStorage.setItem(getStudentDdayStorageKey(student.id), JSON.stringify({ mode: "admin" }));
+      }
+      closeInfoModal();
+      updateStudentDdayHeader();
+      notify("D-day를 변경했습니다.");
+    },
+  });
+}
+
+function openAdminStudentDdayModal() {
+  if (APP_MODE !== "teacher" || !hasTeacherPermission("notices.write")) return;
+  const current = getAdminStudentDday();
+  const labelInput = input("adminStudentDdayLabel", "text", "예: 해양경찰 필기시험", current.label);
+  const dateInput = input("adminStudentDdayDate", "date", "", current.date);
+  labelInput.maxLength = 40;
+  const content = el("div", { className: "admin-student-dday-settings" }, [
+    el("p", {}, "여기에서 지정한 일정은 온라인 수강생이 D-day 설정에서 선택할 수 있습니다."),
+    field("일정 이름", labelInput),
+    field("날짜", dateInput),
+  ]);
+  let saving = false;
+  const result = openInfoModal({
+    title: "수강생 D-day 설정",
+    className: "admin-student-dday-modal",
+    content,
+    confirmLabel: "저장",
+    onConfirm: async () => {
+      if (saving) return;
+      const date = String(dateInput.value || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        notify("D-day 날짜를 선택해주세요.");
+        dateInput.focus();
+        return;
+      }
+      saving = true;
+      result.confirmButton.disabled = true;
+      try {
+        const response = await fetch("/api/app-settings", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            settings: {
+              studentDday: {
+                label: String(labelInput.value || "관리자 지정 일정").trim().slice(0, 40) || "관리자 지정 일정",
+                date,
+              },
+            },
+          }),
+        });
+        const data = await response.json().catch(() => ({ ok: false }));
+        if (!response.ok || !data.ok) throw new Error(data.error || "student_dday_save_failed");
+        applyRemoteAppSettings(data.settings);
+        closeInfoModal();
+        notify("수강생 D-day를 저장했습니다.");
+      } catch (error) {
+        console.error(error);
+        notify("D-day를 저장하지 못했습니다.");
+        result.confirmButton.disabled = false;
+        saving = false;
+      }
+    },
+  });
+}
+
 function ensureStudyCafeTemporaryNickname() {
   if (studyCafePreviewState.nickname) return studyCafePreviewState.nickname;
   if (studyCafePreviewState.temporaryNicknameAwaitingEntry) return "";
@@ -3681,6 +3980,9 @@ function updateStudentNavigationVisibility() {
   document.body.classList.toggle("student-online-managed-mode", onlineManagedMode);
   document.body.classList.toggle("student-lecture-mode", lectureMode);
   document.body.classList.toggle("student-study-mode", studyMode);
+  updateStudentDdayHeader();
+  if (onlineMode && student) ensureStudentNotificationInboxLoaded(student);
+  else document.querySelectorAll("[data-student-notification-badge]").forEach((badge) => { badge.hidden = true; });
   document.querySelectorAll(".normal-student-footer [data-route]").forEach((item) => {
     const allowedRoutes = getAllowedStudentRoutes(category);
     item.hidden = lectureMode || !allowedRoutes.has(item.dataset.route);
@@ -3708,16 +4010,31 @@ function renderStudyCafeHomeCard(student) {
     ? `${studyCafePreviewState.subject} 공부 중`
     : seated
       ? `${selectedSeatNumber}번 좌석 이용 중`
-      : "론박 온라인 스터디카페";
+      : "론박스터디 온라인 스터디카페";
+  const titleNode = !active && !seated
+    ? el("strong", { className: "student-study-cafe-card-title branded", ariaLabel: title }, [
+        el("span", { className: "brand" }, "론박스터디"),
+        el("span", { className: "online" }, "온라인"),
+        el("span", { className: "study" }, "스터디"),
+        el("span", { className: "cafe" }, "카페"),
+      ])
+    : el("strong", { className: "student-study-cafe-card-title" }, title);
   return el("section", { className: "student-study-cafe-card" }, [
     el("div", { className: "student-study-cafe-card-copy" }, [
       el("span", { className: "student-study-cafe-card-kicker" }, active ? "집중 타이머" : seated ? "좌석 이용 중" : "ONLINE STUDY CAFE"),
-      el("strong", {}, title),
-      el(
-        "span",
-        { className: "student-study-cafe-live-count", "data-study-cafe-home-live-count": "true" },
-        formatStudyCafeLiveCount(focusedCount)
-      ),
+      titleNode,
+      el("span", { className: "student-study-cafe-operating-hours" }, [
+        el("span", {}, "운영 시간 :"),
+        el("strong", {}, "24시간"),
+      ]),
+      el("div", { className: "student-study-cafe-live-row" }, [
+        el("span", { className: "student-study-cafe-live-badge" }, "LIVE"),
+        el(
+          "span",
+          { className: "student-study-cafe-live-count", "data-study-cafe-home-live-count": "true" },
+          formatStudyCafeLiveCount(focusedCount)
+        ),
+      ]),
       renderStudyCafeHomeAvatarStack(focusedCount),
     ]),
     button("스터디카페 입장", "btn", "button", () => navigate("study-cafe")),
@@ -3790,9 +4107,38 @@ function renderStudentPlannerHub() {
     ]);
   }
   return el("div", { className: `student-planner-hub ${activeView}` }, [
-    curriculumAvailable ? renderStudentPlannerViewSwitch(activeView) : null,
+    curriculumAvailable ? renderStudentPlannerViewSwitch(activeView) : renderStudentPlannerSoloHeader(),
+    curriculumAvailable && activeView === "planner" ? renderStudentPlannerMonthAction() : null,
     activeView === "curriculum" ? renderCurriculumQuest() : renderStudentStudyTodo(),
   ].filter(Boolean));
+}
+
+function renderStudentPlannerSoloHeader() {
+  const selectedDateKey = getSelectedStudyTodoDateKey();
+  return el("header", { className: "student-planner-solo-header" }, [
+    el("span", { className: "student-planner-solo-spacer", ariaHidden: "true" }),
+    el("h2", {}, "오늘의 할 일"),
+    renderStudentPlannerMonthButton(selectedDateKey),
+  ]);
+}
+
+function renderStudentPlannerMonthAction() {
+  return el("div", { className: "student-planner-month-action" }, [
+    renderStudentPlannerMonthButton(getSelectedStudyTodoDateKey()),
+  ]);
+}
+
+function renderStudentPlannerMonthButton(selectedDateKey) {
+  return el("button", {
+    className: "study-todo-calendar-button student-planner-month-button",
+    type: "button",
+    title: "월간 플래너 열기",
+    ariaLabel: "월간 플래너 열기",
+    onclick: () => openStudyTodoCalendar(selectedDateKey),
+  }, [
+    el("span", { className: "study-todo-calendar-icon", ariaHidden: "true" }),
+    el("span", { className: "student-planner-month-label" }, "월간 플래너"),
+  ]);
 }
 
 function renderStudentPlannerViewSwitch(activeView) {
@@ -4419,20 +4765,6 @@ function renderStudyTodoDateNavigation(selectedDateKey) {
         onclick: () => selectStudyTodoDate(previousDateKey),
       }),
       el("div", { className: "study-todo-date-current", ariaLive: "polite" }, [
-        el("button", {
-          className: "study-todo-calendar-button",
-          type: "button",
-          title: "월간 플래너 열기",
-          ariaLabel: "월간 플래너 열기",
-          onclick: () => {
-            studyTodoCalendarOpen = true;
-            studyTodoCalendarMonthKey = selectedDateKey.slice(0, 7);
-            renderStudyCafeStateUpdate();
-            scrollAppToTop();
-          },
-        }, [
-          el("span", { className: "study-todo-calendar-icon", ariaHidden: "true" }),
-        ]),
         el("strong", {}, getStudyTodoDateLabel(selectedDateKey)),
       ]),
       el("button", {
@@ -4444,6 +4776,13 @@ function renderStudyTodoDateNavigation(selectedDateKey) {
       }),
     ]
   );
+}
+
+function openStudyTodoCalendar(selectedDateKey = getSelectedStudyTodoDateKey()) {
+  studyTodoCalendarOpen = true;
+  studyTodoCalendarMonthKey = selectedDateKey.slice(0, 7);
+  renderStudyCafeStateUpdate();
+  scrollAppToTop();
 }
 
 function renderStudyTodoMonthlyCalendar(selectedDateKey) {
@@ -4657,18 +4996,29 @@ function renderStudentStudyCafe() {
 
   return el("div", { className: "student-study-cafe-page" }, [
     el("section", {
-      className: `study-cafe-room theme-${activeRoom.theme} ${rankingRoomActive ? "ranking-room" : ""}`,
+      className: `study-cafe-room theme-${activeRoom.theme} ${rankingRoomActive ? "ranking-room" : ""} ${seated ? "has-selected-seat" : ""}`,
       ariaLabel: `${activeRoom.label} ${activeRoom.mood} 좌석 배치`,
       "data-study-cafe-room": "true",
     }, [
       el("div", { className: "study-cafe-room-toolbar" }, [
         el("div", { className: "study-cafe-room-identity" }, [
           el("strong", {}, "RONPARK STUDYCAFE"),
-          el(
-            "span",
-            { "data-study-cafe-room-mood": "true" },
-            `${activeRoom.label} · ${activeRoom.mood}`
-          ),
+          el("div", { className: "study-cafe-room-identity-meta" }, [
+            el(
+              "span",
+              { className: "study-cafe-room-mood", "data-study-cafe-room-mood": "true" },
+              `${activeRoom.label} · ${activeRoom.mood}`
+            ),
+            el("button", {
+              className: "study-cafe-ranking-help-button",
+              type: "button",
+              hidden: !rankingRoomActive,
+              "data-study-cafe-ranking-help": "true",
+              ariaLabel: "랭킹룸 이용 안내 열기",
+              textContent: "? 랭킹룸 안내",
+              onclick: openStudyCafeRankingGuideModal,
+            }),
+          ]),
         ]),
         el("div", { className: "study-cafe-room-toolbar-actions" }, [
           browsingPublicCafe
@@ -4706,6 +5056,9 @@ function renderStudentStudyCafe() {
         { "data-study-cafe-first-use-guide": "true" },
         firstUseGuideVisible ? renderStudyCafeFirstUseGuide(activeRoomIndex) : null
       ),
+      el("div", { className: "study-cafe-seat-section-head", ariaLabel: "좌석 현황" }, [
+        el("strong", {}, "좌석 현황"),
+      ]),
       el(
         "div",
         { className: "study-cafe-seat-grid", "data-study-cafe-seat-grid": "true" },
@@ -4912,7 +5265,7 @@ function renderPrivateStudyRoomSeat(seatNumber, room, student) {
           studying: occupant.status === "studying",
           showWritingArms: true,
         })
-      : el("span", { className: "study-cafe-empty-plus" }, "+"),
+      : el("span", { className: "study-cafe-empty-plus" }, "+ 입장"),
     occupant
       ? null
       : el("span", { className: "study-cafe-desk" }, [
@@ -5485,7 +5838,9 @@ function getStudyCafeRoomIndexForSeat(seatNumber) {
     STUDY_CAFE_SEAT_COUNT,
     Math.max(1, Number(seatNumber) || 1)
   );
-  return Math.floor((normalizedSeat - 1) / STUDY_CAFE_ROOM_SIZE);
+  return normalizedSeat <= STUDY_CAFE_ROOM_SIZE
+    ? STUDY_CAFE_RANKING_ROOM_INDEX
+    : 1;
 }
 
 function getStudyCafeSeatOccupant(seat, seatNumber, student) {
@@ -5740,7 +6095,7 @@ function renderStudyCafeRoomTabs(student) {
         },
         [
           el("strong", {}, room.label),
-          el("span", {}, `${getStudyCafeRoomOccupancyCount(index)}/${STUDY_CAFE_ROOM_SIZE}`),
+          el("span", {}, `${getStudyCafeRoomOccupancyCount(index)}/${room.endSeat - room.startSeat + 1}`),
           index === myRoomIndex
             ? el("i", {}, index === STUDY_CAFE_RANKING_ROOM_INDEX
                 ? String(getStudyCafeRankingRoomRank(selectedSeatNumber, student))
@@ -5751,6 +6106,40 @@ function renderStudyCafeRoomTabs(student) {
       return tab;
     })
   );
+}
+
+function openStudyCafeRankingGuideModal() {
+  openInfoModal({
+    title: "랭킹룸 이용 안내",
+    className: "study-cafe-ranking-guide-modal",
+    confirmLabel: "확인했어요",
+    content: el("div", { className: "study-cafe-ranking-guide-content" }, [
+      el("p", { className: "study-cafe-ranking-guide-summary" }, "오늘 공부한 순공시간을 기준으로 함께 집중하는 공간이에요."),
+      el("div", { className: "study-cafe-ranking-guide-list" }, [
+        el("article", {}, [
+          el("span", { ariaHidden: "true" }, "1"),
+          el("div", {}, [
+            el("strong", {}, "오늘 순공시간으로 순위 결정"),
+            el("p", {}, "오늘 누적된 순공시간이 긴 순서대로 좌석과 순위가 정해집니다."),
+          ]),
+        ]),
+        el("article", {}, [
+          el("span", { ariaHidden: "true" }, "↻"),
+          el("div", {}, [
+            el("strong", {}, "순위는 15초마다 갱신"),
+            el("p", {}, "공부시간이 쌓이면 내 위치와 다른 수강생의 위치가 자동으로 바뀝니다."),
+          ]),
+        ]),
+        el("article", {}, [
+          el("span", { ariaHidden: "true" }, "✓"),
+          el("div", {}, [
+            el("strong", {}, "빈자리를 눌러 바로 입장"),
+            el("p", {}, "현재 기록에 맞는 예상 순위를 확인한 뒤 입장하며, 공부 중 이동해도 타이머는 유지됩니다."),
+          ]),
+        ]),
+      ]),
+    ]),
+  });
 }
 
 function selectStudyCafeRoom(roomIndex, student) {
@@ -5774,6 +6163,8 @@ function selectStudyCafeRoom(roomIndex, student) {
   }
   const roomMood = document.querySelector("[data-study-cafe-room-mood]");
   if (roomMood) roomMood.textContent = `${room.label} · ${room.mood}`;
+  const rankingHelp = document.querySelector("[data-study-cafe-ranking-help]");
+  if (rankingHelp) rankingHelp.hidden = nextIndex !== STUDY_CAFE_RANKING_ROOM_INDEX;
   const seatGrid = document.querySelector("[data-study-cafe-seat-grid]");
   if (seatGrid) {
     seatGrid.replaceChildren(
@@ -6270,6 +6661,7 @@ function openStudyTimerFullscreen() {
     return notify("과목 타이머를 먼저 시작해주세요.");
   }
   studyTimerStatsState.mode = "timer";
+  studyCafePreviewState.timerFullscreenReturnRoute = currentRoute === "study-cafe" ? "study-cafe" : "";
   studyCafePreviewState.timerFullscreen = true;
   if (currentRoute !== "study-timer") {
     navigate("study-timer");
@@ -6279,7 +6671,13 @@ function openStudyTimerFullscreen() {
 }
 
 function closeStudyTimerFullscreen() {
+  const returnRoute = studyCafePreviewState.timerFullscreenReturnRoute;
   studyCafePreviewState.timerFullscreen = false;
+  studyCafePreviewState.timerFullscreenReturnRoute = "";
+  if (returnRoute === "study-cafe" && currentRoute !== returnRoute) {
+    navigate(returnRoute);
+    return;
+  }
   render();
 }
 
@@ -6980,7 +7378,7 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
   const occupantFullTrack = occupant?.fullTrack || occupant?.track || "직렬 미등록";
   const isPausedSeat = occupant?.status === "paused";
   const displaySeatLabel = rankingRoom
-    ? occupant ? String(rank) : "입장"
+    ? occupant ? String(rank) : ""
     : String(seatNumber);
   const seatButton = el(
     "button",
@@ -6997,7 +7395,7 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
           : rankingRoom ? "랭킹룸 빈자리 선택" : `${seatNumber}번 좌석 선택`,
     },
     [
-      el("span", { className: "study-cafe-seat-number" }, displaySeatLabel),
+      displaySeatLabel ? el("span", { className: "study-cafe-seat-number" }, displaySeatLabel) : null,
       rankingRoom && occupant && rankChange
         ? el("span", {
             className: `study-cafe-rank-change ${rankChange > 0 ? "up" : "down"}`,
@@ -7044,7 +7442,7 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
         ? renderStudyCafeSeatedVisual(occupant.tone, isMine, {
             studying: occupant.status === "studying",
           })
-        : el("span", { className: "study-cafe-empty-plus" }, "+"),
+        : el("span", { className: "study-cafe-empty-plus" }, "+ 입장"),
       occupant
         ? null
         : el("span", { className: "study-cafe-desk" }, [

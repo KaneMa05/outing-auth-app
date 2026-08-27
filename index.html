@@ -23,7 +23,10 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260819-attendance-board-review" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20260827-study-cafe-light-palette" />
   </head>
   <body>
     <noscript>
@@ -49,6 +52,18 @@
       </aside>
 
       <main class="main-shell">
+        <header class="online-student-header" aria-label="온라인 수강생 헤더">
+          <button class="online-student-logo" type="button" data-route="home" aria-label="RONPARK 홈으로 이동">
+            <strong>RONPARK</strong><span>STUDY</span>
+          </button>
+          <div class="online-student-header-actions">
+            <button class="online-student-dday" type="button" data-online-student-dday aria-label="D-day 설정 열기">D-</button>
+            <button class="online-student-notice-button" type="button" data-route="notifications" aria-label="내 알림 목록 열기">
+              <span aria-hidden="true"></span>
+              <b data-student-notification-badge hidden>0</b>
+            </button>
+          </div>
+        </header>
         <header class="topbar student-topbar" hidden>
           <div>
             <p class="eyebrow">Offline Class Control</p>
@@ -135,6 +150,7 @@
           "study-timer": "과목 타이머",
           "study-ranking": "순공시간 랭킹",
           "study-character": "캐릭터",
+          notifications: "알림",
           notices: "중요 공지"
         };
         function qs(selector) {
@@ -184,7 +200,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notifications" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
