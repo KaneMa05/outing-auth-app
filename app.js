@@ -4116,8 +4116,9 @@ function renderStudentPlannerHub() {
 function renderStudentPlannerSoloHeader() {
   const selectedDateKey = getSelectedStudyTodoDateKey();
   return el("header", { className: "student-planner-solo-header" }, [
-    el("span", { className: "student-planner-solo-spacer", ariaHidden: "true" }),
-    el("h2", {}, "오늘의 할 일"),
+    el("div", { className: "student-planner-view-switch single", ariaLabel: "학습 화면" }, [
+      el("h2", { className: "student-planner-view-option active" }, "오늘의 할 일"),
+    ]),
     renderStudentPlannerMonthButton(selectedDateKey),
   ]);
 }

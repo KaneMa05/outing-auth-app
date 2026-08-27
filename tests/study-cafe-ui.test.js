@@ -15,7 +15,9 @@ assert.match(appSource, /function renderStudentPlannerSoloHeader\(\)/);
 assert.match(appSource, /curriculumAvailable && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
 assert.match(appSource, /function renderStudentPlannerMonthAction\(\)/);
 assert.match(appSource, /className: "student-planner-solo-header"/);
-assert.match(appSource, /el\("h2", \{\}, "오늘의 할 일"\)/);
+assert.match(appSource, /className: "student-planner-view-switch single"[\s\S]*?el\("h2", \{ className: "student-planner-view-option active" \}, "오늘의 할 일"\)/);
+assert.doesNotMatch(appSource, /className: "student-planner-solo-spacer"/);
+assert.match(styleSource, /\.student-planner-solo-header \.student-planner-view-switch\.single\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
 assert.match(appSource, /className: "study-todo-calendar-button student-planner-month-button"/);
 assert.match(appSource, /className: "student-planner-month-label" \}, "월간 플래너"/);
 assert.match(appSource, /label: "오늘의 할 일"[\s\S]*?label: "커리큘럼"/);
@@ -344,6 +346,16 @@ assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\)
 assert.match(styleSource, /--online-brand-accent: #2a8c82/);
 assert.doesNotMatch(styleSource, /--online-toss-blue|#3182f6|rgba\(49, 130, 246/);
 assert.match(styleSource, /body\.student-online-mode \.student-planner-view-option\.active\s*\{[^}]*background: var\(--online-brand-accent\)[^}]*color: #fff/);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.student-planner-view-switch\s*\{[^}]*border: 1px solid rgba\(207, 226, 232, 0\.34\)[^}]*background: rgba\(255, 255, 255, 0\.16\)/,
+  "the online planner switch should retain a visible outer boundary"
+);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.student-planner-view-option\.active\s*\{[^}]*border: 1px solid rgba\(255, 255, 255, 0\.34\)/,
+  "the active planner tab should retain its own boundary"
+);
 assert.match(styleSource, /body\.student-online-mode \.study-todo-progress-track i\s*\{[^}]*background: var\(--online-brand-accent\)/);
 assert.match(styleSource, /body\.student-online-mode \.student-mypage \.student-avatar\s*\{[^}]*rgba\(42, 140, 130, 0\.2\)[^}]*color: #83d0c5/);
 assert.match(styleSource, /body\.student-online-mode \.normal-student-footer\s*\{[^}]*background: rgba\(14, 42, 67, 0\.96\)/);
