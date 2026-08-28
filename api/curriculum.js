@@ -203,7 +203,7 @@ function normalizeSubject(value) {
     return {
       id: stageId,
       stageNumber: index + 1,
-      title: normalizeText(deriveCurriculumStageTitle(lectures, stage.title), 160, 1, "invalid_stage_title"),
+      title: normalizeText(deriveCurriculumStageTitle(lectures, stage.title), 1000, 1, "invalid_stage_title"),
       sortOrder: index + 1,
       isPublished: stage.isPublished !== false,
       requiresWrapUp: stage.requiresWrapUp !== false,

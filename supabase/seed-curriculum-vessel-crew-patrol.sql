@@ -290,4 +290,15 @@ on conflict (id) do update set
   sort_order = excluded.sort_order,
   updated_at = now();
 
+update public.curriculum_stages as stage
+set title = lecture_titles.title,
+    updated_at = now()
+from (
+  select stage_id, string_agg(title, ', ' order by sort_order, id) as title
+  from public.curriculum_lectures
+  group by stage_id
+) as lecture_titles
+where stage.id = lecture_titles.stage_id
+  and stage.subject_id in ('navigation-technique', 'marine-engineering', 'maritime-english');
+
 commit;

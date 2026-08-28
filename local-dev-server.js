@@ -271,10 +271,24 @@ function readLocalCurriculum() {
   if (!fs.existsSync(LOCAL_CURRICULUM_FILE)) return [];
   try {
     const value = JSON.parse(fs.readFileSync(LOCAL_CURRICULUM_FILE, "utf8") || "[]");
-    return Array.isArray(value) ? value : [];
+    return Array.isArray(value) ? value.map((subject) => ({
+      ...subject,
+      stages: (Array.isArray(subject.stages) ? subject.stages : []).map((stage) => ({
+        ...stage,
+        title: deriveLocalCurriculumStageTitle(stage.lectures, stage.title),
+      })),
+    })) : [];
   } catch {
     return [];
   }
+}
+
+function deriveLocalCurriculumStageTitle(lectures, fallback = "") {
+  const title = (Array.isArray(lectures) ? lectures : [])
+    .map((lecture) => String(lecture?.title || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  return title || String(fallback || "").trim();
 }
 
 function writeLocalCurriculum(subjects) {

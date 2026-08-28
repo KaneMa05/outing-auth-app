@@ -66,11 +66,14 @@ function restructureCurriculumIntoSessions(subjects, plans = CURRICULUM_SESSION_
       const items = lectures.slice(start, session.end);
       start = session.end;
       if (!items.length) throw new Error(`${subject.id}: session ${index + 1} has no lectures`);
-      const firstTitle = items.find((item) => !/OT/i.test(item.lecture.title))?.lecture.title || items[0].lecture.title;
+      const stageTitle = items
+        .map((item) => String(item.lecture.title || "").trim())
+        .filter(Boolean)
+        .join(", ");
       return {
         id: `${subject.id}-session-${index + 1}`,
         stageNumber: index + 1,
-        title: `${firstTitle}${items.length > 1 ? ` 외 ${items.length - 1}강` : ""}`,
+        title: stageTitle,
         scheduledDate: session.date,
         sortOrder: index + 1,
         isPublished: items.every((item) => item.isPublished),

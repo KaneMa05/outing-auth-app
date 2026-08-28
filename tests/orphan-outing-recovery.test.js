@@ -28,7 +28,7 @@ assert.doesNotMatch(
 assert.match(indexSource, /shared\.js\?v=20260819-teacher-reason-photo/);
 assert.match(indexSource, /student\.js\?v=20260819-attendance-photo-feedback/);
 assert.match(teacherSource, /shared\.js\?v=20260819-teacher-reason-photo/);
-assert.match(serviceWorkerSource, /outing-auth-app-v365-local-grant-20000/);
+assert.match(serviceWorkerSource, /outing-auth-app-v366-curriculum-stage-titles/);
 assert.match(serviceWorkerSource, /\/coast-guard-eagle-emblem\.svg/);
 assert.match(serviceWorkerSource, /\/study-shop\.js/);
 

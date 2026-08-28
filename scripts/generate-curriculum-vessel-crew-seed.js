@@ -115,7 +115,8 @@ subjects.forEach((subject) => {
     const stageNumber = stageIndex + 1;
     const stageId = `${subject.id}-stage-${stageNumber}`;
     const stageLectures = lectures.slice(start - 1, end);
-    stageRows.push(`(${quote(stageId)}, ${quote(subject.id)}, ${stageNumber}, ${quote(title)}, ${stageNumber}, true, ${stageNumber !== 1})`);
+    const stageTitle = stageLectures.map((lecture) => String(lecture.title || "").trim()).filter(Boolean).join(", ") || title;
+    stageRows.push(`(${quote(stageId)}, ${quote(subject.id)}, ${stageNumber}, ${quote(stageTitle)}, ${stageNumber}, true, ${stageNumber !== 1})`);
     stageLectures.forEach((lecture, lectureIndex) => {
       lectureRows.push(`(${quote(`${stageId}-lecture-${lectureIndex + 1}`)}, ${quote(stageId)}, ${quote(lecture.no)}, ${quote(lecture.title)}, ${lectureIndex + 1})`);
     });
@@ -175,6 +176,17 @@ on conflict (id) do update set
   title = excluded.title,
   sort_order = excluded.sort_order,
   updated_at = now();
+
+update public.curriculum_stages as stage
+set title = lecture_titles.title,
+    updated_at = now()
+from (
+  select stage_id, string_agg(title, ', ' order by sort_order, id) as title
+  from public.curriculum_lectures
+  group by stage_id
+) as lecture_titles
+where stage.id = lecture_titles.stage_id
+  and stage.subject_id in ('navigation-technique', 'marine-engineering', 'maritime-english');
 
 commit;
 `;

@@ -14,6 +14,7 @@ const sharedSource = read("shared.js");
 const schemaSource = read("supabase/add-curriculum-management.sql");
 const localServerSource = read("local-dev-server.js");
 const localSetupSource = read("scripts/setup-local-curriculum.js");
+const stageTitleUpdateSql = read("supabase/update-curriculum-stage-titles.sql");
 const packageJson = JSON.parse(read("package.json"));
 const { restructureCurriculumIntoSessions } = require("../scripts/curriculum-sessions");
 
@@ -45,6 +46,10 @@ assert.match(schemaSource, /revoke all on public\.curriculum_subjects from anon,
 assert.match(schemaSource, /curriculum_stages_subject_sort_idx/);
 assert.match(schemaSource, /target_tracks text\[\]/);
 assert.match(schemaSource, /requires_wrap_up boolean/);
+assert.match(schemaSource, /char_length\(title\) between 1 and 1000/);
+assert.match(stageTitleUpdateSql, /string_agg\(title, ', ' order by sort_order, id\)/);
+assert.match(stageTitleUpdateSql, /where stage\.id = lecture_titles\.stage_id/);
+assert.doesNotMatch(stageTitleUpdateSql, /subject_id\s*=/);
 assert.match(localServerSource, /handleLocalCurriculum/);
 assert.match(localServerSource, /curriculum_disabled/);
 assert.match(sharedSource, /createLocalDevStoreUrl\(\) \|\| !loadedAppSettingsFromNotices/);
@@ -71,7 +76,7 @@ const sessionCatalog = restructureCurriculumIntoSessions([{
 assert.equal(sessionCatalog[0].totalStages, 1);
 assert.equal(sessionCatalog[0].stages[0].id, "subject-a-session-1");
 assert.equal(sessionCatalog[0].stages[0].scheduledDate, "2026-06-21");
-assert.equal(sessionCatalog[0].stages[0].title, "첫 강의 외 1강");
+assert.equal(sessionCatalog[0].stages[0].title, "첫 강의, 둘째 강의");
 assert.equal(sessionCatalog[0].stages[0].lectures[1].id, "lecture-2");
 
 const normalized = handler._test.normalizeSubject({

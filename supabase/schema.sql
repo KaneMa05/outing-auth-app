@@ -379,7 +379,7 @@ create table if not exists public.curriculum_stages (
   id text primary key,
   subject_id text not null references public.curriculum_subjects(id) on delete cascade,
   stage_number integer not null check (stage_number between 1 and 100),
-  title text not null check (char_length(title) between 1 and 160),
+  title text not null check (char_length(title) between 1 and 1000),
   sort_order integer not null default 1 check (sort_order between 1 and 100),
   is_published boolean not null default true,
   requires_wrap_up boolean not null default true,

@@ -2707,15 +2707,14 @@ function createCurriculumQuestTaskState(subject, stageNumber, preview = false) {
 }
 
 function getCurriculumStageTitle(subject, stageNumber) {
+  const lectureTitle = getCurriculumStageLectures(subject.id, stageNumber)
+    .map((lecture) => String(lecture?.title || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  if (lectureTitle) return lectureTitle;
   const managedTitle = String(getCurriculumStage(subject, stageNumber)?.title || "").trim();
   if (managedTitle) return managedTitle;
-  const firstTitle = String(getCurriculumStageLectures(subject.id, stageNumber)[0]?.title || "").trim();
-  if (!firstTitle) return subject.stageTitles[stageNumber - 1] || `${stageNumber}회차`;
-  if (/^(?:전과목)?OT(?:-|$)/i.test(firstTitle)) return "오리엔테이션";
-  return firstTitle
-    .replace(/^\[[^\]]+\]/, "")
-    .replace(/\(1\)(?:심화)?$/, "")
-    .trim();
+  return subject.stageTitles[stageNumber - 1] || `${stageNumber}회차`;
 }
 
 function isCurriculumOrientationStage(subject, stageNumber) {
