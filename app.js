@@ -929,7 +929,7 @@ function renderStudentAuth() {
   const resetRequestArea = el("div", { className: "student-auth-reset-request", hidden: true });
   const profileArea = el("div", { className: "student-auth-profile", hidden: true });
   const studentNameNode = el("strong", { className: "student-auth-name" }, "-");
-  const authTitle = el("h2", {}, "학생 등록");
+  const authTitle = el("h2", {}, "로그인");
   const authDescription = el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요.");
   let selectedStudent = null;
 
@@ -958,7 +958,7 @@ function renderStudentAuth() {
     resetRequestArea.hidden = true;
   };
 
-  const lookupButton = button("조회", "btn secondary", "button", async () => {
+  const lookupButton = button("로그인", "btn secondary", "button", async () => {
     selectedStudent = findStudent(idInput.value);
     if (!selectedStudent && localDevStoreUrl) {
       await initLocalDevStore();
@@ -989,7 +989,7 @@ function renderStudentAuth() {
       return;
     }
 
-    authTitle.textContent = "학생 등록";
+    authTitle.textContent = "로그인";
     authDescription.textContent = "고유번호를 입력해 본인 정보를 확인해주세요.";
     submitButton.textContent = "시작하기";
     trackField.hidden = false;
