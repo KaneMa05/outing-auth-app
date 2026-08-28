@@ -46,7 +46,7 @@ assert.match(app, /현재 과목과 공부시간은 그대로 유지됩니다/);
 assert.match(app, /notify\(`\$\{nextSeatNumber\}번 좌석으로 이동했습니다.`\)/);
 assert.match(app, /className: `study-cafe-seat study-room-seat/);
 assert.match(app, /className: `study-cafe-room theme-\$\{roomTheme\} study-private-room`/);
-assert.match(app, /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", false/);
+assert.match(app, /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine/);
 assert.match(app, /showWritingArms: true/);
 assert.match(app, /"data-study-member-time": isMine/);
 assert.match(app, /"data-study-base-seconds": String\(Number\(occupant\.todaySeconds\) \|\| 0\)/);

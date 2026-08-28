@@ -15,14 +15,18 @@
   "study-cafe-admin": "온라인 스터디카페",
   "question-board": "게시판",
   "question-board-admin": "게시판 관리",
+  "inquiry-board": "문의하기",
+  "inquiry-board-admin": "문의 관리",
   "curriculum-admin": "커리큘럼 관리",
   mypage: "마이페이지",
+  faq: "자주 묻는 질문",
   "push-settings": "푸시 알림 설정",
   "study-todo": "오늘 플래너",
   "study-cafe": "온라인 스터디카페",
   "study-timer": "과목 타이머",
   "study-ranking": "순공시간 랭킹",
   "study-character": "캐릭터",
+  "study-shop": "스터디 상점",
   curriculum: "커리큘럼 퀘스트",
   teacher: "외출 관리",
   "teacher-accounts": "선생님 계정",
@@ -41,8 +45,57 @@
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
   online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notifications", "notices"]),
-  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notifications", "notices"]),
+  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "notifications", "notices"]),
 };
+
+const INTERNET_STUDENT_FAQS = [
+  {
+    category: "플래너",
+    question: "오늘의 할 일과 커리큘럼은 어떻게 다른가요?",
+    answer: "오늘의 할 일은 오늘 실제로 공부할 내용을 과목별로 적고 목표 시간을 정하는 공간입니다. 커리큘럼은 전체 학습 순서와 회차별 진도를 관리하는 공간이며, 두 화면의 완료 상태는 각각 따로 기록됩니다.",
+  },
+  {
+    category: "스터디카페",
+    question: "좌석을 선택하려면 먼저 무엇을 해야 하나요?",
+    answer: "오늘 플래너에 공부할 과목의 할 일을 하나 이상 작성한 뒤 스터디카페에서 빈 좌석을 선택하세요. 이어서 공부할 과목을 고르면 좌석이 확정되고 타이머를 시작할 수 있습니다.",
+  },
+  {
+    category: "스터디카페",
+    question: "이미 앉아 있는데 과목이나 좌석을 바꾸고 싶어요.",
+    answer: "과목은 내 좌석 카드의 과목 선택·변경 메뉴에서 바꿀 수 있습니다. 좌석은 다른 빈 좌석의 ‘좌석 변경’을 누르면 이동할 수 있으며, 공부 중이라면 현재 타이머를 유지한 채 이동할 수 있습니다.",
+  },
+  {
+    category: "타이머",
+    question: "과목 종료와 자리 비우기는 무엇이 다른가요?",
+    answer: "과목 종료는 현재 과목의 측정만 끝내고 좌석은 그대로 유지합니다. 자리 비우기는 스터디카페 좌석까지 반납합니다. 전체화면은 표시 방식만 바꾸므로 타이머 기록에는 영향을 주지 않습니다.",
+  },
+  {
+    category: "타이머",
+    question: "타이머를 오래 일시정지하면 어떻게 되나요?",
+    answer: "일시정지 상태가 15분 동안 이어지면 좌석 유지 여부를 확인하는 안내가 표시됩니다. 응답하지 않으면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워질 수 있습니다.",
+  },
+  {
+    category: "커리큘럼",
+    question: "완료한 회차가 많아 진행 중 회차를 찾기 어려워요.",
+    answer: "과목 카드 오른쪽의 ‘진행 회차’ 버튼을 누르면 현재 회차로 바로 이동합니다. 회차 상세에서는 상단의 ‘커리큘럼 목록’ 버튼을 누르거나 화면을 왼쪽에서 오른쪽으로 밀어 목록으로 돌아갈 수 있습니다.",
+  },
+  {
+    category: "게시판",
+    question: "게시판에서 원하는 과목 글과 선생님 답변은 어떻게 찾나요?",
+    answer: "상단 과목 필터를 선택하면 해당 과목 글만 볼 수 있습니다. 글 상세의 댓글에서 선생님 답변 배지를 확인할 수 있고, 새 글은 게시판 하단의 글쓰기 버튼으로 등록할 수 있습니다.",
+  },
+  {
+    category: "알림",
+    question: "앱 알림이 오지 않아요.",
+    answer: "마이 탭의 ‘앱 알림 설정’에서 전체 앱 알림과 항목별 알림이 켜져 있는지 확인하세요. 휴대폰의 알림 권한도 허용되어 있어야 하며, 아이폰은 홈 화면에 설치한 앱에서 알림을 사용하는 것이 가장 안정적입니다.",
+  },
+  {
+    category: "계정·기기",
+    question: "기기를 바꾸거나 내 정보가 잘못된 경우에는 어떻게 하나요?",
+    answer: "계정은 최대 2대의 활성 기기에서 사용할 수 있습니다. 기기 등록 초기화나 이름·반·직렬 등 학생 정보 수정이 필요하면 개인정보를 본문에 적지 말고 문의하기를 이용해주세요.",
+  },
+];
+let studentFaqCategory = "전체";
 
 const CURRICULUM_QUEST_SUBJECTS = [
   {
@@ -564,12 +617,12 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notifications", "curriculum", "study-todo", "study-cafe", "question-board", "study-timer", "study-ranking", "study-character", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "faq", "push-settings", "notifications", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-timer", "study-ranking", "study-character", "study-shop", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -587,7 +640,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
-  const studyRoutes = ["curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character"];
+  const studyRoutes = ["curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "study-shop"];
   const currentStudyIndex = studyRoutes.indexOf(currentRoute);
   const nextStudyIndex = studyRoutes.indexOf(nextRoute);
   studentStudyRouteTransitionDirection =
@@ -638,7 +691,7 @@ function render() {
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(route);
     const inStudentFooter = APP_MODE !== "teacher" && button.closest(".student-footer-menu");
     const activeRoute =
-      inStudentFooter && ["study-character", "push-settings"].includes(currentRoute)
+      inStudentFooter && ["study-character", "study-shop", "push-settings", "faq", "inquiry-board"].includes(currentRoute)
         ? "mypage"
         : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notifications", "notices"].includes(currentRoute)
           ? "home"
@@ -698,6 +751,7 @@ function render() {
           attendance: renderAttendanceManagement,
           "study-cafe-admin": renderStudyCafeAdmin,
           "question-board-admin": renderQuestionBoardAdmin,
+          "inquiry-board-admin": renderInquiryAdmin,
           "curriculum-admin": renderCurriculumAdmin,
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
@@ -720,15 +774,18 @@ function render() {
           attendance: () => requireStudentAuth(renderStudentAttendance),
           grades: () => requireStudentAuth(renderStudentGrades),
           mypage: () => requireStudentAuth(renderStudentMypage),
+          faq: () => requireStudentAuth(renderStudentFaq),
           "push-settings": () => requireStudentAuth(renderStudentPushSettings),
           notifications: () => requireStudentAuth(renderStudentNotifications),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
           "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
           "question-board": () => requireStudentAuth(renderQuestionBoard),
+          "inquiry-board": () => requireStudentAuth(renderStudentInquiryBoard),
           "study-timer": () => requireStudentAuth(renderStudentStudyTimer),
           "study-ranking": () => requireStudentAuth(renderStudentStudyRanking),
           "study-character": () => requireStudentAuth(renderStudentStudyCharacter),
+          "study-shop": () => requireStudentAuth(renderStudentStudyShop),
           notices: () => requireStudentAuth(renderStudentNoticeList),
         };
 
@@ -760,7 +817,7 @@ function renderStudyCafeStateUpdate() {
   render();
   app
     .querySelector(
-      ".student-curriculum-page, .student-study-todo-page, .student-study-cafe-page, .student-study-timer-page, .student-study-ranking-page, .student-study-character-page"
+      ".student-curriculum-page, .student-study-todo-page, .student-study-cafe-page, .student-study-timer-page, .student-study-ranking-page, .student-study-character-page, .student-study-shop-page"
     )
     ?.classList.add("study-view-static");
 }
@@ -775,6 +832,7 @@ function getRouteTitle(route) {
     if (route === "study-timer") return "과목 타이머";
     if (route === "study-ranking") return "순공시간 랭킹";
     if (route === "study-character") return "캐릭터";
+    if (route === "study-shop") return "스터디 상점";
     if (route === "curriculum") return "커리큘럼 퀘스트";
     if (route === "notices" || route.startsWith("notice-")) return "중요 공지";
   }
@@ -1963,7 +2021,7 @@ function getStudyRoomErrorMessage(error) {
 }
 
 function isStudyCafeRoute() {
-  return ["study-todo", "study-cafe", "study-timer", "study-ranking", "study-character"].includes(currentRoute);
+  return ["study-todo", "study-cafe", "study-timer", "study-ranking", "study-character", "study-shop"].includes(currentRoute);
 }
 
 async function ensureStudyCafeRemoteLoaded(options = {}) {
@@ -1988,6 +2046,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.summary = null;
     studyCafeRemoteState.error = "";
     studyCafeRemoteState.studyDateKey = "";
+    resetStudyCafeShopState();
   }
   studyCafeRemoteState.studentId = String(student.id);
   ensureStudyCafeRemoteTimers();
@@ -2120,6 +2179,9 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
       : [];
   }
   studyCafeRemoteState.summary = snapshot.summary || null;
+  if (Object.prototype.hasOwnProperty.call(snapshot, "shop")) {
+    hydrateStudyCafeShopSummary(snapshot.shop);
+  }
 
   const totals = {};
   Object.entries(snapshot.subjectTotals || {}).forEach(([subject, seconds]) => {
@@ -3463,11 +3525,101 @@ function renderStudentMypage() {
           el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
         ])
       : null,
+    category === "lecture"
+      ? button("", "student-history-button-card student-settings-link student-faq-link", "button", () => navigate("faq"), [
+          el("div", { className: "student-history-head" }, [
+            el("h2", {}, "자주 묻는 질문"),
+            el("span", {}, "기능 이용 방법과 문제 해결"),
+          ]),
+          el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
+        ])
+      : null,
     !isOnlineStudentExperience(student) ? renderStudentOutingHistoryButton(student.id) : null,
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),
+  ]);
+}
+
+function renderStudentFaqItem(item, index) {
+  const answerId = `student-faq-answer-${index}`;
+  const isOpen = index === 0;
+  const answer = el("div", {
+    className: "student-faq-answer",
+    id: answerId,
+    hidden: !isOpen,
+  }, [
+    el("span", {}, "답변"),
+    el("p", {}, item.answer),
+  ]);
+  const question = el("button", {
+    className: "student-faq-question",
+    type: "button",
+    "aria-expanded": String(isOpen),
+    "aria-controls": answerId,
+  }, [
+    el("span", { className: "student-faq-category" }, item.category),
+    el("strong", {}, item.question),
+    el("span", { className: "student-faq-toggle", ariaHidden: "true" }, "+"),
+  ]);
+  const itemCard = el("article", {
+    className: `student-faq-item${isOpen ? " open" : ""}`,
+  }, [question, answer]);
+
+  question.addEventListener("click", () => {
+    const nextOpen = question.getAttribute("aria-expanded") !== "true";
+    question.setAttribute("aria-expanded", String(nextOpen));
+    answer.hidden = !nextOpen;
+    itemCard.classList.toggle("open", nextOpen);
+  });
+
+  return itemCard;
+}
+
+function renderStudentFaqFilters() {
+  const categories = ["전체", ...new Set(INTERNET_STUDENT_FAQS.map((item) => item.category))];
+  return el("nav", { className: "student-faq-filters", ariaLabel: "FAQ 기능 카테고리" },
+    categories.map((category) => {
+      const isActive = studentFaqCategory === category;
+      const categoryButton = button(
+        category,
+        `student-faq-filter${isActive ? " active" : ""}`,
+        "button",
+        () => {
+          if (studentFaqCategory === category) return;
+          studentFaqCategory = category;
+          render();
+        }
+      );
+      categoryButton.setAttribute("aria-pressed", String(isActive));
+      return categoryButton;
+    })
+  );
+}
+
+function renderStudentFaq() {
+  const visibleFaqs = studentFaqCategory === "전체"
+    ? INTERNET_STUDENT_FAQS
+    : INTERNET_STUDENT_FAQS.filter((item) => item.category === studentFaqCategory);
+  return el("div", { className: "grid student-view student-faq-page" }, [
+    button("← 마이", "student-faq-back", "button", () => navigate("mypage")),
+    el("header", { className: "student-faq-head" }, [
+      el("span", {}, "HELP CENTER"),
+      el("h2", {}, "자주 묻는 질문"),
+      el("p", {}, "인터넷 수강생 화면의 주요 기능과 이용 방법을 확인해보세요."),
+    ]),
+    renderStudentFaqFilters(),
+    el("section", { className: "student-faq-list", ariaLabel: "자주 묻는 질문 목록" },
+      visibleFaqs.map(renderStudentFaqItem)
+    ),
+    el("aside", { className: "student-faq-contact" }, [
+      el("div", {}, [
+        el("strong", {}, "도움이 더 필요한가요?"),
+        el("p", {}, "FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요."),
+      ]),
+      button("문의하기", "student-faq-contact-button", "button", openStudentInquiryComposer),
+    ]),
   ]);
 }
 
@@ -5056,6 +5208,7 @@ function renderStudentStudyCafe() {
 
   ensureStudyCafeTemporaryNickname();
   ensureStudyCafeRemoteLoaded();
+  ensureStudyCafeShopLoaded();
   ensureStudyRoomLoaded({ render: true });
   ensureStudyCafePreviewClock();
   const ownStudyRoom = studyRoomState.room;
@@ -5111,6 +5264,7 @@ function renderStudentStudyCafe() {
           ]),
         ]),
         el("div", { className: "study-cafe-room-toolbar-actions" }, [
+          renderStudyCafeShopChip(student),
           browsingPublicCafe
             ? button("내 스터디룸", "study-room-return-button", "button", returnToOwnStudyRoom)
             : null,
@@ -5188,6 +5342,7 @@ function renderStudentPrivateStudyRoom(student) {
           el("span", {}, `${room.locked ? "🔒 비밀번호방" : "공개방"}${room.description ? ` · ${room.description}` : ""}`),
         ]),
         el("div", { className: "study-cafe-room-toolbar-actions study-private-room-actions" }, [
+          renderStudyCafeShopChip(student),
           button("전체 카페 보기", "study-room-cafe-button", "button", browsePublicStudyCafe),
           room.role === "host"
             ? button("방 관리", "study-room-manage-button", "button", openStudyRoomManageModal)
@@ -5351,7 +5506,7 @@ function renderPrivateStudyRoomSeat(seatNumber, room, student) {
       ? el("span", { className: "study-cafe-seat-pause-icon", ariaLabel: "일시정지", title: "일시정지" })
       : null,
     occupant
-      ? renderStudyCafeSeatedVisual(occupant.tone || "blue", false, {
+      ? renderStudyCafeSeatedVisual(occupant.tone || "blue", isMine, {
           studying: occupant.status === "studying",
           showWritingArms: true,
         })
@@ -5866,7 +6021,12 @@ function renderStudyCafeMySeatCard(student, seatNumber) {
     : "공부할 과목을 선택해주세요";
 
   return el("section", { className: "study-cafe-my-seat-card", ariaLabel: "내 좌석 정보" }, [
-    el("div", { className: "study-cafe-my-seat-character", ariaHidden: "true" }, [
+    el("button", {
+      className: "study-cafe-my-seat-character",
+      type: "button",
+      ariaLabel: "내 자리 상세 보기",
+      onclick: () => openMyStudyCafeSeatDetail(student, seatNumber),
+    }, [
       renderStudyCafeSeatedVisual(studyCafePreviewState.avatarTone || "navy", true, {
         className: "study-cafe-my-seat-scene",
         studying: studyCafePreviewState.running,
@@ -5921,6 +6081,37 @@ function renderStudyCafeMySeatCard(student, seatNumber) {
       ),
     ]),
   ]);
+}
+
+function getMyStudyCafeSeatNumber() {
+  const seatIndex = STUDY_CAFE_PREVIEW_SEATS.findIndex(
+    (seat) => seat.id === studyCafePreviewState.selectedSeatId
+  );
+  return seatIndex >= 0 ? seatIndex + 1 : 0;
+}
+
+function openMyStudyCafeSeatDetail(student = getAuthedStudent(), seatNumber = getMyStudyCafeSeatNumber()) {
+  const resolvedSeatNumber = Math.max(0, Number(seatNumber) || 0);
+  openStudyCafeMemberModal({
+    name: getStudyCafeDisplayName("나"),
+    fullTrack: student?.track || "온라인 수강",
+    track: summarizeStudyCafeTrack(student?.track),
+    tone: studyCafePreviewState.avatarTone || "navy",
+    status: !resolvedSeatNumber
+      ? "unseated"
+      : studyCafePreviewState.paused
+        ? "paused"
+        : studyCafePreviewState.running
+          ? "studying"
+          : "seated",
+    statusMessage: studyCafePreviewState.statusMessage || "",
+    currentSubject: studyCafePreviewState.subject || "",
+    todaySeconds: getStudyCafeMemberSeconds(null, true),
+    isMine: true,
+  }, resolvedSeatNumber, {
+    rank: getStudyCafeRankingRoomRank(resolvedSeatNumber, student),
+    seatLabel: resolvedSeatNumber ? "" : "좌석 미선택",
+  });
 }
 
 function getStudyCafeRoomIndexForSeat(seatNumber) {
@@ -6923,6 +7114,7 @@ function renderStudentStudyCharacter() {
   }
 
   ensureStudyCafeRemoteLoaded();
+  ensureStudyCafeShopLoaded();
   const options = [
     { tone: "navy", label: "론박 블루" },
     { tone: "blue", label: "스카이" },
@@ -6935,11 +7127,21 @@ function renderStudentStudyCharacter() {
   return el("div", { className: "student-study-character-page" }, [
     el("div", { className: "study-character-page-head" }, [
       button("← 마이", "study-character-back-button", "button", () => navigate("mypage")),
+      renderStudyCafeShopChip(student),
     ]),
+    studyCafeShopState.available === false
+      ? null
+      : el("section", { className: "study-character-shop-link" }, [
+          el("div", {}, [
+            el("strong", {}, "순공 포인트로 꾸미기"),
+            el("span", {}, "의상과 모자, 책상 소품, 의자로 공부 공간을 꾸며보세요."),
+          ]),
+          button("상점 가기", "study-character-shop-button", "button", () => openStudyCafeShop("study-character")),
+        ]),
     el("section", { className: "study-character-preview-card" }, [
       el("span", {}, "MY CHARACTER"),
       el("div", {
-        className: `study-character-preview-avatar ${studyCafePreviewState.statusMessage ? "has-status-message" : ""}`.trim(),
+        className: `study-character-preview-avatar study-cafe-member-avatar-stage ${studyCafePreviewState.statusMessage ? "has-status-message" : ""}`.trim(),
       }, [
         studyCafePreviewState.statusMessage
           ? el("button", {
@@ -6952,7 +7154,18 @@ function renderStudentStudyCharacter() {
               el("i", { ariaHidden: "true" }, "수정"),
             ])
           : null,
-        renderStudyCafeAvatar(studyCafePreviewState.avatarTone || "navy", true),
+        el("button", {
+          className: "study-character-seat-detail-button",
+          type: "button",
+          ariaLabel: "내 좌석 상세 보기",
+          onclick: () => openMyStudyCafeSeatDetail(student),
+        }, [
+          renderStudyCafeSeatedVisual(studyCafePreviewState.avatarTone || "navy", true, {
+            className: "study-cafe-member-seat-scene",
+            studying: false,
+            showWritingArms: true,
+          }),
+        ]),
       ]),
       el("div", { className: "study-character-name-row" }, [
         el("h2", { "data-study-character-name": "true" }, `${characterName}의 캐릭터`),
@@ -7001,7 +7214,7 @@ function renderStudentStudyCharacter() {
         )
       ),
     ]),
-    el("p", { className: "study-character-footnote" }, "현재는 색상 선택 시안이며, 의상과 소품은 이후 단계에서 추가할 수 있습니다."),
+    el("p", { className: "study-character-footnote" }, "캐릭터 색상은 무료이며, 상점 아이템만 포인트를 사용합니다."),
   ]);
 }
 
@@ -7623,12 +7836,17 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
 
 function openStudyCafeMemberModal(occupant, seatNumber, options = {}) {
   const rank = Math.max(0, Number(options.rank) || 0);
+  const isMine = occupant.isMine === true;
   const statusLabel = occupant.status === "paused"
     ? "일시정지"
+    : occupant.status === "unseated"
+      ? "좌석 미선택"
     : occupant.status === "seated"
       ? "착석 중"
       : "집중 중";
-  const timeMode = occupant.remote
+  const timeMode = isMine
+    ? "mine"
+    : occupant.remote
     ? occupant.status === "studying" ? "remote" : "static"
     : "mock";
 
@@ -7642,22 +7860,18 @@ function openStudyCafeMemberModal(occupant, seatNumber, options = {}) {
         occupant.statusMessage
           ? el("blockquote", { className: "study-cafe-member-status-message has-message" }, occupant.statusMessage)
           : null,
-        el("div", { className: "study-cafe-member-seat-scene", ariaHidden: "true" }, [
-          renderStudyCafeChairBack(),
-          renderStudyCafeAvatar(occupant.tone || "navy", false, { includeArms: false }),
-          el("span", { className: "study-cafe-desk" }, [
-            el("i", { className: "study-cafe-desk-book" }),
-            el("i", { className: "study-cafe-desk-cup" }),
-          ]),
-          renderStudyCafeWritingArms(),
-        ]),
+        renderStudyCafeSeatedVisual(occupant.tone || "navy", isMine, {
+          className: "study-cafe-member-seat-scene",
+          studying: occupant.status === "studying",
+          showWritingArms: true,
+        }),
       ]),
       el("div", { className: "study-cafe-member-profile" }, [
         el("strong", {}, occupant.name),
         el("span", {}, occupant.fullTrack || occupant.track || "직렬 미등록"),
       ]),
       el("div", { className: "study-cafe-member-chips" }, [
-        el("span", {}, rank ? `랭킹룸 ${rank}` : `${seatNumber}번 좌석`),
+        el("span", {}, rank ? `랭킹룸 ${rank}` : options.seatLabel || `${seatNumber}번 좌석`),
         el("span", { className: `status ${occupant.status || "studying"}` }, statusLabel),
       ]),
       el("dl", { className: "study-cafe-member-info-list" }, [
@@ -7678,7 +7892,7 @@ function openStudyCafeMemberModal(occupant, seatNumber, options = {}) {
                 "data-study-member-time": timeMode,
                 "data-study-base-seconds": String(Number(occupant.todaySeconds) || 0),
               },
-              formatStudyCafeMemberTime(getStudyCafeMemberSeconds(occupant, false))
+              formatStudyCafeMemberTime(getStudyCafeMemberSeconds(occupant, isMine))
             )
           ),
         ]),
@@ -7724,11 +7938,22 @@ function summarizeStudyCafeTrack(value) {
 
 function renderStudyCafeAvatar(tone, isMine = false, options = {}) {
   const includeArms = options.includeArms !== false;
-  return el("span", { className: `study-cafe-avatar ${tone} ${isMine ? "is-mine" : ""}`, ariaHidden: "true" }, [
+  const outfitClass = isMine ? getStudyCafeEquippedOutfitClass() : "";
+  const wearsCoastGuardDressUniform = outfitClass === "shop-outfit-coast-guard-uniform";
+  return el("span", { className: `study-cafe-avatar ${tone} ${isMine ? "is-mine" : ""} ${outfitClass}`.trim(), ariaHidden: "true" }, [
     el("i", { className: "study-cafe-avatar-shadow" }),
-    el("i", { className: "study-cafe-avatar-body" }),
+    el("i", { className: "study-cafe-avatar-body" }, wearsCoastGuardDressUniform ? [
+      el("b", { className: "study-cafe-uniform-lapels" }),
+      el("b", { className: "study-cafe-uniform-insignia" }),
+      el("b", { className: "study-cafe-uniform-nameplate" }),
+      el("b", { className: "study-cafe-uniform-ribbons" }),
+      el("b", { className: "study-cafe-uniform-pockets" }),
+      el("b", { className: "study-cafe-uniform-buttons" }),
+      el("b", { className: "study-cafe-uniform-medal" }),
+    ] : null),
     el("i", { className: "study-cafe-avatar-face" }),
     el("i", { className: "study-cafe-avatar-hair" }),
+    isMine ? renderStudyCafeShopCosmetic("head") : null,
     includeArms ? el("i", { className: "study-cafe-avatar-arm left" }) : null,
     includeArms ? el("i", { className: "study-cafe-avatar-arm right" }) : null,
   ]);
@@ -7740,14 +7965,16 @@ function renderStudyCafeSeatedVisual(tone, isMine = false, options = {}) {
   const className = [
     "study-cafe-seat-visual",
     studying ? "is-studying" : "is-idle",
+    isMine ? getStudyCafeEquippedOutfitClass() : "",
     options.className,
   ].filter(Boolean).join(" ");
   return el("span", { className, ariaHidden: "true" }, [
-    renderStudyCafeChairBack(),
+    renderStudyCafeChairBack(isMine),
     renderStudyCafeAvatar(tone, isMine, { includeArms: false }),
     el("span", { className: "study-cafe-desk" }, [
       el("i", { className: "study-cafe-desk-book" }),
       el("i", { className: "study-cafe-desk-cup" }),
+      isMine ? renderStudyCafeDeskCosmetics() : null,
     ]),
     showWritingArms ? renderStudyCafeWritingArms() : null,
   ]);
@@ -7760,8 +7987,9 @@ function renderStudyCafeWritingArms() {
   ]);
 }
 
-function renderStudyCafeChairBack() {
-  return el("span", { className: "study-cafe-chair-back", ariaHidden: "true" });
+function renderStudyCafeChairBack(isMine = false) {
+  const chairClass = isMine ? getStudyCafeEquippedChairClass() : "";
+  return el("span", { className: `study-cafe-chair-back ${chairClass}`.trim(), ariaHidden: "true" });
 }
 
 async function claimStudyCafeSeat(seatNumber, options = {}) {
@@ -9179,6 +9407,7 @@ function renderHome() {
         hasTeacherPermission("attendance.read") ? moduleCard("출석 관리", "현장 사진 출석과 일별 출석 현황을 관리합니다.", "attendance", "운영 중") : null,
         hasTeacherPermission("study_cafe.read") ? moduleCard("온라인 스터디카페", "현재 좌석, 순공시간과 온라인 학생 이용 상태를 관리합니다.", "study-cafe-admin", "운영 중") : null,
         hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
+        hasTeacherPermission("inquiries.read") ? moduleCard("문의 관리", "수강생이 남긴 비공개 문의를 확인하고 답변합니다.", "inquiry-board-admin", "운영 중") : null,
         hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 회차와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,

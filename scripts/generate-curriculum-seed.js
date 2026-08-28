@@ -33,9 +33,10 @@ subjects.forEach((subject, subjectIndex) => {
     const stageNumber = stageIndex + 1;
     const stageId = `${subject.id}-stage-${stageNumber}`;
     const lectures = lecturesBySubject?.[subject.id]?.[String(stageNumber)] || [];
+    const stageTitle = lectures.map((lecture) => String(lecture.title || "").trim()).filter(Boolean).join(", ") || title;
     const firstTitle = String(lectures[0]?.title || "").trim();
     const requiresWrapUp = !/^(?:전과목)?OT(?:-|$)/i.test(firstTitle);
-    stageRows.push(`(${quote(stageId)}, ${quote(subject.id)}, ${stageNumber}, ${quote(title)}, ${stageNumber}, true, ${requiresWrapUp})`);
+    stageRows.push(`(${quote(stageId)}, ${quote(subject.id)}, ${stageNumber}, ${quote(stageTitle)}, ${stageNumber}, true, ${requiresWrapUp})`);
     lectures.forEach((lecture, lectureIndex) => {
       lectureRows.push(`(${quote(`${stageId}-lecture-${lectureIndex + 1}`)}, ${quote(stageId)}, ${quote(lecture.no)}, ${quote(lecture.title)}, ${lectureIndex + 1})`);
     });

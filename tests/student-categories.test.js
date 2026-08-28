@@ -40,7 +40,7 @@ assert.match(sharedSource, /student_category: getStudentCategory\(student\)/);
 
 assert.match(appSource, /offline: new Set\(\["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"\]\)/);
 assert.match(appSource, /online_managed: new Set\(\["home", "study-cafe", "grades", "mypage", "push-settings", "notifications", "notices"\]\)/);
-assert.match(appSource, /lecture: new Set\(\["home", "curriculum", "study-todo", "study-cafe", "question-board", "study-ranking", "study-timer", "study-character", "mypage", "push-settings", "notifications", "notices"\]\)/);
+assert.match(appSource, /lecture: new Set\(\["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "notifications", "notices"\]\)/);
 assert.match(appSource, /category === "online_managed" && !isOnlineManagedStudyCafeEnabled\(\)/);
 assert.match(appSource, /function defaultRoute\(\) \{\s*return "home";/);
 assert.match(appSource, /visibleLectureTabs = new Set\(\["home", "study-todo", "study-cafe", "mypage"\]\)/);

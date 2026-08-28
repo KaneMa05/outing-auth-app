@@ -18,6 +18,16 @@ end
 $$;
 
 drop function if exists public.replace_study_cafe_subjects(text, jsonb);
+drop function if exists public.equip_study_cafe_item(text, text, timestamptz);
+drop function if exists public.unequip_study_cafe_item(text, text, text);
+drop function if exists public.unequip_study_cafe_item(text, text);
+drop function if exists public.purchase_study_cafe_item(text, text, timestamptz);
+drop function if exists public.award_study_cafe_time_points(text, timestamptz);
+drop table if exists public.study_cafe_equipment;
+drop table if exists public.study_cafe_inventory;
+drop table if exists public.study_cafe_point_ledger;
+drop table if exists public.study_cafe_point_wallets;
+drop table if exists public.study_cafe_shop_items;
 drop table if exists public.study_cafe_presence;
 drop table if exists public.study_cafe_sessions;
 drop table if exists public.study_cafe_todos;

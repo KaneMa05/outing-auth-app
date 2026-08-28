@@ -6,6 +6,10 @@ const ALLOWED_ACTIONS = new Set([
   "stats",
   "save_subjects",
   "save_profile",
+  "shop_load",
+  "shop_purchase",
+  "shop_equip",
+  "shop_unequip",
   "todos_load",
   "todo_month_summary",
   "todo_create",
@@ -67,6 +71,62 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     await clearStalePresence(now);
     await rolloverActiveSessionIfNeeded(studentId, now);
+
+    if (["shop_load", "shop_purchase", "shop_equip", "shop_unequip"].includes(action)) {
+      if (!hasStudyCafeShopAccess(student)) {
+        res.status(403).json({ ok: false, error: "lecture_student_only" });
+        return;
+      }
+      if (action === "shop_load") {
+        res.status(200).json({ ok: true, ...(await loadStudyCafeShop(studentId, now)) });
+        return;
+      }
+      if (action === "shop_purchase") {
+        const itemId = normalizeShopItemId(body.itemId);
+        await awardStudyCafeTimePoints(studentId, now);
+        const purchase = await requestSupabase("POST", "rpc/purchase_study_cafe_item", {
+          p_student_id: studentId,
+          p_item_id: itemId,
+          p_now: now.toISOString(),
+        });
+        if (purchase?.ok !== true) {
+          res.status(purchase?.error === "insufficient_points" ? 409 : 400).json({
+            ok: false,
+            error: purchase?.error || "shop_purchase_failed",
+            balance: Math.max(0, Number(purchase?.balance) || 0),
+          });
+          return;
+        }
+        res.status(200).json({ ok: true, purchase });
+        return;
+      }
+      if (action === "shop_unequip") {
+        const slot = normalizeShopSlot(body.slot);
+        const equipment = await requestSupabase("POST", "rpc/unequip_study_cafe_item", {
+          p_student_id: studentId,
+          p_slot: slot,
+          p_item_id: normalizeShopItemId(body.itemId),
+        });
+        if (equipment?.ok !== true) {
+          res.status(400).json({ ok: false, error: equipment?.error || "shop_unequip_failed" });
+          return;
+        }
+        res.status(200).json({ ok: true, equipment });
+        return;
+      }
+      const itemId = normalizeShopItemId(body.itemId);
+      const equipment = await requestSupabase("POST", "rpc/equip_study_cafe_item", {
+        p_student_id: studentId,
+        p_item_id: itemId,
+        p_now: now.toISOString(),
+      });
+      if (equipment?.ok !== true) {
+        res.status(400).json({ ok: false, error: equipment?.error || "shop_equip_failed" });
+        return;
+      }
+      res.status(200).json({ ok: true, equipment });
+      return;
+    }
 
     if (action === "stats") {
       const range = normalizeStatsRange(body.dateFrom, body.dateTo);
@@ -477,6 +537,10 @@ function hasStudyCafeAccess(student) {
   return !category && String(student?.id || "").startsWith("2");
 }
 
+function hasStudyCafeShopAccess(student) {
+  return String(student?.student_category || "").trim() === "lecture";
+}
+
 async function authenticateOnlineStudent({ studentId, deviceToken, client }) {
   const validation = await requestSupabase("POST", "rpc/validate_student_device", {
     p_student_id: studentId,
@@ -523,7 +587,10 @@ async function broadcastStudyCafeStateChange(change, payload = {}) {
 
 async function buildStudyCafeSnapshot(student, now) {
   const studentId = student.id;
-  const [subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
+  const shopSummaryPromise = hasStudyCafeShopAccess(student)
+    ? loadStudyCafeShopSummary(studentId, now)
+    : Promise.resolve(null);
+  const [subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents, shop] = await Promise.all([
     requestSupabase(
       "GET",
       `study_cafe_subjects?student_id=eq.${encodeURIComponent(studentId)}&select=name,sort_order&order=sort_order.asc`
@@ -560,6 +627,7 @@ async function buildStudyCafeSnapshot(student, now) {
       "GET",
       "students?id=like.2*&is_active=eq.true&select=id,name,track"
     ),
+    shopSummaryPromise,
   ]);
 
   const sessionRows = Array.isArray(sessions) ? sessions : [];
@@ -632,6 +700,107 @@ async function buildStudyCafeSnapshot(student, now) {
       studiedCount: totalsByStudent.size,
       focusedCount: Array.isArray(presence) ? presence.length : 0,
     },
+    shop,
+  };
+}
+
+async function loadStudyCafeShopSummary(studentId, now) {
+  try {
+    const [wallet, equipmentRows] = await Promise.all([
+      awardStudyCafeTimePoints(studentId, now),
+      requestSupabase(
+        "GET",
+        `study_cafe_equipment?student_id=eq.${encodeURIComponent(studentId)}&select=slot,item_id,equipped_at&order=equipped_at.asc`
+      ),
+    ]);
+    return {
+      ...serializePointWallet(wallet),
+      equipment: serializeStudyCafeEquipment(equipmentRows),
+    };
+  } catch (error) {
+    // The study-cafe must remain usable while the additive shop migration is pending.
+    console.warn("Study cafe shop is not ready.", error?.message || error);
+    return null;
+  }
+}
+
+async function loadStudyCafeShop(studentId, now) {
+  const wallet = await awardStudyCafeTimePoints(studentId, now);
+  const [items, inventory, equipment, history] = await Promise.all([
+    requestSupabase(
+      "GET",
+      "study_cafe_shop_items?is_active=eq.true&select=id,name,description,slot,icon,price,sort_order&order=sort_order.asc,id.asc"
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_inventory?student_id=eq.${encodeURIComponent(studentId)}&select=item_id,purchased_at&order=purchased_at.desc`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_equipment?student_id=eq.${encodeURIComponent(studentId)}&select=slot,item_id,equipped_at&order=equipped_at.asc`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_point_ledger?student_id=eq.${encodeURIComponent(studentId)}&select=id,source_type,amount,balance_after,item_id,description,created_at&order=created_at.desc&limit=30`
+    ),
+  ]);
+  return {
+    wallet: serializePointWallet(wallet),
+    items: (Array.isArray(items) ? items : []).map(serializeShopItem),
+    inventory: (Array.isArray(inventory) ? inventory : []).map((row) => ({
+      itemId: row.item_id,
+      purchasedAt: row.purchased_at,
+    })),
+    equipment: serializeStudyCafeEquipment(equipment),
+    history: (Array.isArray(history) ? history : []).map((row) => ({
+      id: row.id,
+      type: row.source_type,
+      amount: Number(row.amount) || 0,
+      balanceAfter: Math.max(0, Number(row.balance_after) || 0),
+      itemId: row.item_id || "",
+      description: normalizeText(row.description, 160),
+      createdAt: row.created_at,
+    })),
+  };
+}
+
+function serializeStudyCafeEquipment(rows) {
+  return (Array.isArray(rows) ? rows : []).reduce((equipment, row) => {
+    if (row.slot === "desk") {
+      if (!Array.isArray(equipment.desk)) equipment.desk = [];
+      if (!equipment.desk.includes(row.item_id)) equipment.desk.push(row.item_id);
+    } else if (["outfit", "head", "chair"].includes(row.slot)) {
+      equipment[row.slot] = row.item_id;
+    }
+    return equipment;
+  }, {});
+}
+
+function awardStudyCafeTimePoints(studentId, now) {
+  return requestSupabase("POST", "rpc/award_study_cafe_time_points", {
+    p_student_id: studentId,
+    p_now: now.toISOString(),
+  });
+}
+
+function serializePointWallet(value) {
+  return {
+    balance: Math.max(0, Number(value?.balance) || 0),
+    earnedToday: Math.max(0, Number(value?.earnedToday) || 0),
+    totalStudySeconds: Math.max(0, Number(value?.totalStudySeconds) || 0),
+    secondsToNextPoint: Math.min(1800, Math.max(1, Number(value?.secondsToNextPoint) || 1800)),
+    awardedNow: Math.max(0, Number(value?.awardedNow) || 0),
+  };
+}
+
+function serializeShopItem(row) {
+  return {
+    id: normalizeShopItemId(row.id),
+    name: normalizeText(row.name, 40),
+    description: normalizeText(row.description, 160),
+    slot: ["outfit", "head", "desk", "chair"].includes(row.slot) ? row.slot : "desk",
+    icon: normalizeText(row.icon, 12),
+    price: Math.max(1, Number(row.price) || 1),
   };
 }
 
@@ -1008,6 +1177,26 @@ function normalizeTodoId(value) {
   return todoId;
 }
 
+function normalizeShopItemId(value) {
+  const itemId = normalizeText(value, 64);
+  if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(itemId)) {
+    const error = new Error("invalid_shop_item_id");
+    error.status = 400;
+    throw error;
+  }
+  return itemId;
+}
+
+function normalizeShopSlot(value) {
+  const slot = normalizeText(value, 20);
+  if (!["outfit", "head", "desk", "chair"].includes(slot)) {
+    const error = new Error("invalid_shop_slot");
+    error.status = 400;
+    throw error;
+  }
+  return slot;
+}
+
 function normalizeTodoStudyDate(value, now = new Date()) {
   const today = getKstDateKey(now);
   const studyDate = normalizeText(value, 10) || today;
@@ -1349,6 +1538,8 @@ module.exports._private = {
   normalizeStatusMessage,
   normalizeRankingPeriod,
   normalizeSeatNumber,
+  normalizeShopItemId,
+  normalizeShopSlot,
   normalizeStatsRange,
   normalizeTodoContent,
   normalizeTodoId,

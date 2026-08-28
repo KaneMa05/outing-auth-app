@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v320-attendance-board-review";
+const CACHE_NAME = "outing-auth-app-v365-local-grant-20000";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "/shared.js",
   "/student.js",
   "/question-board.js",
+  "/inquiry-board.js",
+  "/study-shop.js",
   "/teacher.js",
   "/teacher-grades.js",
   "/teacher-students.js",
@@ -22,7 +24,8 @@ const APP_SHELL = [
   "/icon-512.png",
   "/notification-icon.png",
   "/notification-badge.png",
-  "/apple-touch-icon.png"
+  "/apple-touch-icon.png",
+  "/coast-guard-eagle-emblem.svg"
 ];
 
 self.addEventListener("install", (event) => {

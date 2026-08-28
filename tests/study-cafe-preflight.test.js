@@ -7,6 +7,11 @@ const preflightSource = fs.readFileSync(
   "utf8"
 );
 assert.match(preflightSource, /study_cafe_subject_goals\?select=/);
+assert.match(preflightSource, /study_cafe_shop_items\?select=/);
+assert.match(preflightSource, /study_cafe_point_wallets\?select=/);
+assert.match(preflightSource, /study_cafe_point_ledger\?select=/);
+assert.match(preflightSource, /study_cafe_inventory\?select=/);
+assert.match(preflightSource, /study_cafe_equipment\?select=/);
 
 const {
   parseContentRange,

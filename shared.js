@@ -141,6 +141,7 @@ const routePermissions = {
   attendance: "attendance.read",
   "study-cafe-admin": "study_cafe.read",
   "question-board-admin": "question_board.read",
+  "inquiry-board-admin": "inquiries.read",
   "curriculum-admin": "curriculum.read",
   notices: "notices.read",
   "teacher-accounts": "accounts.write",
@@ -177,7 +178,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {

@@ -29,6 +29,14 @@ assert.match(adminSource, /action: "save_subject"/);
 assert.match(adminSource, /action: "delete_subject"/);
 assert.match(adminSource, /curriculumQuestEnabled/);
 assert.match(adminSource, /학생 공개/);
+assert.match(adminSource, /function deriveCurriculumAdminStageTitle\(/);
+assert.match(adminSource, /강의명에 따라 자동 작성됩니다/);
+assert.match(adminSource, /title: deriveCurriculumAdminStageTitle\(stage, stage\.title\)/);
+assert.match(read("scripts/generate-curriculum-seed.js"), /const stageTitle = lectures\.map/);
+assert.match(
+  read("supabase/seed-curriculum-public-recruitment.sql"),
+  /'criminal-law-stage-11'.*'살인의 죄, 폭행죄, 협박의 죄, 체포와 감금의 죄, 강간과 추행의 죄'/
+);
 assert.match(teacherHtml, /data-route="curriculum-admin"/);
 assert.match(teacherHtml, /curriculum-admin\.js/);
 assert.match(sharedSource, /"curriculum-admin": "curriculum\.read"/);
@@ -78,6 +86,7 @@ const normalized = handler._test.normalizeSubject({
 });
 assert.equal(normalized.totalStages, 1);
 assert.equal(normalized.stages[0].stageNumber, 1);
+assert.equal(normalized.stages[0].title, "형법의 기초");
 assert.equal(normalized.stages[0].lectures[0].sortOrder, 1);
 
 function createResponse() {
@@ -158,6 +167,7 @@ const originalEnv = {
   };
   const publicCatalog = await invoke();
   assert.equal(publicCatalog.statusCode, 200);
+  assert.equal(publicCatalog.payload.subjects[0].stages[0].title, "형법의 기초");
   assert.equal(publicCatalog.payload.subjects[0].stages[0].lectures[0].title, "형법의 기초");
 
   const requests = [];

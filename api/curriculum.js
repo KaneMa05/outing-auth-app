@@ -87,20 +87,23 @@ async function loadCurriculum({ includeUnpublished = false } = {}) {
       sortOrder: subject.sort_order,
       isPublished: subject.is_published !== false,
       totalStages: subjectStages.length,
-      stages: subjectStages.map((stage) => ({
-        id: stage.id,
-        stageNumber: stage.stage_number,
-        title: stage.title,
-        sortOrder: stage.sort_order,
-        isPublished: stage.is_published !== false,
-        requiresWrapUp: stage.requires_wrap_up !== false,
-        lectures: (lectures || []).filter((lecture) => lecture.stage_id === stage.id).map((lecture) => ({
+      stages: subjectStages.map((stage) => {
+        const stageLectures = (lectures || []).filter((lecture) => lecture.stage_id === stage.id).map((lecture) => ({
           id: lecture.id,
           no: lecture.lecture_number,
           title: lecture.title,
           sortOrder: lecture.sort_order,
-        })),
-      })),
+        }));
+        return {
+          id: stage.id,
+          stageNumber: stage.stage_number,
+          title: deriveCurriculumStageTitle(stageLectures, stage.title),
+          sortOrder: stage.sort_order,
+          isPublished: stage.is_published !== false,
+          requiresWrapUp: stage.requires_wrap_up !== false,
+          lectures: stageLectures,
+        };
+      }),
     };
   });
 }
@@ -191,19 +194,20 @@ function normalizeSubject(value) {
     .slice(0, 50);
   const stages = Array.isArray(value.stages) ? value.stages.slice(0, 100).map((stage, index) => {
     const stageId = normalizeId(stage.id || `${id}-stage-${index + 1}`, "invalid_stage_id");
+    const lectures = (Array.isArray(stage.lectures) ? stage.lectures : []).slice(0, 300).map((lecture, lectureIndex) => ({
+      id: normalizeId(lecture.id || `${stageId}-lecture-${lectureIndex + 1}`, "invalid_lecture_id"),
+      no: normalizeText(lecture.no || `${lectureIndex + 1}강`, 30, 1, "invalid_lecture_number"),
+      title: normalizeText(lecture.title, 240, 1, "invalid_lecture_title"),
+      sortOrder: lectureIndex + 1,
+    }));
     return {
       id: stageId,
       stageNumber: index + 1,
-      title: normalizeText(stage.title, 160, 1, "invalid_stage_title"),
+      title: normalizeText(deriveCurriculumStageTitle(lectures, stage.title), 160, 1, "invalid_stage_title"),
       sortOrder: index + 1,
       isPublished: stage.isPublished !== false,
       requiresWrapUp: stage.requiresWrapUp !== false,
-      lectures: (Array.isArray(stage.lectures) ? stage.lectures : []).slice(0, 300).map((lecture, lectureIndex) => ({
-        id: normalizeId(lecture.id || `${stageId}-lecture-${lectureIndex + 1}`, "invalid_lecture_id"),
-        no: normalizeText(lecture.no || `${lectureIndex + 1}강`, 30, 1, "invalid_lecture_number"),
-        title: normalizeText(lecture.title, 240, 1, "invalid_lecture_title"),
-        sortOrder: lectureIndex + 1,
-      })),
+      lectures,
     };
   }) : [];
   return {
@@ -217,6 +221,14 @@ function normalizeSubject(value) {
     totalStages: stages.length,
     stages,
   };
+}
+
+function deriveCurriculumStageTitle(lectures, fallback = "") {
+  const title = (Array.isArray(lectures) ? lectures : [])
+    .map((lecture) => String(lecture?.title || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  return title || String(fallback || "").trim();
 }
 
 function normalizeId(value, errorCode) {

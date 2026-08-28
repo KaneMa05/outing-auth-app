@@ -23,7 +23,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260827-online-notch" />
+    <link rel="stylesheet" href="./styles.css?v=20260828-coast-guard-eagle-emblem" />
   </head>
   <body>
     <noscript>
@@ -198,7 +198,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notifications" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "study-shop" || route === "notifications" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
@@ -252,7 +252,7 @@
           }
           var route = node.getAttribute("data-route") || node.getAttribute("data-fallback-route");
           if (!route) return;
-          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "notices" || route.indexOf("notice-") === 0) {
+          if (route === "home" || route === "student" || route === "attendance" || route === "grades" || route === "mypage" || route === "push-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "study-shop" || route === "notices" || route.indexOf("notice-") === 0) {
             if (shouldUseFallback()) {
               event.preventDefault();
               navFallback(route);
@@ -273,6 +273,8 @@
     <script src="./shared.js?v=20260819-teacher-reason-photo" defer></script>
     <script src="./student.js?v=20260819-attendance-photo-feedback" defer></script>
     <script src="./question-board.js?v=20260819-attendance-board-review" defer></script>
-    <script src="./app.js?v=20260819-attendance-board-review" defer></script>
+    <script src="./inquiry-board.js?v=20260828-independent-inquiries" defer></script>
+    <script src="./study-shop.js?v=20260828-local-grant-20000" defer></script>
+    <script src="./app.js?v=20260828-coast-guard-uniform-detail" defer></script>
   </body>
 </html>

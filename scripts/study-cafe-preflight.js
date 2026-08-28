@@ -29,6 +29,31 @@ const CHECKS = [
     required: true,
   },
   {
+    name: "Study cafe shop items",
+    path: "study_cafe_shop_items?select=id,slot,price,is_active&limit=1",
+    required: true,
+  },
+  {
+    name: "Study cafe point wallets",
+    path: "study_cafe_point_wallets?select=student_id,balance,awarded_study_points&limit=1",
+    required: true,
+  },
+  {
+    name: "Study cafe point ledger",
+    path: "study_cafe_point_ledger?select=id,student_id,amount,balance_after&limit=1",
+    required: true,
+  },
+  {
+    name: "Study cafe inventory",
+    path: "study_cafe_inventory?select=student_id,item_id&limit=1",
+    required: true,
+  },
+  {
+    name: "Study cafe equipment",
+    path: "study_cafe_equipment?select=student_id,slot,item_id&limit=1",
+    required: true,
+  },
+  {
     name: "활성 온라인 학생",
     path: "students?id=like.2*&is_active=eq.true&select=id&limit=1",
     required: false,

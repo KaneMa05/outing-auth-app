@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 108" role="img" aria-labelledby="title">
+  <title id="title">해양경찰 독수리 정모 모표</title>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff19a"/>
+      <stop offset="0.42" stop-color="#e7bd3e"/>
+      <stop offset="1" stop-color="#9d6d14"/>
+    </linearGradient>
+    <linearGradient id="deepGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7d660"/>
+      <stop offset="1" stop-color="#a97617"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#gold)" stroke="#60400d" stroke-width="2" stroke-linejoin="round">
+    <path d="M82 22 89 7l7 4-3 7 10 2-8 8v8H83v-8l-8-5z"/>
+    <path d="M84 28C61 18 37 12 8 13c8 16 20 28 39 35-11-1-20-4-28-8 12 18 31 28 57 30l9-15-10-4c-22-4-38-12-50-24 19 8 36 12 51 14z"/>
+    <path d="M96 28c23-10 47-16 76-15-8 16-20 28-39 35 11-1 20-4 28-8-12 18-31 28-57 30l-9-15 10-4c22-4 38-12 50-24-19 8-36 12-51 14z"/>
+  </g>
+  <g fill="none" stroke="#ffe77b" stroke-width="2" stroke-linecap="round">
+    <path d="M18 20c21 2 40 9 58 23M29 32c17 4 32 10 45 18M162 20c-21 2-40 9-58 23M151 32c-17 4-32 10-45 18"/>
+  </g>
+  <path d="M90 33c-19 0-34 14-34 31 0 17 15 31 34 39 19-8 34-22 34-39 0-17-15-31-34-31z" fill="url(#deepGold)" stroke="#60400d" stroke-width="3"/>
+  <path d="M90 41c-13 0-24 10-24 23 0 12 10 22 24 29 14-7 24-17 24-29 0-13-11-23-24-23z" fill="#17213c" stroke="#f2d05e" stroke-width="2"/>
+  <g fill="none" stroke="#dcb43b" stroke-width="3" stroke-linecap="round">
+    <path d="M68 73c5 1 10 5 13 11M112 73c-5 1-10 5-13 11M66 64c5 1 10 4 14 8M114 64c-5 1-10 4-14 8M70 53c4 2 8 4 11 8M110 53c-4 2-8 4-11 8"/>
+  </g>
+  <circle cx="90" cy="63" r="14" fill="#f0cf55" stroke="#68460f" stroke-width="2"/>
+  <path d="M90 50a13 13 0 0 1 0 26 6.5 6.5 0 0 0 0-13 6.5 6.5 0 0 1 0-13z" fill="#d83b35"/>
+  <path d="M90 76a13 13 0 0 1 0-26 6.5 6.5 0 0 0 0 13 6.5 6.5 0 0 1 0 13z" fill="#2267a8"/>
+  <circle cx="90" cy="56.5" r="2.8" fill="#2267a8"/>
+  <circle cx="90" cy="69.5" r="2.8" fill="#d83b35"/>
+</svg>
