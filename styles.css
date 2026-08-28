@@ -894,7 +894,7 @@ body.student-online-mode h1,
 body.student-online-mode h2,
 body.student-online-mode h3,
 body.student-online-mode .student-study-cafe-card-title {
-  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
 .student-refresh-indicator {
@@ -9280,7 +9280,7 @@ body.student-online-mode.student-home-route .student-study-cafe-card-title.brand
   justify-content: center;
   gap: 0.14em;
   max-width: 100%;
-  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: clamp(1.85rem, 7.8vw, 2.3rem);
   font-weight: 400;
   letter-spacing: -0.012em;

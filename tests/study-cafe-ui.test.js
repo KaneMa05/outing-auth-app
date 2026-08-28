@@ -343,8 +343,8 @@ assert.match(styleSource, /@font-face\s*\{[^}]*font-family: "Hakgyoansim Poster 
 assert.match(styleSource, /@font-face\s*\{[^}]*font-family: "Gong Gothic Light"[^}]*GongGothicLight\.woff/);
 assert.match(styleSource, /body\s*\{[^}]*font-family: "Gong Gothic Light"/);
 assert.match(styleSource, /body\.student-online-mode\s*\{[^}]*font-family: "Gong Gothic Light"/);
-assert.match(styleSource, /body\.student-online-mode h1,[\s\S]*?body\.student-online-mode \.student-study-cafe-card-title\s*\{[^}]*font-family: "Gong Gothic Light"/);
-assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-family: "Gong Gothic Light"/);
+assert.match(styleSource, /body\.student-online-mode h1,[\s\S]*?body\.student-online-mode \.student-study-cafe-card-title\s*\{[^}]*font-family: "Hakgyoansim Poster B"/);
+assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-family: "Hakgyoansim Poster B"/);
 assert.match(styleSource, /\.online-student-logo\s*\{[^}]*font-family: "Gong Gothic Light"/);
 assert.doesNotMatch(styleSource, /\.student-study-cafe-card-title\.branded \.study\s*\{/);
 assert.match(appSource, /onlineMode \? null : renderStudentImportantNoticeCard\(\)/);
