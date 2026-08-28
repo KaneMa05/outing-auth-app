@@ -1,5 +1,5 @@
--- Apply during the release that renames the lecture student label.
--- Safe to run again: the function replacement and data update are idempotent.
+-- Release application identifiers when an approved student account is deactivated.
+-- Safe to run again: function/trigger replacement and the backfill are idempotent.
 
 create or replace function public.approve_lecture_application()
 returns trigger
@@ -98,7 +98,44 @@ begin
 end;
 $$;
 
-update public.students
-set class_name = '수강생'
-where student_category = 'lecture'
-  and class_name = '인강생';
+create schema if not exists private;
+revoke all on schema private from public;
+
+create or replace function private.cancel_application_for_deactivated_student()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.lecture_applications
+  set
+    status = 'cancelled',
+    reviewed_at = coalesce(reviewed_at, now()),
+    reviewed_by = coalesce(reviewed_by, 'system:student_deleted')
+  where approved_student_id = new.id
+    and status = 'approved';
+
+  return new;
+end;
+$$;
+
+revoke all on function private.cancel_application_for_deactivated_student() from public;
+
+drop trigger if exists cancel_application_on_student_deactivation on public.students;
+create trigger cancel_application_on_student_deactivation
+after update of is_active on public.students
+for each row
+when (old.is_active = true and new.is_active = false)
+execute function private.cancel_application_for_deactivated_student();
+
+-- Repair accounts that were deactivated before this trigger existed.
+update public.lecture_applications as application
+set
+  status = 'cancelled',
+  reviewed_at = coalesce(application.reviewed_at, now()),
+  reviewed_by = coalesce(application.reviewed_by, 'system:student_deleted')
+from public.students as student
+where application.approved_student_id = student.id
+  and application.status = 'approved'
+  and student.is_active = false;

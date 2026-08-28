@@ -415,6 +415,7 @@ function normalizeApplication(body) {
     lecture_id: lectureId || null,
     lecture_id_normalized: lectureId ? lectureId.normalize("NFKC").toLowerCase().replace(/\s+/g, "") : null,
     privacy_consent_at: body.privacyConsent === true ? new Date().toISOString() : null,
+    terms_consent_at: body.termsConsent === true ? new Date().toISOString() : null,
   };
 }
 
@@ -429,6 +430,7 @@ function validateApplication(application) {
   if (application.referral_source === "other" && !application.referral_source_detail) return "referral_detail_required";
   if (application.course_type === "lecture" && String(application.lecture_id_normalized || "").length < 2) return "invalid_lecture_id";
   if (!application.privacy_consent_at) return "privacy_consent_required";
+  if (!application.terms_consent_at) return "terms_consent_required";
   return "";
 }
 

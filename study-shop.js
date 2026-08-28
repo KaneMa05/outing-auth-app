@@ -415,7 +415,7 @@ function renderStudentStudyShop() {
     ]),
     el("section", { className: "study-shop-point-card" }, [
       el("div", {}, [el("span", {}, "오늘 자동 획득"), el("strong", {}, `${studyCafeShopState.earnedToday}P`)]),
-      el("p", {}, "순공시간 30분마다 5P · 1시간마다 10P가 자동으로 쌓여요. 30분 미만은 포인트가 지급되지 않아요."),
+      el("p", {}, "순공시간 30분마다 5P가 쌓여요. 30분 미만은 포인트가 지급되지 않아요."),
       el("div", { className: "study-shop-point-progress", ariaLabel: "다음 포인트 진행률" }, [
         el("i", { style: `width:${progress}%` }),
       ]),

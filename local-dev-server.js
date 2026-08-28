@@ -148,6 +148,8 @@ async function handleLocalLectureApplications(req, res) {
       referral_source: String(body.referralSource || "").trim(),
       referral_source_detail: String(body.referralSourceDetail || "").trim(),
       lecture_id: String(body.lectureId || "").trim(),
+      privacy_consent_at: body.privacyConsent === true ? now : null,
+      terms_consent_at: body.termsConsent === true ? now : null,
       lookup_token_hash: hashLocalLookupToken(lookupToken),
       status: "pending",
       rejection_reason: "",
@@ -275,7 +277,7 @@ function readLocalCurriculum() {
       ...subject,
       stages: (Array.isArray(subject.stages) ? subject.stages : []).map((stage) => ({
         ...stage,
-        title: deriveLocalCurriculumStageTitle(stage.lectures, stage.title),
+        title: String(stage.title || "").trim() || deriveLocalCurriculumStageTitle(stage.lectures),
       })),
     })) : [];
   } catch {

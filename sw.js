@@ -1,10 +1,11 @@
-const CACHE_NAME = "outing-auth-app-v366-curriculum-stage-titles";
+const CACHE_NAME = "outing-auth-app-v369-editable-stage-title";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/teacher",
   "/teacher.html",
   "/styles.css",
+  "/fonts/GongGothicLight.woff",
   "/supabase.js",
   "/shared.js",
   "/student.js",

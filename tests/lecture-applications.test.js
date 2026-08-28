@@ -57,6 +57,7 @@ const validBody = {
   referralSourceDetail: "",
   lectureId: "LectureUser01",
   privacyConsent: true,
+  termsConsent: true,
 };
 
 const normalized = normalizeApplication(validBody);
@@ -65,6 +66,7 @@ assert.equal(normalized.lecture_id_normalized, "lectureuser01");
 assert.equal(validateApplication(normalized), "");
 assert.equal(validateApplication(normalizeApplication({ ...validBody, phone: "123" })), "invalid_phone");
 assert.equal(validateApplication(normalizeApplication({ ...validBody, privacyConsent: false })), "privacy_consent_required");
+assert.equal(validateApplication(normalizeApplication({ ...validBody, termsConsent: false })), "terms_consent_required");
 assert.equal(validateApplication(normalizeApplication({ ...validBody, referralSource: "other" })), "referral_detail_required");
 assert.equal(validateApplication(normalizeApplication({ ...validBody, courseType: "offline", lectureId: "" })), "");
 assert.equal(validateApplication(normalizeApplication({ ...validBody, courseType: "online_managed", lectureId: "" })), "");
@@ -79,6 +81,8 @@ const migration = fs.readFileSync("supabase/add-lecture-applications.sql", "utf8
 const labelUpdate = fs.readFileSync("supabase/update-lecture-student-label.sql", "utf8");
 const pushMigration = fs.readFileSync("supabase/add-lecture-application-push-subscriptions.sql", "utf8");
 const courseTypeMigration = fs.readFileSync("supabase/add-lecture-application-course-type.sql", "utf8");
+const termsConsentMigration = fs.readFileSync("supabase/add-lecture-application-terms-consent.sql", "utf8");
+const deletedStudentReleaseMigration = fs.readFileSync("supabase/release-application-identifiers-on-student-delete.sql", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
 const serviceWorkerSource = fs.readFileSync("sw.js", "utf8");
 const teacherStudentsSource = fs.readFileSync("teacher-students.js", "utf8");
@@ -110,6 +114,12 @@ assert.match(courseTypeMigration, /add column if not exists cohort smallint/);
 assert.match(courseTypeMigration, /raise exception 'registration_number_cohort_mismatch'/);
 assert.match(courseTypeMigration, /case when new\.course_type = 'lecture' then null else new\.cohort end/);
 assert.match(courseTypeMigration, /next_attendance_excluded := new\.course_type <> 'offline'/);
+assert.match(termsConsentMigration, /add column if not exists terms_consent_at timestamptz/);
+assert.match(deletedStudentReleaseMigration, /new\.status = 'cancelled'[\s\S]*?is_active = false/);
+assert.match(deletedStudentReleaseMigration, /security definer[\s\S]*?set search_path = ''/);
+assert.match(deletedStudentReleaseMigration, /revoke all on function private\.cancel_application_for_deactivated_student\(\) from public/);
+assert.match(deletedStudentReleaseMigration, /after update of is_active on public\.students/);
+assert.match(deletedStudentReleaseMigration, /application\.status = 'approved'[\s\S]*?student\.is_active = false/);
 assert.match(appSource, /function openLectureApplicationModal\(\)/);
 assert.match(appSource, /LECTURE_APPLICATION_RECEIPT_STORAGE_KEY/);
 assert.match(appSource, /function renderLectureApplicationStatusCard\(application/);
@@ -126,6 +136,9 @@ assert.match(appSource, /field\("휴대전화 번호", phoneInput\)/);
 assert.match(appSource, /field\("생년월일", birthDateInput\)/);
 assert.match(appSource, /field\("인강 아이디"/);
 assert.match(appSource, /privacyConsent: true/);
+assert.match(appSource, /termsConsent: true/);
+assert.match(appSource, /개인정보 수집·이용 동의/);
+assert.match(appSource, /수강생 등록 및 앱 이용약관/);
 assert.match(appSource, /field\("수강 구분", courseTypeSelect/);
 assert.match(appSource, /el\("option", \{ value: "offline" \}, "오프라인반"\)/);
 assert.match(appSource, /el\("option", \{ value: "online_managed" \}, "온라인 관리반"\)/);
@@ -197,6 +210,7 @@ const originalEnv = {
   assert.equal(insertedBody.phone_normalized, "01012345678");
   assert.equal(insertedBody.course_type, "lecture");
   assert.ok(insertedBody.privacy_consent_at);
+  assert.ok(insertedBody.terms_consent_at);
   assert.match(insertedBody.lookup_token_hash, /^[0-9a-f]{64}$/);
   assert.equal(created.payload.lookupToken.length >= 32, true);
   assert.notEqual(insertedBody.lookup_token_hash, created.payload.lookupToken);

@@ -187,7 +187,7 @@ function renderCurriculumAdminStageEditor(subject, stage, canWrite) {
       ]) : null,
     ].filter(Boolean)),
     el("div", { className: "curriculum-admin-stage-fields" }, [
-      curriculumAdminReadOnlyField("회차명", stage.title, "강의명에 따라 자동 작성됩니다."),
+      curriculumAdminField("회차명", stage.title, "회차 제목", (value) => { stage.title = value; }, 1000),
       curriculumAdminToggle("학생에게 공개", stage.isPublished !== false, (checked) => { stage.isPublished = checked; }),
       curriculumAdminToggle("기출 분석/학습 사용", stage.requiresWrapUp !== false, (checked) => { stage.requiresWrapUp = checked; }),
     ]),
@@ -214,11 +214,7 @@ function renderCurriculumAdminLectureRow(subject, stage, lecture, index, canWrit
   const numberInput = el("input", { type: "text", value: lecture.no, maxLength: 30, disabled: !canWrite, ariaLabel: `${index + 1}번째 강의 번호` });
   const titleInput = el("input", { type: "text", value: lecture.title, maxLength: 240, disabled: !canWrite, ariaLabel: `${index + 1}번째 강의 제목` });
   numberInput.addEventListener("change", () => { lecture.no = numberInput.value.trim(); });
-  titleInput.addEventListener("change", () => {
-    lecture.title = titleInput.value.trim();
-    stage.title = deriveCurriculumAdminStageTitle(stage);
-    render();
-  });
+  titleInput.addEventListener("change", () => { lecture.title = titleInput.value.trim(); });
   return el("div", { className: "curriculum-admin-lecture-row" }, [
     el("span", { className: "curriculum-admin-drag-index" }, String(index + 1).padStart(2, "0")),
     numberInput,
@@ -228,7 +224,6 @@ function renderCurriculumAdminLectureRow(subject, stage, lecture, index, canWrit
       button("↓", "mini-btn", "button", () => moveCurriculumAdminItem(stage.lectures, index, 1, subject)),
       button("삭제", "mini-btn danger", "button", () => {
         stage.lectures.splice(index, 1);
-        stage.title = deriveCurriculumAdminStageTitle(stage, stage.title);
         render();
       }),
     ]) : null,
@@ -238,11 +233,6 @@ function renderCurriculumAdminLectureRow(subject, stage, lecture, index, canWrit
 function curriculumAdminField(label, value, placeholder, onChange, maxLength = 60) {
   const control = el("input", { type: "text", value, placeholder, maxLength, disabled: !hasTeacherPermission("curriculum.write") });
   control.addEventListener("change", () => onChange(control.value.trim()));
-  return el("label", { className: "curriculum-admin-field" }, [el("span", {}, label), control]);
-}
-
-function curriculumAdminReadOnlyField(label, value, title) {
-  const control = el("input", { type: "text", value, readOnly: true, title, ariaLabel: `${label} (${title})` });
   return el("label", { className: "curriculum-admin-field" }, [el("span", {}, label), control]);
 }
 
@@ -327,7 +317,7 @@ function normalizeCurriculumAdminSubject(subject) {
       return {
         id: stage.id || createCurriculumAdminId(`${subject.id}-stage`),
         stageNumber: stageIndex + 1,
-        title: deriveCurriculumAdminStageTitle({ lectures }, stage.title || `${stageIndex + 1}회차`),
+        title: String(stage.title || "").trim() || deriveCurriculumAdminStageTitle({ lectures }, `${stageIndex + 1}회차`),
         sortOrder: stageIndex + 1,
         isPublished: stage.isPublished !== false,
         requiresWrapUp: stage.requiresWrapUp !== false,
@@ -384,7 +374,6 @@ function addCurriculumAdminLecture(stage) {
     title: "새 강의",
     sortOrder: stage.lectures.length + 1,
   });
-  stage.title = deriveCurriculumAdminStageTitle(stage);
   render();
 }
 
@@ -399,7 +388,6 @@ function moveCurriculumAdminItem(items, index, offset, subject) {
   if (subject) subject.stages.forEach((stage, stageIndex) => {
     stage.stageNumber = stageIndex + 1;
     stage.sortOrder = stageIndex + 1;
-    stage.title = deriveCurriculumAdminStageTitle(stage, stage.title);
   });
   render();
 }
@@ -415,7 +403,6 @@ function deleteCurriculumAdminStage(subject, stage) {
 
 async function saveCurriculumAdminSubject(subject) {
   if (curriculumAdminState.saving) return;
-  subject.stages.forEach((stage) => { stage.title = deriveCurriculumAdminStageTitle(stage, stage.title); });
   if (!subject.name.trim() || !subject.shortName.trim()) return notify("과목명과 짧은 이름을 입력해주세요.");
   if (subject.stages.some((stage) => !stage.title.trim() || stage.lectures.some((lecture) => !lecture.no.trim() || !lecture.title.trim()))) {
     return notify("비어 있는 회차명 또는 강의 정보를 확인해주세요.");
@@ -467,7 +454,7 @@ function serializeCurriculumAdminSubject(subject) {
     totalStages: subject.stages.length,
     stages: subject.stages.map((stage, stageIndex) => ({
       ...stage,
-      title: deriveCurriculumAdminStageTitle(stage, stage.title),
+      title: String(stage.title || "").trim() || deriveCurriculumAdminStageTitle(stage),
       stageNumber: stageIndex + 1,
       sortOrder: stageIndex + 1,
       lectures: stage.lectures.map((lecture, lectureIndex) => ({ ...lecture, sortOrder: lectureIndex + 1 })),

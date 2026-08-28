@@ -341,10 +341,11 @@ assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*fon
 assert.doesNotMatch(indexSource, /family=Jua&display=swap/);
 assert.match(styleSource, /@font-face\s*\{[^}]*font-family: "Hakgyoansim Poster B"[^}]*HakgyoansimPosterB\.woff2/);
 assert.match(styleSource, /@font-face\s*\{[^}]*font-family: "Gong Gothic Light"[^}]*GongGothicLight\.woff/);
+assert.match(styleSource, /body\s*\{[^}]*font-family: "Gong Gothic Light"/);
 assert.match(styleSource, /body\.student-online-mode\s*\{[^}]*font-family: "Gong Gothic Light"/);
-assert.match(styleSource, /body\.student-online-mode h1,[\s\S]*?body\.student-online-mode \.student-study-cafe-card-title\s*\{[^}]*font-family: "Hakgyoansim Poster B"/);
-assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-family: "Hakgyoansim Poster B"/);
-assert.match(styleSource, /\.online-student-logo\s*\{[^}]*font-family: Arial/);
+assert.match(styleSource, /body\.student-online-mode h1,[\s\S]*?body\.student-online-mode \.student-study-cafe-card-title\s*\{[^}]*font-family: "Gong Gothic Light"/);
+assert.match(styleSource, /\.student-study-cafe-card-title\.branded\s*\{[^}]*font-family: "Gong Gothic Light"/);
+assert.match(styleSource, /\.online-student-logo\s*\{[^}]*font-family: "Gong Gothic Light"/);
 assert.doesNotMatch(styleSource, /\.student-study-cafe-card-title\.branded \.study\s*\{/);
 assert.match(appSource, /onlineMode \? null : renderStudentImportantNoticeCard\(\)/);
 assert.match(appSource, /function getStudyCafeFocusedCount\(\)/);
@@ -1206,7 +1207,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260828-coast-guard-uniform-detail/);
+assert.match(indexSource, /app\.js\?v=20260828-editable-curriculum-stage-title/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

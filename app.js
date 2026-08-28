@@ -1500,7 +1500,18 @@ function openLectureApplicationModal() {
     lectureIdInput.required = courseTypeSelect.value === "lecture";
     if (lectureIdField.hidden) lectureIdInput.value = "";
   });
-  const privacyConsent = el("input", { name: "privacyConsent", type: "checkbox", value: "yes" });
+  const privacyConsent = el("input", { name: "privacyConsent", type: "checkbox", value: "yes", required: true });
+  const termsConsent = el("input", { name: "termsConsent", type: "checkbox", value: "yes", required: true });
+  const agreementItem = (title, checkbox, content) => el("section", { className: "lecture-application-agreement" }, [
+    el("label", { className: "lecture-application-consent" }, [
+      checkbox,
+      el("span", {}, [el("b", {}, "[필수] "), title]),
+    ]),
+    el("details", { className: "lecture-application-agreement-details" }, [
+      el("summary", {}, "내용 보기"),
+      el("div", { className: "lecture-application-agreement-content" }, content),
+    ]),
+  ]);
   const result = el("div", { className: "student-auth-result", ariaLive: "polite" });
   const submitButton = button("신청하기", "btn");
   const form = el("form", { className: "form-grid lecture-application-form" }, [
@@ -1515,9 +1526,34 @@ function openLectureApplicationModal() {
     field("들어온 경로", referralSelect),
     referralDetailField,
     lectureIdField,
-    el("label", { className: "lecture-application-consent field full" }, [
-      privacyConsent,
-      el("span", {}, "개인정보 수집·이용에 동의합니다."),
+    el("div", { className: "lecture-application-agreements field full" }, [
+      agreementItem("개인정보 수집·이용에 동의합니다.", privacyConsent, [
+        el("h4", {}, "개인정보 수집·이용 동의"),
+        el("dl", {}, [
+          el("dt", {}, "수집·이용 목적"),
+          el("dd", {}, "수강생 등록 신청의 본인 확인, 수강 정보 대조, 등록번호 발급, 신청 결과 안내 및 중복·부정 신청 방지"),
+          el("dt", {}, "수집 항목"),
+          el("dd", {}, "이름, 휴대전화 번호, 생년월일, 성별, 직렬, 수강 구분, 유입 경로 및 상세 내용(해당 시), 인강 아이디(인강생에 한함)"),
+          el("dt", {}, "보유·이용 기간"),
+          el("dd", {}, "등록 신청 검토 및 수강 관계가 종료될 때까지. 다만, 관계 법령에 따른 보관 의무 또는 분쟁 처리를 위해 필요한 경우에는 해당 기간까지 보관합니다."),
+          el("dt", {}, "동의 거부 권리 및 불이익"),
+          el("dd", {}, "개인정보 수집·이용에 동의하지 않을 수 있으나, 필수 정보이므로 동의하지 않으면 수강생 등록을 신청할 수 없습니다."),
+        ]),
+        el("p", {}, "수집한 개인정보는 위 목적 외 용도로 이용하지 않으며, 보유 기간이 끝나면 지체 없이 파기합니다."),
+      ]),
+      agreementItem("수강생 등록 및 앱 이용약관에 동의합니다.", termsConsent, [
+        el("h4", {}, "수강생 등록 및 앱 이용약관"),
+        el("ol", {}, [
+          el("li", {}, [el("b", {}, "목적 및 적용: "), "본 약관은 수강생 등록 신청과 등록 후 제공되는 앱 기능의 이용 조건을 정합니다."]),
+          el("li", {}, [el("b", {}, "신청 및 승인: "), "신청자는 정확한 정보를 입력해야 합니다. 관리자가 실제 수강 정보를 확인한 뒤 등록을 승인하며, 허위·누락 정보 또는 수강 사실을 확인할 수 없는 신청은 반려될 수 있습니다."]),
+          el("li", {}, [el("b", {}, "계정 관리: "), "발급된 등록번호와 계정은 본인만 사용할 수 있습니다. 타인에게 양도·대여하거나 다른 사람의 정보를 이용해서는 안 되며, 계정 정보의 안전한 관리 책임은 이용자에게 있습니다."]),
+          el("li", {}, [el("b", {}, "이용자 준수사항: "), "서비스를 부정한 방법으로 이용하거나, 운영을 방해하거나, 다른 이용자의 권리와 개인정보를 침해해서는 안 됩니다."]),
+          el("li", {}, [el("b", {}, "서비스 제공: "), "점검, 장애, 운영상 필요 또는 불가항력 사유가 있을 때 서비스의 전부 또는 일부가 변경·중단될 수 있으며, 가능한 경우 사전에 안내합니다."]),
+          el("li", {}, [el("b", {}, "이용 제한: "), "허위 신청, 계정 공유, 시스템 악용 등 약관 위반이 확인되면 신청 반려, 계정 이용 제한 또는 등록 해지가 이루어질 수 있습니다."]),
+          el("li", {}, [el("b", {}, "신청 철회 및 문의: "), "신청자는 검토 중 신청을 취소할 수 있으며, 등록 정보 수정·계정 이용 관련 사항은 앱의 문의하기 또는 담당자를 통해 요청할 수 있습니다."]),
+        ]),
+        el("p", {}, "본 약관에서 정하지 않은 사항은 관계 법령과 운영 정책에 따릅니다."),
+      ]),
     ]),
     result,
     el("div", { className: "lecture-application-actions field full" }, [
@@ -1548,6 +1584,11 @@ function openLectureApplicationModal() {
       result.textContent = "개인정보 수집·이용에 동의해주세요.";
       return;
     }
+    if (!termsConsent.checked) {
+      result.className = "student-auth-result error";
+      result.textContent = "수강생 등록 및 앱 이용약관에 동의해주세요.";
+      return;
+    }
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "신청 중");
@@ -1566,6 +1607,7 @@ function openLectureApplicationModal() {
           referralSourceDetail: data.referralSourceDetail,
           lectureId: data.lectureId,
           privacyConsent: true,
+          termsConsent: true,
         }),
       });
       const responseData = await response.json().catch(() => ({}));
@@ -2707,13 +2749,13 @@ function createCurriculumQuestTaskState(subject, stageNumber, preview = false) {
 }
 
 function getCurriculumStageTitle(subject, stageNumber) {
+  const managedTitle = String(getCurriculumStage(subject, stageNumber)?.title || "").trim();
+  if (managedTitle) return managedTitle;
   const lectureTitle = getCurriculumStageLectures(subject.id, stageNumber)
     .map((lecture) => String(lecture?.title || "").trim())
     .filter(Boolean)
     .join(", ");
   if (lectureTitle) return lectureTitle;
-  const managedTitle = String(getCurriculumStage(subject, stageNumber)?.title || "").trim();
-  if (managedTitle) return managedTitle;
   return subject.stageTitles[stageNumber - 1] || `${stageNumber}회차`;
 }
 

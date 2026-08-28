@@ -881,7 +881,7 @@ body {
   background:
     linear-gradient(90deg, rgba(7, 93, 164, 0.08), transparent 32%),
     linear-gradient(180deg, #fbfdff 0%, var(--bg) 100%);
-  font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -894,7 +894,7 @@ body.student-online-mode h1,
 body.student-online-mode h2,
 body.student-online-mode h3,
 body.student-online-mode .student-study-cafe-card-title {
-  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
 .student-refresh-indicator {
@@ -3381,7 +3381,7 @@ th {
 
 .grade-bulk-textarea {
   min-height: 112px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: 0.82rem;
   line-height: 1.45;
   white-space: pre;
@@ -4888,7 +4888,7 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
 }
 
 .student-registration-history td:last-child {
-  font-family: Consolas, "Courier New", monospace;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: 0.82rem;
 }
 
@@ -5692,7 +5692,7 @@ body.student-online-mode .online-student-header {
   align-items: center;
   gap: 8px;
   color: #08294f;
-  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: 1.08rem;
   font-weight: 800;
   letter-spacing: 0.025em;
@@ -9262,7 +9262,7 @@ body.student-online-mode.student-home-route .student-study-cafe-card-copy {
 body.student-online-mode.student-home-route .student-study-cafe-card-kicker {
   margin-bottom: 8px;
   color: #247b7f;
-  font-family: Arial, sans-serif;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.11em;
@@ -9280,7 +9280,7 @@ body.student-online-mode.student-home-route .student-study-cafe-card-title.brand
   justify-content: center;
   gap: 0.14em;
   max-width: 100%;
-  font-family: "Hakgyoansim Poster B", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Gong Gothic Light", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: clamp(1.85rem, 7.8vw, 2.3rem);
   font-weight: 400;
   letter-spacing: -0.012em;
@@ -16811,20 +16811,82 @@ body.student-study-mode .main-shell {
   grid-column: 1 / -1;
 }
 
+.lecture-application-agreements {
+  display: grid;
+  gap: 10px;
+}
+
+.lecture-application-agreement {
+  overflow: hidden;
+  border: 1px solid #dfe7ef;
+  border-radius: 12px;
+  background: #f5f8fb;
+}
+
 .lecture-application-consent {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 12px;
-  background: #f5f8fb;
+  cursor: pointer;
 }
 
 .lecture-application-consent input {
   width: 18px;
   height: 18px;
   margin: 0;
+  flex: 0 0 auto;
+}
+
+.lecture-application-agreement-details {
+  border-top: 1px solid #dfe7ef;
+}
+
+.lecture-application-agreement-details summary {
+  padding: 10px 14px;
+  color: #315f7d;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lecture-application-agreement-content {
+  padding: 2px 14px 14px;
+  color: #3f5060;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.lecture-application-agreement-content h4 {
+  margin: 8px 0 10px;
+  color: #1e3344;
+  font-size: 14px;
+}
+
+.lecture-application-agreement-content dl,
+.lecture-application-agreement-content ol,
+.lecture-application-agreement-content p {
+  margin: 0;
+}
+
+.lecture-application-agreement-content dt {
+  margin-top: 9px;
+  color: #253e52;
+  font-weight: 800;
+}
+
+.lecture-application-agreement-content dd {
+  margin: 2px 0 0;
+}
+
+.lecture-application-agreement-content ol {
+  padding-left: 20px;
+}
+
+.lecture-application-agreement-content li + li,
+.lecture-application-agreement-content p {
+  margin-top: 9px;
 }
 
 .lecture-application-actions,

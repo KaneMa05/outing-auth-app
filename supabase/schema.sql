@@ -1275,6 +1275,7 @@ create table if not exists public.lecture_applications (
   lecture_id_normalized text check (lecture_id_normalized is null or char_length(lecture_id_normalized) between 2 and 80),
   lookup_token_hash text check (lookup_token_hash is null or lookup_token_hash ~ '^[0-9a-f]{64}$'),
   privacy_consent_at timestamptz not null,
+  terms_consent_at timestamptz not null,
   status text not null default 'pending'
     check (status in ('pending', 'approved', 'rejected', 'cancelled')),
   rejection_reason text,
@@ -1337,7 +1338,18 @@ declare
 begin
   new.updated_at := now();
 
-  if old.status = 'approved' and new.status <> 'approved' then
+  if old.status = 'approved'
+    and new.status <> 'approved'
+    and not (
+      new.status = 'cancelled'
+      and new.approved_student_id is not null
+      and exists (
+        select 1
+        from public.students
+        where id = new.approved_student_id
+          and is_active = false
+      )
+    ) then
     raise exception 'approved_application_is_final';
   end if;
 
@@ -1416,6 +1428,37 @@ create trigger lecture_application_review_trigger
 before update of status on public.lecture_applications
 for each row
 execute function public.approve_lecture_application();
+
+create schema if not exists private;
+revoke all on schema private from public;
+
+create or replace function private.cancel_application_for_deactivated_student()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.lecture_applications
+  set
+    status = 'cancelled',
+    reviewed_at = coalesce(reviewed_at, now()),
+    reviewed_by = coalesce(reviewed_by, 'system:student_deleted')
+  where approved_student_id = new.id
+    and status = 'approved';
+
+  return new;
+end;
+$$;
+
+revoke all on function private.cancel_application_for_deactivated_student() from public;
+
+drop trigger if exists cancel_application_on_student_deactivation on public.students;
+create trigger cancel_application_on_student_deactivation
+after update of is_active on public.students
+for each row
+when (old.is_active = true and new.is_active = false)
+execute function private.cancel_application_for_deactivated_student();
 
 alter table public.lecture_applications enable row level security;
 

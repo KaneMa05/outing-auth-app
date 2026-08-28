@@ -97,7 +97,7 @@ async function loadCurriculum({ includeUnpublished = false } = {}) {
         return {
           id: stage.id,
           stageNumber: stage.stage_number,
-          title: deriveCurriculumStageTitle(stageLectures, stage.title),
+          title: String(stage.title || "").trim() || deriveCurriculumStageTitle(stageLectures),
           sortOrder: stage.sort_order,
           isPublished: stage.is_published !== false,
           requiresWrapUp: stage.requires_wrap_up !== false,
@@ -203,7 +203,7 @@ function normalizeSubject(value) {
     return {
       id: stageId,
       stageNumber: index + 1,
-      title: normalizeText(deriveCurriculumStageTitle(lectures, stage.title), 1000, 1, "invalid_stage_title"),
+      title: normalizeText(stage.title || deriveCurriculumStageTitle(lectures), 1000, 1, "invalid_stage_title"),
       sortOrder: index + 1,
       isPublished: stage.isPublished !== false,
       requiresWrapUp: stage.requiresWrapUp !== false,

@@ -47,7 +47,18 @@ declare
 begin
   new.updated_at := now();
 
-  if old.status = 'approved' and new.status <> 'approved' then
+  if old.status = 'approved'
+    and new.status <> 'approved'
+    and not (
+      new.status = 'cancelled'
+      and new.approved_student_id is not null
+      and exists (
+        select 1
+        from public.students
+        where id = new.approved_student_id
+          and is_active = false
+      )
+    ) then
     raise exception 'approved_application_is_final';
   end if;
 
