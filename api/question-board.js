@@ -70,7 +70,11 @@ async function handleStudentAction(res, action, body, student) {
     return;
   }
   if (action === "list") {
-    res.status(200).json({ ok: true, ...(await loadPostList({ studentId: student.id, body })) });
+    const [list, subjects] = await Promise.all([
+      loadPostList({ studentId: student.id, body }),
+      body.includeSubjects === true ? loadSubjectsForTrack(student.track) : Promise.resolve(null),
+    ]);
+    res.status(200).json({ ok: true, ...list, ...(subjects ? { subjects } : {}) });
     return;
   }
   if (action === "detail") {
@@ -273,27 +277,41 @@ async function handleTeacherAction(req, res, action, body) {
 }
 
 async function loadPostList({ studentId, body, teacher = false }) {
-  const rows = await requestSupabase("GET", `question_posts?board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,image_paths,status,view_count,is_hidden,hidden_reason,created_at,updated_at&order=created_at.desc&limit=200`);
-  const visibleRows = teacher ? rows || [] : (rows || []).filter((row) => row.is_hidden !== true);
   const subject = normalizeText(body.subject, 40);
   const status = ["open", "answered"].includes(body.status) ? body.status : "";
   const search = normalizeText(body.search, 80).toLocaleLowerCase("ko-KR");
-  const filtered = visibleRows.filter((row) => {
-    if (subject && row.subject !== subject) return false;
-    if (status && row.status !== status) return false;
-    if (search && !`${row.title}\n${row.body}`.toLocaleLowerCase("ko-KR").includes(search)) return false;
-    return true;
-  });
   const page = Math.max(1, Math.min(1000, Number(body.page) || 1));
   const pageSize = Math.max(1, Math.min(30, Number(body.pageSize) || 30));
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const offset = (page - 1) * pageSize;
+  const filters = [
+    "board_type=eq.subject",
+    "deleted_at=is.null",
+    teacher ? "" : "is_hidden=eq.false",
+    subject ? `subject=eq.${encodeURIComponent(subject)}` : "",
+    status ? `status=eq.${status}` : "",
+  ].filter(Boolean);
+  const select = `id,student_id,subject,title,${teacher || search ? "body," : ""}image_paths,status,view_count,is_hidden,hidden_reason,created_at,updated_at`;
+  const queryLimit = search ? 200 : pageSize + 1;
+  const queryOffset = search ? 0 : offset;
+  const rows = await requestSupabase(
+    "GET",
+    `question_posts?${filters.join("&")}&select=${select}&order=created_at.desc&offset=${queryOffset}&limit=${queryLimit}`
+  );
+  const filtered = search
+    ? (rows || []).filter((row) => `${row.title}\n${row.body}`.toLocaleLowerCase("ko-KR").includes(search))
+    : rows || [];
+  const pageRows = search
+    ? filtered.slice(offset, offset + pageSize)
+    : filtered.slice(0, pageSize);
+  const hasMore = search
+    ? offset + pageSize < filtered.length
+    : filtered.length > pageSize;
   const authors = await loadAuthorMap(pageRows.map((row) => row.student_id));
   const counts = await loadCommentCounts(pageRows.map((row) => row.id));
   return {
     posts: pageRows.map((row) => serializePost(row, { studentId, authors, counts, teacher })),
     page,
-    hasMore: page * pageSize < filtered.length,
-    total: filtered.length,
+    hasMore,
   };
 }
 

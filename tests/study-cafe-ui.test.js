@@ -20,6 +20,7 @@ assert.match(appSource, /className: "student-planner-solo-header"/);
 assert.match(appSource, /el\("h2", \{ className: "student-planner-solo-title" \}, "오늘의 할 일"\)/);
 assert.doesNotMatch(appSource, /className: "student-planner-solo-spacer"/);
 assert.match(styleSource, /\.student-planner-solo-title\s*\{[^}]*min-height: 50px[^}]*border: 1px solid #dbe4ed/);
+assert.match(styleSource, /\.student-planner-solo-title\s*\{[^}]*font-size: clamp\(1\.28rem, 5\.4vw, 1\.5rem\)/);
 assert.match(
   styleSource,
   /body\.student-online-mode \.student-planner-solo-title\s*\{[^}]*background: rgba\(255, 255, 255, 0\.09\)[^}]*color: #f2f6f8/,
@@ -166,6 +167,11 @@ assert.match(
 );
 assert.match(
   appSource,
+  /function openStudyCafeTodoRedirectModal[\s\S]*?studyPlannerHubView = "planner";\s*studyTodoCalendarOpen = false;\s*closeInfoModal\(\);\s*navigate\("study-todo"\)/,
+  "the study cafe todo redirect should always open today's planner instead of the previously selected curriculum view"
+);
+assert.match(
+  appSource,
   /if \(todosReady && !hasStudyCafeTodoForSubject\(student, subject\)\)[\s\S]*?openStudyCafeTodoRedirectModal\(seat\.id, seatNumber, subject\)/
 );
 assert.match(
@@ -173,6 +179,20 @@ assert.match(
   /if \(!preserveTimer && !hasStudyCafeTodoForSubject\(student, selectedSubject\)\)[\s\S]*?seatAlreadyClaimed: studyCafePreviewState\.selectedSeatId === seatId/
 );
 assert.match(appSource, /function renderStudyCafePlannerEntryGuide\(todos, selectedDateKey\)/);
+assert.match(
+  appSource,
+  /function renderStudyCafePlannerEntryGuide\(todos, selectedDateKey\)[\s\S]*?studyCafeRemoteState\.loading && !studyCafeRemoteState\.loaded[\s\S]*?const continuingClaimedSeat = Boolean/
+);
+assert.match(
+  appSource,
+  /if \(selectedSeatId && !continuingClaimedSeat\) \{\s*clearStudyCafePlannerEntryState\(\);\s*return null;/,
+  "a stale seat-selection guide should be removed after a seat is already selected"
+);
+assert.match(
+  appSource,
+  /requiredSubject[\s\S]*?continuingClaimedSeat\s*\? "공부할 과목 선택하기"\s*:\s*"좌석 선택 계속하기"/,
+  "an already selected seat should offer subject selection instead of seat selection"
+);
 assert.match(appSource, /const requiredSubject = studyCafePlannerEntryState\.subject/);
 assert.match(appSource, /function resumeStudyCafeSeatSelection\(\)/);
 assert.match(appSource, /seatButton\.click\(\)/);
@@ -346,6 +366,9 @@ assert.match(appSource, /function ensureStudyCafePreviewClock\(\)[\s\S]*?updateL
 assert.match(appSource, /const allowedRoutes = getAllowedStudentRoutes\(category\)/);
 assert.match(appSource, /function defaultRoute\(\) \{\s*return "home";/);
 assert.match(appSource, /document\.body\.classList\.toggle\("student-online-mode", onlineMode\)/);
+assert.match(appSource, /document\.documentElement\.classList\.toggle\("student-online-mode", onlineMode\)/);
+assert.match(appSource, /themeColor\.setAttribute\("content", onlineMode \? "#0b2746" : "#f3f7fb"\)/);
+assert.match(styleSource, /html\.student-online-mode\s*\{[^}]*background: #0b2746/);
 assert.match(appSource, /function openStudentDdayModal\(\)/);
 assert.match(appSource, /function openAdminStudentDdayModal\(\)/);
 assert.match(appSource, /mode: "custom"[\s\S]*?mode: "admin"/);
@@ -936,14 +959,15 @@ assert.match(styleSource, /\.study-cafe-room\.theme-dawn\s*\{[^}]*--room-desk: #
 assert.match(styleSource, /\.study-cafe-room-tab\s*\{[^}]*background: rgba\(255, 255, 255, 0\.78\)/);
 assert.match(styleSource, /\.study-cafe-room-tab\.active\s*\{[^}]*background: var\(--room-button\)[^}]*color: #fff/);
 assert.match(styleSource, /\.study-cafe-seat\.empty\s*\{[^}]*var\(--room-accent\)[^}]*rgba\(255, 255, 255, 0\.46\)/);
-assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-seat:not\(\.mine\)\s*\{[^}]*border-color: transparent[^}]*background: transparent/);
-assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-empty-plus\s*\{[^}]*display: none/);
-assert.match(styleSource, /\.study-cafe-room\.ranking-room\.has-selected-seat \.study-cafe-seat\.empty \.study-cafe-seat-number\s*\{[^}]*display: none/);
+assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-seat\.empty\s*\{[^}]*border-color: color-mix[^}]*background: rgba\(255, 255, 255, 0\.34\)/);
+assert.doesNotMatch(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-seat:not\(\.mine\)\s*\{[^}]*(?:border-color: transparent|background: transparent)/);
+assert.match(styleSource, /\.study-cafe-room\.has-selected-seat \.study-cafe-empty-plus\s*\{[^}]*height: 24px[^}]*background: rgba\(255, 255, 255, 0\.78\)[^}]*color: var\(--room-accent\)/);
 assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-copy p\s*\{[^}]*color: #58717d/);
 assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-card::after\s*\{[^}]*display: none/);
 assert.match(styleSource, /\.study-cafe-room \.study-cafe-my-seat-card\s*\{[^}]*background: #edf6f7/);
 assert.match(styleSource, /\.study-cafe-room \.study-cafe-seat\.mine\s*\{[^}]*background: rgba\(255, 255, 255, 0\.94\)[^}]*#6ca6a3/);
-assert.match(appSource, /className: "study-cafe-empty-plus" \}, "\+ 입장"/);
+assert.match(appSource, /const emptySeatActionLabel = readOnly \? "빈자리" : hasSelectedSeat \? "좌석 변경" : "\+ 입장"/);
+assert.match(appSource, /className: `study-cafe-empty-plus \$\{hasSelectedSeat \|\| readOnly \? "compact" : ""\}`/);
 assert.match(styleSource, /\.study-cafe-empty-plus\s*\{[^}]*border-radius: 9px[^}]*background: var\(--room-button\)/);
 assert.match(styleSource, /\.study-cafe-floating-menu-button\s*\{[^}]*min-width: 104px[^}]*border-radius: 12px[^}]*background: var\(--study-cafe-button\)/);
 assert.match(styleSource, /\.study-cafe-countdown-number\s*\{[^}]*border-radius: 14px/);
@@ -957,6 +981,8 @@ assert.match(appSource, /Array\.from\(\{ length: STUDY_CAFE_SEAT_COUNT \}/);
 assert.match(appSource, /function renderStudyCafeRoomTabs\(student\)/);
 assert.match(appSource, /function openStudyCafeRankingGuideModal\(\)/);
 assert.match(appSource, /data-study-cafe-ranking-help/);
+assert.match(appSource, /textContent: "랭킹룸 안내"/);
+assert.doesNotMatch(appSource, /textContent: "\? 랭킹룸 안내"/);
 assert.match(appSource, /오늘 누적된 순공시간이 긴 순서대로/);
 assert.match(appSource, /순위는 15초마다 갱신/);
 assert.match(appSource, /공부 중 이동해도 타이머는 유지됩니다/);
@@ -1065,6 +1091,24 @@ assert.match(styleSource, /\.study-timer-fullscreen-button/);
 assert.match(styleSource, /\.study-timer-fullscreen\s*\{/);
 assert.match(styleSource, /\.study-timer-fullscreen-clock/);
 assert.match(styleSource, /\.study-timer-fullscreen-actions/);
+assert.match(
+  appSource,
+  /document\.documentElement\.classList\.toggle\("study-timer-fullscreen-mode", studyTimerFullscreenMode\)/,
+  "the fullscreen state should also be applied to the root element"
+);
+assert.match(
+  styleSource,
+  /html\.study-timer-fullscreen-mode\s*\{[^}]*scrollbar-gutter: auto[^}]*background: #071d31[^}]*color-scheme: dark/,
+  "fullscreen should extend its navy surface through the scrollbar gutter"
+);
+assert.match(
+  styleSource,
+  /\.study-timer-fullscreen\s*\{[^}]*linear-gradient\(160deg, #071d31 0%, #0a2942 58%, #0c3552 100%\)[^}]*color: #f2f8fc/,
+  "fullscreen should use the navy focus surface"
+);
+assert.match(styleSource, /\.study-timer-fullscreen-clock\s*\{[^}]*color: #f8fcff[^}]*text-shadow:/);
+assert.match(styleSource, /\.study-timer-fullscreen-actions \.btn\.secondary\s*\{[^}]*background: rgba\(255, 255, 255, 0\.1\)[^}]*color: #f1f8fc/);
+assert.match(styleSource, /\.study-timer-fullscreen-total\s*\{[^}]*background: rgba\(255, 255, 255, 0\.08\)/);
 assert.match(
   styleSource,
   /body\.study-timer-fullscreen-mode \.student-study-timer-page\s*\{[^}]*animation: none[^}]*transform: none/

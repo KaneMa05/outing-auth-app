@@ -44,6 +44,10 @@ html {
   background: #f4f6f8;
 }
 
+html.student-online-mode {
+  background: #0b2746;
+}
+
 /* Private study rooms */
 .study-room-open-button,
 .study-room-manage-button,
@@ -6101,7 +6105,7 @@ body:not([data-app-mode="teacher"]) .student-view {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, #1762d2, #36a4f4);
+  background: linear-gradient(90deg, #315b68, #6ca6a3);
 }
 
 .curriculum-progress-track.light { background: rgba(255, 255, 255, 0.24); }
@@ -6178,8 +6182,8 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-subject-tab.active {
-  border-color: #123d79;
-  background: #123d79;
+  border-color: #315b68;
+  background: #315b68;
   color: #fff;
 }
 
@@ -6189,7 +6193,15 @@ body:not([data-app-mode="teacher"]) .student-view {
   background: #fff;
 }
 
+.curriculum-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .curriculum-overview-copy {
+  min-width: 0;
   justify-content: flex-start;
   gap: 12px;
 }
@@ -6200,6 +6212,40 @@ body:not([data-app-mode="teacher"]) .student-view {
   font-size: 1.05rem;
 }
 
+.curriculum-current-stage-jump {
+  min-width: 92px;
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid #bdd1d6;
+  border-radius: 11px;
+  background: #e8f1f3;
+  color: #315b68;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.curriculum-current-stage-jump:hover,
+.curriculum-current-stage-jump:focus-visible {
+  border-color: #6f9ba3;
+  background: #dce9ec;
+}
+
+.curriculum-current-stage-jump:focus-visible {
+  outline: 2px solid #547f88;
+  outline-offset: 2px;
+}
+
+.curriculum-current-stage-jump.completed {
+  border-color: #c9e8dc;
+  background: #eaf8f3;
+  color: #18825f;
+  cursor: default;
+  opacity: 1;
+}
+
 .curriculum-overview-progress {
   margin: 15px 0 8px;
   color: #607086;
@@ -6208,7 +6254,7 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-overview-progress strong {
-  color: #123d79;
+  color: #315b68;
   font-size: 0.88rem;
 }
 
@@ -6233,6 +6279,7 @@ body:not([data-app-mode="teacher"]) .student-view {
   position: relative;
   display: grid;
   gap: 8px;
+  scroll-margin-block: 120px;
 }
 
 .curriculum-phase-label {
@@ -6291,13 +6338,13 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-stage-card.current {
-  border-color: #73a3e6;
-  background: linear-gradient(135deg, #ffffff 0%, #f1f7ff 100%);
-  box-shadow: 0 13px 28px rgba(24, 94, 194, 0.15);
+  border-color: #91b4bc;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f6f7 100%);
+  box-shadow: 0 13px 28px rgba(49, 91, 104, 0.14);
   transform: translateY(-1px);
 }
 
-.curriculum-stage-card.current::after { background: linear-gradient(#246bc7, #4c91e8); }
+.curriculum-stage-card.current::after { background: linear-gradient(#315b68, #6ca6a3); }
 
 .curriculum-stage-card.completed {
   border-color: #cfe7de;
@@ -6334,10 +6381,10 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-stage-card.current .curriculum-stage-node {
-  border-color: #2e73db;
-  background: #edf5ff;
-  color: #2e73db;
-  box-shadow: 0 0 0 5px rgba(46, 115, 219, 0.1);
+  border-color: #5b8d95;
+  background: #edf5f6;
+  color: #477f8c;
+  box-shadow: 0 0 0 5px rgba(71, 127, 140, 0.11);
 }
 
 .curriculum-stage-body,
@@ -6390,9 +6437,9 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-stage-meta > span.active {
-  border-color: #b9d2f3;
-  background: #eaf3ff;
-  color: #2868bd;
+  border-color: #bdd1d6;
+  background: #e8f1f3;
+  color: #315b68;
 }
 
 .curriculum-stage-meta > span.done {
@@ -6413,7 +6460,7 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-stage-status.completed { background: #e5f7f0; color: #168760; }
-.curriculum-stage-status.current { background: #e6f0ff; color: #2468c9; }
+.curriculum-stage-status.current { background: #e5eff1; color: #315b68; }
 .curriculum-stage-status.locked { background: #eceff3; color: #8491a1; }
 .curriculum-stage-chevron { color: #7890aa; font-size: 1.3rem; }
 
@@ -6432,15 +6479,28 @@ body:not([data-app-mode="teacher"]) .student-view {
 }
 
 .curriculum-back-button {
-  width: 100%;
-  margin: 0;
-  padding: calc(16px + var(--student-safe-top)) 18px 10px;
-  border: 0;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.84);
+  width: fit-content;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  margin: calc(12px + var(--student-safe-top)) 0 6px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(3, 25, 51, 0.18);
   font-size: 0.78rem;
   font-weight: 900;
   text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-back-button:hover,
+.curriculum-back-button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.24);
+  outline: none;
 }
 
 .curriculum-detail-hero {
@@ -6650,6 +6710,13 @@ body:not([data-app-mode="teacher"]) .student-view {
   font-weight: 900;
 }
 .curriculum-task-card.completed .curriculum-task-check { border-color: #20a978; background: #20a978; }
+.curriculum-stage-finish,
+.curriculum-home-continue {
+  border-color: #315b68;
+  background: linear-gradient(135deg, #315b68, #477f8c);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(49, 91, 104, 0.2);
+}
 .curriculum-stage-finish { width: 100%; margin-top: 14px; }
 .curriculum-stage-finish:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
 
@@ -8952,6 +9019,8 @@ body.student-online-mode.student-home-route .lecture-home-board-state {
   display: grid;
   gap: 14px;
   padding-bottom: 18px;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 .student-planner-hub.curriculum .curriculum-detail-navy {
@@ -8963,7 +9032,8 @@ body.student-online-mode.student-home-route .lecture-home-board-state {
 }
 
 .student-planner-hub.curriculum .curriculum-back-button {
-  padding: 15px 0 8px;
+  margin: 13px 0 6px;
+  padding: 9px 14px;
 }
 
 .student-planner-hub.curriculum .curriculum-detail-hero {
@@ -9036,7 +9106,7 @@ body.student-online-mode.student-home-route .lecture-home-board-state {
   border-radius: 14px;
   background: #edf2f7;
   color: #20384c;
-  font-size: 0.92rem;
+  font-size: clamp(1.28rem, 5.4vw, 1.5rem);
   font-weight: 850;
   text-align: center;
 }
@@ -12324,22 +12394,28 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
 }
 
 .study-cafe-room.has-selected-seat .study-cafe-seat:not(.mine) {
-  border-color: transparent;
-  background: transparent;
   box-shadow: none;
+}
+
+.study-cafe-room.has-selected-seat .study-cafe-seat.empty {
+  border-color: color-mix(in srgb, var(--room-accent) 22%, transparent);
+  background: rgba(255, 255, 255, 0.34);
 }
 
 .study-cafe-room.has-selected-seat .study-cafe-seat.empty:hover,
 .study-cafe-room.has-selected-seat .study-cafe-seat.empty:focus-visible {
-  background: color-mix(in srgb, var(--room-accent-soft) 68%, transparent);
+  background: color-mix(in srgb, var(--room-accent-soft) 78%, white 22%);
 }
 
 .study-cafe-room.has-selected-seat .study-cafe-empty-plus {
-  display: none;
-}
-
-.study-cafe-room.ranking-room.has-selected-seat .study-cafe-seat.empty .study-cafe-seat-number {
-  display: none;
+  min-width: 0;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--room-accent) 24%, transparent);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--room-accent);
+  padding: 0 6px;
+  font-size: 0.54rem;
+  box-shadow: none;
 }
 
 .study-cafe-seat.mine {
@@ -12750,6 +12826,16 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
   font-size: 0.62rem;
   font-weight: 900;
   transform: translateX(-50%);
+}
+
+.study-cafe-empty-plus.compact {
+  min-width: 0;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--room-accent) 24%, transparent);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--room-accent);
+  padding: 0 6px;
+  font-size: 0.54rem;
 }
 
 .study-cafe-seat.empty .study-cafe-desk-book,
@@ -13171,6 +13257,12 @@ body.student-online-mode .info-modal-panel .btn.secondary:hover {
   overflow: hidden;
 }
 
+html.study-timer-fullscreen-mode {
+  scrollbar-gutter: auto;
+  background: #071d31;
+  color-scheme: dark;
+}
+
 .study-timer-fullscreen {
   position: fixed;
   inset: 0;
@@ -13180,15 +13272,27 @@ body.student-online-mode .info-modal-panel .btn.secondary:hover {
   grid-template-rows: auto minmax(0, 1fr);
   overflow-y: auto;
   background:
-    radial-gradient(circle at 16% 12%, rgba(47, 156, 214, 0.16) 0 120px, transparent 121px),
-    radial-gradient(circle at 90% 85%, rgba(69, 172, 169, 0.13) 0 150px, transparent 151px),
-    #f3f7fb;
-  color: var(--ink);
+    radial-gradient(circle at 16% 12%, rgba(47, 156, 214, 0.22) 0 120px, transparent 121px),
+    radial-gradient(circle at 90% 85%, rgba(69, 172, 169, 0.16) 0 150px, transparent 151px),
+    linear-gradient(160deg, #071d31 0%, #0a2942 58%, #0c3552 100%);
+  color: #f2f8fc;
+  scrollbar-color: rgba(132, 191, 218, 0.55) transparent;
   padding:
     max(18px, env(safe-area-inset-top))
     max(18px, env(safe-area-inset-right))
     max(22px, env(safe-area-inset-bottom))
     max(18px, env(safe-area-inset-left));
+}
+
+.study-timer-fullscreen::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.study-timer-fullscreen::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(132, 191, 218, 0.55);
+  background-clip: padding-box;
 }
 
 .study-timer-fullscreen-head {
@@ -13206,22 +13310,23 @@ body.student-online-mode .info-modal-panel .btn.secondary:hover {
 }
 
 .study-timer-fullscreen-head span {
-  color: var(--accent);
+  color: #83d2ee;
   font-size: 0.64rem;
   font-weight: 900;
   letter-spacing: 0.1em;
 }
 
 .study-timer-fullscreen-head strong {
+  color: #f7fbfe;
   font-size: 0.96rem;
 }
 
 .study-timer-fullscreen-close {
   min-height: 38px;
-  border: 1px solid #d6e1eb;
+  border: 1px solid rgba(202, 229, 242, 0.3);
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--accent-strong);
+  background: rgba(255, 255, 255, 0.09);
+  color: #e9f5fb;
   padding: 8px 11px;
   font-size: 0.72rem;
   font-weight: 900;
@@ -13240,39 +13345,41 @@ body.student-online-mode .info-modal-panel .btn.secondary:hover {
 
 .study-timer-fullscreen-status {
   border-radius: 999px;
-  background: #eef2f6;
-  color: #6e7c89;
+  background: rgba(255, 255, 255, 0.1);
+  color: #bdd2df;
   padding: 7px 11px;
   font-size: 0.72rem;
   font-weight: 900;
 }
 
 .study-timer-fullscreen-status.running {
-  background: #e5f7ef;
-  color: #19734d;
+  background: rgba(61, 205, 154, 0.16);
+  color: #7ce0b9;
 }
 
 .study-timer-fullscreen-main h2 {
   max-width: 100%;
   margin: 4px 0 0;
   overflow: hidden;
+  color: #f5fbff;
   font-size: clamp(1.25rem, 4vw, 1.8rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .study-timer-fullscreen-clock {
-  color: #073d72;
+  color: #f8fcff;
   font-size: clamp(4rem, 18vw, 8.5rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.06em;
   line-height: 1;
+  text-shadow: 0 0 38px rgba(82, 184, 228, 0.2);
 }
 
 .study-timer-fullscreen-main > p {
   margin: 0;
-  color: var(--muted);
+  color: #a9c3d3;
   font-size: 0.8rem;
   font-weight: 800;
 }
@@ -13291,25 +13398,31 @@ body.student-online-mode .info-modal-panel .btn.secondary:hover {
   margin: 0;
 }
 
+.study-timer-fullscreen-actions .btn.secondary {
+  border-color: rgba(202, 229, 242, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f8fc;
+}
+
 .study-timer-fullscreen-total {
   min-width: 210px;
   display: grid;
   gap: 4px;
   margin-top: 14px;
-  border: 1px solid #dce7f1;
+  border: 1px solid rgba(190, 222, 237, 0.22);
   border-radius: 15px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.08);
   padding: 12px 18px;
 }
 
 .study-timer-fullscreen-total span {
-  color: var(--muted);
+  color: #9eb9c9;
   font-size: 0.68rem;
   font-weight: 800;
 }
 
 .study-timer-fullscreen-total time {
-  color: var(--accent-strong);
+  color: #f5fbff;
   font-size: 1.12rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -16246,22 +16359,21 @@ body.student-study-mode .main-shell {
 .question-board-loading { grid-auto-flow: column; min-height: 120px; }
 .question-back-button { justify-self: start; min-height: 36px; padding: 7px 12px; border: 1px solid #d9e3eb; border-radius: 99px; background: #fff; color: #4e6c83; font-size: .75rem; font-weight: 800; cursor: pointer; }
 .question-detail-card, .question-comments-section, .question-write-card { display: grid; gap: 14px; padding: 18px; border: 1px solid #e0e8ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 25px rgba(35,68,95,.06); }
-.question-detail-page { margin: -4px -18px 0; padding: 4px 18px 28px; background: #fff; gap: 0 !important; }
-.question-detail-page .question-back-button { margin-bottom: 4px; }
+.question-detail-page { margin: 0; padding: 14px; border: 1px solid rgba(173,197,211,.42); border-radius: 22px; background: linear-gradient(180deg,#eef4f7 0%,#e7eff3 100%); gap: 14px !important; }
+.question-detail-page .question-back-button { margin-bottom: 0; }
 .question-detail-page .question-detail-card,
-.question-detail-page .question-comments-section { padding: 20px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.question-detail-page .question-comments-section { padding-top: 26px; }
+.question-detail-page .question-comments-section { padding: 18px; border: 1px solid #d8e4eb; border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 8px 22px rgba(25,66,91,.07); }
+.question-detail-page .question-comments-section { padding-top: 18px; }
 .question-detail-card h2 { margin: 0; color: #1b354b; font-size: 1.25rem; line-height: 1.45; }
 .question-detail-body, .question-comment-body { color: #344e63; font-size: .87rem; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .question-detail-body { min-height: 100px; padding-top: 14px; border-top: 1px solid #edf1f4; }
-.question-detail-page .question-detail-body { padding-top: 4px; border-top: 0; }
+.question-detail-page .question-detail-body { padding-top: 14px; border-top: 1px solid #e5edf2; }
 .question-detail-actions, .question-comment-actions, .question-write-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .question-comment-list { display: grid; gap: 10px; }
 .question-comment { display: grid; gap: 9px; padding: 13px; border: 1px solid #e5ebf0; border-radius: 13px; background: #fbfcfd; }
 .question-comment.teacher { border-color: #bddcf3; background: #f1f8fe; }
-.question-detail-page .question-comment { padding: 15px 0; border: 0; border-bottom: 1px solid #edf1f4; border-radius: 0; background: transparent; }
-.question-detail-page .question-comment:first-child { border-top: 1px solid #edf1f4; }
-.question-detail-page .question-comment.teacher { background: transparent; }
+.question-detail-page .question-comment { padding: 14px; border: 1px solid #dfe8ed; border-radius: 14px; background: #f7fafb; }
+.question-detail-page .question-comment.teacher { border-color: #c7deeb; background: #eef7fb; }
 .question-comment-head { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: #324e64; font-size: .73rem; }
 .question-comment-head > span:last-child { margin-left: auto; color: #94a2ad; font-size: .65rem; }
 .teacher-answer-badge { background: #d8edfc; color: #176da8; }
@@ -16396,6 +16508,27 @@ body.student-online-mode:not(.student-home-route) .question-board-head:not(.comp
 
 body.student-online-mode:not(.student-home-route) .question-board-kicker {
   color: #9fd3e7;
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-page > .question-filter-scroll {
+  margin: 0;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-page > .question-filter-scroll .question-filter-button {
+  border-color: rgba(207, 224, 235, 0.92);
+  background: rgba(255, 255, 255, 0.96);
+  color: #294b65;
+}
+
+body.student-online-mode:not(.student-home-route) .question-board-page > .question-filter-scroll .question-filter-button.active {
+  border-color: #b8dff2;
+  background: #dff2fb;
+  color: #0f628f;
+  box-shadow: 0 5px 14px rgba(7, 46, 72, 0.2);
 }
 
 body.student-online-mode:not(.student-home-route) .student-push-settings-back {

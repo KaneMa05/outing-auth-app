@@ -25,7 +25,7 @@ function handleLocalQuestionBoard({ body, student, filePath }) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, pageSize)
       .map((post) => serializePost(post, store, student.id));
-    return success({ posts });
+    return success({ posts, ...(body.includeSubjects === true ? { subjects: SUBJECTS } : {}) });
   }
 
   if (action === "detail") {

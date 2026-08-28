@@ -353,6 +353,54 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.match(heartbeat.payload.serverNow, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(requests.length, 6);
 
+  const resumeRequests = [];
+  let activeSessionReads = 0;
+  global.fetch = async (url, options) => {
+    resumeRequests.push({ url, options });
+    if (url.endsWith("/rpc/validate_student_device")) {
+      return jsonResponse({ valid: true, device_id: "device-1", active_count: 1 });
+    }
+    if (url.includes("/students?")) {
+      return jsonResponse([{ id: "20001", name: "재개학생", track: "공채", is_active: true }]);
+    }
+    if (url.includes("last_heartbeat_at=lt.") && options.method === "GET") return jsonResponse([]);
+    if (url.includes("study_cafe_sessions?student_id=eq.20001") && url.includes("status=in.(running,paused)")) {
+      activeSessionReads += 1;
+      return jsonResponse([{
+        id: "session-running",
+        student_id: "20001",
+        subject_name: "형사법",
+        status: "running",
+        elapsed_seconds: 30,
+        started_at: new Date().toISOString(),
+        active_started_at: new Date().toISOString(),
+      }]);
+    }
+    if (url.includes("study_cafe_presence?student_id=eq.20001") && options.method === "PATCH") {
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.status, "studying");
+      assert.equal(payload.current_subject, "형사법");
+      return jsonResponse(null, 204);
+    }
+    if (url.includes("/realtime/v1/api/broadcast/")) return jsonResponse({});
+    throw new Error(`unexpected resume request: ${options.method} ${url}`);
+  };
+  const alreadyResumed = await invoke({
+    action: "timer_resume",
+    studentId: "20001",
+    deviceToken: "device-secret",
+  });
+  assert.equal(alreadyResumed.statusCode, 200);
+  assert.equal(alreadyResumed.payload.ok, true);
+  assert.equal(alreadyResumed.payload.session.status, "running");
+  assert.equal(activeSessionReads, 2);
+  assert.equal(
+    resumeRequests.some((request) =>
+      request.options.method === "PATCH" && request.url.includes("study_cafe_sessions?id=")
+    ),
+    false
+  );
+
   global.fetch = async (url, options) => {
     if (url.endsWith("/rpc/validate_student_device")) {
       return jsonResponse({ valid: true, device_id: "device-1", active_count: 1 });

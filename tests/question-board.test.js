@@ -27,7 +27,7 @@ assert.match(styleSource, /body\.student-study-mode \.study-cafe-footer-menu\s*\
 assert.match(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*box-shadow:\s*0 4px 0 currentColor, 0 8px 0 currentColor/);
 assert.doesNotMatch(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*background:\s*white/);
 
-assert.match(boardSource, /className: "question-board-head compact"/);
+assert.doesNotMatch(boardSource, /className: "question-board-head compact"/);
 assert.match(boardSource, /"게시글을 검색해보세요"/);
 assert.match(boardSource, /className: "question-board-search-button"/);
 assert.match(boardSource, /searchInput\.addEventListener\("input"/);
@@ -59,6 +59,16 @@ assert.match(styleSource, /\.lecture-home-shortcut-grid\.compact-three \.lecture
 assert.match(boardSource, /const QUESTION_BOARD_DEFAULT_SUBJECTS = \[\s*"자유"/);
 assert.match(apiSource, /const FALLBACK_SUBJECTS = \["자유"/);
 assert.match(apiSource, /new Set\(\["자유", \.\.\.configured, \.\.\.FALLBACK_SUBJECTS\]\)/);
+assert.match(boardSource, /requestQuestionBoard\("list", \{[\s\S]*?includeSubjects: true/);
+assert.doesNotMatch(
+  boardSource.match(/async function loadQuestionBoardHome\([\s\S]*?\n\}/)?.[0] || "",
+  /requestQuestionBoard\("subjects"\)/
+);
+assert.match(boardSource, /questionBoardState\.posts = previewReady \? \[\.\.\.questionBoardHomePreviewState\.posts\] : \[\]/);
+assert.match(apiSource, /const \[list, subjects\] = await Promise\.all/);
+assert.match(apiSource, /subject \? `subject=eq\.\$\{encodeURIComponent\(subject\)\}`/);
+assert.match(apiSource, /const queryLimit = search \? 200 : pageSize \+ 1/);
+assert.match(apiSource, /const queryOffset = search \? 0 : offset/);
 assert.match(boardSource, /function renderQuestionBoardEmptyState\(searching = false\)/);
 assert.match(boardSource, /function renderQuestionBoardGuide\(\)/);
 assert.match(boardSource, /questionBoardState\.loading = false;\s*questionBoardState\.loaded = true;/);
@@ -67,9 +77,18 @@ assert.match(styleSource, /\.question-board-list-empty\s*\{[^}]*min-height: 0[^}
 assert.match(boardSource, /className: "question-post-comment-summary"/);
 assert.match(boardSource, /renderQuestionPostCard\(post, false\)/);
 assert.match(styleSource, /\.question-post-board-list\s*\{[^}]*border: 0[^}]*border-radius: 0[^}]*background: transparent/);
-assert.match(styleSource, /\.question-detail-page\s*\{[^}]*background: #fff[^}]*gap: 0/);
-assert.match(styleSource, /\.question-detail-page \.question-detail-card,[\s\S]*?\.question-detail-page \.question-comments-section\s*\{[^}]*border: 0[^}]*border-radius: 0[^}]*box-shadow: none/);
-assert.match(styleSource, /\.question-detail-page \.question-detail-body\s*\{[^}]*border-top: 0/);
+assert.match(boardSource, /className: "question-board-head"/);
+assert.match(boardSource, /el\("h2", \{\}, "자유 게시판"\)/);
+assert.match(boardSource, /수강생들과 공부 이야기와 질문을 자유롭게 나눠보세요\./);
+assert.match(boardSource, /el\("strong", \{\}, "게시글"\)/);
+assert.doesNotMatch(boardSource, /questionBoardState\.subject \|\| "게시글"/);
+assert.match(styleSource, /\.question-detail-page\s*\{[^}]*border-radius: 22px[^}]*background: linear-gradient\(180deg,#eef4f7 0%,#e7eff3 100%\)[^}]*gap: 14px/);
+assert.match(styleSource, /\.question-detail-page \.question-detail-card,[\s\S]*?\.question-detail-page \.question-comments-section\s*\{[^}]*border: 1px solid #d8e4eb[^}]*border-radius: 18px[^}]*background: rgba\(255,255,255,\.92\)[^}]*box-shadow:/);
+assert.match(styleSource, /\.question-detail-page \.question-detail-body\s*\{[^}]*border-top: 1px solid #e5edf2/);
+assert.match(styleSource, /\.question-detail-page \.question-comment\s*\{[^}]*border-radius: 14px[^}]*background: #f7fafb/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll\s*\{[^}]*background: rgba\(255, 255, 255, 0\.1\)/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\s*\{[^}]*background: rgba\(255, 255, 255, 0\.96\)[^}]*color: #294b65/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\.active\s*\{[^}]*background: #dff2fb[^}]*color: #0f628f/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*z-index: 35[^}]*pointer-events: auto[^}]*touch-action: manipulation/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*bottom: 100px;[^}]*env\(safe-area-inset-bottom, 0px\)/);
 assert.match(styleSource, /\.question-subject-picker-overlay\s*\{[^}]*position: fixed[^}]*z-index: 120/);

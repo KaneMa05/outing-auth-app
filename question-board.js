@@ -143,8 +143,13 @@ function openQuestionBoardListFromHome() {
   questionBoardState.detail = null;
   questionBoardState.search = "";
   questionBoardState.subject = "자유";
-  questionBoardState.loaded = false;
+  const previewReady = questionBoardHomePreviewState.studentId === String(student?.id || "")
+    && questionBoardHomePreviewState.loaded
+    && questionBoardHomePreviewState.posts.length > 0;
+  questionBoardState.posts = previewReady ? [...questionBoardHomePreviewState.posts] : [];
+  questionBoardState.loaded = previewReady;
   navigate("question-board");
+  if (previewReady) loadQuestionBoardHome({ silent: true });
 }
 
 function openQuestionBoardPostFromHome(postId) {
@@ -206,15 +211,17 @@ async function loadQuestionBoardHome({ silent = false } = {}) {
   questionBoardState.error = "";
   if (!silent) render();
   try {
-    const subjectData = await requestQuestionBoard("subjects");
+    const listData = await requestQuestionBoard("list", {
+      ...questionBoardFilters(questionBoardState),
+      includeSubjects: true,
+    });
     questionBoardState.subjects = [...new Set([
-      ...(Array.isArray(subjectData.subjects) ? subjectData.subjects : []),
+      ...(Array.isArray(listData.subjects) ? listData.subjects : []),
       ...QUESTION_BOARD_DEFAULT_SUBJECTS,
     ])];
     if (!questionBoardState.subject && questionBoardState.subjects.length) {
       questionBoardState.subject = questionBoardState.subjects[0];
     }
-    const listData = await requestQuestionBoard("list", questionBoardFilters(questionBoardState));
     questionBoardState.posts = Array.isArray(listData.posts) ? listData.posts : [];
     questionBoardState.loaded = true;
   } catch (error) {
@@ -276,11 +283,16 @@ function renderQuestionPostList() {
         : renderQuestionBoardEmptyState(Boolean(questionBoardState.search));
 
   return el("div", { className: "question-board-page student-view" }, [
-    el("section", { className: "question-board-head compact" }, [searchForm]),
+    el("section", { className: "question-board-head" }, [
+      el("span", { className: "question-board-kicker" }, "COMMUNITY"),
+      el("h2", {}, "자유 게시판"),
+      el("p", {}, "수강생들과 공부 이야기와 질문을 자유롭게 나눠보세요."),
+      searchForm,
+    ]),
     renderQuestionSubjectTabs(questionBoardState, false),
     el("section", { className: "question-board-list-section" }, [
       el("div", { className: "question-board-list-head" }, [
-        el("strong", {}, questionBoardState.subject || "게시글"),
+        el("strong", {}, "게시글"),
         el("span", {}, `${questionBoardState.posts.length}개`),
       ]),
       content,

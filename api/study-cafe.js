@@ -386,22 +386,25 @@ module.exports = async function handler(req, res) {
 
     if (action === "timer_resume") {
       const session = await getActiveSession(studentId);
-      if (!session || session.status !== "paused") {
+      if (!session || !["paused", "running"].includes(session.status)) {
         res.status(409).json({ ok: false, error: "paused_session_required" });
         return;
       }
-      const rows = await requestSupabase(
-        "PATCH",
-        `study_cafe_sessions?id=eq.${encodeURIComponent(session.id)}`,
-        {
-          status: "running",
-          active_started_at: now.toISOString(),
-          updated_at: now.toISOString(),
-        },
-        { Prefer: "return=representation" }
-      );
+      const rows = session.status === "paused"
+        ? await requestSupabase(
+            "PATCH",
+            `study_cafe_sessions?id=eq.${encodeURIComponent(session.id)}`,
+            {
+              status: "running",
+              active_started_at: now.toISOString(),
+              updated_at: now.toISOString(),
+            },
+            { Prefer: "return=representation" }
+          )
+        : [session];
       await updatePresence(studentId, {
         status: "studying",
+        current_subject: session.subject_name,
         last_heartbeat_at: now.toISOString(),
         updated_at: now.toISOString(),
       });

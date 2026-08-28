@@ -625,10 +625,10 @@ function render() {
     document.body.classList.toggle("teacher-guest", !teacherAuth.authenticated);
   }
   if (currentRoute !== "study-timer") studyCafePreviewState.timerFullscreen = false;
-  document.body.classList.toggle(
-    "study-timer-fullscreen-mode",
-    currentRoute === "study-timer" && studyCafePreviewState.timerFullscreen
-  );
+  const studyTimerFullscreenMode =
+    currentRoute === "study-timer" && studyCafePreviewState.timerFullscreen;
+  document.documentElement.classList.toggle("study-timer-fullscreen-mode", studyTimerFullscreenMode);
+  document.body.classList.toggle("study-timer-fullscreen-mode", studyTimerFullscreenMode);
   document.body.classList.toggle("student-home-route", APP_MODE !== "teacher" && currentRoute === "home");
   const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp();
   document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
@@ -2696,6 +2696,21 @@ function renderCurriculumQuest() {
 function renderCurriculumQuestMap() {
   const subject = getCurriculumQuestSubject();
   const percent = Math.round((subject.completedStages / subject.totalStages) * 100);
+  const curriculumCompleted = subject.completedStages >= subject.totalStages;
+  const currentStageNumber = Math.min(subject.completedStages + 1, subject.totalStages);
+  const currentStageButton = button(
+    curriculumCompleted ? "전체 완료 ✓" : "진행 회차 ↓",
+    `curriculum-current-stage-jump ${curriculumCompleted ? "completed" : ""}`,
+    "button",
+    () => scrollToCurriculumCurrentStage(subject)
+  );
+  currentStageButton.disabled = curriculumCompleted;
+  currentStageButton.setAttribute(
+    "aria-label",
+    curriculumCompleted
+      ? `${subject.name} 모든 회차 완료`
+      : `${subject.name} ${currentStageNumber}회차 진행 중인 회차로 이동`
+  );
   return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
     el("header", { className: "curriculum-page-head" }, [
       el("div", {}, [
@@ -2717,11 +2732,14 @@ function renderCurriculumQuestMap() {
         ))
       ),
       el("section", { className: "curriculum-overview-card" }, [
-        el("div", { className: "curriculum-overview-copy" }, [
-          el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
-          el("div", {}, [
-            el("h3", {}, subject.name),
+        el("div", { className: "curriculum-overview-head" }, [
+          el("div", { className: "curriculum-overview-copy" }, [
+            el("span", { className: `curriculum-subject-mark ${subject.tone}`, ariaHidden: "true" }, subject.shortName),
+            el("div", {}, [
+              el("h3", {}, subject.name),
+            ]),
           ]),
+          currentStageButton,
         ]),
         el("div", { className: "curriculum-overview-progress" }, [
           el("span", {}, `진행률 ${percent}%`),
@@ -2737,6 +2755,16 @@ function renderCurriculumQuestMap() {
       el("p", { className: "curriculum-local-note" }, "로컬 UI 미리보기 · 완료 상태는 새로고침하면 초기화됩니다."),
     ]),
   ]);
+}
+
+function scrollToCurriculumCurrentStage(subject) {
+  if (!subject || subject.completedStages >= subject.totalStages) return;
+  const stageNumber = Math.min(subject.completedStages + 1, subject.totalStages);
+  const entry = document.querySelector(`[data-curriculum-stage-number="${stageNumber}"]`);
+  if (!entry) return;
+  entry.scrollIntoView({ behavior: "smooth", block: "center" });
+  const stageCard = entry.querySelector(".curriculum-stage-card");
+  if (stageCard && !stageCard.disabled) stageCard.focus({ preventScroll: true });
 }
 
 function getCurriculumTrackBadge() {
@@ -2792,13 +2820,15 @@ function renderCurriculumStageCard(subject, stageNumber, title) {
     ]
   );
   card.disabled = locked;
-  return el("div", { className: `curriculum-stage-entry ${phaseLabel ? "has-phase" : ""}` }, [
+  const entry = el("div", { className: `curriculum-stage-entry ${phaseLabel ? "has-phase" : ""}` }, [
     phaseLabel ? el("div", { className: "curriculum-phase-label" }, [
       el("span", {}, phaseLabel),
       el("i", { ariaHidden: "true" }),
     ]) : null,
     card,
   ]);
+  entry.dataset.curriculumStageNumber = String(stageNumber);
+  return entry;
 }
 
 function renderCurriculumQuestStageDetail() {
@@ -2851,12 +2881,9 @@ function renderCurriculumQuestStageDetail() {
   );
   finishButton.disabled = !isCompletedStage && !allCompleted;
 
-  return el("div", { className: "student-curriculum-page curriculum-detail-page" }, [
+  const detailPage = el("div", { className: "student-curriculum-page curriculum-detail-page" }, [
     el("div", { className: "curriculum-detail-navy" }, [
-      button("← 커리큘럼", "curriculum-back-button", "button", () => {
-        curriculumQuestView = "map";
-        render();
-      }),
+      button("← 커리큘럼 목록", "curriculum-back-button", "button", returnToCurriculumMap),
       el("section", { className: `curriculum-detail-hero ${subject.tone}` }, [
         el("span", { className: "curriculum-detail-kicker" }, `${subject.name} · ${stageNumber}회차`),
         el("h2", {}, getCurriculumStageTitle(subject, stageNumber)),
@@ -2965,6 +2992,60 @@ function renderCurriculumQuestStageDetail() {
       finishButton,
     ]),
   ]);
+  enableCurriculumBackSwipe(detailPage);
+  return detailPage;
+}
+
+function returnToCurriculumMap() {
+  if (curriculumQuestView !== "detail") return;
+  curriculumQuestView = "map";
+  render();
+  scrollAppToTop();
+}
+
+function enableCurriculumBackSwipe(page) {
+  const minimumSwipeDistance = 72;
+  let startX = 0;
+  let startY = 0;
+  let startTime = 0;
+  let tracking = false;
+
+  page.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1) {
+      tracking = false;
+      return;
+    }
+    const touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    startTime = Date.now();
+    tracking = true;
+  }, { passive: true });
+
+  page.addEventListener("touchmove", (event) => {
+    if (!tracking || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    if (deltaX > 16 && deltaX > Math.abs(deltaY) * 1.2) event.preventDefault();
+  }, { passive: false });
+
+  page.addEventListener("touchend", (event) => {
+    if (!tracking || !event.changedTouches.length) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    const elapsed = Date.now() - startTime;
+    tracking = false;
+    if (deltaX >= minimumSwipeDistance && deltaX > Math.abs(deltaY) * 1.35 && elapsed <= 1000) {
+      event.preventDefault();
+      returnToCurriculumMap();
+    }
+  }, { passive: false });
+
+  page.addEventListener("touchcancel", () => {
+    tracking = false;
+  }, { passive: true });
 }
 
 function getLectureHomeSummary() {
@@ -3976,10 +4057,13 @@ function updateStudentNavigationVisibility() {
   const onlineManagedMode = category === "online_managed" && isOnlineManagedStudyCafeEnabled();
   const onlineMode = lectureMode || onlineManagedMode;
   const studyMode = lectureMode;
+  document.documentElement.classList.toggle("student-online-mode", onlineMode);
   document.body.classList.toggle("student-online-mode", onlineMode);
   document.body.classList.toggle("student-online-managed-mode", onlineManagedMode);
   document.body.classList.toggle("student-lecture-mode", lectureMode);
   document.body.classList.toggle("student-study-mode", studyMode);
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) themeColor.setAttribute("content", onlineMode ? "#0b2746" : "#f3f7fb");
   updateStudentDdayHeader();
   if (onlineMode && student) ensureStudentNotificationInboxLoaded(student);
   else document.querySelectorAll("[data-student-notification-badge]").forEach((badge) => { badge.hidden = true; });
@@ -4240,6 +4324,17 @@ function renderStudyCafePlannerEntryGuide(todos, selectedDateKey) {
     studyCafeRemoteState.studyDateKey ||
     formatStudyBusinessDateKey(new Date());
   if (!studyCafePlannerEntryState.seatId || selectedDateKey !== studyDate) return null;
+  if (studyCafeRemoteState.loading && !studyCafeRemoteState.loaded) return null;
+  const selectedSeatId = String(studyCafePreviewState.selectedSeatId || "");
+  const continuingClaimedSeat = Boolean(
+    selectedSeatId &&
+    studyCafePlannerEntryState.seatAlreadyClaimed &&
+    selectedSeatId === studyCafePlannerEntryState.seatId
+  );
+  if (selectedSeatId && !continuingClaimedSeat) {
+    clearStudyCafePlannerEntryState();
+    return null;
+  }
   const requiredSubject = studyCafePlannerEntryState.subject;
   const ready = todos.some((todo) =>
     todo.pending !== true && (!requiredSubject || todo.subject === requiredSubject)
@@ -4263,13 +4358,17 @@ function renderStudyCafePlannerEntryGuide(todos, selectedDateKey) {
           : "과목별 + 버튼을 눌러 오늘 할 일을 하나 이상 작성해주세요."),
     ]),
     el("div", { className: "study-cafe-planner-entry-actions" }, [
-      button("입장 취소", "btn secondary", "button", () => {
+      button(continuingClaimedSeat ? "안내 닫기" : "입장 취소", "btn secondary", "button", () => {
         clearStudyCafePlannerEntryState();
         renderStudyCafeStateUpdate();
       }),
       ready
         ? button(
-            requiredSubject ? `${requiredSubject} 공부 계속하기` : "좌석 선택 계속하기",
+            requiredSubject
+              ? `${requiredSubject} 공부 계속하기`
+              : continuingClaimedSeat
+                ? "공부할 과목 선택하기"
+                : "좌석 선택 계속하기",
             "btn",
             "button",
             continueStudyCafeSeatSelection
@@ -5006,7 +5105,7 @@ function renderStudentStudyCafe() {
               hidden: !rankingRoomActive,
               "data-study-cafe-ranking-help": "true",
               ariaLabel: "랭킹룸 이용 안내 열기",
-              textContent: "? 랭킹룸 안내",
+              textContent: "랭킹룸 안내",
               onclick: openStudyCafeRankingGuideModal,
             }),
           ]),
@@ -7366,6 +7465,8 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
     ? options.occupant
     : getStudyCafeSeatOccupant(seat, seatNumber, student);
   const isMine = occupant?.isMine === true || seat.id === studyCafePreviewState.selectedSeatId;
+  const hasSelectedSeat = Boolean(studyCafePreviewState.selectedSeatId);
+  const emptySeatActionLabel = readOnly ? "빈자리" : hasSelectedSeat ? "좌석 변경" : "+ 입장";
   const occupantFullTrack = occupant?.fullTrack || occupant?.track || "직렬 미등록";
   const isPausedSeat = occupant?.status === "paused";
   const displaySeatLabel = rankingRoom
@@ -7383,7 +7484,9 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
           ? rankingRoom
             ? "랭킹룸 빈자리, 내 스터디룸에서 좌석을 선택할 수 있습니다"
             : `${seatNumber}번 빈 좌석, 내 스터디룸에서 좌석을 선택할 수 있습니다`
-          : rankingRoom ? "랭킹룸 빈자리 선택" : `${seatNumber}번 좌석 선택`,
+          : rankingRoom
+            ? `랭킹룸 ${hasSelectedSeat ? "좌석 변경" : "빈자리 선택"}`
+            : `${seatNumber}번 ${hasSelectedSeat ? "좌석 변경" : "좌석 선택"}`,
     },
     [
       displaySeatLabel ? el("span", { className: "study-cafe-seat-number" }, displaySeatLabel) : null,
@@ -7433,7 +7536,11 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
         ? renderStudyCafeSeatedVisual(occupant.tone, isMine, {
             studying: occupant.status === "studying",
           })
-        : el("span", { className: "study-cafe-empty-plus" }, "+ 입장"),
+        : el(
+            "span",
+            { className: `study-cafe-empty-plus ${hasSelectedSeat || readOnly ? "compact" : ""}` },
+            emptySeatActionLabel
+          ),
       occupant
         ? null
         : el("span", { className: "study-cafe-desk" }, [
@@ -7747,6 +7854,8 @@ function openStudyCafeTodoRedirectModal(seatId, seatNumber, subject = "", option
         studyTodoEditorState.draft = "";
         studyTodoEditorState.focused = true;
       }
+      studyPlannerHubView = "planner";
+      studyTodoCalendarOpen = false;
       closeInfoModal();
       navigate("study-todo");
     },
