@@ -2,7 +2,7 @@ const assert = require("assert");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { createSessionToken } = require("../api/teacher-auth-utils");
+const { createSessionToken, readSessionToken } = require("../api/teacher-auth-utils");
 const teacherAccountsHandler = require("../api/teacher-accounts");
 
 function request(method, body = null, cookie = "") {
@@ -66,6 +66,28 @@ function jsonResponse(status, data) {
     assert.match(sharedSource, /\.filter\(\(student\) => student\.id && student\.name && student\.accountType !== "teacher"\)/);
     assert.match(indexSource, /shared\.js\?v=20260819-teacher-reason-photo/);
     assert.match(teacherHtmlSource, /shared\.js\?v=20260819-teacher-reason-photo/);
+
+    const legacyManagerToken = createSessionToken("test-session-secret", {
+      username: "manager",
+      role: "student_manager",
+      permissions: [
+        "exam_numbers.read",
+        "study_cafe.read",
+        "question_board.read",
+        "inquiries.read",
+        "managers.read",
+      ],
+    });
+    const currentManagerSession = readSessionToken(legacyManagerToken, "test-session-secret");
+    assert.deepStrictEqual(currentManagerSession.permissions, ["exam_numbers.read"]);
+    const managerPermissionBlock = fs.readFileSync(
+      path.join(__dirname, "..", "api", "teacher-auth-utils.js"),
+      "utf8"
+    ).match(/const STUDENT_MANAGER_PERMISSIONS = \[([\s\S]*?)\];/)?.[1] || "";
+    assert.doesNotMatch(managerPermissionBlock, /study_cafe\.(?:read|write)/);
+    assert.doesNotMatch(managerPermissionBlock, /question_board\.(?:read|write)/);
+    assert.doesNotMatch(managerPermissionBlock, /inquiries\.(?:read|write)/);
+    assert.doesNotMatch(managerPermissionBlock, /managers\.read/);
 
     const token = createSessionToken("test-session-secret", {
       username: "bootstrap-admin",

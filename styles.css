@@ -18796,12 +18796,22 @@ body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card.c
 }
 
 .student-exam-number-table-wrap table {
-  min-width: 680px;
+  min-width: 760px;
+}
+
+.student-exam-number-table-wrap th:nth-child(4),
+.student-exam-number-table-wrap td:nth-child(4) {
+  width: min(280px, 34vw);
 }
 
 .student-exam-number-table-wrap th:last-child,
 .student-exam-number-table-wrap td:last-child {
-  width: min(280px, 34vw);
+  width: 84px;
+  text-align: center;
+}
+
+.student-exam-number-actions .mini-btn {
+  min-width: 64px;
 }
 
 .student-exam-number-input {

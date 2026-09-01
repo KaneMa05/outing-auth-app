@@ -25,8 +25,8 @@ assert.match(appSource, /"inquiry-board-admin": "문의 관리"/);
 assert.match(appSource, /"inquiry-board": \(\) => requireStudentAuth\(renderStudentInquiryBoard\)/);
 assert.match(appSource, /"inquiry-board-admin": renderInquiryAdmin/);
 assert.match(sharedSource, /"inquiry-board-admin": "inquiries\.read"/);
-assert.match(teacherAuthSource, /"inquiries\.read"/);
-assert.match(teacherAuthSource, /"inquiries\.write"/);
+const managerPermissions = teacherAuthSource.match(/const STUDENT_MANAGER_PERMISSIONS = \[([\s\S]*?)\];/)?.[1] || "";
+assert.doesNotMatch(managerPermissions, /inquiries\.(?:read|write)/);
 
 assert.match(appSource, /FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요\./);
 assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryComposer\)/);

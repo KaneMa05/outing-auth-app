@@ -65,7 +65,7 @@ const originalEnv = {
 
   const readToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "viewer",
-    role: "student_manager",
+    role: "admin",
     permissions: ["study_cafe.read"],
   });
   const adminToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {

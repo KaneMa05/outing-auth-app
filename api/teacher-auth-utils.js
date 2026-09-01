@@ -9,19 +9,12 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "outing.memo",
   "penalties.read",
   "penalties.write",
-  "managers.read",
   "seats.read",
   "seats.write",
   "attendance.read",
   "attendance.write",
   "fitness.read",
   "fitness.write",
-  "study_cafe.read",
-  "study_cafe.write",
-  "question_board.read",
-  "question_board.write",
-  "inquiries.read",
-  "inquiries.write",
   "exam_numbers.read",
   "exam_numbers.write",
 ];
@@ -122,10 +115,15 @@ function readSessionToken(token, secret) {
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (Number(data.exp) <= Math.floor(Date.now() / 1000)) return false;
+    const role = data.role || "admin";
+    const tokenPermissions = Array.isArray(data.permissions) ? data.permissions : ADMIN_PERMISSIONS;
+    const permissions = role === "student_manager"
+      ? tokenPermissions.filter((permission) => STUDENT_MANAGER_PERMISSIONS.includes(permission))
+      : tokenPermissions;
     return {
       username: data.username || "",
-      role: data.role || "admin",
-      permissions: Array.isArray(data.permissions) ? data.permissions : ADMIN_PERMISSIONS,
+      role,
+      permissions,
     };
   } catch {
     return false;

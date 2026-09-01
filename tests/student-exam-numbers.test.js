@@ -145,9 +145,16 @@ const originalEnv = {
   assert.match(studentAdminSource, /student\.cohort === cohort/);
   assert.match(studentAdminSource, /현재 재원 중인 오프라인 학생만 표시됩니다/);
   assert.match(studentAdminSource, /downloadStudentExamNumberWorkbook\(cohort, students\)/);
+  assert.match(studentAdminSource, /hasTeacherPermission\("exam_numbers\.export"\)/);
+  assert.match(studentAdminSource, /saveStudentExamNumberChanges\(student\.id, rowSaveButton, examNumberInput\)/);
+  assert.match(studentAdminSource, /rowSaveButton\.hidden = Boolean\(savedExamNumber\) && !isDirty/);
+  assert.match(studentAdminSource, /rowSaveButton\.disabled = !isDirty/);
+  assert.match(studentAdminSource, /rowSaveButton\.hidden = Boolean\(saved\) && normalized === saved/);
   assert.match(studentAdminSource, /_응시번호_명단\.xlsx/);
   assert.match(authSource, /"exam_numbers\.read"/);
   assert.match(authSource, /"exam_numbers\.write"/);
+  const managerPermissions = authSource.match(/const STUDENT_MANAGER_PERMISSIONS = \[([\s\S]*?)\];/)?.[1] || "";
+  assert.doesNotMatch(managerPermissions, /exam_numbers\.export/);
   assert.match(sharedSource, /"student-exam-numbers": "exam_numbers\.read"/);
 
   console.log("student exam number tests passed");

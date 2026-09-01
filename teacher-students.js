@@ -27,7 +27,7 @@ const lectureApplicationAdminState = {
 const studentExamNumberAdminState = {
   loading: false,
   loaded: false,
-  saving: false,
+  savingStudentIds: new Set(),
   error: "",
   cohort: "",
   students: [],
@@ -82,11 +82,11 @@ function renderStudentExamNumberAdmin() {
   });
   const searchInput = input("studentExamNumberSearch", "search", "이름 또는 등록번호 검색");
   const countLabel = el("span", { className: "student-exam-number-count" }, `${students.length}명 중 ${completedCount}명 입력`);
-  const downloadButton = button("엑셀 다운로드", "btn secondary", "button", () => {
-    downloadStudentExamNumberWorkbook(cohort, students);
-  });
-  const saveButton = button("변경사항 저장", "btn", "submit");
-  saveButton.disabled = studentExamNumberAdminState.saving || !studentExamNumberAdminState.dirtyStudentIds.size;
+  const downloadButton = hasTeacherPermission("exam_numbers.export")
+    ? button("엑셀 다운로드", "btn secondary", "button", () => {
+      downloadStudentExamNumberWorkbook(cohort, students);
+    })
+    : null;
 
   const rowRecords = students.map((student) => {
     const examNumberInput = el("input", {
@@ -99,6 +99,13 @@ function renderStudentExamNumberAdmin() {
       spellcheck: false,
       ariaLabel: `${student.name} 응시번호`,
     });
+    const rowSaveButton = button("저장", "mini-btn", "button", () => {
+      saveStudentExamNumberChanges(student.id, rowSaveButton, examNumberInput);
+    });
+    const savedExamNumber = normalizeStudentExamNumber(studentExamNumberAdminState.values.get(student.id));
+    const isDirty = studentExamNumberAdminState.dirtyStudentIds.has(student.id);
+    rowSaveButton.hidden = Boolean(savedExamNumber) && !isDirty;
+    rowSaveButton.disabled = !isDirty || studentExamNumberAdminState.savingStudentIds.has(student.id);
     const row = el("tr", {
       "data-search-text": `${student.id} ${student.name}`.toLowerCase(),
     }, [
@@ -106,6 +113,7 @@ function renderStudentExamNumberAdmin() {
       el("td", {}, student.name),
       el("td", {}, student.track || "-"),
       el("td", {}, examNumberInput),
+      el("td", { className: "student-exam-number-actions" }, rowSaveButton),
     ]);
     examNumberInput.addEventListener("input", () => {
       const nextValue = examNumberInput.value;
@@ -115,17 +123,18 @@ function renderStudentExamNumberAdmin() {
       if (normalized === saved) studentExamNumberAdminState.dirtyStudentIds.delete(student.id);
       else studentExamNumberAdminState.dirtyStudentIds.add(student.id);
       row.classList.toggle("is-dirty", normalized !== saved);
-      saveButton.disabled = studentExamNumberAdminState.saving || !studentExamNumberAdminState.dirtyStudentIds.size;
+      rowSaveButton.hidden = Boolean(saved) && normalized === saved;
+      rowSaveButton.disabled = normalized === saved;
     });
     row.classList.toggle("is-dirty", studentExamNumberAdminState.dirtyStudentIds.has(student.id));
     return { row };
   });
 
   const studentTable = table(
-    ["등록번호", "이름", "직렬", "응시번호"],
+    ["등록번호", "이름", "직렬", "응시번호", "저장"],
     rowRecords.length
       ? rowRecords.map((record) => record.row)
-      : [el("tr", {}, [el("td", { colSpan: 4 }, el("div", { className: "empty table-empty" }, "이 기수의 오프라인 학생이 없습니다."))])]
+      : [el("tr", {}, [el("td", { colSpan: 5 }, el("div", { className: "empty table-empty" }, "이 기수의 오프라인 학생이 없습니다."))])]
   );
   studentTable.classList.add("student-exam-number-table-wrap");
   searchInput.addEventListener("input", () => {
@@ -140,22 +149,17 @@ function renderStudentExamNumberAdmin() {
       : `${students.length}명 중 ${completedCount}명 입력`;
   });
 
-  const form = el("form", { className: "student-exam-number-form" }, [
+  const form = el("div", { className: "student-exam-number-form" }, [
     el("div", { className: "student-exam-number-toolbar" }, [
       field("기수", cohortSelect),
       field("학생 검색", searchInput),
-      el("div", { className: "student-exam-number-summary" }, [countLabel, downloadButton, saveButton]),
+      el("div", { className: "student-exam-number-summary" }, [countLabel, downloadButton]),
     ]),
     studentTable,
   ]);
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await saveStudentExamNumberChanges(saveButton);
-  });
-
   return el("div", { className: "grid student-exam-number-admin" }, [
     panel("응시번호 입력", [
-      el("p", { className: "subtle" }, "현재 재원 중인 오프라인 학생만 표시됩니다. 기수를 선택하고 응시번호를 입력한 뒤 한 번에 저장하세요."),
+      el("p", { className: "subtle" }, "현재 재원 중인 오프라인 학생만 표시됩니다. 미등록 학생은 응시번호를 입력하면 저장 버튼이 활성화됩니다."),
       form,
     ]),
   ]);
@@ -197,17 +201,18 @@ async function loadStudentExamNumberAdminData({ force = false } = {}) {
   }
 }
 
-async function saveStudentExamNumberChanges(saveButton) {
-  const studentIds = [...studentExamNumberAdminState.dirtyStudentIds];
-  if (!studentIds.length || studentExamNumberAdminState.saving) return;
-  studentExamNumberAdminState.saving = true;
+async function saveStudentExamNumberChanges(studentId, saveButton, examNumberInput) {
+  if (!studentExamNumberAdminState.dirtyStudentIds.has(studentId)
+    || studentExamNumberAdminState.savingStudentIds.has(studentId)) return;
+  studentExamNumberAdminState.savingStudentIds.add(studentId);
   saveButton.disabled = true;
+  examNumberInput.disabled = true;
   saveButton.textContent = "저장 중...";
   try {
-    const entries = studentIds.map((studentId) => ({
+    const entries = [{
       studentId,
       examNumber: normalizeStudentExamNumber(studentExamNumberAdminState.drafts.get(studentId)),
-    }));
+    }];
     const response = await fetch("/api/student-exam-numbers", {
       method: "POST",
       credentials: "same-origin",
@@ -221,7 +226,9 @@ async function saveStudentExamNumberChanges(saveButton) {
       studentExamNumberAdminState.drafts.set(entry.studentId, entry.examNumber);
       studentExamNumberAdminState.dirtyStudentIds.delete(entry.studentId);
     });
-    notify(`응시번호 변경사항 ${entries.length}건을 저장했습니다.`);
+    const student = studentExamNumberAdminState.students.find((item) => item.id === studentId);
+    notify(`${student?.name || "학생"} 응시번호를 저장했습니다.`);
+    studentExamNumberAdminState.savingStudentIds.delete(studentId);
     render();
   } catch (error) {
     console.error(error);
@@ -230,9 +237,11 @@ async function saveStudentExamNumberChanges(saveButton) {
       : "응시번호를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.";
     notify(message);
   } finally {
-    studentExamNumberAdminState.saving = false;
-    saveButton.disabled = !studentExamNumberAdminState.dirtyStudentIds.size;
-    saveButton.textContent = "변경사항 저장";
+    studentExamNumberAdminState.savingStudentIds.delete(studentId);
+    saveButton.disabled = false;
+    examNumberInput.disabled = false;
+    saveButton.hidden = !studentExamNumberAdminState.dirtyStudentIds.has(studentId);
+    saveButton.textContent = "저장";
   }
 }
 
@@ -253,6 +262,7 @@ function normalizeStudentExamNumber(value) {
 }
 
 function downloadStudentExamNumberWorkbook(cohort, students) {
+  if (!hasTeacherPermission("exam_numbers.export")) return;
   if (!students.length) return notify("다운로드할 학생이 없습니다.");
   const cohortLabel = `${cohort || "선택"}기`;
   const rows = [
