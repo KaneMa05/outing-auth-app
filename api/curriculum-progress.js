@@ -5,6 +5,7 @@ const { loadCurriculum, requestSupabase, isCurriculumQuestEnabled } = curriculum
 const ACTIONS = new Set(["load", "set_lecture", "set_stage_task", "complete_stage"]);
 
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ ok: false, error: "method_not_allowed" });

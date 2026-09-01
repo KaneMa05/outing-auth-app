@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v369-editable-stage-title";
+const CACHE_NAME = "outing-auth-app-v370-curriculum-live-refresh";
 const APP_SHELL = [
   "/",
   "/index.html",

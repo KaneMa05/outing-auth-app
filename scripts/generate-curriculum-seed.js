@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { CURRICULUM_WORKBOOK_DAY_COUNTS } = require("./curriculum-workbook-days");
 
 const root = path.resolve(__dirname, "..");
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
@@ -28,6 +29,13 @@ const trackTargetsBySubject = {
 const sortOrderBySubject = { "criminal-law": 1, "coast-guard-intro": 3, "maritime-law": 4 };
 
 subjects.forEach((subject, subjectIndex) => {
+  const expectedDayCounts = CURRICULUM_WORKBOOK_DAY_COUNTS[subject.id];
+  const actualDayCounts = subject.stageTitles.map((_, stageIndex) =>
+    (lecturesBySubject?.[subject.id]?.[String(stageIndex + 1)] || []).length
+  );
+  if (!expectedDayCounts || JSON.stringify(actualDayCounts) !== JSON.stringify(expectedDayCounts)) {
+    throw new Error(`${subject.id}: 앱 강의 묶음이 엑셀 비고 일차와 일치하지 않습니다.`);
+  }
   subjectRows.push(`(${quote(subject.id)}, ${quote(subject.name)}, ${quote(subject.shortName)}, ${quote(subject.tone)}, ${textArray(trackTargetsBySubject[subject.id] || ["경찰직 - 공채(순경)"])}, ${sortOrderBySubject[subject.id] || subjectIndex + 1}, true, false)`);
   subject.stageTitles.forEach((title, stageIndex) => {
     const stageNumber = stageIndex + 1;

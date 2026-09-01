@@ -26,7 +26,7 @@ assert.match(appSource, /label: "MBT 풀이"/);
 assert.match(appSource, /copy: "학습 범위 MBT 풀이 후 75~80점을 달성해야 합니다\."/);
 assert.match(appSource, /function getCurriculumStageLectures/);
 assert.match(appSource, /function getCurriculumStageTitle\(subject, stageNumber\)[\s\S]*?const managedTitle[\s\S]*?if \(managedTitle\) return managedTitle;[\s\S]*?\.join\(", "\);[\s\S]*?if \(lectureTitle\) return lectureTitle/);
-assert.match(indexSource, /app\.js\?v=20260828-editable-curriculum-stage-title/);
+assert.match(indexSource, /app\.js\?v=20260901-curriculum-live-refresh/);
 assert.match(appSource, /function isCurriculumOrientationStage/);
 assert.match(appSource, /curriculum-lecture-row/);
 assert.match(appSource, /currentLectureCount.*lectureCount.*강/s);

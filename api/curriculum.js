@@ -11,6 +11,7 @@ const APP_SETTINGS_NOTICE_ID = "__app_settings__";
 module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
+      res.setHeader("Cache-Control", "no-store");
       const admin = String(req.query?.admin || "") === "1";
       if (admin) {
         requireTeacher(req, "curriculum.read");
@@ -293,4 +294,4 @@ function httpError(message, status) {
 }
 
 module.exports._test = { normalizeSubject, encodeInFilter };
-module.exports._private = { loadCurriculum, requestSupabase, isCurriculumQuestEnabled };
+module.exports._private = { loadCurriculum, requestSupabase, isCurriculumQuestEnabled, saveSubject };

@@ -569,6 +569,9 @@ function handleRouteHistoryChange() {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = false;
   }
   currentRoute = nextRoute;
+  if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) {
+    loadCurriculumQuestCatalog({ force: true });
+  }
   render();
   if (currentRoute === "study-cafe" && studyCafePlannerEntryState.resumeRequested) {
     window.requestAnimationFrame(resumeStudyCafeSeatSelection);
@@ -587,6 +590,12 @@ function handleRouteHistoryChange() {
 
 window.addEventListener("hashchange", handleRouteHistoryChange);
 window.addEventListener("popstate", handleRouteHistoryChange);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || APP_MODE !== "student") return;
+  if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) {
+    loadCurriculumQuestCatalog({ force: true });
+  }
+});
 
 currentRoute = normalizeRoute(location.hash.replace("#", "") || defaultRoute());
 window.__enforceCurriculumQuestVisibility = () => {
@@ -2631,8 +2640,9 @@ function getCurriculumStageId(subject, stageNumber) {
   return getCurriculumStage(subject, stageNumber)?.id || `${subject.id}-stage-${stageNumber}`;
 }
 
-async function loadCurriculumQuestCatalog() {
-  if (curriculumQuestCatalogLoading || curriculumQuestCatalogLoaded) return;
+async function loadCurriculumQuestCatalog(options = {}) {
+  const force = options.force === true;
+  if (curriculumQuestCatalogLoading || (curriculumQuestCatalogLoaded && !force)) return;
   curriculumQuestCatalogLoading = true;
   try {
     const student = getAuthedStudent();
@@ -2640,6 +2650,7 @@ async function loadCurriculumQuestCatalog() {
     const canLoadProgress = Boolean(student?.id && profile.deviceToken);
     const response = await fetch(canLoadProgress ? "/api/curriculum-progress" : "/api/curriculum", {
       method: canLoadProgress ? "POST" : "GET",
+      cache: "no-store",
       credentials: "same-origin",
       headers: canLoadProgress ? { "Content-Type": "application/json" } : undefined,
       body: canLoadProgress ? JSON.stringify(curriculumProgressRequestBody("load")) : undefined,
@@ -4421,9 +4432,15 @@ function renderStudentPlannerViewSwitch(activeView) {
         `student-planner-view-option ${activeView === option.id ? "active" : ""}`,
         "button",
         () => {
-          if (studyPlannerHubView === option.id) return;
+          if (studyPlannerHubView === option.id) {
+            if (option.id === "curriculum") loadCurriculumQuestCatalog({ force: true });
+            return;
+          }
           studyPlannerHubView = option.id;
-          if (option.id === "curriculum") curriculumQuestView = "map";
+          if (option.id === "curriculum") {
+            curriculumQuestView = "map";
+            loadCurriculumQuestCatalog({ force: true });
+          }
           render();
           scrollAppToTop();
         }

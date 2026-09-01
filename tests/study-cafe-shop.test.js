@@ -130,7 +130,7 @@ assert.match(shop, /\["study-shop", "study-cafe", "study-character"\]\.includes\
 assert.match(shop, /\["outfit_coast_guard_uniform", "해경 정복", "해양경찰 정복입니다\.", "outfit", "👮", 4000\]/);
 assert.match(index, /styles\.css\?v=20260828-application-consent/);
 assert.match(index, /study-shop\.js\?v=20260828-local-grant-20000/);
-assert.match(index, /app\.js\?v=20260828-editable-curriculum-stage-title/);
+assert.match(index, /app\.js\?v=20260901-curriculum-live-refresh/);
 assert.doesNotMatch(shop, /head_classic_hat|head_graduation_cap|desk_coast_helicopter|desk_coast_rescue_buoy|desk_coast_lighthouse|head_coast_vessel_cap|head_coast_rescue_helmet|chair_coast_captain/);
 assert.match(shop, /\["desk_coast_patrol_ship", "미니 경비함", [^\n]*, "desk", "🚢", 2400\]/);
 assert.match(shop, /\["desk_coast_speed_boat", "고속단정", [^\n]*, "desk", "🚤", 1800\]/);

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { CURRICULUM_WORKBOOK_DAY_COUNTS } = require("./curriculum-workbook-days");
 
 const sourcePath = process.argv[2];
 if (!sourcePath || !fs.existsSync(sourcePath)) {
@@ -98,6 +99,16 @@ const subjects = [
   },
 ];
 
+subjects.forEach((subject) => {
+  let start = 1;
+  subject.stages = CURRICULUM_WORKBOOK_DAY_COUNTS[subject.id].map((lectureCount, index) => {
+    const end = start + lectureCount - 1;
+    const stage = [`${index + 1}일차`, start, end];
+    start = end + 1;
+    return stage;
+  });
+});
+
 const quote = (value) => `'${String(value ?? "").replace(/'/g, "''")}'`;
 const textArray = (values) => `array[${values.map(quote).join(", ")}]::text[]`;
 const subjectRows = [];
@@ -107,14 +118,15 @@ const lectureRows = [];
 subjects.forEach((subject) => {
   const lectures = sourceRows.filter((row) => row.courseId === subject.courseId && row.period === "25하반기");
   const expectedCount = subject.stages.at(-1)[2];
-  if (lectures.length !== expectedCount) {
-    throw new Error(`${subject.name}: expected ${expectedCount} lectures, received ${lectures.length}`);
+  if (lectures.length < expectedCount) {
+    throw new Error(`${subject.name}: 비고 일차에는 ${expectedCount}강이 있지만 ${lectures.length}강만 입력되었습니다.`);
   }
+  const detailedLectures = lectures.slice(0, expectedCount);
   subjectRows.push(`(${quote(subject.id)}, ${quote(subject.name)}, ${quote(subject.shortName)}, ${quote(subject.tone)}, ${textArray(subject.targetTracks)}, ${subject.sortOrder}, true, false)`);
   subject.stages.forEach(([title, start, end], stageIndex) => {
     const stageNumber = stageIndex + 1;
     const stageId = `${subject.id}-stage-${stageNumber}`;
-    const stageLectures = lectures.slice(start - 1, end);
+    const stageLectures = detailedLectures.slice(start - 1, end);
     const stageTitle = stageLectures.map((lecture) => String(lecture.title || "").trim()).filter(Boolean).join(", ") || title;
     stageRows.push(`(${quote(stageId)}, ${quote(subject.id)}, ${stageNumber}, ${quote(stageTitle)}, ${stageNumber}, true, ${stageNumber !== 1})`);
     stageLectures.forEach((lecture, lectureIndex) => {

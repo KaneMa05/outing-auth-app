@@ -20,6 +20,8 @@ const { restructureCurriculumIntoSessions } = require("../scripts/curriculum-ses
 
 assert.match(appSource, /"curriculum-admin": renderCurriculumAdmin/);
 assert.match(appSource, /loadCurriculumQuestCatalog/);
+assert.match(appSource, /loadCurriculumQuestCatalog\(\{ force: true \}\)/);
+assert.match(appSource, /cache: "no-store"/);
 assert.doesNotMatch(appSource, /renderCurriculumQuestHomeCard|lecture-home-summary-card/);
 assert.match(appSource, /route !== "curriculum"/);
 assert.match(adminSource, /function renderCurriculumAdmin\(/);
@@ -61,6 +63,7 @@ assert.match(localSetupSource, /localState\.settings = \{ \.\.\.\(localState\.se
 assert.equal(packageJson.scripts["curriculum:local"], "node scripts/setup-local-curriculum.js");
 assert.equal(packageJson.scripts["dev:local"], "node local-dev-server.js");
 assert.doesNotMatch(read("index.html"), /curriculum-data\.js/);
+assert.match(read("index.html"), /app\.js\?v=20260901-curriculum-live-refresh/);
 
 const sessionCatalog = restructureCurriculumIntoSessions([{
   id: "subject-a",
@@ -73,10 +76,11 @@ const sessionCatalog = restructureCurriculumIntoSessions([{
       { id: "lecture-2", no: "2강", title: "둘째 강의", sortOrder: 2 },
     ],
   }],
-}], { "subject-a": [{ date: "2026-06-21", end: 2 }] });
+}], { "subject-a": [{ day: 1, end: 2 }] });
 assert.equal(sessionCatalog[0].totalStages, 1);
 assert.equal(sessionCatalog[0].stages[0].id, "subject-a-session-1");
-assert.equal(sessionCatalog[0].stages[0].scheduledDate, "2026-06-21");
+assert.equal(sessionCatalog[0].stages[0].curriculumDay, 1);
+assert.equal(sessionCatalog[0].stages[0].scheduledDate, undefined);
 assert.equal(sessionCatalog[0].stages[0].title, "첫 강의, 둘째 강의");
 assert.equal(sessionCatalog[0].stages[0].lectures[1].id, "lecture-2");
 
