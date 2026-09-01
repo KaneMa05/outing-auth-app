@@ -48,6 +48,16 @@ assert.match(appSource, /category === "online_managed" && isOnlineManagedStudyCa
 assert.match(appSource, /const onlineMode = lectureMode \|\| onlineManagedMode/);
 assert.match(appSource, /classList\.toggle\("student-online-managed-mode", onlineManagedMode\)/);
 assert.match(appSource, /!isOnlineStudentExperience\(student\) \? renderStudentOutingHistoryButton\(student\.id\) : null/);
+const registrationTrackOptions = appSource.match(/const COAST_GUARD_TRACK_OPTIONS = \[[\s\S]*?\n\];/)?.[0] || "";
+for (const removedTrack of [
+  "경찰직 - 구급(순경)",
+  "경찰직 - 정보통신 전산(순경)",
+  "경찰직 - 정보통신 통신(순경)",
+  "일반직 - 해양오염방제 환경",
+  "일반직 - 해양오염방제 화공",
+]) {
+  assert.doesNotMatch(registrationTrackOptions, new RegExp(removedTrack.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+}
 
 const studyFooter = indexSource.match(/<footer class="student-footer-menu study-cafe-footer-menu"[\s\S]*?<\/footer>/)?.[0] || "";
 for (const route of ["home", "study-todo", "study-cafe", "mypage"]) {
