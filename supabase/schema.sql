@@ -151,6 +151,16 @@ create table if not exists public.notices (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.student_exam_numbers (
+  student_id text primary key references public.students(id) on delete cascade,
+  exam_number text not null check (char_length(exam_number) between 1 and 50),
+  updated_by text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists student_exam_numbers_exam_number_idx
+on public.student_exam_numbers (exam_number);
+
 alter table public.notices
 add column if not exists target_audience text not null default 'academy';
 
@@ -1504,6 +1514,7 @@ add constraint attendance_checks_status_check
 check (status in ('present', 'pre_arrival_reason', 'pre_arrival_verified'));
 
 alter table public.students enable row level security;
+alter table public.student_exam_numbers enable row level security;
 alter table public.outings enable row level security;
 alter table public.outing_photos enable row level security;
 alter table public.manager_allowed_ips enable row level security;
@@ -1606,6 +1617,8 @@ drop policy if exists "anon_exam_file_insert" on storage.objects;
 drop policy if exists "anon_exam_file_delete" on storage.objects;
 
 revoke all on public.students from anon;
+revoke all on table public.student_exam_numbers from public, anon, authenticated;
+grant select, insert, update, delete on table public.student_exam_numbers to service_role;
 revoke all on public.outings from anon;
 revoke all on public.outing_photos from anon;
 revoke all on public.manager_allowed_ips from anon;

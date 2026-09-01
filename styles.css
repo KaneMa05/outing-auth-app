@@ -18767,3 +18767,63 @@ body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card.c
   border-color: #bdd8d3;
   background: #e3eeed;
 }
+
+.student-exam-number-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.student-exam-number-toolbar {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.45fr) minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.student-exam-number-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.student-exam-number-count {
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.student-exam-number-table-wrap table {
+  min-width: 680px;
+}
+
+.student-exam-number-table-wrap th:last-child,
+.student-exam-number-table-wrap td:last-child {
+  width: min(280px, 34vw);
+}
+
+.student-exam-number-input {
+  width: 100%;
+  min-width: 180px;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-exam-number-table-wrap tr.is-dirty td {
+  background: #fffaf0;
+}
+
+@media (max-width: 760px) {
+  .student-exam-number-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .student-exam-number-summary {
+    justify-content: space-between;
+  }
+
+  .student-exam-number-summary .btn {
+    flex: 0 0 auto;
+  }
+}

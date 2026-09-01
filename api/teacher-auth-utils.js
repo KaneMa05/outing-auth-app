@@ -22,6 +22,8 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "question_board.write",
   "inquiries.read",
   "inquiries.write",
+  "exam_numbers.read",
+  "exam_numbers.write",
 ];
 
 function getConfig() {

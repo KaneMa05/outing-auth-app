@@ -12,6 +12,7 @@ const {
 const {
   createSessionToken,
   getConfig: getTeacherAuthConfig,
+  hasPermission,
   readCookie,
   sessionCookie,
 } = require("./api/teacher-auth-utils");
@@ -24,6 +25,7 @@ const LOCAL_QUESTION_BOARD_FILE = path.join(ROOT, ".local-question-board.json");
 const LOCAL_CURRICULUM_FILE = path.join(ROOT, ".local-curriculum.json");
 const LOCAL_CURRICULUM_PROGRESS_FILE = path.join(ROOT, ".local-curriculum-progress.json");
 const LOCAL_APP_SETTINGS_FILE = path.join(ROOT, ".local-app-settings.json");
+const LOCAL_STUDENT_EXAM_NUMBERS_FILE = path.join(ROOT, ".local-student-exam-numbers.json");
 const LOCAL_PHONE_VERIFICATION_SECRET = "local-development-phone-verification-secret-only";
 const LOCAL_PHONE_VERIFICATION_TTL_MS = 3 * 60 * 1000;
 const LOCAL_STUDENT_PREVIEW_COOKIE = "local_student_logged_out_preview";
@@ -74,6 +76,10 @@ http
     }
     if (url.pathname === "/api/local-state") {
       await handleLocalState(req, res);
+      return;
+    }
+    if (url.pathname === "/api/student-exam-numbers") {
+      await handleLocalStudentExamNumbers(req, res);
       return;
     }
     if (url.pathname === "/api/app-settings") {
@@ -427,6 +433,98 @@ function readLocalTeacherSession(req) {
   const { COOKIE_NAME, getConfig, readCookie, readSessionToken } = require("./api/teacher-auth-utils");
   const { secret } = getConfig();
   return readSessionToken(readCookie(req, COOKIE_NAME), secret);
+}
+
+async function handleLocalStudentExamNumbers(req, res) {
+  const session = readLocalTeacherSession(req);
+  if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+  const requiredPermission = req.method === "GET" ? "exam_numbers.read" : "exam_numbers.write";
+  if (!hasPermission(session, requiredPermission)) return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+
+  const students = readLocalActiveOfflineStudents();
+  const eligibleIds = new Set(students.map((student) => student.id));
+  const saved = readLocalStudentExamNumbers();
+
+  if (req.method === "GET") {
+    return sendLocalJson(res, 200, {
+      ok: true,
+      students,
+      examNumbers: Object.entries(saved).map(([studentId, entry]) => ({
+        studentId,
+        examNumber: entry.examNumber || "",
+        updatedAt: entry.updatedAt || "",
+      })),
+      localPreview: true,
+    });
+  }
+
+  if (req.method === "POST") {
+    const body = await readLocalJson(req);
+    const entries = Array.isArray(body.entries) ? body.entries : [];
+    if (!entries.length) return sendLocalJson(res, 400, { ok: false, error: "missing_entries" });
+    const normalizedEntries = entries.map((entry) => ({
+      studentId: String(entry?.studentId || "").trim(),
+      examNumber: String(entry?.examNumber || "").trim().replace(/\s+/g, ""),
+    }));
+    if (normalizedEntries.some((entry) => !eligibleIds.has(entry.studentId))) {
+      return sendLocalJson(res, 400, { ok: false, error: "ineligible_student" });
+    }
+    if (normalizedEntries.some((entry) => entry.examNumber.length > 50)) {
+      return sendLocalJson(res, 400, { ok: false, error: "invalid_exam_number" });
+    }
+    const savedAt = new Date().toISOString();
+    normalizedEntries.forEach((entry) => {
+      if (!entry.examNumber) delete saved[entry.studentId];
+      else saved[entry.studentId] = { examNumber: entry.examNumber, updatedAt: savedAt };
+    });
+    fs.writeFileSync(LOCAL_STUDENT_EXAM_NUMBERS_FILE, JSON.stringify(saved, null, 2));
+    return sendLocalJson(res, 200, {
+      ok: true,
+      savedAt,
+      entries: normalizedEntries.map((entry) => ({ ...entry, updatedAt: entry.examNumber ? savedAt : "" })),
+      localPreview: true,
+    });
+  }
+
+  res.setHeader("Allow", "GET, POST");
+  return sendLocalJson(res, 405, { ok: false, error: "method_not_allowed" });
+}
+
+function readLocalActiveOfflineStudents() {
+  if (!fs.existsSync(LOCAL_STATE_FILE)) return [];
+  try {
+    const state = JSON.parse(fs.readFileSync(LOCAL_STATE_FILE, "utf8") || "null");
+    return (Array.isArray(state?.students) ? state.students : [])
+      .filter((student) => {
+        const id = String(student?.id || "").trim();
+        const category = String(student?.studentCategory || student?.student_category || "offline").trim();
+        const accountType = String(student?.accountType || student?.account_type || "student").trim();
+        return id && category === "offline" && accountType !== "teacher" && student?.isActive !== false && student?.is_active !== false;
+      })
+      .map((student) => {
+        const id = String(student.id || "").trim();
+        const explicitCohort = String(student.cohort || "").trim();
+        return {
+          id,
+          name: String(student.name || "").trim(),
+          cohort: explicitCohort || (/^\d{4,5}$/.test(id) ? id.slice(0, -3) : ""),
+          track: String(student.track || "").trim(),
+        };
+      })
+      .filter((student) => student.name && student.cohort);
+  } catch {
+    return [];
+  }
+}
+
+function readLocalStudentExamNumbers() {
+  if (!fs.existsSync(LOCAL_STUDENT_EXAM_NUMBERS_FILE)) return {};
+  try {
+    const value = JSON.parse(fs.readFileSync(LOCAL_STUDENT_EXAM_NUMBERS_FILE, "utf8") || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
 }
 
 async function handleLocalCurriculumProgress(req, res) {

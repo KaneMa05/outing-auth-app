@@ -24,6 +24,258 @@ const lectureApplicationAdminState = {
   status: "pending",
 };
 
+const studentExamNumberAdminState = {
+  loading: false,
+  loaded: false,
+  saving: false,
+  error: "",
+  cohort: "",
+  students: [],
+  values: new Map(),
+  drafts: new Map(),
+  dirtyStudentIds: new Set(),
+};
+
+function renderStudentExamNumberAdmin() {
+  if (!hasTeacherPermission("exam_numbers.read")) return renderForbidden();
+  ensureStudentExamNumberAdminLoaded();
+
+  if (studentExamNumberAdminState.loading && !studentExamNumberAdminState.loaded) {
+    return el("div", { className: "grid" }, [
+      panel("응시번호 입력", [el("div", { className: "empty" }, "현재 오프라인 학생 명단을 불러오는 중입니다.")]),
+    ]);
+  }
+  if (studentExamNumberAdminState.error && !studentExamNumberAdminState.loaded) {
+    const message = studentExamNumberAdminState.error === "exam_number_table_unavailable"
+      ? "응시번호 저장소가 아직 준비되지 않았습니다. 데이터베이스 설정 후 다시 시도해주세요."
+      : "응시번호 명단을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return el("div", { className: "grid" }, [
+      panel("응시번호 입력", [
+        el("div", { className: "empty" }, message),
+        button("다시 불러오기", "btn secondary", "button", () => loadStudentExamNumberAdminData({ force: true })),
+      ]),
+    ]);
+  }
+
+  const cohorts = getStudentExamNumberCohorts();
+  if (!cohorts.length) {
+    return el("div", { className: "grid" }, [
+      panel("응시번호 입력", [el("div", { className: "empty" }, "현재 재원 중인 오프라인 학생이 없습니다.")]),
+    ]);
+  }
+  if (!cohorts.includes(studentExamNumberAdminState.cohort)) {
+    studentExamNumberAdminState.cohort = getDefaultStudentExamNumberCohort(cohorts);
+  }
+
+  const cohort = studentExamNumberAdminState.cohort;
+  const students = studentExamNumberAdminState.students
+    .filter((student) => student.cohort === cohort)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+  const completedCount = students.filter((student) => normalizeStudentExamNumber(studentExamNumberAdminState.drafts.get(student.id))).length;
+  const cohortSelect = el("select", { ariaLabel: "응시번호 입력 기수 선택" }, cohorts.map((value) =>
+    el("option", { value }, `${value}기`)
+  ));
+  cohortSelect.value = cohort;
+  cohortSelect.addEventListener("change", () => {
+    studentExamNumberAdminState.cohort = cohortSelect.value;
+    render();
+  });
+  const searchInput = input("studentExamNumberSearch", "search", "이름 또는 등록번호 검색");
+  const countLabel = el("span", { className: "student-exam-number-count" }, `${students.length}명 중 ${completedCount}명 입력`);
+  const downloadButton = button("엑셀 다운로드", "btn secondary", "button", () => {
+    downloadStudentExamNumberWorkbook(cohort, students);
+  });
+  const saveButton = button("변경사항 저장", "btn", "submit");
+  saveButton.disabled = studentExamNumberAdminState.saving || !studentExamNumberAdminState.dirtyStudentIds.size;
+
+  const rowRecords = students.map((student) => {
+    const examNumberInput = el("input", {
+      className: "student-exam-number-input",
+      type: "text",
+      value: studentExamNumberAdminState.drafts.get(student.id) || "",
+      maxLength: 50,
+      placeholder: "응시번호 입력",
+      autocomplete: "off",
+      spellcheck: false,
+      ariaLabel: `${student.name} 응시번호`,
+    });
+    const row = el("tr", {
+      "data-search-text": `${student.id} ${student.name}`.toLowerCase(),
+    }, [
+      el("td", {}, student.id),
+      el("td", {}, student.name),
+      el("td", {}, student.track || "-"),
+      el("td", {}, examNumberInput),
+    ]);
+    examNumberInput.addEventListener("input", () => {
+      const nextValue = examNumberInput.value;
+      studentExamNumberAdminState.drafts.set(student.id, nextValue);
+      const normalized = normalizeStudentExamNumber(nextValue);
+      const saved = normalizeStudentExamNumber(studentExamNumberAdminState.values.get(student.id));
+      if (normalized === saved) studentExamNumberAdminState.dirtyStudentIds.delete(student.id);
+      else studentExamNumberAdminState.dirtyStudentIds.add(student.id);
+      row.classList.toggle("is-dirty", normalized !== saved);
+      saveButton.disabled = studentExamNumberAdminState.saving || !studentExamNumberAdminState.dirtyStudentIds.size;
+    });
+    row.classList.toggle("is-dirty", studentExamNumberAdminState.dirtyStudentIds.has(student.id));
+    return { row };
+  });
+
+  const studentTable = table(
+    ["등록번호", "이름", "직렬", "응시번호"],
+    rowRecords.length
+      ? rowRecords.map((record) => record.row)
+      : [el("tr", {}, [el("td", { colSpan: 4 }, el("div", { className: "empty table-empty" }, "이 기수의 오프라인 학생이 없습니다."))])]
+  );
+  studentTable.classList.add("student-exam-number-table-wrap");
+  searchInput.addEventListener("input", () => {
+    const query = String(searchInput.value || "").trim().toLowerCase();
+    let visibleCount = 0;
+    rowRecords.forEach(({ row }) => {
+      row.hidden = Boolean(query) && !String(row.dataset.searchText || "").includes(query);
+      if (!row.hidden) visibleCount += 1;
+    });
+    countLabel.textContent = query
+      ? `${visibleCount}명 검색됨 · 전체 ${completedCount}/${students.length}명 입력`
+      : `${students.length}명 중 ${completedCount}명 입력`;
+  });
+
+  const form = el("form", { className: "student-exam-number-form" }, [
+    el("div", { className: "student-exam-number-toolbar" }, [
+      field("기수", cohortSelect),
+      field("학생 검색", searchInput),
+      el("div", { className: "student-exam-number-summary" }, [countLabel, downloadButton, saveButton]),
+    ]),
+    studentTable,
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveStudentExamNumberChanges(saveButton);
+  });
+
+  return el("div", { className: "grid student-exam-number-admin" }, [
+    panel("응시번호 입력", [
+      el("p", { className: "subtle" }, "현재 재원 중인 오프라인 학생만 표시됩니다. 기수를 선택하고 응시번호를 입력한 뒤 한 번에 저장하세요."),
+      form,
+    ]),
+  ]);
+}
+
+function ensureStudentExamNumberAdminLoaded() {
+  if (studentExamNumberAdminState.loaded || studentExamNumberAdminState.loading) return;
+  loadStudentExamNumberAdminData();
+}
+
+async function loadStudentExamNumberAdminData({ force = false } = {}) {
+  if (studentExamNumberAdminState.loading || (studentExamNumberAdminState.loaded && !force)) return;
+  studentExamNumberAdminState.loading = true;
+  studentExamNumberAdminState.error = "";
+  try {
+    const response = await fetch("/api/student-exam-numbers", { credentials: "same-origin" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "student_exam_number_load_failed");
+    studentExamNumberAdminState.students = Array.isArray(data.students) ? data.students : [];
+    studentExamNumberAdminState.values = new Map(
+      (data.examNumbers || []).map((entry) => [String(entry.studentId), String(entry.examNumber || "")])
+    );
+    studentExamNumberAdminState.drafts = new Map(studentExamNumberAdminState.values);
+    studentExamNumberAdminState.students.forEach((student) => {
+      const studentId = String(student.id || "");
+      student.id = studentId;
+      student.cohort = String(student.cohort || "");
+      if (!studentExamNumberAdminState.drafts.has(studentId)) studentExamNumberAdminState.drafts.set(studentId, "");
+    });
+    studentExamNumberAdminState.dirtyStudentIds.clear();
+    studentExamNumberAdminState.loaded = true;
+  } catch (error) {
+    console.error(error);
+    studentExamNumberAdminState.error = error.message || "student_exam_number_load_failed";
+    if (force) studentExamNumberAdminState.loaded = false;
+  } finally {
+    studentExamNumberAdminState.loading = false;
+    if (currentRoute === "student-exam-numbers") render();
+  }
+}
+
+async function saveStudentExamNumberChanges(saveButton) {
+  const studentIds = [...studentExamNumberAdminState.dirtyStudentIds];
+  if (!studentIds.length || studentExamNumberAdminState.saving) return;
+  studentExamNumberAdminState.saving = true;
+  saveButton.disabled = true;
+  saveButton.textContent = "저장 중...";
+  try {
+    const entries = studentIds.map((studentId) => ({
+      studentId,
+      examNumber: normalizeStudentExamNumber(studentExamNumberAdminState.drafts.get(studentId)),
+    }));
+    const response = await fetch("/api/student-exam-numbers", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entries }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "student_exam_number_save_failed");
+    entries.forEach((entry) => {
+      studentExamNumberAdminState.values.set(entry.studentId, entry.examNumber);
+      studentExamNumberAdminState.drafts.set(entry.studentId, entry.examNumber);
+      studentExamNumberAdminState.dirtyStudentIds.delete(entry.studentId);
+    });
+    notify(`응시번호 변경사항 ${entries.length}건을 저장했습니다.`);
+    render();
+  } catch (error) {
+    console.error(error);
+    const message = error.message === "exam_number_table_unavailable"
+      ? "응시번호 저장소가 준비되지 않아 저장하지 못했습니다."
+      : "응시번호를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.";
+    notify(message);
+  } finally {
+    studentExamNumberAdminState.saving = false;
+    saveButton.disabled = !studentExamNumberAdminState.dirtyStudentIds.size;
+    saveButton.textContent = "변경사항 저장";
+  }
+}
+
+function getStudentExamNumberCohorts() {
+  return [...new Set(studentExamNumberAdminState.students.map((student) => String(student.cohort || "")).filter(Boolean))]
+    .sort((a, b) => Number(b) - Number(a));
+}
+
+function getDefaultStudentExamNumberCohort(cohorts) {
+  const selected = String(selectedStudentCohort || "");
+  if (cohorts.includes(selected)) return selected;
+  if (cohorts.includes(DEFAULT_STUDENT_COHORT)) return DEFAULT_STUDENT_COHORT;
+  return cohorts[0] || "";
+}
+
+function normalizeStudentExamNumber(value) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
+
+function downloadStudentExamNumberWorkbook(cohort, students) {
+  if (!students.length) return notify("다운로드할 학생이 없습니다.");
+  const cohortLabel = `${cohort || "선택"}기`;
+  const rows = [
+    ["등록번호", "이름", "직렬", "응시번호"],
+    ...students.map((student) => [
+      student.id,
+      student.name,
+      student.track || "-",
+      normalizeStudentExamNumber(studentExamNumberAdminState.drafts.get(student.id)),
+    ]),
+  ];
+  const blob = createStudentCohortWorkbookBlob(`${cohortLabel} 응시번호`, rows);
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `${sanitizeWorkbookFileName(cohortLabel)}_응시번호_명단.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify(`${cohortLabel} 응시번호 명단 ${students.length}명을 다운로드했습니다.`);
+}
+
 function renderOnlineManagedStudyCafeTogglePanel() {
   const enabled = state.settings.onlineManagedStudyCafeEnabled === true;
   const toggle = el("input", {

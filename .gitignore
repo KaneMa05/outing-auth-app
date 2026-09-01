@@ -9,6 +9,7 @@ config.js
 .local-curriculum.json
 .local-curriculum-progress.json
 .local-app-settings.json
+.local-student-exam-numbers.json
 .local-*.log
 
 .vercel

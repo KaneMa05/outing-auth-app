@@ -32,6 +32,7 @@
   "teacher-accounts": "선생님 계정",
   managers: "담당자 등록",
   students: "학생 등록",
+  "student-exam-numbers": "응시번호 입력",
   "student-push": "학생 푸시 알림",
   notifications: "알림",
   "device-history": "기기 등록 이력",
@@ -627,7 +628,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -767,6 +768,7 @@ function render() {
           "teacher-accounts": renderTeacherAccountsAdmin,
           managers: renderManagersAdmin,
           students: renderStudentsAdmin,
+          "student-exam-numbers": renderStudentExamNumberAdmin,
           "student-push": renderStudentPushAdmin,
           "device-history": renderDeviceHistoryAdmin,
           "student-preview": renderStudentPreviewAdmin,
