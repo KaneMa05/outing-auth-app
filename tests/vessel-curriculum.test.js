@@ -19,7 +19,7 @@ assert.match(sql, /경찰직 - 함정요원 항해\(순경\)/);
 assert.match(sql, /경찰직 - 함정요원 기관\(순경\)/);
 assert.doesNotMatch(
   sql.match(/insert into public\.curriculum_subjects[\s\S]*?on conflict \(id\)/)?.[0] || "",
-  /함정요원 .*\(경장\)/
+  /경찰직 - 함정요원 (?:항해|기관)\(경장\)/
 );
 assert.equal((sql.match(/-stage-\d+',/g) || []).length >= 42, true);
 assert.equal((sql.match(/-lecture-\d+',/g) || []).length, 196);
@@ -48,16 +48,16 @@ assert.match(resequenceSql, /mapping\.day_number is null/);
 assert.match(resequenceSql, /-workbook-extra/);
 assert.doesNotMatch(resequenceSql, /delete from public\.curriculum_lectures/);
 assert.match(resequenceSql, /delete from public\.curriculum_student_stage_progress/);
-assert.match(appSource, /normalizeCoastGuardTrack\(student\.track\) !== "경찰직 - 공채\(순경\)"/);
+assert.match(appSource, /if \(initialLoad\) \{[\s\S]*?CURRICULUM_QUEST_SUBJECTS\.splice\(0, CURRICULUM_QUEST_SUBJECTS\.length\);[\s\S]*?curriculumQuestCatalogError/);
 assert.match(appSource, /return "함정요원·항해"/);
 assert.match(appSource, /return "함정요원·기관"/);
 
 const trackCatalog = [
-  { id: "criminal-law", targetTracks: ["경찰직 - 공채(순경)"] },
-  { id: "navigation-technique", targetTracks: ["경찰직 - 함정요원 항해(순경)"] },
-  { id: "marine-engineering", targetTracks: ["경찰직 - 함정요원 기관(순경)"] },
-  { id: "maritime-english", targetTracks: ["경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"] },
-  { id: "coast-guard-intro", targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"] },
+  { id: "criminal-law", targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
+  { id: "navigation-technique", targetTracks: ["경찰직 - 함정요원 항해(순경)", "경찰직 - 해경학과 항해(경장)"] },
+  { id: "marine-engineering", targetTracks: ["경찰직 - 함정요원 기관(순경)", "경찰직 - 해경학과 기관(경장)"] },
+  { id: "maritime-english", targetTracks: ["경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
+  { id: "coast-guard-intro", targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"] },
   { id: "maritime-law", targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"] },
 ];
 assert.deepEqual(
@@ -67,6 +67,14 @@ assert.deepEqual(
 assert.deepEqual(
   progressHandler._test.filterCatalogForTrack(trackCatalog, "경찰직 - 함정요원 기관(순경)").map((subject) => subject.id),
   ["marine-engineering", "maritime-english", "coast-guard-intro", "maritime-law"]
+);
+assert.deepEqual(
+  progressHandler._test.filterCatalogForTrack(trackCatalog, "경찰직 - 해경학과 항해(경장)").map((subject) => subject.id),
+  ["criminal-law", "navigation-technique", "maritime-english", "coast-guard-intro"]
+);
+assert.deepEqual(
+  progressHandler._test.filterCatalogForTrack(trackCatalog, "경찰직 - 해경학과 기관(경장)").map((subject) => subject.id),
+  ["criminal-law", "marine-engineering", "maritime-english", "coast-guard-intro"]
 );
 assert.deepEqual(
   progressHandler._test.filterCatalogForTrack(trackCatalog, "경찰직 - 함정요원 항해(경장)").map((subject) => subject.id),

@@ -29,6 +29,10 @@ assert.match(adminSource, /function addCurriculumAdminSubject\(/);
 assert.match(adminSource, /function addCurriculumAdminStage\(/);
 assert.match(adminSource, /function addCurriculumAdminLecture\(/);
 assert.match(adminSource, /action: "save_subject"/);
+assert.match(
+  adminSource,
+  /async function saveCurriculumAdminSubject\(subject\)[\s\S]*?openLoadingModal\("커리큘럼 저장 중", "변경사항을 저장하고 있습니다\. 잠시만 기다려주세요\."\);[\s\S]*?finally \{[\s\S]*?closeLoadingModal\(\);/
+);
 assert.match(adminSource, /action: "delete_subject"/);
 assert.match(adminSource, /curriculumQuestEnabled/);
 assert.match(adminSource, /학생 공개/);

@@ -104,7 +104,7 @@ const CURRICULUM_QUEST_SUBJECTS = [
     shortName: "형사",
     totalStages: 27,
     completedStages: 0,
-    targetTracks: ["경찰직 - 공채(순경)"],
+    targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"],
     partLabel: "형법 1~8회차 · 형사소송법 9~12회차",
     tone: "indigo",
     stageTitles: [
@@ -121,7 +121,7 @@ const CURRICULUM_QUEST_SUBJECTS = [
     shortName: "개론",
     totalStages: 19,
     completedStages: 0,
-    targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"],
+    targetTracks: ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"],
     partLabel: "해양경찰학개론 26상반기 과정",
     tone: "teal",
     stageTitles: [
@@ -167,6 +167,7 @@ const curriculumQuestTaskState = Object.fromEntries(
 );
 let curriculumQuestCatalogLoading = false;
 let curriculumQuestCatalogLoaded = false;
+let curriculumQuestCatalogError = "";
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
 const STUDENT_DDAY_STORAGE_KEY = "ronpark_student_dday_v1";
@@ -1499,7 +1500,37 @@ function openLectureApplicationModal() {
     if (referralDetailField.hidden) referralDetailInput.value = "";
   });
 
+  const phoneVerificationEnabled = state.settings.phoneVerificationEnabled === true;
   const phoneInput = el("input", { name: "phone", type: "tel", inputMode: "numeric", autocomplete: "tel", placeholder: "010-1234-5678", maxLength: 13 });
+  const phoneVerification = { requestId: "", token: "", phone: "", expiresAt: 0, timer: null };
+  const phoneVerificationStatus = el("p", { className: "phone-verification-status", ariaLive: "polite" }, "카카오톡으로 받은 인증번호를 확인합니다.");
+  const verificationCodeInput = el("input", {
+    name: "phoneVerificationCode",
+    type: "text",
+    inputMode: "numeric",
+    autocomplete: "one-time-code",
+    placeholder: "6자리 인증번호",
+    maxLength: 6,
+  });
+  const requestVerificationButton = button("인증번호 받기", "btn secondary phone-verification-button", "button");
+  const verifyPhoneButton = button("인증하기", "btn phone-verification-button", "button");
+  const changePhoneButton = button("번호 변경", "btn secondary phone-verification-button", "button");
+  changePhoneButton.hidden = true;
+  const verificationCodeRow = el("div", { className: "phone-verification-code-row", hidden: true }, [
+    verificationCodeInput,
+    verifyPhoneButton,
+  ]);
+  const phoneVerificationField = el("div", { className: "field full lecture-phone-verification" }, [
+    el("span", {}, "휴대전화 번호"),
+    el("small", { className: "field-hint" }, "신청 전에 카카오톡 인증이 필요합니다."),
+    el("div", { className: "phone-verification-request-row" }, [
+      phoneInput,
+      requestVerificationButton,
+      changePhoneButton,
+    ]),
+    verificationCodeRow,
+    phoneVerificationStatus,
+  ]);
   const birthDateInput = el("input", { name: "birthDate", type: "date", autocomplete: "bday", max: new Date().toISOString().slice(0, 10) });
   const lectureIdInput = input("lectureId", "text", "인강 수강에 사용하는 아이디");
   const lectureIdField = field("인강 아이디", lectureIdInput, "full", "관리자가 실제 수강 정보와 대조합니다.");
@@ -1527,7 +1558,7 @@ function openLectureApplicationModal() {
     el("p", { className: "subtle field full" }, "입력한 정보는 수강 정보 확인과 등록번호 발급에만 사용됩니다."),
     field("수강 구분", courseTypeSelect, "full"),
     field("이름", input("name", "text", "이름")),
-    field("휴대전화 번호", phoneInput),
+    phoneVerificationEnabled ? phoneVerificationField : field("휴대전화 번호", phoneInput),
     field("생년월일", birthDateInput),
     field("성별", select("gender", ["남", "여"])),
     field("직렬", trackSelect),
@@ -1571,6 +1602,160 @@ function openLectureApplicationModal() {
     ]),
   ]);
 
+  const normalizeVerificationPhone = (value) => String(value || "").replace(/\D/g, "");
+  const stopVerificationTimer = () => {
+    if (phoneVerification.timer) clearInterval(phoneVerification.timer);
+    phoneVerification.timer = null;
+  };
+  const resetPhoneVerification = () => {
+    stopVerificationTimer();
+    phoneVerification.requestId = "";
+    phoneVerification.token = "";
+    phoneVerification.phone = "";
+    phoneVerification.expiresAt = 0;
+    verificationCodeInput.value = "";
+    verificationCodeInput.disabled = false;
+    verificationCodeRow.hidden = true;
+    phoneInput.readOnly = false;
+    requestVerificationButton.hidden = false;
+    requestVerificationButton.disabled = false;
+    requestVerificationButton.textContent = "인증번호 받기";
+    changePhoneButton.hidden = true;
+    phoneVerificationStatus.className = "phone-verification-status";
+    phoneVerificationStatus.textContent = "카카오톡으로 받은 인증번호를 확인합니다.";
+  };
+  const updateVerificationCountdown = () => {
+    if (!phoneVerification.requestId || phoneVerification.token) return;
+    const remaining = Math.max(0, Math.ceil((phoneVerification.expiresAt - Date.now()) / 1000));
+    if (!remaining) {
+      stopVerificationTimer();
+      phoneVerification.requestId = "";
+      verificationCodeInput.value = "";
+      verificationCodeRow.hidden = true;
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "인증시간이 만료되었습니다. 인증번호를 다시 받아주세요.";
+      requestVerificationButton.textContent = "인증번호 다시 받기";
+      return;
+    }
+    const minutes = Math.floor(remaining / 60);
+    const seconds = String(remaining % 60).padStart(2, "0");
+    phoneVerificationStatus.dataset.countdown = `${minutes}:${seconds}`;
+  };
+
+  phoneInput.addEventListener("input", () => {
+    if (phoneVerification.phone && normalizeVerificationPhone(phoneInput.value) !== phoneVerification.phone) resetPhoneVerification();
+  });
+
+  requestVerificationButton.addEventListener("click", async () => {
+    const phone = normalizeVerificationPhone(phoneInput.value);
+    phoneVerificationStatus.className = "phone-verification-status";
+    if (!/^01[0-9]{8,9}$/.test(phone)) {
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "올바른 휴대전화 번호를 입력해주세요.";
+      return;
+    }
+    requestVerificationButton.disabled = true;
+    setButtonLoading(requestVerificationButton, "전송 중");
+    try {
+      const response = await fetch("/api/lecture-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request-phone-verification", phone }),
+      });
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok || !responseData.ok || !responseData.requestId) {
+        phoneVerificationStatus.className = "phone-verification-status error";
+        phoneVerificationStatus.textContent = responseData.error === "phone_verification_disabled"
+          ? "관리자가 로그인 인증번호 사용을 허용하지 않았습니다."
+          : responseData.error === "too_many_requests"
+          ? "인증번호 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+          : responseData.error === "phone_verification_not_configured"
+            ? "인증 서비스 준비 중입니다. 잠시 후 다시 시도해주세요."
+            : "인증번호를 보내지 못했습니다. 잠시 후 다시 시도해주세요.";
+        return;
+      }
+      stopVerificationTimer();
+      phoneVerification.requestId = responseData.requestId;
+      phoneVerification.token = "";
+      phoneVerification.phone = phone;
+      phoneVerification.expiresAt = Date.now() + Number(responseData.expiresInSeconds || 180) * 1000;
+      verificationCodeInput.value = responseData.localPreview && responseData.devCode ? responseData.devCode : "";
+      verificationCodeRow.hidden = false;
+      phoneVerificationStatus.className = "phone-verification-status pending";
+      phoneVerificationStatus.textContent = responseData.localPreview && responseData.devCode
+        ? `로컬 미리보기 인증번호: ${responseData.devCode}`
+        : "카카오톡으로 인증번호를 보냈습니다.";
+      updateVerificationCountdown();
+      phoneVerification.timer = setInterval(updateVerificationCountdown, 1000);
+      verificationCodeInput.focus();
+    } catch (error) {
+      console.error(error);
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.";
+    } finally {
+      requestVerificationButton.disabled = false;
+      requestVerificationButton.textContent = phoneVerification.requestId ? "인증번호 다시 받기" : "인증번호 받기";
+    }
+  });
+
+  verifyPhoneButton.addEventListener("click", async () => {
+    const phone = normalizeVerificationPhone(phoneInput.value);
+    const authNumber = normalizeVerificationPhone(verificationCodeInput.value).slice(0, 6);
+    if (!phoneVerification.requestId || phone !== phoneVerification.phone) {
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "인증번호를 다시 받아주세요.";
+      return;
+    }
+    if (!/^\d{6}$/.test(authNumber)) {
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "6자리 인증번호를 입력해주세요.";
+      return;
+    }
+    verifyPhoneButton.disabled = true;
+    setButtonLoading(verifyPhoneButton, "확인 중");
+    try {
+      const response = await fetch("/api/lecture-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify-phone",
+          phone,
+          requestId: phoneVerification.requestId,
+          authNumber,
+        }),
+      });
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok || !responseData.ok || !responseData.phoneVerificationToken) {
+        phoneVerificationStatus.className = "phone-verification-status error";
+        phoneVerificationStatus.textContent = responseData.error === "too_many_verification_attempts"
+          ? "인증 시도 횟수를 초과했습니다. 인증번호를 다시 받아주세요."
+          : "인증번호가 올바르지 않거나 만료되었습니다.";
+        return;
+      }
+      stopVerificationTimer();
+      phoneVerification.token = responseData.phoneVerificationToken;
+      phoneInput.readOnly = true;
+      verificationCodeInput.disabled = true;
+      requestVerificationButton.hidden = true;
+      changePhoneButton.hidden = false;
+      verificationCodeRow.hidden = true;
+      phoneVerificationStatus.className = "phone-verification-status success";
+      phoneVerificationStatus.textContent = "휴대전화 인증이 완료되었습니다.";
+    } catch (error) {
+      console.error(error);
+      phoneVerificationStatus.className = "phone-verification-status error";
+      phoneVerificationStatus.textContent = "인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.";
+    } finally {
+      verifyPhoneButton.disabled = false;
+      verifyPhoneButton.textContent = "인증하기";
+    }
+  });
+
+  changePhoneButton.addEventListener("click", () => {
+    resetPhoneVerification();
+    phoneInput.focus();
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = formData(form);
@@ -1598,6 +1783,11 @@ function openLectureApplicationModal() {
       result.textContent = "수강생 등록 및 앱 이용약관에 동의해주세요.";
       return;
     }
+    if (phoneVerificationEnabled && (!phoneVerification.token || phoneVerification.phone !== normalizeVerificationPhone(data.phone))) {
+      result.className = "student-auth-result error";
+      result.textContent = "휴대전화 인증을 완료해주세요.";
+      return;
+    }
 
     submitButton.disabled = true;
     setButtonLoading(submitButton, "신청 중");
@@ -1615,6 +1805,7 @@ function openLectureApplicationModal() {
           referralSource: data.referralSource,
           referralSourceDetail: data.referralSourceDetail,
           lectureId: data.lectureId,
+          phoneVerificationToken: phoneVerification.token,
           privacyConsent: true,
           termsConsent: true,
         }),
@@ -1622,7 +1813,9 @@ function openLectureApplicationModal() {
       const responseData = await response.json().catch(() => ({}));
       if (!response.ok || !responseData.ok) {
         result.className = "student-auth-result error";
-        result.textContent = responseData.error === "duplicate_application"
+        result.textContent = responseData.error === "phone_verification_required"
+          ? "휴대전화 인증을 완료한 뒤 다시 신청해주세요."
+          : responseData.error === "duplicate_application"
           ? "이미 신청 또는 승인된 휴대전화 번호나 인강 아이디입니다. 관리자에게 문의해주세요."
           : responseData.error === "too_many_requests"
             ? "신청 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
@@ -2643,7 +2836,9 @@ function getCurriculumStageId(subject, stageNumber) {
 async function loadCurriculumQuestCatalog(options = {}) {
   const force = options.force === true;
   if (curriculumQuestCatalogLoading || (curriculumQuestCatalogLoaded && !force)) return;
+  const initialLoad = !curriculumQuestCatalogLoaded;
   curriculumQuestCatalogLoading = true;
+  if (initialLoad) curriculumQuestCatalogError = "";
   try {
     const student = getAuthedStudent();
     const profile = getStudentProfile(student?.id) || {};
@@ -2677,12 +2872,13 @@ async function loadCurriculumQuestCatalog(options = {}) {
         curriculumQuestSelectedSubjectId = CURRICULUM_QUEST_SUBJECTS[0].id;
       }
     }
+    curriculumQuestCatalogError = "";
     if (canLoadProgress) applyCurriculumQuestProgress(data.progress || {});
   } catch (error) {
-    console.warn("Managed curriculum is unavailable; using the bundled curriculum.", error);
-    const student = getAuthedStudent();
-    if (student && normalizeCoastGuardTrack(student.track) !== "경찰직 - 공채(순경)") {
+    console.warn("Managed curriculum is unavailable.", error);
+    if (initialLoad) {
       CURRICULUM_QUEST_SUBJECTS.splice(0, CURRICULUM_QUEST_SUBJECTS.length);
+      curriculumQuestCatalogError = "최신 커리큘럼을 불러오지 못했습니다.";
     }
   } finally {
     curriculumQuestCatalogLoading = false;
@@ -2794,6 +2990,10 @@ function getCurriculumAnalysisTaskDescription(subject) {
 function renderCurriculumQuest() {
   if (!isCurriculumQuestEnabled()) return renderStudentHome();
   if (!curriculumQuestCatalogLoaded && !curriculumQuestCatalogLoading) loadCurriculumQuestCatalog();
+  if (!curriculumQuestCatalogLoaded) return renderCurriculumQuestCatalogLoading();
+  if (curriculumQuestCatalogError && !CURRICULUM_QUEST_SUBJECTS.length) {
+    return renderCurriculumQuestCatalogError();
+  }
   if (curriculumQuestCatalogLoaded && !CURRICULUM_QUEST_SUBJECTS.length) {
     return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
       el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("h2", {}, "커리큘럼")])]),
@@ -2805,6 +3005,36 @@ function renderCurriculumQuest() {
   return curriculumQuestView === "detail"
     ? renderCurriculumQuestStageDetail()
     : renderCurriculumQuestMap();
+}
+
+function renderCurriculumQuestCatalogLoading() {
+  return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
+    el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("h2", {}, "커리큘럼")])]),
+    el("div", { className: "curriculum-content-sheet" }, [
+      el("div", { className: "data-loading-state", role: "status", ariaLive: "polite" }, [
+        el("span", { className: "loading-spinner", ariaHidden: "true" }),
+        el("span", {}, "최신 회차 정보를 불러오는 중입니다."),
+      ]),
+    ]),
+  ]);
+}
+
+function renderCurriculumQuestCatalogError() {
+  return el("div", { className: "student-curriculum-page curriculum-map-page" }, [
+    el("header", { className: "curriculum-page-head" }, [el("div", {}, [el("h2", {}, "커리큘럼")])]),
+    el("div", { className: "curriculum-content-sheet" }, [
+      el("div", { className: "curriculum-admin-empty" }, [
+        el("strong", {}, curriculumQuestCatalogError),
+        el("p", {}, "예전 회차명은 표시하지 않습니다. 잠시 후 다시 시도해주세요."),
+        button("다시 불러오기", "btn secondary", "button", () => {
+          curriculumQuestCatalogLoaded = false;
+          curriculumQuestCatalogError = "";
+          loadCurriculumQuestCatalog({ force: true });
+          render();
+        }),
+      ]),
+    ]),
+  ]);
 }
 
 function renderCurriculumQuestMap() {
@@ -4379,6 +4609,8 @@ function renderStudyCafeMiniAvatar(tone) {
 
 function renderStudentPlannerHub() {
   const curriculumAvailable = isCurriculumQuestEnabled();
+  const curriculumAvailabilityPending = curriculumQuestReleaseVerified !== true;
+  const showCurriculumSwitch = curriculumAvailable || curriculumAvailabilityPending;
   if (!curriculumAvailable) studyPlannerHubView = "planner";
   const activeView = curriculumAvailable ? studyPlannerHubView : "planner";
   if (activeView === "planner" && studyTodoCalendarOpen) {
@@ -4387,8 +4619,10 @@ function renderStudentPlannerHub() {
     ]);
   }
   return el("div", { className: `student-planner-hub ${activeView}` }, [
-    curriculumAvailable ? renderStudentPlannerViewSwitch(activeView) : renderStudentPlannerSoloHeader(),
-    curriculumAvailable && activeView === "planner" ? renderStudentPlannerMonthAction() : null,
+    showCurriculumSwitch
+      ? renderStudentPlannerViewSwitch(activeView, curriculumAvailabilityPending)
+      : renderStudentPlannerSoloHeader(),
+    showCurriculumSwitch && activeView === "planner" ? renderStudentPlannerMonthAction() : null,
     activeView === "curriculum" ? renderCurriculumQuest() : renderStudentStudyTodo(),
   ].filter(Boolean));
 }
@@ -4420,7 +4654,7 @@ function renderStudentPlannerMonthButton(selectedDateKey) {
   ]);
 }
 
-function renderStudentPlannerViewSwitch(activeView) {
+function renderStudentPlannerViewSwitch(activeView, curriculumPending = false) {
   const options = [
     { id: "planner", label: "오늘의 할 일" },
     { id: "curriculum", label: "커리큘럼" },
@@ -4445,6 +4679,7 @@ function renderStudentPlannerViewSwitch(activeView) {
           scrollAppToTop();
         }
       );
+      control.disabled = option.id === "curriculum" && curriculumPending;
       control.setAttribute("role", "tab");
       control.setAttribute("aria-selected", String(activeView === option.id));
       return control;

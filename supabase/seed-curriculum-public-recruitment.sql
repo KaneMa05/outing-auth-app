@@ -4,8 +4,8 @@ begin;
 insert into public.curriculum_subjects
   (id, name, short_name, tone, target_tracks, sort_order, is_published, is_archived)
 values
-  ('criminal-law', '형사법', '형사', 'indigo', array['경찰직 - 공채(순경)']::text[], 1, true, false),
-  ('coast-guard-intro', '해양경찰학개론', '개론', 'teal', array['경찰직 - 공채(순경)', '경찰직 - 함정요원 항해(순경)', '경찰직 - 함정요원 기관(순경)']::text[], 3, true, false),
+  ('criminal-law', '형사법', '형사', 'indigo', array['경찰직 - 공채(순경)', '경찰직 - 해경학과 항해(경장)', '경찰직 - 해경학과 기관(경장)']::text[], 1, true, false),
+  ('coast-guard-intro', '해양경찰학개론', '개론', 'teal', array['경찰직 - 공채(순경)', '경찰직 - 함정요원 항해(순경)', '경찰직 - 함정요원 기관(순경)', '경찰직 - 해경학과 항해(경장)', '경찰직 - 해경학과 기관(경장)']::text[], 3, true, false),
   ('maritime-law', '해사법규', '법규', 'violet', array['경찰직 - 공채(순경)', '경찰직 - 함정요원 항해(순경)', '경찰직 - 함정요원 기관(순경)']::text[], 4, true, false)
 on conflict (id) do update set
   name = excluded.name,

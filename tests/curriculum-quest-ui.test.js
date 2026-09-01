@@ -26,6 +26,15 @@ assert.match(appSource, /label: "MBT 풀이"/);
 assert.match(appSource, /copy: "학습 범위 MBT 풀이 후 75~80점을 달성해야 합니다\."/);
 assert.match(appSource, /function getCurriculumStageLectures/);
 assert.match(appSource, /function getCurriculumStageTitle\(subject, stageNumber\)[\s\S]*?const managedTitle[\s\S]*?if \(managedTitle\) return managedTitle;[\s\S]*?\.join\(", "\);[\s\S]*?if \(lectureTitle\) return lectureTitle/);
+assert.match(appSource, /let curriculumQuestCatalogError = "";/);
+assert.match(
+  appSource,
+  /function renderCurriculumQuest\(\)[\s\S]*?if \(!curriculumQuestCatalogLoaded\) return renderCurriculumQuestCatalogLoading\(\);[\s\S]*?return curriculumQuestView === "detail"/
+);
+assert.match(appSource, /function renderCurriculumQuestCatalogLoading\(\)[\s\S]*?최신 회차 정보를 불러오는 중입니다\./);
+assert.match(appSource, /function renderCurriculumQuestCatalogError\(\)[\s\S]*?예전 회차명은 표시하지 않습니다\.[\s\S]*?다시 불러오기/);
+assert.match(appSource, /console\.warn\("Managed curriculum is unavailable\."/);
+assert.doesNotMatch(appSource, /using the bundled curriculum/);
 assert.match(indexSource, /app\.js\?v=20260901-curriculum-live-refresh/);
 assert.match(appSource, /function isCurriculumOrientationStage/);
 assert.match(appSource, /curriculum-lecture-row/);

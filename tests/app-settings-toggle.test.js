@@ -56,6 +56,7 @@ const originalEnv = {
       attendanceDeadline: "08:50",
       attendanceDeadlineEnabled: false,
       onlineManagedStudyCafeEnabled: true,
+      phoneVerificationEnabled: true,
     }),
   }]);
   const publicResponse = createResponse();
@@ -63,6 +64,7 @@ const originalEnv = {
   assert.equal(publicResponse.statusCode, 200);
   assert.equal(publicResponse.payload.settings.onlineManagedStudyCafeEnabled, true);
   assert.equal(publicResponse.payload.settings.curriculumQuestEnabled, false);
+  assert.equal(publicResponse.payload.settings.phoneVerificationEnabled, true);
 
   const managerToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "manager",
@@ -88,6 +90,14 @@ const originalEnv = {
     curriculumForbiddenResponse
   );
   assert.equal(curriculumForbiddenResponse.statusCode, 403);
+  assert.equal(fetchCalled, false);
+
+  const phoneVerificationForbiddenResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { phoneVerificationEnabled: true } }, managerToken),
+    phoneVerificationForbiddenResponse
+  );
+  assert.equal(phoneVerificationForbiddenResponse.statusCode, 403);
   assert.equal(fetchCalled, false);
 
   const ddayForbiddenResponse = createResponse();
@@ -133,6 +143,15 @@ const originalEnv = {
   );
   assert.equal(curriculumAdminResponse.statusCode, 200);
   assert.equal(curriculumAdminResponse.payload.settings.curriculumQuestEnabled, true);
+
+  const phoneVerificationAdminResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { phoneVerificationEnabled: true } }, adminToken),
+    phoneVerificationAdminResponse
+  );
+  assert.equal(phoneVerificationAdminResponse.statusCode, 200);
+  assert.equal(phoneVerificationAdminResponse.payload.settings.phoneVerificationEnabled, true);
+  assert.equal(savedSettings.phoneVerificationEnabled, true);
 
   const ddayAdminResponse = createResponse();
   await handler(

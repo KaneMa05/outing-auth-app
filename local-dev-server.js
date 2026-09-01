@@ -3,6 +3,18 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { handleLocalQuestionBoard } = require("./local-question-board");
+const {
+  createPhoneVerificationToken,
+  isValidPhone,
+  normalizePhone,
+  validatePhoneVerificationToken,
+} = require("./api/lecture-applications")._private;
+const {
+  createSessionToken,
+  getConfig: getTeacherAuthConfig,
+  readCookie,
+  sessionCookie,
+} = require("./api/teacher-auth-utils");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 3000);
@@ -12,6 +24,10 @@ const LOCAL_QUESTION_BOARD_FILE = path.join(ROOT, ".local-question-board.json");
 const LOCAL_CURRICULUM_FILE = path.join(ROOT, ".local-curriculum.json");
 const LOCAL_CURRICULUM_PROGRESS_FILE = path.join(ROOT, ".local-curriculum-progress.json");
 const LOCAL_APP_SETTINGS_FILE = path.join(ROOT, ".local-app-settings.json");
+const LOCAL_PHONE_VERIFICATION_SECRET = "local-development-phone-verification-secret-only";
+const LOCAL_PHONE_VERIFICATION_TTL_MS = 3 * 60 * 1000;
+const LOCAL_STUDENT_PREVIEW_COOKIE = "local_student_logged_out_preview";
+const localPhoneVerifications = new Map();
 
 loadEnv(path.join(ROOT, ".env"));
 loadEnv(path.join(ROOT, ".env.local"));
@@ -48,6 +64,14 @@ const mimeTypes = {
 http
   .createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (url.pathname === "/_local/admin-preview") {
+      handleLocalAdminPreview(req, res);
+      return;
+    }
+    if (url.pathname === "/_local/student-preview") {
+      handleLocalStudentPreview(req, res);
+      return;
+    }
     if (url.pathname === "/api/local-state") {
       await handleLocalState(req, res);
       return;
@@ -98,6 +122,52 @@ http
     console.log(`Local dev server running at http://localhost:${PORT}/`);
   });
 
+function handleLocalAdminPreview(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { Allow: "GET" });
+    res.end();
+    return;
+  }
+  const { username, secret } = getTeacherAuthConfig();
+  if (!secret) {
+    sendLocalJson(res, 503, { ok: false, error: "teacher_auth_not_configured" });
+    return;
+  }
+  const token = createSessionToken(secret, {
+    username,
+    role: "admin",
+    permissions: ["*"],
+  });
+  res.writeHead(302, {
+    "Cache-Control": "no-store",
+    "Set-Cookie": sessionCookie(token, req),
+    Location: "/teacher.html#students",
+  });
+  res.end();
+}
+
+function handleLocalStudentPreview(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { Allow: "GET" });
+    res.end();
+    return;
+  }
+  res.writeHead(200, {
+    "Cache-Control": "no-store",
+    "Content-Type": "text/html; charset=utf-8",
+    "Set-Cookie": `${LOCAL_STUDENT_PREVIEW_COOKIE}=1; SameSite=Lax; Path=/; Max-Age=28800`,
+  });
+  res.end(`<!doctype html><html lang="ko"><meta charset="utf-8"><title>수강생 비로그인 미리보기</title><script>
+    localStorage.removeItem("ronpark_outing_auth_v2");
+    localStorage.removeItem("ronpark_lecture_application_receipt_v1");
+    location.replace("/#auth");
+  </script></html>`);
+}
+
+function isLocalStudentLoggedOutPreview(req) {
+  return readCookie(req, LOCAL_STUDENT_PREVIEW_COOKIE) === "1";
+}
+
 function loadEnv(filePath) {
   if (!fs.existsSync(filePath)) return;
   const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
@@ -116,6 +186,55 @@ async function handleLocalLectureApplications(req, res) {
   const applications = readLocalLectureApplications();
   if (req.method === "POST") {
     const body = await readLocalJson(req);
+    if (body.action === "request-phone-verification") {
+      if (readLocalAppSettings().phoneVerificationEnabled !== true) {
+        return sendLocalJson(res, 403, { ok: false, error: "phone_verification_disabled", localPreview: true });
+      }
+      const phone = normalizePhone(body.phone);
+      if (!isValidPhone(phone)) return sendLocalJson(res, 400, { ok: false, error: "invalid_phone", localPreview: true });
+      const requestId = crypto.randomUUID();
+      const devCode = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+      localPhoneVerifications.set(requestId, {
+        phone,
+        code: devCode,
+        attempts: 0,
+        expiresAt: Date.now() + LOCAL_PHONE_VERIFICATION_TTL_MS,
+      });
+      return sendLocalJson(res, 200, {
+        ok: true,
+        requestId,
+        expiresInSeconds: LOCAL_PHONE_VERIFICATION_TTL_MS / 1000,
+        devCode,
+        localPreview: true,
+      });
+    }
+    if (body.action === "verify-phone") {
+      if (readLocalAppSettings().phoneVerificationEnabled !== true) {
+        return sendLocalJson(res, 403, { ok: false, error: "phone_verification_disabled", localPreview: true });
+      }
+      const phone = normalizePhone(body.phone);
+      const requestId = String(body.requestId || "").trim();
+      const verification = localPhoneVerifications.get(requestId);
+      if (!verification || verification.phone !== phone || verification.expiresAt <= Date.now()) {
+        localPhoneVerifications.delete(requestId);
+        return sendLocalJson(res, 400, { ok: false, error: "invalid_or_expired_verification_code", localPreview: true });
+      }
+      verification.attempts += 1;
+      if (verification.attempts > 5) {
+        localPhoneVerifications.delete(requestId);
+        return sendLocalJson(res, 429, { ok: false, error: "too_many_verification_attempts", localPreview: true });
+      }
+      if (String(body.authNumber || "").trim() !== verification.code) {
+        return sendLocalJson(res, 400, { ok: false, error: "invalid_or_expired_verification_code", localPreview: true });
+      }
+      localPhoneVerifications.delete(requestId);
+      return sendLocalJson(res, 200, {
+        ok: true,
+        phoneVerificationToken: createPhoneVerificationToken(phone, requestId, LOCAL_PHONE_VERIFICATION_SECRET),
+        expiresInSeconds: 10 * 60,
+        localPreview: true,
+      });
+    }
     if (body.action === "status") {
       const lookupTokenHash = hashLocalLookupToken(body.lookupToken);
       const application = applications.find(
@@ -135,6 +254,13 @@ async function handleLocalLectureApplications(req, res) {
     }
 
     const now = new Date().toISOString();
+    const phone = normalizePhone(body.phone);
+    if (
+      readLocalAppSettings().phoneVerificationEnabled === true
+      && !validatePhoneVerificationToken(body.phoneVerificationToken, phone, LOCAL_PHONE_VERIFICATION_SECRET)
+    ) {
+      return sendLocalJson(res, 400, { ok: false, error: "phone_verification_required", localPreview: true });
+    }
     const lookupToken = crypto.randomBytes(32).toString("base64url");
     const application = {
       id: crypto.randomUUID(),
@@ -351,9 +477,13 @@ async function handleLocalAppSettings(req, res) {
     return sendLocalJson(res, 200, { ok: true, settings: readLocalAppSettings(), localPreview: true });
   }
   if (req.method === "POST") {
-    if (!readLocalTeacherSession(req)) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+    const session = readLocalTeacherSession(req);
+    if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
     const body = await readLocalJson(req);
     const rawSettings = body.settings || body;
+    if (Object.prototype.hasOwnProperty.call(rawSettings || {}, "phoneVerificationEnabled") && session.role !== "admin") {
+      return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+    }
     const currentSettings = readLocalAppSettings();
     const settings = {
       ...currentSettings,
@@ -375,6 +505,7 @@ function readLocalAppSettings() {
     attendanceDeadlineEnabled: false,
     onlineManagedStudyCafeEnabled: false,
     curriculumQuestEnabled: false,
+    phoneVerificationEnabled: false,
     studentDday: null,
   };
   if (!fs.existsSync(LOCAL_APP_SETTINGS_FILE)) return defaults;
@@ -460,11 +591,21 @@ async function handleLocalState(req, res) {
       return;
     }
     const state = JSON.parse(fs.readFileSync(LOCAL_STATE_FILE, "utf8") || "null");
+    if (isLocalStudentLoggedOutPreview(req) && state?.settings) {
+      state.settings.studentAuthId = "";
+      state.settings.lastStudentId = "";
+      state.settings.studentProfiles = {};
+      state.settings.forceLocalStudentAuth = false;
+    }
     res.end(JSON.stringify({ ok: true, exists: true, state }));
     return;
   }
 
   if (req.method === "POST") {
+    if (isLocalStudentLoggedOutPreview(req)) {
+      sendLocalJson(res, 200, { ok: true, preview: true });
+      return;
+    }
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");

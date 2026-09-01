@@ -91,6 +91,88 @@ function renderOnlineManagedStudyCafeTogglePanel() {
   ]);
 }
 
+function renderLoginPhoneVerificationSettingsButton() {
+  if (!isTeacherAdmin()) return null;
+  return button("로그인 인증 설정", "mini-btn", "button", openLoginPhoneVerificationSettingsModal);
+}
+
+function openLoginPhoneVerificationSettingsModal() {
+  let enabled = state.settings.phoneVerificationEnabled === true;
+  const toggle = el("input", {
+    type: "checkbox",
+    role: "switch",
+    checked: enabled,
+    ariaLabel: "로그인 시 인증번호 사용 허용",
+  });
+  const status = el(
+    "strong",
+    { className: "online-managed-toggle-status" },
+    enabled ? "사용 중" : "사용 안 함"
+  );
+  const description = el(
+    "p",
+    { className: "subtle" },
+    enabled
+      ? "수강생 등록 신청 화면에 인증번호 받기와 인증번호 입력란이 표시됩니다."
+      : "휴대전화 번호만 입력하며 인증번호 관련 버튼과 입력란은 표시하지 않습니다."
+  );
+
+  toggle.addEventListener("change", async () => {
+    const nextEnabled = toggle.checked;
+    toggle.disabled = true;
+    try {
+      const response = await fetch("/api/app-settings", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settings: { phoneVerificationEnabled: nextEnabled },
+        }),
+      });
+      const data = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !data.ok) throw new Error(data.error || "app_settings_save_failed");
+      applyRemoteAppSettings(data.settings);
+      saveState({ skipRemote: true });
+      enabled = state.settings.phoneVerificationEnabled === true;
+      toggle.checked = enabled;
+      toggle.disabled = false;
+      status.textContent = enabled ? "사용 중" : "사용 안 함";
+      description.textContent = enabled
+        ? "수강생 등록 신청 화면에 인증번호 받기와 인증번호 입력란이 표시됩니다."
+        : "휴대전화 번호만 입력하며 인증번호 관련 버튼과 입력란은 표시하지 않습니다.";
+      notify(nextEnabled
+        ? "로그인 인증번호 사용을 허용했습니다."
+        : "로그인 인증번호 사용을 중지했습니다.");
+    } catch (error) {
+      console.error(error);
+      toggle.checked = enabled;
+      toggle.disabled = false;
+      status.textContent = enabled ? "사용 중" : "사용 안 함";
+      notify("로그인 인증번호 설정을 저장하지 못했습니다.");
+    }
+  });
+
+  openInfoModal({
+    title: "로그인 인증 설정",
+    className: "login-phone-verification-modal",
+    confirmLabel: "닫기",
+    content: el("div", { className: "login-phone-verification-settings" }, [
+    el("div", { className: "online-managed-toggle-row" }, [
+      el("div", {}, [
+        el("strong", {}, "로그인 시 인증번호 사용 허용"),
+        description,
+      ]),
+      el("label", { className: "online-managed-toggle-control" }, [toggle, status]),
+    ]),
+    el(
+      "p",
+      { className: "subtle online-managed-toggle-note" },
+      "SOLAPI 채널과 알림톡 템플릿 준비가 끝난 뒤 켜주세요. 관리자 계정만 변경할 수 있습니다."
+    ),
+    ]),
+  });
+}
+
 function renderLectureApplicationsAdminPanel() {
   ensureLectureApplicationsLoaded();
   const applications = lectureApplicationAdminState.applications;
@@ -115,9 +197,10 @@ function renderLectureApplicationsAdminPanel() {
       el("p", { className: "subtle" }, "오프라인반·온라인 관리반은 관리자가 등록번호를 입력하고, 인강생은 자동 발급됩니다."),
     ]),
     el("div", { className: "lecture-application-admin-controls" }, [
+      renderLoginPhoneVerificationSettingsButton(),
       statusSelect,
       button("새로고침", "mini-btn", "button", () => loadLectureApplications({ force: true })),
-    ]),
+    ].filter(Boolean)),
   ]);
 
   if (lectureApplicationAdminState.loading && !lectureApplicationAdminState.loaded) {
@@ -720,7 +803,7 @@ function teacherStudentForm() {
   return el("div", { className: "grid" }, [
     panel("학생 등록", [form]),
     studentCountStatGroup(),
-    studentAdminSearchControls(visibleStudents.length, filteredStudents.length),
+    studentAdminSearchControls(selected, visibleStudents, filteredStudents.length),
     studentTable,
   ]);
 }
@@ -1148,7 +1231,8 @@ function formatUserAgentPreview(userAgent) {
   return value.length > 28 ? `${value.slice(0, 28)}...` : value;
 }
 
-function studentAdminSearchControls(totalCount, filteredCount) {
+function studentAdminSearchControls(selectedCohort, students, filteredCount) {
+  const totalCount = students.length;
   const search = input("studentAdminSearch", "search", "번호 또는 이름 검색", studentAdminFilters.query);
   const categorySelect = el("select", { name: "studentCategory" }, [
     el("option", { value: "all" }, "전체 카테고리"),
@@ -1175,9 +1259,163 @@ function studentAdminSearchControls(totalCount, filteredCount) {
     form,
     el("div", { className: "field student-admin-result" }, [
       el("span", {}, "검색 결과"),
-      el("strong", {}, `${filteredCount}/${totalCount}명`),
+      el("div", { className: "student-admin-result-actions" }, [
+        el("strong", {}, `${filteredCount}/${totalCount}명`),
+        button("엑셀 다운로드", "btn secondary student-roster-download", "button", () => {
+          downloadStudentCohortWorkbook(selectedCohort, students);
+        }),
+      ]),
     ]),
   ]);
+}
+
+function downloadStudentCohortWorkbook(selectedCohort, students) {
+  if (!students.length) return notify("다운로드할 학생이 없습니다.");
+  const cohortLabel = selectedCohort?.label || `${selectedCohort?.value || "선택"}기`;
+  const sortedStudents = [...students]
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), "ko-KR", { numeric: true }));
+  const rows = [
+    ["등록번호", "이름", "카테고리", "반", "앱 등록", "등록 시간", "직렬", "성별", "출석"],
+    ...sortedStudents.map((student) => {
+      const profile = getStudentProfileForTeacher(student.id);
+      return [
+        student.id,
+        student.name,
+        getStudentCategoryLabel(student),
+        student.className || "-",
+        profile ? "완료" : "미등록",
+        formatDateCompact(profile?.authedAt),
+        normalizeCoastGuardTrack(profile?.track) || "-",
+        profile?.gender || "-",
+        isAttendanceExcludedStudent(student) ? "제외" : "포함",
+      ];
+    }),
+  ];
+  const blob = createStudentCohortWorkbookBlob(cohortLabel, rows);
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `${sanitizeWorkbookFileName(cohortLabel)}_학생_명단.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify(`${cohortLabel} 학생 명단 ${students.length}명을 다운로드했습니다.`);
+}
+
+function createStudentCohortWorkbookBlob(sheetTitle, rows) {
+  const encoder = new TextEncoder();
+  const xml = (value) => encoder.encode(value);
+  const safeSheetTitle = sanitizeWorkbookSheetName(sheetTitle);
+  const files = [
+    ["[Content_Types].xml", xml(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`)],
+    ["_rels/.rels", xml(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`)],
+    ["xl/workbook.xml", xml(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escapeWorkbookXml(safeSheetTitle)}" sheetId="1" r:id="rId1"/></sheets></workbook>`)],
+    ["xl/_rels/workbook.xml.rels", xml(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`)],
+    ["xl/styles.xml", xml(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="맑은 고딕"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="맑은 고딕"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="49" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"><alignment horizontal="center"/></xf></cellXfs></styleSheet>`)],
+    ["xl/worksheets/sheet1.xml", xml(createStudentRosterSheetXml(rows))],
+  ];
+  return new Blob([createStoredZip(files)], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+function createStudentRosterSheetXml(rows) {
+  const columnWidths = [16, 14, 16, 18, 12, 20, 14, 10, 10];
+  const columns = columnWidths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("");
+  const sheetRows = rows.map((row, rowIndex) => {
+    const cells = row.map((value, columnIndex) => {
+      const reference = `${workbookColumnName(columnIndex)}${rowIndex + 1}`;
+      const style = rowIndex === 0 ? 1 : 0;
+      return `<c r="${reference}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escapeWorkbookXml(value)}</t></is></c>`;
+    }).join("");
+    return `<row r="${rowIndex + 1}">${cells}</row>`;
+  }).join("");
+  const lastCell = `${workbookColumnName(Math.max(0, (rows[0]?.length || 1) - 1))}${Math.max(1, rows.length)}`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${columns}</cols><sheetData>${sheetRows}</sheetData><autoFilter ref="A1:${lastCell}"/></worksheet>`;
+}
+
+function createStoredZip(files) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  files.forEach(([name, content]) => {
+    const nameBytes = encoder.encode(name);
+    const crc = workbookCrc32(content);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(localHeader.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0x0800, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, content.length, true);
+    localView.setUint32(22, content.length, true);
+    localView.setUint16(26, nameBytes.length, true);
+    localHeader.set(nameBytes, 30);
+    localParts.push(localHeader, content);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0x0800, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, content.length, true);
+    centralView.setUint32(24, content.length, true);
+    centralView.setUint16(28, nameBytes.length, true);
+    centralView.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader);
+    offset += localHeader.length + content.length;
+  });
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, offset, true);
+  return new Blob([...localParts, ...centralParts, end]);
+}
+
+function workbookCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function workbookColumnName(index) {
+  let value = index + 1;
+  let name = "";
+  while (value > 0) {
+    value -= 1;
+    name = String.fromCharCode(65 + (value % 26)) + name;
+    value = Math.floor(value / 26);
+  }
+  return name;
+}
+
+function escapeWorkbookXml(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function sanitizeWorkbookSheetName(value) {
+  return String(value || "학생 명단").replace(/[\\/*?:[\]]/g, " ").trim().slice(0, 31) || "학생 명단";
+}
+
+function sanitizeWorkbookFileName(value) {
+  return String(value || "학생_명단").replace(/[\\/:*?"<>|]/g, "_").trim() || "학생_명단";
 }
 
 function openStudentPreview(studentId) {

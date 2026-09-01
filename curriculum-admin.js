@@ -409,6 +409,7 @@ async function saveCurriculumAdminSubject(subject) {
   }
   curriculumAdminState.saving = true;
   render();
+  openLoadingModal("커리큘럼 저장 중", "변경사항을 저장하고 있습니다. 잠시만 기다려주세요.");
   try {
     const subjectsToSave = curriculumAdminState.usingBundledDefaults ? curriculumAdminState.subjects : [subject];
     for (const item of subjectsToSave) await curriculumAdminRequest({ action: "save_subject", subject: serializeCurriculumAdminSubject(item) });
@@ -420,6 +421,7 @@ async function saveCurriculumAdminSubject(subject) {
     notify(curriculumAdminState.error);
   } finally {
     curriculumAdminState.saving = false;
+    closeLoadingModal();
     render();
   }
 }

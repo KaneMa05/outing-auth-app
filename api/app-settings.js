@@ -37,6 +37,10 @@ module.exports = async function handler(req, res) {
         rawSettings,
         "curriculumQuestEnabled"
       );
+      const writesPhoneVerification = Object.prototype.hasOwnProperty.call(
+        rawSettings,
+        "phoneVerificationEnabled"
+      );
       const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday");
       if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
@@ -51,6 +55,10 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (writesCurriculumQuest && !hasPermission(session, "curriculum.write")) {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      if (writesPhoneVerification && session.role !== "admin") {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
@@ -120,6 +128,7 @@ function normalizeSettings(settings) {
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
     onlineManagedStudyCafeEnabled: settings.onlineManagedStudyCafeEnabled === true,
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
+    phoneVerificationEnabled: settings.phoneVerificationEnabled === true,
     studentDday: normalizeStudentDday(settings.studentDday),
   };
   if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {

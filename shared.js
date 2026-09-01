@@ -537,6 +537,7 @@ function defaultState() {
       attendanceDeadlineEnabled: false,
       onlineManagedStudyCafeEnabled: false,
       curriculumQuestEnabled: false,
+      phoneVerificationEnabled: false,
       studentDday: null,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
@@ -4342,6 +4343,9 @@ async function saveAppSettingsToRemote() {
   if (APP_MODE === "teacher" && hasTeacherPermission("students.read")) {
     settings.onlineManagedStudyCafeEnabled = state.settings.onlineManagedStudyCafeEnabled === true;
   }
+  if (APP_MODE === "teacher" && isTeacherAdmin()) {
+    settings.phoneVerificationEnabled = state.settings.phoneVerificationEnabled === true;
+  }
   const response = await fetch("/api/app-settings", {
     method: "POST",
     credentials: "same-origin",
@@ -4412,6 +4416,7 @@ function applyRemoteAppSettings(settings) {
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
   state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
   state.settings.curriculumQuestEnabled = settings.curriculumQuestEnabled === true;
+  state.settings.phoneVerificationEnabled = settings.phoneVerificationEnabled === true;
   state.settings.studentDday = settings.studentDday && typeof settings.studentDday === "object"
     ? settings.studentDday
     : null;

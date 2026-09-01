@@ -22,8 +22,8 @@ const subjectRows = [];
 const stageRows = [];
 const lectureRows = [];
 const trackTargetsBySubject = {
-  "criminal-law": ["경찰직 - 공채(순경)"],
-  "coast-guard-intro": ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"],
+  "criminal-law": ["경찰직 - 공채(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"],
+  "coast-guard-intro": ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)", "경찰직 - 해경학과 항해(경장)", "경찰직 - 해경학과 기관(경장)"],
   "maritime-law": ["경찰직 - 공채(순경)", "경찰직 - 함정요원 항해(순경)", "경찰직 - 함정요원 기관(순경)"],
 };
 const sortOrderBySubject = { "criminal-law": 1, "coast-guard-intro": 3, "maritime-law": 4 };

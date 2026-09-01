@@ -4,11 +4,13 @@ const fs = require("node:fs");
 const handler = require("../api/lecture-applications");
 const { COOKIE_NAME, createSessionToken } = require("../api/teacher-auth-utils");
 const {
+  createPhoneVerificationToken,
   hashLookupToken,
   isRegistrationNumberForCohort,
   isValidCohort,
   normalizeApplication,
   normalizePushSubscription,
+  validatePhoneVerificationToken,
   validateApplication,
 } = handler._private;
 
@@ -46,6 +48,12 @@ function jsonResponse(payload, status = 200) {
   };
 }
 
+function appSettingsResponse(phoneVerificationEnabled) {
+  return jsonResponse([{
+    body: JSON.stringify({ phoneVerificationEnabled }),
+  }]);
+}
+
 const validBody = {
   name: "홍길동",
   phone: "010-1234-5678",
@@ -76,12 +84,18 @@ assert.equal(isValidCohort("0"), false);
 assert.equal(isRegistrationNumberForCohort("18009", "18"), true);
 assert.equal(isRegistrationNumberForCohort("19009", "18"), false);
 assert.equal(isRegistrationNumberForCohort("18000", "18"), false);
+const testPhoneVerificationSecret = "phone-verification-test-secret-at-least-32-characters";
+const testPhoneVerificationToken = createPhoneVerificationToken("010-1234-5678", "request-test", testPhoneVerificationSecret, 1000);
+assert.equal(validatePhoneVerificationToken(testPhoneVerificationToken, "01012345678", testPhoneVerificationSecret, 2000), true);
+assert.equal(validatePhoneVerificationToken(testPhoneVerificationToken, "01099999999", testPhoneVerificationSecret, 2000), false);
+assert.equal(validatePhoneVerificationToken(testPhoneVerificationToken, "01012345678", testPhoneVerificationSecret, 1000 + 11 * 60 * 1000), false);
 
 const migration = fs.readFileSync("supabase/add-lecture-applications.sql", "utf8");
 const labelUpdate = fs.readFileSync("supabase/update-lecture-student-label.sql", "utf8");
 const pushMigration = fs.readFileSync("supabase/add-lecture-application-push-subscriptions.sql", "utf8");
 const courseTypeMigration = fs.readFileSync("supabase/add-lecture-application-course-type.sql", "utf8");
 const termsConsentMigration = fs.readFileSync("supabase/add-lecture-application-terms-consent.sql", "utf8");
+const phoneVerificationMigration = fs.readFileSync("supabase/add-phone-verification-challenges.sql", "utf8");
 const deletedStudentReleaseMigration = fs.readFileSync("supabase/release-application-identifiers-on-student-delete.sql", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
 const serviceWorkerSource = fs.readFileSync("sw.js", "utf8");
@@ -115,6 +129,11 @@ assert.match(courseTypeMigration, /raise exception 'registration_number_cohort_m
 assert.match(courseTypeMigration, /case when new\.course_type = 'lecture' then null else new\.cohort end/);
 assert.match(courseTypeMigration, /next_attendance_excluded := new\.course_type <> 'offline'/);
 assert.match(termsConsentMigration, /add column if not exists terms_consent_at timestamptz/);
+assert.match(phoneVerificationMigration, /create table if not exists public\.phone_verification_challenges/);
+assert.match(phoneVerificationMigration, /alter table public\.phone_verification_challenges enable row level security/);
+assert.match(phoneVerificationMigration, /revoke all on table public\.phone_verification_challenges from anon, authenticated/);
+assert.match(phoneVerificationMigration, /grant select, insert, update, delete on table public\.phone_verification_challenges to service_role/);
+assert.doesNotMatch(phoneVerificationMigration, /\bphone\s+text\b/);
 assert.match(deletedStudentReleaseMigration, /new\.status = 'cancelled'[\s\S]*?is_active = false/);
 assert.match(deletedStudentReleaseMigration, /security definer[\s\S]*?set search_path = ''/);
 assert.match(deletedStudentReleaseMigration, /revoke all on function private\.cancel_application_for_deactivated_student\(\) from public/);
@@ -132,7 +151,12 @@ assert.match(appSource, /getLectureApplicationReceipt\(\)\?\.approvedStudentId =
 assert.match(appSource, /approvedApplicationStudent = applicationReceipt\?\.approvedStudentId === selectedStudent\.id/);
 assert.doesNotMatch(appSource, /button\("상태 새로고침"/);
 assert.doesNotMatch(appSource, /최신 검수 상태를 자동으로 확인합니다/);
-assert.match(appSource, /field\("휴대전화 번호", phoneInput\)/);
+assert.match(appSource, /className: "field full lecture-phone-verification"/);
+assert.match(appSource, /phoneVerificationEnabled \? phoneVerificationField : field\("휴대전화 번호", phoneInput\)/);
+assert.match(appSource, /action: "request-phone-verification"/);
+assert.match(appSource, /action: "verify-phone"/);
+assert.match(appSource, /phoneVerificationToken: phoneVerification\.token/);
+assert.match(appSource, /로컬 미리보기 인증번호/);
 assert.match(appSource, /field\("생년월일", birthDateInput\)/);
 assert.match(appSource, /field\("인강 아이디"/);
 assert.match(appSource, /privacyConsent: true/);
@@ -170,6 +194,10 @@ assert.match(teacherStudentsSource, /function suggestNextManualRegistrationNumbe
 assert.match(teacherStudentsSource, /isRegistrationNumberForCohort\(registrationNumber, cohort\)/);
 assert.match(teacherStudentsSource, /registrationNumber/);
 assert.match(teacherStudentsSource, /function openRejectLectureApplicationModal\(application\)/);
+assert.match(teacherStudentsSource, /function renderLoginPhoneVerificationSettingsButton\(\)/);
+assert.match(teacherStudentsSource, /function openLoginPhoneVerificationSettingsModal\(\)/);
+assert.match(teacherStudentsSource, /로그인 시 인증번호 사용 허용/);
+assert.match(teacherStudentsSource, /lecture-application-admin-controls[\s\S]*?renderLoginPhoneVerificationSettingsButton\(\)[\s\S]*?statusSelect/);
 assert.match(teacherSource, /renderOnlineManagedStudyCafeTogglePanel\(\)[\s\S]*?renderLectureApplicationsAdminPanel\(\)[\s\S]*?teacherStudentForm\(\)/);
 assert.match(styleSource, /\.info-modal-panel\.lecture-application-modal/);
 assert.match(styleSource, /\.lecture-application-table-wrap \.responsive-table th \{[\s\S]*?white-space: nowrap/);
@@ -177,6 +205,9 @@ assert.match(styleSource, /\.lecture-application-form input\[type="date"\][\s\S]
 assert.match(styleSource, /\.info-modal-panel\.lecture-application-modal[\s\S]*?overflow-x: hidden/);
 assert.match(styleSource, /\.lecture-application-status-card/);
 assert.match(localServerSource, /function handleLocalLectureApplications\(req, res\)/);
+assert.match(localServerSource, /request-phone-verification/);
+assert.match(localServerSource, /phoneVerificationEnabled/);
+assert.match(localServerSource, /validatePhoneVerificationToken/);
 assert.match(localServerSource, /localPreview: true/);
 
 const originalFetch = global.fetch;
@@ -187,24 +218,145 @@ const originalEnv = {
   vapidSubject: process.env.VAPID_SUBJECT,
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+  solapiApiKey: process.env.SOLAPI_API_KEY,
+  solapiApiSecret: process.env.SOLAPI_API_SECRET,
+  solapiApiBaseUrl: process.env.SOLAPI_API_BASE_URL,
+  solapiPfId: process.env.SOLAPI_KAKAO_PF_ID,
+  solapiTemplateId: process.env.SOLAPI_KAKAO_TEMPLATE_ID,
+  solapiSenderNumber: process.env.SOLAPI_SENDER_NUMBER,
+  phoneVerificationSecret: process.env.PHONE_VERIFICATION_TOKEN_SECRET,
 };
 
 (async () => {
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
   process.env.TEACHER_SESSION_SECRET = "lecture-application-test-secret";
+  process.env.SOLAPI_API_KEY = "solapi-test-api-key";
+  process.env.SOLAPI_API_SECRET = "solapi-test-api-secret";
+  process.env.SOLAPI_API_BASE_URL = "https://api.solapi.test";
+  process.env.SOLAPI_KAKAO_PF_ID = "PF-test";
+  process.env.SOLAPI_KAKAO_TEMPLATE_ID = "KA-test";
+  process.env.SOLAPI_SENDER_NUMBER = "0212345678";
+  process.env.PHONE_VERIFICATION_TOKEN_SECRET = testPhoneVerificationSecret;
+
+  let verificationChallenge;
+  let sentAuthNumber;
+  global.fetch = async (url, options) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(true);
+    }
+    if (String(url).includes("phone_verification_challenges?phone_hash=eq.")) {
+      assert.equal(options.method, "GET");
+      return jsonResponse([]);
+    }
+    if (String(url).endsWith("/rest/v1/phone_verification_challenges")) {
+      assert.equal(options.method, "POST");
+      verificationChallenge = JSON.parse(options.body);
+      assert.match(verificationChallenge.id, /^[0-9a-f-]{36}$/);
+      assert.match(verificationChallenge.phone_hash, /^[0-9a-f]{64}$/);
+      assert.match(verificationChallenge.code_hash, /^[0-9a-f]{64}$/);
+      return jsonResponse([], 201);
+    }
+    assert.equal(String(url), "https://api.solapi.test/messages/v4/send-many/detail");
+    assert.match(options.headers.Authorization, /^HMAC-SHA256 apiKey=solapi-test-api-key, date=.+, salt=[0-9a-f]{32}, signature=[0-9a-f]{64}$/);
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.messages[0].to, "01012345678");
+    assert.equal(payload.messages[0].from, "0212345678");
+    assert.equal(payload.messages[0].kakaoOptions.pfId, "PF-test");
+    assert.equal(payload.messages[0].kakaoOptions.templateId, "KA-test");
+    assert.equal(payload.messages[0].kakaoOptions.disableSms, false);
+    sentAuthNumber = payload.messages[0].kakaoOptions.variables["#{인증번호}"];
+    assert.match(sentAuthNumber, /^\d{6}$/);
+    return jsonResponse({ errorCount: 0, resultList: [{ statusCode: "2000", messageId: "message-1" }] });
+  };
+  const verificationRequest = await invoke("POST", {
+    action: "request-phone-verification",
+    phone: validBody.phone,
+  }, "", "10.0.1.1");
+  assert.equal(verificationRequest.statusCode, 200);
+  assert.equal(verificationRequest.payload.requestId, verificationChallenge.id);
+  assert.equal(verificationRequest.payload.expiresInSeconds, 180);
+
+  global.fetch = async (url, options) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(true);
+    }
+    if (options.method === "GET") {
+      assert.match(String(url), new RegExp(`phone_verification_challenges\\?id=eq\\.${verificationChallenge.id}`));
+      return jsonResponse([{
+        ...verificationChallenge,
+        attempts: 0,
+        verified_at: null,
+      }]);
+    }
+    assert.equal(options.method, "PATCH");
+    assert.match(String(url), new RegExp(`phone_verification_challenges\\?id=eq\\.${verificationChallenge.id}`));
+    return jsonResponse([{ ...verificationChallenge, verified_at: new Date().toISOString() }]);
+  };
+  const verificationCheck = await invoke("POST", {
+    action: "verify-phone",
+    phone: validBody.phone,
+    requestId: verificationChallenge.id,
+    authNumber: sentAuthNumber,
+  }, "", "10.0.1.2");
+  assert.equal(verificationCheck.statusCode, 200);
+  assert.equal(validatePhoneVerificationToken(
+    verificationCheck.payload.phoneVerificationToken,
+    validBody.phone,
+    testPhoneVerificationSecret
+  ), true);
+  const verifiedBody = { ...validBody, phoneVerificationToken: verificationCheck.payload.phoneVerificationToken };
+
+  global.fetch = async (url) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(false);
+    }
+    throw new Error("SOLAPI should not be called while phone verification is disabled");
+  };
+  const disabledVerificationRequest = await invoke("POST", {
+    action: "request-phone-verification",
+    phone: validBody.phone,
+  }, "", "10.0.1.3");
+  assert.equal(disabledVerificationRequest.statusCode, 403);
+  assert.equal(disabledVerificationRequest.payload.error, "phone_verification_disabled");
 
   global.fetch = async () => { throw new Error("fetch should not run"); };
   const invalid = await invoke("POST", { ...validBody, birthDate: "2020-02-31" }, "", "10.0.0.1");
   assert.equal(invalid.statusCode, 400);
   assert.equal(invalid.payload.error, "invalid_birth_date");
 
+  global.fetch = async (url) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(true);
+    }
+    throw new Error("fetch should not run without phone verification");
+  };
+  const unverified = await invoke("POST", validBody, "", "10.0.0.14");
+  assert.equal(unverified.statusCode, 400);
+  assert.equal(unverified.payload.error, "phone_verification_required");
+
+  let disabledInsertedBody;
+  global.fetch = async (url, options) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(false);
+    }
+    disabledInsertedBody = JSON.parse(options.body);
+    return jsonResponse([{ id: "application-without-verification" }], 201);
+  };
+  const disabledCreated = await invoke("POST", validBody, "", "10.0.0.15");
+  assert.equal(disabledCreated.statusCode, 201);
+  assert.equal(disabledCreated.payload.applicationId, "application-without-verification");
+  assert.equal(disabledInsertedBody.phone_normalized, "01012345678");
+
   let insertedBody;
-  global.fetch = async (_url, options) => {
+  global.fetch = async (url, options) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(true);
+    }
     insertedBody = JSON.parse(options.body);
     return jsonResponse([{ id: "application-1" }], 201);
   };
-  const created = await invoke("POST", validBody, "", "10.0.0.2");
+  const created = await invoke("POST", verifiedBody, "", "10.0.0.2");
   assert.equal(created.statusCode, 201);
   assert.equal(created.payload.applicationId, "application-1");
   assert.equal(insertedBody.phone_normalized, "01012345678");
@@ -274,8 +426,13 @@ const originalEnv = {
   delete process.env.VAPID_PUBLIC_KEY;
   delete process.env.VAPID_PRIVATE_KEY;
 
-  global.fetch = async () => jsonResponse({ code: "23505", message: "duplicate key" }, 409);
-  const duplicate = await invoke("POST", validBody, "", "10.0.0.3");
+  global.fetch = async (url) => {
+    if (String(url).includes("notices?id=eq.__app_settings__")) {
+      return appSettingsResponse(true);
+    }
+    return jsonResponse({ code: "23505", message: "duplicate key" }, 409);
+  };
+  const duplicate = await invoke("POST", verifiedBody, "", "10.0.0.3");
   assert.equal(duplicate.statusCode, 409);
   assert.equal(duplicate.payload.error, "duplicate_application");
 
@@ -401,4 +558,18 @@ const originalEnv = {
   else process.env.VAPID_PUBLIC_KEY = originalEnv.vapidPublicKey;
   if (originalEnv.vapidPrivateKey === undefined) delete process.env.VAPID_PRIVATE_KEY;
   else process.env.VAPID_PRIVATE_KEY = originalEnv.vapidPrivateKey;
+  if (originalEnv.solapiApiKey === undefined) delete process.env.SOLAPI_API_KEY;
+  else process.env.SOLAPI_API_KEY = originalEnv.solapiApiKey;
+  if (originalEnv.solapiApiSecret === undefined) delete process.env.SOLAPI_API_SECRET;
+  else process.env.SOLAPI_API_SECRET = originalEnv.solapiApiSecret;
+  if (originalEnv.solapiApiBaseUrl === undefined) delete process.env.SOLAPI_API_BASE_URL;
+  else process.env.SOLAPI_API_BASE_URL = originalEnv.solapiApiBaseUrl;
+  if (originalEnv.solapiPfId === undefined) delete process.env.SOLAPI_KAKAO_PF_ID;
+  else process.env.SOLAPI_KAKAO_PF_ID = originalEnv.solapiPfId;
+  if (originalEnv.solapiTemplateId === undefined) delete process.env.SOLAPI_KAKAO_TEMPLATE_ID;
+  else process.env.SOLAPI_KAKAO_TEMPLATE_ID = originalEnv.solapiTemplateId;
+  if (originalEnv.solapiSenderNumber === undefined) delete process.env.SOLAPI_SENDER_NUMBER;
+  else process.env.SOLAPI_SENDER_NUMBER = originalEnv.solapiSenderNumber;
+  if (originalEnv.phoneVerificationSecret === undefined) delete process.env.PHONE_VERIFICATION_TOKEN_SECRET;
+  else process.env.PHONE_VERIFICATION_TOKEN_SECRET = originalEnv.phoneVerificationSecret;
 });

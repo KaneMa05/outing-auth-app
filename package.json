@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node build-config.js",
+    "pretest": "node tests/student-roster-export.test.js",
     "curriculum:seed": "node scripts/generate-curriculum-seed.js",
     "curriculum:local": "node scripts/setup-local-curriculum.js",
     "vapid:generate": "web-push generate-vapid-keys",

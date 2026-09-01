@@ -10,9 +10,12 @@ const sharedSource = fs.readFileSync(path.join(root, "shared.js"), "utf8");
 
 assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentPlannerHub\)/);
 assert.match(appSource, /function renderStudentPlannerHub\(\)/);
-assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView\)/);
+assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView, curriculumPending = false\)/);
 assert.match(appSource, /function renderStudentPlannerSoloHeader\(\)/);
-assert.match(appSource, /curriculumAvailable && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
+assert.match(appSource, /const curriculumAvailabilityPending = curriculumQuestReleaseVerified !== true;/);
+assert.match(appSource, /const showCurriculumSwitch = curriculumAvailable \|\| curriculumAvailabilityPending;/);
+assert.match(appSource, /showCurriculumSwitch && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
+assert.match(appSource, /control\.disabled = option\.id === "curriculum" && curriculumPending;/);
 assert.match(appSource, /function renderStudentPlannerMonthAction\(\)/);
 assert.match(appSource, /el\("strong", \{\}, "등록된 D-day"\)/);
 assert.doesNotMatch(appSource, /관리자 지정 D-day|관리자 지정 일정/);
@@ -60,6 +63,7 @@ assert.match(styleSource, /\.study-todo-month-day\.plan-progress-low i,[\s\S]*?b
 assert.match(styleSource, /\.study-todo-month-day\.plan-progress-mid i,[\s\S]*?background: #91d5ae/);
 assert.match(styleSource, /\.study-todo-month-day\.plan-completed i,[\s\S]*?background: #27a269/);
 assert.match(styleSource, /\.student-planner-view-switch\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+assert.match(styleSource, /\.student-planner-view-option:disabled\s*\{[^}]*cursor: wait[^}]*opacity: 0\.58/);
 assert.match(
   styleSource,
   /\.student-planner-hub\.curriculum \.curriculum-page-head\s*\{[^}]*background: transparent/

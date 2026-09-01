@@ -4958,6 +4958,17 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   align-items: end;
 }
 
+.student-admin-result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.student-roster-download {
+  white-space: nowrap;
+}
+
 .grade-management-student-search-wrap {
   display: grid;
   gap: 10px;
@@ -9621,6 +9632,11 @@ body.student-online-mode.student-home-route .lecture-home-board-state {
   background: #fff;
   color: #175ea8;
   box-shadow: 0 1px 4px rgba(18, 61, 105, 0.14);
+}
+
+.student-planner-view-option:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .student-planner-view-option:focus-visible {
@@ -16809,6 +16825,68 @@ body.student-study-mode .main-shell {
 
 .lecture-application-form .student-auth-result {
   grid-column: 1 / -1;
+}
+
+.lecture-phone-verification {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #d9e4ec;
+  border-radius: 14px;
+  background: #f6f9fb;
+}
+
+.phone-verification-request-row,
+.phone-verification-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.phone-verification-button {
+  min-width: 108px;
+  min-height: 44px;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
+.phone-verification-status {
+  min-height: 20px;
+  margin: 0;
+  color: #64788b;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.phone-verification-status.pending {
+  color: #315f7d;
+  font-weight: 700;
+}
+
+.phone-verification-status.pending[data-countdown]::after {
+  content: " · " attr(data-countdown) " 남음";
+}
+
+.phone-verification-status.success {
+  color: #237452;
+  font-weight: 800;
+}
+
+.phone-verification-status.error {
+  color: #a44833;
+  font-weight: 700;
+}
+
+@media (max-width: 520px) {
+  .phone-verification-request-row,
+  .phone-verification-code-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phone-verification-button {
+    width: 100%;
+  }
 }
 
 .lecture-application-agreements {

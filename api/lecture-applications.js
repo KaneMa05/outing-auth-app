@@ -11,6 +11,8 @@ const {
 
 const TABLE = "lecture_applications";
 const PUSH_TABLE = "lecture_application_push_subscriptions";
+const PHONE_VERIFICATION_TABLE = "phone_verification_challenges";
+const SETTINGS_NOTICE_ID = "__app_settings__";
 const APPLICATION_COLUMNS = [
   "id",
   "name",
@@ -45,13 +47,43 @@ const COURSE_TYPES = new Set(["offline", "online_managed", "lecture"]);
 const MANUAL_REGISTRATION_COURSE_TYPES = new Set(["offline", "online_managed"]);
 const PUBLIC_RATE_WINDOW_MS = 10 * 60 * 1000;
 const PUBLIC_RATE_LIMIT = 5;
+const PHONE_VERIFICATION_REQUEST_LIMIT = 5;
+const PHONE_VERIFICATION_CHECK_LIMIT = 10;
+const PHONE_VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
+const PHONE_VERIFICATION_CODE_TTL_SECONDS = 3 * 60;
+const PHONE_VERIFICATION_MAX_ATTEMPTS = 5;
 const publicAttempts = new Map();
 
 module.exports = async function handler(req, res) {
   try {
     if (req.method === "POST") {
       const body = await readJson(req);
-      if (!allowPublicApplication(getRequestIp(req))) {
+      const requestIp = getRequestIp(req);
+      if (body.action === "request-phone-verification") {
+        if (!allowPublicRequest(`phone-request:${requestIp}`, PHONE_VERIFICATION_REQUEST_LIMIT)) {
+          res.status(429).json({ ok: false, error: "too_many_requests" });
+          return;
+        }
+        if (!await isPhoneVerificationEnabled()) {
+          res.status(403).json({ ok: false, error: "phone_verification_disabled" });
+          return;
+        }
+        await handlePhoneVerificationRequest(body, res);
+        return;
+      }
+      if (body.action === "verify-phone") {
+        if (!allowPublicRequest(`phone-check:${requestIp}`, PHONE_VERIFICATION_CHECK_LIMIT)) {
+          res.status(429).json({ ok: false, error: "too_many_verification_attempts" });
+          return;
+        }
+        if (!await isPhoneVerificationEnabled()) {
+          res.status(403).json({ ok: false, error: "phone_verification_disabled" });
+          return;
+        }
+        await handlePhoneVerificationCheck(body, res);
+        return;
+      }
+      if (!allowPublicRequest(`application:${requestIp}`, PUBLIC_RATE_LIMIT)) {
         res.status(429).json({ ok: false, error: "too_many_requests" });
         return;
       }
@@ -75,6 +107,11 @@ module.exports = async function handler(req, res) {
       const validationError = validateApplication(application);
       if (validationError) {
         res.status(400).json({ ok: false, error: validationError });
+        return;
+      }
+      const phoneVerificationRequired = await isPhoneVerificationEnabled();
+      if (phoneVerificationRequired && !validatePhoneVerificationToken(body.phoneVerificationToken, application.phone_normalized)) {
+        res.status(400).json({ ok: false, error: "phone_verification_required" });
         return;
       }
 
@@ -463,14 +500,264 @@ function cleanText(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
-function allowPublicApplication(ip) {
-  const key = String(ip || "unknown");
+function allowPublicRequest(identifier, limit, windowMs = PUBLIC_RATE_WINDOW_MS) {
+  const key = String(identifier || "unknown");
   const now = Date.now();
-  const recent = (publicAttempts.get(key) || []).filter((time) => now - time < PUBLIC_RATE_WINDOW_MS);
-  if (recent.length >= PUBLIC_RATE_LIMIT) return false;
+  const recent = (publicAttempts.get(key) || []).filter((time) => now - time < windowMs);
+  if (recent.length >= limit) return false;
   recent.push(now);
   publicAttempts.set(key, recent);
   return true;
+}
+
+async function isPhoneVerificationEnabled() {
+  const rows = await requestSupabase(
+    "GET",
+    `notices?id=eq.${encodeURIComponent(SETTINGS_NOTICE_ID)}&select=body&limit=1`
+  );
+  const body = Array.isArray(rows) && rows[0]?.body ? rows[0].body : "{}";
+  try {
+    return JSON.parse(body).phoneVerificationEnabled === true;
+  } catch {
+    return false;
+  }
+}
+
+async function handlePhoneVerificationRequest(body, res) {
+  const phone = normalizePhone(body.phone);
+  if (!isValidPhone(phone)) {
+    res.status(400).json({ ok: false, error: "invalid_phone" });
+    return;
+  }
+  const phoneHash = hashPhoneVerificationValue("phone", phone);
+  const recentSince = new Date(Date.now() - PUBLIC_RATE_WINDOW_MS).toISOString();
+  const recentRows = await requestSupabase(
+    "GET",
+    `${PHONE_VERIFICATION_TABLE}?phone_hash=eq.${phoneHash}&created_at=gte.${encodeURIComponent(recentSince)}&select=id&order=created_at.desc&limit=${PHONE_VERIFICATION_REQUEST_LIMIT}`
+  );
+  if (Array.isArray(recentRows) && recentRows.length >= PHONE_VERIFICATION_REQUEST_LIMIT) {
+    res.status(429).json({ ok: false, error: "too_many_requests" });
+    return;
+  }
+
+  const requestId = crypto.randomUUID();
+  const authNumber = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const expiresAt = new Date(Date.now() + PHONE_VERIFICATION_CODE_TTL_SECONDS * 1000).toISOString();
+  await requestSupabase("POST", PHONE_VERIFICATION_TABLE, {
+    id: requestId,
+    phone_hash: phoneHash,
+    code_hash: hashPhoneVerificationValue("code", requestId, phone, authNumber),
+    expires_at: expiresAt,
+    max_attempts: PHONE_VERIFICATION_MAX_ATTEMPTS,
+  });
+  try {
+    await sendSolapiVerificationMessage(phone, authNumber);
+  } catch (error) {
+    await requestSupabase("DELETE", `${PHONE_VERIFICATION_TABLE}?id=eq.${encodeURIComponent(requestId)}`).catch(() => {});
+    throw error;
+  }
+  res.status(200).json({
+    ok: true,
+    requestId,
+    expiresInSeconds: PHONE_VERIFICATION_CODE_TTL_SECONDS,
+  });
+}
+
+async function handlePhoneVerificationCheck(body, res) {
+  const phone = normalizePhone(body.phone);
+  const requestId = cleanText(body.requestId, 100);
+  const authNumber = cleanText(body.authNumber, 6);
+  if (!isValidPhone(phone)) {
+    res.status(400).json({ ok: false, error: "invalid_phone" });
+    return;
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) || !/^\d{6}$/.test(authNumber)) {
+    res.status(400).json({ ok: false, error: "invalid_verification_code" });
+    return;
+  }
+  const rows = await requestSupabase(
+    "GET",
+    `${PHONE_VERIFICATION_TABLE}?id=eq.${encodeURIComponent(requestId)}&select=id,phone_hash,code_hash,expires_at,attempts,max_attempts,verified_at&limit=1`
+  );
+  const challenge = Array.isArray(rows) ? rows[0] : null;
+  const attempts = Number(challenge?.attempts || 0);
+  const maxAttempts = Number(challenge?.max_attempts || PHONE_VERIFICATION_MAX_ATTEMPTS);
+  const validChallenge = challenge
+    && challenge.phone_hash === hashPhoneVerificationValue("phone", phone)
+    && !challenge.verified_at
+    && new Date(challenge.expires_at).getTime() > Date.now();
+  if (!validChallenge) {
+    res.status(400).json({ ok: false, error: "invalid_or_expired_verification_code" });
+    return;
+  }
+  if (attempts >= maxAttempts) {
+    res.status(429).json({ ok: false, error: "too_many_verification_attempts" });
+    return;
+  }
+
+  const submittedHash = hashPhoneVerificationValue("code", requestId, phone, authNumber);
+  if (!safeEqualText(submittedHash, challenge.code_hash)) {
+    const updatedAttempts = attempts + 1;
+    await requestSupabase(
+      "PATCH",
+      `${PHONE_VERIFICATION_TABLE}?id=eq.${encodeURIComponent(requestId)}&attempts=eq.${attempts}&verified_at=is.null`,
+      { attempts: updatedAttempts, updated_at: new Date().toISOString() }
+    );
+    res.status(updatedAttempts >= maxAttempts ? 429 : 400).json({
+      ok: false,
+      error: updatedAttempts >= maxAttempts
+        ? "too_many_verification_attempts"
+        : "invalid_or_expired_verification_code",
+    });
+    return;
+  }
+
+  const verifiedRows = await requestSupabase(
+    "PATCH",
+    `${PHONE_VERIFICATION_TABLE}?id=eq.${encodeURIComponent(requestId)}&attempts=eq.${attempts}&verified_at=is.null`,
+    { verified_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { Prefer: "return=representation" }
+  );
+  if (!Array.isArray(verifiedRows) || !verifiedRows.length) {
+    res.status(400).json({ ok: false, error: "invalid_or_expired_verification_code" });
+    return;
+  }
+  res.status(200).json({
+    ok: true,
+    phoneVerificationToken: createPhoneVerificationToken(phone, requestId),
+    expiresInSeconds: Math.floor(PHONE_VERIFICATION_TOKEN_TTL_MS / 1000),
+  });
+}
+
+async function sendSolapiVerificationMessage(phone, authNumber) {
+  const apiKey = String(process.env.SOLAPI_API_KEY || "").trim();
+  const apiSecret = String(process.env.SOLAPI_API_SECRET || "").trim();
+  const pfId = String(process.env.SOLAPI_KAKAO_PF_ID || "").trim();
+  const templateId = String(process.env.SOLAPI_KAKAO_TEMPLATE_ID || "").trim();
+  const senderNumber = normalizePhone(process.env.SOLAPI_SENDER_NUMBER);
+  const baseUrl = String(process.env.SOLAPI_API_BASE_URL || "https://api.solapi.com").trim().replace(/\/$/, "");
+  if (!apiKey || !apiSecret || !pfId || !templateId || !/^\d{8,11}$/.test(senderNumber)) {
+    const error = new Error("solapi_not_configured");
+    error.status = 503;
+    error.publicCode = "phone_verification_not_configured";
+    throw error;
+  }
+  const date = new Date().toISOString();
+  const salt = crypto.randomBytes(16).toString("hex");
+  const signature = crypto.createHmac("sha256", apiSecret).update(`${date}${salt}`).digest("hex");
+  const authorization = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+  const response = await fetch(`${baseUrl}/messages/v4/send-many/detail`, {
+    method: "POST",
+    headers: {
+      Authorization: authorization,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messages: [{
+        to: phone,
+        from: senderNumber,
+        kakaoOptions: {
+          pfId,
+          templateId,
+          disableSms: false,
+          variables: {
+            "#{인증번호}": authNumber,
+            "#{유효시간}": String(PHONE_VERIFICATION_CODE_TTL_SECONDS / 60),
+          },
+        },
+      }],
+      showMessageList: true,
+    }),
+  });
+  const text = await response.text().catch(() => "");
+  let result = {};
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch {
+    result = {};
+  }
+  if (!response.ok) {
+    const error = new Error(`solapi_${response.status}`);
+    error.status = 502;
+    error.publicCode = "phone_verification_provider_error";
+    throw error;
+  }
+  const resultList = Array.isArray(result?.resultList) ? result.resultList : [];
+  if (Number(result?.errorCount || 0) > 0 || !resultList.length || resultList.some((item) => String(item?.statusCode || "") !== "2000")) {
+    const error = new Error("solapi_message_rejected");
+    error.status = 502;
+    error.publicCode = "phone_verification_provider_error";
+    throw error;
+  }
+  return result;
+}
+
+function normalizePhone(value) {
+  return cleanText(value, 20).replace(/\D/g, "");
+}
+
+function isValidPhone(value) {
+  return /^01[0-9]{8,9}$/.test(String(value || ""));
+}
+
+function getPhoneVerificationSecret(secretOverride) {
+  const secret = String(secretOverride || process.env.PHONE_VERIFICATION_TOKEN_SECRET || "").trim();
+  if (secret.length < 32) {
+    const error = new Error("phone_verification_secret_not_configured");
+    error.status = 503;
+    error.publicCode = "phone_verification_not_configured";
+    throw error;
+  }
+  return secret;
+}
+
+function hashPhoneVerificationValue(kind, ...values) {
+  return crypto.createHmac("sha256", getPhoneVerificationSecret())
+    .update([String(kind), ...values.map((value) => String(value))].join("\u001f"))
+    .digest("hex");
+}
+
+function safeEqualText(left, right) {
+  const leftBuffer = Buffer.from(String(left || ""));
+  const rightBuffer = Buffer.from(String(right || ""));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function createPhoneVerificationToken(phone, requestId, secretOverride, now = Date.now()) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!isValidPhone(normalizedPhone) || !String(requestId || "").trim()) return "";
+  const payload = Buffer.from(JSON.stringify({
+    phone: normalizedPhone,
+    requestId: String(requestId).trim(),
+    verifiedAt: now,
+    expiresAt: now + PHONE_VERIFICATION_TOKEN_TTL_MS,
+  })).toString("base64url");
+  const signature = crypto.createHmac("sha256", getPhoneVerificationSecret(secretOverride)).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function validatePhoneVerificationToken(token, phone, secretOverride, now = Date.now()) {
+  const [payload, signature, extra] = String(token || "").split(".");
+  if (!payload || !signature || extra) return false;
+  let expected;
+  try {
+    expected = crypto.createHmac("sha256", getPhoneVerificationSecret(secretOverride)).update(payload).digest("base64url");
+  } catch {
+    return false;
+  }
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return data.phone === normalizePhone(phone)
+      && Number.isFinite(data.verifiedAt)
+      && Number.isFinite(data.expiresAt)
+      && data.expiresAt > now
+      && data.verifiedAt <= now + 60 * 1000;
+  } catch {
+    return false;
+  }
 }
 
 function isDuplicateApplicationError(error) {
@@ -517,13 +804,18 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
 }
 
 module.exports._private = {
+  createPhoneVerificationToken,
+  hashPhoneVerificationValue,
   hashLookupToken,
   isPushConfigured,
   isRegistrationNumberForCohort,
   isValidCohort,
   isValidBirthDate,
+  isValidPhone,
+  normalizePhone,
   normalizePushSubscription,
   normalizeApplication,
   normalizeStatus,
+  validatePhoneVerificationToken,
   validateApplication,
 };
