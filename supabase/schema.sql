@@ -2696,6 +2696,7 @@ create table if not exists public.question_reports (
 
 create index if not exists question_posts_visible_created_idx on public.question_posts (is_hidden, created_at desc) where deleted_at is null;
 create index if not exists question_posts_subject_created_idx on public.question_posts (board_type, subject, created_at desc) where deleted_at is null;
+create index if not exists question_posts_visible_subject_created_idx on public.question_posts (board_type, subject, created_at desc) where deleted_at is null and is_hidden = false;
 create index if not exists question_posts_student_idx on public.question_posts (student_id, created_at desc);
 create index if not exists question_comments_post_created_idx on public.question_comments (post_id, created_at asc) where deleted_at is null;
 create unique index if not exists question_reports_pending_post_student_idx on public.question_reports (reporter_student_id, post_id) where post_id is not null and status = 'pending';

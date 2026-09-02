@@ -1,10 +1,16 @@
 const assert = require("node:assert/strict");
+const fs = require("fs");
+const path = require("path");
 const handler = require("../api/question-board");
+
+const loadingIndexSource = fs.readFileSync(path.join(__dirname, "..", "supabase", "add-question-board-loading-index.sql"), "utf8");
 
 const originalFetch = global.fetch;
 const originalUrl = process.env.SUPABASE_URL;
 const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const calls = [];
+let releaseDeviceValidation;
+let releaseAuthorLookup;
 
 function jsonResponse(data, status = 200) {
   return {
@@ -37,8 +43,11 @@ function responseRecorder() {
   global.fetch = async (url, options = {}) => {
     const value = String(url);
     calls.push({ url: value, options });
-    if (value.includes("/rest/v1/rpc/validate_student_device")) return jsonResponse({ valid: true });
+    if (value.includes("/rest/v1/rpc/validate_student_device")) {
+      return new Promise((resolve) => { releaseDeviceValidation = () => resolve(jsonResponse({ valid: true })); });
+    }
     if (value.includes("/rest/v1/students?id=eq.student-1")) {
+      releaseDeviceValidation?.();
       return jsonResponse([{ id: "student-1", name: "홍길동", track: "해경", student_category: "lecture", account_type: "student", position: "" }]);
     }
     if (value.includes("/rest/v1/exam_subject_settings?")) {
@@ -60,10 +69,15 @@ function responseRecorder() {
       }]);
     }
     if (value.includes("/rest/v1/students?id=in.")) {
-      return jsonResponse([{ id: "student-1", name: "홍길동", account_type: "student", position: "" }]);
+      return new Promise((resolve) => {
+        releaseAuthorLookup = () => resolve(jsonResponse([{ id: "student-1", name: "홍길동", account_type: "student", position: "" }]));
+      });
     }
     if (value.includes("/rest/v1/study_cafe_profiles?")) return jsonResponse([]);
-    if (value.includes("/rest/v1/question_comments?")) return jsonResponse([]);
+    if (value.includes("/rest/v1/question_comments?")) {
+      releaseAuthorLookup?.();
+      return jsonResponse([]);
+    }
     throw new Error(`Unexpected Supabase request: ${value}`);
   };
 
@@ -78,7 +92,17 @@ function responseRecorder() {
     },
   };
   const res = responseRecorder();
-  await handler(req, res);
+  let concurrencyTimeout;
+  try {
+    await Promise.race([
+      handler(req, res),
+      new Promise((_, reject) => {
+        concurrencyTimeout = setTimeout(() => reject(new Error("independent question-board queries did not run concurrently")), 1000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(concurrencyTimeout);
+  }
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.payload.ok, true);
@@ -93,6 +117,8 @@ function responseRecorder() {
   assert.match(postRequest.url, /limit=31/);
   assert.doesNotMatch(postRequest.url, /limit=200/);
   assert.doesNotMatch(postRequest.url, /select=[^&]*body/);
+  assert.match(loadingIndexSource, /on public\.question_posts \(board_type, subject, created_at desc\)/);
+  assert.match(loadingIndexSource, /where deleted_at is null and is_hidden = false/);
 
   assert.equal(calls.filter((call) => call.url.includes("rpc/validate_student_device")).length, 1);
   console.log("question board loading tests passed");

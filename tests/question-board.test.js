@@ -10,6 +10,7 @@ const teacherSource = read("teacher.html");
 const boardSource = read("question-board.js");
 const apiSource = read("api/question-board.js");
 const schemaSource = read("supabase/add-question-board.sql");
+const localDevServerSource = read("local-dev-server.js");
 const styleSource = read("styles.css");
 const handler = require("../api/question-board");
 
@@ -28,8 +29,13 @@ assert.match(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*box-shad
 assert.doesNotMatch(styleSource, /\.footer-icon-question-board::after\s*\{[^}]*background:\s*white/);
 
 assert.doesNotMatch(boardSource, /className: "question-board-head compact"/);
-assert.match(boardSource, /"게시글을 검색해보세요"/);
+assert.match(boardSource, /"검색어를 입력해 주세요\."/);
 assert.match(boardSource, /className: "question-board-search-button"/);
+assert.match(boardSource, /"question-board-search-trigger"/);
+assert.match(boardSource, /function openQuestionBoardSearch\(\)/);
+assert.match(boardSource, /function closeQuestionBoardSearch\(\)/);
+assert.match(styleSource, /\.question-board-search\.open\s*\{[^}]*border-radius: 999px/);
+assert.match(styleSource, /\.question-board-search-trigger\s*\{[^}]*position: absolute/);
 assert.match(boardSource, /searchInput\.addEventListener\("input"/);
 assert.match(boardSource, /window\.setTimeout\([\s\S]*?refreshQuestionBoardList\(\)[\s\S]*?450/);
 assert.match(boardSource, /button\("\+ 글쓰기"/);
@@ -75,6 +81,13 @@ assert.match(boardSource, /questionBoardState\.loading = false;\s*questionBoardS
 assert.match(boardSource, /questionBoardAdminState\.loading = false;\s*questionBoardAdminState\.loaded = true;/);
 assert.match(styleSource, /\.question-board-list-empty\s*\{[^}]*min-height: 0[^}]*border-style: solid/);
 assert.match(boardSource, /className: "question-post-comment-summary"/);
+assert.match(boardSource, /className: "question-post-board-list"/);
+assert.match(boardSource, /className: "question-post-row"/);
+assert.doesNotMatch(boardSource, /className: "question-post-list question-post-board-list"/);
+assert.doesNotMatch(boardSource, /className: "question-post-card question-post-row"/);
+assert.match(boardSource, /className: "question-post-comment-icon"/);
+assert.match(boardSource, /className: "question-post-row-labels"/);
+assert.match(boardSource, /className: "question-subject-tag" \}, post\.subject/);
 assert.match(boardSource, /renderQuestionPostCard\(post, false\)/);
 assert.match(styleSource, /\.question-post-board-list\s*\{[^}]*border: 0[^}]*border-radius: 0[^}]*background: transparent/);
 assert.match(boardSource, /className: "question-board-head"/);
@@ -86,9 +99,18 @@ assert.match(styleSource, /\.question-detail-page\s*\{[^}]*border-radius: 22px[^
 assert.match(styleSource, /\.question-detail-page \.question-detail-card,[\s\S]*?\.question-detail-page \.question-comments-section\s*\{[^}]*border: 1px solid #d8e4eb[^}]*border-radius: 18px[^}]*background: rgba\(255,255,255,\.92\)[^}]*box-shadow:/);
 assert.match(styleSource, /\.question-detail-page \.question-detail-body\s*\{[^}]*border-top: 1px solid #e5edf2/);
 assert.match(styleSource, /\.question-detail-page \.question-comment\s*\{[^}]*border-radius: 14px[^}]*background: #f7fafb/);
-assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll\s*\{[^}]*background: rgba\(255, 255, 255, 0\.1\)/);
-assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\s*\{[^}]*background: rgba\(255, 255, 255, 0\.96\)[^}]*color: #294b65/);
-assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\.active\s*\{[^}]*background: #dff2fb[^}]*color: #0f628f/);
+assert.match(styleSource, /\.question-board-list-page\s*\{[^}]*border-radius: 18px[^}]*background: #edf2f4[^}]*box-shadow:/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll\s*\{[^}]*background: transparent/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\s*\{[^}]*background: rgba\(255,255,255,\.08\)[^}]*color: #dce8ef/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page > \.question-filter-scroll \.question-filter-button\.active\s*\{[^}]*background: #226f78[^}]*color: #fff/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-list-page\s*\{[^}]*border: 0[^}]*background: transparent[^}]*box-shadow: none/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-board-page \.question-post-card,[\s\S]*?border-radius: 16px;[\s\S]*?background: rgba\(219,231,236,\.92\) !important;[\s\S]*?backdrop-filter: blur\(8px\)/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-detail-card,[\s\S]*?background: transparent;[\s\S]*?box-shadow: none/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-detail-card\s*\{[^}]*border-bottom: 1px solid rgba\(211,228,238,\.2\)[^}]*background: transparent;[^}]*box-shadow: none/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-reply-form \.btn\s*\{[^}]*min-width: 96px[^}]*background: #218c83/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-reply-form\s*\{[^}]*border-radius: 14px[^}]*background: rgba\(137,174,193,\.09\)/);
+assert.match(read("index.html"), /question-board\.js\?v=20260902-question-board-list-ui/);
+assert.match(localDevServerSource, /"Cache-Control": "no-store"/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*z-index: 35[^}]*pointer-events: auto[^}]*touch-action: manipulation/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*bottom: 100px;[^}]*env\(safe-area-inset-bottom, 0px\)/);
 assert.match(styleSource, /\.question-subject-picker-overlay\s*\{[^}]*position: fixed[^}]*z-index: 120/);

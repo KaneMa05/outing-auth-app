@@ -30,6 +30,7 @@ const questionBoardState = {
   detail: null,
   mode: "list",
   search: "",
+  searchOpen: false,
   subject: QUESTION_BOARD_DEFAULT_SUBJECTS[0],
   status: "",
   loading: false,
@@ -142,6 +143,7 @@ function openQuestionBoardListFromHome() {
   questionBoardState.mode = "list";
   questionBoardState.detail = null;
   questionBoardState.search = "";
+  questionBoardState.searchOpen = false;
   questionBoardState.subject = "자유";
   const previewReady = questionBoardHomePreviewState.studentId === String(student?.id || "")
     && questionBoardHomePreviewState.loaded
@@ -191,6 +193,7 @@ function resetQuestionBoardState(studentId) {
     detail: null,
     mode: "list",
     search: "",
+    searchOpen: false,
     subject: QUESTION_BOARD_DEFAULT_SUBJECTS[0],
     status: "",
     loading: false,
@@ -251,12 +254,55 @@ async function refreshQuestionBoardList() {
 }
 
 function renderQuestionPostList() {
-  const searchInput = input("questionSearch", "search", "게시글을 검색해보세요", questionBoardState.search);
-  const searchForm = el("form", { className: "question-board-search" }, [
+  const searchControl = renderQuestionBoardSearch();
+
+  const content = questionBoardState.loading
+    ? renderQuestionBoardEmptyState()
+    : questionBoardState.error
+      ? renderQuestionBoardError(questionBoardState.error, () => loadQuestionBoardHome())
+      : questionBoardState.posts.length
+        ? el("div", { className: "question-post-board-list" }, questionBoardState.posts.map(renderQuestionPostCard))
+        : renderQuestionBoardEmptyState(Boolean(questionBoardState.search));
+
+  return el("div", { className: "question-board-page question-board-list-page student-view" }, [
+    el("section", { className: "question-board-head" }, [
+      el("span", { className: "question-board-kicker" }, "COMMUNITY"),
+      el("h2", {}, "자유 게시판"),
+      el("p", {}, "수강생들과 공부 이야기와 질문을 자유롭게 나눠보세요."),
+      searchControl,
+    ]),
+    renderQuestionSubjectTabs(questionBoardState, false),
+    el("section", { className: "question-board-list-section" }, [
+      el("div", { className: "question-board-list-head" }, [
+        el("strong", {}, "게시글"),
+        el("span", {}, `${questionBoardState.posts.length}개`),
+      ]),
+      content,
+    ]),
+  ]);
+}
+
+function renderQuestionBoardSearch() {
+  if (!questionBoardState.searchOpen) {
+    const searchTrigger = button("", "question-board-search-trigger", "button", openQuestionBoardSearch, [
+      el("span", { className: "question-board-search-icon", ariaHidden: "true" }),
+    ]);
+    searchTrigger.setAttribute("aria-label", "게시글 검색 열기");
+    return searchTrigger;
+  }
+
+  const searchInput = input("questionSearch", "search", "검색어를 입력해 주세요.", questionBoardState.search);
+  searchInput.setAttribute("aria-label", "게시글 검색어");
+  const searchBackButton = button("", "question-board-search-back", "button", closeQuestionBoardSearch, [
+    el("span", { className: "question-board-search-back-icon", ariaHidden: "true" }),
+  ]);
+  searchBackButton.setAttribute("aria-label", "검색 닫기");
+  const searchForm = el("form", { className: "question-board-search open" }, [
+    searchBackButton,
+    searchInput,
     el("button", { className: "question-board-search-button", type: "submit", ariaLabel: "게시글 검색" }, [
       el("span", { className: "question-board-search-icon", ariaHidden: "true" }),
     ]),
-    searchInput,
   ]);
   const submitSearch = (event) => {
     if (event) event.preventDefault();
@@ -273,31 +319,25 @@ function renderQuestionPostList() {
       refreshQuestionBoardList();
     }, 450);
   });
+  return searchForm;
+}
 
-  const content = questionBoardState.loading
-    ? renderQuestionBoardEmptyState()
-    : questionBoardState.error
-      ? renderQuestionBoardError(questionBoardState.error, () => loadQuestionBoardHome())
-      : questionBoardState.posts.length
-        ? el("div", { className: "question-post-list question-post-board-list" }, questionBoardState.posts.map(renderQuestionPostCard))
-        : renderQuestionBoardEmptyState(Boolean(questionBoardState.search));
+function openQuestionBoardSearch() {
+  questionBoardState.searchOpen = true;
+  render();
+  window.requestAnimationFrame(() => document.getElementById("questionSearch")?.focus());
+}
 
-  return el("div", { className: "question-board-page student-view" }, [
-    el("section", { className: "question-board-head" }, [
-      el("span", { className: "question-board-kicker" }, "COMMUNITY"),
-      el("h2", {}, "자유 게시판"),
-      el("p", {}, "수강생들과 공부 이야기와 질문을 자유롭게 나눠보세요."),
-      searchForm,
-    ]),
-    renderQuestionSubjectTabs(questionBoardState, false),
-    el("section", { className: "question-board-list-section" }, [
-      el("div", { className: "question-board-list-head" }, [
-        el("strong", {}, "게시글"),
-        el("span", {}, `${questionBoardState.posts.length}개`),
-      ]),
-      content,
-    ]),
-  ]);
+function closeQuestionBoardSearch() {
+  if (questionBoardSearchTimer) {
+    window.clearTimeout(questionBoardSearchTimer);
+    questionBoardSearchTimer = null;
+  }
+  const shouldRefresh = Boolean(questionBoardState.search);
+  questionBoardState.searchOpen = false;
+  questionBoardState.search = "";
+  if (shouldRefresh) refreshQuestionBoardList();
+  else render();
 }
 
 function ensureQuestionWriteButton() {
@@ -396,8 +436,11 @@ function renderQuestionPostCard(post, boardStyle = true) {
     return adminCard;
   }
 
-  const card = el("button", { className: "question-post-card question-post-row", type: "button" }, [
+  const card = el("button", { className: "question-post-row", type: "button" }, [
     el("div", { className: "question-post-main" }, [
+      el("div", { className: "question-post-row-labels" }, [
+        el("span", { className: "question-subject-tag" }, post.subject),
+      ].filter(Boolean)),
       el("strong", { className: "question-post-title" }, post.title),
       el("div", { className: "question-post-meta" }, [
         el("span", { className: "question-post-author" }, post.authorName),
@@ -408,8 +451,8 @@ function renderQuestionPostCard(post, boardStyle = true) {
       ]),
     ]),
     el("span", { className: "question-post-comment-summary", ariaLabel: `댓글 ${post.commentCount}개` }, [
+      el("span", { className: "question-post-comment-icon", ariaHidden: "true" }),
       el("strong", {}, String(post.commentCount)),
-      el("small", {}, "댓글"),
     ]),
   ]);
   card.addEventListener("click", () => openQuestionPost(post.id));

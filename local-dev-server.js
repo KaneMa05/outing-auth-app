@@ -751,7 +751,10 @@ function serveStatic(pathname, res) {
       res.end("Not found");
       return;
     }
-    res.writeHead(200, { "Content-Type": mimeTypes[path.extname(absolutePath)] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Cache-Control": "no-store",
+      "Content-Type": mimeTypes[path.extname(absolutePath)] || "application/octet-stream",
+    });
     res.end(data);
   });
 }
