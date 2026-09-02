@@ -257,7 +257,7 @@ function renderQuestionPostList() {
   const searchControl = renderQuestionBoardSearch();
 
   const content = questionBoardState.loading
-    ? renderQuestionBoardEmptyState()
+    ? renderQuestionBoardListLoading()
     : questionBoardState.error
       ? renderQuestionBoardError(questionBoardState.error, () => loadQuestionBoardHome())
       : questionBoardState.posts.length
@@ -275,10 +275,20 @@ function renderQuestionPostList() {
     el("section", { className: "question-board-list-section" }, [
       el("div", { className: "question-board-list-head" }, [
         el("strong", {}, "게시글"),
-        el("span", {}, `${questionBoardState.posts.length}개`),
+        el("span", {}, questionBoardState.loading ? "불러오는 중" : `${questionBoardState.posts.length}개`),
       ]),
       content,
     ]),
+  ]);
+}
+
+function renderQuestionBoardListLoading() {
+  return el("div", { className: "question-post-skeleton-list", role: "status", ariaLabel: "게시글을 불러오는 중입니다." }, [
+    ...Array.from({ length: 3 }, () => el("div", { className: "question-post-skeleton", ariaHidden: "true" }, [
+      el("span", { className: "question-post-skeleton-subject" }),
+      el("span", { className: "question-post-skeleton-title" }),
+      el("span", { className: "question-post-skeleton-meta" }),
+    ])),
   ]);
 }
 

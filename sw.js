@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v377-question-detail-community-ui";
+const CACHE_NAME = "outing-auth-app-v383-character-responsive-ui";
 const APP_SHELL = [
   "/",
   "/index.html",

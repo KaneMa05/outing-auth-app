@@ -35,7 +35,7 @@ assert.match(appSource, /function renderCurriculumQuestCatalogLoading\(\)[\s\S]*
 assert.match(appSource, /function renderCurriculumQuestCatalogError\(\)[\s\S]*?예전 회차명은 표시하지 않습니다\.[\s\S]*?다시 불러오기/);
 assert.match(appSource, /console\.warn\("Managed curriculum is unavailable\."/);
 assert.doesNotMatch(appSource, /using the bundled curriculum/);
-assert.match(indexSource, /app\.js\?v=20260901-curriculum-live-refresh/);
+assert.match(indexSource, /app\.js\?v=20260902-mypage-inquiry-guidance/);
 assert.match(appSource, /function isCurriculumOrientationStage/);
 assert.match(appSource, /curriculum-lecture-row/);
 assert.match(appSource, /currentLectureCount.*lectureCount.*강/s);

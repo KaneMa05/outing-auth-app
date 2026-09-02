@@ -597,6 +597,12 @@ assert.match(appSource, /function openStudyCafeNicknameEditor\(\)/);
 assert.match(appSource, /function normalizeStudyCafeNickname\(value\)/);
 assert.match(appSource, /name: getStudyCafeDisplayName\("나"\)/);
 assert.match(appSource, /"data-study-character-name": "true"/);
+assert.match(appSource, /el\("h2", \{ "data-study-character-name": "true" \}, characterName\)/);
+assert.doesNotMatch(appSource, /\$\{characterName\}의 캐릭터/);
+assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*justify-content: space-between;[^}]*grid-column: 1 \/ -1/);
+assert.match(styleSource, /@media \(min-width: 768px\)[\s\S]*?\.student-study-character-page \.study-character-shop-link\s*\{[^}]*grid-column: 1 \/ -1/);
+assert.match(styleSource, /@media \(min-width: 768px\)[\s\S]*?\.study-character-options-card\s*\{[^}]*align-content: center/);
+assert.match(styleSource, /@media \(min-width: 1200px\)[\s\S]*?body\.student-study-mode \.student-study-character-page\s*\{[^}]*width: min\(920px, 100%\)[^}]*grid-template-columns: minmax\(340px, 0\.9fr\) minmax\(420px, 1\.1fr\)[^}]*margin-inline: auto/);
 assert.match(appSource, /inStudentFooter && \["study-character", "study-shop", "push-settings", "faq", "inquiry-board"\]\.includes\(currentRoute\)[\s\S]*?\? "mypage"/);
 assert.match(appSource, /inStudentFooter && \["study-timer", "study-ranking", "question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
 assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
@@ -1211,7 +1217,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260901-curriculum-live-refresh/);
+assert.match(indexSource, /app\.js\?v=20260902-mypage-inquiry-guidance/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

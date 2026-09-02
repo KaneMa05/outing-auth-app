@@ -48,6 +48,8 @@ assert.match(appSource, /category === "online_managed" && isOnlineManagedStudyCa
 assert.match(appSource, /const onlineMode = lectureMode \|\| onlineManagedMode/);
 assert.match(appSource, /classList\.toggle\("student-online-managed-mode", onlineManagedMode\)/);
 assert.match(appSource, /!isOnlineStudentExperience\(student\) \? renderStudentOutingHistoryButton\(student\.id\) : null/);
+assert.match(appSource, /const infoEditMessage = category === "lecture"\s*\? "정보 수정은 ‘문의하기’를 이용해주세요\."\s*:\s*"정보 수정은 사무실에 문의해주세요\."/);
+assert.match(appSource, /button\("정보 수정", "mini-btn", "button", \(\) => notify\(infoEditMessage\)\)/);
 const registrationTrackOptions = appSource.match(/const COAST_GUARD_TRACK_OPTIONS = \[[\s\S]*?\n\];/)?.[0] || "";
 for (const removedTrack of [
   "경찰직 - 구급(순경)",

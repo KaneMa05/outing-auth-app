@@ -40,12 +40,12 @@ function renderStudentInquiryBoard() {
   return renderStudentInquiryList();
 }
 
-function openStudentInquiryComposer() {
+function openStudentInquiryList() {
   const student = getAuthedStudent();
   if (student && studentInquiryState.studentId !== student.id) resetStudentInquiryState(student.id);
   studentInquiryState.editing = null;
   studentInquiryState.detail = null;
-  studentInquiryState.mode = "form";
+  studentInquiryState.mode = "list";
   navigate("inquiry-board");
 }
 
@@ -91,10 +91,10 @@ function renderStudentInquiryList() {
     el("section", { className: "inquiry-list-section" }, [
       el("div", { className: "inquiry-list-head" }, [
         el("strong", {}, "내 문의"),
-        el("span", {}, `${studentInquiryState.inquiries.length}개`),
+        el("span", {}, studentInquiryState.loading ? "불러오는 중" : `${studentInquiryState.inquiries.length}개`),
       ]),
       studentInquiryState.loading
-        ? renderInquiryState("문의를 불러오는 중입니다.")
+        ? renderStudentInquiryListLoading()
         : studentInquiryState.error
           ? renderInquiryError(studentInquiryState.error, refreshStudentInquiries)
           : studentInquiryState.inquiries.length
@@ -102,6 +102,17 @@ function renderStudentInquiryList() {
             : renderInquiryState("아직 등록한 문의가 없습니다."),
     ]),
     button("+ 새 문의", "inquiry-compose-button", "button", () => openStudentInquiryForm()),
+  ]);
+}
+
+function renderStudentInquiryListLoading() {
+  return el("div", { className: "inquiry-skeleton-list", role: "status", ariaLabel: "문의를 불러오는 중입니다." }, [
+    ...Array.from({ length: 3 }, () => el("div", { className: "inquiry-skeleton-card", ariaHidden: "true" }, [
+      el("span", { className: "inquiry-skeleton-status" }),
+      el("span", { className: "inquiry-skeleton-title" }),
+      el("span", { className: "inquiry-skeleton-body" }),
+      el("span", { className: "inquiry-skeleton-date" }),
+    ])),
   ]);
 }
 
@@ -143,6 +154,9 @@ function setInquiryFilter(stateObject, key, value, admin) {
 
 async function refreshStudentInquiries() {
   studentInquiryState.loaded = false;
+  studentInquiryState.loading = true;
+  studentInquiryState.error = "";
+  if (currentRoute === "inquiry-board" && studentInquiryState.mode === "list") render();
   await loadStudentInquiries();
 }
 

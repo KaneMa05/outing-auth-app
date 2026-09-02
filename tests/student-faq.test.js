@@ -26,7 +26,7 @@ assert.match(appSource, /이미 앉아 있는데 과목이나 좌석을 바꾸�
 assert.match(appSource, /과목 종료와 자리 비우기는 무엇이 다른가요\?/);
 assert.match(appSource, /앱 알림이 오지 않아요\./);
 assert.match(appSource, /FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요\./);
-assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryComposer\)/);
+assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryList\)/);
 assert.doesNotMatch(appSource, /student-inquiry-link/);
 assert.doesNotMatch(appSource.match(/const INTERNET_STUDENT_FAQS = \[[\s\S]*?\n\];/)?.[0] || "", /사무실에 문의/);
 assert.match(appSource, /function renderStudentFaq\(\)/);

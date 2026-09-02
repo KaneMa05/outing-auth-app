@@ -3786,6 +3786,9 @@ function renderStudentMypage() {
   const student = getAuthedStudent();
   const profile = getStudentProfile(student.id) || {};
   const category = getStudentCategory(student);
+  const infoEditMessage = category === "lecture"
+    ? "정보 수정은 ‘문의하기’를 이용해주세요."
+    : "정보 수정은 사무실에 문의해주세요.";
   return el("div", { className: "grid student-view student-mypage" }, [
     el("section", { className: "student-profile-card" }, [
       el("div", { className: "student-profile-head" }, [
@@ -3794,7 +3797,7 @@ function renderStudentMypage() {
           el("span", {}, "로그인 정보"),
           el("div", { className: "student-profile-name-row" }, [
             el("h2", {}, student.name),
-            button("정보 수정", "mini-btn", "button", () => notify("정보 수정은 사무실에 문의해주세요.")),
+            button("정보 수정", "mini-btn", "button", () => notify(infoEditMessage)),
           ]),
         ]),
       ]),
@@ -3910,7 +3913,7 @@ function renderStudentFaq() {
         el("strong", {}, "도움이 더 필요한가요?"),
         el("p", {}, "FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요."),
       ]),
-      button("문의하기", "student-faq-contact-button", "button", openStudentInquiryComposer),
+      button("문의하기", "student-faq-contact-button", "button", openStudentInquiryList),
     ]),
   ]);
 }
@@ -7471,7 +7474,7 @@ function renderStudentStudyCharacter() {
         ]),
       ]),
       el("div", { className: "study-character-name-row" }, [
-        el("h2", { "data-study-character-name": "true" }, `${characterName}의 캐릭터`),
+        el("h2", { "data-study-character-name": "true" }, characterName),
         el(
           "button",
           {

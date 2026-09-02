@@ -29,7 +29,7 @@ const managerPermissions = teacherAuthSource.match(/const STUDENT_MANAGER_PERMIS
 assert.doesNotMatch(managerPermissions, /inquiries\.(?:read|write)/);
 
 assert.match(appSource, /FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요\./);
-assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryComposer\)/);
+assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryList\)/);
 assert.doesNotMatch(appSource, /student-inquiry-link/);
 assert.match(indexSource, /<script src="\.\/inquiry-board\.js\?v=[^"]+" defer><\/script>/);
 assert.match(teacherSource, /data-route="inquiry-board-admin">문의 관리/);
@@ -37,7 +37,10 @@ assert.match(teacherSource, /<script src="\.\/inquiry-board\.js\?v=[^"]+" defer>
 assert.match(serviceWorkerSource, /"\/inquiry-board\.js"/);
 
 assert.match(inquirySource, /function renderStudentInquiryBoard\(\)/);
-assert.match(inquirySource, /function openStudentInquiryComposer\(\)[\s\S]*?studentInquiryState\.mode = "form";[\s\S]*?navigate\("inquiry-board"\)/);
+assert.match(inquirySource, /studentInquiryState\.loading\s*\? renderStudentInquiryListLoading\(\)/);
+assert.match(inquirySource, /function renderStudentInquiryListLoading\(\)[\s\S]*?Array\.from\(\{ length: 3 \}/);
+assert.match(inquirySource, /studentInquiryState\.loading \? "불러오는 중"/);
+assert.match(inquirySource, /function openStudentInquiryList\(\)[\s\S]*?studentInquiryState\.mode = "list";[\s\S]*?navigate\("inquiry-board"\)/);
 assert.match(inquirySource, /function renderInquiryAdmin\(\)/);
 assert.match(inquirySource, /fetch\("\/api\/inquiries"/);
 assert.match(inquirySource, /button\("← 자주 묻는 질문"[\s\S]*?navigate\("faq"\)/);
@@ -52,6 +55,13 @@ assert.match(styleSource, /\.inquiry-filter-scroll,[\s\S]*?overflow-x: auto/);
 assert.match(styleSource, /\.inquiry-page\s*\{[^}]*width: 100%[^}]*min-width: 0[^}]*max-width: 100%[^}]*overflow-x: hidden[^}]*overflow-x: clip/);
 assert.match(styleSource, /\.inquiry-page > \*\s*\{[^}]*min-width: 0[^}]*max-width: 100%/);
 assert.match(styleSource, /\.inquiry-compose-button\s*\{[^}]*bottom: calc\(var\(--student-footer-bottom\) \+ 80px\)/);
+assert.match(styleSource, /\.inquiry-skeleton-list\s*\{[^}]*display: grid;[^}]*gap: 9px/);
+assert.match(styleSource, /@keyframes inquiry-skeleton-loading/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-list-section\s*\{[^}]*border-radius: 0;[^}]*background: transparent;[^}]*box-shadow: none/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-card,[\s\S]*?background: rgba\(219,231,236,\.9\)/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page > article\.inquiry-surface\s*\{[^}]*border-bottom: 1px solid rgba\(211,228,238,\.2\)/);
+assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page \.inquiry-message-form\s*\{[^}]*border-radius: 14px;[^}]*background: rgba\(137,174,193,\.09\)/);
+assert.match(indexSource, /inquiry-board\.js\?v=20260902-inquiry-list-entry/);
 
 assert.match(inquiryApiSource, /student_inquiries/);
 assert.match(inquiryApiSource, /student_inquiry_messages/);
