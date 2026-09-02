@@ -72,8 +72,18 @@ const INTERNET_STUDENT_FAQS = [
   },
   {
     category: "타이머",
+    question: "오늘 타이머 기록은 언제 새로 시작되나요?",
+    answer: "오늘 기록은 매일 오전 4시에 새로 시작됩니다. 오전 4시가 되어도 측정 중인 타이머는 멈추지 않으며, 이전 날짜 기록과 새 날짜 기록으로 나뉘어 저장됩니다.",
+  },
+  {
+    category: "타이머",
+    question: "타이머가 자동으로 멈추는 상황은 언제인가요?",
+    answer: "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그는 등 앱이 보이지 않게 되면 순공시간 측정이 자동으로 일시정지됩니다. 창을 닫거나 새로고침해도 일시정지되며, 앱 안에서 다른 메뉴로 이동하는 것만으로는 멈추지 않습니다. 돌아온 뒤 ‘계속 공부하기’를 누르면 다시 측정할 수 있습니다.",
+  },
+  {
+    category: "타이머",
     question: "타이머를 오래 일시정지하면 어떻게 되나요?",
-    answer: "일시정지 상태가 15분 동안 이어지면 좌석 유지 여부를 확인하는 안내가 표시됩니다. 응답하지 않으면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워질 수 있습니다.",
+    answer: "일시정지 상태가 15분 동안 이어지면 좌석을 계속 이용할지 묻는 10초 안내가 표시됩니다. ‘자리 유지’를 누르지 않으면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워집니다.",
   },
   {
     category: "커리큘럼",
@@ -3879,7 +3889,10 @@ function renderStudentFaqFilters() {
 
 function renderStudentFaq() {
   const visibleFaqs = studentFaqCategory === "전체"
-    ? INTERNET_STUDENT_FAQS
+    ? [
+        ...INTERNET_STUDENT_FAQS.filter((item) => item.category === "타이머"),
+        ...INTERNET_STUDENT_FAQS.filter((item) => item.category !== "타이머"),
+      ]
     : INTERNET_STUDENT_FAQS.filter((item) => item.category === studentFaqCategory);
   return el("div", { className: "grid student-view student-faq-page" }, [
     button("← 마이", "student-faq-back", "button", () => navigate("mypage")),
