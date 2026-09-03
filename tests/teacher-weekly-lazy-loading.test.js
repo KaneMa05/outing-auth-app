@@ -27,6 +27,11 @@ assert.match(
 );
 assert.match(
   gradeSource,
+  /const hasMissingExtensionWeek = \[13, 14\][\s\S]*?hasMissingExtensionWeek \? renderWeeklyExamCreateForm\(\) : null/,
+  "the weekly exam lookup should expose the extension action while week 13 or 14 is missing"
+);
+assert.match(
+  gradeSource,
   /const existing = [\s\S]*?if \(existing\) continue;/,
   "weekly exam creation should preserve every existing week"
 );

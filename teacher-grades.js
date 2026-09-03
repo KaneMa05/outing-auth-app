@@ -749,6 +749,9 @@ function renderWeeklyExamProblemLookupPanel() {
   }
   const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || null;
   if (selectedExam) return renderWeeklyExamProblemDetailPanel(selectedExam);
+  const hasMissingExtensionWeek = [13, 14].some((weekNumber) =>
+    !exams.some((exam) => Number(exam.weekNumber) === weekNumber)
+  );
 
   const rows = Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => {
     const weekNumber = index + 1;
@@ -774,8 +777,9 @@ function renderWeeklyExamProblemLookupPanel() {
     el("div", { className: "action-row weekly-lookup-actions" }, [
       button("주간평가 과목 설정", "btn secondary", "button", openWeeklyExamSubjectSettingsModal),
     ]),
+    hasMissingExtensionWeek ? renderWeeklyExamCreateForm() : null,
     table(["주간평가", "공개 여부", "출제 현황", "응시 시작", "답안지 업로드", "관리"], rows),
-  ]);
+  ].filter(Boolean));
 }
 
 function renderWeeklyExamPublishControl(exam) {
