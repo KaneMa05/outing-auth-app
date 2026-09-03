@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
 const sharedSource = fs.readFileSync("shared.js", "utf8");
+const teacherSource = fs.readFileSync("teacher.js", "utf8");
 const gradeSource = fs.readFileSync("teacher-grades.js", "utf8");
 const studentSource = fs.readFileSync("teacher-students.js", "utf8");
 const loaderSource = sharedSource.match(
@@ -9,6 +10,26 @@ const loaderSource = sharedSource.match(
 )?.[0].replace(/\n\nfunction isTeacherWeeklyGradeDataLoaded$/, "");
 
 assert.ok(loaderSource, "the section-scoped submission loader should be available");
+assert.match(
+  teacherSource,
+  /const WEEKLY_EXAM_WEEK_COUNT = 14;/,
+  "weekly exam management should support weeks 1 through 14"
+);
+assert.match(
+  gradeSource,
+  /const rows = Array\.from\(\{ length: WEEKLY_EXAM_WEEK_COUNT \}/,
+  "weekly exam lookup should render every configured week"
+);
+assert.match(
+  gradeSource,
+  /await ensureWeeklyExamWeeksForCohort\(selectedCohort, \{ weeks: \[13, 14\] \}\);/,
+  "the administrator extension action should only target weeks 13 and 14"
+);
+assert.match(
+  gradeSource,
+  /const existing = [\s\S]*?if \(existing\) continue;/,
+  "weekly exam creation should preserve every existing week"
+);
 assert.match(
   sharedSource,
   /function renderDataLoadingState\([\s\S]*className: "data-loading-state"[\s\S]*className: "loading-spinner"/,

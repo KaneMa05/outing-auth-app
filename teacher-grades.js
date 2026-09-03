@@ -650,11 +650,14 @@ function getWeeklyTrackSpecificSectionSettings() {
 async function ensureWeeklyExamWeeksForCohort(cohort, options = {}) {
   const selectedCohort = String(cohort || "").trim();
   if (!selectedCohort || weeklyExamAutoCreatingCohorts.has(selectedCohort)) return [];
+  const targetWeeks = Array.isArray(options.weeks) && options.weeks.length
+    ? options.weeks.map(Number).filter((week) => Number.isInteger(week) && week > 0 && week <= WEEKLY_EXAM_WEEK_COUNT)
+    : Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => index + 1);
   weeklyExamAutoCreatingCohorts.add(selectedCohort);
   try {
     const createdExams = [];
     const createdSections = [];
-    for (let week = 1; week <= WEEKLY_EXAM_WEEK_COUNT; week += 1) {
+    for (const week of targetWeeks) {
       const existing = (state.exams || []).find((exam) => String(exam.cohort || "") === selectedCohort && Number(exam.weekNumber) === week);
       if (existing) continue;
       const now = new Date().toISOString();
@@ -693,7 +696,7 @@ async function ensureWeeklyExamWeeksForCohort(cohort, options = {}) {
       createdExams.push(exam);
     }
     if (!createdExams.length) {
-      if (!options.silent) notify(`${selectedCohort}기는 이미 1~${WEEKLY_EXAM_WEEK_COUNT}주차 주간평가가 있습니다.`);
+      if (!options.silent) notify(`${selectedCohort}기는 이미 ${targetWeeks.join("·")}주차 주간평가가 있습니다.`);
       return [];
     }
     weeklyExamSelectedId = "";
@@ -721,13 +724,13 @@ function renderWeeklyExamCreatePanel() {
 function renderWeeklyExamCreateForm() {
   const cohort = getSelectedWeeklyExamCohort();
   const form = el("form", { className: "form-grid weekly-exam-form" }, [
-    el("div", { className: "field full" }, [button(`${cohort || ""}기 1~${WEEKLY_EXAM_WEEK_COUNT}주차 주간평가 생성하기`, "btn")]),
+    el("div", { className: "field full" }, [button(`${cohort || ""}기 13·14주차 주간평가 추가하기`, "btn")]),
   ]);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const selectedCohort = getSelectedWeeklyExamCohort();
     if (!selectedCohort) return notify("기수를 먼저 선택해주세요.");
-    await ensureWeeklyExamWeeksForCohort(selectedCohort);
+    await ensureWeeklyExamWeeksForCohort(selectedCohort, { weeks: [13, 14] });
   });
   return form;
 }
@@ -747,7 +750,7 @@ function renderWeeklyExamProblemLookupPanel() {
   const selectedExam = exams.find((exam) => exam.id === weeklyExamSelectedId) || null;
   if (selectedExam) return renderWeeklyExamProblemDetailPanel(selectedExam);
 
-  const rows = Array.from({ length: 12 }, (_, index) => {
+  const rows = Array.from({ length: WEEKLY_EXAM_WEEK_COUNT }, (_, index) => {
     const weekNumber = index + 1;
     const exam = exams.find((item) => Number(item.weekNumber) === weekNumber);
     const subjectRows = exam ? getWeeklyExamSubjectRows(exam.id) : [];
