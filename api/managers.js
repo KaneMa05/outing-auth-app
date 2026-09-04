@@ -17,16 +17,23 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      if (!hasPermission(session, "managers.read")) {
+      const canReadManagerDetails = hasPermission(session, "managers.read");
+      if (!canReadManagerDetails && !hasPermission(session, "manager_names.read")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
+      const selectColumns = canReadManagerDetails
+        ? "id,name,cohort,role,memo,is_active,created_at"
+        : "id,name,cohort,role,is_active,created_at";
+      const legacySelectColumns = canReadManagerDetails
+        ? "id,name,role,memo,is_active,created_at"
+        : "id,name,role,is_active,created_at";
       let managers;
       try {
-        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=id,name,cohort,role,memo,is_active,created_at&order=created_at.asc`);
+        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=${selectColumns}&order=created_at.asc`);
       } catch (error) {
         if (!isMissingCohortColumnError(error)) throw error;
-        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=id,name,role,memo,is_active,created_at&order=created_at.asc`);
+        managers = await requestSupabase("GET", `${TABLE}?is_active=eq.true&select=${legacySelectColumns}&order=created_at.asc`);
       }
       res.status(200).json({ ok: true, managers });
       return;

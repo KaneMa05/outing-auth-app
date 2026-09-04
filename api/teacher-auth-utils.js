@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const COOKIE_NAME = "teacher_session";
 const SESSION_SECONDS = 8 * 60 * 60;
 const ADMIN_PERMISSIONS = ["*"];
+const MANAGER_NAMES_READ_PERMISSION = "manager_names.read";
 const STUDENT_MANAGER_PERMISSIONS = [
   "outing.read",
   "outing.approve",
@@ -15,6 +16,7 @@ const STUDENT_MANAGER_PERMISSIONS = [
   "attendance.write",
   "fitness.read",
   "fitness.write",
+  MANAGER_NAMES_READ_PERMISSION,
   "exam_numbers.read",
   "exam_numbers.write",
 ];
@@ -120,6 +122,11 @@ function readSessionToken(token, secret) {
     const permissions = role === "student_manager"
       ? tokenPermissions.filter((permission) => STUDENT_MANAGER_PERMISSIONS.includes(permission))
       : tokenPermissions;
+    // Role capabilities can be added while an existing signed session is still valid.
+    // Keep the manager-name picker working without restoring access to the manager admin route.
+    if (role === "student_manager" && !permissions.includes(MANAGER_NAMES_READ_PERMISSION)) {
+      permissions.push(MANAGER_NAMES_READ_PERMISSION);
+    }
     return {
       username: data.username || "",
       role,

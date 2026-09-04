@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { createSessionToken, readSessionToken } = require("../api/teacher-auth-utils");
+const managersHandler = require("../api/managers");
 const teacherAccountsHandler = require("../api/teacher-accounts");
 
 function request(method, body = null, cookie = "") {
@@ -79,7 +80,7 @@ function jsonResponse(status, data) {
       ],
     });
     const currentManagerSession = readSessionToken(legacyManagerToken, "test-session-secret");
-    assert.deepStrictEqual(currentManagerSession.permissions, ["exam_numbers.read"]);
+    assert.deepStrictEqual(currentManagerSession.permissions, ["exam_numbers.read", "manager_names.read"]);
     const managerPermissionBlock = fs.readFileSync(
       path.join(__dirname, "..", "api", "teacher-auth-utils.js"),
       "utf8"
@@ -88,6 +89,7 @@ function jsonResponse(status, data) {
     assert.doesNotMatch(managerPermissionBlock, /question_board\.(?:read|write)/);
     assert.doesNotMatch(managerPermissionBlock, /inquiries\.(?:read|write)/);
     assert.doesNotMatch(managerPermissionBlock, /managers\.read/);
+    assert.match(managerPermissionBlock, /MANAGER_NAMES_READ_PERMISSION/);
 
     const token = createSessionToken("test-session-secret", {
       username: "bootstrap-admin",
@@ -97,6 +99,11 @@ function jsonResponse(status, data) {
     const calls = [];
     global.fetch = async (url, options = {}) => {
       calls.push({ url: String(url), options });
+      if (String(url).includes("/rest/v1/managers?")) {
+        assert.match(String(url), /select=id,name,cohort,role,is_active,created_at/);
+        assert.doesNotMatch(String(url), /select=[^&]*memo/);
+        return jsonResponse(200, [{ id: "manager-1", name: "담당자", cohort: "1", role: "교사", is_active: true }]);
+      }
       if (String(url).includes("students?id=eq.3&select=")) return jsonResponse(200, []);
       if (options.method === "POST" && String(url).includes("/rest/v1/students?")) {
         const saved = JSON.parse(options.body);
@@ -114,6 +121,14 @@ function jsonResponse(status, data) {
       throw new Error(`Unexpected request: ${url}`);
     };
 
+    const managerListRes = response();
+    await managersHandler(
+      request("GET", null, `teacher_session=${legacyManagerToken}`),
+      managerListRes
+    );
+    assert.strictEqual(managerListRes.statusCode, 200);
+    assert.strictEqual(managerListRes.body.managers[0].name, "담당자");
+
     const createRes = response();
     await teacherAccountsHandler(
       request("POST", { registrationNumber: 3, displayName: "홍길동", password: "safe-password-123" }, `teacher_session=${token}`),
@@ -121,7 +136,7 @@ function jsonResponse(status, data) {
     );
     assert.strictEqual(createRes.statusCode, 201);
     assert.strictEqual(createRes.body.account.id, "3");
-    assert.strictEqual(calls.length, 3);
+    assert.strictEqual(calls.length, 4);
 
     const invalidRes = response();
     await teacherAccountsHandler(
