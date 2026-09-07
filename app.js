@@ -46,7 +46,7 @@
 };
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "other-settings", "notices"]),
-  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"]),
+  online_managed: new Set(["home", "study-todo", "study-cafe", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"]),
   lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "other-settings", "notifications", "notices"]),
 };
 
@@ -59,7 +59,7 @@ const INTERNET_STUDENT_FAQS = [
   {
     category: "스터디카페",
     question: "좌석을 선택하려면 먼저 무엇을 해야 하나요?",
-    answer: "오늘 플래너에 공부할 과목의 할 일을 하나 이상 작성한 뒤 스터디카페에서 빈 좌석을 선택하세요. 이어서 공부할 과목을 고르면 좌석이 확정되고 타이머를 시작할 수 있습니다.",
+    answer: "스터디카페에서 빈 좌석을 선택한 뒤 공부할 과목을 고르면 좌석이 확정되고 타이머를 시작할 수 있습니다. 오늘 플래너의 할 일은 필요할 때 자유롭게 작성할 수 있습니다.",
   },
   {
     category: "스터디카페",
@@ -245,6 +245,7 @@ const STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 const STUDY_CAFE_ACTION_REFRESH_DELAY_MS = 120;
 const STUDY_CAFE_USED_STORAGE_KEY = "ronpark-study-cafe-used";
 const STUDY_CAFE_RANKING_USED_STORAGE_KEY = "ronpark-study-cafe-ranking-used";
+const STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY = "ronpark-study-cafe-timer-pause-guide-v2";
 const STUDY_CAFE_ROOM_THEMES = [
   { theme: "oak", label: "랭킹룸", mood: "오늘 순공 랭킹" },
   { theme: "dawn", label: "자유석", mood: "편안하게 집중하는 공간" },
@@ -438,6 +439,7 @@ let studyCafeRankingRoomRefreshTimer = null;
 let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
 let studentStudyRouteTransitionDirection = 0;
+let studyRankingFooterRoute = "home";
 let studyCafeIdleWarningRemaining = 0;
 let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
@@ -671,6 +673,9 @@ function navigate(route) {
     currentStudyIndex >= 0 && nextStudyIndex >= 0 && currentStudyIndex !== nextStudyIndex
       ? nextStudyIndex > currentStudyIndex ? 1 : -1
       : 0;
+  if (nextRoute === "study-ranking") {
+    studyRankingFooterRoute = currentRoute === "study-cafe" ? "study-cafe" : "home";
+  }
   if (nextRoute === "study-cafe" && currentRoute !== "study-cafe") {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = false;
   }
@@ -717,7 +722,9 @@ function render() {
     const activeRoute =
       inStudentFooter && ["study-character", "study-shop", "push-settings", "other-settings", "faq", "inquiry-board"].includes(currentRoute)
         ? "mypage"
-        : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notifications", "notices"].includes(currentRoute)
+        : inStudentFooter && currentRoute === "study-ranking"
+          ? studyRankingFooterRoute
+        : inStudentFooter && ["study-timer", "question-board", "notifications", "notices"].includes(currentRoute)
           ? "home"
           : currentRoute;
     button.hidden = !allowed;
@@ -5727,19 +5734,38 @@ function renderStudentStudyCafe() {
         roomContextText
           ? el("span", { "data-study-cafe-room-context": "true" }, roomContextText)
           : null,
-        el(
-          "button",
-          {
-            className: "study-room-open-button",
-            type: "button",
-            ariaLabel: "스터디방 목록 열기",
-            onclick: openStudyRoomListModal,
-          },
-          [
-            el("span", { className: "study-room-open-icon", ariaHidden: "true" }, "☰"),
-            el("span", {}, "스터디방 목록"),
-          ]
-        ),
+        el("div", { className: "study-cafe-room-label-actions" }, [
+          isOnlineStudyStudent(student) || isStudyCafeLocalPreview()
+            ? el(
+                "button",
+                {
+                  className: "study-cafe-ranking-button",
+                  type: "button",
+                  ariaLabel: "순공 랭킹 보기",
+                  onclick: () => navigate("study-ranking"),
+                },
+                [
+                  el("span", { className: "study-cafe-ranking-button-icon", ariaHidden: "true" }, [
+                    el("span", { className: "footer-icon footer-icon-study-ranking" }),
+                  ]),
+                  el("span", {}, "순공 랭킹"),
+                ]
+              )
+            : null,
+          el(
+            "button",
+            {
+              className: "study-room-open-button",
+              type: "button",
+              ariaLabel: "스터디방 목록 열기",
+              onclick: openStudyRoomListModal,
+            },
+            [
+              el("span", { className: "study-room-open-icon", ariaHidden: "true" }, "☰"),
+              el("span", {}, "스터디방 목록"),
+            ]
+          ),
+        ]),
       ]),
       renderStudyCafeRoomTabs(student),
       el(
@@ -5808,7 +5834,9 @@ function renderStudentPrivateStudyRoom(student) {
               ? el("time", { "data-study-cafe-clock": "true" }, formatStudyCafeElapsed(getStudySubjectElapsedMs(studyCafePreviewState.subject)))
               : el("div", { className: "study-private-my-actions" }, [
                   button("과목 선택", "study-room-subject-button", "button", () =>
-                    openStudyCafeSubjectModal(`private-seat-${room.mySeatNumber}`, student)
+                    openStudyCafeSubjectModal(`private-seat-${room.mySeatNumber}`, student, {
+                      showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide(student),
+                    })
                   ),
                   button("좌석 비우기", "study-room-leave-button study-private-release-button", "button", releaseStudyCafeSeat),
                 ]),
@@ -5979,6 +6007,7 @@ function renderPrivateStudyRoomSeat(seatNumber, room, student) {
     if (isMine) {
       openStudyCafeSubjectModal(`private-seat-${seatNumber}`, student, {
         preserveTimer: Boolean(studyCafePreviewState.subject),
+        showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide(student),
       });
       return;
     }
@@ -5988,6 +6017,7 @@ function renderPrivateStudyRoomSeat(seatNumber, room, student) {
       return;
     }
     if (studyRoomState.actionPending) return;
+    const showTimerPauseGuide = !hasSeenStudyCafeTimerPauseGuide(student);
     seat.disabled = true;
     const result = await mutateStudyRoom("claim_seat", { roomId: room.id, seatNumber });
     if (!result.ok) {
@@ -5997,7 +6027,7 @@ function renderPrivateStudyRoomSeat(seatNumber, room, student) {
     studyCafePreviewState.selectedSeatId = `private-seat-${seatNumber}`;
     renderStudyCafeStateUpdate();
     notify(`${seatNumber}번 좌석을 선택했습니다.`);
-    openStudyCafeSubjectModal(`private-seat-${seatNumber}`, student);
+    openStudyCafeSubjectModal(`private-seat-${seatNumber}`, student, { showTimerPauseGuide });
   });
   return seat;
 }
@@ -6499,7 +6529,9 @@ function renderStudyCafeMySeatCard(student, seatNumber) {
               "과목 선택",
               "study-cafe-my-seat-subject-button",
               "button",
-              () => openStudyCafeSubjectModal(studyCafePreviewState.selectedSeatId, student)
+              () => openStudyCafeSubjectModal(studyCafePreviewState.selectedSeatId, student, {
+                showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide(student),
+              })
             ),
             button(
               "자리 비우기",
@@ -6719,6 +6751,27 @@ function markStudyCafeAsUsed(student = getAuthedStudent()) {
     localStorage.setItem(getStudyCafeUsageStorageKey(STUDY_CAFE_USED_STORAGE_KEY, student), "true");
   } catch (_error) {
     // Storage may be unavailable; the active seat still hides the guide.
+  }
+}
+
+function hasSeenStudyCafeTimerPauseGuide(student = getAuthedStudent()) {
+  try {
+    return localStorage.getItem(
+      getStudyCafeUsageStorageKey(STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY, student)
+    ) === "true";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function markStudyCafeTimerPauseGuideAsSeen(student = getAuthedStudent()) {
+  try {
+    localStorage.setItem(
+      getStudyCafeUsageStorageKey(STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY, student),
+      "true"
+    );
+  } catch (_error) {
+    // The guide can still continue when storage is unavailable.
   }
 }
 
@@ -7879,8 +7932,15 @@ function renderStudentStudyRanking() {
     !isPreview &&
     studyCafeRemoteState.rankingLoadingPeriod === studyRankingPreviewState.period &&
     !periodData;
+  const rankingBackLabel = studyRankingFooterRoute === "study-cafe" ? "‹ 스터디카페" : "‹ 홈";
   return el("div", { className: "student-study-ranking-page" }, [
     el("header", { className: "study-ranking-page-head" }, [
+      button(
+        rankingBackLabel,
+        "study-ranking-back-button",
+        "button",
+        () => navigate(studyRankingFooterRoute)
+      ),
       el("div", {}, [
         el("span", {}, "RONPARK ONLINE"),
         el("h2", {}, "순공시간 랭킹"),
@@ -8227,8 +8287,9 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
         const subject = studyCafePreviewState.pendingSubject;
         seatButton.disabled = true;
         seatButton.classList.add("loading");
-        const todosReady = await ensureStudyCafeTodosReady();
-        if (todosReady && !hasStudyCafeTodoForSubject(student, subject)) {
+        const todoRequired = requiresStudyCafeTodo(student);
+        const todosReady = !todoRequired || await ensureStudyCafeTodosReady();
+        if (todoRequired && todosReady && !hasStudyCafeTodoForSubject(student, subject)) {
           seatButton.disabled = false;
           seatButton.classList.remove("loading");
           openStudyCafeTodoRedirectModal(seat.id, seatNumber, subject);
@@ -8247,18 +8308,20 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
       }
       seatButton.disabled = true;
       seatButton.classList.add("loading");
-      const todosReady = await ensureStudyCafeTodosReady();
+      const todoRequired = requiresStudyCafeTodo(student);
+      const todosReady = !todoRequired || await ensureStudyCafeTodosReady();
       seatButton.disabled = false;
       seatButton.classList.remove("loading");
       if (studyCafePreviewState.selectedSeatId) {
         renderStudyCafeStateUpdate();
         return;
       }
-      if (todosReady && getStudyCafeTodayTodos(student).length === 0) {
+      if (todoRequired && todosReady && getStudyCafeTodayTodos(student).length === 0) {
         openStudyCafeTodoRedirectModal(seat.id, seatNumber);
         return;
       }
       openStudyCafeSubjectModal(seat.id, student, {
+        showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide(student),
         beforeSelect: async () => {
           const claim = await claimStudyCafeSeat(seatNumber);
           if (!claim.ok) return false;
@@ -8271,6 +8334,7 @@ function renderStudyCafeSeat(seat, index, student, options = {}) {
     seatButton.addEventListener("click", () =>
       openStudyCafeSubjectModal(seat.id, student, {
         preserveTimer: Boolean(studyCafePreviewState.subject),
+        showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide(student),
       })
     );
   } else {
@@ -8499,6 +8563,10 @@ function hasStudyCafeTodoForSubject(student, subject) {
   );
 }
 
+function requiresStudyCafeTodo(student) {
+  return !isOnlineStudyStudent(student) && !isStudyCafeLocalPreview();
+}
+
 function openStudyCafeTodoRedirectModal(seatId, seatNumber, subject = "", options = {}) {
   const subjectLabel = subject ? `${subject} 할 일` : "오늘 할 일";
   openInfoModal({
@@ -8596,6 +8664,10 @@ function openStudyCafeSeatMoveModal(seatId, seatNumber, options = {}) {
 
 function openStudyCafeSubjectModal(seatId, student, options = {}) {
   const preserveTimer = options.preserveTimer === true;
+  const showTimerPauseGuide =
+    options.showTimerPauseGuide === true &&
+    !preserveTimer &&
+    !hasSeenStudyCafeTimerPauseGuide(student);
   const beforeSelect = typeof options.beforeSelect === "function" ? options.beforeSelect : null;
   const seatNumber = STUDY_CAFE_PREVIEW_SEATS.findIndex((seat) => seat.id === seatId) + 1;
   const rankingRoomSeat =
@@ -8634,7 +8706,11 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
   });
   const confirmSelection = async () => {
     if (!selectedSubject || selectionPending) return;
-    if (!preserveTimer && !hasStudyCafeTodoForSubject(student, selectedSubject)) {
+    if (
+      requiresStudyCafeTodo(student) &&
+      !preserveTimer &&
+      !hasStudyCafeTodoForSubject(student, selectedSubject)
+    ) {
       openStudyCafeTodoRedirectModal(seatId, seatNumber, selectedSubject, {
         seatAlreadyClaimed: studyCafePreviewState.selectedSeatId === seatId,
       });
@@ -8656,9 +8732,17 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
       confirmButton.textContent = "확인";
       return;
     }
-    applyStudyCafeSubjectSelection(seatId, selectedSubject, { preserveTimer });
-    closeInfoModal();
-    render();
+    const applySelection = () => {
+      applyStudyCafeSubjectSelection(seatId, selectedSubject, { preserveTimer });
+      closeInfoModal();
+      render();
+    };
+    if (showTimerPauseGuide) {
+      closeInfoModal();
+      showStudyCafeTimerPauseGuide(student, applySelection);
+      return;
+    }
+    applySelection();
     if (preserveTimer) notify(`${selectedSubject} 과목으로 변경을 준비합니다.`);
   };
   const modalControls = openInfoModal({
@@ -8694,6 +8778,24 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
     ]),
   });
   confirmButton = modalControls.confirmButton;
+}
+
+function showStudyCafeTimerPauseGuide(student, onContinue) {
+  openInfoModal({
+    title: "순공 타이머 이용 안내",
+    className: "study-cafe-timer-pause-guide-modal",
+    confirmLabel: "확인하고 시작하기",
+    onConfirm: () => {
+      markStudyCafeTimerPauseGuideAsSeen(student);
+      if (typeof onContinue === "function") onContinue();
+    },
+    content: el("div", { className: "study-cafe-timer-pause-guide" }, [
+      el("span", { className: "study-cafe-timer-pause-guide-icon", ariaHidden: "true" }, "Ⅱ"),
+      el("p", {}, "‘확인하고 시작하기’를 누르면 3초 카운트다운 후 순공 타이머가 시작됩니다."),
+      el("p", {}, "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그면 순공시간 측정이 자동으로 일시정지됩니다."),
+      el("p", {}, "다시 돌아오면 ‘계속 공부하기’를 눌러 측정을 이어갈 수 있습니다. 앱 안에서 다른 메뉴로 이동할 때는 타이머가 계속됩니다."),
+    ]),
+  });
 }
 
 function applyStudyCafeSubjectSelection(seatId, subject, options = {}) {

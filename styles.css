@@ -4605,6 +4605,35 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   width: 100%;
 }
 
+.study-cafe-timer-pause-guide {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.study-cafe-timer-pause-guide-icon {
+  grid-row: 1 / span 3;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #e8f1f3;
+  color: #477f8c;
+  font-size: 0.94rem;
+  font-weight: 950;
+}
+
+.study-cafe-timer-pause-guide p:first-of-type {
+  color: #2d5661;
+  font-weight: 900;
+}
+
+.study-cafe-timer-pause-guide p {
+  font-size: 0.82rem;
+}
+
 .info-modal.weekly-answer-modal {
   inset: 0 0 0 248px;
   padding: 22px min(4vw, 44px) 40px;
@@ -7073,7 +7102,7 @@ body.student-footer-tap-guard .study-cafe-seat {
 }
 
 body.student-online-managed-mode .normal-student-footer {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 body.student-study-mode .study-cafe-footer-menu {
@@ -12147,12 +12176,36 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
 
 .study-ranking-page-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   border-radius: 18px;
   background: #fff;
   padding: 13px 14px;
+}
+
+.study-ranking-page-head > div {
+  text-align: center;
+}
+
+.study-ranking-back-button {
+  justify-self: start;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.study-ranking-back-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .study-ranking-page-head > div span {
@@ -12169,6 +12222,7 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
 }
 
 .study-ranking-my-chip {
+  justify-self: end;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-strong);
@@ -12921,6 +12975,55 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
 .study-cafe-room-label-row.actions-only {
   justify-content: flex-start;
   padding-top: 8px;
+}
+
+.study-cafe-room-label-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.study-cafe-ranking-button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #dcc58f;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fffdf6 0%, #f5e6bd 100%);
+  color: #70490f;
+  padding: 3px 8px 3px 4px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.study-cafe-ranking-button-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #f3dca5;
+  color: #a86b12;
+}
+
+.study-cafe-ranking-button-icon .footer-icon {
+  flex: 0 0 24px;
+  transform: scale(0.68);
+}
+
+.study-cafe-ranking-button:active {
+  border-color: #c7a85e;
+  background: #f5e6bd;
+}
+
+.study-cafe-ranking-button:focus-visible {
+  outline: 2px solid #a86b12;
+  outline-offset: 2px;
 }
 
 .study-cafe-first-use-guide {
@@ -13840,6 +13943,15 @@ body.student-online-mode .info-modal-panel .btn.secondary {
 
 body.student-online-mode .info-modal-panel .btn.secondary:hover {
   background: #dce9ec;
+}
+
+body.student-online-mode .info-modal-panel.study-cafe-timer-pause-guide-modal > .btn.secondary {
+  background: #477f8c;
+  color: #fff;
+}
+
+body.student-online-mode .info-modal-panel.study-cafe-timer-pause-guide-modal > .btn.secondary:hover {
+  background: #3b6f7b;
 }
 
 .study-cafe-floating-controls.open {
@@ -18270,6 +18382,12 @@ body.student-online-mode:not(.student-home-route) .study-ranking-page-head > div
 body.student-online-mode:not(.student-home-route) .study-timer-active-chip,
 body.student-online-mode:not(.student-home-route) .study-ranking-my-chip {
   border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+
+body.student-online-mode:not(.student-home-route) .study-ranking-back-button {
+  border-color: rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.13);
   color: #fff;
 }

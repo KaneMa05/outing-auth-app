@@ -158,13 +158,18 @@ assert.match(appSource, /function ensureStudyCafeTodosReady\(\)/);
 assert.match(appSource, /function getStudyCafeTodayTodos\(student\)/);
 assert.match(
   appSource,
-  /if \(todosReady && getStudyCafeTodayTodos\(student\)\.length === 0\) \{\s*openStudyCafeTodoRedirectModal\(seat\.id, seatNumber\)/
+  /if \(todoRequired && todosReady && getStudyCafeTodayTodos\(student\)\.length === 0\) \{\s*openStudyCafeTodoRedirectModal\(seat\.id, seatNumber\)/
 );
 assert.match(
   appSource,
   /function openStudyCafeTodoRedirectModal\(seatId, seatNumber, subject = "", options = \{\}\)/
 );
 assert.match(appSource, /function hasStudyCafeTodoForSubject\(student, subject\)/);
+assert.match(
+  appSource,
+  /function requiresStudyCafeTodo\(student\) \{\s*return !isOnlineStudyStudent\(student\) && !isStudyCafeLocalPreview\(\);\s*\}/,
+  "internet students should be able to select a study-cafe seat without creating a todo"
+);
 assert.match(
   appSource,
   /studyCafePlannerEntryState\.subject = subject;[\s\S]*?studyTodoEditorState\.subject = subject;[\s\S]*?navigate\("study-todo"\)/
@@ -176,11 +181,11 @@ assert.match(
 );
 assert.match(
   appSource,
-  /if \(todosReady && !hasStudyCafeTodoForSubject\(student, subject\)\)[\s\S]*?openStudyCafeTodoRedirectModal\(seat\.id, seatNumber, subject\)/
+  /if \(todoRequired && todosReady && !hasStudyCafeTodoForSubject\(student, subject\)\)[\s\S]*?openStudyCafeTodoRedirectModal\(seat\.id, seatNumber, subject\)/
 );
 assert.match(
   appSource,
-  /if \(!preserveTimer && !hasStudyCafeTodoForSubject\(student, selectedSubject\)\)[\s\S]*?seatAlreadyClaimed: studyCafePreviewState\.selectedSeatId === seatId/
+  /requiresStudyCafeTodo\(student\) &&[\s\S]*?!preserveTimer &&[\s\S]*?!hasStudyCafeTodoForSubject\(student, selectedSubject\)[\s\S]*?seatAlreadyClaimed: studyCafePreviewState\.selectedSeatId === seatId/
 );
 assert.match(appSource, /function renderStudyCafePlannerEntryGuide\(todos, selectedDateKey\)/);
 assert.match(
@@ -505,6 +510,30 @@ assert.doesNotMatch(appSource, /studyCafeAutoPauseNoticePending/);
 assert.match(appSource, /function closeStudyCafeAutoPauseModal\(\)[\s\S]*?\.study-cafe-auto-pause-modal/);
 assert.match(appSource, /if \(options\.closeAutoPauseModalOnSuccess === true\) closeStudyCafeAutoPauseModal\(\)/);
 assert.match(styleSource, /\.info-modal,\s*\.study-cafe-auto-pause-modal\s*\{/);
+assert.match(appSource, /const STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY = "ronpark-study-cafe-timer-pause-guide-v2"/);
+assert.match(
+  appSource,
+  /function hasSeenStudyCafeTimerPauseGuide\(student = getAuthedStudent\(\)\)[\s\S]*?STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY/
+);
+assert.match(
+  appSource,
+  /showTimerPauseGuide: !hasSeenStudyCafeTimerPauseGuide\(student\)[\s\S]*?beforeSelect: async \(\) => \{[\s\S]*?claimStudyCafeSeat\(seatNumber\)/,
+  "the first public-cafe seat selection should request the timer pause guide"
+);
+assert.match(
+  appSource,
+  /function showStudyCafeTimerPauseGuide\(student, onContinue\)[\s\S]*?"순공 타이머 이용 안내"[\s\S]*?"확인하고 시작하기"[\s\S]*?markStudyCafeTimerPauseGuideAsSeen\(student\)[\s\S]*?"‘확인하고 시작하기’를 누르면 3초 카운트다운 후 순공 타이머가 시작됩니다\."[\s\S]*?"다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그면 순공시간 측정이 자동으로 일시정지됩니다\."/,
+  "the onboarding modal should explain automatic pause before starting the first timer"
+);
+assert.match(
+  appSource,
+  /if \(showTimerPauseGuide\) \{\s*closeInfoModal\(\);\s*showStudyCafeTimerPauseGuide\(student, applySelection\);\s*return;\s*\}/
+);
+assert.match(styleSource, /\.study-cafe-timer-pause-guide\s*\{/);
+assert.match(
+  styleSource,
+  /body\.student-online-mode \.info-modal-panel\.study-cafe-timer-pause-guide-modal > \.btn\.secondary\s*\{[^}]*background: #477f8c[^}]*color: #fff/
+);
 assert.match(
   appSource,
   /async function toggleStudyCafePreviewTimer\(\)[\s\S]*?if \(studyCafePreviewState\.running\) \{\s*await pauseStudyCafeTimer\(\)/
@@ -604,7 +633,29 @@ assert.match(styleSource, /@media \(min-width: 768px\)[\s\S]*?\.student-study-ch
 assert.match(styleSource, /@media \(min-width: 768px\)[\s\S]*?\.study-character-options-card\s*\{[^}]*align-content: center/);
 assert.match(styleSource, /@media \(min-width: 1200px\)[\s\S]*?body\.student-study-mode \.student-study-character-page\s*\{[^}]*width: min\(920px, 100%\)[^}]*grid-template-columns: minmax\(340px, 0\.9fr\) minmax\(420px, 1\.1fr\)[^}]*margin-inline: auto/);
 assert.match(appSource, /inStudentFooter && \["study-character", "study-shop", "push-settings", "other-settings", "faq", "inquiry-board"\]\.includes\(currentRoute\)[\s\S]*?\? "mypage"/);
-assert.match(appSource, /inStudentFooter && \["study-timer", "study-ranking", "question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
+assert.match(appSource, /let studyRankingFooterRoute = "home"/);
+assert.match(
+  appSource,
+  /if \(nextRoute === "study-ranking"\) \{\s*studyRankingFooterRoute = currentRoute === "study-cafe" \? "study-cafe" : "home";\s*\}/
+);
+assert.match(
+  appSource,
+  /inStudentFooter && currentRoute === "study-ranking"\s*\? studyRankingFooterRoute/
+);
+assert.match(
+  appSource,
+  /const rankingBackLabel = studyRankingFooterRoute === "study-cafe" \? "‹ 스터디카페" : "‹ 홈";[\s\S]*?"study-ranking-back-button"[\s\S]*?\(\) => navigate\(studyRankingFooterRoute\)/,
+  "the ranking header should return to the route that opened it"
+);
+assert.match(
+  styleSource,
+  /\.study-ranking-page-head\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/
+);
+assert.match(styleSource, /\.study-ranking-back-button\s*\{/);
+assert.match(styleSource, /\.study-ranking-page-head > div\s*\{[^}]*text-align: center/);
+assert.match(styleSource, /\.study-ranking-back-button\s*\{[^}]*justify-self: start/);
+assert.match(styleSource, /\.study-ranking-my-chip\s*\{[^}]*justify-self: end/);
+assert.match(appSource, /inStudentFooter && \["study-timer", "question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
 assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
 assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*grid-column: 1 \/ -1/);
 assert.match(styleSource, /\.study-character-back-button/);
@@ -858,6 +909,24 @@ assert.match(appSource, /theme: "dawn", label: "자유석", mood: "편안하게 
 assert.doesNotMatch(appSource, /label: "[ABC]룸"/);
 assert.match(appSource, /const STUDY_CAFE_ROOMS = STUDY_CAFE_ROOM_THEMES\.map/);
 assert.match(styleSource, /\.study-cafe-room\.theme-dawn/);
+assert.match(
+  appSource,
+  /className: "study-cafe-room-label-actions"[\s\S]*?className: "study-cafe-ranking-button"[\s\S]*?footer-icon-study-ranking[\s\S]*?"순공 랭킹"[\s\S]*?className: "study-room-open-button"/,
+  "the study-cafe ranking shortcut should sit directly left of the study-room list button"
+);
+assert.match(
+  appSource,
+  /isOnlineStudyStudent\(student\) \|\| isStudyCafeLocalPreview\(\)[\s\S]*?onclick: \(\) => navigate\("study-ranking"\)/,
+  "the ranking shortcut should be limited to the internet-student experience"
+);
+assert.match(
+  styleSource,
+  /\.study-cafe-ranking-button\s*\{[^}]*border: 1px solid #dcc58f[^}]*linear-gradient\(135deg, #fffdf6 0%, #f5e6bd 100%\)[^}]*color: #70490f/
+);
+assert.match(
+  styleSource,
+  /\.study-cafe-ranking-button-icon\s*\{[^}]*background: #f3dca5[^}]*color: #a86b12/
+);
 assert.match(styleSource, /\.study-cafe-room\.theme-forest/);
 assert.match(styleSource, /\.study-cafe-room\.theme-classic/);
 assert.match(styleSource, /\.study-cafe-room\.theme-night/);
@@ -904,7 +973,7 @@ assert.doesNotMatch(
 );
 assert.match(
   styleSource,
-  /\.study-ranking-page-head\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/
+  /\.study-ranking-page-head\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/
 );
 assert.match(appSource, /론박 온라인 스터디카페/);
 assert.doesNotMatch(appSource, /study-ranking-teaser/);

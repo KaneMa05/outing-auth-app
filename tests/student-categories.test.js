@@ -39,7 +39,7 @@ assert.match(sharedSource, /return \["online_managed", "lecture"\]\.includes\(ge
 assert.match(sharedSource, /student_category: getStudentCategory\(student\)/);
 
 assert.match(appSource, /offline: new Set\(\["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "other-settings", "notices"\]\)/);
-assert.match(appSource, /online_managed: new Set\(\["home", "study-cafe", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"\]\)/);
+assert.match(appSource, /online_managed: new Set\(\["home", "study-todo", "study-cafe", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"\]\)/);
 assert.match(appSource, /lecture: new Set\(\["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "other-settings", "notifications", "notices"\]\)/);
 assert.match(appSource, /category === "online_managed" && !isOnlineManagedStudyCafeEnabled\(\)/);
 assert.match(appSource, /function defaultRoute\(\) \{\s*return "home";/);
@@ -62,6 +62,10 @@ for (const removedTrack of [
 }
 
 const studyFooter = indexSource.match(/<footer class="student-footer-menu study-cafe-footer-menu"[\s\S]*?<\/footer>/)?.[0] || "";
+const normalFooter = indexSource.match(/<footer class="student-footer-menu normal-student-footer"[\s\S]*?<\/footer>/)?.[0] || "";
+assert.match(normalFooter, /data-route="home"[\s\S]*?data-route="study-todo"[\s\S]*?data-route="study-cafe"[\s\S]*?data-route="grades"[\s\S]*?data-route="mypage"/);
+assert.match(normalFooter, /data-route="study-todo" hidden/);
+assert.match(read("styles.css"), /body\.student-online-managed-mode \.normal-student-footer\s*\{[^}]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
 for (const route of ["home", "study-todo", "study-cafe", "mypage"]) {
   assert.match(studyFooter, new RegExp(`data-route="${route}"`));
 }
