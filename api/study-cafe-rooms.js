@@ -272,7 +272,7 @@ async function loadOwnRoom(student) {
   const [members, profiles, students, messages, sessions] = await Promise.all([
     requestStore("GET", `study_cafe_room_members?room_id=eq.${room.id}&select=student_id,role,seat_number,joined_at,updated_at&order=joined_at.asc`),
     requestStore("GET", "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"),
-    requestStore("GET", "students?id=like.2*&is_active=eq.true&select=id,name,track"),
+    requestStore("GET", "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track"),
     requestStore("GET", `study_cafe_room_messages?room_id=eq.${room.id}&select=id,student_id,message_type,message_text,created_at,deleted_at&order=created_at.desc&limit=100`),
     requestStore("GET", `study_cafe_sessions?started_at=gte.${encodeURIComponent(studyBounds.start)}&started_at=lt.${encodeURIComponent(studyBounds.end)}&select=student_id,subject_name,status,elapsed_seconds,active_started_at`),
   ]);

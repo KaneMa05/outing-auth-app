@@ -4,6 +4,12 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const handler = require(path.join(root, "api", "study-cafe-rooms.js"));
+const apiSource = fs.readFileSync(path.join(root, "api", "study-cafe-rooms.js"), "utf8");
+assert.doesNotMatch(apiSource, /students\?id=like\.2\*/);
+assert.match(
+  apiSource,
+  /students\?student_category=in\.\(online_managed,lecture\)&is_active=eq\.true&select=id,name,track/
+);
 const {
   hashRoomPassword,
   isValidRoomPassword,

@@ -625,7 +625,7 @@ async function buildStudyCafeSnapshot(student, now) {
     ),
     requestSupabase(
       "GET",
-      "students?id=like.2*&is_active=eq.true&select=id,name,track"
+      "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track"
     ),
     shopSummaryPromise,
   ]);
@@ -867,7 +867,7 @@ async function loadStudyRanking(studentId, period, now) {
     ),
     requestSupabase("GET", "study_cafe_profiles?select=student_id,avatar_tone,nickname"),
     requestSupabase("GET", "study_cafe_presence?select=student_id,display_name"),
-    requestSupabase("GET", "students?id=like.2*&is_active=eq.true&select=id,name"),
+    requestSupabase("GET", "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name"),
   ]);
   const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((row) => [row.student_id, row]));
   const presenceMap = new Map((Array.isArray(presence) ? presence : []).map((row) => [row.student_id, row]));

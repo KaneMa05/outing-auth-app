@@ -45,6 +45,11 @@ const rollbackSql = fs.readFileSync("supabase/remove-study-cafe.sql", "utf8");
 const seatExpansionSql = fs.readFileSync("supabase/expand-study-cafe-to-192-seats.sql", "utf8");
 const productionMigrationSql = fs.readFileSync("supabase/prepare-study-cafe-production.sql", "utf8");
 const apiSource = fs.readFileSync("api/study-cafe.js", "utf8");
+assert.doesNotMatch(apiSource, /students\?id=like\.2\*/);
+assert.match(
+  apiSource,
+  /students\?student_category=in\.\(online_managed,lecture\)&is_active=eq\.true&select=id,name,track/
+);
 assert.match(apiSource, /"ranking"/);
 assert.match(apiSource, /"keep_seat"/);
 assert.match(
