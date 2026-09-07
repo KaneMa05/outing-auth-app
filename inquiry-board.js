@@ -33,11 +33,17 @@ function renderStudentInquiryBoard() {
       panel("문의하기", [el("div", { className: "empty" }, "인터넷 수강생만 이용할 수 있습니다.")]),
     ]);
   }
-  if (studentInquiryState.studentId !== student.id) resetStudentInquiryState(student.id);
-  if (!studentInquiryState.loaded && !studentInquiryState.loading) loadStudentInquiries();
+  prefetchStudentInquiries();
   if (studentInquiryState.mode === "form") return renderStudentInquiryForm();
   if (studentInquiryState.mode === "detail") return renderStudentInquiryDetail();
   return renderStudentInquiryList();
+}
+
+function prefetchStudentInquiries() {
+  const student = getAuthedStudent();
+  if (!student || getStudentCategory(student) !== "lecture") return;
+  if (studentInquiryState.studentId !== student.id) resetStudentInquiryState(student.id);
+  if (!studentInquiryState.loaded && !studentInquiryState.loading) loadStudentInquiries();
 }
 
 function openStudentInquiryList() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v384-screen-wake-lock";
+const CACHE_NAME = "outing-auth-app-v384-remote-load-speed";
 const APP_SHELL = [
   "/",
   "/index.html",

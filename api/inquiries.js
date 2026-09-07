@@ -222,14 +222,16 @@ async function authenticateLectureStudent(body) {
   const studentId = normalizeText(body.studentId, 64);
   const deviceToken = normalizeText(body.deviceToken, 256);
   if (!studentId || !deviceToken) return null;
-  const validation = await requestSupabase("POST", "rpc/validate_student_device", {
-    p_student_id: studentId,
-    p_device_token_hash: hashDeviceToken(deviceToken),
-    p_client_display_mode: normalizeText(body.client?.displayMode, 40) || null,
-    p_client_user_agent: normalizeText(body.client?.userAgent, 500) || null,
-  });
+  const [validation, rows] = await Promise.all([
+    requestSupabase("POST", "rpc/validate_student_device", {
+      p_student_id: studentId,
+      p_device_token_hash: hashDeviceToken(deviceToken),
+      p_client_display_mode: normalizeText(body.client?.displayMode, 40) || null,
+      p_client_user_agent: normalizeText(body.client?.userAgent, 500) || null,
+    }),
+    requestSupabase("GET", `students?id=eq.${encodeURIComponent(studentId)}&student_category=eq.lecture&is_active=eq.true&select=id,name&limit=1`),
+  ]);
   if (!validation || validation.valid !== true) return null;
-  const rows = await requestSupabase("GET", `students?id=eq.${encodeURIComponent(studentId)}&student_category=eq.lecture&is_active=eq.true&select=id,name&limit=1`);
   return rows?.[0] || null;
 }
 

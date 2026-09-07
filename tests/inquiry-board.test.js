@@ -37,6 +37,8 @@ assert.match(teacherSource, /<script src="\.\/inquiry-board\.js\?v=[^"]+" defer>
 assert.match(serviceWorkerSource, /"\/inquiry-board\.js"/);
 
 assert.match(inquirySource, /function renderStudentInquiryBoard\(\)/);
+assert.match(inquirySource, /function prefetchStudentInquiries\(\)[\s\S]*?!studentInquiryState\.loaded && !studentInquiryState\.loading[\s\S]*?loadStudentInquiries\(\)/);
+assert.match(appSource, /function renderStudentFaq\(\)[\s\S]*?prefetchStudentInquiries\(\)/);
 assert.match(inquirySource, /studentInquiryState\.loading\s*\? renderStudentInquiryListLoading\(\)/);
 assert.match(inquirySource, /function renderStudentInquiryListLoading\(\)[\s\S]*?Array\.from\(\{ length: 3 \}/);
 assert.match(inquirySource, /studentInquiryState\.loading \? "불러오는 중"/);
@@ -61,12 +63,13 @@ assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\)
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-card,[\s\S]*?background: rgba\(219,231,236,\.9\)/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page > article\.inquiry-surface\s*\{[^}]*border-bottom: 1px solid rgba\(211,228,238,\.2\)/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page \.inquiry-message-form\s*\{[^}]*border-radius: 14px;[^}]*background: rgba\(137,174,193,\.09\)/);
-assert.match(indexSource, /inquiry-board\.js\?v=20260902-inquiry-list-entry/);
+assert.match(indexSource, /inquiry-board\.js\?v=20260902-inquiry-prefetch/);
 
 assert.match(inquiryApiSource, /student_inquiries/);
 assert.match(inquiryApiSource, /student_inquiry_messages/);
 assert.match(inquiryApiSource, /student_id=eq\.\$\{encodeURIComponent\(studentId\)\}/);
 assert.match(inquiryApiSource, /validate_student_device/);
+assert.match(inquiryApiSource, /const \[validation, rows\] = await Promise\.all\(\[/);
 assert.match(inquiryApiSource, /const permission = action === "teacher_reply" \? "inquiries\.write" : "inquiries\.read"/);
 assert.match(inquiryApiSource, /status: "answered"/);
 assert.doesNotMatch(inquiryApiSource, /question_posts|question_comments|question_reports|\/api\/question-board/);

@@ -180,6 +180,8 @@ const curriculumQuestTaskState = Object.fromEntries(
 let curriculumQuestCatalogLoading = false;
 let curriculumQuestCatalogLoaded = false;
 let curriculumQuestCatalogError = "";
+let curriculumQuestCatalogLoadedAt = 0;
+const CURRICULUM_QUEST_CATALOG_MAX_AGE_MS = 5 * 60 * 1000;
 const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_receipt_v1";
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
 const STUDENT_DDAY_STORAGE_KEY = "ronpark_student_dday_v1";
@@ -582,7 +584,7 @@ function handleRouteHistoryChange() {
   }
   currentRoute = nextRoute;
   if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) {
-    loadCurriculumQuestCatalog({ force: true });
+    loadCurriculumQuestCatalog({ force: isCurriculumQuestCatalogStale() });
   }
   render();
   if (currentRoute === "study-cafe" && studyCafePlannerEntryState.resumeRequested) {
@@ -606,7 +608,7 @@ document.addEventListener("visibilitychange", () => {
   if (APP_MODE === "student") syncStudentScreenWakeLock();
   if (document.visibilityState !== "visible" || APP_MODE !== "student") return;
   if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) {
-    loadCurriculumQuestCatalog({ force: true });
+    loadCurriculumQuestCatalog({ force: isCurriculumQuestCatalogStale() });
   }
 });
 
@@ -2888,6 +2890,7 @@ async function loadCurriculumQuestCatalog(options = {}) {
       }
     }
     curriculumQuestCatalogError = "";
+    curriculumQuestCatalogLoadedAt = Date.now();
     if (canLoadProgress) applyCurriculumQuestProgress(data.progress || {});
   } catch (error) {
     console.warn("Managed curriculum is unavailable.", error);
@@ -2900,6 +2903,11 @@ async function loadCurriculumQuestCatalog(options = {}) {
     curriculumQuestCatalogLoaded = true;
     if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) render();
   }
+}
+
+function isCurriculumQuestCatalogStale() {
+  return !curriculumQuestCatalogLoadedAt
+    || Date.now() - curriculumQuestCatalogLoadedAt >= CURRICULUM_QUEST_CATALOG_MAX_AGE_MS;
 }
 
 function curriculumProgressRequestBody(action, payload = {}) {
@@ -3900,6 +3908,7 @@ function renderStudentFaqFilters() {
 }
 
 function renderStudentFaq() {
+  if (typeof prefetchStudentInquiries === "function") prefetchStudentInquiries();
   const visibleFaqs = studentFaqCategory === "전체"
     ? [
         ...INTERNET_STUDENT_FAQS.filter((item) => item.category === "타이머"),
@@ -4754,6 +4763,9 @@ function renderStudentPlannerHub() {
   const curriculumAvailabilityPending = curriculumQuestReleaseVerified !== true;
   const showCurriculumSwitch = curriculumAvailable || curriculumAvailabilityPending;
   if (!curriculumAvailable) studyPlannerHubView = "planner";
+  if (curriculumAvailable && !curriculumQuestCatalogLoaded && !curriculumQuestCatalogLoading) {
+    loadCurriculumQuestCatalog();
+  }
   const activeView = curriculumAvailable ? studyPlannerHubView : "planner";
   if (activeView === "planner" && studyTodoCalendarOpen) {
     return el("div", { className: "student-planner-hub planner calendar-page" }, [
@@ -4809,13 +4821,13 @@ function renderStudentPlannerViewSwitch(activeView, curriculumPending = false) {
         "button",
         () => {
           if (studyPlannerHubView === option.id) {
-            if (option.id === "curriculum") loadCurriculumQuestCatalog({ force: true });
+            if (option.id === "curriculum") loadCurriculumQuestCatalog({ force: isCurriculumQuestCatalogStale() });
             return;
           }
           studyPlannerHubView = option.id;
           if (option.id === "curriculum") {
             curriculumQuestView = "map";
-            loadCurriculumQuestCatalog({ force: true });
+            loadCurriculumQuestCatalog({ force: isCurriculumQuestCatalogStale() });
           }
           render();
           scrollAppToTop();

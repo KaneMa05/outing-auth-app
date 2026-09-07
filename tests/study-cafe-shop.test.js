@@ -12,6 +12,7 @@ assert.equal(normalizeShopSlot("chair"), "chair");
 assert.equal(normalizeShopSlot("outfit"), "outfit");
 
 const sql = fs.readFileSync("supabase/add-study-cafe-shop.sql", "utf8");
+const categoryAccessSql = fs.readFileSync("supabase/expand-study-cafe-shop-category-access.sql", "utf8");
 const api = fs.readFileSync("api/study-cafe.js", "utf8");
 const app = fs.readFileSync("app.js", "utf8");
 const shop = fs.readFileSync("study-shop.js", "utf8");
@@ -72,6 +73,14 @@ assert.match(sql, /revoke execute on function public\.unequip_study_cafe_item\(t
 assert.equal((sql.match(/\('(?:outfit|head|desk|chair)_[a-z0-9_]+',/g) || []).length, 14);
 assert.match(sql, /slot in \('outfit', 'head', 'desk', 'chair'\)/);
 assert.match(sql, /if p_slot not in \('outfit', 'head', 'desk', 'chair'\)/);
+assert.doesNotMatch(sql, /p_student_id not like '2%'|check \(student_id like '2%'\)/);
+assert.match(sql, /student_category = 'lecture'/);
+assert.doesNotMatch(categoryAccessSql, /raise exception 'invalid_student_id'/);
+assert.doesNotMatch(categoryAccessSql, /p_student_id not like '2%'/);
+assert.match(categoryAccessSql, /drop constraint if exists study_cafe_point_wallets_student_id_check/);
+assert.match(categoryAccessSql, /drop constraint if exists study_cafe_inventory_student_id_check/);
+assert.match(categoryAccessSql, /drop constraint if exists study_cafe_equipment_student_id_check/);
+assert.equal((categoryAccessSql.match(/student_category = 'lecture'/g) || []).length, 2);
 assert.match(sql, /v_desk_count integer := 0/);
 
 assert.match(api, /"shop_load"/);
@@ -234,6 +243,45 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   }, res);
   assert.equal(res.statusCode, 403);
   assert.equal(res.payload.error, "lecture_student_only");
+
+  let awardedStudentId = "";
+  global.fetch = async (url, options) => {
+    if (url.endsWith("/rpc/validate_student_device")) {
+      return { ok: true, status: 200, json: async () => ({ valid: true }), text: async () => "" };
+    }
+    if (url.includes("/students?")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "900001", name: "9번대 수강생", student_category: "lecture", is_active: true }],
+        text: async () => "",
+      };
+    }
+    if (url.endsWith("/rpc/award_study_cafe_time_points")) {
+      awardedStudentId = JSON.parse(options.body).p_student_id;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ balance: 15, earnedToday: 5, totalStudySeconds: 1800, secondsToNextPoint: 1800, awardedNow: 5 }),
+        text: async () => "",
+      };
+    }
+    if (options.method === "GET") {
+      return { ok: true, status: 200, json: async () => [], text: async () => "" };
+    }
+    throw new Error(`unexpected request: ${options.method} ${url}`);
+  };
+
+  const lectureRes = response();
+  await handler({
+    method: "POST",
+    body: { action: "shop_load", studentId: "900001", deviceToken: "device-secret" },
+    headers: {},
+  }, lectureRes);
+  assert.equal(lectureRes.statusCode, 200);
+  assert.equal(lectureRes.payload.ok, true);
+  assert.equal(lectureRes.payload.wallet.balance, 15);
+  assert.equal(awardedStudentId, "900001");
   console.log("study cafe shop tests passed");
 })().finally(() => {
   global.fetch = originalFetch;

@@ -30,6 +30,7 @@ assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "
 assert.doesNotMatch(appSource, /student-inquiry-link/);
 assert.doesNotMatch(appSource.match(/const INTERNET_STUDENT_FAQS = \[[\s\S]*?\n\];/)?.[0] || "", /사무실에 문의/);
 assert.match(appSource, /function renderStudentFaq\(\)/);
+assert.match(appSource, /function renderStudentFaq\(\)[\s\S]*?prefetchStudentInquiries\(\)/);
 assert.match(appSource, /function renderStudentFaqItem\(item, index\)/);
 assert.match(appSource, /let studentFaqCategory = "전체"/);
 assert.match(appSource, /function renderStudentFaqFilters\(\)/);

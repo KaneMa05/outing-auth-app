@@ -677,19 +677,46 @@ async function sendSolapiVerificationMessage(phone, authNumber) {
     result = {};
   }
   if (!response.ok) {
-    const error = new Error(`solapi_${response.status}`);
+    const providerCode = cleanText(result?.errorCode || result?.code, 80);
+    const providerMessage = cleanText(result?.errorMessage || result?.message, 200);
+    const error = new Error(`solapi_${response.status}${providerCode ? `_${providerCode}` : ""}`);
     error.status = 502;
     error.publicCode = "phone_verification_provider_error";
+    error.providerCode = providerCode;
+    error.providerMessage = providerMessage;
     throw error;
   }
-  const resultList = Array.isArray(result?.resultList) ? result.resultList : [];
-  if (Number(result?.errorCount || 0) > 0 || !resultList.length || resultList.some((item) => String(item?.statusCode || "") !== "2000")) {
+  const sendFailure = getSolapiSendFailure(result);
+  if (sendFailure) {
     const error = new Error("solapi_message_rejected");
     error.status = 502;
     error.publicCode = "phone_verification_provider_error";
+    error.providerCode = sendFailure.providerCode;
+    error.providerMessage = sendFailure.providerMessage;
     throw error;
   }
   return result;
+}
+
+function getSolapiSendFailure(result) {
+  const legacyResultList = Array.isArray(result?.resultList) ? result.resultList : [];
+  const messageList = Array.isArray(result?.messageList) ? result.messageList : [];
+  const failedMessageList = Array.isArray(result?.failedMessageList) ? result.failedMessageList : [];
+  const statusList = legacyResultList.length ? legacyResultList : messageList;
+  const failedStatus = failedMessageList[0]
+    || statusList.find((item) => String(item?.statusCode || "") !== "2000");
+  const registeredSuccess = Number(result?.groupInfo?.count?.registeredSuccess || 0);
+  const registeredFailed = Number(result?.groupInfo?.count?.registeredFailed || 0);
+  const accepted = registeredSuccess > 0
+    || statusList.some((item) => String(item?.statusCode || "") === "2000");
+  const rejected = Number(result?.errorCount || 0) > 0
+    || registeredFailed > 0
+    || Boolean(failedStatus);
+  if (accepted && !rejected) return null;
+  return {
+    providerCode: cleanText(failedStatus?.statusCode || result?.errorCode || result?.code, 80),
+    providerMessage: cleanText(failedStatus?.statusMessage || result?.errorMessage || result?.message, 200),
+  };
 }
 
 function normalizePhone(value) {
@@ -805,6 +832,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
 
 module.exports._private = {
   createPhoneVerificationToken,
+  getSolapiSendFailure,
   hashPhoneVerificationValue,
   hashLookupToken,
   isPushConfigured,

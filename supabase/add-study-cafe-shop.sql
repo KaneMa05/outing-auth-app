@@ -25,8 +25,7 @@ create table if not exists public.study_cafe_point_wallets (
   lifetime_earned integer not null default 0 check (lifetime_earned >= 0),
   study_date date,
   awarded_study_points integer not null default 0 check (awarded_study_points >= 0),
-  updated_at timestamptz not null default now(),
-  check (student_id like '2%')
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.study_cafe_point_ledger (
@@ -49,8 +48,7 @@ create table if not exists public.study_cafe_inventory (
   student_id text not null references public.students(id) on delete cascade,
   item_id text not null references public.study_cafe_shop_items(id) on delete restrict,
   purchased_at timestamptz not null default now(),
-  primary key (student_id, item_id),
-  check (student_id like '2%')
+  primary key (student_id, item_id)
 );
 
 create index if not exists study_cafe_inventory_student_purchased_idx
@@ -62,8 +60,7 @@ create table if not exists public.study_cafe_equipment (
   item_id text not null references public.study_cafe_shop_items(id) on delete restrict,
   equipped_at timestamptz not null default now(),
   primary key (student_id, slot, item_id),
-  unique (student_id, item_id),
-  check (student_id like '2%')
+  unique (student_id, item_id)
 );
 
 -- Keep legacy outfit ownership valid while allowing the current cosmetic slots.
@@ -146,8 +143,14 @@ declare
   v_delta integer := 0;
   v_wallet public.study_cafe_point_wallets%rowtype;
 begin
-  if p_student_id is null or p_student_id not like '2%' then
-    raise exception 'invalid_student_id';
+  if p_student_id is null or not exists (
+    select 1
+    from public.students
+    where id = p_student_id
+      and is_active = true
+      and student_category = 'lecture'
+  ) then
+    return jsonb_build_object('ok', false, 'error', 'invalid_student_id');
   end if;
 
   v_study_date := ((p_now at time zone 'Asia/Seoul') - interval '4 hours')::date;
@@ -342,7 +345,13 @@ security invoker
 set search_path = ''
 as $$
 begin
-  if p_student_id is null or p_student_id not like '2%' then
+  if p_student_id is null or not exists (
+    select 1
+    from public.students
+    where id = p_student_id
+      and is_active = true
+      and student_category = 'lecture'
+  ) then
     return jsonb_build_object('ok', false, 'error', 'invalid_student_id');
   end if;
 

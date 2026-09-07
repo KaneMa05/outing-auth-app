@@ -5,6 +5,7 @@ const handler = require("../api/lecture-applications");
 const { COOKIE_NAME, createSessionToken } = require("../api/teacher-auth-utils");
 const {
   createPhoneVerificationToken,
+  getSolapiSendFailure,
   hashLookupToken,
   isRegistrationNumberForCohort,
   isValidCohort,
@@ -84,6 +85,20 @@ assert.equal(isValidCohort("0"), false);
 assert.equal(isRegistrationNumberForCohort("18009", "18"), true);
 assert.equal(isRegistrationNumberForCohort("19009", "18"), false);
 assert.equal(isRegistrationNumberForCohort("18000", "18"), false);
+assert.equal(getSolapiSendFailure({
+  errorCount: 0,
+  resultList: [{ statusCode: "2000" }],
+}), null);
+assert.equal(getSolapiSendFailure({
+  groupInfo: { count: { registeredSuccess: 1, registeredFailed: 0 } },
+  failedMessageList: [],
+  messageList: [{ statusCode: "2000", statusMessage: "정상 접수" }],
+}), null);
+assert.deepEqual(getSolapiSendFailure({
+  groupInfo: { count: { registeredSuccess: 0, registeredFailed: 1 } },
+  failedMessageList: [{ statusCode: "1011", statusMessage: "invalid recipient" }],
+  messageList: [{ statusCode: "1011", statusMessage: "invalid recipient" }],
+}), { providerCode: "1011", providerMessage: "invalid recipient" });
 const testPhoneVerificationSecret = "phone-verification-test-secret-at-least-32-characters";
 const testPhoneVerificationToken = createPhoneVerificationToken("010-1234-5678", "request-test", testPhoneVerificationSecret, 1000);
 assert.equal(validatePhoneVerificationToken(testPhoneVerificationToken, "01012345678", testPhoneVerificationSecret, 2000), true);
