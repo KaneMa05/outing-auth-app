@@ -18,7 +18,8 @@ assert.match(faqSource, /오늘 타이머 기록은 언제 새로 시작되나�
 assert.match(faqSource, /매일 오전 4시에 새로 시작됩니다/);
 assert.match(faqSource, /오전 4시가 되어도 측정 중인 타이머는 멈추지 않으며/);
 assert.match(faqSource, /타이머가 자동으로 멈추는 상황은 언제인가요\?/);
-assert.match(faqSource, /다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그는 등/);
+assert.match(faqSource, /다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠근 상태가 30초 이상 이어지면/);
+assert.match(faqSource, /30초 안에 돌아오면 타이머는 계속/);
 assert.match(faqSource, /앱 안에서 다른 메뉴로 이동하는 것만으로는 멈추지 않습니다/);
 assert.match(faqSource, /일시정지 상태가 15분 동안 이어지면 좌석을 계속 이용할지 묻는 10초 안내/);
 assert.match(appSource, /오늘의 할 일과 커리큘럼은 어떻게 다른가요\?/);

@@ -324,11 +324,20 @@ assert.match(appSource, /if \(options\.retryWhenLoading !== false\)/);
 assert.match(appSource, /result\.ok && action !== "heartbeat"/);
 assert.match(appSource, /result\.error === "seat_taken"/);
 assert.match(appSource, /document\.addEventListener\("visibilitychange", pauseWhenHidden\)/);
-assert.match(appSource, /window\.addEventListener\("blur", \(\) => scheduleStudyCafeAutoPause\(STUDY_CAFE_FOCUS_PAUSE_DELAY_MS\)\)/);
+assert.match(appSource, /scheduleStudyCafeAutoPause\(STUDY_CAFE_AUTO_PAUSE_DELAY_MS\)/);
 assert.match(appSource, /window\.addEventListener\("focus", refreshWhenActive\)/);
 assert.match(appSource, /window\.addEventListener\("pageshow", refreshWhenActive\)/);
 assert.match(appSource, /window\.addEventListener\("pagehide", \(\) => scheduleStudyCafeAutoPause\(0\)\)/);
-assert.match(appSource, /const STUDY_CAFE_FOCUS_PAUSE_DELAY_MS = 1500/);
+assert.match(appSource, /const STUDY_CAFE_AUTO_PAUSE_DELAY_MS = 30 \* 1000/);
+assert.match(appSource, /let studyCafeAutoPauseDeadline = 0/);
+assert.match(
+  appSource,
+  /if \(document\.visibilityState === "hidden"\) \{\s*scheduleStudyCafeAutoPause\(STUDY_CAFE_AUTO_PAUSE_DELAY_MS\)/
+);
+assert.match(
+  appSource,
+  /const shouldAutoPause =\s*studyCafeAutoPauseDeadline > 0 &&\s*Date\.now\(\) >= studyCafeAutoPauseDeadline;[\s\S]*?if \(shouldAutoPause\) \{[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+);
 assert.match(
   appSource,
   /studyCafeRemoteState\.heartbeatTimer = window\.setInterval\([\s\S]*?document\.visibilityState !== "hidden"[\s\S]*?document\.hasFocus\(\)[\s\S]*?mutateStudyCafeRemote\("heartbeat"/
@@ -496,7 +505,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function scheduleStudyCafeAutoPause\(delay = 0\)[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+  /function scheduleStudyCafeAutoPause\(delay = 0\)[\s\S]*?studyCafeAutoPauseDeadline = Date\.now\(\) \+ Math\.max[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
 );
 assert.match(
   appSource,
@@ -522,7 +531,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function showStudyCafeTimerPauseGuide\(student, onContinue\)[\s\S]*?"순공 타이머 이용 안내"[\s\S]*?"확인하고 시작하기"[\s\S]*?markStudyCafeTimerPauseGuideAsSeen\(student\)[\s\S]*?"‘확인하고 시작하기’를 누르면 3초 카운트다운 후 순공 타이머가 시작됩니다\."[\s\S]*?"다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그면 순공시간 측정이 자동으로 일시정지됩니다\."/,
+  /function showStudyCafeTimerPauseGuide\(student, onContinue\)[\s\S]*?"순공 타이머 이용 안내"[\s\S]*?"확인하고 시작하기"[\s\S]*?markStudyCafeTimerPauseGuideAsSeen\(student\)[\s\S]*?"‘확인하고 시작하기’를 누르면 3초 카운트다운 후 순공 타이머가 시작됩니다\."[\s\S]*?"다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠근 상태가 30초 이상 이어지면 순공시간 측정이 자동으로 일시정지됩니다\."/,
   "the onboarding modal should explain automatic pause before starting the first timer"
 );
 assert.match(

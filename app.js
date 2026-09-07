@@ -79,7 +79,7 @@ const INTERNET_STUDENT_FAQS = [
   {
     category: "타이머",
     question: "타이머가 자동으로 멈추는 상황은 언제인가요?",
-    answer: "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그는 등 앱이 보이지 않게 되면 순공시간 측정이 자동으로 일시정지됩니다. 창을 닫거나 새로고침해도 일시정지되며, 앱 안에서 다른 메뉴로 이동하는 것만으로는 멈추지 않습니다. 돌아온 뒤 ‘계속 공부하기’를 누르면 다시 측정할 수 있습니다.",
+    answer: "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠근 상태가 30초 이상 이어지면 순공시간 측정이 자동으로 일시정지됩니다. 30초 안에 돌아오면 타이머는 계속되며, 창을 닫거나 새로고침하면 바로 일시정지됩니다. 앱 안에서 다른 메뉴로 이동하는 것만으로는 멈추지 않습니다.",
   },
   {
     category: "타이머",
@@ -403,7 +403,7 @@ const studyRoomPreviewData = {
   currentRoomId: "",
 };
 const STUDY_ROOM_REFRESH_INTERVAL_MS = 4000;
-const STUDY_CAFE_FOCUS_PAUSE_DELAY_MS = 1500;
+const STUDY_CAFE_AUTO_PAUSE_DELAY_MS = 30 * 1000;
 let studyCafeTimerActionPending = false;
 const STUDY_RANKING_PREVIEW_MEMBERS = [
   { name: "서○○", tone: "rose", dailySeconds: 38538 },
@@ -444,6 +444,7 @@ let studyCafeIdleWarningRemaining = 0;
 let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
 let studyCafeAutoPauseTimer = null;
+let studyCafeAutoPauseDeadline = 0;
 let studyTodoMutationRevision = 0;
 let studyTodoDeleteQueue = Promise.resolve();
 const studyTodoEditorState = {
@@ -1560,8 +1561,9 @@ function openLectureApplicationModal() {
   const lectureIdField = field("인강 아이디", lectureIdInput, "full", "관리자가 실제 수강 정보와 대조합니다.");
   lectureIdField.hidden = true;
   courseTypeSelect.addEventListener("change", () => {
-    lectureIdField.hidden = courseTypeSelect.value !== "lecture";
-    lectureIdInput.required = courseTypeSelect.value === "lecture";
+    const requiresLectureId = ["online_managed", "lecture"].includes(courseTypeSelect.value);
+    lectureIdField.hidden = !requiresLectureId;
+    lectureIdInput.required = requiresLectureId;
     if (lectureIdField.hidden) lectureIdInput.value = "";
   });
   const privacyConsent = el("input", { name: "privacyConsent", type: "checkbox", value: "yes", required: true });
@@ -1597,7 +1599,7 @@ function openLectureApplicationModal() {
           el("dt", {}, "수집·이용 목적"),
           el("dd", {}, "수강생 등록 신청의 본인 확인, 수강 정보 대조, 등록번호 발급, 신청 결과 안내 및 중복·부정 신청 방지"),
           el("dt", {}, "수집 항목"),
-          el("dd", {}, "이름, 휴대전화 번호, 생년월일, 성별, 직렬, 수강 구분, 유입 경로 및 상세 내용(해당 시), 인강 아이디(인강생에 한함)"),
+          el("dd", {}, "이름, 휴대전화 번호, 생년월일, 성별, 직렬, 수강 구분, 유입 경로 및 상세 내용(해당 시), 인강 아이디(온라인 관리반·인강생에 한함)"),
           el("dt", {}, "보유·이용 기간"),
           el("dd", {}, "등록 신청 검토 및 수강 관계가 종료될 때까지. 다만, 관계 법령에 따른 보관 의무 또는 분쟁 처리를 위해 필요한 경우에는 해당 기간까지 보관합니다."),
           el("dt", {}, "동의 거부 권리 및 불이익"),
@@ -1787,7 +1789,7 @@ function openLectureApplicationModal() {
     result.className = "student-auth-result";
     result.textContent = "";
     if (!data.courseType || !data.name || !data.phone || !data.birthDate || !data.gender || !track || !data.referralSource
-      || (data.courseType === "lecture" && !data.lectureId)) {
+      || (["online_managed", "lecture"].includes(data.courseType) && !data.lectureId)) {
       result.className = "student-auth-result error";
       result.textContent = "필수 항목을 모두 입력해주세요.";
       return;
@@ -2580,19 +2582,29 @@ function bindStudyCafeLifecycleRefresh() {
   studyCafeRemoteState.lifecycleRefreshBound = true;
   const refreshWhenActive = () => {
     if (document.visibilityState === "hidden") return;
+    const shouldAutoPause =
+      studyCafeAutoPauseDeadline > 0 &&
+      Date.now() >= studyCafeAutoPauseDeadline;
     window.clearTimeout(studyCafeAutoPauseTimer);
     studyCafeAutoPauseTimer = null;
+    studyCafeAutoPauseDeadline = 0;
+    if (shouldAutoPause) {
+      pauseStudyCafeTimer({ automatic: true }).finally(() => {
+        requestStudyCafeRemoteRefresh(180);
+      });
+      return;
+    }
     requestStudyCafeRemoteRefresh(180);
   };
   const pauseWhenHidden = () => {
     if (document.visibilityState === "hidden") {
-      scheduleStudyCafeAutoPause(0);
+      scheduleStudyCafeAutoPause(STUDY_CAFE_AUTO_PAUSE_DELAY_MS);
       return;
     }
     refreshWhenActive();
   };
   document.addEventListener("visibilitychange", pauseWhenHidden);
-  window.addEventListener("blur", () => scheduleStudyCafeAutoPause(STUDY_CAFE_FOCUS_PAUSE_DELAY_MS));
+  window.addEventListener("blur", () => scheduleStudyCafeAutoPause(STUDY_CAFE_AUTO_PAUSE_DELAY_MS));
   window.addEventListener("focus", refreshWhenActive);
   window.addEventListener("pageshow", refreshWhenActive);
   window.addEventListener("pagehide", () => scheduleStudyCafeAutoPause(0));
@@ -8792,7 +8804,7 @@ function showStudyCafeTimerPauseGuide(student, onContinue) {
     content: el("div", { className: "study-cafe-timer-pause-guide" }, [
       el("span", { className: "study-cafe-timer-pause-guide-icon", ariaHidden: "true" }, "Ⅱ"),
       el("p", {}, "‘확인하고 시작하기’를 누르면 3초 카운트다운 후 순공 타이머가 시작됩니다."),
-      el("p", {}, "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠그면 순공시간 측정이 자동으로 일시정지됩니다."),
+      el("p", {}, "다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠근 상태가 30초 이상 이어지면 순공시간 측정이 자동으로 일시정지됩니다."),
       el("p", {}, "다시 돌아오면 ‘계속 공부하기’를 눌러 측정을 이어갈 수 있습니다. 앱 안에서 다른 메뉴로 이동할 때는 타이머가 계속됩니다."),
     ]),
   });
@@ -9243,11 +9255,14 @@ function scheduleStudyCafeAutoPause(delay = 0) {
   window.clearTimeout(studyCafeAutoPauseTimer);
   if (delay <= 0) {
     studyCafeAutoPauseTimer = null;
+    studyCafeAutoPauseDeadline = 0;
     pauseStudyCafeTimer({ automatic: true });
     return;
   }
+  studyCafeAutoPauseDeadline = Date.now() + Math.max(0, Number(delay) || 0);
   studyCafeAutoPauseTimer = window.setTimeout(() => {
     studyCafeAutoPauseTimer = null;
+    studyCafeAutoPauseDeadline = 0;
     if (
       delay > 0 &&
       document.visibilityState !== "hidden" &&

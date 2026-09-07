@@ -465,7 +465,7 @@ function validateApplication(application) {
   if (!COURSE_TYPES.has(application.course_type)) return "invalid_course_type";
   if (!REFERRAL_SOURCES.has(application.referral_source)) return "invalid_referral_source";
   if (application.referral_source === "other" && !application.referral_source_detail) return "referral_detail_required";
-  if (application.course_type === "lecture" && String(application.lecture_id_normalized || "").length < 2) return "invalid_lecture_id";
+  if (["online_managed", "lecture"].includes(application.course_type) && String(application.lecture_id_normalized || "").length < 2) return "invalid_lecture_id";
   if (!application.privacy_consent_at) return "privacy_consent_required";
   if (!application.terms_consent_at) return "terms_consent_required";
   return "";
