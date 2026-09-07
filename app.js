@@ -21,6 +21,7 @@
   mypage: "마이페이지",
   faq: "자주 묻는 질문",
   "push-settings": "푸시 알림 설정",
+  "other-settings": "기타 설정",
   "study-todo": "오늘 플래너",
   "study-cafe": "온라인 스터디카페",
   "study-timer": "과목 타이머",
@@ -44,9 +45,9 @@
   notices: "공지 관리",
 };
 const STUDENT_CATEGORY_ROUTES = {
-  offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "notices"]),
-  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "notifications", "notices"]),
-  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "notifications", "notices"]),
+  offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "other-settings", "notices"]),
+  online_managed: new Set(["home", "study-cafe", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"]),
+  lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "other-settings", "notifications", "notices"]),
 };
 
 const INTERNET_STUDENT_FAQS = [
@@ -183,6 +184,7 @@ const LECTURE_APPLICATION_RECEIPT_STORAGE_KEY = "ronpark_lecture_application_rec
 const STUDENT_PUSH_PROMPT_STORAGE_KEY = "ronpark_student_push_prompt_v1";
 const STUDENT_DDAY_STORAGE_KEY = "ronpark_student_dday_v1";
 const STUDENT_NOTIFICATION_READ_STORAGE_KEY = "ronpark_student_notification_read_v1";
+const STUDENT_SCREEN_WAKE_LOCK_STORAGE_KEY = "ronpark_student_screen_wake_lock_v1";
 const STUDENT_PUSH_PROMPT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 const STUDENT_PUSH_PROMPT_MAX_DISMISSALS = 3;
 const STUDENT_PUSH_PREFERENCE_OPTIONS = [
@@ -191,6 +193,9 @@ const STUDENT_PUSH_PREFERENCE_OPTIONS = [
   { key: "study_cafe", title: "스터디카페", description: "스터디방, 좌석 및 이용 안내", categories: ["online_managed", "lecture"] },
   { key: "question_board", title: "게시판", description: "질문 답변과 댓글 안내", categories: ["lecture"] },
 ];
+let studentScreenWakeLock = null;
+let studentScreenWakeLockRequest = null;
+let studentScreenWakeLockError = "";
 
 function isOnlineManagedStudyCafeEnabled() {
   return state.settings.onlineManagedStudyCafeEnabled === true;
@@ -598,6 +603,7 @@ function handleRouteHistoryChange() {
 window.addEventListener("hashchange", handleRouteHistoryChange);
 window.addEventListener("popstate", handleRouteHistoryChange);
 document.addEventListener("visibilitychange", () => {
+  if (APP_MODE === "student") syncStudentScreenWakeLock();
   if (document.visibilityState !== "visible" || APP_MODE !== "student") return;
   if (currentRoute === "curriculum" || (currentRoute === "study-todo" && studyPlannerHubView === "curriculum")) {
     loadCurriculumQuestCatalog({ force: true });
@@ -638,7 +644,7 @@ function normalizeRoute(route) {
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
   if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
-  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "faq", "push-settings", "notifications", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-timer", "study-ranking", "study-character", "study-shop", "notices"];
+  const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "faq", "push-settings", "other-settings", "notifications", "curriculum", "study-todo", "study-cafe", "question-board", "inquiry-board", "study-timer", "study-ranking", "study-character", "study-shop", "notices"];
   const authedStudent = getAuthedStudent();
   if (authedStudent) {
     const category = getStudentCategory(authedStudent);
@@ -707,7 +713,7 @@ function render() {
     const allowed = APP_MODE !== "teacher" || !teacherAuth.authenticated || canUseRoute(route);
     const inStudentFooter = APP_MODE !== "teacher" && button.closest(".student-footer-menu");
     const activeRoute =
-      inStudentFooter && ["study-character", "study-shop", "push-settings", "faq", "inquiry-board"].includes(currentRoute)
+      inStudentFooter && ["study-character", "study-shop", "push-settings", "other-settings", "faq", "inquiry-board"].includes(currentRoute)
         ? "mypage"
         : inStudentFooter && ["study-timer", "study-ranking", "question-board", "notifications", "notices"].includes(currentRoute)
           ? "home"
@@ -793,6 +799,7 @@ function render() {
           mypage: () => requireStudentAuth(renderStudentMypage),
           faq: () => requireStudentAuth(renderStudentFaq),
           "push-settings": () => requireStudentAuth(renderStudentPushSettings),
+          "other-settings": () => requireStudentAuth(renderStudentOtherSettings),
           notifications: () => requireStudentAuth(renderStudentNotifications),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
           "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
@@ -822,6 +829,7 @@ function render() {
   }
   studentStudyRouteTransitionDirection = 0;
   app.replaceChildren(nextView);
+  if (APP_MODE === "student") syncStudentScreenWakeLock();
   if (APP_MODE !== "teacher") {
     const pushPrompt = renderStudentPushOptInPrompt(getAuthedStudent());
     if (pushPrompt) app.appendChild(pushPrompt);
@@ -3829,6 +3837,7 @@ function renderStudentMypage() {
     !isOnlineStudentExperience(student) ? renderStudentOutingHistoryButton(student.id) : null,
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
+    renderStudentOtherSettingsCard(),
     renderStudentDeviceManagementCard(student, profile),
     renderHomeScreenInstallCard(),
   ]);
@@ -3926,6 +3935,126 @@ function renderStudentPushNotificationCard(student, profile) {
       studentPushNotificationState.subscribed ? null : el("span", {}, "꺼짐"),
     ]),
     el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
+  ]);
+}
+
+function renderStudentOtherSettingsCard() {
+  return button("", "student-history-button-card student-settings-link student-other-settings-link", "button", () => navigate("other-settings"), [
+    el("div", { className: "student-history-head" }, [
+      el("h2", {}, "기타 설정"),
+      el("span", {}, "화면 및 앱 사용 설정"),
+    ]),
+    el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
+  ]);
+}
+
+function isStudentScreenWakeLockSupported() {
+  return typeof navigator !== "undefined" && "wakeLock" in navigator;
+}
+
+function isStudentScreenWakeLockEnabled() {
+  try {
+    return localStorage.getItem(STUDENT_SCREEN_WAKE_LOCK_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+async function requestStudentScreenWakeLock() {
+  if (
+    APP_MODE !== "student"
+    || !getAuthedStudent()
+    || !isStudentScreenWakeLockEnabled()
+    || !isStudentScreenWakeLockSupported()
+    || document.visibilityState !== "visible"
+  ) return false;
+  if (studentScreenWakeLock && !studentScreenWakeLock.released) return true;
+  if (studentScreenWakeLockRequest) return studentScreenWakeLockRequest;
+
+  studentScreenWakeLockRequest = navigator.wakeLock.request("screen")
+    .then(async (wakeLock) => {
+      if (!isStudentScreenWakeLockEnabled() || document.visibilityState !== "visible") {
+        await wakeLock.release();
+        return false;
+      }
+      studentScreenWakeLock = wakeLock;
+      studentScreenWakeLockError = "";
+      wakeLock.addEventListener("release", () => {
+        if (studentScreenWakeLock === wakeLock) studentScreenWakeLock = null;
+      }, { once: true });
+      return true;
+    })
+    .catch((error) => {
+      console.warn("Screen Wake Lock request failed", error);
+      studentScreenWakeLock = null;
+      studentScreenWakeLockError = "현재 기기 상태에서는 화면을 계속 켤 수 없습니다.";
+      return false;
+    })
+    .finally(() => {
+      studentScreenWakeLockRequest = null;
+    });
+  return studentScreenWakeLockRequest;
+}
+
+async function releaseStudentScreenWakeLock() {
+  const wakeLock = studentScreenWakeLock;
+  studentScreenWakeLock = null;
+  if (wakeLock && !wakeLock.released) {
+    try {
+      await wakeLock.release();
+    } catch (error) {
+      console.warn("Screen Wake Lock release failed", error);
+    }
+  }
+}
+
+async function syncStudentScreenWakeLock() {
+  if (
+    APP_MODE === "student"
+    && getAuthedStudent()
+    && isStudentScreenWakeLockEnabled()
+    && document.visibilityState === "visible"
+  ) {
+    await requestStudentScreenWakeLock();
+    return;
+  }
+  await releaseStudentScreenWakeLock();
+}
+
+async function setStudentScreenWakeLockEnabled(enabled) {
+  try {
+    localStorage.setItem(STUDENT_SCREEN_WAKE_LOCK_STORAGE_KEY, String(enabled === true));
+  } catch (error) {
+    console.warn("Screen Wake Lock preference save failed", error);
+  }
+  studentScreenWakeLockError = "";
+  if (!enabled) {
+    await releaseStudentScreenWakeLock();
+    return;
+  }
+  const activated = await requestStudentScreenWakeLock();
+  if (!activated) notify(studentScreenWakeLockError || "화면 항상 켜기를 활성화하지 못했습니다.");
+}
+
+function renderStudentOtherSettings() {
+  const supported = isStudentScreenWakeLockSupported();
+  const enabled = isStudentScreenWakeLockEnabled();
+  const description = !supported
+    ? "현재 브라우저에서는 이 기능을 지원하지 않습니다."
+    : studentScreenWakeLockError || "앱을 보고 있는 동안 화면이 자동으로 꺼지지 않습니다. 배터리 사용량이 늘어날 수 있습니다.";
+  return el("div", { className: "grid student-view student-push-settings-page student-other-settings-page" }, [
+    button("‹ 마이페이지", "student-push-settings-back", "button", () => navigate("mypage")),
+    el("section", { className: "student-push-settings-card student-other-settings-card" }, [
+      el("div", { className: "student-push-setting-row master" }, [
+        el("div", {}, [el("strong", {}, "화면 항상 켜기"), el("p", {}, description)]),
+        renderStudentPushSettingsToggle({
+          checked: enabled,
+          disabled: !supported,
+          ariaLabel: "화면 항상 켜기",
+          onChange: setStudentScreenWakeLockEnabled,
+        }),
+      ]),
+    ]),
   ]);
 }
 

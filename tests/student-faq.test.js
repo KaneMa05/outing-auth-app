@@ -11,7 +11,7 @@ assert.match(appSource, /faq: "자주 묻는 질문"/);
 assert.match(appSource, /lecture: new Set\([^\n]*"faq"/);
 assert.match(appSource, /const studentRoutes = \[[^\n]*"mypage", "faq"/);
 assert.match(appSource, /faq: \(\) => requireStudentAuth\(renderStudentFaq\)/);
-assert.match(appSource, /\["study-character", "study-shop", "push-settings", "faq", "inquiry-board"\]\.includes\(currentRoute\)/);
+assert.match(appSource, /\["study-character", "study-shop", "push-settings", "other-settings", "faq", "inquiry-board"\]\.includes\(currentRoute\)/);
 assert.match(appSource, /student-faq-link[\s\S]*?navigate\("faq"\)[\s\S]*?"자주 묻는 질문"/);
 assert.match(appSource, /const INTERNET_STUDENT_FAQS = \[/);
 assert.match(faqSource, /오늘 타이머 기록은 언제 새로 시작되나요\?/);
