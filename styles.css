@@ -14529,37 +14529,8 @@ html.study-timer-fullscreen-mode {
   outline-offset: 2px;
 }
 
-.study-cafe-idle-warning-modal {
-  width: min(360px, calc(100vw - 36px));
-  text-align: center;
-}
-
-.study-cafe-idle-warning-modal > p {
+.study-cafe-idle-release-notice > p {
   margin: 0;
-}
-
-.study-cafe-idle-countdown-wrap {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 7px;
-  color: var(--accent-strong);
-}
-
-.study-cafe-idle-countdown {
-  min-width: 1.5ch;
-  font-size: 3.2rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.study-cafe-idle-countdown-wrap > span {
-  font-weight: 900;
-}
-
-.study-cafe-idle-keep-button {
-  width: 100%;
-  min-height: 48px;
 }
 
 .study-todo-item.pending {

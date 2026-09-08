@@ -10,6 +10,8 @@ assert.match(appSource, /function renderStudentOtherSettingsCard\(\)/);
 assert.match(appSource, /navigate\("other-settings"\)/);
 assert.match(appSource, /"other-settings": \(\) => requireStudentAuth\(renderStudentOtherSettings\)/);
 assert.match(appSource, /navigator\.wakeLock\.request\("screen"\)/);
+assert.match(appSource, /function shouldKeepStudentScreenAwake\(\)/);
+assert.match(appSource, /studyCafePreviewState\.timerFullscreen === true/);
 assert.match(appSource, /document\.addEventListener\("visibilitychange", \(\) => \{[\s\S]*?syncStudentScreenWakeLock\(\)/);
 assert.match(appSource, /await wakeLock\.release\(\)/);
 assert.match(appSource, /localStorage\.setItem\(STUDENT_SCREEN_WAKE_LOCK_STORAGE_KEY/);
@@ -42,6 +44,7 @@ function createWakeLockHarness(request) {
   const notices = [];
   const context = {
     APP_MODE: "student",
+    studyCafePreviewState: { timerFullscreen: false },
     document: { visibilityState: "visible" },
     navigator: { wakeLock: { request } },
     localStorage: {
@@ -60,6 +63,7 @@ function createWakeLockHarness(request) {
     ${wakeLockFunctions}
     this.wakeLockApi = {
       isEnabled: isStudentScreenWakeLockEnabled,
+      shouldKeepAwake: shouldKeepStudentScreenAwake,
       setEnabled: setStudentScreenWakeLockEnabled,
       sync: syncStudentScreenWakeLock,
       getSentinel: () => studentScreenWakeLock,
@@ -101,6 +105,15 @@ async function runWakeLockLifecycleTests() {
   await harness.api.setEnabled(false);
   assert.equal(sentinels[1].released, true);
   assert.equal(harness.api.isEnabled(), false);
+
+  harness.studyCafePreviewState.timerFullscreen = true;
+  await harness.api.sync();
+  assert.equal(requestCount, 3, "fullscreen timer must request a wake lock even when the setting is off");
+  assert.equal(harness.api.shouldKeepAwake(), true);
+
+  harness.studyCafePreviewState.timerFullscreen = false;
+  await harness.api.sync();
+  assert.equal(sentinels[2].released, true, "closing fullscreen must release its wake lock when the setting is off");
 
   let resolvePendingRequest;
   const pendingSentinel = createWakeLockSentinel();

@@ -21,10 +21,12 @@ assert.match(faqSource, /타이머가 자동으로 멈추는 상황은 언제인
 assert.match(faqSource, /다른 앱이나 브라우저 탭·창으로 이동하거나 화면을 잠근 상태가 30초 이상 이어지면/);
 assert.match(faqSource, /30초 안에 돌아오면 타이머는 계속/);
 assert.match(faqSource, /앱 안에서 다른 메뉴로 이동하는 것만으로는 멈추지 않습니다/);
-assert.match(faqSource, /일시정지 상태가 15분 동안 이어지면 좌석을 계속 이용할지 묻는 10초 안내/);
+assert.match(faqSource, /일시정지 상태가 15분 동안 이어지면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워집니다/);
+assert.match(faqSource, /좌석이 비워진 뒤에는 안내 모달이 표시됩니다/);
 assert.match(appSource, /오늘의 할 일과 커리큘럼은 어떻게 다른가요\?/);
 assert.match(appSource, /이미 앉아 있는데 과목이나 좌석을 바꾸고 싶어요\./);
 assert.match(appSource, /과목 종료와 자리 비우기는 무엇이 다른가요\?/);
+assert.match(faqSource, /지원되는 기기에서는 전체화면을 보는 동안 화면이 자동으로 꺼지지 않게 유지합니다/);
 assert.match(appSource, /앱 알림이 오지 않아요\./);
 assert.match(appSource, /FAQ로 해결되지 않는 문제는 비공개 문의로 남겨주세요\./);
 assert.match(appSource, /button\("문의하기", "student-faq-contact-button", "button", openStudentInquiryList\)/);

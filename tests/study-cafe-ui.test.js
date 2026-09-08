@@ -472,17 +472,18 @@ assert.match(
   /async function releaseStudyCafeSeat\(options = \{\}\)[\s\S]*?const previousSeatState = \{[\s\S]*?studyCafePreviewState\.selectedSeatId = ""[\s\S]*?render\(\)[\s\S]*?mutateStudyCafeRemote\("release_seat", \{\}, \{ refresh: false \}\)[\s\S]*?Object\.assign\(studyCafePreviewState, previousSeatState\)/
 );
 assert.match(styleSource, /\.study-cafe-subject-stop-button/);
-assert.match(appSource, /const STUDY_CAFE_IDLE_WARNING_MS = 15 \* 60 \* 1000/);
-assert.match(appSource, /const STUDY_CAFE_IDLE_COUNTDOWN_SECONDS = 10/);
+assert.match(appSource, /const STUDY_CAFE_IDLE_RELEASE_MS = 15 \* 60 \* 1000/);
+assert.match(appSource, /const STUDY_CAFE_IDLE_RELEASE_RETRY_MS = 10 \* 1000/);
 assert.match(appSource, /function checkStudyCafeIdleSeat\(\)/);
-assert.match(appSource, /function openStudyCafeIdleWarning\(\)/);
-assert.match(appSource, /mutateStudyCafeRemote\("keep_seat"\)/);
 assert.match(
   appSource,
   /releaseStudyCafeSeat\(\{ skipConfirm: true, autoRelease: true \}\)/
 );
-assert.match(styleSource, /\.study-cafe-idle-warning-modal/);
-assert.match(styleSource, /\.study-cafe-idle-countdown/);
+assert.match(
+  appSource,
+  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
+);
+assert.match(styleSource, /\.study-cafe-idle-release-notice/);
 assert.match(appSource, /function startStudyCafeCountdown\(seatId, subject\)/);
 assert.match(appSource, /function renderStudyCafeStateUpdate\(\)/);
 assert.match(appSource, /\.classList\.add\("study-view-static"\)/);
@@ -558,7 +559,7 @@ assert.match(
 assert.match(appSource, /async function beginStudyCafeTimer\(seatId, subject, resumeExistingSession\)/);
 assert.match(
   appSource,
-  /const optimisticStartedAt = Date\.now\(\)[\s\S]*?studyCafePreviewState\.running = true[\s\S]*?clearStudyCafeIdleWarning\(\)[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote/
+  /const optimisticStartedAt = Date\.now\(\)[\s\S]*?studyCafePreviewState\.running = true[\s\S]*?renderStudyCafeStateUpdate\(\)[\s\S]*?await mutateStudyCafeRemote/
 );
 assert.match(appSource, /Object\.assign\(studyCafePreviewState, previousTimerState\)/);
 assert.match(appSource, /if \(!isStudyCafeLocalPreview\(\)\) return \[\]/);

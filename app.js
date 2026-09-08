@@ -69,7 +69,7 @@ const INTERNET_STUDENT_FAQS = [
   {
     category: "타이머",
     question: "과목 종료와 자리 비우기는 무엇이 다른가요?",
-    answer: "과목 종료는 현재 과목의 측정만 끝내고 좌석은 그대로 유지합니다. 자리 비우기는 스터디카페 좌석까지 반납합니다. 전체화면은 표시 방식만 바꾸므로 타이머 기록에는 영향을 주지 않습니다.",
+    answer: "과목 종료는 현재 과목의 측정만 끝내고 좌석은 그대로 유지합니다. 자리 비우기는 스터디카페 좌석까지 반납합니다. 전체화면은 타이머 기록에 영향을 주지 않으며, 지원되는 기기에서는 전체화면을 보는 동안 화면이 자동으로 꺼지지 않게 유지합니다.",
   },
   {
     category: "타이머",
@@ -84,7 +84,7 @@ const INTERNET_STUDENT_FAQS = [
   {
     category: "타이머",
     question: "타이머를 오래 일시정지하면 어떻게 되나요?",
-    answer: "일시정지 상태가 15분 동안 이어지면 좌석을 계속 이용할지 묻는 10초 안내가 표시됩니다. ‘자리 유지’를 누르지 않으면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워집니다.",
+    answer: "일시정지 상태가 15분 동안 이어지면 다른 수강생이 이용할 수 있도록 좌석이 자동으로 비워집니다. 좌석이 비워진 뒤에는 안내 모달이 표시됩니다.",
   },
   {
     category: "커리큘럼",
@@ -306,8 +306,8 @@ const STUDY_CAFE_TEMP_NICKNAME_ANIMALS = [
   "카피바라",
 ];
 const STUDY_CAFE_PREVIEW_EPOCH = Date.now();
-const STUDY_CAFE_IDLE_WARNING_MS = 15 * 60 * 1000;
-const STUDY_CAFE_IDLE_COUNTDOWN_SECONDS = 10;
+const STUDY_CAFE_IDLE_RELEASE_MS = 15 * 60 * 1000;
+const STUDY_CAFE_IDLE_RELEASE_RETRY_MS = 10 * 1000;
 const studyCafePreviewState = {
   selectedSeatId: "",
   subject: "",
@@ -440,7 +440,6 @@ let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
 let studentStudyRouteTransitionDirection = 0;
 let studyRankingFooterRoute = "home";
-let studyCafeIdleWarningRemaining = 0;
 let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
 let studyCafeAutoPauseTimer = null;
@@ -2594,6 +2593,7 @@ function bindStudyCafeLifecycleRefresh() {
       });
       return;
     }
+    if (checkStudyCafeIdleSeat()) return;
     requestStudyCafeRemoteRefresh(180);
   };
   const pauseWhenHidden = () => {
@@ -3988,11 +3988,16 @@ function isStudentScreenWakeLockEnabled() {
   }
 }
 
+function shouldKeepStudentScreenAwake() {
+  return isStudentScreenWakeLockEnabled()
+    || (typeof studyCafePreviewState !== "undefined" && studyCafePreviewState.timerFullscreen === true);
+}
+
 async function requestStudentScreenWakeLock() {
   if (
     APP_MODE !== "student"
     || !getAuthedStudent()
-    || !isStudentScreenWakeLockEnabled()
+    || !shouldKeepStudentScreenAwake()
     || !isStudentScreenWakeLockSupported()
     || document.visibilityState !== "visible"
   ) return false;
@@ -4001,7 +4006,7 @@ async function requestStudentScreenWakeLock() {
 
   studentScreenWakeLockRequest = navigator.wakeLock.request("screen")
     .then(async (wakeLock) => {
-      if (!isStudentScreenWakeLockEnabled() || document.visibilityState !== "visible") {
+      if (!shouldKeepStudentScreenAwake() || document.visibilityState !== "visible") {
         await wakeLock.release();
         return false;
       }
@@ -4040,7 +4045,7 @@ async function syncStudentScreenWakeLock() {
   if (
     APP_MODE === "student"
     && getAuthedStudent()
-    && isStudentScreenWakeLockEnabled()
+    && shouldKeepStudentScreenAwake()
     && document.visibilityState === "visible"
   ) {
     await requestStudentScreenWakeLock();
@@ -4057,7 +4062,7 @@ async function setStudentScreenWakeLockEnabled(enabled) {
   }
   studentScreenWakeLockError = "";
   if (!enabled) {
-    await releaseStudentScreenWakeLock();
+    await syncStudentScreenWakeLock();
     return;
   }
   const activated = await requestStudentScreenWakeLock();
@@ -8920,7 +8925,6 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
   studyCafePreviewState.idleSince = 0;
   studyCafePreviewState.running = true;
   studyCafePreviewState.paused = false;
-  clearStudyCafeIdleWarning();
   renderStudyCafeStateUpdate();
   try {
     const result = await mutateStudyCafeRemote(
@@ -9537,7 +9541,6 @@ async function releaseStudyCafeSeat(options = {}) {
     temporaryNicknameAwaitingEntry: studyCafePreviewState.temporaryNicknameAwaitingEntry,
   };
   cancelStudyCafeCountdown();
-  clearStudyCafeIdleWarning();
   studyCafePreviewState.selectedSeatId = "";
   studyCafePreviewState.subject = "";
   studyCafePreviewState.pendingSubject = "";
@@ -9565,11 +9568,11 @@ async function releaseStudyCafeSeat(options = {}) {
     renderStudyCafeStateUpdate();
     return false;
   }
-  notify(
-    options.autoRelease === true
-      ? "15분 동안 타이머가 정지되어 좌석이 자동으로 비워졌습니다."
-      : `${formatStudyCafeSeatLabel(seatNumber)}을 비웠습니다.`
-  );
+  if (options.autoRelease === true) {
+    showStudyCafeIdleAutoReleaseModal();
+  } else {
+    notify(`${formatStudyCafeSeatLabel(seatNumber)}을 비웠습니다.`);
+  }
   return true;
 }
 
@@ -9584,104 +9587,50 @@ async function releasePrivateStudyRoomSeat(options = {}) {
   if (!result.ok) return false;
   resetStudyCafeLocalSeatForPrivateRoom();
   renderStudyCafeStateUpdate();
-  notify(options.autoRelease === true
-    ? "15분 동안 타이머가 정지되어 스터디방 좌석이 자동으로 비워졌습니다."
-    : `${seatNumber}번 좌석을 비웠습니다.`);
+  if (options.autoRelease === true) {
+    showStudyCafeIdleAutoReleaseModal();
+  } else {
+    notify(`${seatNumber}번 좌석을 비웠습니다.`);
+  }
   return true;
 }
 
 function checkStudyCafeIdleSeat() {
   if (!studyCafePreviewState.selectedSeatId || studyCafePreviewState.running) {
     studyCafePreviewState.idleSince = 0;
-    clearStudyCafeIdleWarning();
-    return;
+    return false;
   }
   if (!studyCafePreviewState.idleSince) {
     studyCafePreviewState.idleSince = Date.now();
-    return;
+    return false;
   }
-  if (Date.now() - studyCafePreviewState.idleSince < STUDY_CAFE_IDLE_WARNING_MS) return;
-  if (document.visibilityState === "hidden") return;
-  const warning = document.querySelector("[data-study-cafe-idle-warning]");
-  if (!warning) {
-    openStudyCafeIdleWarning();
-    return;
-  }
-  if (studyCafeIdleReleasePending) return;
-  studyCafeIdleWarningRemaining = Math.max(0, studyCafeIdleWarningRemaining - 1);
-  const countdown = warning.querySelector("[data-study-cafe-idle-countdown]");
-  if (countdown) countdown.textContent = String(studyCafeIdleWarningRemaining);
-  if (studyCafeIdleWarningRemaining === 0) {
-    studyCafeIdleReleasePending = true;
-    releaseStudyCafeSeat({ skipConfirm: true, autoRelease: true })
-      .then((released) => {
-        if (released) return;
-        studyCafeIdleWarningRemaining = STUDY_CAFE_IDLE_COUNTDOWN_SECONDS;
-        const activeCountdown = document.querySelector("[data-study-cafe-idle-countdown]");
-        if (activeCountdown) activeCountdown.textContent = String(studyCafeIdleWarningRemaining);
-      })
-      .finally(() => {
-        studyCafeIdleReleasePending = false;
-      });
-  }
+  if (Date.now() - studyCafePreviewState.idleSince < STUDY_CAFE_IDLE_RELEASE_MS) return false;
+  if (studyCafeIdleReleasePending) return true;
+  studyCafeIdleReleasePending = true;
+  releaseStudyCafeSeat({ skipConfirm: true, autoRelease: true })
+    .then((released) => {
+      if (!released && studyCafePreviewState.selectedSeatId && !studyCafePreviewState.running) {
+        studyCafePreviewState.idleSince =
+          Date.now() - STUDY_CAFE_IDLE_RELEASE_MS + STUDY_CAFE_IDLE_RELEASE_RETRY_MS;
+      }
+    })
+    .finally(() => {
+      studyCafeIdleReleasePending = false;
+    });
+  return true;
 }
 
-function openStudyCafeIdleWarning() {
+function showStudyCafeIdleAutoReleaseModal() {
+  closeStudyCafeAutoPauseModal();
   closeInfoModal();
-  studyCafeIdleWarningRemaining = STUDY_CAFE_IDLE_COUNTDOWN_SECONDS;
-  const countdown = el(
-    "strong",
-    {
-      className: "study-cafe-idle-countdown",
-      "data-study-cafe-idle-countdown": "true",
-      ariaLive: "assertive",
-    },
-    String(studyCafeIdleWarningRemaining)
-  );
-  const keepButton = button("자리 유지", "btn study-cafe-idle-keep-button", "button", async () => {
-    if (studyCafeIdleReleasePending) return;
-    studyCafeIdleReleasePending = true;
-    keepButton.disabled = true;
-    const result = await mutateStudyCafeRemote("keep_seat");
-    studyCafeIdleReleasePending = false;
-    if (!result.ok) {
-      keepButton.disabled = false;
-      studyCafeIdleWarningRemaining = STUDY_CAFE_IDLE_COUNTDOWN_SECONDS;
-      countdown.textContent = String(studyCafeIdleWarningRemaining);
-      return;
-    }
-    studyCafePreviewState.idleSince = Date.now();
-    clearStudyCafeIdleWarning();
-    notify("좌석이 유지되었습니다. 15분 후 다시 확인합니다.");
+  openInfoModal({
+    title: "좌석이 자동으로 비워졌습니다",
+    content: el("div", { className: "study-cafe-idle-release-notice" }, [
+      el("p", {}, "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다."),
+      el("p", { className: "subtle" }, "계속 공부하려면 빈 좌석을 다시 선택해주세요."),
+    ]),
+    confirmLabel: "확인",
   });
-  const modal = el(
-    "div",
-    {
-      className: "info-modal",
-      role: "alertdialog",
-      ariaModal: "true",
-      "data-study-cafe-idle-warning": "true",
-    },
-    [
-      el("div", { className: "info-modal-backdrop", ariaHidden: "true" }),
-      el("div", { className: "info-modal-panel study-cafe-idle-warning-modal" }, [
-        el("strong", {}, "좌석을 계속 이용하시겠어요?"),
-        el("p", {}, "15분 동안 타이머가 정지되어 있습니다."),
-        el("div", { className: "study-cafe-idle-countdown-wrap" }, [
-          countdown,
-          el("span", {}, "초 후 자동 퇴실"),
-        ]),
-        el("p", { className: "subtle" }, "계속 이용하려면 아래 버튼을 눌러주세요."),
-        keepButton,
-      ]),
-    ]
-  );
-  document.body.appendChild(modal);
-}
-
-function clearStudyCafeIdleWarning() {
-  document.querySelector("[data-study-cafe-idle-warning]")?.remove();
-  studyCafeIdleWarningRemaining = 0;
 }
 
 function renderStudentDeviceManagementCard(student, profile) {
