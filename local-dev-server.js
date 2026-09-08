@@ -536,8 +536,8 @@ async function handleLocalCurriculumProgress(req, res) {
     return sendLocalJson(res, 404, { ok: false, error: "curriculum_disabled" });
   }
   const body = await readLocalJson(req);
-  const student = getLocalPreviewStudent(body);
-  if (!student) return sendLocalJson(res, 403, { ok: false, error: "lecture_student_only" });
+  const student = getLocalCurriculumStudent(body);
+  if (!student) return sendLocalJson(res, 403, { ok: false, error: "curriculum_student_only" });
   const store = readLocalCurriculumProgress();
   const progress = store[student.id] || { lectureIds: [], stages: {} };
   const action = String(body.action || "");
@@ -633,6 +633,14 @@ function serializeLocalCurriculumProgress(progress) {
 }
 
 function getLocalPreviewStudent(body) {
+  return getLocalAuthenticatedStudent(body, ["lecture"]);
+}
+
+function getLocalCurriculumStudent(body) {
+  return getLocalAuthenticatedStudent(body, ["online_managed", "lecture"]);
+}
+
+function getLocalAuthenticatedStudent(body, allowedCategories) {
   const studentId = String(body.studentId || "").trim();
   const deviceToken = String(body.deviceToken || "").trim();
   if (!fs.existsSync(LOCAL_STATE_FILE)) return null;
@@ -646,7 +654,7 @@ function getLocalPreviewStudent(body) {
     const category = String(student?.studentCategory || student?.student_category || "").trim();
     if (!settings.forceLocalStudentAuth || settings.studentAuthId !== studentId) return null;
     if (!studentId || !deviceToken || profile.deviceToken !== deviceToken) return null;
-    if (!student || category !== "lecture" || student.isActive === false) return null;
+    if (!student || !allowedCategories.includes(category) || student.isActive === false) return null;
     return { id: studentId, name: student.name || "수강생 미리보기", track: student.track || profile.track || "" };
   } catch {
     return null;

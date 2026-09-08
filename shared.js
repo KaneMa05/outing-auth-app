@@ -4449,19 +4449,31 @@ function applyRemoteAppSettings(settings) {
 }
 
 function normalizeNoticeTargetAudience(value) {
-  return value === "lecture" ? "lecture" : "academy";
+  const normalized = String(value || "").trim();
+  if (normalized === "academy") return "academy";
+  const allowed = ["offline", "online_managed", "lecture"];
+  const requested = normalized.split(",").map((item) => item.trim()).filter(Boolean);
+  if (!requested.length || requested.some((item) => !allowed.includes(item))) return "academy";
+  return allowed.filter((item) => requested.includes(item)).join(",");
+}
+
+function getNoticeTargetAudienceValues(value) {
+  const audience = normalizeNoticeTargetAudience(value);
+  return audience === "academy" ? ["offline", "online_managed"] : audience.split(",");
 }
 
 function getNoticeTargetAudienceLabel(value) {
-  return normalizeNoticeTargetAudience(value) === "lecture"
-    ? "수강생"
-    : "오프라인 학생 · 온라인 관리반";
+  const labels = {
+    offline: "오프라인 수강생",
+    online_managed: "온라인 관리반",
+    lecture: "인터넷 수강생",
+  };
+  return getNoticeTargetAudienceValues(value).map((audience) => labels[audience]).join(" · ");
 }
 
 function noticeMatchesStudentCategory(notice, studentCategory) {
   if (!studentCategory) return true;
-  const expectedAudience = studentCategory === "lecture" ? "lecture" : "academy";
-  return normalizeNoticeTargetAudience(notice?.targetAudience) === expectedAudience;
+  return getNoticeTargetAudienceValues(notice?.targetAudience).includes(studentCategory);
 }
 
 function getImportantNotices({ publishedOnly = false, studentCategory = "" } = {}) {

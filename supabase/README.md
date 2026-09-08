@@ -45,7 +45,8 @@
 | `add-early-leave-reason.sql` | 외출 기록에 조퇴 사유 추가 | 기능 추가 |
 | `add-multiple-exam-answers.sql` | 시험 문제의 복수 정답 지원 및 관련 함수·정책 갱신 | 기능 추가 + 데이터 변경 |
 | `add-notice-images.sql` | 공지글에 선택 사진 1장과 전용 공개 스토리지 버킷 추가 | 기능 추가 |
-| `add-notice-target-audience.sql` | 공지 대상을 학원/인터넷 수강생으로 구분 | 기능 추가 + 데이터 변경 |
+| `add-notice-target-audience.sql` | 공지 대상을 수강생 유형별로 구분 | 기능 추가 + 데이터 변경 |
+| `split-notice-target-audiences.sql` | 운영 DB의 공지 대상을 오프라인/온라인 관리반/인터넷 수강생으로 분리 | 기능 추가 |
 | `add-outing-sync-indexes.sql` | 외출 및 사진 동기화 조회용 인덱스 추가 | 기능 추가 |
 | `add-student-categories.sql` | 오프라인·온라인 관리반·인터넷 수강생 유형과 기수 추가 | 기능 추가 + 데이터 변경 |
 | `add-student-exam-numbers.sql` | 학생별 수험번호 저장 테이블 추가 | 기능 추가 |

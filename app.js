@@ -163,6 +163,7 @@ let curriculumQuestSelectedSubjectId = CURRICULUM_QUEST_SUBJECTS[0].id;
 let curriculumQuestSelectedStage = CURRICULUM_QUEST_SUBJECTS[0].completedStages + 1;
 let curriculumQuestView = "map";
 let studyPlannerHubView = "planner";
+let finalScopeSelectedRound = 1;
 let studyTodoCalendarOpen = false;
 let studyTodoCalendarMonthKey = "";
 const curriculumQuestProgress = {
@@ -208,10 +209,10 @@ function isCurriculumQuestEnabled() {
 }
 
 function getAllowedStudentRoutes(category) {
-  if (category === "online_managed" && !isOnlineManagedStudyCafeEnabled()) {
-    return STUDENT_CATEGORY_ROUTES.offline;
-  }
   const routes = STUDENT_CATEGORY_ROUTES[category] || STUDENT_CATEGORY_ROUTES.offline;
+  if (category === "online_managed" && !isOnlineManagedStudyCafeEnabled()) {
+    return new Set([...STUDENT_CATEGORY_ROUTES.offline, "study-todo"]);
+  }
   if (category === "lecture" && !isCurriculumQuestEnabled()) {
     return new Set([...routes].filter((route) => route !== "curriculum"));
   }
@@ -2620,9 +2621,7 @@ function bindStudyCafeLifecycleRefresh() {
     studyCafeAutoPauseTimer = null;
     studyCafeAutoPauseDeadline = 0;
     if (shouldAutoPause) {
-      pauseStudyCafeTimer({ automatic: true }).finally(() => {
-        requestStudyCafeRemoteRefresh(180);
-      });
+      reconcileStudyCafeAfterBackgroundAutoPause();
       return;
     }
     if (checkStudyCafeIdleSeat()) return;
@@ -2640,6 +2639,46 @@ function bindStudyCafeLifecycleRefresh() {
   window.addEventListener("focus", refreshWhenActive);
   window.addEventListener("pageshow", refreshWhenActive);
   window.addEventListener("pagehide", () => scheduleStudyCafeAutoPause(0));
+}
+
+async function reconcileStudyCafeAfterBackgroundAutoPause() {
+  const previousSeatId = studyCafePreviewState.selectedSeatId;
+  const privateRoomSeat = String(previousSeatId).startsWith("private-seat-");
+
+  await ensureStudyCafeRemoteLoaded({ force: true });
+  if (privateRoomSeat) await ensureStudyRoomLoaded({ force: true, render: true });
+
+  const stillHasSeat = privateRoomSeat
+    ? Number(studyRoomState.room?.mySeatNumber) > 0
+    : Boolean(studyCafePreviewState.selectedSeatId);
+  if (previousSeatId && !stillHasSeat) {
+    showStudyCafeIdleAutoReleaseModal();
+    return;
+  }
+  if (studyCafePreviewState.paused) {
+    showStudyCafeAutoPauseModal();
+    return;
+  }
+
+  const paused = await pauseStudyCafeTimer({ automatic: true });
+  if (paused) return;
+
+  await ensureStudyCafeRemoteLoaded({ force: true });
+  if (privateRoomSeat) await ensureStudyRoomLoaded({ force: true, render: true });
+  const hasSeatAfterRetry = privateRoomSeat
+    ? Number(studyRoomState.room?.mySeatNumber) > 0
+    : Boolean(studyCafePreviewState.selectedSeatId);
+  if (previousSeatId && !hasSeatAfterRetry) {
+    showStudyCafeIdleAutoReleaseModal();
+    return;
+  }
+  if (studyCafePreviewState.paused) {
+    showStudyCafeAutoPauseModal();
+    return;
+  }
+  if (previousSeatId) {
+    notify("타이머 상태를 확인하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
+  }
 }
 
 function ensureStudyCafeRemoteTimers() {
@@ -2789,6 +2828,7 @@ function renderStudentHome() {
   const student = getAuthedStudent();
   if (getStudentCategory(student) === "lecture") return renderLectureStudentHome(student);
   const onlineMode = isOnlineStudentExperience(student);
+  const finalScopeAvailable = canUseFinalScopePlan(student);
   const activeOuting = !onlineMode && student ? getActiveOuting(student.id) : null;
   const todayAttendance = !onlineMode && student ? getStudentAttendanceForDate(student.id) : null;
   const holiday = onlineMode ? null : getAttendanceHoliday();
@@ -2806,6 +2846,7 @@ function renderStudentHome() {
           el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
         ]),
     onlineMode ? renderStudyCafeHomeCard(student) : null,
+    finalScopeAvailable ? renderFinalScopeHomeEntry() : null,
     onlineMode ? null : renderStudentImportantNoticeCard(),
     !onlineMode && holiday && !todayAttendance
       ? el("section", { className: "student-summary-card" }, [
@@ -2861,6 +2902,7 @@ function renderLectureStudentHome(student) {
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     renderStudyCafeHomeCard(student),
     renderQuestionBoardHomePreview(student),
+    renderFinalScopeHomeEntry(),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
         el("div", {}, [
@@ -3464,6 +3506,67 @@ function enableCurriculumBackSwipe(page) {
   page.addEventListener("touchcancel", () => {
     tracking = false;
   }, { passive: true });
+}
+
+function openFinalScopePlan() {
+  if (!canUseFinalScopePlan()) return;
+  studyPlannerHubView = "final-scope";
+  closeInfoModal();
+  if (currentRoute === "study-todo") {
+    render();
+    scrollAppToTop();
+    return;
+  }
+  navigate("study-todo");
+}
+
+function openFinalScopePlanGuide() {
+  if (!canUseFinalScopePlan()) return;
+  openInfoModal({
+    title: "회독 플랜 안내",
+    className: "final-scope-guide-panel",
+    showConfirm: false,
+    content: el("div", { className: "final-scope-guide-content" }, [
+      el("span", { className: "final-scope-guide-kicker" }, "STUDY GUIDE"),
+      el("strong", { className: "final-scope-guide-title" }, [
+        el("span", { className: "final-scope-guide-highlight" }, "26년 3차 해양경찰"),
+        " 대비 회독 플랜",
+      ]),
+      el("p", {}, "회독 기간을 점차 줄여가며 전체 시험 범위를 반복 학습하는 계획이에요."),
+      el("div", { className: "final-scope-guide-list", role: "table", ariaLabel: "모의고사 회차별 회독 플랜" }, [
+        el("div", { className: "final-scope-guide-table-head", role: "row" }, [
+          el("span", { role: "columnheader" }, "모의고사 회차 구분"),
+          el("span", { role: "columnheader" }, "플랜"),
+        ]),
+        ...[
+          ["1~3회차", "12일 동안 1회독"],
+          ["4~6회차", "9일 동안 1회독"],
+          ["7~9회차", "6일 동안 1회독"],
+          ["10~12회차", "전범위 모의고사"],
+        ].map(([rounds, plan]) => el("div", { className: "final-scope-guide-row", role: "row" }, [
+          el("span", { role: "cell" }, rounds),
+          el("strong", { role: "cell" }, plan),
+        ])),
+      ]),
+      el("div", { className: "final-scope-guide-actions" }, [
+        button("닫기", "btn secondary", "button", closeInfoModal),
+        button("회독 플랜 보기", "btn", "button", openFinalScopePlan),
+      ]),
+    ]),
+  });
+}
+
+function renderFinalScopeHomeEntry() {
+  return button("", "lecture-home-shortcut final-scope-home-entry", "button", openFinalScopePlanGuide, [
+    el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
+      el("span", { className: "footer-icon footer-icon-study-todo" }),
+    ]),
+    el("span", { className: "lecture-home-shortcut-copy" }, [
+      el("strong", {}, "회독 플랜"),
+      el("span", {}, "파이널 모의고사 회차별 시험 범위를 확인해요"),
+    ]),
+    el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
+  ]);
 }
 
 function getLectureHomeSummary() {
@@ -4493,6 +4596,10 @@ function isOnlineStudentExperience(student) {
   );
 }
 
+function canUseFinalScopePlan(student = getAuthedStudent()) {
+  return ["online_managed", "lecture"].includes(getStudentCategory(student));
+}
+
 function getAdminStudentDday() {
   const configured = state.settings.studentDday;
   const date = String(configured?.date || "").trim();
@@ -4813,26 +4920,148 @@ function renderStudyCafeMiniAvatar(tone) {
   ]);
 }
 
+function getFinalScopePlanData() {
+  return window.FINAL_SCOPE_PLAN && typeof window.FINAL_SCOPE_PLAN === "object"
+    ? window.FINAL_SCOPE_PLAN
+    : null;
+}
+
+function getFinalScopeSubjects(student, plan) {
+  const track = normalizeCoastGuardTrack(student?.track || "");
+  const configuredSubjects = new Set(getConfiguredWeeklySubjectsForTrack(track));
+  return plan.subjectOrder.filter((scopeSubject) => {
+    const appSubject = plan.appSubjectByScopeSubject[scopeSubject];
+    return configuredSubjects.has(appSubject);
+  });
+}
+
+function formatFinalScopeRoundCode(code) {
+  if (code === "전 범위") return "전범위";
+  const matches = [...String(code || "").matchAll(/(\d+)-(\d+)/g)];
+  if (!matches.length) return code;
+  return `${matches[0][1]}일 1회독 · ${matches[0][2]}~${matches.at(-1)[2]}일차`;
+}
+
+function formatFinalScopeUnitCode(code) {
+  if (code === "전범위") return "전범위";
+  const rangeMatch = String(code || "").match(/^\d+-(\d+)~(\d+)$/);
+  if (rangeMatch) return `${rangeMatch[1]}~${rangeMatch[2]}일차`;
+  const dayMatch = String(code || "").match(/^\d+-(\d+)$/);
+  return dayMatch ? `${dayMatch[1]}일차` : code;
+}
+
+function selectFinalScopeRound(roundNumber) {
+  finalScopeSelectedRound = Number(roundNumber) || 1;
+  render();
+  window.requestAnimationFrame(() => {
+    document.querySelector(`[data-final-scope-round="${finalScopeSelectedRound}"]`)?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  });
+}
+
+function renderFinalScopePlan() {
+  const student = getAuthedStudent();
+  const plan = getFinalScopePlanData();
+  if (!canUseFinalScopePlan(student)) {
+    return el("div", { className: "final-scope-empty" }, "이 회독 플랜을 이용할 수 없는 계정입니다.");
+  }
+  if (!plan?.rounds?.length) {
+    return el("div", { className: "final-scope-empty" }, "회독 플랜 데이터를 불러오지 못했습니다. 앱을 새로고침해주세요.");
+  }
+  const round = plan.rounds.find((item) => Number(item.round) === finalScopeSelectedRound) || plan.rounds[0];
+  finalScopeSelectedRound = Number(round.round);
+  const scopeSubjects = getFinalScopeSubjects(student, plan)
+    .filter((subject) => Array.isArray(round.subjects?.[subject]));
+  const unitCount = scopeSubjects.reduce((sum, subject) => sum + round.subjects[subject].length, 0);
+
+  return el("section", { className: "final-scope-plan" }, [
+    el("div", { className: "final-scope-round-strip-wrap" }, [
+      el("nav", { className: "final-scope-round-strip", ariaLabel: "시험 회차 선택" },
+        plan.rounds.map((item) => {
+          const selected = Number(item.round) === finalScopeSelectedRound;
+          const control = button(
+            `${item.round}회`,
+            `final-scope-round-button ${selected ? "active" : ""}`,
+            "button",
+            () => selectFinalScopeRound(item.round)
+          );
+          control.dataset.finalScopeRound = String(item.round);
+          control.setAttribute("aria-pressed", String(selected));
+          return control;
+        })
+      ),
+    ]),
+    el("div", { className: "final-scope-plan-content" }, [
+      el("section", { className: "final-scope-round-summary", ariaLive: "polite" }, [
+        el("div", { className: "final-scope-summary-main" }, [
+          el("div", { className: "final-scope-summary-kicker" }, [
+            el("span", {}, `파이널 모의고사 · ${round.round}회차`),
+            el("span", {}, round.code === "전 범위" ? "전범위" : `${unitCount}개 단원`),
+          ]),
+          el("h2", {}, `${round.round}회차 시험 범위`),
+        ]),
+        el("div", { className: "final-scope-summary-stats" }, [
+          el("div", { className: "final-scope-summary-stat" }, [el("span", {}, "시험일"), el("strong", {}, round.date)]),
+          el("div", { className: "final-scope-summary-stat" }, [el("span", {}, "회독 계획"), el("strong", {}, formatFinalScopeRoundCode(round.code))]),
+        ]),
+      ]),
+      el("div", { className: "final-scope-section-caption" }, [
+        el("span", {}, "과목별 상세 단원"),
+        el("span", {}, `${scopeSubjects.length}과목 · ${unitCount}개`),
+      ]),
+      scopeSubjects.length
+        ? el("section", { className: "final-scope-subject-list" }, scopeSubjects.map((subject) => {
+            const units = round.subjects[subject];
+            return el("details", { className: "final-scope-subject-card" }, [
+              el("summary", {}, [
+                el("span", { className: "final-scope-subject-mark" }, plan.subjectShortNames[subject] || subject.slice(0, 2)),
+                el("span", { className: "final-scope-subject-copy" }, [
+                  el("strong", {}, subject),
+                  el("span", {}, units[0]?.text || ""),
+                ]),
+                el("span", { className: "final-scope-chevron", ariaHidden: "true" }, "›"),
+              ]),
+              el("ul", { className: "final-scope-unit-list" }, units.map((item) => el("li", { className: "final-scope-unit-item" }, [
+                el("span", { className: "final-scope-unit-code" }, formatFinalScopeUnitCode(item.code)),
+                el("span", { className: "final-scope-unit-text" }, item.text),
+              ]))),
+            ]);
+          }))
+        : el("div", { className: "final-scope-empty" }, "현재 직렬에 등록된 필기시험 과목이 없습니다."),
+    ]),
+  ]);
+}
+
 function renderStudentPlannerHub() {
   const curriculumAvailable = isCurriculumQuestEnabled();
   const curriculumAvailabilityPending = curriculumQuestReleaseVerified !== true;
   const showCurriculumSwitch = curriculumAvailable || curriculumAvailabilityPending;
-  if (!curriculumAvailable) studyPlannerHubView = "planner";
+  const finalScopeAvailable = canUseFinalScopePlan();
+  const showPlannerSwitch = showCurriculumSwitch || finalScopeAvailable;
+  if (!curriculumAvailable && studyPlannerHubView === "curriculum") studyPlannerHubView = "planner";
+  if (!finalScopeAvailable && studyPlannerHubView === "final-scope") studyPlannerHubView = "planner";
   if (curriculumAvailable && !curriculumQuestCatalogLoaded && !curriculumQuestCatalogLoading) {
     loadCurriculumQuestCatalog();
   }
-  const activeView = curriculumAvailable ? studyPlannerHubView : "planner";
+  const activeView = studyPlannerHubView;
   if (activeView === "planner" && studyTodoCalendarOpen) {
     return el("div", { className: "student-planner-hub planner calendar-page" }, [
       renderStudentStudyTodo(),
     ]);
   }
   return el("div", { className: `student-planner-hub ${activeView}` }, [
-    showCurriculumSwitch
-      ? renderStudentPlannerViewSwitch(activeView, curriculumAvailabilityPending)
+    showPlannerSwitch
+      ? renderStudentPlannerViewSwitch(activeView, curriculumAvailabilityPending, finalScopeAvailable, showCurriculumSwitch)
       : renderStudentPlannerSoloHeader(),
-    showCurriculumSwitch && activeView === "planner" ? renderStudentPlannerMonthAction() : null,
-    activeView === "curriculum" ? renderCurriculumQuest() : renderStudentStudyTodo(),
+    showPlannerSwitch && activeView === "planner" ? renderStudentPlannerMonthAction() : null,
+    activeView === "curriculum"
+      ? renderCurriculumQuest()
+      : activeView === "final-scope"
+        ? renderFinalScopePlan()
+        : renderStudentStudyTodo(),
   ].filter(Boolean));
 }
 
@@ -4863,12 +5092,13 @@ function renderStudentPlannerMonthButton(selectedDateKey) {
   ]);
 }
 
-function renderStudentPlannerViewSwitch(activeView, curriculumPending = false) {
+function renderStudentPlannerViewSwitch(activeView, curriculumPending = false, finalScopeAvailable = false, curriculumVisible = true) {
   const options = [
     { id: "planner", label: "오늘의 할 일" },
-    { id: "curriculum", label: "커리큘럼" },
-  ];
-  return el("div", { className: "student-planner-view-switch", role: "tablist", ariaLabel: "학습 화면 선택" },
+    curriculumVisible ? { id: "curriculum", label: "커리큘럼" } : null,
+    finalScopeAvailable ? { id: "final-scope", label: "회독 플랜" } : null,
+  ].filter(Boolean);
+  return el("div", { className: `student-planner-view-switch ${options.length === 3 ? "three-options" : ""}`, role: "tablist", ariaLabel: "학습 화면 선택" },
     options.map((option) => {
       const control = button(
         option.label,
@@ -9662,6 +9892,10 @@ function isStudyCafeIdleReleaseDue(seatId, running, idleSince) {
 
 function showStudyCafeIdleAutoReleaseModal() {
   if (document.querySelector(".study-cafe-idle-release-modal")) return;
+  const wasFullscreen = studyCafePreviewState.timerFullscreen;
+  studyCafePreviewState.timerFullscreen = false;
+  studyCafePreviewState.timerFullscreenReturnRoute = "";
+  if (wasFullscreen && currentRoute === "study-timer") renderStudyCafeStateUpdate();
   closeStudyCafeAutoPauseModal();
   closeInfoModal();
   openInfoModal({

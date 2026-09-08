@@ -429,11 +429,20 @@ function noticeAdminPanel() {
       imageInput.disabled = false;
     }
   });
-  const targetAudienceInput = el("select", { name: "targetAudience" }, [
-    el("option", { value: "academy" }, "오프라인 학생 · 온라인 관리반"),
-    el("option", { value: "lecture" }, "수강생"),
-  ]);
-  targetAudienceInput.value = normalizeNoticeTargetAudience(editingNotice?.targetAudience);
+  const selectedTargetAudiences = new Set(
+    editingNotice ? getNoticeTargetAudienceValues(editingNotice.targetAudience) : ["offline"]
+  );
+  const targetAudienceInputs = [
+    { value: "offline", label: "오프라인 수강생" },
+    { value: "online_managed", label: "온라인 관리반" },
+    { value: "lecture", label: "인터넷 수강생" },
+  ].map((option) => {
+    const input = el("input", { type: "checkbox", value: option.value, checked: selectedTargetAudiences.has(option.value) });
+    return { ...option, input };
+  });
+  const targetAudienceInput = el("div", { className: "notice-target-options" }, targetAudienceInputs.map((option) =>
+    el("label", { className: "notice-target-option" }, [option.input, el("span", {}, option.label)])
+  ));
   const publishedInput = el("input", { name: "isPublished", type: "checkbox", checked: editingNotice?.isPublished !== false });
   const submitButton = button(editingNotice ? "공지 수정" : "공지 등록", "btn");
   const formActions = [submitButton];
@@ -469,6 +478,11 @@ function noticeAdminPanel() {
     const title = String(data.title || "").trim();
     const body = String(data.body || "").trim();
     if (!title || !body) return notify("공지 제목과 내용을 입력해주세요.");
+    const selectedTargetAudience = targetAudienceInputs
+      .filter((option) => option.input.checked)
+      .map((option) => option.value)
+      .join(",");
+    if (!selectedTargetAudience) return notify("공지 대상을 1개 이상 선택해주세요.");
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
     const beforeNotices = JSON.parse(JSON.stringify(state.notices || []));
@@ -479,7 +493,7 @@ function noticeAdminPanel() {
         title,
         body,
         imagePath: previousImagePath,
-        targetAudience: normalizeNoticeTargetAudience(data.targetAudience),
+        targetAudience: normalizeNoticeTargetAudience(selectedTargetAudience),
         isPublished: Boolean(data.isPublished),
       });
       const remoteResult = await saveNoticeToRemote(savedNotice, {
@@ -513,7 +527,9 @@ function noticeAdminPanel() {
           el("strong", {}, notice.title),
           notice.body ? el("p", { className: "notice-admin-preview" }, notice.body.replace(/\s+/g, " ").slice(0, 80)) : null,
         ]),
-        el("td", {}, el("span", { className: `badge notice-target-${normalizeNoticeTargetAudience(notice.targetAudience)}` }, getNoticeTargetAudienceLabel(notice.targetAudience))),
+        el("td", {}, el("div", { className: "notice-target-badges" }, getNoticeTargetAudienceValues(notice.targetAudience).map((audience) =>
+          el("span", { className: `badge notice-target-${audience}` }, getNoticeTargetAudienceLabel(audience))
+        ))),
         el("td", {}, notice.isPublished !== false ? el("span", { className: "badge approved" }, "공개") : el("span", { className: "badge" }, "숨김")),
         el("td", {}, formatDateCompact(notice.createdAt)),
         el("td", { className: "student-admin-actions" }, [

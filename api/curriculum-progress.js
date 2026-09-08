@@ -17,10 +17,10 @@ module.exports = async function handler(req, res) {
     if (!ACTIONS.has(action)) throw httpError("unsupported_action", 400);
     const [enabled, student] = await Promise.all([
       isCurriculumQuestEnabled(),
-      authenticateLectureStudent(body),
+      authenticateCurriculumStudent(body),
     ]);
     if (!enabled) throw httpError("curriculum_disabled", 404);
-    if (!student) throw httpError("lecture_student_only", 403);
+    if (!student) throw httpError("curriculum_student_only", 403);
     const catalog = filterCatalogForTrack(await loadCurriculum(), student.track);
 
     if (action === "load") {
@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function authenticateLectureStudent(body) {
+async function authenticateCurriculumStudent(body) {
   const studentId = normalizeText(body.studentId, 64);
   const deviceToken = normalizeText(body.deviceToken, 256);
   if (!studentId || !deviceToken) return null;
@@ -98,7 +98,7 @@ async function authenticateLectureStudent(body) {
     }),
     requestSupabase(
       "GET",
-      `students?id=eq.${encodeURIComponent(studentId)}&student_category=eq.lecture&is_active=eq.true&select=id,name,track,student_category&limit=1`
+      `students?id=eq.${encodeURIComponent(studentId)}&student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track,student_category&limit=1`
     ),
   ]);
   if (!validation || validation.valid !== true) return null;

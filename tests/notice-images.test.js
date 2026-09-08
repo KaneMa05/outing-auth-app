@@ -6,7 +6,7 @@ const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 const handler = require("../api/notices");
-const { normalizeNotice, normalizeNoticeId, normalizeNoticeImage, normalizeNoticeImagePath } = handler._private;
+const { normalizeNotice, normalizeNoticeId, normalizeNoticeImage, normalizeNoticeImagePath, normalizeNoticeTargetAudience } = handler._private;
 
 assert.equal(normalizeNoticeId("notice_123"), "notice_123");
 assert.throws(() => normalizeNoticeId("../notice"), /invalid_notice_id/);
@@ -29,6 +29,18 @@ assert.equal(normalizeNotice({
   targetAudience: "lecture",
   isPublished: true,
 }).body, "첫 줄\n둘째 줄");
+for (const targetAudience of ["academy", "offline", "online_managed", "lecture"]) {
+  assert.equal(normalizeNotice({
+    id: "notice_123",
+    title: "공지",
+    body: "내용",
+    targetAudience,
+  }).target_audience, targetAudience);
+}
+assert.equal(normalizeNoticeTargetAudience("lecture,offline"), "offline,lecture");
+assert.equal(normalizeNoticeTargetAudience("offline,online_managed"), "offline,online_managed");
+assert.equal(normalizeNoticeTargetAudience("lecture,online_managed,offline"), "offline,online_managed,lecture");
+assert.equal(normalizeNoticeTargetAudience("offline,unknown"), "academy");
 
 const sharedSource = read("shared.js");
 const appSource = read("app.js");

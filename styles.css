@@ -8496,6 +8496,43 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   width: auto;
 }
 
+.notice-target-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notice-target-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d6e0ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.notice-target-option:has(input:checked) {
+  border-color: #76aee0;
+  background: #edf6ff;
+}
+
+.notice-target-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.notice-target-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
 .notice-admin-preview {
   margin: 6px 0 0;
   color: var(--muted);
@@ -8508,9 +8545,25 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   color: #175f9e;
 }
 
+.badge.notice-target-offline {
+  background: #e8f2ff;
+  color: #175f9e;
+}
+
+.badge.notice-target-online_managed {
+  background: #e8f8f2;
+  color: #167052;
+}
+
 .badge.notice-target-lecture {
   background: #ede9fe;
   color: #6d3cc4;
+}
+
+@media (max-width: 680px) {
+  .notice-target-options {
+    grid-template-columns: 1fr;
+  }
 }
 
 .student-summary-card {
@@ -19446,4 +19499,349 @@ body.student-online-mode .student-planner-hub.curriculum .curriculum-task-card.c
   .student-exam-number-summary .btn {
     flex: 0 0 auto;
   }
+}
+/* Final mock exam reading plan for online-managed and internet students. */
+.final-scope-home-entry {
+  width: 100%;
+  min-height: 72px;
+  border-color: #b7a9da;
+  background: linear-gradient(135deg, #fbf9ff 0%, #e9e1f7 100%);
+}
+
+.final-scope-home-entry .lecture-home-shortcut-icon {
+  background: #ddd2f1;
+  color: #7055a6;
+}
+
+.student-planner-view-switch.three-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.student-planner-view-switch.three-options .student-planner-view-option {
+  padding: 0 5px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.info-modal-panel.final-scope-guide-panel {
+  width: min(380px, 100%);
+  gap: 14px;
+  border: 1px solid #d7e2eb;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.final-scope-guide-content {
+  display: grid;
+  gap: 14px;
+}
+
+.final-scope-guide-kicker {
+  color: #2a8c82;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.final-scope-guide-title {
+  color: #173449;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.final-scope-guide-highlight {
+  border-radius: 3px;
+  background: linear-gradient(transparent 48%, #e7ff55 48%);
+  padding: 0 2px;
+}
+
+.final-scope-guide-content > p {
+  margin: 0;
+  color: #60798c;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.final-scope-guide-list {
+  display: grid;
+  gap: 7px;
+}
+
+.final-scope-guide-table-head,
+.final-scope-guide-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.final-scope-guide-table-head {
+  padding: 0 11px 2px;
+  color: #718596;
+  font-size: 0.63rem;
+  font-weight: 900;
+}
+
+.final-scope-guide-row {
+  align-items: center;
+  border-radius: 11px;
+  background: #f1f6f8;
+  padding: 10px 11px;
+}
+
+.final-scope-guide-row span {
+  color: #60798c;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.final-scope-guide-row strong {
+  color: #173b52;
+  font-size: 0.78rem;
+}
+
+.final-scope-guide-actions {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 8px;
+}
+
+.final-scope-plan {
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 12px;
+}
+
+.final-scope-round-strip-wrap {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  margin: 0 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(12, 43, 72, 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.final-scope-round-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 9px;
+  scrollbar-width: none;
+}
+
+.final-scope-round-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.final-scope-round-button {
+  flex: 0 0 auto;
+  min-width: 54px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #a9bcc9;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.final-scope-round-button.active {
+  border-color: #178f85;
+  background: #178f85;
+  color: #fff;
+}
+
+.final-scope-plan-content {
+  padding: 0 0 18px;
+}
+
+.final-scope-round-summary,
+.final-scope-subject-card,
+.final-scope-empty {
+  overflow: hidden;
+  border: 1px solid #d0dde2;
+  border-radius: 16px;
+  background: #e9f0f2;
+  color: #173b52;
+}
+
+.final-scope-summary-main {
+  padding: 20px;
+}
+
+.final-scope-summary-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #60798c;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.final-scope-summary-kicker span:last-child {
+  border: 1px solid #bdd8d3;
+  border-radius: 999px;
+  background: #d8ebe7;
+  padding: 6px 9px;
+  color: #176d68;
+  font-size: 0.72rem;
+}
+
+.final-scope-summary-main h2 {
+  margin: 12px 0 0;
+  color: #173b52;
+  font-size: 1.55rem;
+  letter-spacing: -0.04em;
+}
+
+.final-scope-summary-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #cfdbdf;
+  background: #dfe9ec;
+}
+
+.final-scope-summary-stat {
+  padding: 14px 20px;
+}
+
+.final-scope-summary-stat + .final-scope-summary-stat {
+  border-left: 1px solid #cfdbdf;
+}
+
+.final-scope-summary-stat span {
+  display: block;
+  margin-bottom: 4px;
+  color: #60798c;
+  font-size: 0.68rem;
+}
+
+.final-scope-summary-stat strong {
+  color: #1f766f;
+  font-size: 0.8rem;
+}
+
+.final-scope-section-caption {
+  display: flex;
+  justify-content: space-between;
+  margin: 18px 2px 10px;
+  color: #9bb1c3;
+  font-size: 0.72rem;
+}
+
+.final-scope-subject-list {
+  display: grid;
+  gap: 10px;
+}
+
+.final-scope-subject-card[open] {
+  border-color: #72b9b1;
+  background: #f1f6f7;
+}
+
+.final-scope-subject-card summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  padding: 12px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.final-scope-subject-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.final-scope-subject-mark {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #2a8c82;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.final-scope-subject-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.final-scope-subject-copy strong,
+.final-scope-subject-copy span {
+  display: block;
+}
+
+.final-scope-subject-copy strong {
+  margin-bottom: 4px;
+  font-size: 0.86rem;
+}
+
+.final-scope-subject-copy span {
+  overflow: hidden;
+  color: #60798c;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.final-scope-chevron {
+  color: #8095a2;
+  font-size: 1.2rem;
+  transition: transform 0.18s ease;
+}
+
+.final-scope-subject-card[open] .final-scope-chevron {
+  transform: rotate(90deg);
+}
+
+.final-scope-unit-list {
+  display: grid;
+  margin: 0;
+  padding: 0 14px 10px;
+  list-style: none;
+}
+
+.final-scope-unit-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  border-top: 1px solid #cfdbdf;
+  padding: 13px 0;
+}
+
+.final-scope-unit-code {
+  align-self: start;
+  border: 1px solid #bdd8d3;
+  border-radius: 8px;
+  background: #d8ebe7;
+  padding: 5px 6px;
+  color: #176d68;
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.final-scope-unit-text {
+  min-width: 0;
+  color: #173b52;
+  font-size: 0.76rem;
+  font-weight: 620;
+  line-height: 1.62;
+  word-break: keep-all;
+}
+
+.final-scope-empty {
+  padding: 24px 18px;
+  color: #60798c;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  text-align: center;
 }

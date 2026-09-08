@@ -107,7 +107,7 @@ async function readJson(req) {
 function normalizeNotice(value) {
   const title = normalizeRequiredText(value?.title, 500, "invalid_title");
   const body = normalizeRequiredText(value?.body, 50000, "invalid_body", true);
-  const targetAudience = String(value?.targetAudience || "").trim() === "lecture" ? "lecture" : "academy";
+  const targetAudience = normalizeNoticeTargetAudience(value?.targetAudience);
   return {
     id: normalizeNoticeId(value?.id),
     title,
@@ -117,6 +117,15 @@ function normalizeNotice(value) {
     created_at: normalizeTimestamp(value?.createdAt),
     updated_at: normalizeTimestamp(value?.updatedAt),
   };
+}
+
+function normalizeNoticeTargetAudience(value) {
+  const normalized = String(value || "").trim();
+  if (normalized === "academy") return "academy";
+  const allowed = ["offline", "online_managed", "lecture"];
+  const requested = normalized.split(",").map((item) => item.trim()).filter(Boolean);
+  if (!requested.length || requested.some((item) => !allowed.includes(item))) return "academy";
+  return allowed.filter((item) => requested.includes(item)).join(",");
 }
 
 function normalizeRequiredText(value, maxLength, errorCode, preserveLines = false) {
@@ -218,6 +227,7 @@ function httpError(message, status) {
 
 module.exports._private = {
   normalizeNotice,
+  normalizeNoticeTargetAudience,
   normalizeNoticeId,
   normalizeNoticeImage,
   normalizeNoticeImagePath,

@@ -146,7 +146,16 @@ create table if not exists public.notices (
   title text not null,
   body text not null,
   image_path text,
-  target_audience text not null default 'academy' check (target_audience in ('academy', 'lecture')),
+  target_audience text not null default 'academy' check (target_audience in (
+    'academy',
+    'offline',
+    'online_managed',
+    'lecture',
+    'offline,online_managed',
+    'offline,lecture',
+    'online_managed,lecture',
+    'offline,online_managed,lecture'
+  )),
   is_published boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -170,14 +179,32 @@ add column if not exists target_audience text not null default 'academy';
 
 update public.notices
 set target_audience = 'academy'
-where target_audience not in ('academy', 'lecture');
+where target_audience not in (
+  'academy',
+  'offline',
+  'online_managed',
+  'lecture',
+  'offline,online_managed',
+  'offline,lecture',
+  'online_managed,lecture',
+  'offline,online_managed,lecture'
+);
 
 alter table public.notices
 drop constraint if exists notices_target_audience_check;
 
 alter table public.notices
 add constraint notices_target_audience_check
-check (target_audience in ('academy', 'lecture'));
+check (target_audience in (
+  'academy',
+  'offline',
+  'online_managed',
+  'lecture',
+  'offline,online_managed',
+  'offline,lecture',
+  'online_managed,lecture',
+  'offline,online_managed,lecture'
+));
 
 create table if not exists public.student_registration_events (
   id uuid primary key default gen_random_uuid(),

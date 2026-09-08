@@ -10,21 +10,39 @@ const sharedSource = read("shared.js");
 const teacherSettingsSource = read("teacher-settings.js");
 const schemaSource = read("supabase/schema.sql");
 const migrationSource = read("supabase/add-notice-target-audience.sql");
+const splitMigrationSource = read("supabase/split-notice-target-audiences.sql");
 
-for (const source of [schemaSource, migrationSource]) {
+for (const source of [schemaSource, migrationSource, splitMigrationSource]) {
   assert.match(source, /target_audience/);
-  assert.match(source, /target_audience in \('academy', 'lecture'\)/);
+  for (const audience of [
+    "'academy'",
+    "'offline'",
+    "'online_managed'",
+    "'lecture'",
+    "'offline,online_managed'",
+    "'offline,lecture'",
+    "'online_managed,lecture'",
+    "'offline,online_managed,lecture'",
+  ]) assert.match(source, new RegExp(audience));
 }
 
 assert.match(sharedSource, /target_audience: normalizeNoticeTargetAudience\(notice\.targetAudience\)/);
 assert.match(sharedSource, /targetAudience: normalizeNoticeTargetAudience\(notice\.target_audience\)/);
 assert.match(sharedSource, /isMissingColumnError\(noticeResult\.error, "target_audience"\)/);
-assert.match(sharedSource, /studentCategory === "lecture" \? "lecture" : "academy"/);
+assert.match(sharedSource, /function getNoticeTargetAudienceValues\(value\)/);
+assert.match(sharedSource, /\.includes\(studentCategory\)/);
 assert.match(sharedSource, /noticeMatchesStudentCategory\(notice, studentCategory\)/);
 
-assert.match(teacherSettingsSource, /name: "targetAudience"/);
-assert.match(teacherSettingsSource, /value: "academy"/);
+assert.match(teacherSettingsSource, /className: "notice-target-options"/);
+assert.match(teacherSettingsSource, /type: "checkbox"/);
+assert.match(teacherSettingsSource, /value: "offline"/);
+assert.match(teacherSettingsSource, /value: "online_managed"/);
 assert.match(teacherSettingsSource, /value: "lecture"/);
+assert.match(teacherSettingsSource, /오프라인 수강생/);
+assert.match(teacherSettingsSource, /온라인 관리반/);
+assert.match(teacherSettingsSource, /인터넷 수강생/);
+assert.match(teacherSettingsSource, /filter\(\(option\) => option\.input\.checked\)/);
+assert.match(teacherSettingsSource, /공지 대상을 1개 이상 선택해주세요/);
 assert.match(teacherSettingsSource, /targetAudience: normalizeNoticeTargetAudience\(notice\.targetAudience\)/);
 assert.match(teacherSettingsSource, /action: "save"/);
 assert.match(teacherSettingsSource, /\["제목", "공지 대상", "상태", "등록일", "관리"\]/);

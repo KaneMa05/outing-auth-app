@@ -40,7 +40,8 @@ try {
   const localServerSource = fs.readFileSync(path.resolve(__dirname, "..", "local-dev-server.js"), "utf8");
   assert.match(localServerSource, /settings\.forceLocalStudentAuth/);
   assert.match(localServerSource, /profile\.deviceToken !== deviceToken/);
-  assert.match(localServerSource, /category !== "lecture"/);
+  assert.match(localServerSource, /function getLocalPreviewStudent\(body\) \{[\s\S]*?getLocalAuthenticatedStudent\(body, \["lecture"\]\)/);
+  assert.match(localServerSource, /function getLocalCurriculumStudent\(body\) \{[\s\S]*?\["online_managed", "lecture"\]/);
   console.log("local question board tests passed");
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });

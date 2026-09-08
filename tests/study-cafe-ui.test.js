@@ -10,11 +10,12 @@ const sharedSource = fs.readFileSync(path.join(root, "shared.js"), "utf8");
 
 assert.match(appSource, /"study-todo": \(\) => requireStudentAuth\(renderStudentPlannerHub\)/);
 assert.match(appSource, /function renderStudentPlannerHub\(\)/);
-assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView, curriculumPending = false\)/);
+assert.match(appSource, /function renderStudentPlannerViewSwitch\(activeView, curriculumPending = false, finalScopeAvailable = false, curriculumVisible = true\)/);
 assert.match(appSource, /function renderStudentPlannerSoloHeader\(\)/);
 assert.match(appSource, /const curriculumAvailabilityPending = curriculumQuestReleaseVerified !== true;/);
 assert.match(appSource, /const showCurriculumSwitch = curriculumAvailable \|\| curriculumAvailabilityPending;/);
-assert.match(appSource, /showCurriculumSwitch && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
+assert.match(appSource, /const showPlannerSwitch = showCurriculumSwitch \|\| finalScopeAvailable;/);
+assert.match(appSource, /showPlannerSwitch && activeView === "planner" \? renderStudentPlannerMonthAction\(\) : null/);
 assert.match(appSource, /control\.disabled = option\.id === "curriculum" && curriculumPending;/);
 assert.match(appSource, /function renderStudentPlannerMonthAction\(\)/);
 assert.match(appSource, /el\("strong", \{\}, "등록된 D-day"\)/);
@@ -336,7 +337,15 @@ assert.match(
 );
 assert.match(
   appSource,
-  /const shouldAutoPause =\s*studyCafeAutoPauseDeadline > 0 &&\s*Date\.now\(\) >= studyCafeAutoPauseDeadline;[\s\S]*?if \(shouldAutoPause\) \{[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+  /const shouldAutoPause =\s*studyCafeAutoPauseDeadline > 0 &&\s*Date\.now\(\) >= studyCafeAutoPauseDeadline;[\s\S]*?if \(shouldAutoPause\) \{[\s\S]*?reconcileStudyCafeAfterBackgroundAutoPause\(\)/
+);
+assert.match(
+  appSource,
+  /async function reconcileStudyCafeAfterBackgroundAutoPause\(\)[\s\S]*?await ensureStudyCafeRemoteLoaded\(\{ force: true \}\)[\s\S]*?if \(previousSeatId && !stillHasSeat\) \{[\s\S]*?showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?if \(studyCafePreviewState\.paused\) \{[\s\S]*?showStudyCafeAutoPauseModal\(\)[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+);
+assert.match(
+  appSource,
+  /async function reconcileStudyCafeAfterBackgroundAutoPause\(\)[\s\S]*?if \(previousSeatId && !hasSeatAfterRetry\)[\s\S]*?if \(studyCafePreviewState\.paused\)[\s\S]*?타이머 상태를 확인하지 못했습니다/
 );
 assert.match(
   appSource,
@@ -483,6 +492,10 @@ assert.match(
 assert.match(
   appSource,
   /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?study-cafe-idle-release-modal[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
+);
+assert.match(
+  appSource,
+  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?studyCafePreviewState\.timerFullscreen = false[\s\S]*?if \(wasFullscreen && currentRoute === "study-timer"\) renderStudyCafeStateUpdate\(\)/
 );
 assert.match(
   appSource,
@@ -1309,7 +1322,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260907-screen-wake-lock/);
+assert.match(indexSource, /app\.js\?v=20260908-final-scope-plan/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

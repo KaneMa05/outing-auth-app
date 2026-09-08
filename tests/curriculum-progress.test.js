@@ -69,6 +69,7 @@ const originalEnv = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_S
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test";
 
+  let studentLookupUrl = "";
   global.fetch = async (url) => {
     if (url.includes("notices?id=eq.__app_settings__")) return jsonResponse([{ body: JSON.stringify({ curriculumQuestEnabled: true }) }]);
     if (url.includes("rpc/validate_student_device")) return jsonResponse({ valid: false });
@@ -81,7 +82,10 @@ const originalEnv = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_S
   global.fetch = async (url) => {
     if (url.includes("notices?id=eq.__app_settings__")) return jsonResponse([{ body: JSON.stringify({ curriculumQuestEnabled: true }) }]);
     if (url.includes("rpc/validate_student_device")) return jsonResponse({ valid: true });
-    if (url.includes("students?")) return jsonResponse([{ id: "20001", name: "테스트", track: "경찰직 - 공채(순경)", student_category: "lecture" }]);
+    if (url.includes("students?")) {
+      studentLookupUrl = url;
+      return jsonResponse([{ id: "20001", name: "테스트", track: "경찰직 - 공채(순경)", student_category: "online_managed" }]);
+    }
     if (url.includes("curriculum_subjects?")) return jsonResponse([
       { id: "criminal-law", name: "형사법", short_name: "형사", tone: "indigo", target_tracks: ["경찰직 - 공채(순경)"], sort_order: 1, is_published: true },
       { id: "vts-law", name: "VTS 법규", short_name: "VTS", tone: "teal", target_tracks: ["경찰직 - 해상교통관제(VTS)(순경)"], sort_order: 2, is_published: true },
@@ -100,6 +104,7 @@ const originalEnv = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_S
   };
   const loaded = await invoke({ action: "load", studentId: "20001", deviceToken: "valid-token", client: {} });
   assert.equal(loaded.statusCode, 200);
+  assert.match(studentLookupUrl, /student_category=in\.\(online_managed,lecture\)/);
   assert.deepEqual(loaded.payload.subjects.map((subject) => subject.id), ["criminal-law"]);
   assert.deepEqual(loaded.payload.progress.lectureIds, ["lecture-1"]);
   assert.equal(loaded.payload.progress.stages[0].completed, true);

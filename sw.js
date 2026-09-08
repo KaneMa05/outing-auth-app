@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v385-notice-images";
+const CACHE_NAME = "outing-auth-app-v388-multi-notice-audiences";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -12,6 +12,7 @@ const APP_SHELL = [
   "/question-board.js",
   "/inquiry-board.js",
   "/study-shop.js",
+  "/final-scope-data.js",
   "/teacher.js",
   "/teacher-grades.js",
   "/teacher-students.js",

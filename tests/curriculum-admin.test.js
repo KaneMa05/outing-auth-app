@@ -67,7 +67,7 @@ assert.match(localSetupSource, /localState\.settings = \{ \.\.\.\(localState\.se
 assert.equal(packageJson.scripts["curriculum:local"], "node scripts/setup-local-curriculum.js");
 assert.equal(packageJson.scripts["dev:local"], "node local-dev-server.js");
 assert.doesNotMatch(read("index.html"), /curriculum-data\.js/);
-assert.match(read("index.html"), /app\.js\?v=20260907-screen-wake-lock/);
+assert.match(read("index.html"), /app\.js\?v=20260908-final-scope-plan/);
 
 const sessionCatalog = restructureCurriculumIntoSessions([{
   id: "subject-a",
