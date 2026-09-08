@@ -32,6 +32,7 @@ const IDLE_PRESENCE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
 const MAX_SEAT_NUMBER = 96;
 const MAX_TODOS_PER_DAY = 60;
+let studyCafeSnapshotRpcSupported = true;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -590,45 +591,21 @@ async function buildStudyCafeSnapshot(student, now) {
   const shopSummaryPromise = hasStudyCafeShopAccess(student)
     ? loadStudyCafeShopSummary(studentId, now)
     : Promise.resolve(null);
-  const [subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents, shop] = await Promise.all([
-    requestSupabase(
-      "GET",
-      `study_cafe_subjects?student_id=eq.${encodeURIComponent(studentId)}&select=name,sort_order&order=sort_order.asc`
-    ),
-    requestSupabase(
-      "GET",
-      `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
-    ),
-    requestSupabase(
-      "GET",
-      `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=study_date,subject_name,target_minutes,result_status,completed_elapsed_seconds,completed_at&order=subject_name.asc`
-    ),
-    requestSupabase(
-      "GET",
-      "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"
-    ),
-    requestSupabase(
-      "GET",
-      `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at,updated_at&limit=1`
-    ),
-    requestSupabase(
-      "GET",
-      `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&status=in.(running,paused)&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at&order=started_at.desc&limit=1`
-    ),
-    requestSupabase(
-      "GET",
-      `study_cafe_sessions?started_at=gte.${encodeURIComponent(getKstDayBounds(now).start)}&started_at=lt.${encodeURIComponent(getKstDayBounds(now).end)}&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at`
-    ),
-    requestSupabase(
-      "GET",
-      "study_cafe_presence?select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&order=seat_number.asc"
-    ),
-    requestSupabase(
-      "GET",
-      "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track"
-    ),
+  const [snapshotRows, shop] = await Promise.all([
+    loadStudyCafeSnapshotRows(studentId, now),
     shopSummaryPromise,
   ]);
+  const {
+    subjects,
+    todos,
+    subjectGoals,
+    profiles,
+    ownPresence,
+    activeSessions,
+    sessions,
+    presence,
+    onlineStudents,
+  } = snapshotRows;
 
   const sessionRows = Array.isArray(sessions) ? sessions : [];
   const studentMap = new Map((Array.isArray(onlineStudents) ? onlineStudents : []).map((row) => [row.id, row]));
@@ -702,6 +679,95 @@ async function buildStudyCafeSnapshot(student, now) {
     },
     shop,
   };
+}
+
+async function loadStudyCafeSnapshotRows(studentId, now) {
+  if (studyCafeSnapshotRpcSupported) {
+    const bounds = getKstDayBounds(now);
+    try {
+      const response = await requestSupabase("POST", "rpc/get_study_cafe_snapshot_data", {
+        p_student_id: studentId,
+        p_study_date: getKstDateKey(now),
+        p_day_start: bounds.start,
+        p_day_end: bounds.end,
+      });
+      const payload = Array.isArray(response) && response.length === 1 ? response[0] : response;
+      const requiredCollections = [
+        "subjects",
+        "todos",
+        "subjectGoals",
+        "profiles",
+        "ownPresence",
+        "activeSessions",
+        "sessions",
+        "presence",
+        "onlineStudents",
+      ];
+      if (payload && typeof payload === "object" && requiredCollections.every((key) => Array.isArray(payload[key]))) {
+        return {
+          subjects: payload.subjects,
+          todos: payload.todos,
+          subjectGoals: payload.subjectGoals,
+          profiles: payload.profiles,
+          ownPresence: payload.ownPresence,
+          activeSessions: payload.activeSessions,
+          sessions: payload.sessions,
+          presence: payload.presence,
+          onlineStudents: payload.onlineStudents,
+        };
+      }
+      studyCafeSnapshotRpcSupported = false;
+      console.warn("Study cafe snapshot RPC returned an invalid payload; using legacy reads.");
+    } catch (error) {
+      studyCafeSnapshotRpcSupported = false;
+      console.warn("Study cafe snapshot RPC failed; using legacy reads.", {
+        status: error?.storeStatus || error?.status || null,
+      });
+    }
+  }
+  return loadStudyCafeSnapshotRowsLegacy(studentId, now);
+}
+
+async function loadStudyCafeSnapshotRowsLegacy(studentId, now) {
+  const [subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents] = await Promise.all([
+    requestSupabase(
+      "GET",
+      `study_cafe_subjects?student_id=eq.${encodeURIComponent(studentId)}&select=name,sort_order&order=sort_order.asc`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_todos?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=id,study_date,subject_name,content,is_completed,completed_at,created_at&order=created_at.asc`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_subject_goals?student_id=eq.${encodeURIComponent(studentId)}&study_date=eq.${getKstDateKey(now)}&select=study_date,subject_name,target_minutes,result_status,completed_elapsed_seconds,completed_at&order=subject_name.asc`
+    ),
+    requestSupabase(
+      "GET",
+      "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at,updated_at&limit=1`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&status=in.(running,paused)&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at&order=started_at.desc&limit=1`
+    ),
+    requestSupabase(
+      "GET",
+      `study_cafe_sessions?started_at=gte.${encodeURIComponent(getKstDayBounds(now).start)}&started_at=lt.${encodeURIComponent(getKstDayBounds(now).end)}&select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at`
+    ),
+    requestSupabase(
+      "GET",
+      "study_cafe_presence?select=student_id,seat_number,status,current_subject,avatar_tone,display_name,last_heartbeat_at&order=seat_number.asc"
+    ),
+    requestSupabase(
+      "GET",
+      "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track"
+    ),
+  ]);
+  return { subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents };
 }
 
 async function loadStudyCafeShopSummary(studentId, now) {
@@ -1532,6 +1598,7 @@ module.exports._private = {
   getKstDateKey,
   getSessionElapsedSeconds,
   hashDeviceToken,
+  loadStudyCafeSnapshotRows,
   maskName,
   normalizeAvatarTone,
   normalizeNickname,

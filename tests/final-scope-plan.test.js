@@ -38,6 +38,6 @@ assert.match(localServerSource, /function getLocalCurriculumStudent\(body\) \{[\
 assert.match(indexSource, /final-scope-data\.js[\s\S]*?app\.js/);
 assert.match(styleSource, /\.student-planner-view-switch\.three-options/);
 assert.match(styleSource, /\.final-scope-round-button\.active/);
-assert.match(serviceWorkerSource, /"\/final-scope-data\.js"/);
+assert.match(serviceWorkerSource, /"\/final-scope-data\.js\?v=[^"]+"/);
 
 console.log("final scope plan tests passed");

@@ -403,7 +403,8 @@ const studyRoomPreviewData = {
   ],
   currentRoomId: "",
 };
-const STUDY_ROOM_REFRESH_INTERVAL_MS = 4000;
+const STUDY_ROOM_REALTIME_REFRESH_INTERVAL_MS = 15 * 1000;
+const STUDY_ROOM_FALLBACK_REFRESH_INTERVAL_MS = 4000;
 const STUDY_CAFE_AUTO_PAUSE_DELAY_MS = 30 * 1000;
 let studyCafeTimerActionPending = false;
 const STUDY_RANKING_PREVIEW_MEMBERS = [
@@ -435,6 +436,7 @@ let studyCafeLocalFallback = false;
 let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
 let studyCafeRealtimeChannel = null;
+let studyCafeRealtimeConnected = false;
 let studyCafeRealtimeRefreshTimer = null;
 let studyCafeRankingRoomRefreshTimer = null;
 let studyCafeCountdownId = 0;
@@ -2257,16 +2259,40 @@ async function ensureStudyRoomLoaded(options = {}) {
 
 function ensureStudyRoomRefresh() {
   if (studyRoomState.refreshTimer) return;
-  studyRoomState.refreshTimer = window.setInterval(async () => {
-    if (document.visibilityState === "hidden" || currentRoute !== "study-cafe" || !studyRoomState.room) return;
-    const previousRoomId = studyRoomState.room?.id || "";
-    const previousSignature = JSON.stringify(studyRoomState.room || null);
-    await ensureStudyRoomLoaded({ force: true });
-    if (currentRoute !== "study-cafe") return;
-    if (previousRoomId !== (studyRoomState.room?.id || "") || previousSignature !== JSON.stringify(studyRoomState.room || null)) {
-      renderStudyCafeStateUpdate();
+  scheduleStudyRoomRefresh();
+}
+
+function getStudyRoomRefreshInterval() {
+  return studyCafeRealtimeConnected
+    ? STUDY_ROOM_REALTIME_REFRESH_INTERVAL_MS
+    : STUDY_ROOM_FALLBACK_REFRESH_INTERVAL_MS;
+}
+
+function scheduleStudyRoomRefresh() {
+  window.clearTimeout(studyRoomState.refreshTimer);
+  studyRoomState.refreshTimer = window.setTimeout(async () => {
+    studyRoomState.refreshTimer = null;
+    try {
+      if (
+        document.visibilityState !== "hidden" &&
+        currentRoute === "study-cafe" &&
+        studyRoomState.room
+      ) {
+        const previousRoomId = studyRoomState.room.id || "";
+        const previousSignature = JSON.stringify(studyRoomState.room);
+        await ensureStudyRoomLoaded({ force: true });
+        if (
+          currentRoute === "study-cafe" &&
+          (previousRoomId !== (studyRoomState.room?.id || "") ||
+            previousSignature !== JSON.stringify(studyRoomState.room || null))
+        ) {
+          renderStudyCafeStateUpdate();
+        }
+      }
+    } finally {
+      if (studyRoomState.room) scheduleStudyRoomRefresh();
     }
-  }, STUDY_ROOM_REFRESH_INTERVAL_MS);
+  }, getStudyRoomRefreshInterval());
 }
 
 async function mutateStudyRoom(action, payload = {}, options = {}) {
@@ -2773,7 +2799,10 @@ function ensureStudyCafeRealtimeSubscription() {
     .on(
       "broadcast",
       { event: "state-changed" },
-      scheduleStudyCafeRealtimeRefresh
+      (message) => {
+        scheduleStudyCafeRealtimeRefresh();
+        if (studyRoomState.room) scheduleStudyRoomRealtimeRefresh(message);
+      }
     )
     .on(
       "broadcast",
@@ -2781,7 +2810,12 @@ function ensureStudyCafeRealtimeSubscription() {
       scheduleStudyRoomRealtimeRefresh
     )
     .subscribe((status) => {
-      if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+      const connected = status === "SUBSCRIBED";
+      if (connected !== studyCafeRealtimeConnected) {
+        studyCafeRealtimeConnected = connected;
+        if (studyRoomState.room) scheduleStudyRoomRefresh();
+      }
+      if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn(
           "Study cafe realtime is unavailable; fallback refresh remains active."
         );

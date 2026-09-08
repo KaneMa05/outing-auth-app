@@ -7,6 +7,11 @@ const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 
 assert.match(app, /fetch\("\/api\/study-cafe-rooms"/);
+assert.match(app, /const STUDY_ROOM_REALTIME_REFRESH_INTERVAL_MS = 15 \* 1000/);
+assert.match(app, /const STUDY_ROOM_FALLBACK_REFRESH_INTERVAL_MS = 4000/);
+assert.match(app, /function getStudyRoomRefreshInterval\(\)/);
+assert.match(app, /studyCafeRealtimeConnected[\s\S]*?STUDY_ROOM_REALTIME_REFRESH_INTERVAL_MS/);
+assert.match(app, /event: "state-changed"[\s\S]*?scheduleStudyRoomRealtimeRefresh\(message\)/);
 assert.match(app, /function requestStudyRoomPreviewAction\(action, payload = \{\}\)/);
 assert.match(app, /function openStudyRoomListModal\(\)/);
 assert.match(app, /ariaLabel: "스터디방 목록 열기"/);

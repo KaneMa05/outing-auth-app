@@ -1,25 +1,31 @@
-const CACHE_NAME = "outing-auth-app-v388-multi-notice-audiences";
+const CACHE_NAME = "outing-auth-app-v390-cost-safety";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/teacher",
   "/teacher.html",
-  "/styles.css",
+  "/styles.css?v=20260908-final-scope-plan",
+  "/styles.css?v=20260901-student-exam-numbers",
   "/fonts/GongGothicLight.woff",
-  "/supabase.js",
-  "/shared.js",
-  "/student.js",
-  "/question-board.js",
-  "/inquiry-board.js",
-  "/study-shop.js",
-  "/final-scope-data.js",
-  "/teacher.js",
-  "/teacher-grades.js",
-  "/teacher-students.js",
-  "/teacher-settings.js",
-  "/teacher-penalties.js",
-  "/teacher-seats.js",
-  "/app.js",
+  "/supabase.js?v=20260514-return-photo-time",
+  "/shared.js?v=20260819-teacher-reason-photo",
+  "/student.js?v=20260819-attendance-photo-feedback",
+  "/question-board.js?v=20260902-question-board-skeleton-ui",
+  "/question-board.js?v=20260819-attendance-board-review",
+  "/inquiry-board.js?v=20260902-inquiry-prefetch",
+  "/inquiry-board.js?v=20260828-independent-inquiries",
+  "/study-shop.js?v=20260828-local-grant-20000",
+  "/final-scope-data.js?v=20260908-final-scope-plan",
+  "/teacher.js?v=20260903-weekly-exams-14",
+  "/teacher-grades.js?v=20260903-weekly-exams-14-button",
+  "/teacher-fitness.js?v=20260714-grade-report-print-setup",
+  "/teacher-students.js?v=20260901-student-exam-numbers",
+  "/teacher-settings.js?v=20260806-learner-board-copy",
+  "/teacher-penalties.js?v=20260716-penalty-reason-edit",
+  "/teacher-seats.js?v=20260826-add-seats-117-118",
+  "/curriculum-data.js?v=20260812-admin-builder",
+  "/curriculum-admin.js?v=20260828-editable-stage-title",
+  "/app.js?v=20260908-cost-safety",
   "/manifest.webmanifest",
   "/app-icon.png",
   "/icon-192.png",
@@ -47,12 +53,37 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_vercel/")
+  ) return;
   if (url.pathname === "/config.js" || url.pathname === "/sw.js") {
     event.respondWith(fetch(event.request, { cache: "no-store" }));
     return;
   }
 
+  const isNavigation = event.request.mode === "navigate";
+  const isStaticAsset = ["style", "script", "font", "image", "manifest"].includes(
+    event.request.destination
+  );
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(event.request).then(async (cached) => {
+        if (cached) return cached;
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const copy = response.clone();
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, copy);
+        }
+        return response;
+      })
+    );
+    return;
+  }
+
+  if (!isNavigation) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {

@@ -456,6 +456,48 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.equal(stats.payload.subjectTotals["형사법"], 3600);
   assert.equal(stats.payload.days.length, 3);
 
+  const loadRequests = [];
+  global.fetch = async (url, options) => {
+    loadRequests.push({ url, options });
+    if (url.endsWith("/rpc/validate_student_device")) {
+      return jsonResponse({ valid: true, device_id: "device-1", active_count: 1 });
+    }
+    if (url.includes("/students?")) {
+      return jsonResponse([{ id: "20001", name: "tester", track: "public", student_category: "online_managed", is_active: true }]);
+    }
+    if (url.includes("last_heartbeat_at=lt.") && options.method === "GET") return jsonResponse([]);
+    if (url.includes("study_cafe_sessions?student_id=eq.20001") && url.includes("status=in.(running,paused)")) {
+      return jsonResponse([]);
+    }
+    if (url.endsWith("/rpc/get_study_cafe_snapshot_data")) {
+      return jsonResponse({
+        subjects: [{ name: "law", sort_order: 0 }],
+        todos: [],
+        subjectGoals: [],
+        profiles: [{ student_id: "20001", avatar_tone: "navy", nickname: "tester", status_message: "focus" }],
+        ownPresence: [],
+        activeSessions: [],
+        sessions: [],
+        presence: [],
+        onlineStudents: [{ id: "20001", name: "tester", track: "public" }],
+      });
+    }
+    throw new Error(`unexpected load request: ${options.method} ${url}`);
+  };
+  const loaded = await invoke({
+    action: "load",
+    studentId: "20001",
+    deviceToken: "device-secret",
+  });
+  assert.equal(loaded.statusCode, 200);
+  assert.equal(loaded.payload.ok, true);
+  assert.deepEqual(loaded.payload.subjects, ["law"]);
+  assert.equal(loaded.payload.profile.nickname, "tester");
+  assert.equal(
+    loadRequests.filter((request) => request.url.endsWith("/rpc/get_study_cafe_snapshot_data")).length,
+    1
+  );
+
   global.fetch = async (url) => {
     if (url.endsWith("/rpc/validate_student_device")) return jsonResponse({ valid: false });
     throw new Error("student lookup must not run after invalid device validation");

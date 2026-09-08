@@ -34,7 +34,7 @@ assert.doesNotMatch(appSource, /student-inquiry-link/);
 assert.match(indexSource, /<script src="\.\/inquiry-board\.js\?v=[^"]+" defer><\/script>/);
 assert.match(teacherSource, /data-route="inquiry-board-admin">문의 관리/);
 assert.match(teacherSource, /<script src="\.\/inquiry-board\.js\?v=[^"]+" defer><\/script>/);
-assert.match(serviceWorkerSource, /"\/inquiry-board\.js"/);
+assert.match(serviceWorkerSource, /"\/inquiry-board\.js\?v=[^"]+"/);
 
 assert.match(inquirySource, /function renderStudentInquiryBoard\(\)/);
 assert.match(inquirySource, /function prefetchStudentInquiries\(\)[\s\S]*?!studentInquiryState\.loaded && !studentInquiryState\.loading[\s\S]*?loadStudentInquiries\(\)/);

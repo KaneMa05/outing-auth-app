@@ -21,6 +21,7 @@ const MESSAGE_WINDOW_MS = 10 * 1000;
 const MESSAGE_WINDOW_LIMIT = 8;
 const ROOM_ACTIVE_STALE_MS = 2 * 60 * 1000;
 const ROOM_IDLE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
+let studyRoomSnapshotRpcSupported = true;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -262,6 +263,31 @@ async function listRooms(studentId) {
 }
 
 async function loadOwnRoom(student) {
+  if (studyRoomSnapshotRpcSupported) {
+    const studyBounds = getStudyRoomDayBounds();
+    try {
+      const snapshot = await callRpc("get_study_cafe_room_snapshot", {
+        p_student_id: student.id,
+        p_day_start: studyBounds.start,
+        p_day_end: studyBounds.end,
+      });
+      if (isValidStudyRoomSnapshotPayload(snapshot)) {
+        const serialized = serializeStudyRoomSnapshot(snapshot, student);
+        if (serialized) return serialized;
+      }
+      studyRoomSnapshotRpcSupported = false;
+      console.warn("Study room snapshot RPC returned an invalid payload; using legacy reads.");
+    } catch (error) {
+      studyRoomSnapshotRpcSupported = false;
+      console.warn("Study room snapshot RPC failed; using legacy reads.", {
+        status: error?.storeStatus || error?.status || null,
+      });
+    }
+  }
+  return loadOwnRoomLegacy(student);
+}
+
+async function loadOwnRoomLegacy(student) {
   const studentId = student.id;
   const ownRows = await requestStore("GET", `study_cafe_room_members?student_id=eq.${encodeURIComponent(studentId)}&select=room_id,role,seat_number,last_read_at&limit=1`);
   const own = ownRows?.[0];
@@ -323,6 +349,76 @@ async function loadOwnRoom(student) {
       unreadCount: orderedMessages.filter((message) => new Date(message.created_at) > new Date(own.last_read_at)).length,
     },
   };
+}
+
+function serializeStudyRoomSnapshot(snapshot, student) {
+  const payload = Array.isArray(snapshot) && snapshot.length === 1 ? snapshot[0] : snapshot;
+  if (!payload || typeof payload !== "object") return null;
+  const own = payload.membership;
+  const room = payload.room;
+  if (!own || !room || room.is_active !== true) return { room: null };
+
+  const members = Array.isArray(payload.members) ? payload.members : [];
+  const profiles = Array.isArray(payload.profiles) ? payload.profiles : [];
+  const students = Array.isArray(payload.students) ? payload.students : [];
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+  const profileMap = new Map(profiles.map((row) => [row.student_id, row]));
+  const studentMap = new Map(students.map((row) => [row.id, row]));
+  const sessionMap = new Map(
+    sessions.filter((row) => ["running", "paused"].includes(row.status)).map((row) => [row.student_id, row])
+  );
+  const totalsByStudent = new Map();
+  sessions.forEach((session) => {
+    totalsByStudent.set(
+      session.student_id,
+      (totalsByStudent.get(session.student_id) || 0) + getStudyRoomSessionSeconds(session)
+    );
+  });
+  const nameMap = new Map();
+  const serializedMembers = members.map((member) => {
+    const source = studentMap.get(member.student_id) || {};
+    const profile = profileMap.get(member.student_id) || {};
+    const name = normalizeStoredNickname(profile.nickname) || maskName(source.name);
+    nameMap.set(member.student_id, name);
+    const session = sessionMap.get(member.student_id);
+    return {
+      studentId: own.role === "host" || member.student_id === student.id ? member.student_id : undefined,
+      name: member.student_id === student.id ? "나" : name,
+      track: summarizeTrack(source.track),
+      tone: normalizeTone(profile.avatar_tone, member.student_id),
+      statusMessage: normalizeText(profile.status_message, 40),
+      role: member.role,
+      seatNumber: Number(member.seat_number) || null,
+      status: session?.status === "running" ? "studying" : session?.status === "paused" ? "paused" : "seated",
+      currentSubject: member.student_id === student.id ? session?.subject_name || "" : "",
+      todaySeconds: totalsByStudent.get(member.student_id) || 0,
+      isMine: member.student_id === student.id,
+    };
+  });
+  const orderedMessages = messages.slice().reverse();
+  return {
+    room: {
+      id: room.id,
+      name: room.name,
+      description: room.description || "",
+      capacity: Number(room.capacity),
+      theme: room.theme || "dawn",
+      locked: room.access_type === "password",
+      role: own.role,
+      mySeatNumber: Number(own.seat_number) || null,
+      members: serializedMembers,
+      messages: orderedMessages.map((message) => serializeMessage(message, student.id, nameMap)),
+      unreadCount: orderedMessages.filter((message) => new Date(message.created_at) > new Date(own.last_read_at)).length,
+    },
+  };
+}
+
+function isValidStudyRoomSnapshotPayload(snapshot) {
+  const payload = Array.isArray(snapshot) && snapshot.length === 1 ? snapshot[0] : snapshot;
+  if (!payload || typeof payload !== "object") return false;
+  if (!("membership" in payload) || !("room" in payload)) return false;
+  return ["members", "profiles", "students", "messages", "sessions"].every((key) => Array.isArray(payload[key]));
 }
 
 function normalizeRoomInput(body, options = {}) {
@@ -615,8 +711,10 @@ function extractStoreError(error) {
 module.exports._private = {
   hashRoomPassword,
   isValidRoomPassword,
+  loadOwnRoom,
   normalizeMessage,
   normalizeRoomInput,
   normalizeRoomSeat,
+  serializeStudyRoomSnapshot,
   verifyRoomPassword,
 };
