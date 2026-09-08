@@ -13,6 +13,7 @@
   seats: "좌석 관리",
   attendance: "출석 관리",
   "study-cafe-admin": "온라인 스터디카페",
+  "study-cafe-history": "순공시간 조회",
   "question-board": "게시판",
   "question-board-admin": "게시판 관리",
   "inquiry-board": "문의하기",
@@ -646,7 +647,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -784,6 +785,7 @@ function render() {
           seats: renderSeatManagement,
           attendance: renderAttendanceManagement,
           "study-cafe-admin": renderStudyCafeAdmin,
+          "study-cafe-history": renderStudyCafeAdminHistoryPage,
           "question-board-admin": renderQuestionBoardAdmin,
           "inquiry-board-admin": renderInquiryAdmin,
           "curriculum-admin": renderCurriculumAdmin,

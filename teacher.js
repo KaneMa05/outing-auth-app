@@ -251,7 +251,6 @@ function renderTeacher() {
 function renderStudyCafeAdmin() {
   if (!hasTeacherPermission("study_cafe.read")) return renderForbidden();
   requestStudyCafeAdminDashboard();
-  requestStudyCafeAdminHistory();
   ensureStudyCafeAdminRefresh();
 
   const data = studyCafeAdminState.data;
@@ -316,7 +315,6 @@ function renderStudyCafeAdmin() {
       renderStudyCafeAdminStat("집중 중", summary.studyingCount || 0, "명"),
       renderStudyCafeAdminStat("오늘 총 순공", formatStudyCafeAdminDuration(summary.totalSeconds || 0), ""),
     ]),
-    renderStudyCafeAdminHistory(),
     el("section", { className: "study-cafe-admin-section" }, [
       el("div", { className: "study-cafe-admin-section-head" }, [
         el("div", {}, [
@@ -404,6 +402,21 @@ function renderStudyCafeAdmin() {
           ))
         : el("div", { className: "empty study-cafe-admin-empty" }, "등록번호가 2로 시작하는 활성 온라인 학생이 없습니다."),
     ]),
+  ]);
+}
+
+function renderStudyCafeAdminHistoryPage() {
+  if (!hasTeacherPermission("study_cafe.read")) return renderForbidden();
+  requestStudyCafeAdminHistory();
+  return el("div", { className: "grid study-cafe-admin-page study-cafe-admin-history-page" }, [
+    el("section", { className: "study-cafe-admin-head" }, [
+      el("div", {}, [
+        el("span", {}, "RONPARK STUDYCAFE"),
+        el("h2", {}, "순공시간 조회"),
+        el("p", {}, "기간별 학생 순공시간을 조회하고 날짜별 기록과 엑셀 자료를 확인할 수 있습니다."),
+      ]),
+    ]),
+    renderStudyCafeAdminHistory(),
   ]);
 }
 
@@ -873,7 +886,7 @@ async function loadStudyCafeAdminHistory() {
   history.detailError = "";
   history.detailStudent = null;
   history.detailRequestToken += 1;
-  if (currentRoute === "study-cafe-admin") render();
+  if (currentRoute === "study-cafe-history") render();
   try {
     const response = await fetch("/api/study-cafe-admin", {
       method: "POST",
@@ -901,7 +914,7 @@ async function loadStudyCafeAdminHistory() {
   } finally {
     history.loading = false;
     history.loaded = true;
-    if (currentRoute === "study-cafe-admin") render();
+    if (currentRoute === "study-cafe-history") render();
   }
 }
 
@@ -934,7 +947,7 @@ async function loadStudyCafeAdminHistoryDetail(student) {
   history.detailLoading = true;
   history.detailError = "";
   history.detailStudent = null;
-  if (currentRoute === "study-cafe-admin") render();
+  if (currentRoute === "study-cafe-history") render();
   try {
     const response = await fetch("/api/study-cafe-admin", {
       method: "POST",
@@ -965,7 +978,7 @@ async function loadStudyCafeAdminHistoryDetail(student) {
   } finally {
     if (requestToken === history.detailRequestToken) {
       history.detailLoading = false;
-      if (currentRoute === "study-cafe-admin") render();
+      if (currentRoute === "study-cafe-history") render();
     }
   }
 }
@@ -1144,7 +1157,7 @@ function formatStudyCafeAdminPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
   if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  return String(value || "").trim() || "-";
+  return String(value || "").trim() || "미등록";
 }
 
 function formatStudyCafeAdminHistoryDate(dateKey) {

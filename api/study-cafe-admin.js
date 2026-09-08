@@ -268,13 +268,16 @@ async function loadStudyHistory(range, now) {
     "select=student_id,status,elapsed_seconds,active_started_at",
     "order=started_at.asc,id.asc",
   ].join("&");
-  const [students, sessions] = await Promise.all([
+  const [students, sessions, applicationRows] = await Promise.all([
     requestAllSupabase(
       "students?student_category=in.(online_managed,lecture)&account_type=eq.student&select=id,name,phone,class_name,account_type,is_active&order=name.asc,id.asc"
     ),
     requestAllSupabase(sessionPath),
+    requestAllSupabase(
+      "lecture_applications?status=eq.approved&approved_student_id=not.is.null&select=approved_student_id,phone&order=created_at.desc,id.desc"
+    ),
   ]);
-  const report = buildStudyHistorySummary(students, sessions, now);
+  const report = buildStudyHistorySummary(mergeStudyHistoryPhones(students, applicationRows), sessions, now);
   return {
     serverNow: now.toISOString(),
     startDate: range.startDate,
@@ -293,14 +296,19 @@ async function loadStudyHistoryDetail(range, studentId, now) {
     "select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at",
     "order=started_at.asc,id.asc",
   ].join("&");
-  const [studentRows, sessions] = await Promise.all([
+  const [studentRows, sessions, applicationRows] = await Promise.all([
     requestSupabase(
       "GET",
       `students?id=eq.${encodedStudentId}&student_category=in.(online_managed,lecture)&account_type=eq.student&select=id,name,phone,class_name,account_type,is_active&limit=1`
     ),
     requestAllSupabase(sessionPath),
+    requestSupabase(
+      "GET",
+      `lecture_applications?status=eq.approved&approved_student_id=eq.${encodedStudentId}&select=approved_student_id,phone&order=created_at.desc,id.desc&limit=1`
+    ),
   ]);
-  const student = Array.isArray(studentRows) ? studentRows[0] || null : null;
+  const studentsWithPhones = mergeStudyHistoryPhones(studentRows, applicationRows);
+  const student = studentsWithPhones[0] || null;
   if (!student || student.account_type === "teacher" || student.class_name === "스터디카페 운영계정") {
     const error = new Error("student_not_found");
     error.status = 404;
@@ -311,6 +319,22 @@ async function loadStudyHistoryDetail(range, studentId, now) {
     endDate: range.endDate,
     student: buildStudyHistoryDetail(student, sessions, now),
   };
+}
+
+function mergeStudyHistoryPhones(studentRows, applicationRows) {
+  const applicationPhoneMap = new Map();
+  (Array.isArray(applicationRows) ? applicationRows : []).forEach((application) => {
+    const studentId = String(application?.approved_student_id || "").trim();
+    const phone = String(application?.phone || "").trim();
+    if (studentId && phone && !applicationPhoneMap.has(studentId)) {
+      applicationPhoneMap.set(studentId, phone);
+    }
+  });
+  return (Array.isArray(studentRows) ? studentRows : []).map((student) => {
+    if (String(student?.phone || "").trim()) return student;
+    const applicationPhone = applicationPhoneMap.get(student?.id);
+    return applicationPhone ? { ...student, phone: applicationPhone } : student;
+  });
 }
 
 function buildStudyHistorySummary(studentRows, sessionRows, now = new Date()) {
@@ -639,6 +663,7 @@ module.exports._private = {
   getKstDayBounds,
   getKstDateKey,
   getSessionElapsedSeconds,
+  mergeStudyHistoryPhones,
   normalizeStudyHistoryRange,
   normalizeStudentId,
 };

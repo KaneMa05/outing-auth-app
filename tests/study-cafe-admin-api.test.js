@@ -7,6 +7,7 @@ const {
   buildStudyHistorySummary,
   getKstDayBounds,
   getKstDateKey,
+  mergeStudyHistoryPhones,
   normalizeStudyHistoryRange,
 } = handler._private;
 
@@ -119,6 +120,12 @@ const originalEnv = {
   assert.equal(historyDetail.days[0].date, "2026-07-29");
   assert.equal(historyDetail.days[0].sessions[0].endedAt, "2026-07-28T21:15:00.000Z");
   assert.equal(historyDetail.days[0].sessions[0].endedStudyDate, "2026-07-29");
+  const studentsWithApplicationPhones = mergeStudyHistoryPhones(
+    [{ id: "20001", phone: "" }, { id: "20002", phone: "01011112222" }],
+    [{ approved_student_id: "20001", phone: "010-3333-4444" }, { approved_student_id: "20002", phone: "010-9999-0000" }]
+  );
+  assert.equal(studentsWithApplicationPhones[0].phone, "010-3333-4444");
+  assert.equal(studentsWithApplicationPhones[1].phone, "01011112222");
 
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
@@ -153,7 +160,11 @@ const originalEnv = {
   global.fetch = async (url) => {
     if (url.includes("/students?")) {
       if (url.includes("select=id,name,phone")) assert.match(url, /account_type=eq\.student/);
-      return jsonResponse([{ id: "20001", name: "테스트학생", phone: "01012345678", track: "경찰직 - 공채(순경)" }]);
+      return jsonResponse([{ id: "20001", name: "테스트학생", phone: "", track: "경찰직 - 공채(순경)" }]);
+    }
+    if (url.includes("/lecture_applications?")) {
+      assert.match(url, /status=eq\.approved/);
+      return jsonResponse([{ approved_student_id: "20001", phone: "01012345678" }]);
     }
     if (url.includes("/study_cafe_profiles?")) {
       return jsonResponse([{ student_id: "20001", avatar_tone: "blue" }]);
