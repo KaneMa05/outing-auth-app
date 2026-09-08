@@ -5943,6 +5943,32 @@ body.student-online-mode .student-planner-solo-header h2 {
   color: #fff;
 }
 
+body.student-online-mode:not(.student-home-route) .student-notice-row .student-notice-title-text {
+  color: #f4f8fb;
+}
+
+body.student-online-mode:not(.student-home-route) .student-notice-row {
+  border-bottom-color: rgba(220, 234, 242, 0.2);
+}
+
+body.student-online-mode:not(.student-home-route) .student-notice-row:first-child {
+  border-top-color: rgba(220, 234, 242, 0.2);
+}
+
+body.student-online-mode:not(.student-home-route) .student-notice-row:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+body.student-online-mode:not(.student-home-route) .student-notice-meta,
+body.student-online-mode:not(.student-home-route) .student-notice-meta > span {
+  color: rgba(218, 231, 239, 0.72);
+}
+
+body.student-online-mode:not(.student-home-route) .student-notice-row-action {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(234, 242, 247, 0.78);
+}
+
 body.student-online-mode .student-planner-hub.curriculum .curriculum-page-head h2 {
   color: #fff;
 }
@@ -8176,7 +8202,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 .student-notice-head h3,
 .student-notices-head h2 {
   margin-bottom: 0;
-  color: var(--text);
+  color: #1f2e3a;
 }
 
 .student-notice-head h3 {
@@ -8216,7 +8242,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
   border: 1px solid #e7edf5;
   border-radius: 12px;
   background: #f8fbff;
-  color: var(--text);
+  color: #1f2e3a;
   text-align: left;
   cursor: pointer;
 }
@@ -8347,6 +8373,7 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-notice-detail-head h2 {
   margin-bottom: 0;
+  color: #1f2e3a;
   font-size: 1.26rem;
   line-height: 1.35;
 }
@@ -8358,8 +8385,24 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .student-notice-body p {
   margin-bottom: 0;
-  color: var(--text);
+  color: #1f2e3a;
   line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.student-notice-image-link {
+  display: block;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #eef3f7;
+}
+
+.student-notice-image {
+  display: block;
+  width: 100%;
+  max-height: 720px;
+  object-fit: contain;
 }
 
 .student-notice-actions {
@@ -8370,6 +8413,62 @@ body:not([data-app-mode="teacher"]) input[readonly] {
 
 .notice-admin-form textarea {
   min-height: 180px;
+}
+
+.notice-image-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.notice-image-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid #cbd8e6;
+  border-radius: 9px;
+  background: #f6f9fc;
+  color: #294760;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.notice-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.notice-image-preview-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.notice-image-preview-card img {
+  display: block;
+  width: min(260px, 100%);
+  max-height: 220px;
+  border: 1px solid #d9e3ec;
+  border-radius: 12px;
+  background: #eef3f7;
+  object-fit: contain;
+}
+
+.notice-image-preview-empty {
+  display: grid;
+  min-height: 74px;
+  place-items: center;
+  border: 1px dashed #cbd8e6;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #70808f;
+  font-size: 0.86rem;
 }
 
 .notice-publish-toggle {

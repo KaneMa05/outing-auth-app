@@ -25,8 +25,8 @@ assert.match(sharedSource, /noticeMatchesStudentCategory\(notice, studentCategor
 assert.match(teacherSettingsSource, /name: "targetAudience"/);
 assert.match(teacherSettingsSource, /value: "academy"/);
 assert.match(teacherSettingsSource, /value: "lecture"/);
-assert.match(teacherSettingsSource, /isMissingColumnError\(result\.error, "target_audience"\)/);
-assert.match(teacherSettingsSource, /const \{ target_audience, \.\.\.legacyPayload \} = payload/);
+assert.match(teacherSettingsSource, /targetAudience: normalizeNoticeTargetAudience\(notice\.targetAudience\)/);
+assert.match(teacherSettingsSource, /action: "save"/);
 assert.match(teacherSettingsSource, /\["제목", "공지 대상", "상태", "등록일", "관리"\]/);
 
 assert.match(appSource, /function getStudentImportantNotices\(\)/);

@@ -2178,7 +2178,8 @@ async function loadStateFromRemote(options = {}) {
     "deleted_at",
     "deleted_by",
   ].join(",");
-  const noticeColumns = "id,title,body,target_audience,is_published,created_at,updated_at";
+  const noticeColumns = "id,title,body,image_path,target_audience,is_published,created_at,updated_at";
+  const noticeColumnsWithoutImage = "id,title,body,target_audience,is_published,created_at,updated_at";
   const legacyNoticeColumns = "id,title,body,is_published,created_at,updated_at";
   const attendanceHolidayColumns = "date_key,note,created_at,updated_at";
   const examColumns = "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at";
@@ -2384,6 +2385,9 @@ async function loadStateFromRemote(options = {}) {
     else penaltyResult = await penaltyResult;
   }
   if (penaltyResult.error && !isMissingRelationError(penaltyResult.error, "penalties")) throw penaltyResult.error;
+  if (isMissingColumnError(noticeResult.error, "image_path")) {
+    noticeResult = await remoteStore.from("notices").select(noticeColumnsWithoutImage).order("created_at", { ascending: false });
+  }
   if (isMissingColumnError(noticeResult.error, "target_audience")) {
     noticeResult = await remoteStore.from("notices").select(legacyNoticeColumns).order("created_at", { ascending: false });
   }
@@ -4316,11 +4320,19 @@ function mapNoticeFromRemote(notice) {
     id: notice.id,
     title: notice.title || "",
     body: notice.body || "",
+    imagePath: notice.image_path || "",
     targetAudience: normalizeNoticeTargetAudience(notice.target_audience),
     isPublished: notice.is_published !== false,
     createdAt: notice.created_at,
     updatedAt: notice.updated_at || notice.created_at,
   };
+}
+
+function getNoticeImageUrl(notice) {
+  const imagePath = String(notice?.imagePath || "").trim();
+  if (!remoteStore?.storage?.from || !imagePath) return "";
+  const { data } = remoteStore.storage.from("notice-images").getPublicUrl(imagePath);
+  return String(data?.publicUrl || "");
 }
 
 function applyRemoteAppSettingsFromNotices(notices) {

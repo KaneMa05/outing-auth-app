@@ -2220,9 +2220,25 @@ async function ensureStudyRoomLoaded(options = {}) {
       return false;
     }
     const previousRoom = studyRoomState.room;
+    const previousSeatNumber = Number(previousRoom?.mySeatNumber) || 0;
+    const previousLocalSeatId = studyCafePreviewState.selectedSeatId;
+    const previousLocalRunning = studyCafePreviewState.running;
+    const previousLocalIdleSince = studyCafePreviewState.idleSince;
     studyRoomState.room = result.room || null;
+    const nextSeatNumber = Number(studyRoomState.room?.mySeatNumber) || 0;
+    const idleSeatWasAutoReleased =
+      previousSeatNumber > 0
+      && nextSeatNumber === 0
+      && isStudyCafeIdleReleaseDue(
+        previousLocalSeatId,
+        previousLocalRunning,
+        previousLocalIdleSince
+      );
     if (!studyRoomState.room) studyRoomState.browsingPublicCafe = false;
-    if (previousRoom && !studyRoomState.room) resetStudyCafeLocalSeatForPrivateRoom();
+    if (previousRoom && (!studyRoomState.room || (previousSeatNumber > 0 && nextSeatNumber === 0))) {
+      resetStudyCafeLocalSeatForPrivateRoom();
+    }
+    if (idleSeatWasAutoReleased) showStudyCafeIdleAutoReleaseModal();
     studyRoomState.loaded = true;
     studyRoomState.lastLoadedAt = Date.now();
     studyRoomState.error = "";
@@ -2471,9 +2487,16 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
   }
   if (!options.preserveLocalSession) {
     const previousSeatId = studyCafePreviewState.selectedSeatId;
-    studyCafePreviewState.selectedSeatId = presence?.seatNumber
-      ? STUDY_CAFE_PREVIEW_SEATS[Number(presence.seatNumber) - 1]?.id || ""
-      : "";
+    const previousRunning = studyCafePreviewState.running;
+    const previousIdleSince = studyCafePreviewState.idleSince;
+    const preservePrivateRoomSeat =
+      String(previousSeatId).startsWith("private-seat-")
+      && Number(studyRoomState.room?.mySeatNumber) > 0;
+    studyCafePreviewState.selectedSeatId = preservePrivateRoomSeat
+      ? previousSeatId
+      : presence?.seatNumber
+        ? STUDY_CAFE_PREVIEW_SEATS[Number(presence.seatNumber) - 1]?.id || ""
+        : "";
     if (!previousSeatId && presence?.seatNumber) {
       studyCafePreviewState.activeRoomIndex = getStudyCafeRoomIndexForSeat(presence.seatNumber);
     }
@@ -2487,13 +2510,22 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
     const remoteIdleSince = Date.parse(presence?.idleSince || "");
     studyCafePreviewState.idleSince =
       studyCafePreviewState.selectedSeatId && !studyCafePreviewState.running
-        ? Math.max(
-            previousSeatId === studyCafePreviewState.selectedSeatId
-              ? Number(studyCafePreviewState.idleSince) || 0
-              : 0,
-            Number.isFinite(remoteIdleSince) ? remoteIdleSince : Date.now()
-          )
+        ? preservePrivateRoomSeat
+          ? Number(previousIdleSince) || Date.now()
+          : Math.max(
+              previousSeatId === studyCafePreviewState.selectedSeatId
+                ? Number(previousIdleSince) || 0
+                : 0,
+              Number.isFinite(remoteIdleSince) ? remoteIdleSince : Date.now()
+            )
         : 0;
+    if (
+      !String(previousSeatId).startsWith("private-seat-")
+      && !studyCafePreviewState.selectedSeatId
+      && isStudyCafeIdleReleaseDue(previousSeatId, previousRunning, previousIdleSince)
+    ) {
+      showStudyCafeIdleAutoReleaseModal();
+    }
   }
 }
 
@@ -3688,16 +3720,22 @@ function renderStudentNoticeDetail() {
       ]),
     ]);
   }
+  const noticeImageUrl = getNoticeImageUrl(notice);
   return el("div", { className: "grid student-view student-notices" }, [
     el("article", { className: "student-notice-detail" }, [
       el("div", { className: "student-notice-detail-head" }, [
         el("span", {}, formatNoticeDate(notice.createdAt)),
         el("h2", {}, notice.title),
       ]),
+      noticeImageUrl
+        ? el("a", { href: noticeImageUrl, target: "_blank", rel: "noopener", className: "student-notice-image-link" }, [
+            el("img", { src: noticeImageUrl, alt: `${notice.title} 첨부 사진`, loading: "lazy", className: "student-notice-image" }),
+          ])
+        : null,
       el(
         "div",
         { className: "student-notice-body" },
-        splitNoticeBody(notice.body).map((paragraph) => el("p", {}, paragraph))
+        el("p", {}, String(notice.body || ""))
       ),
       el("div", { className: "student-notice-actions" }, [
         button("목록으로", "btn secondary", "button", () => navigate("notices")),
@@ -3732,13 +3770,6 @@ function formatNoticeDate(value) {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
-}
-
-function splitNoticeBody(value) {
-  return String(value || "")
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
 }
 
 function getStudentHomeStatus(outing) {
@@ -6336,6 +6367,7 @@ function resetStudyCafeLocalSeatForPrivateRoom() {
   studyCafePreviewState.elapsedMs = 0;
   studyCafePreviewState.startedAt = 0;
   studyCafePreviewState.subjectStartedAt = 0;
+  studyCafePreviewState.idleSince = 0;
 }
 
 async function leaveCurrentStudyRoom() {
@@ -9620,11 +9652,21 @@ function checkStudyCafeIdleSeat() {
   return true;
 }
 
+function isStudyCafeIdleReleaseDue(seatId, running, idleSince) {
+  const normalizedIdleSince = Number(idleSince) || 0;
+  return Boolean(seatId)
+    && running !== true
+    && normalizedIdleSince > 0
+    && Date.now() - normalizedIdleSince >= STUDY_CAFE_IDLE_RELEASE_MS;
+}
+
 function showStudyCafeIdleAutoReleaseModal() {
+  if (document.querySelector(".study-cafe-idle-release-modal")) return;
   closeStudyCafeAutoPauseModal();
   closeInfoModal();
   openInfoModal({
     title: "좌석이 자동으로 비워졌습니다",
+    className: "study-cafe-idle-release-modal",
     content: el("div", { className: "study-cafe-idle-release-notice" }, [
       el("p", {}, "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다."),
       el("p", { className: "subtle" }, "계속 공부하려면 빈 좌석을 다시 선택해주세요."),

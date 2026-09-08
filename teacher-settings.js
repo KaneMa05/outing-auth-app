@@ -5,6 +5,11 @@ const teacherAccountAdminState = {
   loading: false,
   error: "",
 };
+const NOTICE_IMAGE_ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const NOTICE_IMAGE_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+const NOTICE_IMAGE_MAX_SOURCE_PIXELS = 50 * 1000 * 1000;
+const NOTICE_IMAGE_MAX_OUTPUT_BYTES = 900 * 1024;
+const NOTICE_IMAGE_MAX_EDGE = 1600;
 
 function renderTeacherAccountsAdmin() {
   if (!hasTeacherPermission("accounts.write")) return renderForbidden();
@@ -399,6 +404,31 @@ function noticeAdminPanel() {
     rows: 8,
   }, editingNotice?.body || "");
   bodyInput.required = true;
+  const imageInput = el("input", {
+    type: "file",
+    accept: "image/jpeg,image/png,image/webp,image/heic,image/heif",
+    className: "notice-image-input",
+  });
+  const imagePreview = el("div", { className: "notice-image-preview" });
+  refreshNoticeImagePreview(imagePreview, editingNotice);
+  imageInput.addEventListener("change", async () => {
+    const file = imageInput.files?.[0];
+    if (!file) return;
+    imageInput.disabled = true;
+    try {
+      noticeImageDraft = await prepareNoticeImage(file);
+      noticeImageRemovalRequested = false;
+      refreshNoticeImagePreview(imagePreview, editingNotice);
+    } catch (error) {
+      console.error(error);
+      if (error.message === "image_source_too_large") notify("사진 원본 용량 또는 해상도가 너무 큽니다. 다른 사진을 선택해주세요.");
+      else if (error.message === "image_too_large") notify("사진 용량을 줄이지 못했습니다. 다른 사진을 선택해주세요.");
+      else notify("JPG, PNG, WebP 또는 HEIC 사진을 선택해주세요.");
+    } finally {
+      imageInput.value = "";
+      imageInput.disabled = false;
+    }
+  });
   const targetAudienceInput = el("select", { name: "targetAudience" }, [
     el("option", { value: "academy" }, "오프라인 학생 · 온라인 관리반"),
     el("option", { value: "lecture" }, "수강생"),
@@ -410,6 +440,8 @@ function noticeAdminPanel() {
   if (editingNotice) {
     formActions.push(button("수정 취소", "btn secondary", "button", () => {
       editingNoticeId = "";
+      noticeImageDraft = null;
+      noticeImageRemovalRequested = false;
       render();
     }));
   }
@@ -417,6 +449,11 @@ function noticeAdminPanel() {
   const form = el("form", { className: "form-grid notice-admin-form" }, [
     field("제목", titleInput, "full"),
     field("내용", bodyInput, "full"),
+    field("사진 (선택)", el("div", { className: "notice-image-picker" }, [
+      el("label", { className: "notice-image-select" }, [el("span", {}, "사진 선택"), imageInput]),
+      imagePreview,
+      el("small", {}, "사진은 1장까지 첨부할 수 있으며 업로드에 알맞게 자동 축소됩니다."),
+    ]), "full"),
     field("공지 대상", targetAudienceInput, "full"),
     el("label", { className: "notice-publish-toggle" }, [
       publishedInput,
@@ -435,17 +472,25 @@ function noticeAdminPanel() {
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
     const beforeNotices = JSON.parse(JSON.stringify(state.notices || []));
+    const previousImagePath = String(editingNotice?.imagePath || "");
     try {
-      upsertNotice({
+      const savedNotice = upsertNotice({
         id: editingNotice?.id,
         title,
         body,
+        imagePath: previousImagePath,
         targetAudience: normalizeNoticeTargetAudience(data.targetAudience),
         isPublished: Boolean(data.isPublished),
       });
-      const savedNotice = editingNotice?.id ? getImportantNoticeById(editingNotice.id) : state.notices[0];
-      await saveNoticeToRemote(savedNotice, { update: Boolean(editingNotice?.id) });
+      const remoteResult = await saveNoticeToRemote(savedNotice, {
+        update: Boolean(editingNotice?.id),
+        image: noticeImageDraft,
+        removeImage: noticeImageRemovalRequested,
+      });
+      savedNotice.imagePath = String(remoteResult?.imagePath ?? previousImagePath);
       editingNoticeId = "";
+      noticeImageDraft = null;
+      noticeImageRemovalRequested = false;
       saveState({ skipRemote: true });
       render();
       notify(editingNotice ? "공지글을 수정했습니다." : "공지글을 등록했습니다.");
@@ -453,10 +498,11 @@ function noticeAdminPanel() {
       console.error(error);
       state.notices = beforeNotices;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      notify("공지글을 원격 저장소에 저장하지 못했습니다. Supabase notices 권한을 확인해주세요.");
+      if (error.message === "notice_image_store_unavailable") notify("공지 사진을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      else if (error.message === "unauthorized") notify("관리자 로그인이 만료되었습니다. 다시 로그인해주세요.");
+      else notify("공지글을 원격 저장소에 저장하지 못했습니다. Supabase notices 권한을 확인해주세요.");
       submitButton.disabled = false;
       submitButton.textContent = editingNotice ? "공지 수정" : "공지 등록";
-      render();
     }
   });
 
@@ -473,6 +519,8 @@ function noticeAdminPanel() {
         el("td", { className: "student-admin-actions" }, [
           hasTeacherPermission("notices.write") ? button("수정", "mini-btn", "button", () => {
             editingNoticeId = notice.id;
+            noticeImageDraft = null;
+            noticeImageRemovalRequested = false;
             render();
           }) : null,
           hasTeacherPermission("notices.write") ? button("삭제", "mini-btn danger", "button", () => deleteNotice(notice.id)) : null,
@@ -491,13 +539,14 @@ function noticeAdminPanel() {
   ]);
 }
 
-function upsertNotice({ id, title, body, targetAudience, isPublished }) {
+function upsertNotice({ id, title, body, imagePath = "", targetAudience, isPublished }) {
   state.notices = state.notices || [];
   const now = new Date().toISOString();
   const existing = id ? state.notices.find((notice) => notice.id === id) : null;
   if (existing) {
     existing.title = title;
     existing.body = body;
+    existing.imagePath = imagePath;
     existing.targetAudience = normalizeNoticeTargetAudience(targetAudience);
     existing.isPublished = isPublished;
     existing.updatedAt = now;
@@ -507,6 +556,7 @@ function upsertNotice({ id, title, body, targetAudience, isPublished }) {
     id: createId(),
     title,
     body,
+    imagePath,
     targetAudience: normalizeNoticeTargetAudience(targetAudience),
     isPublished,
     createdAt: now,
@@ -531,45 +581,117 @@ async function deleteNotice(id) {
 
   state.notices = (state.notices || []).filter((item) => item.id !== id);
   if (editingNoticeId === id) editingNoticeId = "";
+  noticeImageDraft = null;
+  noticeImageRemovalRequested = false;
   saveState({ skipRemote: true });
   render();
   notify("공지글을 삭제했습니다.");
 }
 
 async function saveNoticeToRemote(notice, options = {}) {
-  if (!remoteStore || !notice) return;
-  const payload = {
-    title: String(notice.title || "").trim(),
-    body: String(notice.body || "").trim(),
-    target_audience: normalizeNoticeTargetAudience(notice.targetAudience),
-    is_published: notice.isPublished !== false,
-    updated_at: notice.updatedAt || new Date().toISOString(),
-  };
-  let result = options.update
-    ? await remoteStore.from("notices").update(payload).eq("id", notice.id)
-    : await remoteStore.from("notices").insert({
-        id: notice.id,
-        ...payload,
-        created_at: notice.createdAt || new Date().toISOString(),
-      });
-  if (isMissingColumnError(result.error, "target_audience")) {
-    const { target_audience, ...legacyPayload } = payload;
-    result = options.update
-      ? await remoteStore.from("notices").update(legacyPayload).eq("id", notice.id)
-      : await remoteStore.from("notices").insert({
-          id: notice.id,
-          ...legacyPayload,
-          created_at: notice.createdAt || new Date().toISOString(),
-        });
+  if (!notice) throw new Error("notice_required");
+  if (!remoteStore) {
+    if (options.image || options.removeImage) throw new Error("notice_image_store_unavailable");
+    return { imagePath: notice.imagePath || "" };
   }
-  const { error } = result;
-  if (error) throw error;
+  return requestNoticeApi({
+    action: "save",
+    update: options.update === true,
+    removeImage: options.removeImage === true,
+    image: options.image ? { data: options.image.data, contentType: options.image.contentType } : null,
+    notice: {
+      id: notice.id,
+      title: String(notice.title || "").trim(),
+      body: String(notice.body || "").trim(),
+      targetAudience: normalizeNoticeTargetAudience(notice.targetAudience),
+      isPublished: notice.isPublished !== false,
+      createdAt: notice.createdAt || new Date().toISOString(),
+      updatedAt: notice.updatedAt || new Date().toISOString(),
+    },
+  });
+}
+
+function refreshNoticeImagePreview(preview, editingNotice) {
+  if (!preview) return;
+  const existingImageUrl = noticeImageRemovalRequested ? "" : getNoticeImageUrl(editingNotice);
+  if (noticeImageDraft) {
+    preview.replaceChildren(el("div", { className: "notice-image-preview-card" }, [
+      el("img", { src: noticeImageDraft.data, alt: "선택한 공지 사진 미리보기" }),
+      button("선택 취소", "mini-btn", "button", () => {
+        noticeImageDraft = null;
+        noticeImageRemovalRequested = false;
+        refreshNoticeImagePreview(preview, editingNotice);
+      }),
+    ]));
+    return;
+  }
+  if (existingImageUrl) {
+    preview.replaceChildren(el("div", { className: "notice-image-preview-card" }, [
+      el("img", { src: existingImageUrl, alt: "현재 공지 사진" }),
+      button("사진 삭제", "mini-btn danger", "button", () => {
+        noticeImageRemovalRequested = true;
+        refreshNoticeImagePreview(preview, editingNotice);
+      }),
+    ]));
+    return;
+  }
+  preview.replaceChildren(el("div", { className: "notice-image-preview-empty" }, noticeImageRemovalRequested ? "저장하면 기존 사진이 삭제됩니다." : "선택한 사진이 없습니다."));
+}
+
+async function prepareNoticeImage(file) {
+  const contentType = String(file?.type || "").toLowerCase();
+  const hasHeicExtension = /\.(?:heic|heif)$/i.test(String(file?.name || ""));
+  if (!file || (!NOTICE_IMAGE_ACCEPTED_TYPES.has(contentType) && !hasHeicExtension)) throw new Error("invalid_image_type");
+  if (file.size > NOTICE_IMAGE_MAX_SOURCE_BYTES) throw new Error("image_source_too_large");
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const node = new Image();
+      node.onload = () => resolve(node);
+      node.onerror = () => reject(new Error("invalid_image_type"));
+      node.src = sourceUrl;
+    });
+    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth * image.naturalHeight > NOTICE_IMAGE_MAX_SOURCE_PIXELS) {
+      throw new Error("image_source_too_large");
+    }
+    const scale = Math.min(1, NOTICE_IMAGE_MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    let quality = 0.84;
+    let data = canvas.toDataURL("image/jpeg", quality);
+    while (noticeImageByteLength(data) > NOTICE_IMAGE_MAX_OUTPUT_BYTES && quality > 0.48) {
+      quality -= 0.08;
+      data = canvas.toDataURL("image/jpeg", quality);
+    }
+    if (noticeImageByteLength(data) > NOTICE_IMAGE_MAX_OUTPUT_BYTES) throw new Error("image_too_large");
+    return { data, contentType: "image/jpeg" };
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function noticeImageByteLength(dataUrl) {
+  const base64 = String(dataUrl).split(",")[1] || "";
+  return Math.floor(base64.length * 3 / 4);
+}
+
+async function requestNoticeApi(payload) {
+  const response = await fetch("/api/notices", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) throw new Error(data.error || "notice_image_store_unavailable");
+  return data;
 }
 
 async function deleteNoticeFromRemote(id) {
   if (!remoteStore) return;
-  const { error } = await remoteStore.from("notices").delete().eq("id", id);
-  if (error) throw error;
+  await requestNoticeApi({ action: "delete", noticeId: id });
 }
 
 function getActiveManagers(cohort = "") {

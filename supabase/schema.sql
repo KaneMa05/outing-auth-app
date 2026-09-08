@@ -145,11 +145,15 @@ create table if not exists public.notices (
   id text primary key,
   title text not null,
   body text not null,
+  image_path text,
   target_audience text not null default 'academy' check (target_audience in ('academy', 'lecture')),
   is_published boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.notices
+add column if not exists image_path text;
 
 create table if not exists public.student_exam_numbers (
   student_id text primary key references public.students(id) on delete cascade,
@@ -1143,6 +1147,13 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('notice-images', 'notice-images', true, 1048576, array['image/jpeg'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 create index if not exists attendance_checks_check_date_created_at_idx
 on public.attendance_checks (check_date, created_at desc);
 
@@ -1837,6 +1848,7 @@ grant select (
   id,
   title,
   body,
+  image_path,
   target_audience,
   is_published,
   created_at,

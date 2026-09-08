@@ -1,0 +1,25 @@
+# Local secrets and development data
+.env
+.env.*
+.local-*.json
+.local-*.log
+
+# Tests, database sources, and internal documentation
+tests/
+supabase/
+docs/
+scripts/
+tmp/
+.agents/
+AGENTS.md
+README.md
+
+# Local-only tools and demo artifacts
+local-dev-server.js
+local-question-board.js
+repair-weekly-submission-scores.js
+seed-final-grade-demo.html
+clear-local-students.html
+sample-weekly-answer.pdf
+config.example.js
+public/

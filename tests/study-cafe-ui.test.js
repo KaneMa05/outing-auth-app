@@ -475,13 +475,26 @@ assert.match(styleSource, /\.study-cafe-subject-stop-button/);
 assert.match(appSource, /const STUDY_CAFE_IDLE_RELEASE_MS = 15 \* 60 \* 1000/);
 assert.match(appSource, /const STUDY_CAFE_IDLE_RELEASE_RETRY_MS = 10 \* 1000/);
 assert.match(appSource, /function checkStudyCafeIdleSeat\(\)/);
+assert.match(appSource, /function isStudyCafeIdleReleaseDue\(seatId, running, idleSince\)/);
 assert.match(
   appSource,
   /releaseStudyCafeSeat\(\{ skipConfirm: true, autoRelease: true \}\)/
 );
 assert.match(
   appSource,
-  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
+  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?study-cafe-idle-release-modal[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
+);
+assert.match(
+  appSource,
+  /function hydrateStudyCafeSnapshot\([\s\S]*?previousIdleSince[\s\S]*?isStudyCafeIdleReleaseDue\(previousSeatId, previousRunning, previousIdleSince\)[\s\S]*?showStudyCafeIdleAutoReleaseModal\(\)/
+);
+assert.match(
+  appSource,
+  /const preservePrivateRoomSeat =[\s\S]*?startsWith\("private-seat-"\)[\s\S]*?preservePrivateRoomSeat\s*\? Number\(previousIdleSince\) \|\| Date\.now\(\)/
+);
+assert.match(
+  appSource,
+  /async function ensureStudyRoomLoaded\([\s\S]*?idleSeatWasAutoReleased[\s\S]*?isStudyCafeIdleReleaseDue\([\s\S]*?if \(idleSeatWasAutoReleased\) showStudyCafeIdleAutoReleaseModal\(\)/
 );
 assert.match(styleSource, /\.study-cafe-idle-release-notice/);
 assert.match(appSource, /function startStudyCafeCountdown\(seatId, subject\)/);

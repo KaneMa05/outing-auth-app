@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v384-remote-load-speed";
+const CACHE_NAME = "outing-auth-app-v385-notice-images";
 const APP_SHELL = [
   "/",
   "/index.html",
