@@ -15635,6 +15635,223 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
   padding: 28px 16px;
 }
 
+.study-cafe-admin-history-tools {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.study-cafe-admin-history-tools > .btn {
+  width: auto;
+  min-width: 132px;
+  margin: 0;
+}
+
+.study-cafe-admin-history-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 210px)) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.study-cafe-admin-history-filters .field {
+  margin: 0;
+}
+
+.study-cafe-admin-history-filters input {
+  min-height: 42px;
+}
+
+.study-cafe-admin-history-submit .btn {
+  width: auto;
+  min-width: 88px;
+  margin: 0;
+}
+
+.study-cafe-admin-history-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #f0c5bd;
+  border-radius: 11px;
+  background: #fff7f5;
+  color: var(--danger);
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.study-cafe-admin-history-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  background: #f2f8fd;
+  color: #5d7287;
+  padding: 11px 14px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.study-cafe-admin-history-summary strong {
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-cafe-admin-history-table {
+  overflow: hidden;
+  border: 1px solid #dfe8f1;
+  border-radius: 13px;
+}
+
+.study-cafe-admin-history-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) minmax(120px, auto);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid #e7edf3;
+  background: #fff;
+  color: var(--ink);
+  padding: 12px 14px;
+  text-align: left;
+  font: inherit;
+}
+
+button.study-cafe-admin-history-row {
+  cursor: pointer;
+}
+
+.study-cafe-admin-history-row:last-child {
+  border-bottom: 0;
+}
+
+.study-cafe-admin-history-row.heading {
+  background: #f4f7fa;
+  color: #65788b;
+  font-size: 0.73rem;
+  font-weight: 900;
+}
+
+button.study-cafe-admin-history-row:hover,
+button.study-cafe-admin-history-row.active {
+  background: #f0f8ff;
+}
+
+button.study-cafe-admin-history-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(0, 111, 191, 0.24);
+  outline-offset: -3px;
+}
+
+.study-cafe-admin-history-row > :last-child {
+  justify-self: end;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.study-cafe-admin-history-inline-detail {
+  border-bottom: 1px solid #dfe8f1;
+  background: #f4f9fd;
+  padding: 12px;
+}
+
+.study-cafe-admin-history-inline-detail:last-child {
+  border-bottom: 0;
+}
+
+.study-cafe-admin-history-detail {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #b8d5e9;
+  border-radius: 14px;
+  background: #f8fcff;
+  padding: 15px;
+}
+
+.study-cafe-admin-history-detail-head,
+.study-cafe-admin-history-day-head,
+.study-cafe-admin-history-session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.study-cafe-admin-history-detail-head h4 {
+  margin: 0;
+  color: #153451;
+  font-size: 0.98rem;
+}
+
+.study-cafe-admin-history-detail-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.study-cafe-admin-history-days {
+  display: grid;
+  gap: 9px;
+}
+
+.study-cafe-admin-history-day {
+  overflow: hidden;
+  border: 1px solid #dfe8f1;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.study-cafe-admin-history-day-head {
+  background: #f1f6fa;
+  padding: 9px 11px;
+  font-size: 0.78rem;
+}
+
+.study-cafe-admin-history-day-head span {
+  color: var(--accent-strong);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-cafe-admin-history-sessions {
+  display: grid;
+}
+
+.study-cafe-admin-history-session {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) repeat(2, minmax(105px, auto)) minmax(84px, auto);
+  border-top: 1px solid #edf1f5;
+  padding: 9px 11px;
+  color: #60758a;
+  font-size: 0.74rem;
+}
+
+.study-cafe-admin-history-session:first-child {
+  border-top: 0;
+}
+
+.study-cafe-admin-history-session strong {
+  justify-self: end;
+  color: #153451;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-cafe-admin-history-subject {
+  min-width: 0;
+  overflow: hidden;
+  color: #38556f;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 980px) {
   .study-cafe-admin-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -15642,6 +15859,15 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
 
   .study-cafe-admin-seat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .study-cafe-admin-history-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .study-cafe-admin-history-tools > .btn {
+    align-self: flex-end;
   }
 }
 
@@ -15685,6 +15911,35 @@ body.study-timer-fullscreen-mode .student-study-timer-page {
 
   .study-cafe-admin-member-actions {
     grid-column: 2 / -1;
+  }
+
+  .study-cafe-admin-history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .study-cafe-admin-history-submit {
+    grid-column: 1 / -1;
+  }
+
+  .study-cafe-admin-history-submit .btn,
+  .study-cafe-admin-history-tools > .btn {
+    width: 100%;
+  }
+
+  .study-cafe-admin-history-row {
+    grid-template-columns: minmax(90px, 1fr) minmax(115px, 1.25fr) auto;
+    gap: 8px;
+    padding: 11px 10px;
+    font-size: 0.78rem;
+  }
+
+  .study-cafe-admin-history-session {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .study-cafe-admin-history-session > :nth-child(3),
+  .study-cafe-admin-history-session > :nth-child(4) {
+    justify-self: end;
   }
 }
 

@@ -6,9 +6,11 @@ const {
   readSessionToken,
 } = require("./teacher-auth-utils");
 
-const ALLOWED_ACTIONS = new Set(["dashboard", "stop_session", "release_seat"]);
+const ALLOWED_ACTIONS = new Set(["dashboard", "history", "history_detail", "stop_session", "release_seat"]);
 const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
+const STUDY_HISTORY_MAX_DAYS = 366;
+const SUPABASE_PAGE_SIZE = 1000;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -30,7 +32,9 @@ module.exports = async function handler(req, res) {
       res.status(400).json({ ok: false, error: "unsupported_action" });
       return;
     }
-    const requiredPermission = action === "dashboard" ? "study_cafe.read" : "study_cafe.write";
+    const requiredPermission = ["dashboard", "history", "history_detail"].includes(action)
+      ? "study_cafe.read"
+      : "study_cafe.write";
     if (!hasPermission(session, requiredPermission)) {
       res.status(403).json({ ok: false, error: "forbidden" });
       return;
@@ -39,6 +43,33 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     if (action === "dashboard") {
       res.status(200).json({ ok: true, ...(await loadDashboard(now)) });
+      return;
+    }
+
+    if (action === "history") {
+      const range = normalizeStudyHistoryRange(body.startDate, body.endDate);
+      if (!range) {
+        res.status(400).json({ ok: false, error: "invalid_date_range" });
+        return;
+      }
+      await rolloverActiveSessionsIfNeeded(now);
+      res.status(200).json({ ok: true, ...(await loadStudyHistory(range, now)) });
+      return;
+    }
+
+    if (action === "history_detail") {
+      const range = normalizeStudyHistoryRange(body.startDate, body.endDate);
+      const studentId = normalizeStudentId(body.studentId);
+      if (!range) {
+        res.status(400).json({ ok: false, error: "invalid_date_range" });
+        return;
+      }
+      if (!studentId) {
+        res.status(400).json({ ok: false, error: "invalid_student" });
+        return;
+      }
+      await rolloverActiveSessionsIfNeeded(now);
+      res.status(200).json({ ok: true, ...(await loadStudyHistoryDetail(range, studentId, now)) });
       return;
     }
 
@@ -205,7 +236,9 @@ async function loadDashboard(now) {
     date: bounds.date,
     summary: {
       onlineStudentCount: studentRows.length,
-      seatedCount: members.filter((member) => member.seatNumber && member.connected).length,
+      seatedCount: members.filter((member) => member.seatNumber).length,
+      connectedSeatedCount: members.filter((member) => member.seatNumber && member.connected).length,
+      disconnectedSeatedCount: members.filter((member) => member.seatNumber && !member.connected).length,
       studyingCount: members.filter((member) => member.sessionStatus === "running" && member.connected).length,
       pausedCount: members.filter((member) => member.sessionStatus === "paused" && member.connected).length,
       totalSeconds: members.reduce((sum, member) => sum + member.todaySeconds, 0),
@@ -226,6 +259,114 @@ async function loadDashboard(now) {
     }),
     members,
   };
+}
+
+async function loadStudyHistory(range, now) {
+  const sessionPath = [
+    `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}`,
+    `started_at=lt.${encodeURIComponent(range.end)}`,
+    "select=student_id,status,elapsed_seconds,active_started_at",
+    "order=started_at.asc,id.asc",
+  ].join("&");
+  const [students, sessions] = await Promise.all([
+    requestAllSupabase(
+      "students?student_category=in.(online_managed,lecture)&account_type=eq.student&select=id,name,phone,class_name,account_type,is_active&order=name.asc,id.asc"
+    ),
+    requestAllSupabase(sessionPath),
+  ]);
+  const report = buildStudyHistorySummary(students, sessions, now);
+  return {
+    serverNow: now.toISOString(),
+    startDate: range.startDate,
+    endDate: range.endDate,
+    totalSeconds: report.reduce((sum, student) => sum + student.totalSeconds, 0),
+    students: report,
+  };
+}
+
+async function loadStudyHistoryDetail(range, studentId, now) {
+  const encodedStudentId = encodeURIComponent(studentId);
+  const sessionPath = [
+    `study_cafe_sessions?student_id=eq.${encodedStudentId}`,
+    `started_at=gte.${encodeURIComponent(range.start)}`,
+    `started_at=lt.${encodeURIComponent(range.end)}`,
+    "select=id,student_id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at",
+    "order=started_at.asc,id.asc",
+  ].join("&");
+  const [studentRows, sessions] = await Promise.all([
+    requestSupabase(
+      "GET",
+      `students?id=eq.${encodedStudentId}&student_category=in.(online_managed,lecture)&account_type=eq.student&select=id,name,phone,class_name,account_type,is_active&limit=1`
+    ),
+    requestAllSupabase(sessionPath),
+  ]);
+  const student = Array.isArray(studentRows) ? studentRows[0] || null : null;
+  if (!student || student.account_type === "teacher" || student.class_name === "스터디카페 운영계정") {
+    const error = new Error("student_not_found");
+    error.status = 404;
+    throw error;
+  }
+  return {
+    startDate: range.startDate,
+    endDate: range.endDate,
+    student: buildStudyHistoryDetail(student, sessions, now),
+  };
+}
+
+function buildStudyHistorySummary(studentRows, sessionRows, now = new Date()) {
+  const totals = aggregateSessionSeconds(Array.isArray(sessionRows) ? sessionRows : [], now);
+  return (Array.isArray(studentRows) ? studentRows : [])
+    .filter((student) => (
+      student?.id &&
+      student.account_type !== "teacher" &&
+      student.class_name !== "스터디카페 운영계정" &&
+      (student.is_active !== false || totals.has(student.id))
+    ))
+    .map((student) => ({
+      studentId: student.id,
+      name: student.name || "이름 미등록",
+      phone: student.phone || "",
+      totalSeconds: totals.get(student.id) || 0,
+    }))
+    .sort(sortStudyHistoryStudents);
+}
+
+function buildStudyHistoryDetail(student, sessionRows, now = new Date()) {
+  const dates = new Map();
+  (Array.isArray(sessionRows) ? sessionRows : []).forEach((session) => {
+    if (!session?.started_at) return;
+    const studyDate = getKstDateKey(session.started_at);
+    if (!studyDate) return;
+    const entry = {
+      id: String(session.id || ""),
+      subject: String(session.subject_name || ""),
+      status: String(session.status || ""),
+      startedAt: session.started_at,
+      endedAt: session.ended_at || null,
+      endedStudyDate: session.ended_at ? getKstDateKey(session.ended_at) : "",
+      totalSeconds: getSessionElapsedSeconds(session, now),
+    };
+    if (!dates.has(studyDate)) dates.set(studyDate, []);
+    dates.get(studyDate).push(entry);
+  });
+  const days = [...dates.entries()].map(([date, sessions]) => ({
+    date,
+    totalSeconds: sessions.reduce((sum, session) => sum + session.totalSeconds, 0),
+    sessions,
+  })).sort((left, right) => right.date.localeCompare(left.date));
+  return {
+    studentId: student.id,
+    name: student.name || "이름 미등록",
+    phone: student.phone || "",
+    totalSeconds: days.reduce((sum, day) => sum + day.totalSeconds, 0),
+    days,
+  };
+}
+
+function sortStudyHistoryStudents(left, right) {
+  if (right.totalSeconds !== left.totalSeconds) return right.totalSeconds - left.totalSeconds;
+  const nameOrder = left.name.localeCompare(right.name, "ko");
+  return nameOrder || left.studentId.localeCompare(right.studentId, "ko", { numeric: true });
 }
 
 async function getActiveSession(studentId) {
@@ -298,6 +439,19 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   }
   if (response.status === 204) return null;
   return response.json().catch(() => null);
+}
+
+async function requestAllSupabase(path, pageSize = SUPABASE_PAGE_SIZE) {
+  const rows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await requestSupabase("GET", path, undefined, {
+      Range: `${offset}-${offset + pageSize - 1}`,
+    });
+    const pageRows = Array.isArray(page) ? page : [];
+    rows.push(...pageRows);
+    if (pageRows.length < pageSize) break;
+  }
+  return rows;
 }
 
 async function broadcastStudyCafeAdminChange(change, roomId = "") {
@@ -446,10 +600,45 @@ function kstDateKeyToUtc(dateKey) {
   return new Date(Date.UTC(year, month - 1, day, STUDY_DAY_START_HOUR_KST - 9));
 }
 
+function normalizeStudyHistoryRange(startValue, endValue) {
+  const startDate = normalizeDateKey(startValue);
+  const endDate = normalizeDateKey(endValue);
+  if (!startDate || !endDate || startDate > endDate) return null;
+  const start = kstDateKeyToUtc(startDate);
+  const inclusiveEnd = kstDateKeyToUtc(endDate);
+  const end = new Date(inclusiveEnd.getTime() + 24 * 60 * 60 * 1000);
+  const days = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  if (days < 1 || days > STUDY_HISTORY_MAX_DAYS) return null;
+  return {
+    startDate,
+    endDate,
+    start: start.toISOString(),
+    end: end.toISOString(),
+  };
+}
+
+function normalizeDateKey(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || "").trim());
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) return "";
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
 module.exports._private = {
   aggregateSessionSeconds,
+  buildStudyHistoryDetail,
+  buildStudyHistorySummary,
   getKstDayBounds,
   getKstDateKey,
   getSessionElapsedSeconds,
+  normalizeStudyHistoryRange,
   normalizeStudentId,
 };

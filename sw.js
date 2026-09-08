@@ -1,11 +1,11 @@
-const CACHE_NAME = "outing-auth-app-v390-cost-safety";
+const CACHE_NAME = "outing-auth-app-v391-study-cafe-admin-sync";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/teacher",
   "/teacher.html",
   "/styles.css?v=20260908-final-scope-plan",
-  "/styles.css?v=20260901-student-exam-numbers",
+  "/styles.css?v=20260908-study-cafe-admin-sync",
   "/fonts/GongGothicLight.woff",
   "/supabase.js?v=20260514-return-photo-time",
   "/shared.js?v=20260819-teacher-reason-photo",
@@ -16,7 +16,7 @@ const APP_SHELL = [
   "/inquiry-board.js?v=20260828-independent-inquiries",
   "/study-shop.js?v=20260828-local-grant-20000",
   "/final-scope-data.js?v=20260908-final-scope-plan",
-  "/teacher.js?v=20260903-weekly-exams-14",
+  "/teacher.js?v=20260908-study-cafe-admin-sync",
   "/teacher-grades.js?v=20260903-weekly-exams-14-button",
   "/teacher-fitness.js?v=20260714-grade-report-print-setup",
   "/teacher-students.js?v=20260901-student-exam-numbers",

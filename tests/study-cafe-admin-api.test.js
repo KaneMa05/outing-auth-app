@@ -2,7 +2,13 @@ const assert = require("node:assert/strict");
 
 const handler = require("../api/study-cafe-admin");
 const { COOKIE_NAME, createSessionToken } = require("../api/teacher-auth-utils");
-const { getKstDayBounds, getKstDateKey } = handler._private;
+const {
+  buildStudyHistoryDetail,
+  buildStudyHistorySummary,
+  getKstDayBounds,
+  getKstDateKey,
+  normalizeStudyHistoryRange,
+} = handler._private;
 
 function createResponse() {
   return {
@@ -58,6 +64,61 @@ const originalEnv = {
   });
   assert.equal(getKstDateKey("2026-07-29T15:00:00.000Z"), "2026-07-29");
   assert.equal(getKstDateKey("2026-07-29T19:00:00.000Z"), "2026-07-30");
+  assert.deepEqual(normalizeStudyHistoryRange("2026-07-29", "2026-07-30"), {
+    startDate: "2026-07-29",
+    endDate: "2026-07-30",
+    start: "2026-07-28T19:00:00.000Z",
+    end: "2026-07-30T19:00:00.000Z",
+  });
+  assert.equal(normalizeStudyHistoryRange("2026-07-31", "2026-07-30"), null);
+  assert.equal(normalizeStudyHistoryRange("2026-02-30", "2026-03-01"), null);
+  assert.equal(normalizeStudyHistoryRange("2025-01-01", "2026-01-02"), null);
+
+  const reportNow = new Date("2026-07-29T10:00:00.000Z");
+  const historyStudents = [
+    { id: "20001", name: "김학생", phone: "01012345678", account_type: "student", is_active: true },
+    { id: "20002", name: "이학생", phone: "010-9999-8888", account_type: "student", is_active: false },
+    { id: "20003", name: "박학생", phone: "", account_type: "student", is_active: false },
+    { id: "10001", name: "김선생", account_type: "teacher", is_active: true },
+    { id: "29999701", name: "운영계정", account_type: "student", class_name: "스터디카페 운영계정", is_active: true },
+  ];
+  const historySessions = [
+    {
+      id: "session-1",
+      student_id: "20001",
+      subject_name: "형사법",
+      status: "completed",
+      elapsed_seconds: 3600,
+      started_at: "2026-07-28T20:00:00.000Z",
+      active_started_at: null,
+      ended_at: "2026-07-28T21:15:00.000Z",
+    },
+    {
+      id: "session-2",
+      student_id: "20002",
+      subject_name: "해양경찰학",
+      status: "completed",
+      elapsed_seconds: 1800,
+      started_at: "2026-07-29T19:30:00.000Z",
+      active_started_at: null,
+      ended_at: "2026-07-29T20:00:00.000Z",
+    },
+  ];
+  const historySummary = buildStudyHistorySummary(historyStudents, historySessions, reportNow);
+  assert.equal(historySummary.length, 2);
+  assert.equal(historySummary[0].studentId, "20001");
+  assert.equal(historySummary[0].phone, "01012345678");
+  assert.equal(historySummary[0].totalSeconds, 3600);
+  assert.equal("days" in historySummary[0], false);
+  assert.equal(historySummary[1].studentId, "20002");
+  assert.ok(!historySummary.some((student) => student.studentId === "10001"));
+  assert.ok(!historySummary.some((student) => student.studentId === "29999701"));
+
+  const historyDetail = buildStudyHistoryDetail(historyStudents[0], historySessions.slice(0, 1), reportNow);
+  assert.equal(historyDetail.studentId, "20001");
+  assert.equal(historyDetail.days[0].date, "2026-07-29");
+  assert.equal(historyDetail.days[0].sessions[0].endedAt, "2026-07-28T21:15:00.000Z");
+  assert.equal(historyDetail.days[0].sessions[0].endedStudyDate, "2026-07-29");
 
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
@@ -84,23 +145,38 @@ const originalEnv = {
   assert.equal(wrongMethod.statusCode, 405);
   assert.equal(wrongMethod.headers.Allow, "POST");
 
+  const invalidHistory = await invoke({ action: "history", startDate: "2026-08-01", endDate: "2026-07-01" }, readToken);
+  assert.equal(invalidHistory.statusCode, 400);
+  assert.equal(invalidHistory.payload.error, "invalid_date_range");
+
   const activeStartedAt = new Date(Date.now() - 5000).toISOString();
   global.fetch = async (url) => {
     if (url.includes("/students?")) {
-      return jsonResponse([{ id: "20001", name: "테스트학생", track: "경찰직 - 공채(순경)" }]);
+      if (url.includes("select=id,name,phone")) assert.match(url, /account_type=eq\.student/);
+      return jsonResponse([{ id: "20001", name: "테스트학생", phone: "01012345678", track: "경찰직 - 공채(순경)" }]);
     }
     if (url.includes("/study_cafe_profiles?")) {
       return jsonResponse([{ student_id: "20001", avatar_tone: "blue" }]);
     }
     if (url.includes("/study_cafe_presence?")) {
-      return jsonResponse([{
-        student_id: "20001",
-        seat_number: 2,
-        status: "studying",
-        current_subject: "형사법",
-        avatar_tone: "blue",
-        last_heartbeat_at: new Date().toISOString(),
-      }]);
+      return jsonResponse([
+        {
+          student_id: "20001",
+          seat_number: 2,
+          status: "studying",
+          current_subject: "형사법",
+          avatar_tone: "blue",
+          last_heartbeat_at: new Date().toISOString(),
+        },
+        {
+          student_id: "20002",
+          seat_number: 3,
+          status: "seated",
+          current_subject: null,
+          avatar_tone: "mint",
+          last_heartbeat_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+        },
+      ]);
     }
     if (url.includes("/study_cafe_rooms?")) {
       return jsonResponse([{
@@ -144,7 +220,9 @@ const originalEnv = {
   const dashboard = await invoke({ action: "dashboard" }, readToken);
   assert.equal(dashboard.statusCode, 200);
   assert.equal(dashboard.payload.summary.onlineStudentCount, 1);
-  assert.equal(dashboard.payload.summary.seatedCount, 1);
+  assert.equal(dashboard.payload.summary.seatedCount, 2);
+  assert.equal(dashboard.payload.summary.connectedSeatedCount, 1);
+  assert.equal(dashboard.payload.summary.disconnectedSeatedCount, 1);
   assert.equal(dashboard.payload.summary.studyingCount, 1);
   assert.equal(dashboard.payload.members[0].studentId, "20001");
   assert.equal(dashboard.payload.members[0].seatNumber, 2);
@@ -153,6 +231,25 @@ const originalEnv = {
   assert.equal(dashboard.payload.privateRooms[0].capacity, 4);
   assert.equal(dashboard.payload.members[0].currentSubject, "형사법");
   assert.ok(dashboard.payload.members[0].todaySeconds >= 14);
+
+  const historyDate = getKstDayBounds(new Date()).date;
+  const history = await invoke({ action: "history", startDate: historyDate, endDate: historyDate }, readToken);
+  assert.equal(history.statusCode, 200);
+  assert.equal(history.payload.startDate, historyDate);
+  assert.equal(history.payload.students[0].studentId, "20001");
+  assert.equal(history.payload.students[0].phone, "01012345678");
+  assert.equal("days" in history.payload.students[0], false);
+  assert.ok(history.payload.students[0].totalSeconds >= 14);
+
+  const historyDetailResponse = await invoke({
+    action: "history_detail",
+    studentId: "20001",
+    startDate: historyDate,
+    endDate: historyDate,
+  }, readToken);
+  assert.equal(historyDetailResponse.statusCode, 200);
+  assert.equal(historyDetailResponse.payload.student.studentId, "20001");
+  assert.equal(historyDetailResponse.payload.student.days[0].date, historyDate);
 
   global.fetch = async () => {
     throw new Error("write fetch should not run without write permission");

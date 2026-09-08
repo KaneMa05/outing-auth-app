@@ -21,6 +21,7 @@ const studentPushAdminState = {
 };
 const STUDY_CAFE_ADMIN_SAFETY_REFRESH_INTERVAL_MS = 60 * 1000;
 const STUDY_CAFE_ADMIN_REALTIME_REFRESH_DELAY_MS = 350;
+const studyCafeAdminHistoryDefaultRange = getStudyCafeAdminDefaultHistoryRange();
 const studyCafeAdminState = {
   loading: false,
   loaded: false,
@@ -34,6 +35,19 @@ const studyCafeAdminState = {
   actionStudentId: "",
   activeRoomIndex: 0,
   activePrivateRoomId: "",
+  history: {
+    loading: false,
+    loaded: false,
+    error: "",
+    startDate: studyCafeAdminHistoryDefaultRange.startDate,
+    endDate: studyCafeAdminHistoryDefaultRange.endDate,
+    data: null,
+    selectedStudentId: "",
+    detailLoading: false,
+    detailError: "",
+    detailStudent: null,
+    detailRequestToken: 0,
+  },
 };
 let previewStudentId = "";
 let penaltySortMode = "id";
@@ -181,6 +195,7 @@ async function logoutTeacher() {
   teacherAuth.checked = true;
   teacherAuth.user = null;
   await stopTeacherOutingRealtimeSync();
+  await resetStudyCafeAdminStateAfterLogout();
   render();
   notify("로그아웃되었습니다.");
 }
@@ -236,6 +251,7 @@ function renderTeacher() {
 function renderStudyCafeAdmin() {
   if (!hasTeacherPermission("study_cafe.read")) return renderForbidden();
   requestStudyCafeAdminDashboard();
+  requestStudyCafeAdminHistory();
   ensureStudyCafeAdminRefresh();
 
   const data = studyCafeAdminState.data;
@@ -257,18 +273,18 @@ function renderStudyCafeAdmin() {
   const summary = data?.summary || {};
   const members = Array.isArray(data?.members) ? data.members : [];
   const seatedMembers = members.filter((member) => member.seatNumber && member.locationType !== "private");
+  const legacySeatMembers = seatedMembers.filter(
+    (member) => member.seatNumber < 1 || member.seatNumber > STUDY_CAFE_SEAT_COUNT
+  );
   const privateRooms = Array.isArray(data?.privateRooms) ? data.privateRooms : [];
   const canWrite = hasTeacherPermission("study_cafe.write");
-  const roomLabels = ["랭킹 열람실", "A 열람실", "B 열람실", "C 열람실"];
   const activeRoomIndex = Math.min(
-    roomLabels.length - 1,
+    STUDY_CAFE_ROOMS.length - 1,
     Math.max(0, Number(studyCafeAdminState.activeRoomIndex) || 0)
   );
-  const activeRoomLabel = roomLabels[activeRoomIndex];
-  const activeRoomFirstSeat = activeRoomIndex * 48 + 1;
-  const activeRoomMembers = seatedMembers.filter(
-    (member) => member.seatNumber >= activeRoomFirstSeat && member.seatNumber <= activeRoomFirstSeat + 47
-  );
+  const activeRoom = STUDY_CAFE_ROOMS[activeRoomIndex];
+  const activeRoomMembers = getStudyCafeAdminPublicRoomMembers(activeRoom, seatedMembers);
+  const activeRoomEntries = buildStudyCafeAdminPublicRoomEntries(activeRoomIndex, seatedMembers);
   return el("div", { className: "grid study-cafe-admin-page" }, [
     el("section", { className: "study-cafe-admin-head" }, [
       el("div", {}, [
@@ -296,26 +312,29 @@ function renderStudyCafeAdmin() {
     ]),
     el("section", { className: "study-cafe-admin-stats", ariaLabel: "스터디카페 오늘 요약" }, [
       renderStudyCafeAdminStat("온라인 학생", summary.onlineStudentCount || 0, "명"),
-      renderStudyCafeAdminStat("좌석 이용", summary.seatedCount || 0, "명"),
+      renderStudyCafeAdminStat("좌석 배정", summary.seatedCount || 0, "명"),
       renderStudyCafeAdminStat("집중 중", summary.studyingCount || 0, "명"),
       renderStudyCafeAdminStat("오늘 총 순공", formatStudyCafeAdminDuration(summary.totalSeconds || 0), ""),
     ]),
+    renderStudyCafeAdminHistory(),
     el("section", { className: "study-cafe-admin-section" }, [
       el("div", { className: "study-cafe-admin-section-head" }, [
         el("div", {}, [
           el("h3", {}, "현재 좌석 현황"),
-          el("p", {}, "연결이 2분 이상 끊긴 학생은 연결 끊김으로 표시됩니다."),
+          el("p", {}, `연결 중 ${summary.connectedSeatedCount || 0}명 · 연결 끊김 ${summary.disconnectedSeatedCount || 0}명`),
         ]),
-        el("span", {}, `${activeRoomLabel} ${activeRoomMembers.length}석 사용 중`),
+        el("span", {}, `${activeRoom.label} ${activeRoomMembers.length}석 사용 중`),
       ]),
+      legacySeatMembers.length
+        ? el("div", { className: "study-cafe-admin-history-error", role: "alert" }, [
+            el("span", {}, `현재 화면에서 지원하지 않는 이전 좌석이 ${legacySeatMembers.length}건 있습니다. 아래 학생 목록에서 좌석을 비워주세요.`),
+          ])
+        : null,
       el(
         "div",
         { className: "study-cafe-admin-room-tabs", role: "tablist", ariaLabel: "스터디카페 열람실 선택" },
-        roomLabels.map((roomLabel, roomIndex) => {
-          const firstSeat = roomIndex * 48 + 1;
-          const occupiedCount = seatedMembers.filter(
-            (member) => member.seatNumber >= firstSeat && member.seatNumber <= firstSeat + 47
-          ).length;
+        STUDY_CAFE_ROOMS.map((room, roomIndex) => {
+          const occupiedCount = getStudyCafeAdminPublicRoomMembers(room, seatedMembers).length;
           const isActive = roomIndex === activeRoomIndex;
           return el(
             "button",
@@ -332,8 +351,8 @@ function renderStudyCafeAdmin() {
               },
             },
             [
-              el("strong", {}, roomLabel),
-              el("span", {}, `${occupiedCount}/48`),
+              el("strong", {}, room.label),
+              el("span", {}, `${occupiedCount}/${room.endSeat - room.startSeat + 1}`),
             ]
           );
         })
@@ -345,20 +364,28 @@ function renderStudyCafeAdmin() {
         ariaLabelledby: `study-cafe-admin-room-tab-${activeRoomIndex}`,
       }, [
         el("div", { className: "study-cafe-admin-room-head" }, [
-          el("strong", {}, activeRoomLabel),
-          el("span", {}, `${activeRoomFirstSeat}–${activeRoomFirstSeat + 47}번`),
+          el("strong", {}, activeRoom.label),
+          el(
+            "span",
+            {},
+            activeRoomIndex === STUDY_CAFE_RANKING_ROOM_INDEX
+              ? "오늘 순공시간 순위"
+              : `${activeRoom.startSeat}–${activeRoom.endSeat}번`
+          ),
         ]),
         el(
           "div",
           { className: "study-cafe-admin-seat-grid" },
-          Array.from({ length: 48 }, (_, index) => {
-            const seatNumber = activeRoomFirstSeat + index;
-            return renderStudyCafeAdminSeat(
-              seatNumber,
-              seatedMembers.find((member) => member.seatNumber === seatNumber),
-              canWrite
-            );
-          })
+          activeRoomEntries.map((entry) => renderStudyCafeAdminSeat(
+            entry.seatNumber,
+            entry.member,
+            canWrite,
+            {
+              rankingRoom: activeRoomIndex === STUDY_CAFE_RANKING_ROOM_INDEX,
+              rank: entry.rank,
+              displaySeatLabel: entry.displaySeatLabel,
+            }
+          ))
         ),
       ]),
     ]),
@@ -378,6 +405,57 @@ function renderStudyCafeAdmin() {
         : el("div", { className: "empty study-cafe-admin-empty" }, "등록번호가 2로 시작하는 활성 온라인 학생이 없습니다."),
     ]),
   ]);
+}
+
+function getStudyCafeAdminPublicRoomMembers(room, members) {
+  if (!room) return [];
+  return members.filter((member) => (
+    member.locationType !== "private"
+    && member.seatNumber >= room.startSeat
+    && member.seatNumber <= room.endSeat
+  ));
+}
+
+function sortStudyCafeAdminRankingMembers(left, right) {
+  return (Number(right.todaySeconds) || 0) - (Number(left.todaySeconds) || 0)
+    || Number(left.seatNumber) - Number(right.seatNumber);
+}
+
+function buildStudyCafeAdminPublicRoomEntries(roomIndex, members) {
+  const room = STUDY_CAFE_ROOMS[roomIndex];
+  if (!room) return [];
+  const roomMembers = getStudyCafeAdminPublicRoomMembers(room, members);
+  if (roomIndex !== STUDY_CAFE_RANKING_ROOM_INDEX) {
+    return Array.from({ length: room.endSeat - room.startSeat + 1 }, (_, index) => {
+      const seatNumber = room.startSeat + index;
+      return {
+        seatNumber,
+        member: roomMembers.find((entry) => entry.seatNumber === seatNumber) || null,
+        rank: 0,
+        displaySeatLabel: String(seatNumber),
+      };
+    });
+  }
+
+  const rankedMembers = [...roomMembers].sort(sortStudyCafeAdminRankingMembers);
+  const occupiedSeatNumbers = new Set(rankedMembers.map((member) => member.seatNumber));
+  const emptyEntries = Array.from({ length: room.endSeat - room.startSeat + 1 }, (_, index) => room.startSeat + index)
+    .filter((seatNumber) => !occupiedSeatNumbers.has(seatNumber))
+    .map((seatNumber) => ({
+      seatNumber,
+      member: null,
+      rank: 0,
+      displaySeatLabel: "",
+    }));
+  return [
+    ...rankedMembers.map((member, index) => ({
+      seatNumber: member.seatNumber,
+      member,
+      rank: index + 1,
+      displaySeatLabel: String(index + 1),
+    })),
+    ...emptyEntries,
+  ];
 }
 
 function renderStudyCafeAdminPrivateRooms(rooms, members, canWrite) {
@@ -456,20 +534,184 @@ function renderStudyCafeAdminStat(label, value, unit) {
   ]);
 }
 
-function renderStudyCafeAdminSeat(seatNumber, member, canWrite) {
+function renderStudyCafeAdminHistory() {
+  const history = studyCafeAdminState.history;
+  const data = history.data;
+  const students = Array.isArray(data?.students) ? data.students : [];
+  const startInput = el("input", {
+    type: "date",
+    name: "startDate",
+    value: history.startDate,
+    ariaLabel: "순공시간 조회 시작일",
+  });
+  const endInput = el("input", {
+    type: "date",
+    name: "endDate",
+    value: history.endDate,
+    ariaLabel: "순공시간 조회 종료일",
+  });
+  const submitButton = button(history.loading ? "조회 중..." : "조회", "btn", "submit");
+  submitButton.disabled = history.loading;
+  const form = el("form", { className: "study-cafe-admin-history-filters" }, [
+    field("시작일", startInput),
+    field("종료일", endInput),
+    el("div", { className: "field study-cafe-admin-history-submit" }, [
+      el("span", {}, " "),
+      submitButton,
+    ]),
+  ]);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const startDate = String(startInput.value || "");
+    const endDate = String(endInput.value || "");
+    if (!startDate || !endDate || startDate > endDate) {
+      notify("조회 기간을 올바르게 선택해주세요.");
+      return;
+    }
+    history.startDate = startDate;
+    history.endDate = endDate;
+    history.selectedStudentId = "";
+    loadStudyCafeAdminHistory();
+  });
+  const downloadButton = button("엑셀 다운로드", "btn secondary", "button", downloadStudyCafeAdminHistoryWorkbook);
+  downloadButton.disabled = history.loading || !data || !students.length;
+
+  return el("section", { className: "study-cafe-admin-section study-cafe-admin-history" }, [
+    el("div", { className: "study-cafe-admin-section-head" }, [
+      el("div", {}, [
+        el("h3", {}, "기간별 순공시간 조회"),
+        el("p", {}, "매일 오전 4시부터 다음 날 오전 4시 전까지를 하루로 집계합니다."),
+      ]),
+      data ? el("span", {}, `${data.startDate} ~ ${data.endDate}`) : null,
+    ]),
+    el("div", { className: "study-cafe-admin-history-tools" }, [
+      form,
+      downloadButton,
+    ]),
+    history.error
+      ? el("div", { className: "study-cafe-admin-history-error", role: "alert" }, [
+          el("span", {}, history.error),
+          button("다시 조회", "mini-btn", "button", loadStudyCafeAdminHistory),
+        ])
+      : null,
+    history.loading && !data
+      ? el("div", { className: "empty study-cafe-admin-empty" }, "순공시간 기록을 불러오는 중입니다.")
+      : null,
+    data
+      ? el("div", { className: "study-cafe-admin-history-summary" }, [
+          el("span", {}, `조회 인원 ${students.length}명`),
+          el("strong", {}, `전체 순공 ${formatStudyCafeAdminDuration(data.totalSeconds)}`),
+        ])
+      : null,
+    data ? renderStudyCafeAdminHistoryStudents(students) : null,
+  ]);
+}
+
+function renderStudyCafeAdminHistoryStudents(students) {
+  if (!students.length) {
+    return el("div", { className: "empty study-cafe-admin-empty" }, "조회할 온라인 학생이 없습니다.");
+  }
+  return el("div", { className: "study-cafe-admin-history-table" }, [
+    el("div", { className: "study-cafe-admin-history-row heading", ariaHidden: "true" }, [
+      el("span", {}, "이름"),
+      el("span", {}, "휴대폰 번호"),
+      el("span", {}, "총 순공시간"),
+    ]),
+    ...students.flatMap((student) => {
+      const selected = studyCafeAdminState.history.selectedStudentId === student.studentId;
+      const row = el("button", {
+        className: `study-cafe-admin-history-row ${selected ? "active" : ""}`,
+        type: "button",
+        "aria-expanded": String(selected),
+        onclick: () => selectStudyCafeAdminHistoryStudent(student),
+      }, [
+        el("strong", {}, student.name),
+        el("span", {}, formatStudyCafeAdminPhone(student.phone)),
+        el("strong", {}, formatStudyCafeAdminDuration(student.totalSeconds)),
+      ]);
+      if (!selected) return [row];
+      return [
+        row,
+        el("div", { className: "study-cafe-admin-history-inline-detail" }, renderStudyCafeAdminHistorySelection(student)),
+      ];
+    }),
+  ]);
+}
+
+function renderStudyCafeAdminHistorySelection(student) {
+  const history = studyCafeAdminState.history;
+  if (history.detailLoading) {
+    return el("div", { className: "empty study-cafe-admin-empty" }, `${student.name} 학생의 날짜별 기록을 불러오는 중입니다.`);
+  }
+  if (history.detailError) {
+    return el("div", { className: "study-cafe-admin-history-error", role: "alert" }, [
+      el("span", {}, history.detailError),
+      button("다시 불러오기", "mini-btn", "button", () => loadStudyCafeAdminHistoryDetail(student)),
+    ]);
+  }
+  return history.detailStudent?.studentId === student.studentId
+    ? renderStudyCafeAdminHistoryDetail(history.detailStudent)
+    : null;
+}
+
+function renderStudyCafeAdminHistoryDetail(student) {
+  return el("section", { className: "study-cafe-admin-history-detail", ariaLabel: `${student.name} 날짜별 순공시간` }, [
+    el("div", { className: "study-cafe-admin-history-detail-head" }, [
+      el("div", {}, [
+        el("h4", {}, `${student.name} 날짜별 기록`),
+        el("p", {}, `${formatStudyCafeAdminPhone(student.phone)} · 총 ${formatStudyCafeAdminDuration(student.totalSeconds)}`),
+      ]),
+      button("닫기", "mini-btn", "button", () => {
+        closeStudyCafeAdminHistoryDetail();
+        render();
+      }),
+    ]),
+    student.days.length
+      ? el("div", { className: "study-cafe-admin-history-days" }, student.days.map((day) =>
+          el("article", { className: "study-cafe-admin-history-day" }, [
+            el("div", { className: "study-cafe-admin-history-day-head" }, [
+              el("strong", {}, formatStudyCafeAdminHistoryDate(day.date)),
+              el("span", {}, `순공 ${formatStudyCafeAdminDuration(day.totalSeconds)}`),
+            ]),
+            el("div", { className: "study-cafe-admin-history-sessions" }, day.sessions.map((session) =>
+              el("div", { className: "study-cafe-admin-history-session" }, [
+                el("span", { className: "study-cafe-admin-history-subject" }, session.subject || "과목 미지정"),
+                el("span", {}, `${formatStudyCafeAdminHistoryTime(session.startedAt)} 시작`),
+                el("span", {}, formatStudyCafeAdminHistoryEnd(session, day.date)),
+                el("strong", {}, formatStudyCafeAdminDuration(session.totalSeconds)),
+              ])
+            )),
+          ])
+        ))
+      : el("div", { className: "empty study-cafe-admin-empty" }, "선택한 기간의 순공 기록이 없습니다."),
+  ]);
+}
+
+function renderStudyCafeAdminSeat(seatNumber, member, canWrite, options = {}) {
+  const rankingRoom = options.rankingRoom === true;
+  const rank = Math.max(0, Number(options.rank) || 0);
+  const displaySeatLabel = Object.prototype.hasOwnProperty.call(options, "displaySeatLabel")
+    ? String(options.displaySeatLabel || "")
+    : String(seatNumber);
   if (!member) {
     return el("article", { className: "study-cafe-admin-seat empty" }, [
-      el("span", { className: "study-cafe-admin-seat-number" }, String(seatNumber)),
+      displaySeatLabel
+        ? el("span", { className: "study-cafe-admin-seat-number" }, displaySeatLabel)
+        : null,
       el("strong", {}, "빈 좌석"),
       el("p", {}, "현재 이용 학생 없음"),
     ]);
   }
   const active = Boolean(member.sessionStatus);
   return el("article", {
-    className: `study-cafe-admin-seat occupied ${member.connected ? "" : "disconnected"}`,
+    className: `study-cafe-admin-seat occupied ${rankingRoom ? "ranking-seat" : ""} ${member.connected ? "" : "disconnected"}`,
+    "data-study-cafe-physical-seat-number": String(seatNumber),
   }, [
     el("div", { className: "study-cafe-admin-seat-top" }, [
-      el("span", { className: "study-cafe-admin-seat-number" }, String(seatNumber)),
+      el("span", {
+        className: "study-cafe-admin-seat-number",
+        ariaLabel: rankingRoom && rank ? `랭킹룸 ${rank}위` : `${seatNumber}번 좌석`,
+      }, displaySeatLabel),
       renderStudyCafeAdminStatus(member),
     ]),
     el("strong", {}, `${member.name} · ${member.studentId}`),
@@ -536,9 +778,27 @@ function formatStudyCafeAdminMemberLocation(member) {
     return `${member.roomName || "개별 스터디룸"}${member.seatNumber ? ` ${member.seatNumber}번 좌석` : " · 좌석 선택 전"}${role}`;
   }
   if (!member.seatNumber) return "좌석 없음";
-  const roomLabels = ["랭킹 열람실", "A 열람실", "B 열람실", "C 열람실"];
-  const roomIndex = Math.max(0, Math.min(3, Math.floor((member.seatNumber - 1) / 48)));
-  return `${roomLabels[roomIndex]} ${member.seatNumber}번 좌석`;
+  if (member.seatNumber > STUDY_CAFE_SEAT_COUNT) {
+    return `지원 종료 좌석 ${member.seatNumber}번 · 정리 필요`;
+  }
+  const roomIndex = getStudyCafeRoomIndexForSeat(member.seatNumber);
+  const room = STUDY_CAFE_ROOMS[roomIndex];
+  if (roomIndex === STUDY_CAFE_RANKING_ROOM_INDEX) {
+    const rank = getStudyCafeAdminRankingRank(member);
+    return rank ? `${room.label} ${rank}위` : room.label;
+  }
+  return `${room.label} ${member.seatNumber}번 좌석`;
+}
+
+function getStudyCafeAdminRankingRank(member) {
+  const room = STUDY_CAFE_ROOMS[STUDY_CAFE_RANKING_ROOM_INDEX];
+  const members = Array.isArray(studyCafeAdminState.data?.members)
+    ? studyCafeAdminState.data.members
+    : [];
+  const rankedMembers = getStudyCafeAdminPublicRoomMembers(room, members)
+    .sort(sortStudyCafeAdminRankingMembers);
+  const index = rankedMembers.findIndex((entry) => entry.studentId === member.studentId);
+  return index >= 0 ? index + 1 : 0;
 }
 
 function renderStudyCafeAdminStatus(member) {
@@ -594,6 +854,161 @@ async function loadStudyCafeAdminDashboard(options = {}) {
   }
 }
 
+function requestStudyCafeAdminHistory() {
+  const history = studyCafeAdminState.history;
+  if (history.loading || history.loaded) return;
+  loadStudyCafeAdminHistory();
+}
+
+async function loadStudyCafeAdminHistory() {
+  const history = studyCafeAdminState.history;
+  if (history.loading) return;
+  const startDate = history.startDate;
+  const endDate = history.endDate;
+  history.loading = true;
+  history.error = "";
+  history.data = null;
+  history.selectedStudentId = "";
+  history.detailLoading = false;
+  history.detailError = "";
+  history.detailStudent = null;
+  history.detailRequestToken += 1;
+  if (currentRoute === "study-cafe-admin") render();
+  try {
+    const response = await fetch("/api/study-cafe-admin", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "history",
+        startDate,
+        endDate,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok !== true) {
+      const message = data.error === "invalid_date_range"
+        ? "조회 기간은 최대 366일까지 선택할 수 있습니다."
+        : data.error === "forbidden"
+          ? "순공시간 조회 권한이 없습니다. 다시 로그인해주세요."
+          : "순공시간 기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+      throw new Error(message);
+    }
+    history.data = data;
+  } catch (error) {
+    console.error(error);
+    history.error = error.message || "순공시간 기록을 불러오지 못했습니다.";
+  } finally {
+    history.loading = false;
+    history.loaded = true;
+    if (currentRoute === "study-cafe-admin") render();
+  }
+}
+
+function selectStudyCafeAdminHistoryStudent(student) {
+  const history = studyCafeAdminState.history;
+  if (history.selectedStudentId === student.studentId) {
+    closeStudyCafeAdminHistoryDetail();
+    render();
+    return;
+  }
+  history.selectedStudentId = student.studentId;
+  loadStudyCafeAdminHistoryDetail(student);
+}
+
+function closeStudyCafeAdminHistoryDetail() {
+  const history = studyCafeAdminState.history;
+  history.selectedStudentId = "";
+  history.detailLoading = false;
+  history.detailError = "";
+  history.detailStudent = null;
+  history.detailRequestToken += 1;
+}
+
+async function loadStudyCafeAdminHistoryDetail(student) {
+  const history = studyCafeAdminState.history;
+  const data = history.data;
+  if (!data || !student?.studentId) return;
+  const requestToken = ++history.detailRequestToken;
+  history.selectedStudentId = student.studentId;
+  history.detailLoading = true;
+  history.detailError = "";
+  history.detailStudent = null;
+  if (currentRoute === "study-cafe-admin") render();
+  try {
+    const response = await fetch("/api/study-cafe-admin", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "history_detail",
+        studentId: student.studentId,
+        startDate: data.startDate,
+        endDate: data.endDate,
+      }),
+    });
+    const detail = await response.json().catch(() => ({}));
+    if (!response.ok || detail.ok !== true || !detail.student) {
+      const message = detail.error === "student_not_found"
+        ? "해당 학생 정보를 찾을 수 없습니다. 목록을 다시 조회해주세요."
+        : detail.error === "forbidden"
+          ? "순공시간 상세 조회 권한이 없습니다."
+          : "날짜별 순공시간을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+      throw new Error(message);
+    }
+    if (requestToken !== history.detailRequestToken) return;
+    history.detailStudent = detail.student;
+  } catch (error) {
+    if (requestToken !== history.detailRequestToken) return;
+    console.error(error);
+    history.detailError = error.message || "날짜별 순공시간을 불러오지 못했습니다.";
+  } finally {
+    if (requestToken === history.detailRequestToken) {
+      history.detailLoading = false;
+      if (currentRoute === "study-cafe-admin") render();
+    }
+  }
+}
+
+async function resetStudyCafeAdminStateAfterLogout() {
+  window.clearInterval(studyCafeAdminState.refreshTimer);
+  window.clearTimeout(studyCafeAdminState.realtimeRefreshTimer);
+  studyCafeAdminState.refreshTimer = null;
+  studyCafeAdminState.realtimeRefreshTimer = null;
+
+  const channel = studyCafeAdminState.realtimeChannel;
+  studyCafeAdminState.realtimeChannel = null;
+  if (channel && remoteStore?.removeChannel) {
+    try {
+      await remoteStore.removeChannel(channel);
+    } catch (error) {
+      console.warn("Study cafe admin realtime channel cleanup failed.", error);
+    }
+  }
+
+  studyCafeAdminState.loading = false;
+  studyCafeAdminState.loaded = false;
+  studyCafeAdminState.error = "";
+  studyCafeAdminState.data = null;
+  studyCafeAdminState.lastLoadedAt = 0;
+  studyCafeAdminState.actionStudentId = "";
+
+  const defaultRange = getStudyCafeAdminDefaultHistoryRange();
+  Object.assign(studyCafeAdminState.history, {
+    loading: false,
+    loaded: false,
+    error: "",
+    startDate: defaultRange.startDate,
+    endDate: defaultRange.endDate,
+    data: null,
+    selectedStudentId: "",
+    detailLoading: false,
+    detailError: "",
+    detailStudent: null,
+    detailRequestToken: studyCafeAdminState.history.detailRequestToken + 1,
+  });
+}
+
 function ensureStudyCafeAdminRefresh() {
   bindStudyCafeAdminLifecycleRefresh();
   ensureStudyCafeAdminRealtimeSubscription();
@@ -606,7 +1021,7 @@ function ensureStudyCafeAdminRefresh() {
 }
 
 function isStudyCafeAdminRefreshActive() {
-  return currentRoute === "study-cafe-admin" && document.visibilityState !== "hidden";
+  return teacherAuth.authenticated && currentRoute === "study-cafe-admin" && document.visibilityState !== "hidden";
 }
 
 function bindStudyCafeAdminLifecycleRefresh() {
@@ -712,6 +1127,87 @@ function formatStudyCafeAdminDuration(seconds) {
   const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
   const remainder = String(total % 60).padStart(2, "0");
   return `${hours}:${minutes}:${remainder}`;
+}
+
+function getStudyCafeAdminDefaultHistoryRange(now = new Date()) {
+  const studyDate = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+  const year = studyDate.getUTCFullYear();
+  const month = String(studyDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(studyDate.getUTCDate()).padStart(2, "0");
+  return {
+    startDate: `${year}-${month}-01`,
+    endDate: `${year}-${month}-${day}`,
+  };
+}
+
+function formatStudyCafeAdminPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return String(value || "").trim() || "-";
+}
+
+function formatStudyCafeAdminHistoryDate(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00+09:00`);
+  if (Number.isNaN(date.getTime())) return dateKey || "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    timeZone: "Asia/Seoul",
+  }).format(date);
+}
+
+function formatStudyCafeAdminHistoryTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  }).format(date);
+}
+
+function formatStudyCafeAdminHistoryEnd(session, studyDate) {
+  if (!session?.endedAt) return session?.status === "paused" ? "일시정지 중" : "진행 중";
+  const time = formatStudyCafeAdminHistoryTime(session.endedAt);
+  if (session.endedStudyDate && session.endedStudyDate !== studyDate) {
+    return `${formatStudyCafeAdminHistoryDate(session.endedStudyDate)} ${time} 종료`;
+  }
+  return `${time} 종료`;
+}
+
+function downloadStudyCafeAdminHistoryWorkbook() {
+  const data = studyCafeAdminState.history.data;
+  const students = Array.isArray(data?.students) ? data.students : [];
+  if (!data || !students.length) {
+    notify("다운로드할 순공시간 조회 결과가 없습니다.");
+    return;
+  }
+  if (typeof createStudentCohortWorkbookBlob !== "function") {
+    notify("엑셀 파일을 만드는 기능을 불러오지 못했습니다.");
+    return;
+  }
+  const rows = [
+    ["이름", "휴대폰 번호", "총 순공시간"],
+    ...students.map((student) => [
+      student.name,
+      formatStudyCafeAdminPhone(student.phone),
+      formatStudyCafeAdminDuration(student.totalSeconds),
+    ]),
+  ];
+  const blob = createStudentCohortWorkbookBlob("순공시간 조회", rows);
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `순공시간_${data.startDate}_${data.endDate}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify(`순공시간 조회 결과 ${students.length}명을 다운로드했습니다.`);
 }
 
 function formatStudyCafeAdminClock(timestamp) {
