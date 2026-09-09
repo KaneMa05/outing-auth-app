@@ -31,7 +31,7 @@ assert.match(roomSql, /create or replace function public\.get_study_cafe_snapsho
 assert.match(serviceWorker, /const isStaticAsset = \["style", "script", "font", "image", "manifest"\]/);
 assert.match(serviceWorker, /if \(cached\) return cached/);
 assert.match(serviceWorker, /url\.pathname\.startsWith\("\/_vercel\/"\)/);
-assert.match(serviceWorker, /app\.js\?v=20260909-study-cafe-resume-recovery/);
+assert.match(serviceWorker, /app\.js\?v=20260909-ranking-subject-picker/);
 
 function pngInfo(name) {
   const file = fs.readFileSync(path.join(root, name));

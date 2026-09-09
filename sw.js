@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v392-study-cafe-resume-recovery";
+const CACHE_NAME = "outing-auth-app-v393-ranking-subject-picker";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -25,7 +25,7 @@ const APP_SHELL = [
   "/teacher-seats.js?v=20260826-add-seats-117-118",
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
-  "/app.js?v=20260909-study-cafe-resume-recovery",
+  "/app.js?v=20260909-ranking-subject-picker",
   "/manifest.webmanifest",
   "/app-icon.png",
   "/icon-192.png",

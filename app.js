@@ -9209,7 +9209,7 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
         { className: "study-cafe-subject-options" },
         subjectOptionButtons
       ),
-      renderStudySubjectManagement(student),
+      rankingRoomSeat && subjects.length ? null : renderStudySubjectManagement(student),
       preserveTimer
         ? button(
             "과목 공부 종료",
