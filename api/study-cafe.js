@@ -1,4 +1,8 @@
 const crypto = require("crypto");
+const {
+  STUDY_CAFE_IDLE_PUSH_STUDENT_ID,
+  sendStudyCafeIdleReleasePush,
+} = require("./study-cafe-idle-push");
 
 const ALLOWED_ACTIONS = new Set([
   "load",
@@ -976,7 +980,7 @@ async function clearStalePresence(now) {
   const cutoff = new Date(now.getTime() - PRESENCE_STALE_MS).toISOString();
   const staleRows = await requestSupabase(
     "GET",
-    `study_cafe_presence?last_heartbeat_at=lt.${encodeURIComponent(cutoff)}&select=student_id,status,last_heartbeat_at,updated_at`
+    `study_cafe_presence?last_heartbeat_at=lt.${encodeURIComponent(cutoff)}&select=student_id,seat_number,status,last_heartbeat_at,updated_at`
   );
   for (const row of Array.isArray(staleRows) ? staleRows : []) {
     const idleActivityAt = new Date(row.updated_at);
@@ -994,10 +998,26 @@ async function clearStalePresence(now) {
       : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
     await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
     await completeActiveSession(row.student_id, staleEndedAt);
-    await requestSupabase(
-      "DELETE",
-      `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
-    );
+    if (isIdle && row.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID) {
+      const deletedPresence = await requestSupabase(
+        "DELETE",
+        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+        undefined,
+        { Prefer: "return=representation" }
+      );
+      if (Array.isArray(deletedPresence) && deletedPresence.length) {
+        await sendStudyCafeIdleReleasePush({
+          studentId: row.student_id,
+          seatNumber: row.seat_number,
+          releasedAt: row.updated_at,
+        });
+      }
+    } else {
+      await requestSupabase(
+        "DELETE",
+        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
+      );
+    }
   }
 }
 
