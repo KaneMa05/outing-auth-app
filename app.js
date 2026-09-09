@@ -407,6 +407,8 @@ const studyRoomPreviewData = {
 const STUDY_ROOM_REALTIME_REFRESH_INTERVAL_MS = 15 * 1000;
 const STUDY_ROOM_FALLBACK_REFRESH_INTERVAL_MS = 4000;
 const STUDY_CAFE_AUTO_PAUSE_DELAY_MS = 30 * 1000;
+const STUDY_CAFE_REQUEST_TIMEOUT_MS = 12 * 1000;
+const studyCafePendingRequests = new Set();
 let studyCafeTimerActionPending = false;
 const STUDY_RANKING_PREVIEW_MEMBERS = [
   { name: "서○○", tone: "rose", dailySeconds: 38538 },
@@ -448,7 +450,10 @@ let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
 let studyCafeAutoPauseTimer = null;
 let studyCafeAutoPauseDeadline = 0;
+let studyCafeAutoPauseRecovery = null;
+let studyCafeAutoPauseRecoveryPromise = null;
 let studyTodoMutationRevision = 0;
+let studySubjectMutationRevision = 0;
 let studyTodoDeleteQueue = Promise.resolve();
 const studyTodoEditorState = {
   dateKey: "",
@@ -2015,30 +2020,61 @@ async function registerStudentDeviceWithServer({ studentId, passwordHash, device
   return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
 }
 
+async function withStudyCafeRequestTimeout(request) {
+  const controller = new AbortController();
+  let timer;
+  const pending = { deadline: Date.now() + STUDY_CAFE_REQUEST_TIMEOUT_MS, expire: null };
+  const timeout = new Promise((resolve) => {
+    pending.expire = () => {
+      resolve({ ok: false, error: "request_timeout", httpStatus: 0 });
+      controller.abort();
+    };
+    timer = window.setTimeout(pending.expire, STUDY_CAFE_REQUEST_TIMEOUT_MS);
+  });
+  studyCafePendingRequests.add(pending);
+  try {
+    // Race the full response body too. Aborting fetch alone does not release a
+    // frozen response callback or a request whose transport ignores the abort.
+    return await Promise.race([request(controller.signal), timeout]);
+  } finally {
+    window.clearTimeout(timer);
+    studyCafePendingRequests.delete(pending);
+  }
+}
+
+function expireStudyCafeRequests() {
+  for (const pending of studyCafePendingRequests) {
+    if (Date.now() >= pending.deadline) pending.expire();
+  }
+}
+
 async function requestStudyCafeAction(action, payload = {}, options = {}) {
   const student = getAuthedStudent();
   const profile = getStudentProfile(student?.id);
   if (!student || !isOnlineStudentExperience(student) || !profile?.deviceToken) {
     return { ok: false, error: "online_student_auth_required", httpStatus: 403 };
   }
-  const response = await fetch("/api/study-cafe", {
-    method: "POST",
-    credentials: "same-origin",
-    keepalive: options.keepalive === true,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action,
-      studentId: student.id,
-      deviceToken: profile.deviceToken,
-      ...payload,
-      client: {
-        displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
-        userAgent: navigator.userAgent || "",
-      },
-    }),
+  return withStudyCafeRequestTimeout(async (signal) => {
+    const response = await fetch("/api/study-cafe", {
+      method: "POST",
+      signal,
+      credentials: "same-origin",
+      keepalive: options.keepalive === true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        studentId: student.id,
+        deviceToken: profile.deviceToken,
+        ...payload,
+        client: {
+          displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+          userAgent: navigator.userAgent || "",
+        },
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
   });
-  const data = await response.json().catch(() => ({}));
-  return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
 }
 
 async function requestStudyRoomAction(action, payload = {}) {
@@ -2048,23 +2084,26 @@ async function requestStudyRoomAction(action, payload = {}) {
   if (!student || !isOnlineStudentExperience(student) || !profile?.deviceToken) {
     return { ok: false, error: "online_student_auth_required", httpStatus: 403 };
   }
-  const response = await fetch("/api/study-cafe-rooms", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action,
-      studentId: student.id,
-      deviceToken: profile.deviceToken,
-      ...payload,
-      client: {
-        displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
-        userAgent: navigator.userAgent || "",
-      },
-    }),
+  return withStudyCafeRequestTimeout(async (signal) => {
+    const response = await fetch("/api/study-cafe-rooms", {
+      method: "POST",
+      signal,
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        studentId: student.id,
+        deviceToken: profile.deviceToken,
+        ...payload,
+        client: {
+          displayMode: isStandaloneStudentApp() ? "standalone" : "browser",
+          userAgent: navigator.userAgent || "",
+        },
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
   });
-  const data = await response.json().catch(() => ({}));
-  return { ...data, ok: response.ok && data.ok === true, httpStatus: response.status };
 }
 
 function requestStudyRoomPreviewAction(action, payload = {}) {
@@ -2207,7 +2246,7 @@ function serializeStudyRoomPreview(room) {
 }
 
 async function ensureStudyRoomLoaded(options = {}) {
-  if (studyRoomState.loading) return false;
+  if (studyRoomState.loading || studyCafeTimerActionPending) return false;
   const force = options.force === true;
   if (!force && studyRoomState.loaded) return true;
   if (isStudyCafeLocalPreview()) {
@@ -2218,12 +2257,14 @@ async function ensureStudyRoomLoaded(options = {}) {
     return true;
   }
   studyRoomState.loading = true;
+  const sessionRevisionAtRequest = studyCafeSessionRevision;
   try {
     const result = await requestStudyRoomAction("load");
     if (!result.ok) {
       studyRoomState.error = result.error || "study_room_unavailable";
       return false;
     }
+    if (studyCafeTimerActionPending || sessionRevisionAtRequest !== studyCafeSessionRevision) return false;
     const previousRoom = studyRoomState.room;
     const previousSeatNumber = Number(previousRoom?.mySeatNumber) || 0;
     const previousLocalSeatId = studyCafePreviewState.selectedSeatId;
@@ -2243,7 +2284,10 @@ async function ensureStudyRoomLoaded(options = {}) {
     if (previousRoom && (!studyRoomState.room || (previousSeatNumber > 0 && nextSeatNumber === 0))) {
       resetStudyCafeLocalSeatForPrivateRoom();
     }
-    if (idleSeatWasAutoReleased) showStudyCafeIdleAutoReleaseModal();
+    if (!studyCafeAutoPauseRecovery && String(previousLocalSeatId).startsWith("private-seat-")
+      && previousSeatNumber > 0 && nextSeatNumber === 0) {
+      showStudyCafeIdleAutoReleaseModal({ reason: idleSeatWasAutoReleased ? "idle" : "connection" });
+    }
     studyRoomState.loaded = true;
     studyRoomState.lastLoadedAt = Date.now();
     studyRoomState.error = "";
@@ -2277,6 +2321,7 @@ function scheduleStudyRoomRefresh() {
     try {
       if (
         document.visibilityState !== "hidden" &&
+        !isStudyCafeTimerRecoveryRequired() &&
         currentRoute === "study-cafe" &&
         studyRoomState.room
       ) {
@@ -2342,9 +2387,12 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   const student = getAuthedStudent();
   if (!isOnlineStudentExperience(student)) return false;
   if (studyCafeRemoteState.studentId && studyCafeRemoteState.studentId !== String(student.id)) {
+    clearStudyCafeAutoPauseRecovery();
+    closeStudyCafeAutoPauseModal();
     studyCafeLocalFallback = false;
     studyCafeRemoteState.available = null;
     studyCafeRemoteState.loaded = false;
+    studyCafePreviewState.customSubjects = null;
     studyCafeRemoteState.room = null;
     studyCafeRemoteState.ranking = null;
     studyCafeRemoteState.todos = [];
@@ -2377,6 +2425,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   studyCafeRemoteState.lastAttemptAt = Date.now();
   const sessionRevisionAtRequest = studyCafeSessionRevision;
   const todoRevisionAtRequest = studyTodoMutationRevision;
+  const subjectRevisionAtRequest = studySubjectMutationRevision;
   try {
     const result = await requestStudyCafeAction("load");
     if (!result.ok) {
@@ -2412,6 +2461,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.error = "";
     studyCafeRemoteState.lastLoadedAt = Date.now();
     hydrateStudyCafeSnapshot(result, {
+      preserveLocalSubjects: subjectRevisionAtRequest !== studySubjectMutationRevision,
       preserveLocalSession:
         studyCafeTimerActionPending ||
         Boolean(studyCafeCountdownInterval) ||
@@ -2475,7 +2525,9 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
     studyCafeRemoteState.plannerDateKey = nextStudyDateKey;
   }
   const subjects = Array.isArray(snapshot.subjects) ? snapshot.subjects.filter(Boolean).slice(0, 8) : [];
-  if (subjects.length) studyCafePreviewState.customSubjects = subjects;
+  if (Array.isArray(snapshot.subjects) && !options.preserveLocalSubjects) {
+    studyCafePreviewState.customSubjects = subjects;
+  }
   if (snapshot.profile?.avatarTone) studyCafePreviewState.avatarTone = snapshot.profile.avatarTone;
   studyCafePreviewState.nickname = String(snapshot.profile?.nickname || "").trim();
   studyCafePreviewState.statusMessage = String(snapshot.profile?.statusMessage || "").trim();
@@ -2548,12 +2600,11 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
               Number.isFinite(remoteIdleSince) ? remoteIdleSince : Date.now()
             )
         : 0;
-    if (
-      !String(previousSeatId).startsWith("private-seat-")
-      && !studyCafePreviewState.selectedSeatId
-      && isStudyCafeIdleReleaseDue(previousSeatId, previousRunning, previousIdleSince)
-    ) {
-      showStudyCafeIdleAutoReleaseModal();
+    if (previousSeatId && !String(previousSeatId).startsWith("private-seat-")
+      && !studyCafePreviewState.selectedSeatId && !studyCafeAutoPauseRecovery) {
+      showStudyCafeIdleAutoReleaseModal({
+        reason: isStudyCafeIdleReleaseDue(previousSeatId, previousRunning, previousIdleSince) ? "idle" : "connection",
+      });
     }
   }
 }
@@ -2619,6 +2670,7 @@ function requestStudyCafeRemoteRefresh(
       isStudyCafeRoute() ||
       (currentRoute === "home" && isOnlineStudentExperience(student));
     if (!shouldRefresh || document.visibilityState === "hidden") return;
+    if (isStudyCafeTimerRecoveryRequired()) return;
     const maxAgeMs = Math.max(0, Number(options.maxAgeMs) || 0);
     if (
       maxAgeMs &&
@@ -2642,16 +2694,19 @@ function bindStudyCafeLifecycleRefresh() {
   studyCafeRemoteState.lifecycleRefreshBound = true;
   const refreshWhenActive = () => {
     if (document.visibilityState === "hidden") return;
+    expireStudyCafeRequests();
     const shouldAutoPause =
       studyCafeAutoPauseDeadline > 0 &&
       Date.now() >= studyCafeAutoPauseDeadline;
-    window.clearTimeout(studyCafeAutoPauseTimer);
-    studyCafeAutoPauseTimer = null;
-    studyCafeAutoPauseDeadline = 0;
     if (shouldAutoPause) {
+      if (studyCafeAutoPauseRecovery) {
+        studyCafeAutoPauseRecovery.dismissed = false;
+        studyCafeAutoPauseRecovery.attempts = 0;
+      }
       reconcileStudyCafeAfterBackgroundAutoPause();
       return;
     }
+    clearStudyCafeAutoPauseRecovery();
     if (checkStudyCafeIdleSeat()) return;
     requestStudyCafeRemoteRefresh(180);
   };
@@ -2666,47 +2721,107 @@ function bindStudyCafeLifecycleRefresh() {
   window.addEventListener("blur", () => scheduleStudyCafeAutoPause(STUDY_CAFE_AUTO_PAUSE_DELAY_MS));
   window.addEventListener("focus", refreshWhenActive);
   window.addEventListener("pageshow", refreshWhenActive);
+  window.addEventListener("online", refreshWhenActive);
   window.addEventListener("pagehide", () => scheduleStudyCafeAutoPause(0));
 }
 
-async function reconcileStudyCafeAfterBackgroundAutoPause() {
-  const previousSeatId = studyCafePreviewState.selectedSeatId;
-  const privateRoomSeat = String(previousSeatId).startsWith("private-seat-");
-
-  await ensureStudyCafeRemoteLoaded({ force: true });
-  if (privateRoomSeat) await ensureStudyRoomLoaded({ force: true, render: true });
-
-  const stillHasSeat = privateRoomSeat
-    ? Number(studyRoomState.room?.mySeatNumber) > 0
-    : Boolean(studyCafePreviewState.selectedSeatId);
-  if (previousSeatId && !stillHasSeat) {
-    showStudyCafeIdleAutoReleaseModal();
-    return;
+async function reconcileStudyCafeAfterBackgroundAutoPause(options = {}) {
+  if (options.interactive === true && studyCafeAutoPauseRecovery) {
+    studyCafeAutoPauseRecovery.dismissed = false;
+    studyCafeAutoPauseRecovery.attempts = 0;
   }
-  if (studyCafePreviewState.paused) {
-    showStudyCafeAutoPauseModal();
-    return;
+  if (studyCafeAutoPauseRecoveryPromise) {
+    if (document.visibilityState !== "hidden") showStudyCafeAutoPauseRecoveryModal();
+    return studyCafeAutoPauseRecoveryPromise;
   }
-
-  const paused = await pauseStudyCafeTimer({ automatic: true });
-  if (paused) return;
-
-  await ensureStudyCafeRemoteLoaded({ force: true });
-  if (privateRoomSeat) await ensureStudyRoomLoaded({ force: true, render: true });
-  const hasSeatAfterRetry = privateRoomSeat
-    ? Number(studyRoomState.room?.mySeatNumber) > 0
-    : Boolean(studyCafePreviewState.selectedSeatId);
-  if (previousSeatId && !hasSeatAfterRetry) {
-    showStudyCafeIdleAutoReleaseModal();
-    return;
+  const recovery = studyCafeAutoPauseRecovery;
+  if (!recovery) return false;
+  const isCurrent = () => studyCafeAutoPauseRecovery === recovery &&
+    String(getAuthedStudent()?.id || "") === recovery.studentId;
+  if (!isCurrent()) {
+    clearStudyCafeAutoPauseRecovery();
+    closeStudyCafeAutoPauseModal();
+    return false;
   }
-  if (studyCafePreviewState.paused) {
-    showStudyCafeAutoPauseModal();
-    return;
-  }
-  if (previousSeatId) {
-    notify("타이머 상태를 확인하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
-  }
+  window.clearTimeout(studyCafeAutoPauseTimer);
+  studyCafeAutoPauseTimer = null;
+  const startedHidden = document.visibilityState === "hidden";
+  if (!startedHidden) recovery.attempts = (recovery.attempts || 0) + 1;
+  if (document.visibilityState !== "hidden") showStudyCafeAutoPauseRecoveryModal();
+  studyCafeAutoPauseRecoveryPromise = (async () => {
+    await Promise.resolve();
+    try {
+      // Let existing mutations settle before reading authoritative state. In
+      // particular, never interpret an optimistic paused state as saved.
+      const waitUntil = Date.now() + STUDY_CAFE_REQUEST_TIMEOUT_MS + 1000;
+      while (studyCafeTimerActionPending || studyCafeRemoteState.loading || studyRoomState.loading) {
+        expireStudyCafeRequests();
+        if (!isCurrent()) return false;
+        if (Date.now() >= waitUntil) throw new Error("timer_action_pending");
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+      }
+      if (!isCurrent()) return false;
+      if (document.visibilityState === "hidden") {
+        // Keep the deadline even after success: confirm the seat and session
+        // again on return, since the server can expire them during a long stay.
+        if (studyCafePreviewState.running) {
+          await pauseStudyCafeTimer({ automatic: true, deferAutoPauseModal: true });
+        }
+        return false;
+      }
+      const privateRoomSeat = String(recovery.seatId).startsWith("private-seat-");
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const loaded = await ensureStudyCafeRemoteLoaded({ force: true, render: false });
+        if (!isCurrent()) return false;
+        if (!loaded) throw new Error("study_cafe_load_failed");
+        if (privateRoomSeat) {
+          const roomLoaded = await ensureStudyRoomLoaded({ force: true, render: false });
+          if (!isCurrent()) return false;
+          if (!roomLoaded) throw new Error("study_room_load_failed");
+        }
+        const stillHasSeat = privateRoomSeat
+          ? Number(studyRoomState.room?.mySeatNumber) > 0
+          : Boolean(studyCafePreviewState.selectedSeatId);
+        if (!stillHasSeat) {
+          clearStudyCafeAutoPauseRecovery();
+          renderStudyCafeStateUpdate();
+          showStudyCafeIdleAutoReleaseModal({ reason: "connection" });
+          return true;
+        }
+        if (studyCafePreviewState.paused) {
+          clearStudyCafeAutoPauseRecovery();
+          renderStudyCafeStateUpdate();
+          showStudyCafeAutoPauseModal();
+          return true;
+        }
+        if (!studyCafePreviewState.running) {
+          clearStudyCafeAutoPauseRecovery();
+          closeStudyCafeAutoPauseModal();
+          studyCafePreviewState.timerFullscreen = false;
+          studyCafePreviewState.timerFullscreenReturnRoute = "";
+          renderStudyCafeStateUpdate();
+          notify("현재 진행 중인 과목이 없습니다. 과목을 선택해 타이머를 시작해주세요.");
+          return true;
+        }
+        if (attempt === 0) {
+          await pauseStudyCafeTimer({ automatic: true, deferAutoPauseModal: true });
+          if (!isCurrent()) return false;
+        }
+      }
+      throw new Error("timer_pause_unconfirmed");
+    } catch (error) {
+      if (isCurrent() && document.visibilityState !== "hidden") {
+        showStudyCafeAutoPauseRecoveryModal({ failed: true });
+      }
+      return false;
+    } finally {
+      studyCafeAutoPauseRecoveryPromise = null;
+      if (isCurrent() && !recovery.dismissed && (recovery.attempts || 0) < 3 && document.visibilityState !== "hidden") {
+        studyCafeAutoPauseTimer = window.setTimeout(reconcileStudyCafeAfterBackgroundAutoPause, startedHidden ? 0 : 10000);
+      }
+    }
+  })();
+  return studyCafeAutoPauseRecoveryPromise;
 }
 
 function ensureStudyCafeRemoteTimers() {
@@ -2730,6 +2845,8 @@ function ensureStudyCafeRemoteTimers() {
       if (
         document.visibilityState !== "hidden" &&
         document.hasFocus() &&
+        !isStudyCafeTimerRecoveryRequired() &&
+        !studyCafeTimerActionPending &&
         studyCafePreviewState.selectedSeatId
       ) {
         mutateStudyCafeRemote("heartbeat", {}, { notify: false });
@@ -2830,6 +2947,7 @@ function scheduleStudyRoomRealtimeRefresh(message) {
   const changedRoomId = message?.payload?.roomId || message?.roomId || "";
   if (studyRoomState.room && changedRoomId && changedRoomId !== studyRoomState.room.id) return;
   window.setTimeout(async () => {
+    if (isStudyCafeTimerRecoveryRequired()) return;
     const before = JSON.stringify(studyRoomState.room || null);
     await ensureStudyRoomLoaded({ force: true });
     if (currentRoute === "study-cafe" && before !== JSON.stringify(studyRoomState.room || null)) {
@@ -5177,8 +5295,15 @@ function renderStudentStudyTodo() {
 
   ensureStudyCafeRemoteLoaded();
   const subjects = getStudyTimerSubjects(student);
-  const subjectSet = new Set(subjects);
   const selectedDateKey = getSelectedStudyTodoDateKey();
+  // 목록에서 뺀 과목의 기존 할 일도 날짜별 플래너에 계속 표시한다.
+  if (canCustomizeStudySubjects(student)) {
+    getStudyTodosForDate(selectedDateKey).forEach((todo) => {
+      const subject = String(todo.subject || "").trim();
+      if (subject && !subjects.includes(subject)) subjects.push(subject);
+    });
+  }
+  const subjectSet = new Set(subjects);
   const selectedDateLabel = getStudyTodoRelativeDateLabel(selectedDateKey);
   const todos = getStudyTodosForDate(selectedDateKey)
     .filter((todo) => subjectSet.has(String(todo.subject || "").trim()));
@@ -5206,6 +5331,7 @@ function renderStudentStudyTodo() {
       { className: "study-todo-subject-list" },
       subjects.map((subject) => renderStudyTodoSubjectCard(subject, todos))
     ),
+    renderStudySubjectManagement(student),
   ];
 
   if (studyTodoCalendarOpen) {
@@ -7328,6 +7454,7 @@ function renderStudentStudyTimer() {
         el("strong", {}, "과목별 타이머"),
         el("div", { className: "study-subject-timer-card-tools" }, [
           el("span", {}, `${subjects.length}개 직렬 과목`),
+          renderStudySubjectManagement(student, { compact: true }),
         ]),
       ]),
       el(
@@ -9082,6 +9209,7 @@ function openStudyCafeSubjectModal(seatId, student, options = {}) {
         { className: "study-cafe-subject-options" },
         subjectOptionButtons
       ),
+      renderStudySubjectManagement(student),
       preserveTimer
         ? button(
             "과목 공부 종료",
@@ -9147,6 +9275,10 @@ function cancelStudyCafeCountdown() {
 }
 
 function startStudyCafeCountdown(seatId, subject) {
+  if (isStudyCafeTimerRecoveryRequired()) {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+    return;
+  }
   if (studyCafeTimerActionPending) return;
   const resumeExistingSession =
     studyCafePreviewState.paused &&
@@ -9206,6 +9338,10 @@ function startStudyCafeCountdown(seatId, subject) {
 }
 
 async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
+  if (isStudyCafeTimerRecoveryRequired()) {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+    return false;
+  }
   if (studyCafeTimerActionPending) return false;
   studyCafeTimerActionPending = true;
   beginStudyCafeLocalSessionMutation();
@@ -9233,6 +9369,7 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
     if (!result.ok) {
       Object.assign(studyCafePreviewState, previousTimerState);
       renderStudyCafeStateUpdate();
+      requireStudyCafeTimerReconciliation();
       return false;
     }
     if (
@@ -9249,12 +9386,68 @@ async function beginStudyCafeTimer(seatId, subject, resumeExistingSession) {
   }
 }
 
+function canCustomizeStudySubjects(student) {
+  return getStudentCategory(student) === "lecture";
+}
+
+function renderStudySubjectManagement(student, { compact = false } = {}) {
+  if (!canCustomizeStudySubjects(student)) return null;
+  const empty = getStudyTimerSubjects(student).length === 0;
+  const control = button(empty ? "+ 과목 추가" : "⚙︎", empty ? "btn study-subject-add-primary" : "study-subject-edit-button", "button", async () => {
+    control.disabled = true;
+    try {
+      const loaded = await ensureStudyCafeRemoteLoaded({ render: false });
+      if (String(getAuthedStudent()?.id) !== String(student.id)) return;
+      if (!loaded && !isStudyCafeLocalPreview()) {
+        notify("과목 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      openStudySubjectEditor(student);
+    } finally {
+      control.disabled = false;
+    }
+  });
+  control.title = empty ? "과목 추가" : "과목 설정";
+  control.ariaLabel = empty ? "과목 추가" : "과목 설정";
+  if (compact) return control;
+  if (empty) {
+    return el("section", { className: "study-planner-subject-empty" }, [
+      control,
+    ]);
+  }
+  return el("div", { className: "study-planner-subject-management" }, [
+    control,
+  ]);
+}
+
 function getStudyTimerSubjects(student) {
   const configured = typeof getConfiguredWeeklySubjectsForTrack === "function"
     ? getConfiguredWeeklySubjectsForTrack(student?.track)
     : [];
+  // 인터넷 수강생의 함정 경장 학습 과목은 같은 분야의 순경과 동일하다.
+  // 주간시험 설정은 유지하고 플래너와 연동 타이머에만 적용한다.
+  const patrolTrack = {
+    "경찰직 - 함정요원 항해(경장)": "경찰직 - 함정요원 항해(순경)",
+    "경찰직 - 함정요원 기관(경장)": "경찰직 - 함정요원 기관(순경)",
+  }[normalizeCoastGuardTrack(student?.track)];
+  const custom = canCustomizeStudySubjects(student);
+  const hasCustomSubjects = custom && Array.isArray(studyCafePreviewState.customSubjects)
+    && studyCafePreviewState.customSubjects.length > 0;
+  const hasNoDefaultSubjects = custom && [
+    "경찰직 - 구조(순경)",
+    "경찰직 - 특공 전술(순경)",
+    "일반직 - 해양오염방제 항해",
+    "일반직 - 해양오염방제 기관",
+    "기타",
+  ].includes(normalizeCoastGuardTrack(student?.track));
+  const studySubjects = hasCustomSubjects
+    ? studyCafePreviewState.customSubjects
+    : hasNoDefaultSubjects ? []
+    : getStudentCategory(student) === "lecture" && patrolTrack
+    ? getConfiguredWeeklySubjectsForTrack(patrolTrack)
+    : configured;
   const fallback = ["해양경찰학개론", "해사법규", "형사법"];
-  return [...(configured.length ? configured : fallback)]
+  return [...(hasNoDefaultSubjects || studySubjects.length ? studySubjects : fallback)]
     .map((subject) => String(subject || "").trim())
     .filter(
       (subject, index, subjects) =>
@@ -9266,11 +9459,16 @@ function getStudyTimerSubjects(student) {
 }
 
 function openStudySubjectEditor(student) {
+  if (!canCustomizeStudySubjects(student)) return;
   const activeSubject = studyCafePreviewState.subject;
   const draft = getStudyTimerSubjects(student).map((name) => ({
     originalName: name,
     name,
   }));
+  if (activeSubject && !draft.some((item) => item.name === activeSubject)) {
+    draft.push({ originalName: activeSubject, name: activeSubject });
+  }
+  let saving = false;
   const list = el("div", { className: "study-subject-edit-list" });
 
   const renderRows = () => {
@@ -9294,6 +9492,7 @@ function openStudySubjectEditor(student) {
           isActive
             ? null
             : () => {
+                if (saving) return;
                 if (draft.length <= 1) return notify("과목은 1개 이상 필요합니다.");
                 draft.splice(index, 1);
                 renderRows();
@@ -9310,6 +9509,7 @@ function openStudySubjectEditor(student) {
   };
 
   const addSubject = () => {
+    if (saving) return;
     if (draft.length >= 8) return notify("과목은 최대 8개까지 등록할 수 있습니다.");
     let number = 1;
     let name = "새 과목";
@@ -9324,54 +9524,45 @@ function openStudySubjectEditor(student) {
   };
 
   const saveSubjects = async () => {
+    if (saving) return;
     const names = draft.map((item) => item.name.trim());
+    if (!names.length || names.length > 8) return notify("과목은 1개 이상, 최대 8개까지 등록할 수 있습니다.");
     if (names.some((name) => !name)) return notify("과목명을 입력해주세요.");
+    if (names.some((name) => name.length > 20)) return notify("과목명은 20자 이내로 입력해주세요.");
+    if (names.includes("기타")) return notify("'기타' 대신 구체적인 과목명을 입력해주세요.");
     if (new Set(names).size !== names.length) return notify("같은 과목명은 한 번만 사용할 수 있습니다.");
-    const elapsedBefore = { ...studyCafePreviewState.subjectElapsedMs };
-    const renamed = draft
-      .map((item, index) => ({
-        previousName: item.originalName,
-        nextName: names[index],
-      }))
-      .filter(({ previousName, nextName }) => previousName && previousName !== nextName);
-    renamed.forEach(({ previousName }) => {
-      delete studyCafePreviewState.subjectElapsedMs[previousName];
-    });
-    renamed.forEach(({ previousName, nextName }) => {
-      const previousElapsed = Number(elapsedBefore[previousName]) || 0;
-      if (previousElapsed) {
-        studyCafePreviewState.subjectElapsedMs[nextName] =
-          (Number(studyCafePreviewState.subjectElapsedMs[nextName]) || 0) + previousElapsed;
-      }
-    });
-    draft.forEach((item, index) => {
-      const previousName = item.originalName;
-      const nextName = names[index];
-      if (!previousName || previousName === nextName) return;
-      if (studyCafePreviewState.lastSubject === previousName) {
-        studyCafePreviewState.lastSubject = nextName;
-      }
-    });
-    studyCafePreviewState.customSubjects = names;
-    const result = await mutateStudyCafeRemote("save_subjects", { subjects: names });
-    if (!result.ok) return;
-    closeInfoModal();
-    render();
-    notify("과목 목록을 저장했습니다.");
+    saving = true;
+    editor.querySelectorAll("input, button").forEach((control) => { control.disabled = true; });
+    studySubjectMutationRevision += 1;
+    try {
+      const result = await mutateStudyCafeRemote("save_subjects", { subjects: names }, { refresh: false });
+      if (!result.ok || String(getAuthedStudent()?.id) !== String(student.id)) return;
+      studyCafePreviewState.customSubjects = names;
+      closeInfoModal();
+      render();
+      notify("과목 목록을 저장했습니다.");
+    } finally {
+      studySubjectMutationRevision += 1;
+      saving = false;
+      editor.querySelectorAll("button").forEach((control) => { control.disabled = false; });
+      renderRows();
+    }
   };
 
   renderRows();
+  const editor = el("div", { className: "study-subject-editor" }, [
+    activeSubject
+      ? el("p", {}, "현재 측정 중인 과목은 종료 후 편집할 수 있습니다.")
+      : el("p", {}, "과목명을 변경하거나 필요한 과목을 추가해보세요."),
+    el("p", {}, "기존 할 일과 공부 기록은 원래 과목명으로 남습니다."),
+    list,
+    button("+ 과목 추가", "study-subject-add-button", "button", addSubject),
+    button("저장하기", "btn", "button", saveSubjects),
+  ]);
   openInfoModal({
     title: "과목 편집",
     className: "study-subject-edit-modal",
-    content: el("div", { className: "study-subject-editor" }, [
-      activeSubject
-        ? el("p", {}, "현재 측정 중인 과목은 종료 후 편집할 수 있습니다.")
-        : el("p", {}, "과목명을 변경하거나 필요한 과목을 추가해보세요."),
-      list,
-      button("+ 과목 추가", "study-subject-add-button", "button", addSubject),
-      button("저장하기", "btn", "button", saveSubjects),
-    ]),
+    content: editor,
   });
 }
 
@@ -9554,30 +9745,85 @@ function ensureStudyCafePreviewClock() {
 }
 
 function scheduleStudyCafeAutoPause(delay = 0) {
-  window.clearTimeout(studyCafeAutoPauseTimer);
-  if (delay <= 0) {
-    studyCafeAutoPauseTimer = null;
-    studyCafeAutoPauseDeadline = 0;
-    pauseStudyCafeTimer({ automatic: true });
-    return;
+  if (!studyCafePreviewState.selectedSeatId ||
+      (!studyCafePreviewState.running && !studyCafeTimerActionPending && !studyCafeAutoPauseRecovery)) return;
+  if (!studyCafeAutoPauseRecovery) {
+    studyCafeAutoPauseRecovery = {
+      studentId: String(getAuthedStudent()?.id || ""),
+      seatId: studyCafePreviewState.selectedSeatId,
+    };
+    studyCafeAutoPauseDeadline = Date.now() + Math.max(0, Number(delay) || 0);
+  } else if (delay <= 0) {
+    studyCafeAutoPauseDeadline = Math.min(studyCafeAutoPauseDeadline, Date.now());
   }
-  studyCafeAutoPauseDeadline = Date.now() + Math.max(0, Number(delay) || 0);
-  studyCafeAutoPauseTimer = window.setTimeout(() => {
+  window.clearTimeout(studyCafeAutoPauseTimer);
+  studyCafeAutoPauseTimer = window.setTimeout(
+    reconcileStudyCafeAfterBackgroundAutoPause,
+    Math.max(0, studyCafeAutoPauseDeadline - Date.now())
+  );
+}
+
+function clearStudyCafeAutoPauseRecovery() {
+  window.clearTimeout(studyCafeAutoPauseTimer);
+  studyCafeAutoPauseTimer = null;
+  studyCafeAutoPauseDeadline = 0;
+  studyCafeAutoPauseRecovery = null;
+}
+
+function requireStudyCafeTimerReconciliation() {
+  if (!studyCafePreviewState.selectedSeatId) return;
+  studyCafeAutoPauseRecovery ||= {
+    studentId: String(getAuthedStudent()?.id || ""),
+    seatId: studyCafePreviewState.selectedSeatId,
+  };
+  studyCafeAutoPauseDeadline = Date.now();
+  if (document.visibilityState !== "hidden") reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+}
+
+function isStudyCafeTimerRecoveryRequired() {
+  return Boolean(studyCafeAutoPauseRecovery && Date.now() >= studyCafeAutoPauseDeadline);
+}
+
+function showStudyCafeAutoPauseRecoveryModal(options = {}) {
+  if (studyCafeAutoPauseRecovery?.dismissed) return;
+  const failed = options.failed === true;
+  const stage = failed ? "failed" : "checking";
+  const existing = document.querySelector(".study-cafe-auto-pause-modal");
+  if (existing?.dataset.recoveryStage === stage) return;
+  closeStudyCafeAutoPauseModal();
+  const retryButton = button("다시 확인하기", "btn", "button", () => {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+  });
+  const dismissButton = button("나중에 확인하기", "btn secondary", "button", () => {
+    if (studyCafeAutoPauseRecovery) studyCafeAutoPauseRecovery.dismissed = true;
+    window.clearTimeout(studyCafeAutoPauseTimer);
     studyCafeAutoPauseTimer = null;
-    studyCafeAutoPauseDeadline = 0;
-    if (
-      delay > 0 &&
-      document.visibilityState !== "hidden" &&
-      document.hasFocus()
-    ) {
-      return;
-    }
-    pauseStudyCafeTimer({ automatic: true });
-  }, Math.max(0, Number(delay) || 0));
+    closeStudyCafeAutoPauseModal();
+  });
+  const modal = el("div", {
+    className: "study-cafe-auto-pause-modal",
+    role: "alertdialog",
+    ariaModal: "true",
+    ariaLabel: "타이머 상태 확인",
+  }, [
+    el("div", { className: "info-modal-backdrop", ariaHidden: "true" }),
+    el("div", { className: "info-modal-panel" }, [
+      el("strong", {}, failed ? "타이머 상태를 다시 확인해주세요" : "타이머 상태를 확인하고 있습니다"),
+      el("p", {}, failed
+        ? "연결이 지연되어 저장 상태를 확인하지 못했습니다. 인터넷 연결 후 다시 확인해주세요."
+        : "좌석과 공부 기록을 확인하고 있습니다. 확인이 끝나면 계속 공부하거나 종료할 수 있습니다."),
+      ...(failed ? [retryButton, dismissButton] : []),
+    ]),
+  ]);
+  modal.dataset.recoveryStage = stage;
+  document.body.appendChild(modal);
+  if (failed) window.requestAnimationFrame(() => retryButton.focus({ preventScroll: true }));
 }
 
 function showStudyCafeAutoPauseModal() {
-  if (document.querySelector(".study-cafe-auto-pause-modal")) return;
+  const existing = document.querySelector(".study-cafe-auto-pause-modal");
+  if (existing && !existing.dataset.recoveryStage) return;
+  closeStudyCafeAutoPauseModal();
   const close = closeStudyCafeAutoPauseModal;
   let actionPending = false;
   const resumeButton = button("계속 공부하기", "btn", "button", async () => {
@@ -9636,6 +9882,10 @@ function closeStudyCafeAutoPauseModal() {
 }
 
 async function pauseStudyCafeTimer(options = {}) {
+  if (options.automatic !== true && isStudyCafeTimerRecoveryRequired()) {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+    return false;
+  }
   if (studyCafeTimerActionPending || !studyCafePreviewState.running) return false;
   const automatic = options.automatic === true;
   if (!automatic && !confirm("공부 타이머를 일시정지할까요?")) return false;
@@ -9672,9 +9922,10 @@ async function pauseStudyCafeTimer(options = {}) {
   if (!result?.ok) {
     Object.assign(studyCafePreviewState, previousTimerState);
     renderStudyCafeStateUpdate();
+    if (!automatic) requireStudyCafeTimerReconciliation();
     return false;
   }
-  if (automatic) showStudyCafeAutoPauseModal();
+  if (automatic && options.deferAutoPauseModal !== true) showStudyCafeAutoPauseModal();
   invalidateStudyTimerStatsCache();
   return true;
 }
@@ -9698,6 +9949,10 @@ async function toggleStudyCafePreviewTimer() {
 }
 
 async function stopStudyCafePreviewTimer(options = {}) {
+  if (isStudyCafeTimerRecoveryRequired()) {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+    return;
+  }
   if (studyCafeTimerActionPending) return;
   const activeSubject = studyCafePreviewState.subject;
   const studyDate = studyCafeRemoteState.studyDateKey || formatStudyBusinessDateKey(new Date());
@@ -9748,6 +10003,7 @@ async function stopStudyCafePreviewTimer(options = {}) {
   if (!result?.ok) {
     Object.assign(studyCafePreviewState, previousTimerState);
     renderStudyCafeStateUpdate();
+    requireStudyCafeTimerReconciliation();
     return;
   }
   invalidateStudyTimerStatsCache();
@@ -9811,6 +10067,10 @@ function formatStudyGoalMinutes(minutes) {
 }
 
 async function releaseStudyCafeSeat(options = {}) {
+  if (isStudyCafeTimerRecoveryRequired()) {
+    reconcileStudyCafeAfterBackgroundAutoPause({ interactive: true });
+    return false;
+  }
   if (studyCafeTimerActionPending) return false;
   if (String(studyCafePreviewState.selectedSeatId || "").startsWith("private-seat-")) {
     return releasePrivateStudyRoomSeat(options);
@@ -9864,6 +10124,7 @@ async function releaseStudyCafeSeat(options = {}) {
   if (!result?.ok) {
     Object.assign(studyCafePreviewState, previousSeatState);
     renderStudyCafeStateUpdate();
+    requireStudyCafeTimerReconciliation();
     return false;
   }
   if (options.autoRelease === true) {
@@ -9880,10 +10141,18 @@ async function releasePrivateStudyRoomSeat(options = {}) {
   if (!room || !seatNumber) return false;
   if (options.skipConfirm !== true && !confirm(`${seatNumber}번 좌석을 비울까요?`)) return false;
   studyCafeTimerActionPending = true;
-  const result = await mutateStudyRoom("release_seat", { roomId: room.id });
-  studyCafeTimerActionPending = false;
-  if (!result.ok) return false;
+  let result;
+  try {
+    result = await mutateStudyRoom("release_seat", { roomId: room.id }, { refresh: false });
+  } finally {
+    studyCafeTimerActionPending = false;
+  }
+  if (!result.ok) {
+    requireStudyCafeTimerReconciliation();
+    return false;
+  }
   resetStudyCafeLocalSeatForPrivateRoom();
+  await ensureStudyRoomLoaded({ force: true });
   renderStudyCafeStateUpdate();
   if (options.autoRelease === true) {
     showStudyCafeIdleAutoReleaseModal();
@@ -9894,6 +10163,7 @@ async function releasePrivateStudyRoomSeat(options = {}) {
 }
 
 function checkStudyCafeIdleSeat() {
+  if (studyCafeTimerActionPending || isStudyCafeTimerRecoveryRequired()) return false;
   if (!studyCafePreviewState.selectedSeatId || studyCafePreviewState.running) {
     studyCafePreviewState.idleSince = 0;
     return false;
@@ -9926,7 +10196,7 @@ function isStudyCafeIdleReleaseDue(seatId, running, idleSince) {
     && Date.now() - normalizedIdleSince >= STUDY_CAFE_IDLE_RELEASE_MS;
 }
 
-function showStudyCafeIdleAutoReleaseModal() {
+function showStudyCafeIdleAutoReleaseModal(options = {}) {
   if (document.querySelector(".study-cafe-idle-release-modal")) return;
   const wasFullscreen = studyCafePreviewState.timerFullscreen;
   studyCafePreviewState.timerFullscreen = false;
@@ -9938,7 +10208,9 @@ function showStudyCafeIdleAutoReleaseModal() {
     title: "좌석이 자동으로 비워졌습니다",
     className: "study-cafe-idle-release-modal",
     content: el("div", { className: "study-cafe-idle-release-notice" }, [
-      el("p", {}, "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다."),
+      el("p", {}, options.reason === "connection"
+        ? "서버에서 현재 좌석 이용이 종료된 것을 확인했습니다. 연결 끊김이나 좌석 변경으로 종료될 수 있습니다."
+        : "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다."),
       el("p", { className: "subtle" }, "계속 공부하려면 빈 좌석을 다시 선택해주세요."),
     ]),
     confirmLabel: "확인",

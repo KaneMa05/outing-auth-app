@@ -339,14 +339,8 @@ assert.match(
   appSource,
   /const shouldAutoPause =\s*studyCafeAutoPauseDeadline > 0 &&\s*Date\.now\(\) >= studyCafeAutoPauseDeadline;[\s\S]*?if \(shouldAutoPause\) \{[\s\S]*?reconcileStudyCafeAfterBackgroundAutoPause\(\)/
 );
-assert.match(
-  appSource,
-  /async function reconcileStudyCafeAfterBackgroundAutoPause\(\)[\s\S]*?await ensureStudyCafeRemoteLoaded\(\{ force: true \}\)[\s\S]*?if \(previousSeatId && !stillHasSeat\) \{[\s\S]*?showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?if \(studyCafePreviewState\.paused\) \{[\s\S]*?showStudyCafeAutoPauseModal\(\)[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
-);
-assert.match(
-  appSource,
-  /async function reconcileStudyCafeAfterBackgroundAutoPause\(\)[\s\S]*?if \(previousSeatId && !hasSeatAfterRetry\)[\s\S]*?if \(studyCafePreviewState\.paused\)[\s\S]*?타이머 상태를 확인하지 못했습니다/
-);
+// Request ordering, failures and recovery are executed in study-cafe-lifecycle.test.js.
+assert.match(appSource, /function showStudyCafeAutoPauseRecoveryModal/);
 assert.match(
   appSource,
   /studyCafeRemoteState\.heartbeatTimer = window\.setInterval\([\s\S]*?document\.visibilityState !== "hidden"[\s\S]*?document\.hasFocus\(\)[\s\S]*?mutateStudyCafeRemote\("heartbeat"/
@@ -491,15 +485,15 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?study-cafe-idle-release-modal[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
+  /function showStudyCafeIdleAutoReleaseModal\(options = \{\}\)[\s\S]*?study-cafe-idle-release-modal[\s\S]*?title: "좌석이 자동으로 비워졌습니다"[\s\S]*?confirmLabel: "확인"/
 );
 assert.match(
   appSource,
-  /function showStudyCafeIdleAutoReleaseModal\(\)[\s\S]*?studyCafePreviewState\.timerFullscreen = false[\s\S]*?if \(wasFullscreen && currentRoute === "study-timer"\) renderStudyCafeStateUpdate\(\)/
+  /function showStudyCafeIdleAutoReleaseModal\(options = \{\}\)[\s\S]*?studyCafePreviewState\.timerFullscreen = false[\s\S]*?if \(wasFullscreen && currentRoute === "study-timer"\) renderStudyCafeStateUpdate\(\)/
 );
 assert.match(
   appSource,
-  /function hydrateStudyCafeSnapshot\([\s\S]*?previousIdleSince[\s\S]*?isStudyCafeIdleReleaseDue\(previousSeatId, previousRunning, previousIdleSince\)[\s\S]*?showStudyCafeIdleAutoReleaseModal\(\)/
+  /function hydrateStudyCafeSnapshot\([\s\S]*?previousIdleSince[\s\S]*?showStudyCafeIdleAutoReleaseModal\(\{[\s\S]*?isStudyCafeIdleReleaseDue\(previousSeatId, previousRunning, previousIdleSince\)/
 );
 assert.match(
   appSource,
@@ -507,7 +501,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function ensureStudyRoomLoaded\([\s\S]*?idleSeatWasAutoReleased[\s\S]*?isStudyCafeIdleReleaseDue\([\s\S]*?if \(idleSeatWasAutoReleased\) showStudyCafeIdleAutoReleaseModal\(\)/
+  /async function ensureStudyRoomLoaded\([\s\S]*?idleSeatWasAutoReleased[\s\S]*?isStudyCafeIdleReleaseDue\([\s\S]*?showStudyCafeIdleAutoReleaseModal\(\{ reason: idleSeatWasAutoReleased \? "idle" : "connection" \}\)/
 );
 assert.match(styleSource, /\.study-cafe-idle-release-notice/);
 assert.match(appSource, /function startStudyCafeCountdown\(seatId, subject\)/);
@@ -532,7 +526,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function scheduleStudyCafeAutoPause\(delay = 0\)[\s\S]*?studyCafeAutoPauseDeadline = Date\.now\(\) \+ Math\.max[\s\S]*?pauseStudyCafeTimer\(\{ automatic: true \}\)/
+  /function scheduleStudyCafeAutoPause\(delay = 0\)[\s\S]*?studyCafeAutoPauseDeadline = Date\.now\(\) \+ Math\.max[\s\S]*?reconcileStudyCafeAfterBackgroundAutoPause/
 );
 assert.match(
   appSource,
@@ -540,7 +534,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /if \(automatic\) showStudyCafeAutoPauseModal\(\)/
+  /if \(automatic && options\.deferAutoPauseModal !== true\) showStudyCafeAutoPauseModal\(\)/
 );
 assert.doesNotMatch(appSource, /studyCafeAutoPauseNoticePending/);
 assert.match(appSource, /function closeStudyCafeAutoPauseModal\(\)[\s\S]*?\.study-cafe-auto-pause-modal/);
@@ -1322,7 +1316,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260908-cost-safety/);
+assert.match(indexSource, /app\.js\?v=20260909-study-cafe-resume-recovery/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

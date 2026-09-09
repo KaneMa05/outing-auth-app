@@ -11151,15 +11151,45 @@ body.student-online-mode .study-cafe-planner-entry-actions .btn.secondary:focus-
 }
 
 .study-subject-edit-button {
-  min-height: 30px;
-  border: 1px solid #cbddeb;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
+  border: 0;
   border-radius: 9px;
-  background: #f6faff;
-  color: var(--accent-strong);
-  padding: 6px 9px;
-  font-size: 0.68rem;
-  font-weight: 900;
-  white-space: nowrap;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.study-subject-edit-button:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.study-planner-subject-management {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.study-planner-subject-empty {
+  display: grid;
+  gap: 12px;
+  padding: 24px 20px;
+  border-radius: 16px;
+}
+
+.btn.study-subject-add-primary {
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  background: #278d87;
+  color: #fff;
 }
 
 .study-subject-timer-list {
