@@ -377,11 +377,34 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "release_seat") {
-      await completeActiveSession(studentId, now);
-      await requestSupabase(
-        "DELETE",
-        `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`
+      const targetedIdleAutoRelease = body.idleAutoRelease === true
+        && studentId === STUDY_CAFE_IDLE_PUSH_STUDENT_ID;
+      const releasePresence = targetedIdleAutoRelease ? await getOwnPresence(studentId) : null;
+      const shouldSendIdleReleasePush = Boolean(
+        releasePresence
+        && (releasePresence.status === "seated" || releasePresence.status === "paused")
       );
+      await completeActiveSession(studentId, now);
+      if (shouldSendIdleReleasePush) {
+        const deletedPresence = await requestSupabase(
+          "DELETE",
+          `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}&updated_at=eq.${encodeURIComponent(releasePresence.updated_at)}`,
+          undefined,
+          { Prefer: "return=representation" }
+        );
+        if (Array.isArray(deletedPresence) && deletedPresence.length) {
+          await sendStudyCafeIdleReleasePush({
+            studentId,
+            seatNumber: releasePresence.seat_number,
+            releasedAt: releasePresence.updated_at,
+          });
+        }
+      } else {
+        await requestSupabase(
+          "DELETE",
+          `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`
+        );
+      }
       await broadcastStudyCafeStateChange("seat");
       res.status(200).json({ ok: true });
       return;

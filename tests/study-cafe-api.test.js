@@ -113,6 +113,9 @@ assert.match(apiSource, /await rolloverActiveSessionIfNeeded\(row\.student_id, s
 assert.match(apiSource, /await completeActiveSession\(row\.student_id, staleEndedAt\)/);
 assert.match(apiSource, /if \(isIdle && row\.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID\) \{[\s\S]*?if \(Array\.isArray\(deletedPresence\) && deletedPresence\.length\) \{[\s\S]*?sendStudyCafeIdleReleasePush\(\{/);
 assert.match(apiSource, /\} else \{\s*await requestSupabase\(\s*"DELETE",\s*`study_cafe_presence\?student_id=eq\.\$\{encodeURIComponent\(row\.student_id\)\}`/);
+assert.match(apiSource, /const targetedIdleAutoRelease = body\.idleAutoRelease === true[\s\S]*?studentId === STUDY_CAFE_IDLE_PUSH_STUDENT_ID/);
+assert.match(apiSource, /const releasePresence = targetedIdleAutoRelease \? await getOwnPresence\(studentId\) : null/);
+assert.match(apiSource, /seatNumber: releasePresence\.seat_number/);
 assert.match(apiSource, /rpc\/replace_study_cafe_subjects/);
 assert.match(apiSource, /display_name: displayName/);
 assert.match(apiSource, /body\.preserveStudy === true[\s\S]*?await getActiveSession\(studentId\)/);

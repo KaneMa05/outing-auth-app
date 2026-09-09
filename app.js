@@ -10116,7 +10116,11 @@ async function releaseStudyCafeSeat(options = {}) {
   render();
   let result;
   try {
-    result = await mutateStudyCafeRemote("release_seat", {}, { refresh: false });
+    result = await mutateStudyCafeRemote(
+      "release_seat",
+      options.autoRelease === true ? { idleAutoRelease: true } : {},
+      { refresh: false }
+    );
   } finally {
     studyCafeTimerActionPending = false;
     finishStudyCafeLocalSessionMutation();

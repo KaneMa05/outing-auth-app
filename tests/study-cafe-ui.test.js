@@ -256,7 +256,7 @@ assert.match(
   styleSource,
   /@media \(min-width: 1200px\)[\s\S]*?\.study-cafe-floating-menu-button\s*\{[^}]*bottom: calc\(var\(--student-footer-bottom\) \+ 15px\)/
 );
-assert.match(appSource, /mutateStudyCafeRemote\("release_seat", \{\}, \{ refresh: false \}\)/);
+assert.match(appSource, /mutateStudyCafeRemote\([\s\S]*?"release_seat",[\s\S]*?options\.autoRelease === true \? \{ idleAutoRelease: true \} : \{\},[\s\S]*?\{ refresh: false \}/);
 assert.match(appSource, /mutateStudyCafeRemote\("save_subjects"/);
 assert.match(appSource, /mutateStudyCafeRemote\("save_profile"/);
 assert.match(appSource, /mutateStudyCafeRemote\(\s*"todo_create"/);
@@ -472,7 +472,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /async function releaseStudyCafeSeat\(options = \{\}\)[\s\S]*?const previousSeatState = \{[\s\S]*?studyCafePreviewState\.selectedSeatId = ""[\s\S]*?render\(\)[\s\S]*?mutateStudyCafeRemote\("release_seat", \{\}, \{ refresh: false \}\)[\s\S]*?Object\.assign\(studyCafePreviewState, previousSeatState\)/
+  /async function releaseStudyCafeSeat\(options = \{\}\)[\s\S]*?const previousSeatState = \{[\s\S]*?studyCafePreviewState\.selectedSeatId = ""[\s\S]*?render\(\)[\s\S]*?mutateStudyCafeRemote\([\s\S]*?"release_seat",[\s\S]*?options\.autoRelease === true \? \{ idleAutoRelease: true \} : \{\},[\s\S]*?\{ refresh: false \}[\s\S]*?Object\.assign\(studyCafePreviewState, previousSeatState\)/
 );
 assert.match(styleSource, /\.study-cafe-subject-stop-button/);
 assert.match(appSource, /const STUDY_CAFE_IDLE_RELEASE_MS = 15 \* 60 \* 1000/);
