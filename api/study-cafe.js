@@ -1007,7 +1007,36 @@ async function clearStalePresence(now) {
   );
   for (const row of Array.isArray(staleRows) ? staleRows : []) {
     const idleActivityAt = new Date(row.updated_at);
+    const lastHeartbeatAt = new Date(row.last_heartbeat_at);
     const isIdle = row.status === "seated" || row.status === "paused";
+    const isTargetStudent = row.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID;
+    const targetIdleActivityAt = isIdle ? idleActivityAt : lastHeartbeatAt;
+    if (isTargetStudent) {
+      if (
+        Number.isNaN(targetIdleActivityAt.getTime())
+        || now.getTime() - targetIdleActivityAt.getTime() < IDLE_PRESENCE_STALE_MS
+      ) {
+        continue;
+      }
+      const deletedPresence = await requestSupabase(
+        "DELETE",
+        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}&last_heartbeat_at=eq.${encodeURIComponent(row.last_heartbeat_at)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+        undefined,
+        { Prefer: "return=representation" }
+      );
+      if (!Array.isArray(deletedPresence) || !deletedPresence.length) continue;
+      const staleEndedAt = Number.isNaN(lastHeartbeatAt.getTime())
+        ? now
+        : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
+      await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
+      await completeActiveSession(row.student_id, staleEndedAt);
+      await sendStudyCafeIdleReleasePush({
+        studentId: row.student_id,
+        seatNumber: row.seat_number,
+        releasedAt: targetIdleActivityAt.toISOString(),
+      });
+      continue;
+    }
     if (
       isIdle &&
       !Number.isNaN(idleActivityAt.getTime()) &&
@@ -1015,32 +1044,15 @@ async function clearStalePresence(now) {
     ) {
       continue;
     }
-    const lastHeartbeatAt = new Date(row.last_heartbeat_at);
     const staleEndedAt = Number.isNaN(lastHeartbeatAt.getTime())
       ? now
       : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
     await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
     await completeActiveSession(row.student_id, staleEndedAt);
-    if (isIdle && row.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID) {
-      const deletedPresence = await requestSupabase(
-        "DELETE",
-        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-        undefined,
-        { Prefer: "return=representation" }
-      );
-      if (Array.isArray(deletedPresence) && deletedPresence.length) {
-        await sendStudyCafeIdleReleasePush({
-          studentId: row.student_id,
-          seatNumber: row.seat_number,
-          releasedAt: row.updated_at,
-        });
-      }
-    } else {
-      await requestSupabase(
-        "DELETE",
-        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
-      );
-    }
+    await requestSupabase(
+      "DELETE",
+      `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
+    );
   }
 }
 
@@ -1636,6 +1648,7 @@ function avatarToneForId(studentId) {
 
 module.exports._private = {
   aggregateSessionSeconds,
+  clearStalePresence,
   getCurrentRankingRange,
   getKstDayBounds,
   getKstDateKey,
