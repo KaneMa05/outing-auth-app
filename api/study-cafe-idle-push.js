@@ -3,7 +3,7 @@ const webPush = require("web-push");
 const STUDY_CAFE_IDLE_PUSH_STUDENT_ID = "21001";
 const SUBSCRIPTIONS_TABLE = "student_push_subscriptions";
 
-async function sendStudyCafeIdleReleasePush({ studentId, seatNumber, releasedAt } = {}) {
+async function sendStudyCafeIdleReleasePush({ studentId, releasedAt } = {}) {
   const normalizedStudentId = String(studentId || "").trim();
   if (normalizedStudentId !== STUDY_CAFE_IDLE_PUSH_STUDENT_ID) {
     return { sentCount: 0, skipped: "student_not_allowed" };
@@ -46,15 +46,10 @@ async function sendStudyCafeIdleReleasePush({ studentId, seatNumber, releasedAt 
     }
 
     configureWebPush();
-    const normalizedSeatNumber = Number.isInteger(Number(seatNumber)) && Number(seatNumber) > 0
-      ? Number(seatNumber)
-      : null;
     const releaseKey = String(releasedAt || new Date().toISOString()).replace(/[^0-9A-Za-z]/g, "").slice(0, 32);
     const payload = JSON.stringify({
       title: "좌석이 자동으로 비워졌습니다",
-      body: normalizedSeatNumber
-        ? `${normalizedSeatNumber}번 좌석이 15분 동안 정지되어 자동 반납되었습니다.`
-        : "이용 중이던 좌석이 15분 동안 정지되어 자동 반납되었습니다.",
+      body: "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다.",
       url: "/#study-cafe",
       tag: `study-cafe-idle-release-${STUDY_CAFE_IDLE_PUSH_STUDENT_ID}-${releaseKey}`,
     });

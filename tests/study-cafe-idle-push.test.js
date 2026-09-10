@@ -104,7 +104,7 @@ function jsonResponse(payload, status = 200) {
   assert.equal(sentNotifications.length, 1);
   assert.equal(sentNotifications[0].subscription.endpoint, "https://push.example.com/active");
   assert.equal(sentNotifications[0].payload.title, "좌석이 자동으로 비워졌습니다");
-  assert.equal(sentNotifications[0].payload.body, "3번 좌석이 15분 동안 정지되어 자동 반납되었습니다.");
+  assert.equal(sentNotifications[0].payload.body, "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다.");
   assert.equal(sentNotifications[0].payload.url, "/#study-cafe");
 
   console.log("study cafe idle push tests passed");
