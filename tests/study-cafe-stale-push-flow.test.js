@@ -7,7 +7,6 @@ require.cache[pushModulePath] = {
   filename: pushModulePath,
   loaded: true,
   exports: {
-    STUDY_CAFE_IDLE_PUSH_STUDENT_ID: "21001",
     sendStudyCafeIdleReleasePush: async (payload) => {
       pushCalls.push(payload);
       return { sentCount: 1 };
@@ -87,19 +86,35 @@ async function runScenario(row, deletedRows = [row]) {
     releasedAt: "2026-09-10T02:44:00.000Z",
   }]);
 
-  const nonTargetRequests = await runScenario({
+  const otherStudentUnder15Minutes = await runScenario({
     student_id: "21002",
     seat_number: 4,
     status: "studying",
     last_heartbeat_at: "2026-09-10T02:57:00.000Z",
     updated_at: "2026-09-10T02:30:00.000Z",
   });
-  const nonTargetDelete = nonTargetRequests.find((request) => request.options.method === "DELETE");
-  assert.ok(nonTargetDelete);
-  assert.match(nonTargetDelete.url, /student_id=eq\.21002/);
-  assert.doesNotMatch(nonTargetDelete.url, /last_heartbeat_at=eq\./);
-  assert.equal(nonTargetDelete.options.headers.Prefer, undefined);
+  assert.equal(otherStudentUnder15Minutes.length, 1);
+  assert.equal(otherStudentUnder15Minutes.some((request) => request.options.method === "DELETE"), false);
   assert.equal(pushCalls.length, 1);
+
+  const otherStudentOver15Minutes = await runScenario({
+    student_id: "21002",
+    seat_number: 4,
+    status: "studying",
+    last_heartbeat_at: "2026-09-10T02:44:00.000Z",
+    updated_at: "2026-09-10T02:30:00.000Z",
+  });
+  const otherStudentDelete = otherStudentOver15Minutes.find((request) => request.options.method === "DELETE");
+  assert.ok(otherStudentDelete);
+  assert.match(otherStudentDelete.url, /student_id=eq\.21002/);
+  assert.match(otherStudentDelete.url, /last_heartbeat_at=eq\./);
+  assert.match(otherStudentDelete.url, /updated_at=eq\./);
+  assert.equal(otherStudentDelete.options.headers.Prefer, "return=representation");
+  assert.deepEqual(pushCalls[1], {
+    studentId: "21002",
+    seatNumber: 4,
+    releasedAt: "2026-09-10T02:44:00.000Z",
+  });
 
   const raceRequests = await runScenario({
     student_id: "21001",
@@ -112,7 +127,7 @@ async function runScenario(row, deletedRows = [row]) {
     raceRequests.some((request) => request.url.includes("study_cafe_sessions?")),
     false
   );
-  assert.equal(pushCalls.length, 1);
+  assert.equal(pushCalls.length, 2);
 
   console.log("study cafe stale push flow tests passed");
 })().finally(() => {

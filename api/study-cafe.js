@@ -1,8 +1,5 @@
 const crypto = require("crypto");
-const {
-  STUDY_CAFE_IDLE_PUSH_STUDENT_ID,
-  sendStudyCafeIdleReleasePush,
-} = require("./study-cafe-idle-push");
+const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
 
 const ALLOWED_ACTIONS = new Set([
   "load",
@@ -377,9 +374,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "release_seat") {
-      const targetedIdleAutoRelease = body.idleAutoRelease === true
-        && studentId === STUDY_CAFE_IDLE_PUSH_STUDENT_ID;
-      const releasePresence = targetedIdleAutoRelease ? await getOwnPresence(studentId) : null;
+      const automaticIdleRelease = body.idleAutoRelease === true;
+      const releasePresence = automaticIdleRelease ? await getOwnPresence(studentId) : null;
       const shouldSendIdleReleasePush = Boolean(
         releasePresence
         && (releasePresence.status === "seated" || releasePresence.status === "paused")
@@ -1009,50 +1005,30 @@ async function clearStalePresence(now) {
     const idleActivityAt = new Date(row.updated_at);
     const lastHeartbeatAt = new Date(row.last_heartbeat_at);
     const isIdle = row.status === "seated" || row.status === "paused";
-    const isTargetStudent = row.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID;
-    const targetIdleActivityAt = isIdle ? idleActivityAt : lastHeartbeatAt;
-    if (isTargetStudent) {
-      if (
-        Number.isNaN(targetIdleActivityAt.getTime())
-        || now.getTime() - targetIdleActivityAt.getTime() < IDLE_PRESENCE_STALE_MS
-      ) {
-        continue;
-      }
-      const deletedPresence = await requestSupabase(
-        "DELETE",
-        `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}&last_heartbeat_at=eq.${encodeURIComponent(row.last_heartbeat_at)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-        undefined,
-        { Prefer: "return=representation" }
-      );
-      if (!Array.isArray(deletedPresence) || !deletedPresence.length) continue;
-      const staleEndedAt = Number.isNaN(lastHeartbeatAt.getTime())
-        ? now
-        : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
-      await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
-      await completeActiveSession(row.student_id, staleEndedAt);
-      await sendStudyCafeIdleReleasePush({
-        studentId: row.student_id,
-        seatNumber: row.seat_number,
-        releasedAt: targetIdleActivityAt.toISOString(),
-      });
-      continue;
-    }
+    const idleReleaseActivityAt = isIdle ? idleActivityAt : lastHeartbeatAt;
     if (
-      isIdle &&
-      !Number.isNaN(idleActivityAt.getTime()) &&
-      now.getTime() - idleActivityAt.getTime() < IDLE_PRESENCE_STALE_MS
+      Number.isNaN(idleReleaseActivityAt.getTime())
+      || now.getTime() - idleReleaseActivityAt.getTime() < IDLE_PRESENCE_STALE_MS
     ) {
       continue;
     }
+    const deletedPresence = await requestSupabase(
+      "DELETE",
+      `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}&last_heartbeat_at=eq.${encodeURIComponent(row.last_heartbeat_at)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+      undefined,
+      { Prefer: "return=representation" }
+    );
+    if (!Array.isArray(deletedPresence) || !deletedPresence.length) continue;
     const staleEndedAt = Number.isNaN(lastHeartbeatAt.getTime())
       ? now
       : new Date(Math.min(now.getTime(), lastHeartbeatAt.getTime() + PRESENCE_HEARTBEAT_GRACE_MS));
     await rolloverActiveSessionIfNeeded(row.student_id, staleEndedAt);
     await completeActiveSession(row.student_id, staleEndedAt);
-    await requestSupabase(
-      "DELETE",
-      `study_cafe_presence?student_id=eq.${encodeURIComponent(row.student_id)}`
-    );
+    await sendStudyCafeIdleReleasePush({
+      studentId: row.student_id,
+      seatNumber: row.seat_number,
+      releasedAt: idleReleaseActivityAt.toISOString(),
+    });
   }
 }
 

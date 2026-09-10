@@ -7,10 +7,7 @@ webPush.sendNotification = async (subscription, payload) => {
   sentNotifications.push({ subscription, payload: JSON.parse(payload) });
 };
 
-const {
-  STUDY_CAFE_IDLE_PUSH_STUDENT_ID,
-  sendStudyCafeIdleReleasePush,
-} = require("../api/study-cafe-idle-push");
+const { sendStudyCafeIdleReleasePush } = require("../api/study-cafe-idle-push");
 
 const originalFetch = global.fetch;
 const originalEnv = {
@@ -30,7 +27,6 @@ function jsonResponse(payload, status = 200) {
 }
 
 (async () => {
-  assert.equal(STUDY_CAFE_IDLE_PUSH_STUDENT_ID, "21001");
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
   process.env.VAPID_SUBJECT = "https://example.com";
@@ -40,25 +36,25 @@ function jsonResponse(payload, status = 200) {
   let requestCount = 0;
   global.fetch = async () => {
     requestCount += 1;
-    throw new Error("non-target students must not query push delivery data");
+    throw new Error("missing student id must not query push delivery data");
   };
   const blocked = await sendStudyCafeIdleReleasePush({
-    studentId: "21002",
+    studentId: "",
     seatNumber: 7,
     releasedAt: "2026-09-09T06:15:00.000Z",
   });
-  assert.deepEqual(blocked, { sentCount: 0, skipped: "student_not_allowed" });
+  assert.deepEqual(blocked, { sentCount: 0, skipped: "missing_student_id" });
   assert.equal(requestCount, 0);
   assert.equal(sentNotifications.length, 0);
 
   const requests = [];
   global.fetch = async (url, options) => {
     requests.push({ url: String(url), options });
-    if (String(url).includes("student_push_subscriptions?student_id=eq.21001")) {
+    if (String(url).includes("student_push_subscriptions?student_id=eq.21002")) {
       return jsonResponse([
         {
           id: "enabled-subscription",
-          student_id: "21001",
+          student_id: "21002",
           device_token_hash: "active-device",
           endpoint: "https://push.example.com/active",
           p256dh: "p".repeat(24),
@@ -68,7 +64,7 @@ function jsonResponse(payload, status = 200) {
         },
         {
           id: "other-student-subscription",
-          student_id: "21002",
+          student_id: "21001",
           device_token_hash: "active-device",
           endpoint: "https://push.example.com/other-student",
           p256dh: "p".repeat(24),
@@ -78,7 +74,7 @@ function jsonResponse(payload, status = 200) {
         },
         {
           id: "disabled-preference",
-          student_id: "21001",
+          student_id: "21002",
           device_token_hash: "active-device",
           endpoint: "https://push.example.com/disabled-preference",
           p256dh: "p".repeat(24),
@@ -88,14 +84,14 @@ function jsonResponse(payload, status = 200) {
         },
       ]);
     }
-    if (String(url).includes("student_devices?student_id=eq.21001")) {
-      return jsonResponse([{ student_id: "21001", device_token_hash: "active-device" }]);
+    if (String(url).includes("student_devices?student_id=eq.21002")) {
+      return jsonResponse([{ student_id: "21002", device_token_hash: "active-device" }]);
     }
     throw new Error(`unexpected request: ${options.method} ${url}`);
   };
 
   const delivered = await sendStudyCafeIdleReleasePush({
-    studentId: "21001",
+    studentId: "21002",
     seatNumber: 3,
     releasedAt: "2026-09-09T06:15:00.000Z",
   });

@@ -1,13 +1,10 @@
 const webPush = require("web-push");
 
-const STUDY_CAFE_IDLE_PUSH_STUDENT_ID = "21001";
 const SUBSCRIPTIONS_TABLE = "student_push_subscriptions";
 
 async function sendStudyCafeIdleReleasePush({ studentId, releasedAt } = {}) {
   const normalizedStudentId = String(studentId || "").trim();
-  if (normalizedStudentId !== STUDY_CAFE_IDLE_PUSH_STUDENT_ID) {
-    return { sentCount: 0, skipped: "student_not_allowed" };
-  }
+  if (!normalizedStudentId) return { sentCount: 0, skipped: "missing_student_id" };
   if (!isPushConfigured()) {
     return { sentCount: 0, skipped: "push_not_configured" };
   }
@@ -16,11 +13,11 @@ async function sendStudyCafeIdleReleasePush({ studentId, releasedAt } = {}) {
     const [subscriptions, activeDevices] = await Promise.all([
       requestSupabase(
         "GET",
-        `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(STUDY_CAFE_IDLE_PUSH_STUDENT_ID)}&select=id,student_id,device_token_hash,endpoint,p256dh,auth,enabled,notification_preferences`
+        `${SUBSCRIPTIONS_TABLE}?student_id=eq.${encodeURIComponent(normalizedStudentId)}&select=id,student_id,device_token_hash,endpoint,p256dh,auth,enabled,notification_preferences`
       ),
       requestSupabase(
         "GET",
-        `student_devices?student_id=eq.${encodeURIComponent(STUDY_CAFE_IDLE_PUSH_STUDENT_ID)}&revoked_at=is.null&select=student_id,device_token_hash`
+        `student_devices?student_id=eq.${encodeURIComponent(normalizedStudentId)}&revoked_at=is.null&select=student_id,device_token_hash`
       ),
     ]);
     const activeDeviceHashes = new Set(
@@ -29,7 +26,7 @@ async function sendStudyCafeIdleReleasePush({ studentId, releasedAt } = {}) {
     const subscriptionsByEndpoint = new Map();
     (Array.isArray(subscriptions) ? subscriptions : []).forEach((subscription) => {
       if (
-        subscription.student_id === STUDY_CAFE_IDLE_PUSH_STUDENT_ID
+        subscription.student_id === normalizedStudentId
         && subscription.enabled !== false
         && subscription.notification_preferences?.study_cafe !== false
         && activeDeviceHashes.has(subscription.device_token_hash)
@@ -46,12 +43,13 @@ async function sendStudyCafeIdleReleasePush({ studentId, releasedAt } = {}) {
     }
 
     configureWebPush();
+    const notificationTargetKey = normalizedStudentId.replace(/[^0-9A-Za-z_-]/g, "").slice(0, 64);
     const releaseKey = String(releasedAt || new Date().toISOString()).replace(/[^0-9A-Za-z]/g, "").slice(0, 32);
     const payload = JSON.stringify({
       title: "좌석이 자동으로 비워졌습니다",
       body: "타이머가 15분 동안 정지되어 좌석 이용이 종료되었습니다.",
       url: "/#study-cafe",
-      tag: `study-cafe-idle-release-${STUDY_CAFE_IDLE_PUSH_STUDENT_ID}-${releaseKey}`,
+      tag: `study-cafe-idle-release-${notificationTargetKey}-${releaseKey}`,
     });
     const results = await Promise.all(
       deliverySubscriptions.map((subscription) => sendOneNotification(subscription, payload))
@@ -117,6 +115,5 @@ async function requestSupabase(method, path) {
 }
 
 module.exports = {
-  STUDY_CAFE_IDLE_PUSH_STUDENT_ID,
   sendStudyCafeIdleReleasePush,
 };

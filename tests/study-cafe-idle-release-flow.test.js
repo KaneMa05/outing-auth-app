@@ -7,7 +7,6 @@ require.cache[pushModulePath] = {
   filename: pushModulePath,
   loaded: true,
   exports: {
-    STUDY_CAFE_IDLE_PUSH_STUDENT_ID: "21001",
     sendStudyCafeIdleReleasePush: async (payload) => {
       pushCalls.push(payload);
       return { sentCount: 1 };
@@ -73,10 +72,11 @@ async function invoke(studentId) {
     if (value.includes("study_cafe_sessions?") && value.includes("status=in.(running,paused)")) {
       return jsonResponse([]);
     }
-    if (value.includes("study_cafe_presence?student_id=eq.21001") && options.method === "GET") {
+    if (value.includes("study_cafe_presence?student_id=eq.") && options.method === "GET") {
+      const studentId = value.includes("student_id=eq.21001") ? "21001" : "21002";
       return jsonResponse([{
-        student_id: "21001",
-        seat_number: 3,
+        student_id: studentId,
+        seat_number: studentId === "21001" ? 3 : 4,
         status: "paused",
         updated_at: "2026-09-09T06:15:00.000Z",
       }]);
@@ -87,9 +87,9 @@ async function invoke(studentId) {
       return jsonResponse([{ student_id: "21001", seat_number: 3 }]);
     }
     if (value.includes("study_cafe_presence?student_id=eq.21002") && options.method === "DELETE") {
-      assert.doesNotMatch(value, /updated_at=eq\./);
-      assert.equal(options.headers.Prefer, undefined);
-      return jsonResponse(null, 204);
+      assert.match(value, /updated_at=eq\./);
+      assert.equal(options.headers.Prefer, "return=representation");
+      return jsonResponse([{ student_id: "21002", seat_number: 4 }]);
     }
     if (value.includes("/realtime/v1/api/broadcast/")) return jsonResponse({});
     throw new Error(`unexpected request: ${options.method} ${value}`);
@@ -108,11 +108,15 @@ async function invoke(studentId) {
   const otherResponse = await invoke("21002");
   assert.equal(otherResponse.statusCode, 200);
   assert.equal(otherResponse.payload.ok, true);
-  assert.equal(pushCalls.length, 1);
+  assert.deepEqual(pushCalls[1], {
+    studentId: "21002",
+    seatNumber: 4,
+    releasedAt: "2026-09-09T06:15:00.000Z",
+  });
   const otherRequests = requests.slice(nonTargetRequestStart);
   assert.equal(
     otherRequests.some((request) => request.url.includes("study_cafe_presence?student_id=eq.21002") && request.options.method === "GET"),
-    false
+    true
   );
 
   console.log("study cafe idle release flow tests passed");
