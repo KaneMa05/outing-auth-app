@@ -26,7 +26,7 @@ function renderStudentFeedbackHub() {
   const page = el("div", { className: "feedback-hub-page" }, [
     button("‹ 스터디카페", "feedback-hub-back", "button", () => navigate("study-cafe")),
     el("h2", {}, "의견 나누기"),
-    el("p", { className: "feedback-hub-lead" }, "새 기능에 대한 생각이나 새로운 아이디어를 들려주세요."),
+    el("p", { className: "feedback-hub-lead" }, "앱을 사용하며 느낀 점이나 새로운 아이디어를 들려주세요."),
   ]);
   const hub = createFeedbackHub(false);
   page.appendChild(hub.element);
@@ -49,13 +49,13 @@ function createFeedbackHub(admin) {
   const element = el("section", { className: "feedback-hub" }, [tabs, content]);
   const current = (ticket) => element.isConnected && revision === ticket && (admin
     ? isTeacherAdmin() && teacherAuth.user?.username === actor : getAuthedStudent()?.id === actor);
-  const previewTab = button(admin ? "새 기능 관리" : "새 기능 미리보기", "", "button", () => select("features"));
+  const previewTab = admin ? button("새 기능 관리", "", "button", () => select("features")) : null;
   const freeTab = button("자유 건의", "", "button", () => select("free"));
-  tabs.append(previewTab, freeTab);
+  tabs.append(...(previewTab ? [previewTab, freeTab] : [freeTab]));
 
   function select(tab) {
     revision++;
-    previewTab.setAttribute("aria-pressed", String(tab === "features"));
+    previewTab?.setAttribute("aria-pressed", String(tab === "features"));
     freeTab.setAttribute("aria-pressed", String(tab === "free"));
     content.replaceChildren();
     if (tab === "free") mountBoard("", content);
@@ -202,5 +202,5 @@ function createFeedbackHub(admin) {
       finally { setBusy(false); }
     });
   }
-  return { element, start: () => select("features") };
+  return { element, start: () => select(admin ? "features" : "free") };
 }

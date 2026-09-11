@@ -13239,10 +13239,19 @@ body.student-online-mode:has(.student-study-character-page) .student-footer-menu
   box-shadow: inset 0 0 0 3px #6ca6a3, 0 5px 14px rgba(43, 93, 99, 0.14);
 }
 
+.study-cafe-room[data-study-cafe-room="true"] .study-cafe-seat.mine {
+  box-shadow: inset 0 0 0 3px #499c99, 0 4px 12px rgba(43, 93, 99, 0.12);
+}
+
 .study-cafe-room .study-cafe-seat.mine .study-cafe-seat-number,
 .study-cafe-room .study-cafe-seat.mine .study-cafe-seat-name,
 .study-cafe-room .study-cafe-seat.mine .study-cafe-member-time {
   background: var(--room-button);
+}
+
+.study-cafe-room[data-study-cafe-room="true"] .study-cafe-seat.mine .study-cafe-member-time {
+  background: #e7f3f2;
+  color: #174d50;
 }
 
 .study-cafe-room .study-cafe-seat.empty {
@@ -13860,10 +13869,12 @@ body.student-online-mode:has(.student-study-character-page) .student-footer-menu
 }
 
 .study-cafe-ranking-button-icon {
+  flex: 0 0 20px;
   width: 20px;
   height: 20px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
   background: #f3dca5;
   color: #a86b12;

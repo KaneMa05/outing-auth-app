@@ -28,7 +28,7 @@ assert.doesNotMatch(
 assert.match(indexSource, /shared\.js\?v=20260911-study-cafe-visibility/);
 assert.match(indexSource, /student\.js\?v=20260911-attendance-settings/);
 assert.match(teacherSource, /shared\.js\?v=20260911-study-cafe-visibility/);
-assert.match(serviceWorkerSource, /outing-auth-app-v425-release-review/);
+assert.match(serviceWorkerSource, /outing-auth-app-v430-my-seat-time-contrast/);
 assert.match(serviceWorkerSource, /\/fonts\/GongGothicLight\.woff/);
 assert.match(serviceWorkerSource, /\/coast-guard-eagle-emblem\.svg/);
 assert.match(serviceWorkerSource, /\/study-shop\.js/);

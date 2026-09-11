@@ -7,7 +7,7 @@ const source = fs.readFileSync("feedback-hub.js", "utf8");
 async function flush() { for (let i = 0; i < 40; i++) await Promise.resolve(); }
 function harness(admin = false) {
   const nodes = [], requests = [], boards = [];
-  const state = { id: "student-a", request: async () => ({ ok: true, items: [], nextOffset: null }) };
+  const state = { id: "student-a", adminName: "admin", request: async () => ({ ok: true, items: [], nextOffset: null }) };
   function el(tag, props = {}, children = []) {
     const node = { tag, ...props, children: Array.isArray(children) ? children.filter(Boolean) : [children], events: {}, isConnected: true,
       append(...items) { this.children.push(...items); }, appendChild(item) { this.children.push(item); },
@@ -17,7 +17,7 @@ function harness(admin = false) {
     nodes.push(node); return node;
   }
   const context = vm.createContext({ el, crypto, queueMicrotask, AbortSignal,
-    teacherAuth: { user: { username: "admin" } }, isTeacherAdmin: () => admin,
+    teacherAuth: { get user() { return { username: state.adminName }; } }, isTeacherAdmin: () => admin,
     getAuthedStudent: () => ({ id: state.id }),
     button: (label, className, type, onclick) => el("button", { className, type, onclick }, label),
     openStudyCafeNoticeModal: (options) => boards.push(options),
@@ -35,35 +35,36 @@ function harness(admin = false) {
 }
 const feature = { id: crypto.randomUUID(), title: "새 기능", description: "기능 설명", question: "의견을 알려주세요.", isPublished: true, images: [{ path: "photo.jpg", url: "https://example.com/photo.jpg" }] };
 
-test("announcement opens the selected preview with expandable photo and its own board; free suggestions stay separate", async () => {
+test("student hub shows only free suggestions and does not request or open feature previews", async () => {
   const h = harness();
   h.state.request = async (action) => action === "feature_list" ? { ok: true, items: [feature], activeId: feature.id } : { ok: true, feature };
   h.start(); await flush();
-  assert.equal(h.boards[0].featureId, feature.id);
-  h.nodes.find((n) => n.ariaLabel === "소개 사진 1 확대").onclick();
-  assert.equal(h.state.photo.photoUrl, feature.images[0].url);
+  assert.equal(h.node("feedback-hub-tabs").children.length, 1);
+  assert.equal(h.button("새 기능 미리보기"), undefined);
+  assert.equal(h.button("새 기능 관리"), undefined);
+  assert.equal(h.button("자유 건의")["aria-pressed"], "true");
+  assert.equal(h.boards[0].featureId, "");
+  assert.equal(h.requests.length, 0);
   h.button("자유 건의").onclick();
   assert.equal(h.boards.at(-1).featureId, "");
-  h.button("새 기능 미리보기").onclick(); await flush();
-  assert.equal(h.boards.at(-1).featureId, feature.id);
 });
 
-test("late feature responses cannot replace a switched tab or another student's screen", async () => {
-  const h = harness(); let resolve;
+test("late admin feature responses cannot replace a switched tab or another administrator's screen", async () => {
+  const h = harness(true); let resolve;
   h.state.request = () => new Promise((done) => { resolve = done; });
-  h.start(); h.button("자유 건의").onclick();
+  h.start(); await flush(); h.button("자유 건의").onclick();
   resolve({ ok: true, items: [feature], activeId: feature.id }); await flush();
   assert.equal(h.requests.length, 1);
   assert.equal(h.boards.length, 1);
-  h.button("새 기능 미리보기").onclick();
-  h.state.id = "student-b";
+  h.button("새 기능 관리").onclick(); await flush();
+  h.state.adminName = "another-admin";
   resolve({ ok: true, items: [feature], activeId: feature.id }); await flush();
   assert.equal(h.requests.length, 2);
   assert.equal(h.boards.length, 1);
 });
 
-test("failed feature list can retry and still leaves free suggestions accessible", async () => {
-  const h = harness(); h.state.request = async () => { throw new Error("network"); };
+test("failed admin feature list can retry and still leaves free suggestions accessible", async () => {
+  const h = harness(true); h.state.request = async () => { throw new Error("network"); };
   h.start(); await flush();
   assert.equal(h.button("다시 시도").hidden, false);
   h.state.request = async () => ({ ok: true, items: [feature], nextOffset: null });
