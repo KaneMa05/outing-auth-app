@@ -126,7 +126,7 @@ function createOutForm() {
 function shouldConfirmPreAttendanceOuting(student) {
   return Boolean(
     student &&
-    (!state.settings.attendanceDeadlineEnabled || isAttendanceCheckOpen()) &&
+    isAttendanceCheckOpen() &&
     !isAttendanceHoliday() &&
     !getStudentAttendanceForDate(student.id)
   );
@@ -785,10 +785,10 @@ function createAttendanceForm(student, options = {}) {
       el(
         "p",
         { className: "subtle attendance-deadline-note" },
-        state.settings.attendanceDeadlineEnabled
+        isAttendanceDeadlineEnabled()
           ? isOpen
-            ? `출석 인정은 오전 ${formatAttendanceDeadline()}까지입니다.`
-            : `오전 ${formatAttendanceDeadline()} 이후에는 인증이 불가합니다.`
+            ? `출석 인정은 ${formatAttendanceDeadline()}까지입니다.`
+            : `${formatAttendanceDeadline()} 이후에는 인증이 불가합니다.`
           : "테스트 중에는 출석 인증 시간 제한이 꺼져 있습니다."
       ),
     ]),
@@ -853,10 +853,10 @@ function createPreArrivalReasonForm(student) {
       el(
         "p",
         { className: "subtle attendance-deadline-note" },
-        state.settings.attendanceDeadlineEnabled
+        isAttendanceDeadlineEnabled()
           ? isOpen
-            ? `등원 전 사유신청은 오전 ${formatAttendanceDeadline()}까지입니다.`
-            : `오전 ${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`
+            ? `등원 전 사유신청은 ${formatAttendanceDeadline()}까지입니다.`
+            : `${formatAttendanceDeadline()} 이후에는 등원 전 사유신청을 할 수 없습니다.`
           : "테스트 중에는 등원 전 사유신청 시간 제한이 꺼져 있습니다."
       ),
     ]),

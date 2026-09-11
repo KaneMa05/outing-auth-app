@@ -77,6 +77,7 @@ const chunkArray = (items, size) => {
 };
 let isRemoteLoading = false;
 let isRemoteSaving = false;
+let attendanceHolidayRevision = 0;
 let remoteSaveTimer = null;
 let localDevSaveTimer = null;
 let hasPendingRemoteSave = false;
@@ -537,6 +538,7 @@ function defaultState() {
       completionType: "",
       attendanceDeadline: DEFAULT_ATTENDANCE_DEADLINE,
       attendanceDeadlineEnabled: false,
+      attendanceDateDeadlines: {},
       onlineManagedStudyCafeEnabled: false,
       curriculumQuestEnabled: false,
       phoneVerificationEnabled: false,
@@ -574,6 +576,7 @@ function mergeDefaultState(nextState) {
   };
   settings.trackOptions = normalizeTrackOptionList(settings.trackOptions);
   settings.attendanceHolidayOverrides = normalizeDateKeyList(settings.attendanceHolidayOverrides);
+  settings.attendanceDateDeadlines = normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines);
   return {
     ...defaults,
     ...nextState,
@@ -2111,6 +2114,7 @@ async function loadStudentGradesRefreshSnapshot(scopedStudentId) {
 }
 
 async function loadStateFromRemote(options = {}) {
+  const holidayRevisionAtLoad = attendanceHolidayRevision;
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const shouldLoadExamData = APP_MODE !== "student" || options.forceExamData || !studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
   const skippedRemoteResult = () => Promise.resolve({ data: null, error: null, skipped: true });
@@ -2252,7 +2256,7 @@ async function loadStateFromRemote(options = {}) {
     penaltyRequest,
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
     trackOptionRequest,
-    remoteStore.from("attendance_holidays").select(attendanceHolidayColumns).order("date_key", { ascending: false }).limit(120),
+    loadAttendanceHolidaysFromRemote(attendanceHolidayColumns),
     examRequest,
     examSectionRequest,
     examAnswerRequest,
@@ -2498,7 +2502,7 @@ async function loadStateFromRemote(options = {}) {
   if (createLocalDevStoreUrl() || !loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
   await migrateLocalSeatAssignmentsToRemoteIfNeeded(localSeatAssignments);
   state.notices = removeLegacySampleNotices(state.notices);
-  if (!attendanceHolidayResult.error) state.attendanceHolidays = normalizeAttendanceHolidays((attendanceHolidayResult.data || []).map(mapAttendanceHolidayFromRemote));
+  if (!attendanceHolidayResult.error) applyRemoteAttendanceHolidays(attendanceHolidayResult.data, holidayRevisionAtLoad);
   if (!examResult.error && !examResult.skipped) state.exams = (examResult.data || []).map(mapExamFromRemote);
   if (!examSectionResult.error && !examSectionResult.skipped) state.examSections = (examSectionResult.data || []).map(mapExamSectionFromRemote);
   if (!examAnswerResult.error && !examAnswerResult.skipped) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
@@ -2653,7 +2657,8 @@ async function saveStateToRemote() {
       if (error && !isMissingRelationError(error, "notices")) throw error;
     }
 
-    await saveAttendanceHolidaysToRemote();
+    // Holidays are saved explicitly by the attendance settings UI. Replaying a
+    // browser snapshot here could restore an override another administrator removed.
     await saveFinalExamScoresToRemote();
   }
 
@@ -4349,15 +4354,15 @@ function applyRemoteAppSettingsFromNotices(notices) {
   }
 }
 
-async function saveAppSettingsToRemote() {
-  const settings = {
+async function saveAppSettingsToRemote(patch = null) {
+  const settings = patch || {
     attendanceDeadline: normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
     attendanceDeadlineEnabled: state.settings.attendanceDeadlineEnabled === true,
   };
-  if (APP_MODE === "teacher" && hasTeacherPermission("students.read")) {
+  if (!patch && APP_MODE === "teacher" && hasTeacherPermission("students.read")) {
     settings.onlineManagedStudyCafeEnabled = state.settings.onlineManagedStudyCafeEnabled === true;
   }
-  if (APP_MODE === "teacher" && isTeacherAdmin()) {
+  if (!patch && APP_MODE === "teacher" && isTeacherAdmin()) {
     settings.phoneVerificationEnabled = state.settings.phoneVerificationEnabled === true;
   }
   const response = await fetch("/api/app-settings", {
@@ -4428,6 +4433,7 @@ function applyRemoteAppSettings(settings) {
   if (!settings) return;
   state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
+  state.settings.attendanceDateDeadlines = normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines);
   state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
   state.settings.curriculumQuestEnabled = settings.curriculumQuestEnabled === true;
   state.settings.phoneVerificationEnabled = settings.phoneVerificationEnabled === true;
@@ -4654,12 +4660,13 @@ async function setAttendanceHolidayOverride(dateKey, overridden) {
   const overrides = new Set(normalizeDateKeyList(state.settings.attendanceHolidayOverrides));
   if (overridden) overrides.add(dateKey);
   else overrides.delete(dateKey);
-  state.settings.attendanceHolidayOverrides = normalizeDateKeyList([...overrides]);
   if (overridden) {
     await setAttendanceHoliday(dateKey, ATTENDANCE_OPEN_OVERRIDE_NOTE);
   } else {
     await deleteAttendanceHoliday(dateKey);
   }
+  state.settings.attendanceHolidayOverrides = normalizeDateKeyList([...overrides]);
+  saveState({ skipRemote: true });
 }
 
 function getKoreaPublicHolidayName(dateKey) {
@@ -4695,15 +4702,40 @@ async function setAttendanceHoliday(dateKey, note = "") {
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
-  state.attendanceHolidays = normalizeAttendanceHolidays([holiday, ...(state.attendanceHolidays || [])]);
-  saveState({ skipRemote: true });
   await saveAttendanceHolidayToRemote(holiday);
+  attendanceHolidayRevision += 1;
+  state.attendanceHolidays = normalizeAttendanceHolidays([
+    ...(state.attendanceHolidays || []).filter((item) => item.dateKey !== dateKey),
+    holiday,
+  ]);
+  saveState({ skipRemote: true });
 }
 
 async function deleteAttendanceHoliday(dateKey) {
+  await deleteAttendanceHolidayFromRemote(dateKey);
+  attendanceHolidayRevision += 1;
   state.attendanceHolidays = (state.attendanceHolidays || []).filter((holiday) => holiday.dateKey !== dateKey);
   saveState({ skipRemote: true });
-  await deleteAttendanceHolidayFromRemote(dateKey);
+}
+
+async function loadAttendanceHolidaysFromRemote(columns) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const result = await remoteStore.from("attendance_holidays").select(columns)
+      .order("date_key", { ascending: false }).range(from, from + 999);
+    if (result.error) return result;
+    rows.push(...(result.data || []));
+    if ((result.data || []).length < 1000) return { data: rows, error: null };
+  }
+}
+
+function applyRemoteAttendanceHolidays(rows, revision = attendanceHolidayRevision) {
+  if (revision !== attendanceHolidayRevision) return;
+  state.attendanceHolidays = normalizeAttendanceHolidays(rows);
+  // The server rows are authoritative, including removal of an open-day override.
+  state.settings.attendanceHolidayOverrides = state.attendanceHolidays
+    .filter((holiday) => holiday.note === ATTENDANCE_OPEN_OVERRIDE_NOTE)
+    .map((holiday) => holiday.dateKey);
 }
 
 async function saveStudentRegistrationEventsToRemote() {
@@ -4727,23 +4759,6 @@ async function saveStudentRegistrationEventsToRemote() {
   if (error && !isMissingRelationError(error, "student_registration_events")) throw error;
 }
 
-async function saveAttendanceHolidaysToRemote() {
-  if (!remoteStore) return;
-  const rows = normalizeAttendanceHolidays(state.attendanceHolidays).map((holiday) => ({
-    date_key: holiday.dateKey,
-    note: holiday.note || null,
-    created_at: holiday.createdAt || new Date().toISOString(),
-    updated_at: holiday.updatedAt || new Date().toISOString(),
-  }));
-  if (!rows.length) return;
-  if (APP_MODE === "teacher") {
-    await saveAttendanceHolidayRowsToTeacherApi(rows);
-    return;
-  }
-  const { error } = await remoteStore.from("attendance_holidays").upsert(rows, { onConflict: "date_key" });
-  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
-}
-
 async function saveAttendanceHolidayToRemote(holiday) {
   if (!holiday) return;
   const row = {
@@ -4758,7 +4773,7 @@ async function saveAttendanceHolidayToRemote(holiday) {
   }
   if (!remoteStore) return;
   const { error } = await remoteStore.from("attendance_holidays").upsert(row, { onConflict: "date_key" });
-  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+  if (error) throw error;
 }
 
 async function deleteAttendanceHolidayFromRemote(dateKey) {
@@ -4768,7 +4783,7 @@ async function deleteAttendanceHolidayFromRemote(dateKey) {
   }
   if (!remoteStore) return;
   const { error } = await remoteStore.from("attendance_holidays").delete().eq("date_key", dateKey);
-  if (error && !isMissingRelationError(error, "attendance_holidays")) throw error;
+  if (error) throw error;
 }
 
 async function saveAttendanceHolidayRowsToTeacherApi(rows) {
@@ -4778,7 +4793,8 @@ async function saveAttendanceHolidayRowsToTeacherApi(rows) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ holidays: rows }),
   });
-  if (!response.ok) throw new Error(`attendance_holidays_api_${response.status}`);
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.ok) throw new Error(data?.error || `attendance_holidays_api_${response.status}`);
 }
 
 async function deleteAttendanceHolidayFromTeacherApi(dateKey) {
@@ -4788,7 +4804,8 @@ async function deleteAttendanceHolidayFromTeacherApi(dateKey) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dateKey }),
   });
-  if (!response.ok) throw new Error(`attendance_holidays_api_${response.status}`);
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.ok) throw new Error(data?.error || `attendance_holidays_api_${response.status}`);
 }
 
 async function saveFinalExamScoresToRemote() {
@@ -4891,21 +4908,23 @@ async function deleteFitnessScoreFromRemote(record) {
 }
 
 function isAttendanceCheckOpen(now = new Date()) {
-  if (isAttendanceHoliday(getTodayDateKey())) return false;
-  if (!state.settings.attendanceDeadlineEnabled) return true;
-  const [hour, minute] = getAttendanceDeadlineParts();
+  const dateKey = getDateInputValue(now);
+  if (isAttendanceHoliday(dateKey)) return false;
+  if (!isAttendanceDeadlineEnabled(dateKey)) return true;
+  const [hour, minute] = getAttendanceDeadlineParts(dateKey);
   const deadline = new Date(now);
   deadline.setHours(hour, minute, 0, 0);
   return now <= deadline;
 }
 
-function formatAttendanceDeadline() {
-  const [hour, minute] = getAttendanceDeadlineParts();
+function formatAttendanceDeadline(dateKey = getTodayDateKey()) {
+  const [hour, minute] = getAttendanceDeadlineParts(dateKey);
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function getAttendanceDeadlineParts() {
-  const value = normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline);
+function getAttendanceDeadlineParts(dateKey = getTodayDateKey()) {
+  const value = normalizeAttendanceDateDeadlines(state.settings.attendanceDateDeadlines)[dateKey]
+    || normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline);
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
   if (!match) return [8, 50];
   return [Number(match[1]), Number(match[2])];
@@ -4926,6 +4945,18 @@ function setAttendanceDeadline(value, enabled, options = {}) {
 function getAttendancePhotoSrc(check) {
   if (isTeacherReasonAttendanceCheck(check)) return "";
   return check?._localPhotoUrl || check?.photoUrl || check?.photoDataUrl || getAttendancePublicPhotoUrl(check?.photoPath) || "";
+}
+
+function normalizeAttendanceDateDeadlines(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([dateKey, time]) =>
+    isValidDateKey(dateKey) && typeof time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+  ));
+}
+
+function isAttendanceDeadlineEnabled(dateKey = getTodayDateKey()) {
+  return Boolean(normalizeAttendanceDateDeadlines(state.settings.attendanceDateDeadlines)[dateKey])
+    || state.settings.attendanceDeadlineEnabled === true;
 }
 
 function isTeacherReasonAttendanceCheck(check) {

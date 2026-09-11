@@ -3,6 +3,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { handleLocalQuestionBoard } = require("./local-question-board");
+const { isValidDateKey: isValidAttendanceDateKey, isValidAttendanceTime, normalizeAttendanceDateDeadlines } = require("./api/app-settings")._private;
 const {
   createPhoneVerificationToken,
   isValidPhone,
@@ -84,6 +85,10 @@ http
     }
     if (url.pathname === "/api/app-settings") {
       await handleLocalAppSettings(req, res);
+      return;
+    }
+    if (url.pathname === "/api/attendance-holidays") {
+      await handleLocalAttendanceHolidays(req, res);
       return;
     }
     if (url.pathname === "/api/lecture-applications") {
@@ -579,6 +584,16 @@ async function handleLocalAppSettings(req, res) {
     if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
     const body = await readLocalJson(req);
     const rawSettings = body.settings || body;
+    const dateOverride = rawSettings.attendanceDateOverride;
+    const writesDateOverride = Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateOverride");
+    if (writesDateOverride && !hasPermission(session, "attendance.write")) {
+      return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+    }
+    if (Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateDeadlines") ||
+      (writesDateOverride && (!isValidAttendanceDateKey(dateOverride?.dateKey) ||
+      (dateOverride.deadline !== null && !isValidAttendanceTime(dateOverride.deadline))))) {
+      return sendLocalJson(res, 400, { ok: false, error: "invalid_attendance_date_override" });
+    }
     if (Object.prototype.hasOwnProperty.call(rawSettings || {}, "phoneVerificationEnabled") && session.role !== "admin") {
       return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
     }
@@ -590,6 +605,12 @@ async function handleLocalAppSettings(req, res) {
         ? rawSettings.curriculumQuestEnabled === true
         : currentSettings.curriculumQuestEnabled === true,
     };
+    settings.attendanceDateDeadlines = normalizeAttendanceDateDeadlines(currentSettings.attendanceDateDeadlines);
+    if (writesDateOverride) {
+      if (dateOverride.deadline === null) delete settings.attendanceDateDeadlines[dateOverride.dateKey];
+      else settings.attendanceDateDeadlines[dateOverride.dateKey] = dateOverride.deadline;
+    }
+    delete settings.attendanceDateOverride;
     fs.writeFileSync(LOCAL_APP_SETTINGS_FILE, JSON.stringify(settings, null, 2));
     return sendLocalJson(res, 200, { ok: true, settings, localPreview: true });
   }
@@ -597,10 +618,40 @@ async function handleLocalAppSettings(req, res) {
   return sendLocalJson(res, 405, { ok: false, error: "method_not_allowed" });
 }
 
+async function handleLocalAttendanceHolidays(req, res) {
+  const session = readLocalTeacherSession(req);
+  if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+  if (session.role !== "admin") return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+  if (!["POST", "DELETE"].includes(req.method)) return sendLocalJson(res, 405, { ok: false });
+  const body = await readLocalJson(req);
+  const snapshot = fs.existsSync(LOCAL_STATE_FILE) ? JSON.parse(fs.readFileSync(LOCAL_STATE_FILE, "utf8")) : {};
+  const holidays = new Map((snapshot.attendanceHolidays || []).map((holiday) => [holiday.dateKey, holiday]));
+  if (req.method === "DELETE") {
+    const dateKey = body.dateKey || body.date_key;
+    if (!isValidAttendanceDateKey(dateKey)) return sendLocalJson(res, 400, { ok: false, error: "invalid_date_key" });
+    holidays.delete(dateKey);
+  } else {
+    const rows = Array.isArray(body.holidays) ? body.holidays : body.holiday ? [body.holiday] : [];
+    if (!rows.length || rows.some((row) => !isValidAttendanceDateKey(row?.date_key || row?.dateKey))) {
+      return sendLocalJson(res, 400, { ok: false, error: "invalid_holidays" });
+    }
+    for (const row of rows) {
+      const dateKey = row.date_key || row.dateKey;
+      const now = new Date().toISOString();
+      holidays.set(dateKey, { dateKey, note: row.note || "", createdAt: row.created_at || row.createdAt || now, updatedAt: row.updated_at || row.updatedAt || now });
+    }
+  }
+  snapshot.attendanceHolidays = [...holidays.values()];
+  snapshot.settings = { ...snapshot.settings, attendanceHolidayOverrides: snapshot.attendanceHolidays.filter((row) => row.note === "__open_attendance_day__").map((row) => row.dateKey) };
+  fs.writeFileSync(LOCAL_STATE_FILE, JSON.stringify(snapshot, null, 2));
+  return sendLocalJson(res, 200, { ok: true, localPreview: true });
+}
+
 function readLocalAppSettings() {
   const defaults = {
     attendanceDeadline: "08:50",
     attendanceDeadlineEnabled: false,
+    attendanceDateDeadlines: {},
     onlineManagedStudyCafeEnabled: false,
     curriculumQuestEnabled: false,
     phoneVerificationEnabled: false,

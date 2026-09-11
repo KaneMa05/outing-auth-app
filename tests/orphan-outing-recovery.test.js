@@ -25,10 +25,10 @@ assert.doesNotMatch(
   /mergedOutings\.push|drafts\.forEach/,
   "an outing missing from the server must not be restored from a local photo draft"
 );
-assert.match(indexSource, /shared\.js\?v=20260819-teacher-reason-photo/);
-assert.match(indexSource, /student\.js\?v=20260819-attendance-photo-feedback/);
-assert.match(teacherSource, /shared\.js\?v=20260908-study-cafe-history-route/);
-assert.match(serviceWorkerSource, /outing-auth-app-v394-idle-seat-push-test/);
+assert.match(indexSource, /shared\.js\?v=20260911-attendance-settings/);
+assert.match(indexSource, /student\.js\?v=20260911-attendance-settings/);
+assert.match(teacherSource, /shared\.js\?v=20260911-attendance-settings/);
+assert.match(serviceWorkerSource, /outing-auth-app-v395-attendance-settings/);
 assert.match(serviceWorkerSource, /\/fonts\/GongGothicLight\.woff/);
 assert.match(serviceWorkerSource, /\/coast-guard-eagle-emblem\.svg/);
 assert.match(serviceWorkerSource, /\/study-shop\.js/);

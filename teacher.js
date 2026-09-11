@@ -73,7 +73,7 @@ let weeklyExamSelectedCohort = DEFAULT_STUDENT_COHORT;
 let weeklyExamGradeFilters = { examId: "", track: "", subject: "", weekNumber: "" };
 let weeklyExamAutoCreatingCohorts = new Set();
 let attendanceHolidayCalendarMonth = "";
-let attendanceHolidayDraftOverrides = null;
+let attendanceHolidayDraftMonths = new Map();
 let attendanceHolidaySavedMessage = "";
 let selectedAttendanceDateKey = "";
 const WEEKLY_EXAM_TRACK_ALL = "전체";
@@ -1736,6 +1736,7 @@ function openAttendanceDeadlineModal() {
     el("div", { className: "info-modal-panel attendance-settings-modal" }, [
       el("strong", {}, "출석 시간 설정"),
       attendanceDeadlineForm({ modal: true }),
+      attendanceDateDeadlineForm(),
     ]),
   ]);
   modal.querySelector(".info-modal-backdrop").addEventListener("click", closeInfoModal);
@@ -1743,11 +1744,12 @@ function openAttendanceDeadlineModal() {
   document.addEventListener("keydown", closeInfoModalOnEscape);
 }
 
-function openAttendanceHolidayModal() {
+function openAttendanceHolidayModal(options = {}) {
   if (!isTeacherAdmin()) {
     notify("출석 휴일 설정 권한이 없습니다.");
     return;
   }
+  if (!options.preserveDraft) attendanceHolidayDraftMonths = new Map();
   closeInfoModal();
   const modal = el("div", { className: "info-modal", role: "dialog", ariaModal: "true" }, [
     el("button", { className: "info-modal-backdrop", type: "button", ariaLabel: "출석 휴일 설정 닫기" }),
@@ -1788,7 +1790,7 @@ function attendanceHolidayCalendarForm() {
       saveButton,
       button("취소", "btn secondary", "button", closeInfoModal),
     ]),
-    el("p", { className: "subtle attendance-deadline-note" }, "평일은 체크하면 휴일, 자동 휴일은 체크하면 출석일로 저장됩니다."),
+    el("p", { className: "subtle attendance-deadline-note" }, "체크된 날짜는 휴일입니다. 주말·공휴일의 체크를 해제하면 출석일이 됩니다. 다른 달에서 변경한 내용도 저장 버튼을 눌러야 반영됩니다."),
   ]);
 
   form.addEventListener("submit", async (event) => {
@@ -1803,18 +1805,25 @@ function attendanceHolidayCalendarForm() {
     saveButton.disabled = true;
     saveButton.textContent = "저장 중...";
     try {
-      await saveAttendanceHolidayMonth(monthKey, checkedDates, checkedDefaultHolidayDates);
+      const draft = getAttendanceHolidayMonthDraft(monthKey);
+      draft.checkedDates = new Set(checkedDates);
+      draft.checkedDefaultHolidayDates = new Set(checkedDefaultHolidayDates);
+      for (const [draftMonth, monthDraft] of attendanceHolidayDraftMonths) {
+        if (!monthDraft.changedDates.size) continue;
+        await saveAttendanceHolidayMonth(draftMonth, [...monthDraft.checkedDates], [...monthDraft.checkedDefaultHolidayDates], monthDraft.changedDates);
+        monthDraft.changedDates.clear();
+      }
       state.settings.attendanceHolidaySavedAt = new Date().toISOString();
       saveState({ skipRemote: true });
       attendanceHolidaySavedMessage = "저장되었습니다.";
-      attendanceHolidayDraftOverrides = null;
+      attendanceHolidayDraftMonths = new Map();
       render();
       closeInfoModal();
       openAttendanceHolidayModal();
       notify("출석 휴일을 저장했습니다.");
     } catch (error) {
       console.error(error);
-      notify("출석 휴일을 저장하지 못했습니다. Supabase 설정을 확인해주세요.");
+      notify("일부 출석 휴일을 저장하지 못했습니다. 선택은 유지되니 연결을 확인한 뒤 저장을 다시 눌러주세요.");
       saveButton.disabled = false;
       saveButton.textContent = "저장";
     }
@@ -1855,7 +1864,7 @@ function renderAttendanceHolidayCalendar(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
   const firstDay = new Date(year, month - 1, 1);
   const daysInMonth = new Date(year, month, 0).getDate();
-  const customHolidayDates = new Set(getCustomAttendanceHolidays().map((holiday) => holiday.dateKey));
+  const draft = getAttendanceHolidayMonthDraft(monthKey);
   const todayKey = getTodayDateKey();
   const cells = [
     ...["일", "월", "화", "수", "목", "금", "토"].map((day) => el("div", { className: "attendance-calendar-weekday" }, day)),
@@ -1869,13 +1878,13 @@ function renderAttendanceHolidayCalendar(monthKey) {
     const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
     const disabled = dateKey < todayKey;
     const rawDefaultHoliday = getDefaultAttendanceHoliday(dateKey);
-    const isOverridden = isAttendanceHolidayDraftOverridden(dateKey);
+    const isOverridden = Boolean(rawDefaultHoliday) && !draft.checkedDefaultHolidayDates.has(dateKey);
     const defaultHoliday = isOverridden ? null : rawDefaultHoliday;
     const checkbox = el("input", {
       name: rawDefaultHoliday ? "openDefaultHolidayDate" : "holidayDate",
       type: "checkbox",
       value: dateKey,
-      checked: rawDefaultHoliday ? !isOverridden : customHolidayDates.has(dateKey),
+      checked: rawDefaultHoliday ? !isOverridden : draft.checkedDates.has(dateKey),
       disabled,
     });
     const dayCell = el("label", { className: `attendance-calendar-day${disabled ? " disabled" : ""}${defaultHoliday ? " default-holiday" : ""}${isOverridden ? " open-default-holiday" : ""}` }, [
@@ -1883,12 +1892,19 @@ function renderAttendanceHolidayCalendar(monthKey) {
       el("span", {}, String(day)),
       rawDefaultHoliday ? el("small", {}, isOverridden ? "출석일" : rawDefaultHoliday.note || "휴일") : null,
     ]);
-    if (rawDefaultHoliday && !disabled) {
-      dayCell.addEventListener("click", (event) => {
-        event.preventDefault();
-        toggleDefaultHolidayDraftOverride(dateKey);
-      });
-    }
+    checkbox.addEventListener("change", () => {
+      const dates = rawDefaultHoliday ? draft.checkedDefaultHolidayDates : draft.checkedDates;
+      if (checkbox.checked) dates.add(dateKey);
+      else dates.delete(dateKey);
+      draft.changedDates.add(dateKey);
+      attendanceHolidaySavedMessage = "";
+      document.querySelector(".attendance-save-status")?.remove();
+      if (rawDefaultHoliday) {
+        dayCell.classList.toggle("default-holiday", checkbox.checked);
+        dayCell.classList.toggle("open-default-holiday", !checkbox.checked);
+        dayCell.querySelector("small").textContent = checkbox.checked ? rawDefaultHoliday.note || "휴일" : "출석일";
+      }
+    });
     cells.push(dayCell);
   }
 
@@ -1905,7 +1921,7 @@ function moveAttendanceHolidayMonth(offset) {
   const date = new Date(year, month - 1 + offset, 1);
   attendanceHolidayCalendarMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   closeInfoModal();
-  openAttendanceHolidayModal();
+  openAttendanceHolidayModal({ preserveDraft: true });
 }
 
 function formatAttendanceHolidayMonth(monthKey) {
@@ -1913,51 +1929,48 @@ function formatAttendanceHolidayMonth(monthKey) {
   return `${year}년 ${Number(month)}월`;
 }
 
-async function saveAttendanceHolidayMonth(monthKey, checkedDates, checkedDefaultHolidayDates = []) {
+async function saveAttendanceHolidayMonth(monthKey, checkedDates, checkedDefaultHolidayDates = [], changedDates = null) {
   const checkedSet = new Set(checkedDates);
   const checkedDefaultHolidaySet = new Set(checkedDefaultHolidayDates);
-  const draftOverrides = getAttendanceHolidayDraftOverrides();
   const todayKey = getTodayDateKey();
   const [year, month] = monthKey.split("-").map(Number);
   const daysInMonth = new Date(year, month, 0).getDate();
   const existingMonthDates = getCustomAttendanceHolidays()
     .map((holiday) => holiday.dateKey)
     .filter((dateKey) => dateKey.startsWith(`${monthKey}-`) && dateKey >= todayKey);
-  const datesToAdd = checkedDates.filter((dateKey) => !getAttendanceHoliday(dateKey) && !getDefaultAttendanceHoliday(dateKey));
-  const datesToDelete = existingMonthDates.filter((dateKey) => !checkedSet.has(dateKey));
+  const canChange = (dateKey) => dateKey.startsWith(`${monthKey}-`) && dateKey >= todayKey && (!changedDates || changedDates.has(dateKey));
+  const datesToAdd = checkedDates.filter((dateKey) => canChange(dateKey) && !getAttendanceHoliday(dateKey) && !getDefaultAttendanceHoliday(dateKey));
+  const datesToDelete = existingMonthDates.filter((dateKey) => canChange(dateKey) && !checkedSet.has(dateKey));
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
-    if (dateKey < todayKey || !getDefaultAttendanceHoliday(dateKey)) continue;
-    const shouldOpenAttendance = draftOverrides.has(dateKey) || !checkedDefaultHolidaySet.has(dateKey);
-    await setAttendanceHolidayOverride(dateKey, shouldOpenAttendance);
+    if (!canChange(dateKey) || !getDefaultAttendanceHoliday(dateKey)) continue;
+    const shouldOpenAttendance = !checkedDefaultHolidaySet.has(dateKey);
+    if (shouldOpenAttendance !== isAttendanceHolidayOverridden(dateKey)) {
+      await setAttendanceHolidayOverride(dateKey, shouldOpenAttendance);
+    }
   }
 
-  await Promise.all([
-    ...datesToAdd.map((dateKey) => setAttendanceHoliday(dateKey, "")),
-    ...datesToDelete.map((dateKey) => deleteAttendanceHoliday(dateKey)),
-  ]);
+  // Finish each acknowledged change before moving on, so a failed save can be retried.
+  for (const dateKey of datesToAdd) await setAttendanceHoliday(dateKey, "");
+  for (const dateKey of datesToDelete) await deleteAttendanceHoliday(dateKey);
 }
 
-function getAttendanceHolidayDraftOverrides() {
-  if (!attendanceHolidayDraftOverrides) {
-    attendanceHolidayDraftOverrides = new Set(normalizeDateKeyList(state.settings.attendanceHolidayOverrides));
+function getAttendanceHolidayMonthDraft(monthKey) {
+  if (!attendanceHolidayDraftMonths.has(monthKey)) {
+    const [year, month] = monthKey.split("-").map(Number);
+    const checkedDefaultHolidayDates = new Set();
+    for (let day = 1; day <= new Date(year, month, 0).getDate(); day += 1) {
+      const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+      if (getDefaultAttendanceHoliday(dateKey) && !isAttendanceHolidayOverridden(dateKey)) checkedDefaultHolidayDates.add(dateKey);
+    }
+    attendanceHolidayDraftMonths.set(monthKey, {
+      checkedDates: new Set(getCustomAttendanceHolidays().filter((holiday) => holiday.dateKey.startsWith(`${monthKey}-`)).map((holiday) => holiday.dateKey)),
+      checkedDefaultHolidayDates,
+      changedDates: new Set(),
+    });
   }
-  return attendanceHolidayDraftOverrides;
-}
-
-function isAttendanceHolidayDraftOverridden(dateKey) {
-  return getAttendanceHolidayDraftOverrides().has(dateKey);
-}
-
-function toggleDefaultHolidayDraftOverride(dateKey) {
-  if (!isTeacherAdmin()) return notify("출석 휴일 설정 권한이 없습니다.");
-  const overrides = getAttendanceHolidayDraftOverrides();
-  if (overrides.has(dateKey)) overrides.delete(dateKey);
-  else overrides.add(dateKey);
-  attendanceHolidaySavedMessage = "";
-  closeInfoModal();
-  openAttendanceHolidayModal();
+  return attendanceHolidayDraftMonths.get(monthKey);
 }
 
 function getVisibleAttendanceHolidays() {
@@ -1978,11 +1991,12 @@ async function openAttendanceOnDefaultHoliday(dateKey) {
   if (!isTeacherAdmin()) return notify("출석 휴일 설정 권한이 없습니다.");
   if (!confirm(`${dateKey} 자동 휴일을 출석일로 열까요?`)) return;
   try {
-    const overrides = getAttendanceHolidayDraftOverrides();
-    overrides.add(dateKey);
+    const draft = getAttendanceHolidayMonthDraft(dateKey.slice(0, 7));
+    draft.checkedDefaultHolidayDates.delete(dateKey);
+    draft.changedDates.add(dateKey);
     attendanceHolidaySavedMessage = "";
     closeInfoModal();
-    openAttendanceHolidayModal();
+    openAttendanceHolidayModal({ preserveDraft: true });
   } catch (error) {
     console.error(error);
     notify("휴일 해제를 저장하지 못했습니다.");
@@ -1997,7 +2011,7 @@ async function removeAttendanceHoliday(dateKey) {
     state.settings.attendanceHolidaySavedAt = new Date().toISOString();
     saveState({ skipRemote: true });
     attendanceHolidaySavedMessage = "삭제되었습니다.";
-    attendanceHolidayDraftOverrides = null;
+    attendanceHolidayDraftMonths = new Map();
     render();
     closeInfoModal();
     openAttendanceHolidayModal();
@@ -2020,7 +2034,7 @@ function attendanceDeadlineForm(options = {}) {
     value: state.settings.attendanceDeadline || "08:50",
   });
   const form = el("form", { className: "form-grid compact-form" }, [
-    field("마감 시간", timeInput),
+    field("기본 마감 시간", timeInput),
     el("label", { className: "field attendance-toggle-field" }, [
       el("span", {}, "시간 제한"),
       el("div", { className: "attendance-toggle-control" }, [
@@ -2037,8 +2051,8 @@ function attendanceDeadlineForm(options = {}) {
         "p",
         { className: "subtle attendance-deadline-note" },
         state.settings.attendanceDeadlineEnabled
-          ? `현재 오전 ${formatAttendanceDeadline()} 이후 출석 인증 버튼이 비활성화됩니다.`
-          : "현재 테스트 모드라 출석 인증 버튼이 항상 활성화됩니다."
+          ? `기본 마감은 ${normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline)}입니다. 날짜별 설정이 있으면 해당 날짜의 시간을 우선 적용합니다.`
+          : "기본 시간 제한이 꺼져 있습니다. 날짜별 마감을 등록한 날에는 해당 시간 제한이 적용됩니다."
       ),
     ]),
   ]);
@@ -2047,18 +2061,99 @@ function attendanceDeadlineForm(options = {}) {
     event.preventDefault();
     if (!isTeacherAdmin()) return notify("출석 시간 설정 권한이 없습니다.");
     const data = formData(form);
+    const submitButton = form.querySelector("button[type='submit']");
+    if (submitButton.disabled) return;
+    submitButton.disabled = true;
     try {
-      setAttendanceDeadline(data.attendanceDeadline, enabledInput.checked, { skipRemote: true });
-      await saveAppSettingsToRemote();
+      await saveAppSettingsToRemote({
+        attendanceDeadline: normalizeAttendanceDeadlineValue(data.attendanceDeadline),
+        attendanceDeadlineEnabled: enabledInput.checked,
+      });
+      saveState({ skipRemote: true });
       if (options.modal) closeInfoModal();
       render();
       notify("출석 시간 설정을 저장했습니다.");
     } catch (error) {
       console.error(error);
       notify("출석 시간 설정을 서버에 저장하지 못했습니다.");
+    } finally {
+      submitButton.disabled = false;
     }
   });
 
+  return form;
+}
+
+function attendanceDateDeadlineForm() {
+  const overrides = normalizeAttendanceDateDeadlines(state.settings.attendanceDateDeadlines);
+  const todayKey = getTodayDateKey();
+  const dateInput = el("input", { name: "dateKey", type: "date", min: todayKey, value: todayKey, required: true });
+  const timeInput = el("input", {
+    name: "deadline", type: "time", required: true,
+    value: overrides[todayKey] || normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline),
+  });
+  const saveButton = button("날짜별 마감 저장", "btn");
+  const holidayNote = el("p", { className: "subtle attendance-deadline-note", role: "status" });
+  const updateHolidayNote = () => {
+    holidayNote.textContent = isAttendanceHoliday(dateInput.value)
+      ? "선택한 날짜는 휴일입니다. 출석을 받으려면 출석 휴일 설정에서 먼저 출석일로 변경해주세요."
+      : "지정한 날에만 적용하며 다음 날에는 기본 설정으로 돌아갑니다. 시간은 24시간 기준입니다.";
+  };
+  dateInput.addEventListener("change", () => {
+    timeInput.value = overrides[dateInput.value] || normalizeAttendanceDeadlineValue(state.settings.attendanceDeadline);
+    updateHolidayNote();
+  });
+  updateHolidayNote();
+  const rows = Object.entries(overrides).filter(([dateKey]) => dateKey >= todayKey)
+    .sort(([a], [b]) => a.localeCompare(b)).map(([dateKey, time]) => el("tr", {}, [
+      el("td", {}, dateKey),
+      el("td", {}, time),
+      el("td", {}, [
+        button("수정", "mini-btn", "button", () => {
+          dateInput.value = dateKey;
+          timeInput.value = time;
+          updateHolidayNote();
+          timeInput.focus();
+        }),
+        button("삭제", "mini-btn danger", "button", () => saveOverride(dateKey, null)),
+      ]),
+    ]));
+  const form = el("form", { className: "form-grid compact-form attendance-date-deadline-form" }, [
+    el("strong", { className: "full" }, "날짜별 출석 마감"),
+    field("적용 날짜", dateInput),
+    field("이날의 마감 시간", timeInput),
+    el("div", { className: "field full" }, [holidayNote, saveButton]),
+    el("div", { className: "field full" }, [
+      rows.length ? table(["날짜", "마감", "관리"], rows)
+        : el("p", { className: "subtle" }, "등록된 날짜별 마감 시간이 없습니다."),
+      el("p", { className: "subtle attendance-deadline-note" }, "날짜별 설정을 삭제하면 해당 날짜에도 기본 설정이 적용됩니다."),
+    ]),
+  ]);
+  let saving = false;
+  async function saveOverride(dateKey, deadline) {
+    if (!isTeacherAdmin()) return notify("출석 시간 설정 권한이 없습니다.");
+    if (saving) return;
+    if (!isValidDateKey(dateKey) || dateKey < todayKey) return notify("오늘 이후의 날짜를 선택해주세요.");
+    saving = true;
+    form.querySelectorAll("button, input").forEach((node) => { node.disabled = true; });
+    try {
+      await saveAppSettingsToRemote({ attendanceDateOverride: { dateKey, deadline } });
+      saveState({ skipRemote: true });
+      render();
+      openAttendanceDeadlineModal();
+      notify(deadline === null ? "날짜별 마감을 삭제했습니다. 기본 설정이 적용됩니다." : "날짜별 출석 마감을 저장했습니다.");
+    } catch (error) {
+      console.error(error);
+      notify("날짜별 출석 마감을 저장하지 못했습니다. 다시 시도해주세요.");
+    } finally {
+      saving = false;
+      form.querySelectorAll("button, input").forEach((node) => { node.disabled = false; });
+    }
+  }
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveOverride(dateInput.value, timeInput.value);
+  });
   return form;
 }
 

@@ -27,7 +27,9 @@ module.exports = async function handler(req, res) {
       const rawSettings = body.settings || body;
       const writesAttendanceSettings =
         Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDeadline") ||
-        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDeadlineEnabled");
+        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDeadlineEnabled") ||
+        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateOverride") ||
+        Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateDeadlines");
       const writesSeatAssignments = Object.prototype.hasOwnProperty.call(rawSettings, "seatAssignments");
       const writesOnlineManagedStudyCafe = Object.prototype.hasOwnProperty.call(
         rawSettings,
@@ -44,6 +46,17 @@ module.exports = async function handler(req, res) {
       const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday");
       if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateDeadlines")) {
+        res.status(400).json({ ok: false, error: "use_attendance_date_override" });
+        return;
+      }
+      const writesDateOverride = Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateOverride");
+      const dateOverride = rawSettings.attendanceDateOverride;
+      if (writesDateOverride && (!isValidDateKey(dateOverride?.dateKey) ||
+        (dateOverride.deadline !== null && !isValidAttendanceTime(dateOverride.deadline)))) {
+        res.status(400).json({ ok: false, error: "invalid_attendance_date_override" });
         return;
       }
       if (writesSeatAssignments && !hasPermission(session, "seats.write")) {
@@ -68,6 +81,10 @@ module.exports = async function handler(req, res) {
       }
       const currentSettings = await loadSettings();
       const settings = normalizeSettings({ ...currentSettings, ...rawSettings });
+      if (writesDateOverride) {
+        if (dateOverride.deadline === null) delete settings.attendanceDateDeadlines[dateOverride.dateKey];
+        else settings.attendanceDateDeadlines[dateOverride.dateKey] = dateOverride.deadline;
+      }
       await saveSettings(settings);
       res.status(200).json({ ok: true, settings });
       return;
@@ -126,6 +143,7 @@ function normalizeSettings(settings) {
   const normalized = {
     attendanceDeadline: normalizeAttendanceDeadlineValue(settings.attendanceDeadline),
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
+    attendanceDateDeadlines: normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines),
     onlineManagedStudyCafeEnabled: settings.onlineManagedStudyCafeEnabled === true,
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
     phoneVerificationEnabled: settings.phoneVerificationEnabled === true,
@@ -151,6 +169,25 @@ function normalizeAttendanceDeadlineValue(value) {
   const text = String(value || "");
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_ATTENDANCE_DEADLINE;
 }
+
+function isValidAttendanceTime(value) {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function isValidDateKey(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function normalizeAttendanceDateDeadlines(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([dateKey, time]) =>
+    isValidDateKey(dateKey) && isValidAttendanceTime(time)
+  ));
+}
+
+module.exports._private = { isValidDateKey, isValidAttendanceTime, normalizeAttendanceDateDeadlines };
 
 function normalizeSeatAssignments(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
