@@ -1,7 +1,16 @@
+const characterHair = require("../study-character");
 const crypto = require("crypto");
 const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
+const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
 
 const ALLOWED_ACTIONS = new Set([
+  "feature_list",
+  "feature_detail",
+  "feedback_list",
+  "feedback_create",
+  "feedback_create_private",
+  "feedback_replies",
+  "feedback_reply_create", "feedback_delete", "feedback_reply_delete",
   "load",
   "ranking",
   "stats",
@@ -70,6 +79,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    if (["feature_list", "feature_detail", "feedback_list", "feedback_create", "feedback_create_private", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"].includes(action)) {
+      res.status(200).json(await handleStudyCafeFeedback({
+        action, body, student, store: createRemoteFeedbackStore(requestSupabase),
+      }));
+      return;
+    }
+
     const now = new Date();
     await clearStalePresence(now);
     await rolloverActiveSessionIfNeeded(studentId, now);
@@ -113,6 +129,7 @@ module.exports = async function handler(req, res) {
           res.status(400).json({ ok: false, error: equipment?.error || "shop_unequip_failed" });
           return;
         }
+        if (equipment.slot === "hair") await broadcastStudyCafeStateChange("profile");
         res.status(200).json({ ok: true, equipment });
         return;
       }
@@ -126,6 +143,7 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ ok: false, error: equipment?.error || "shop_equip_failed" });
         return;
       }
+      if (equipment.slot === "hair") await broadcastStudyCafeStateChange("profile");
       res.status(200).json({ ok: true, equipment });
       return;
     }
@@ -166,7 +184,16 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "save_profile") {
-      const avatarTone = normalizeAvatarTone(body.avatarTone);
+      const avatarTone = body.avatarTone === undefined ? undefined : normalizeAvatarTone(body.avatarTone);
+      const hairStyle = body.hairStyle;
+      if (hairStyle !== undefined && !characterHair.isValid(hairStyle)) {
+        res.status(400).json({ ok: false, error: "invalid_hair_style" });
+        return;
+      }
+      if (hairStyle !== undefined) {
+        res.status(409).json({ ok: false, error: "hair_style_shop_only" });
+        return;
+      }
       const nickname = body.nickname === undefined ? undefined : normalizeNickname(body.nickname);
       const statusMessage = body.statusMessage === undefined
         ? undefined
@@ -176,7 +203,7 @@ module.exports = async function handler(req, res) {
         "PATCH",
         `study_cafe_presence?student_id=eq.${encodeURIComponent(studentId)}`,
         {
-          avatar_tone: avatarTone,
+          ...(avatarTone === undefined ? {} : { avatar_tone: avatarTone }),
           ...(nickname === undefined ? {} : { display_name: nickname }),
           updated_at: now.toISOString(),
         },
@@ -614,9 +641,10 @@ async function buildStudyCafeSnapshot(student, now) {
   const shopSummaryPromise = hasStudyCafeShopAccess(student)
     ? loadStudyCafeShopSummary(studentId, now)
     : Promise.resolve(null);
-  const [snapshotRows, shop] = await Promise.all([
+  const [snapshotRows, shop, botAppearances] = await Promise.all([
     loadStudyCafeSnapshotRows(studentId, now),
     shopSummaryPromise,
+    requestSupabase("POST", "rpc/study_cafe_bot_appearance", {}, {}, { signal: AbortSignal.timeout(2000) }).catch(() => []),
   ]);
   const {
     subjects,
@@ -653,6 +681,7 @@ async function buildStudyCafeSnapshot(student, now) {
         ? normalizeAvatarTone(ownProfile?.avatar_tone)
         : avatarToneForId(id),
       totalSeconds,
+      hairStyle: characterHair.normalize(profileMap.get(id)?.hair_style),
       isMine: id === studentId,
     }))
     .filter((row) => row.totalSeconds > 0)
@@ -671,6 +700,7 @@ async function buildStudyCafeSnapshot(student, now) {
     subjectGoals: (Array.isArray(subjectGoals) ? subjectGoals : []).map(serializeSubjectGoal),
     profile: {
       avatarTone: normalizeAvatarTone(ownProfile?.avatar_tone),
+      hairStyle: characterHair.normalize(ownProfile?.hair_style),
       nickname: normalizeStoredNickname(ownProfile?.nickname),
       statusMessage: normalizeStoredStatusMessage(ownProfile?.status_message),
     },
@@ -679,6 +709,7 @@ async function buildStudyCafeSnapshot(student, now) {
     subjectTotals: Object.fromEntries(ownSubjectTotals),
     room: (Array.isArray(presence) ? presence : []).map((row) => {
       const member = studentMap.get(row.student_id);
+      const botAppearance = (Array.isArray(botAppearances) ? botAppearances : []).find(bot => bot.student_id === row.student_id);
       return {
         seatNumber: Number(row.seat_number),
         status: row.status,
@@ -689,7 +720,9 @@ async function buildStudyCafeSnapshot(student, now) {
             normalizeStoredNickname(profileMap.get(row.student_id)?.nickname) ||
             maskName(member?.name),
         track: summarizeTrack(member?.track),
-        tone: row.student_id === studentId ? normalizeAvatarTone(row.avatar_tone) : avatarToneForId(row.student_id),
+        tone: botAppearance ? normalizeAvatarTone(botAppearance.avatar_tone) : row.student_id === studentId ? normalizeAvatarTone(row.avatar_tone) : avatarToneForId(row.student_id),
+        ...(botAppearance ? { equipment: botAppearance.equipment } : {}),
+        hairStyle: characterHair.normalize(profileMap.get(row.student_id)?.hair_style),
         statusMessage: normalizeStoredStatusMessage(profileMap.get(row.student_id)?.status_message),
         todaySeconds: totalsByStudent.get(row.student_id) || 0,
         isMine: row.student_id === studentId,
@@ -767,7 +800,7 @@ async function loadStudyCafeSnapshotRowsLegacy(studentId, now) {
     ),
     requestSupabase(
       "GET",
-      "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"
+      "study_cafe_profiles?select=*"
     ),
     requestSupabase(
       "GET",
@@ -858,7 +891,7 @@ function serializeStudyCafeEquipment(rows) {
     if (row.slot === "desk") {
       if (!Array.isArray(equipment.desk)) equipment.desk = [];
       if (!equipment.desk.includes(row.item_id)) equipment.desk.push(row.item_id);
-    } else if (["outfit", "head", "chair"].includes(row.slot)) {
+    } else if (["outfit", "head", "chair", "hair"].includes(row.slot)) {
       equipment[row.slot] = row.item_id;
     }
     return equipment;
@@ -887,7 +920,7 @@ function serializeShopItem(row) {
     id: normalizeShopItemId(row.id),
     name: normalizeText(row.name, 40),
     description: normalizeText(row.description, 160),
-    slot: ["outfit", "head", "desk", "chair"].includes(row.slot) ? row.slot : "desk",
+    slot: ["outfit", "head", "desk", "chair", "hair"].includes(row.slot) ? row.slot : "desk",
     icon: normalizeText(row.icon, 12),
     price: Math.max(1, Number(row.price) || 1),
   };
@@ -954,7 +987,7 @@ async function loadStudyRanking(studentId, period, now) {
       "GET",
       `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,student_id,status,elapsed_seconds,started_at,active_started_at,ended_at`
     ),
-    requestSupabase("GET", "study_cafe_profiles?select=student_id,avatar_tone,nickname"),
+    requestSupabase("GET", "study_cafe_profiles?select=*"),
     requestSupabase("GET", "study_cafe_presence?select=student_id,display_name"),
     requestSupabase("GET", "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name"),
   ]);
@@ -974,6 +1007,7 @@ async function loadStudyRanking(studentId, period, now) {
         ? normalizeAvatarTone(profileMap.get(id)?.avatar_tone)
         : avatarToneForId(id),
       totalSeconds,
+      hairStyle: characterHair.normalize(profileMap.get(id)?.hair_style),
       isMine: id === studentId,
     }))
     .filter((row) => row.totalSeconds > 0)
@@ -1174,7 +1208,8 @@ function updatePresence(studentId, changes) {
 }
 
 function upsertProfile(studentId, avatarTone, nickname, statusMessage, now) {
-  const profile = { student_id: studentId, avatar_tone: avatarTone, updated_at: now.toISOString() };
+  const profile = { student_id: studentId, updated_at: now.toISOString() };
+  if (avatarTone !== undefined) profile.avatar_tone = avatarTone;
   if (nickname !== undefined) profile.nickname = nickname;
   if (statusMessage !== undefined) profile.status_message = statusMessage || null;
   return requestSupabase(
@@ -1185,7 +1220,7 @@ function upsertProfile(studentId, avatarTone, nickname, statusMessage, now) {
   );
 }
 
-async function requestSupabase(method, path, body, extraHeaders = {}) {
+async function requestSupabase(method, path, body, extraHeaders = {}, requestOptions = {}) {
   const supabaseUrl = process.env.SUPABASE_URL || "";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceRoleKey) {
@@ -1195,6 +1230,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   }
   const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
     method,
+    ...requestOptions,
     headers: {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
@@ -1286,7 +1322,7 @@ function normalizeShopItemId(value) {
 
 function normalizeShopSlot(value) {
   const slot = normalizeText(value, 20);
-  if (!["outfit", "head", "desk", "chair"].includes(slot)) {
+  if (!["outfit", "head", "desk", "chair", "hair"].includes(slot)) {
     const error = new Error("invalid_shop_slot");
     error.status = 400;
     throw error;

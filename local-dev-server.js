@@ -3,6 +3,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { handleLocalQuestionBoard } = require("./local-question-board");
+const { handleLocalStudyCafeFeedback } = require("./local-study-cafe-feedback");
 const { isValidDateKey: isValidAttendanceDateKey, isValidAttendanceTime, normalizeAttendanceDateDeadlines } = require("./api/app-settings")._private;
 const {
   createPhoneVerificationToken,
@@ -15,6 +16,7 @@ const {
   getConfig: getTeacherAuthConfig,
   hasPermission,
   readCookie,
+  readSessionToken,
   sessionCookie,
 } = require("./api/teacher-auth-utils");
 
@@ -46,6 +48,7 @@ const apiHandlers = {
   "/api/student-reset-registration": require("./api/student-reset-registration"),
   "/api/student-devices": require("./api/student-devices"),
   "/api/student-push": require("./api/student-push"),
+  "/api/student-rewards": require("./api/student-rewards"),
   "/api/study-cafe": require("./api/study-cafe"),
   "/api/study-cafe-rooms": require("./api/study-cafe-rooms"),
   "/api/question-board": require("./api/question-board"),
@@ -109,6 +112,37 @@ http
         const localStudent = getLocalPreviewStudent(body);
         if (!localStudent) return sendLocalJson(res, 403, { ok: false, error: "device_not_active" });
         return sendLocalJson(res, 200, { ok: true, messages: [], localPreview: true });
+      }
+      req.body = body;
+    }
+    if (url.pathname === "/api/study-cafe-admin" && req.method === "POST") {
+      const body = await readLocalJson(req);
+      if (require("./api/study-cafe-bots").BOT_ACTIONS.has(body.action)) {
+        req.body = body;
+        await runApiHandler(require("./api/study-cafe-admin"), req, res);
+        return;
+      }
+      if (["feature_list", "feature_detail", "feature_save", "feature_highlight", "feedback_list", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"].includes(body.action)) {
+        const session = readSessionToken(readCookie(req, "teacher_session"), getTeacherAuthConfig().secret);
+        if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
+        if (session.role !== "admin") return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+        const result = await handleLocalStudyCafeFeedback({
+          body, student: { id: "" }, admin: true, filePath: path.join(ROOT, ".local-study-cafe-feedback.json"),
+        });
+        return sendLocalJson(res, result.status, result.payload);
+      }
+      return sendLocalJson(res, 404, { ok: false, error: "unsupported_local_action" });
+    }
+    if (url.pathname === "/api/study-cafe" && req.method === "POST") {
+      const body = await readLocalJson(req);
+      if (["feature_list", "feature_detail", "feedback_list", "feedback_create", "feedback_create_private", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"].includes(body.action)) {
+        const localStudent = getLocalAuthenticatedStudent(body, ["online_managed", "lecture"]);
+        if (!localStudent) return sendLocalJson(res, 403, { ok: false, error: "device_not_active" });
+        const result = await handleLocalStudyCafeFeedback({
+          body, student: localStudent, filePath: path.join(ROOT, ".local-study-cafe-feedback.json"),
+        });
+        sendLocalJson(res, result.status, result.payload);
+        return;
       }
       req.body = body;
     }
@@ -597,10 +631,22 @@ async function handleLocalAppSettings(req, res) {
     if (Object.prototype.hasOwnProperty.call(rawSettings || {}, "phoneVerificationEnabled") && session.role !== "admin") {
       return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
     }
+    const writesStudyCafeVisibility =
+      Object.prototype.hasOwnProperty.call(rawSettings || {}, "studyRoomListEnabled") ||
+      Object.prototype.hasOwnProperty.call(rawSettings || {}, "studyCafeRoomTabsEnabled");
+    if (writesStudyCafeVisibility && !hasPermission(session, "study_cafe.write")) {
+      return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+    }
     const currentSettings = readLocalAppSettings();
     const settings = {
       ...currentSettings,
       ...(rawSettings && typeof rawSettings === "object" ? rawSettings : {}),
+      studyRoomListEnabled: Object.prototype.hasOwnProperty.call(rawSettings || {}, "studyRoomListEnabled")
+        ? rawSettings.studyRoomListEnabled === true
+        : currentSettings.studyRoomListEnabled === true,
+      studyCafeRoomTabsEnabled: Object.prototype.hasOwnProperty.call(rawSettings || {}, "studyCafeRoomTabsEnabled")
+        ? rawSettings.studyCafeRoomTabsEnabled === true
+        : currentSettings.studyCafeRoomTabsEnabled === true,
       curriculumQuestEnabled: Object.prototype.hasOwnProperty.call(rawSettings || {}, "curriculumQuestEnabled")
         ? rawSettings.curriculumQuestEnabled === true
         : currentSettings.curriculumQuestEnabled === true,
@@ -653,6 +699,8 @@ function readLocalAppSettings() {
     attendanceDeadlineEnabled: false,
     attendanceDateDeadlines: {},
     onlineManagedStudyCafeEnabled: false,
+    studyRoomListEnabled: false,
+    studyCafeRoomTabsEnabled: false,
     curriculumQuestEnabled: false,
     phoneVerificationEnabled: false,
     studentDday: null,
@@ -798,7 +846,7 @@ async function runApiHandler(handler, req, res) {
 function serveStatic(pathname, res) {
   const safePath = pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
   const absolutePath = path.resolve(ROOT, "." + safePath);
-  if (!absolutePath.startsWith(ROOT)) {
+  if (!absolutePath.startsWith(ROOT) || path.basename(absolutePath).toLowerCase().startsWith(".local-study-cafe-feedback")) {
     res.writeHead(403);
     res.end("Forbidden");
     return;

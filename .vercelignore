@@ -17,9 +17,16 @@ README.md
 # Local-only tools and demo artifacts
 local-dev-server.js
 local-question-board.js
+local-study-cafe-feedback.js
 repair-weekly-submission-scores.js
 seed-final-grade-demo.html
 clear-local-students.html
 sample-weekly-answer.pdf
 config.example.js
 public/
+.tmp/reward-*/
+.tmp/bot-*/
+
+# Keep every temporary build/browser profile and agent setting private
+.tmp/
+.codex/

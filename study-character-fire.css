@@ -1,0 +1,93 @@
+/* Daily study fire. Only lecture scenes explicitly created by the renderer have these nodes. */
+.study-cafe-fire {
+  --fire-width: 0px;
+  --fire-height: 0px;
+  --fire-outer: #ffc457;
+  --fire-middle: #ffe49a;
+  --fire-core: #fff4d5;
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 3;
+  width: min(var(--fire-width), calc(100% - 8px));
+  height: var(--fire-height);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 1;
+  transition: width 800ms ease, height 800ms ease, opacity 800ms ease;
+}
+.study-cafe-fire[data-study-fire-stage="0"] { opacity: 0; }
+.study-cafe-fire[data-study-fire-stage="1"] { --fire-width: 54px; --fire-height: 32px; }
+.study-cafe-fire[data-study-fire-stage="2"] { --fire-width: 58px; --fire-height: 37px; --fire-outer: #ffa24a; --fire-middle: #ffd371; --fire-core: #ffefae; }
+.study-cafe-fire[data-study-fire-stage="3"] { --fire-width: 62px; --fire-height: 41px; --fire-outer: #fa7c3f; --fire-middle: #ffc054; --fire-core: #ffea95; }
+.study-cafe-fire[data-study-fire-stage="4"] { --fire-width: 66px; --fire-height: 44px; --fire-outer: #ef6044; --fire-middle: #ffa449; --fire-core: #ffdc7b; }
+.study-cafe-fire[data-study-fire-stage="5"] { --fire-width: 68px; --fire-height: 46px; --fire-outer: #ee6b40; --fire-middle: #ffc44d; --fire-core: #fff1b1; }
+.study-cafe-fire > svg { width: 100%; height: 100%; display: block; overflow: hidden; transform-origin: 50% 96%; }
+.study-cafe-fire path { transition: fill 800ms ease, transform 800ms ease; transform-origin: 50% 100%; }
+.study-cafe-fire-layer-0 { fill: var(--fire-outer); }
+.study-cafe-fire-layer-1 { fill: var(--fire-middle); }
+.study-cafe-fire-layer-2 { fill: var(--fire-core); }
+.study-cafe-fire[data-study-fire-stage="5"] .study-cafe-fire-layer-1 { transform: translate(-4px, -10px) scale(1.07); }
+.study-cafe-fire[data-study-fire-stage="5"] .study-cafe-fire-layer-2 { transform: translate(-2px, -12px) scale(1.12); }
+/* Detail scenes have room for the full silhouette; the dense seat grid stays compact. */
+.study-cafe-member-seat-scene > .study-cafe-fire { bottom: 20px; }
+.study-cafe-member-seat-scene > .study-cafe-fire[data-study-fire-stage="1"] { --fire-width: 66px; --fire-height: 52px; }
+.study-cafe-member-seat-scene > .study-cafe-fire[data-study-fire-stage="2"] { --fire-width: 79px; --fire-height: 70px; }
+.study-cafe-member-seat-scene > .study-cafe-fire[data-study-fire-stage="3"] { --fire-width: 94px; --fire-height: 88px; }
+.study-cafe-member-seat-scene > .study-cafe-fire[data-study-fire-stage="4"] { --fire-width: 105px; --fire-height: 103px; }
+.study-cafe-member-seat-scene > .study-cafe-fire[data-study-fire-stage="5"] { --fire-width: 116px; --fire-height: 115px; }
+.study-cafe-my-seat-scene > .study-cafe-fire.is-running > svg,
+.study-cafe-member-seat-scene > .study-cafe-fire.is-running > svg {
+  animation: study-cafe-fire-sway 2.8s ease-in-out infinite;
+}
+.study-character-fire-progress {
+  display: grid;
+  gap: 5px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff3df;
+  color: #825a25;
+  text-align: center;
+}
+.study-character-fire-progress strong { font-size: .78rem; }
+.study-character-fire-progress span { font-size: .7rem; color: #8e754e; }
+@keyframes study-cafe-fire-sway {
+  0%, 100% { transform: scale(1) rotate(-.6deg); }
+  50% { transform: scale(1.015, .975) rotate(.6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-cafe-fire, .study-cafe-fire path { transition: none; }
+  .study-cafe-fire > svg { animation: none !important; }
+}
+
+.study-cafe-seat-section-head > .study-cafe-fire-guide-button { order: 2; }
+.study-cafe-fire-guide-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #895e26;
+  font: inherit;
+  font-size: 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.study-cafe-fire-guide-button:focus-visible { outline: 3px solid #ba8c48; outline-offset: 2px; }
+.info-modal-panel.study-cafe-fire-guide-modal { width: min(430px, calc(100vw - 24px)); max-height: 85dvh; overflow-y: auto; }
+.study-cafe-fire-guide { display: grid; gap: 14px; }
+.study-cafe-fire-guide > p { margin: 0; color: #6d7e7a; font-size: .8rem; line-height: 1.6; }
+.study-cafe-fire-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.study-cafe-fire-guide-card { display: grid; justify-items: center; min-width: 0; padding: 10px 4px; border: 1px solid #e7e9de; border-radius: 12px; background: #f9faf4; }
+.study-cafe-fire-guide-card > strong { font-size: .76rem; color: #596e53; }
+.study-cafe-fire-guide-card > span { font-size: .61rem; color: #6d7b62; text-align: center; }
+.study-cafe-fire-guide-character { position: relative; width: 100%; height: 112px; }
+.study-cafe-fire-guide-scene { inset: auto; width: 78px; height: 122px; left: 50%; bottom: 0; transform: translateX(-50%) scale(.85); transform-origin: center bottom; }
+.study-cafe-fire-guide-rules { margin: 0; padding: 12px 12px 12px 26px; border-radius: 12px; background: #f0f5ef; color: #64715d; font-size: .73rem; line-height: 1.8; }
+@media (max-width: 600px) {
+  .info-modal:has(.study-cafe-fire-guide-modal) { align-items: end; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}

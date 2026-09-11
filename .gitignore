@@ -1,11 +1,15 @@
 .vercel
 node_modules
+/tmp/
+/.tmp/reward-*/
+/.tmp/bot-*/
 .env
 .env.local
 config.js
 .local-dev-state.json
 .local-lecture-applications.json
 .local-question-board.json
+.local-study-cafe-feedback.json
 .local-curriculum.json
 .local-curriculum-progress.json
 .local-app-settings.json
@@ -14,3 +18,9 @@ config.js
 
 .vercel
 .env*.local
+
+.local-study-cafe-feedback-features.json
+
+# Generated build, browser QA, and Supabase CLI state
+/.tmp/
+/supabase/.temp/

@@ -6,13 +6,16 @@ const {
   readSessionToken,
 } = require("./teacher-auth-utils");
 
-const ALLOWED_ACTIONS = new Set(["dashboard", "history", "history_detail", "stop_session", "release_seat"]);
+const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
+const { BOT_ACTIONS, handleBotRequest } = require("./study-cafe-bots");
+const ALLOWED_ACTIONS = new Set(["dashboard", "history", "history_detail", "stop_session", "release_seat", "feature_list", "feature_detail", "feature_save", "feature_highlight", "feedback_list", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"]);
 const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
 const STUDY_HISTORY_MAX_DAYS = 366;
 const SUPABASE_PAGE_SIZE = 1000;
 
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -28,8 +31,24 @@ module.exports = async function handler(req, res) {
   try {
     const body = await readJson(req);
     const action = String(body.action || "dashboard").trim();
+    if (BOT_ACTIONS.has(action)) {
+      const result = await handleBotRequest({ body: { ...body, action }, session,
+        request: requestSupabase, broadcast: broadcastStudyCafeAdminChange });
+      res.status(result.status).json(result.payload);
+      return;
+    }
     if (!ALLOWED_ACTIONS.has(action)) {
       res.status(400).json({ ok: false, error: "unsupported_action" });
+      return;
+    }
+    if (["feature_list", "feature_detail", "feature_save", "feature_highlight", "feedback_list", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"].includes(action)) {
+      if (session.role !== "admin") {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      res.status(200).json(await handleStudyCafeFeedback({
+        action, body, student: { id: "" }, admin: true, store: createRemoteFeedbackStore(requestSupabase),
+      }));
       return;
     }
     const requiredPermission = ["dashboard", "history", "history_detail"].includes(action)
@@ -520,9 +539,20 @@ function readTeacherSession(req) {
 }
 
 async function readJson(req) {
-  if (req.body && typeof req.body === "object") return req.body;
+  const maxBytes = 4 * 1024 * 1024;
+  const tooLarge = () => Object.assign(new Error("request_too_large"), { status: 413 });
+  if (req.body && typeof req.body === "object") {
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > maxBytes) throw tooLarge();
+    return req.body;
+  }
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let bytes = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > maxBytes) throw tooLarge();
+    chunks.push(buffer);
+  }
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 

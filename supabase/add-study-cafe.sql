@@ -1,4 +1,6 @@
 create table if not exists public.study_cafe_profiles (
+  hair_style text not null default 'default'
+    constraint study_cafe_profiles_hair_style_check check (hair_style in ('default', 'sport', 'spiky', 'mushroom', 'wave', 'ponytail')),
   student_id text primary key references public.students(id) on delete cascade,
   avatar_tone text not null default 'navy'
     check (avatar_tone in ('navy', 'blue', 'mint', 'purple', 'orange', 'rose')),

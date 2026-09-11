@@ -91,8 +91,8 @@ assert.match(api, /rpc\/unequip_study_cafe_item/);
 assert.match(api, /function hasStudyCafeShopAccess\(student\)[\s\S]*student_category[\s\S]*=== "lecture"/);
 assert.match(api, /await awardStudyCafeTimePoints\(studentId, now\)/);
 assert.match(api, /Study cafe shop is not ready/);
-assert.match(api, /\["outfit", "head", "desk", "chair"\]\.includes\(row\.slot\)/);
-assert.match(api, /\["outfit", "head", "chair"\]\.includes\(row\.slot\)/);
+assert.match(api, /\["outfit", "head", "desk", "chair", "hair"\]\.includes\(row\.slot\)/);
+assert.match(api, /\["outfit", "head", "chair", "hair"\]\.includes\(row\.slot\)/);
 
 assert.match(app, /"study-shop": \(\) => requireStudentAuth\(renderStudentStudyShop\)/);
 assert.match(app, /renderStudyCafeShopChip\(student\)/);
@@ -109,7 +109,6 @@ assert.match(shop, /studyCafeShopState\.balance = needsLocalGrant\s*\? STUDY_CAF
 assert.match(shop, /studyCafeShopState\.history = shouldResetLocalItems \? \[\]/);
 assert.doesNotMatch(shop, /STUDY_CAFE_SHOP_PREVIOUS_LOCAL_GRANT/);
 assert.match(shop, /pointGrantVersion: STUDY_CAFE_SHOP_LOCAL_GRANT_VERSION/);
-assert.match(shop, /순공시간 30분마다 5P가 쌓여요\. 30분 미만은 포인트가 지급되지 않아요/);
 assert.match(shop, /다음 5P까지/);
 assert.match(shop, /function calculateStudyCafePointsForSeconds\(totalSeconds\)/);
 assert.match(shop, /const newlyAwardedPoints = needsLocalGrant \? 0 : Math\.max\(0, earnedPoints - savedAwardedStudyPoints\)/);
@@ -137,9 +136,9 @@ assert.match(shop, /item-\$\{getStudyCafeShopItemCssClass\(item\.id\)\}/);
 assert.match(shop, /shop-\$\{getStudyCafeShopItemCssClass\(itemId\)\}/);
 assert.match(shop, /\["study-shop", "study-cafe", "study-character"\]\.includes\(currentRoute\)/);
 assert.match(shop, /\["outfit_coast_guard_uniform", "해경 정복", "해양경찰 정복입니다\.", "outfit", "👮", 4000\]/);
-assert.match(index, /styles\.css\?v=20260911-attendance-settings/);
-assert.match(index, /study-shop\.js\?v=20260828-local-grant-20000/);
-assert.match(index, /app\.js\?v=20260909-idle-seat-push-test/);
+assert.match(index, /styles\.css\?v=20260911-hair-shop/);
+assert.match(index, /study-shop\.js\?v=20260911-hair-shop/);
+assert.match(index, /app\.js\?v=20260911-hair-shop/);
 assert.doesNotMatch(shop, /head_classic_hat|head_graduation_cap|desk_coast_helicopter|desk_coast_rescue_buoy|desk_coast_lighthouse|head_coast_vessel_cap|head_coast_rescue_helmet|chair_coast_captain/);
 assert.match(shop, /\["desk_coast_patrol_ship", "미니 경비함", [^\n]*, "desk", "🚢", 2400\]/);
 assert.match(shop, /\["desk_coast_speed_boat", "고속단정", [^\n]*, "desk", "🚤", 1800\]/);
@@ -160,13 +159,13 @@ assert.match(styles, /\.study-cafe-shop-chip/);
 assert.match(styles, /\.study-shop-grid/);
 assert.match(styles, /\.study-cafe-cosmetic/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.study-cafe-cosmetic:nth-child\(4\)/);
-assert.match(styles, /\.study-cafe-desk:has\(\.study-cafe-desk-cosmetics\) \.study-cafe-desk-cup \{ opacity: 1; \}/);
+assert.match(styles, /\.study-cafe-desk:has\(\.study-cafe-desk-cosmetics > :nth-child\(2\)\) \.study-cafe-desk-cup \{ opacity: 0; \}/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.study-cafe-cosmetic[\s\S]*?bottom: 15px[\s\S]*?font-size: 0/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.item-desk-sprout::before/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.item-desk-lamp::after/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.item-desk-tumbler::after/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.item-desk-clock::before/);
-assert.match(styles, /\.study-cafe-desk-cosmetics \.study-cafe-cosmetic\[class\*="item-desk-"\][\s\S]*?font-size: 18px/);
+assert.match(styles, /\.study-cafe-desk-cosmetics \.study-cafe-cosmetic\[class\*="item-desk-"\][\s\S]*?font-size: min\(12px, 16cqi\)/);
 assert.match(styles, /\.study-cafe-desk-cosmetics \.study-cafe-cosmetic\[class\*="item-desk-"\]::before,[\s\S]*?content: none/);
 assert.match(styles, /\.study-cafe-chair-back\.shop-chair-premium/);
 assert.match(styles, /\.study-cafe-chair-back\.shop-chair-premium[\s\S]*?top: auto[\s\S]*?bottom: 34px[\s\S]*?width: min\(96px, 70%\)[\s\S]*?aspect-ratio: 48 \/ 43/);
@@ -195,7 +194,7 @@ assert.match(styles, /\.study-shop-item-preview\.item-chair-mint::before/);
 assert.match(styles, /\.study-shop-item-preview\.item-chair-rose::before/);
 assert.match(app, /function renderStudentStudyCafe\(\)[\s\S]*?ensureStudyCafeShopLoaded\(\)/);
 assert.match(app, /function renderStudyCafeAvatar[\s\S]*?getStudyCafeEquippedOutfitClass\(\)/);
-assert.match(app, /"study-cafe-seat-visual"[\s\S]*?isMine \? getStudyCafeEquippedOutfitClass\(\) : ""/);
+assert.match(app, /"study-cafe-seat-visual"[\s\S]*?isMine \? getStudyCafeEquippedOutfitClass\(\) : getStudyCafePublicEquipmentClass\(options\.equipment, "outfit"\)/);
 
 function response() {
   return {

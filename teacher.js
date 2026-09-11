@@ -185,6 +185,7 @@ function renderTeacherAuth() {
 }
 
 async function logoutTeacher() {
+  if (document.querySelector(".study-cafe-feedback-admin-modal")) closeInfoModal();
   try {
     await fetch("/api/teacher-logout", { method: "POST", credentials: "same-origin" });
   } catch (error) {
@@ -256,11 +257,17 @@ function renderStudyCafeAdmin() {
   const data = studyCafeAdminState.data;
   if (studyCafeAdminState.loading && !data) {
     return el("div", { className: "grid study-cafe-admin-page" }, [
+      renderStudyCafeVisibilitySettingsPanel(),
+      renderStudyCafeFeedbackAdminEntry(),
+      renderStudyCafeBotAdminEntry(),
       renderDataLoadingState("온라인 스터디카페 현황을 불러오는 중입니다."),
     ]);
   }
   if (studyCafeAdminState.error && !data) {
     return el("div", { className: "grid study-cafe-admin-page" }, [
+      renderStudyCafeVisibilitySettingsPanel(),
+      renderStudyCafeFeedbackAdminEntry(),
+      renderStudyCafeBotAdminEntry(),
       el("section", { className: "study-cafe-admin-error" }, [
         el("strong", {}, "스터디카페 현황을 불러오지 못했습니다"),
         el("p", {}, studyCafeAdminState.error),
@@ -309,6 +316,9 @@ function renderStudyCafeAdmin() {
         ),
       ]),
     ]),
+    renderStudyCafeVisibilitySettingsPanel(),
+    renderStudyCafeFeedbackAdminEntry(),
+      renderStudyCafeBotAdminEntry(),
     el("section", { className: "study-cafe-admin-stats", ariaLabel: "스터디카페 오늘 요약" }, [
       renderStudyCafeAdminStat("온라인 학생", summary.onlineStudentCount || 0, "명"),
       renderStudyCafeAdminStat("좌석 배정", summary.seatedCount || 0, "명"),
@@ -402,6 +412,156 @@ function renderStudyCafeAdmin() {
           ))
         : el("div", { className: "empty study-cafe-admin-empty" }, "등록번호가 2로 시작하는 활성 온라인 학생이 없습니다."),
     ]),
+  ]);
+}
+
+function renderStudyCafeFeedbackAdminEntry() {
+  if (!isTeacherAdmin()) return null;
+  return el("section", { className: "study-cafe-admin-section study-cafe-feedback-admin-entry" }, [
+    el("div", {}, [
+      el("h3", {}, "수강생 의견"),
+      el("p", {}, "새 기능을 소개하고 기능별 의견과 공개·비공개 건의사항을 확인합니다."),
+    ]),
+    button("의견 · 새 기능 관리", "btn secondary", "button", openStudyCafeFeedbackAdminHub),
+  ]);
+}
+
+function openStudyCafeFeedbackAdminModal({ featureId = "", container = null } = {}) {
+  if (!isTeacherAdmin()) return;
+  const username = teacherAuth.user?.username;
+  let items = [];
+  let cursor = null;
+  let loading = false;
+  const status = el("p", { role: "status", "aria-live": "polite", className: "study-cafe-feedback-message" });
+  const list = el("div", { className: "study-cafe-feedback-list" });
+  const more = button("의견 더 보기", "study-cafe-feedback-more", "button", () => load(true));
+  more.hidden = true;
+  const modalOptions = {
+    title: "수강생 의견",
+    className: "study-cafe-feedback-modal study-cafe-feedback-admin-modal",
+    confirmLabel: "닫기",
+    content: el("div", { className: "study-cafe-feedback-content" }, [
+      el("div", { className: "study-cafe-feedback-list-head" }, [
+        el("p", {}, "공개·비공개 의견을 최신순으로 표시합니다."),
+      ]), status, list, more,
+    ]),
+  };
+  const modal = container ? el("section", { className: "study-cafe-feedback-modal" }, [modalOptions.content]) : openInfoModal(modalOptions).modal;
+  if (container) container.replaceChildren(modal);
+  function isCurrent() {
+    return modal.isConnected && isTeacherAdmin() && teacherAuth.user?.username === username;
+  }
+  async function load(append) {
+    if (loading || !isCurrent()) return;
+    loading = true;
+    more.disabled = true;
+    status.textContent = "의견을 불러오는 중…";
+    try {
+      const response = await fetch("/api/study-cafe-admin", {
+        method: "POST", credentials: "same-origin", signal: AbortSignal.timeout(12000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "feedback_list", featureId, cursor: append ? cursor : null }),
+      });
+      const data = await response.json();
+      if (!isCurrent()) return;
+      if (!response.ok || !data.ok) {
+        if (response.status === 401 || response.status === 403) {
+          items = [];
+          cursor = null;
+          list.replaceChildren();
+        }
+        throw new Error("load_failed");
+      }
+      items = append ? [...new Map([...items, ...data.items].map((item) => [item.id, item])).values()] : data.items;
+      cursor = data.nextCursor;
+      list.replaceChildren(...items.map((item) => el("article", { className: "study-cafe-feedback-item" }, [
+        el("div", { className: "study-cafe-feedback-item-copy" }, [
+          el("div", { className: "study-cafe-feedback-item-meta" }, [
+            el("strong", {}, item.authorName),
+            el("span", { className: item.isPrivate ? "study-cafe-feedback-private-badge" : "study-cafe-feedback-own" }, item.isPrivate ? "비공개" : "공개"),
+            el("time", { dateTime: item.createdAt }, new Date(item.createdAt).toLocaleString("ko-KR")),
+          ]),
+          el("p", { className: "study-cafe-feedback-body" }, item.body),
+          renderStudyCafeFeedbackDelete(item, { admin: true, onDeleted: () => load(false) }),
+          renderStudyCafeFeedbackReplies(item, { admin: true, onThreadEmpty: () => load(false) }),
+        ]),
+      ])));
+      status.textContent = items.length ? "" : "아직 등록된 의견이 없습니다.";
+    } catch {
+      if (isCurrent()) status.textContent = "의견을 불러오지 못했습니다. 로그인 상태를 확인하고 이 화면을 다시 열어주세요.";
+    } finally {
+      loading = false;
+      if (isCurrent()) {
+        more.disabled = false;
+        more.hidden = !cursor;
+      }
+    }
+  }
+  load(false);
+}
+
+function renderStudyCafeVisibilitySettingsPanel() {
+  const canWrite = hasTeacherPermission("study_cafe.write");
+  const options = [
+    {
+      key: "studyRoomListEnabled",
+      title: "스터디방 목록 버튼",
+      description: "수강생이 스터디방 목록을 열고 방을 만들거나 참여할 수 있는 버튼을 표시합니다.",
+    },
+    {
+      key: "studyCafeRoomTabsEnabled",
+      title: "랭킹룸 · 자유석 버튼",
+      description: "수강생 스터디카페 상단에 랭킹룸과 자유석을 전환하는 버튼을 표시합니다.",
+    },
+  ];
+
+  return el("section", { className: "panel study-cafe-feature-settings" }, [
+    el("div", { className: "study-cafe-feature-settings-head" }, [
+      el("div", {}, [
+        el("h2", {}, "수강생 화면 표시 설정"),
+        el("p", { className: "subtle" }, "스위치를 켜면 해당 버튼이 수강생 스터디카페 화면에 표시됩니다."),
+      ]),
+      canWrite ? null : el("span", { className: "module-status" }, "조회 전용"),
+    ]),
+    el("div", { className: "study-cafe-feature-toggle-list" }, options.map((option) => {
+      const enabled = state.settings[option.key] === true;
+      const toggle = el("input", {
+        type: "checkbox",
+        role: "switch",
+        checked: enabled,
+        disabled: !canWrite,
+        ariaLabel: `${option.title} 표시`,
+      });
+      const status = el(
+        "strong",
+        { className: "online-managed-toggle-status" },
+        enabled ? "ON" : "OFF"
+      );
+      toggle.addEventListener("change", async () => {
+        const nextEnabled = toggle.checked;
+        toggle.disabled = true;
+        status.textContent = "저장 중";
+        try {
+          await saveAppSettingsToRemote({ [option.key]: nextEnabled });
+          saveState({ skipRemote: true });
+          render();
+          notify(`${option.title}을 ${nextEnabled ? "표시" : "숨김"} 처리했습니다.`);
+        } catch (error) {
+          console.error(error);
+          toggle.checked = enabled;
+          toggle.disabled = !canWrite;
+          status.textContent = enabled ? "ON" : "OFF";
+          notify(`${option.title} 설정을 저장하지 못했습니다.`);
+        }
+      });
+      return el("div", { className: "online-managed-toggle-row study-cafe-feature-toggle-row" }, [
+        el("div", {}, [
+          el("strong", {}, option.title),
+          el("p", { className: "subtle" }, option.description),
+        ]),
+        el("label", { className: "online-managed-toggle-control" }, [toggle, status]),
+      ]);
+    })),
   ]);
 }
 
@@ -831,7 +991,8 @@ function renderStudyCafeAdminStatus(member) {
 }
 
 function requestStudyCafeAdminDashboard() {
-  if (studyCafeAdminState.loading || studyCafeAdminState.loaded) return;
+  // Keep the error screen stable; the retry button and scheduled refresh can retry.
+  if (studyCafeAdminState.loading || studyCafeAdminState.loaded || studyCafeAdminState.error) return;
   loadStudyCafeAdminDashboard();
 }
 

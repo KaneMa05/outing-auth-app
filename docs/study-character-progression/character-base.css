@@ -1,0 +1,226 @@
+/* Existing character geometry copied from styles.css for a standalone design preview. */
+
+.study-cafe-avatar {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  z-index: 5;
+  width: 48px;
+  height: 66px;
+  transform: translateX(-50%) scale(0.9);
+  transform-origin: center top;
+}
+
+.study-cafe-seat-visual {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-shadow,
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-body,
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-face,
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-hair,
+.study-cafe-seat-visual.is-idle .study-cafe-desk-book,
+.study-cafe-seat-visual.is-idle .study-cafe-desk-cup {
+  animation: none;
+}
+
+.study-cafe-chair-back {
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  z-index: 4;
+  width: 31px;
+  height: 35px;
+  border: 2px solid rgba(103, 73, 47, 0.72);
+  border-radius: 7px 7px 5px 5px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(126, 91, 58, 0.11) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(180deg, #f2e4cf, #d9bd98);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.38),
+    0 2px 4px rgba(91, 57, 28, 0.14);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.study-cafe-chair-back::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 6px;
+  left: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(112, 78, 48, 0.42);
+}
+
+.study-cafe-writing-arms {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  z-index: 7;
+  width: 48px;
+  height: 66px;
+  pointer-events: none;
+  transform: translateX(-50%) scale(0.9);
+  transform-origin: center top;
+}
+
+.study-cafe-avatar-shadow {
+  position: absolute;
+  left: 5px;
+  bottom: 0;
+  width: 38px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(61, 52, 42, 0.16);
+  animation: study-cafe-shadow-breathe 2.1s ease-in-out infinite;
+}
+
+.study-cafe-avatar-body {
+  position: absolute;
+  left: 10px;
+  top: 32px;
+  width: 29px;
+  height: 31px;
+  border-radius: 12px 12px 9px 9px;
+  background: #5d95d4;
+  transform-origin: center bottom;
+  animation: study-cafe-body-breathe 2.1s ease-in-out infinite;
+}
+
+.study-cafe-avatar-face {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 25px;
+  height: 28px;
+  border-radius: 43% 43% 48% 48%;
+  background:
+    radial-gradient(circle at 8px 15px, #4a3d36 0 1px, transparent 2px),
+    radial-gradient(circle at 17px 15px, #4a3d36 0 1px, transparent 2px),
+    #ffd7ba;
+  animation: study-cafe-head-nod 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.study-cafe-avatar-hair {
+  position: absolute;
+  left: 10px;
+  top: 5px;
+  z-index: 2;
+  width: 29px;
+  height: 18px;
+  border-radius: 16px 16px 8px 8px;
+  background: #2e3642;
+  animation: study-cafe-head-nod 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.study-cafe-avatar-arm {
+  position: absolute;
+  z-index: 4;
+  top: 40px;
+  width: 10px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffd7ba;
+  transform-origin: top center;
+}
+
+.study-cafe-avatar-arm.left {
+  left: 8px;
+  animation: study-cafe-writing-left 1.35s ease-in-out infinite alternate;
+}
+
+.study-cafe-avatar-arm.right {
+  right: 7px;
+  animation: study-cafe-writing-right 1.2s ease-in-out -0.6s infinite alternate;
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm {
+  animation: none;
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm.left {
+  transform: rotate(-13deg);
+}
+
+.study-cafe-seat-visual.is-idle .study-cafe-avatar-arm.right {
+  transform: rotate(13deg);
+}
+
+.study-cafe-avatar.mint .study-cafe-avatar-body {
+  background: #52b99c;
+}
+
+.study-cafe-avatar.purple .study-cafe-avatar-body {
+  background: #8d77c9;
+}
+
+.study-cafe-avatar.orange .study-cafe-avatar-body {
+  background: #df8a4b;
+}
+
+.study-cafe-avatar.rose .study-cafe-avatar-body {
+  background: #cf6f83;
+}
+
+.study-cafe-avatar.navy .study-cafe-avatar-body {
+  background: var(--accent);
+}
+
+.study-cafe-desk {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: 16px;
+  z-index: 6;
+  height: 18px;
+  border-radius: 5px;
+  background: #b98d5c;
+  box-shadow: inset 0 4px 0 #d2ab7c, 0 7px 0 #856440;
+}
+
+.study-cafe-desk-book {
+  position: absolute;
+  left: 27%;
+  top: 5px;
+  width: 31px;
+  height: 16px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #eaf3ff 48%, #a8b7c8 49% 51%, #fff 52%);
+  box-shadow: 0 2px 0 rgba(61, 52, 42, 0.12);
+  transform-origin: center bottom;
+  animation: study-cafe-book-page 2.8s ease-in-out infinite;
+}
+
+.study-cafe-desk-cup {
+  position: absolute;
+  right: 12%;
+  top: 4px;
+  width: 12px;
+  height: 14px;
+  border-radius: 2px 2px 5px 5px;
+  background: #eef8fa;
+  border: 2px solid #6ca7ac;
+}
+
+.study-cafe-desk-cup::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: -10px;
+  width: 4px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-width: 0 0 0 1px;
+  border-radius: 50%;
+  animation: study-cafe-cup-steam 2.2s ease-out infinite;
+}

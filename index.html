@@ -23,7 +23,8 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260512-weekly-detail-flow" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260911-attendance-settings" />
+    <link rel="stylesheet" href="./styles.css?v=20260911-hair-shop-bot-admin-reward-celebration" />
+    <link rel="stylesheet" href="./study-character-fire.css?v=20260911-study-fire-guide-icon" />
   </head>
   <body>
     <noscript>
@@ -149,6 +150,7 @@
           "push-settings": "푸시 알림 설정",
           "other-settings": "기타 설정",
           "study-todo": "오늘 플래너",
+          "feedback": "의견 나누기",
           "study-cafe": "온라인 스터디카페",
           "study-timer": "과목 타이머",
           "study-ranking": "순공시간 랭킹",
@@ -203,7 +205,7 @@
           var route = String(location.hash || "").replace("#", "");
           route = String(route || "").split("?")[0];
           if (route === "grades-final") return "grades";
-          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "other-settings" || route === "study-todo" || route === "study-cafe" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "study-shop" || route === "notifications" || route === "notices" || route.indexOf("notice-") === 0) return route;
+          if (route === "student" || route === "attendance" || route === "mypage" || route === "push-settings" || route === "other-settings" || route === "study-todo" || route === "study-cafe" || route === "feedback" || route === "study-timer" || route === "study-ranking" || route === "study-character" || route === "study-shop" || route === "notifications" || route === "notices" || route.indexOf("notice-") === 0) return route;
           if (route === "grades") return "grades";
           return "home";
         }
@@ -275,12 +277,15 @@
     </script>
     <script src="./config.js?v=20260514-return-photo-time"></script>
     <script src="./supabase.js?v=20260514-return-photo-time" defer></script>
-    <script src="./shared.js?v=20260911-attendance-settings" defer></script>
+    <script src="./shared.js?v=20260911-study-cafe-visibility" defer></script>
     <script src="./student.js?v=20260911-attendance-settings" defer></script>
     <script src="./question-board.js?v=20260902-question-board-skeleton-ui" defer></script>
     <script src="./inquiry-board.js?v=20260902-inquiry-prefetch" defer></script>
-    <script src="./study-shop.js?v=20260828-local-grant-20000" defer></script>
+    <script src="./study-character.js?v=20260911-character-hair-fire" defer></script>
+    <script src="./study-shop.js?v=20260911-hair-shop-rewards" defer></script>
+    <script src="./student-rewards.js?v=20260911-reward-break-celebration" defer></script>
     <script src="./final-scope-data.js?v=20260908-final-scope-plan" defer></script>
-    <script src="./app.js?v=20260909-idle-seat-push-test" defer></script>
+    <script src="./feedback-hub.js?v=20260911-feedback-titles" defer></script>
+    <script src="./app.js?v=20260911-hair-shop-bot-admin-reward-break-fire-guide-icon" defer></script>
   </body>
 </html>

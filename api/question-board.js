@@ -653,6 +653,9 @@ function httpError(message, status) {
 }
 
 module.exports._private = {
+  uploadQuestionImages,
+  signQuestionImages,
+  deleteQuestionImages,
   FALLBACK_SUBJECTS,
   maskName,
   normalizeRequired,

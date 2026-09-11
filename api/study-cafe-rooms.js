@@ -1,3 +1,4 @@
+const characterHair = require("../study-character");
 const crypto = require("crypto");
 
 const ACTIONS = new Set([
@@ -297,7 +298,7 @@ async function loadOwnRoomLegacy(student) {
   const studyBounds = getStudyRoomDayBounds();
   const [members, profiles, students, messages, sessions] = await Promise.all([
     requestStore("GET", `study_cafe_room_members?room_id=eq.${room.id}&select=student_id,role,seat_number,joined_at,updated_at&order=joined_at.asc`),
-    requestStore("GET", "study_cafe_profiles?select=student_id,avatar_tone,nickname,status_message"),
+    requestStore("GET", "study_cafe_profiles?select=*"),
     requestStore("GET", "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name,track"),
     requestStore("GET", `study_cafe_room_messages?room_id=eq.${room.id}&select=id,student_id,message_type,message_text,created_at,deleted_at&order=created_at.desc&limit=100`),
     requestStore("GET", `study_cafe_sessions?started_at=gte.${encodeURIComponent(studyBounds.start)}&started_at=lt.${encodeURIComponent(studyBounds.end)}&select=student_id,subject_name,status,elapsed_seconds,active_started_at`),
@@ -324,6 +325,7 @@ async function loadOwnRoomLegacy(student) {
       name: member.student_id === studentId ? "나" : name,
       track: summarizeTrack(source.track),
       tone: normalizeTone(profile.avatar_tone, member.student_id),
+      hairStyle: characterHair.normalize(profile.hair_style),
       statusMessage: normalizeText(profile.status_message, 40),
       role: member.role,
       seatNumber: Number(member.seat_number) || null,
@@ -387,6 +389,7 @@ function serializeStudyRoomSnapshot(snapshot, student) {
       name: member.student_id === student.id ? "나" : name,
       track: summarizeTrack(source.track),
       tone: normalizeTone(profile.avatar_tone, member.student_id),
+      hairStyle: characterHair.normalize(profile.hair_style),
       statusMessage: normalizeText(profile.status_message, 40),
       role: member.role,
       seatNumber: Number(member.seat_number) || null,

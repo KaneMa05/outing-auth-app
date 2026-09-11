@@ -56,6 +56,8 @@ const originalEnv = {
       attendanceDeadline: "08:50",
       attendanceDeadlineEnabled: false,
       onlineManagedStudyCafeEnabled: true,
+      studyRoomListEnabled: true,
+      studyCafeRoomTabsEnabled: true,
       phoneVerificationEnabled: true,
     }),
   }]);
@@ -63,8 +65,17 @@ const originalEnv = {
   await handler(createRequest(), publicResponse);
   assert.equal(publicResponse.statusCode, 200);
   assert.equal(publicResponse.payload.settings.onlineManagedStudyCafeEnabled, true);
+  assert.equal(publicResponse.payload.settings.studyRoomListEnabled, true);
+  assert.equal(publicResponse.payload.settings.studyCafeRoomTabsEnabled, true);
   assert.equal(publicResponse.payload.settings.curriculumQuestEnabled, false);
   assert.equal(publicResponse.payload.settings.phoneVerificationEnabled, true);
+
+  global.fetch = async () => jsonResponse([{ body: JSON.stringify({}) }]);
+  const defaultVisibilityResponse = createResponse();
+  await handler(createRequest(), defaultVisibilityResponse);
+  assert.equal(defaultVisibilityResponse.statusCode, 200);
+  assert.equal(defaultVisibilityResponse.payload.settings.studyRoomListEnabled, false);
+  assert.equal(defaultVisibilityResponse.payload.settings.studyCafeRoomTabsEnabled, false);
 
   const managerToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "manager",
@@ -82,6 +93,14 @@ const originalEnv = {
     forbiddenResponse
   );
   assert.equal(forbiddenResponse.statusCode, 403);
+  assert.equal(fetchCalled, false);
+
+  const studyCafeVisibilityForbiddenResponse = createResponse();
+  await handler(
+    createRequest("POST", { settings: { studyRoomListEnabled: true } }, managerToken),
+    studyCafeVisibilityForbiddenResponse
+  );
+  assert.equal(studyCafeVisibilityForbiddenResponse.statusCode, 403);
   assert.equal(fetchCalled, false);
 
   const curriculumForbiddenResponse = createResponse();
@@ -135,6 +154,22 @@ const originalEnv = {
   assert.equal(adminResponse.statusCode, 200);
   assert.equal(adminResponse.payload.settings.onlineManagedStudyCafeEnabled, true);
   assert.equal(savedSettings.onlineManagedStudyCafeEnabled, true);
+
+  const studyCafeVisibilityAdminResponse = createResponse();
+  await handler(
+    createRequest("POST", {
+      settings: {
+        studyRoomListEnabled: true,
+        studyCafeRoomTabsEnabled: true,
+      },
+    }, adminToken),
+    studyCafeVisibilityAdminResponse
+  );
+  assert.equal(studyCafeVisibilityAdminResponse.statusCode, 200);
+  assert.equal(studyCafeVisibilityAdminResponse.payload.settings.studyRoomListEnabled, true);
+  assert.equal(studyCafeVisibilityAdminResponse.payload.settings.studyCafeRoomTabsEnabled, true);
+  assert.equal(savedSettings.studyRoomListEnabled, true);
+  assert.equal(savedSettings.studyCafeRoomTabsEnabled, true);
 
   const curriculumAdminResponse = createResponse();
   await handler(

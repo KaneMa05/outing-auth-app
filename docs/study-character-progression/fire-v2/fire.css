@@ -1,0 +1,28 @@
+/* Fire is a vector UI effect behind the unchanged native character. */
+.scene{isolation:isolate}
+.scene .pencil,.scene .writing,.scene .bookmark,.scene .notes{display:none!important}
+.scene .study-cafe-avatar-hair,.scene .study-cafe-avatar-face{transform:none!important}
+.scene .study-cafe-avatar-arm.right{transform:rotate(13deg)!important}
+.fire-layer{position:absolute;left:50%;bottom:20px;width:0;height:0;transform:translateX(-50%);z-index:0;pointer-events:none;--outer:#ffc457;--middle:#ffe49a;--core:#fff4d5}
+.fire-svg{width:100%;height:100%;overflow:visible;transform-origin:50% 96%;filter:drop-shadow(0 0 5px #ffbb3b1c)}
+.fire-outer{fill:var(--outer)}.fire-middle{fill:var(--middle)}.fire-core{fill:var(--core)}
+.stage-0 .fire-layer{display:none}
+.stage-1 .fire-layer{width:66px;height:52px}
+.stage-2 .fire-layer{width:79px;height:70px;--outer:#ffa24a;--middle:#ffd371;--core:#ffefae}
+.stage-3 .fire-layer{width:94px;height:88px;--outer:#fa7c3f;--middle:#ffc054;--core:#ffea95}
+.stage-4 .fire-layer{width:105px;height:103px;--outer:#ef6044;--middle:#ffa449;--core:#ffdc7b}
+.stage-5 .fire-layer{width:116px;height:115px;--outer:#ee6b40;--middle:#ffc44d;--core:#fff1b1}
+.stage-5 .fire-middle{transform:translate(-4px,-10px) scale(1.07);transform-origin:50% 100%}
+.stage-5 .fire-core{transform:translate(-2px,-12px) scale(1.12);transform-origin:50% 100%}
+.ember{position:absolute;width:4px;height:7px;background:#ffba58;border-radius:70% 20% 65% 45%;opacity:0}
+.ember-one{left:16%;top:10%;transform:rotate(20deg)}.ember-two{right:7%;top:22%;transform:rotate(-20deg);width:3px;height:5px}
+.stage-4 .ember,.stage-5 .ember{opacity:1}
+.preview-mode .scene:not(.paused) .fire-svg{animation:fire-sway 2.8s ease-in-out infinite}
+.scene.paused .fire-svg{animation:none}
+@keyframes fire-sway{0%,100%{transform:scale(1) rotate(-.6deg)}50%{transform:scale(1.015,.975) rotate(.6deg)}}
+.board .stage-card .scene-window{height:188px}
+.stage-card:has(.stage-5){border-color:#e8c994;background:#fffefa}
+.stage-tag{background:#fff1df;color:#92662f}.mile.done i{background:#da9851}.mile.done{color:#a5773d}
+.stage-controls .selected{background:#be803e;border-color:#be803e}.stage-description{border-color:#d8ab70}
+.sample-label span{color:#946b37}.live-status{color:#946b37;background:#fff0db}
+@media(prefers-reduced-motion:reduce){.preview-mode .scene .fire-svg{animation:none!important}}

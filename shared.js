@@ -540,6 +540,8 @@ function defaultState() {
       attendanceDeadlineEnabled: false,
       attendanceDateDeadlines: {},
       onlineManagedStudyCafeEnabled: false,
+      studyRoomListEnabled: false,
+      studyCafeRoomTabsEnabled: false,
       curriculumQuestEnabled: false,
       phoneVerificationEnabled: false,
       studentDday: null,
@@ -4435,6 +4437,8 @@ function applyRemoteAppSettings(settings) {
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
   state.settings.attendanceDateDeadlines = normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines);
   state.settings.onlineManagedStudyCafeEnabled = settings.onlineManagedStudyCafeEnabled === true;
+  state.settings.studyRoomListEnabled = settings.studyRoomListEnabled === true;
+  state.settings.studyCafeRoomTabsEnabled = settings.studyCafeRoomTabsEnabled === true;
   state.settings.curriculumQuestEnabled = settings.curriculumQuestEnabled === true;
   state.settings.phoneVerificationEnabled = settings.phoneVerificationEnabled === true;
   state.settings.studentDday = settings.studentDday && typeof settings.studentDday === "object"

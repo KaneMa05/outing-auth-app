@@ -35,6 +35,9 @@ module.exports = async function handler(req, res) {
         rawSettings,
         "onlineManagedStudyCafeEnabled"
       );
+      const writesStudyCafeVisibility =
+        Object.prototype.hasOwnProperty.call(rawSettings, "studyRoomListEnabled") ||
+        Object.prototype.hasOwnProperty.call(rawSettings, "studyCafeRoomTabsEnabled");
       const writesCurriculumQuest = Object.prototype.hasOwnProperty.call(
         rawSettings,
         "curriculumQuestEnabled"
@@ -64,6 +67,10 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (writesOnlineManagedStudyCafe && !hasPermission(session, "students.read")) {
+        res.status(403).json({ ok: false, error: "forbidden" });
+        return;
+      }
+      if (writesStudyCafeVisibility && !hasPermission(session, "study_cafe.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
       }
@@ -145,6 +152,8 @@ function normalizeSettings(settings) {
     attendanceDeadlineEnabled: settings.attendanceDeadlineEnabled === true,
     attendanceDateDeadlines: normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines),
     onlineManagedStudyCafeEnabled: settings.onlineManagedStudyCafeEnabled === true,
+    studyRoomListEnabled: settings.studyRoomListEnabled === true,
+    studyCafeRoomTabsEnabled: settings.studyCafeRoomTabsEnabled === true,
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
     phoneVerificationEnabled: settings.phoneVerificationEnabled === true,
     studentDday: normalizeStudentDday(settings.studentDday),

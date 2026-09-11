@@ -2,7 +2,13 @@ const STUDY_CAFE_SHOP_POINT_SECONDS = 30 * 60;
 const STUDY_CAFE_SHOP_POINT_AMOUNT = 5;
 const STUDY_CAFE_SHOP_LOCAL_GRANT = 20000;
 const STUDY_CAFE_SHOP_LOCAL_GRANT_VERSION = 4;
+const STUDY_CAFE_SHOP_DESK_LIMIT_MESSAGE = "소품은 최대 4개까지 배치할 수 있습니다. 기존 소품을 착용 해제한 뒤 다시 시도해주세요.";
 const STUDY_CAFE_SHOP_FALLBACK_ITEMS = [
+  ["hair_sport", "스포츠 컷", "깔끔하고 가벼운 짧은 머리입니다.", "hair", "✂", 50],
+  ["hair_spiky", "삐죽 숏컷", "삐죽한 앞머리로 활기를 더해요.", "hair", "✂", 80],
+  ["hair_mushroom", "버섯 머리", "동글동글 귀여운 실루엣의 머리입니다.", "hair", "✂", 100],
+  ["hair_wave", "내추럴 웨이브", "부드럽고 자연스러운 웨이브입니다.", "hair", "✂", 150],
+  ["hair_ponytail", "하이 포니테일", "높게 묶어 발랄한 포니테일입니다.", "hair", "✂", 200],
   ["outfit_coast_guard_uniform", "해경 정복", "해양경찰 정복입니다.", "outfit", "👮", 4000],
   ["head_navy_cap", "네이비 캡", "가볍게 눌러쓰는 기본 스터디 모자입니다.", "head", "🧢", 800],
   ["head_bucket_hat", "버킷햇", "편안한 공부 분위기를 더하는 모자입니다.", "head", "👒", 1000],
@@ -82,6 +88,7 @@ function hydrateStudyCafeShopSummary(shop) {
     Math.max(1, Number(shop.secondsToNextPoint) || STUDY_CAFE_SHOP_POINT_SECONDS)
   );
   studyCafeShopState.equipment = normalizeStudyCafeShopEquipment(shop.equipment || studyCafeShopState.equipment);
+  syncStudyCafeShopHair();
   if (Number(shop.awardedNow) > 0) notify(`순공시간으로 ${Number(shop.awardedNow)}P를 자동 획득했습니다.`);
 }
 
@@ -90,6 +97,7 @@ function hydrateStudyCafeShop(data) {
   studyCafeShopState.items = Array.isArray(data.items) && data.items.length ? data.items : STUDY_CAFE_SHOP_FALLBACK_ITEMS;
   studyCafeShopState.inventory = Array.isArray(data.inventory) ? data.inventory : [];
   studyCafeShopState.equipment = normalizeStudyCafeShopEquipment(data.equipment || {});
+  syncStudyCafeShopHair();
   studyCafeShopState.history = Array.isArray(data.history) ? data.history : [];
   studyCafeShopState.loaded = true;
 }
@@ -156,6 +164,7 @@ function hydrateLocalStudyCafeShop(student) {
   studyCafeShopState.items = STUDY_CAFE_SHOP_FALLBACK_ITEMS;
   studyCafeShopState.inventory = shouldResetLocalItems ? [] : Array.isArray(saved.inventory) ? saved.inventory : [];
   studyCafeShopState.equipment = shouldResetLocalItems ? normalizeStudyCafeShopEquipment({}) : normalizeStudyCafeShopEquipment(saved.equipment || {});
+  syncStudyCafeShopHair();
   studyCafeShopState.balance = needsLocalGrant
     ? STUDY_CAFE_SHOP_LOCAL_GRANT
     : Math.max(0, Number.isFinite(savedBalance)
@@ -229,8 +238,17 @@ function normalizeStudyCafeShopEquipment(equipment = {}) {
     ...(equipment.outfit ? { outfit: equipment.outfit } : {}),
     ...(equipment.head ? { head: equipment.head } : {}),
     ...(equipment.chair ? { chair: equipment.chair } : {}),
+    ...(equipment.hair ? { hair: equipment.hair } : {}),
     desk: [...new Set(deskItems.filter(Boolean))].slice(0, 4),
   };
+}
+
+function syncStudyCafeShopHair() {
+  if (typeof studyCafePreviewState === "undefined") return;
+  const item = getStudyCafeShopItem(studyCafeShopState.equipment.hair);
+  studyCafePreviewState.hairStyle = item?.slot === "hair"
+    ? StudyCharacterStyles.normalize(item.id.replace(/^hair_/, ""))
+    : "default";
 }
 
 function renderStudyCafeShopCosmetic(slot, className = "") {
@@ -271,6 +289,7 @@ function getStudyCafeEquippedOutfitClass() {
 
 async function purchaseStudyCafeShopItem(item) {
   if (!item || studyCafeShopState.actionPending) return;
+  if (studyCafeShopState.inventory.some(entry => entry.itemId === item.id)) return;
   if (studyCafeShopState.balance < item.price) {
     notify(`${formatStudyCafeShopPoints(item.price - studyCafeShopState.balance)}가 더 필요합니다.`);
     return;
@@ -306,6 +325,14 @@ async function purchaseStudyCafeShopItem(item) {
 
 async function equipStudyCafeShopItem(item) {
   if (!item || studyCafeShopState.actionPending) return;
+  if (!studyCafeShopState.inventory.some(entry => entry.itemId === item.id)) {
+    notify("먼저 상점에서 구매해주세요.");
+    return;
+  }
+  if (item.slot === "desk" && !isStudyCafeShopItemEquipped(item) && (studyCafeShopState.equipment.desk || []).length >= 4) {
+    notify(STUDY_CAFE_SHOP_DESK_LIMIT_MESSAGE);
+    return;
+  }
   studyCafeShopState.actionPending = true;
   if (isStudyCafeLocalPreview()) {
     if (item.slot === "desk") {
@@ -319,7 +346,7 @@ async function equipStudyCafeShopItem(item) {
     const result = await requestStudyCafeAction("shop_equip", { itemId: item.id });
     if (!result.ok) {
       studyCafeShopState.actionPending = false;
-      notify("아이템을 착용하지 못했습니다.");
+      notify(result.error === "desk_item_limit" ? STUDY_CAFE_SHOP_DESK_LIMIT_MESSAGE : "아이템을 착용하지 못했습니다.");
       return;
     }
     if (result.equipment.slot === "desk") {
@@ -330,6 +357,8 @@ async function equipStudyCafeShopItem(item) {
     }
   }
   studyCafeShopState.actionPending = false;
+  syncStudyCafeShopHair();
+  if (item.slot === "hair" && !isStudyCafeLocalPreview()) requestStudyCafeRemoteRefresh();
   notify(`${item.name}을(를) 착용했습니다.`);
   renderStudyCafeStateUpdate();
 }
@@ -358,7 +387,9 @@ async function unequipStudyCafeShopItem(item) {
     }
   }
   studyCafeShopState.actionPending = false;
-  notify(`${item.name} 착용을 해제했습니다.`);
+  syncStudyCafeShopHair();
+  if (item.slot === "hair" && !isStudyCafeLocalPreview()) requestStudyCafeRemoteRefresh();
+  notify(item.slot === "hair" ? "기본 머리로 변경했습니다." : `${item.name} 착용을 해제했습니다.`);
   renderStudyCafeStateUpdate();
 }
 
@@ -394,12 +425,13 @@ function renderStudentStudyShop() {
   const loading = studyCafeShopState.loading && !studyCafeShopState.loaded;
   if (loading || studyCafeShopState.available === false) return renderStudyCafeShopStatus(loading);
 
-  const categories = [["all", "전체"], ["outfit", "의상"], ["desk", "책상 소품"], ["chair", "의자"], ["head", "모자"], ["owned", "보유"]];
+  const categories = [["all", "전체"], ["hair", "머리 스타일"], ["outfit", "의상"], ["desk", "책상 소품"], ["chair", "의자"], ["head", "모자"], ["owned", "보유"]];
   const ownedIds = new Set(studyCafeShopState.inventory.map((entry) => entry.itemId));
-  const items = (studyCafeShopState.items.length ? studyCafeShopState.items : STUDY_CAFE_SHOP_FALLBACK_ITEMS)
+  const items = [{ id: "hair_default", name: "기본 머리", description: "언제든 무료로 돌아올 수 있는 기본 머리입니다.", slot: "hair", price: 0 },
+    ...(studyCafeShopState.items.length ? studyCafeShopState.items : STUDY_CAFE_SHOP_FALLBACK_ITEMS)]
     .filter((item) => studyCafeShopState.category === "all" || (
       studyCafeShopState.category === "owned"
-        ? ownedIds.has(item.id)
+        ? item.id === "hair_default" || ownedIds.has(item.id)
         : item.slot === studyCafeShopState.category
     ));
   const secondsIntoPoint = (STUDY_CAFE_SHOP_POINT_SECONDS - studyCafeShopState.secondsToNextPoint) % STUDY_CAFE_SHOP_POINT_SECONDS;
@@ -415,7 +447,6 @@ function renderStudentStudyShop() {
     ]),
     el("section", { className: "study-shop-point-card" }, [
       el("div", {}, [el("span", {}, "오늘 자동 획득"), el("strong", {}, `${studyCafeShopState.earnedToday}P`)]),
-      el("p", {}, "순공시간 30분마다 5P가 쌓여요. 30분 미만은 포인트가 지급되지 않아요."),
       el("div", { className: "study-shop-point-progress", ariaLabel: "다음 포인트 진행률" }, [
         el("i", { style: `width:${progress}%` }),
       ]),
@@ -427,6 +458,9 @@ function renderStudentStudyShop() {
         renderStudyCafeStateUpdate();
       })
     )),
+    studyCafeShopState.category === "hair"
+      ? el("p", { className: "study-shop-hair-hint" }, "한 번 구매하면 계속 사용할 수 있어요. 착용을 해제하면 무료 기본 머리로 돌아가요.")
+      : null,
     items.length
       ? el("section", { className: "study-shop-grid", ariaLabel: "상점 상품" }, items.map((item) => renderStudyCafeShopItemCard(item, ownedIds)))
       : el("section", { className: "study-shop-empty" }, [
@@ -434,30 +468,36 @@ function renderStudentStudyShop() {
           el("p", {}, "순공시간으로 포인트를 모아 첫 아이템을 구매해보세요."),
         ]),
     renderStudyCafePointHistory(),
+    typeof renderStudentRewardHelp === "function" ? renderStudentRewardHelp() : null,
   ]);
 }
 
 function renderStudyCafeShopItemCard(item, ownedIds) {
-  const owned = ownedIds.has(item.id);
-  const equipped = isStudyCafeShopItemEquipped(item);
+  const defaultHair = item.id === "hair_default";
+  const owned = defaultHair || ownedIds.has(item.id);
+  const equipped = defaultHair ? !studyCafeShopState.equipment.hair : isStudyCafeShopItemEquipped(item);
   const insufficient = !owned && studyCafeShopState.balance < item.price;
   return el("article", { className: `study-shop-item-card ${equipped ? "equipped" : ""}`.trim() }, [
-    el("div", { className: `study-shop-item-preview slot-${item.slot} item-${getStudyCafeShopItemCssClass(item.id)}`, ariaHidden: "true" }, item.icon),
+    el("div", { className: `study-shop-item-preview slot-${item.slot} item-${getStudyCafeShopItemCssClass(item.id)}`, ariaHidden: "true" }, item.slot === "hair"
+      ? renderStudyCafeAvatar(studyCafePreviewState.avatarTone || "navy", false, { includeArms: false, hairStyle: item.id.replace(/^hair_/, "") })
+      : item.icon),
     el("div", { className: "study-shop-item-copy" }, [
-      el("span", {}, { outfit: "의상", head: "모자", desk: "책상 소품", chair: "의자" }[item.slot] || "아이템"),
+      el("span", {}, { hair: "머리 스타일", outfit: "의상", head: "모자", desk: "책상 소품", chair: "의자" }[item.slot] || "아이템"),
       el("strong", {}, item.name),
       el("p", {}, item.description),
     ]),
     el("button", {
       className: `study-shop-item-button ${equipped ? "unequip" : ""}`.trim(),
       type: "button",
-      disabled: studyCafeShopState.actionPending,
-      onclick: equipped
+      disabled: studyCafeShopState.actionPending || (defaultHair && equipped),
+      onclick: defaultHair
+        ? () => unequipStudyCafeShopItem(getStudyCafeShopItem(studyCafeShopState.equipment.hair))
+        : equipped
         ? () => unequipStudyCafeShopItem(item)
         : owned
           ? () => equipStudyCafeShopItem(item)
           : () => purchaseStudyCafeShopItem(item),
-    }, equipped ? "착용 해제" : owned ? "착용하기" : `${formatStudyCafeShopPoints(item.price)} 구매`),
+    }, defaultHair ? (equipped ? "무료 · 착용 중" : "무료 · 기본 머리로") : equipped ? "착용 해제" : owned ? "착용하기" : `${formatStudyCafeShopPoints(item.price)} 구매`),
     insufficient ? el("small", { className: "study-shop-item-shortage" }, `${formatStudyCafeShopPoints(item.price - studyCafeShopState.balance)} 부족`) : null,
   ]);
 }

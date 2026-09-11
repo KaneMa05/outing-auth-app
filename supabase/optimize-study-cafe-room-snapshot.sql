@@ -166,7 +166,8 @@ as $$
         'student_id', profile.student_id,
         'avatar_tone', profile.avatar_tone,
         'nickname', profile.nickname,
-        'status_message', profile.status_message
+        'status_message', profile.status_message,
+        'hair_style', coalesce(to_jsonb(profile)->>'hair_style', 'default')
       ))
       from public.study_cafe_profiles as profile
     ), '[]'::jsonb),

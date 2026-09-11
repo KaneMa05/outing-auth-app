@@ -1,0 +1,30 @@
+const fs=require('node:fs'),path=require('node:path');
+const {spawn}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),dir=path.join(root,'tmp/study-fire-guide-qa');
+fs.mkdirSync(dir,{recursive:true});
+const browser=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=9358',`--user-data-dir=${path.join(dir,'browser')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{
+ let tabs;for(let i=0;i<60;i++){try{tabs=await(await fetch('http://127.0.0.1:9358/json')).json();break}catch{await delay(250)}}if(!tabs)throw new Error('Browser unavailable');
+ const ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));
+ const pending=new Map();let id=0;ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result)}});
+ const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}))});
+ const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value};
+ await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:false});
+ await send('Page.navigate',{url:'http://localhost:3000/?studentMode=online#study-cafe'});
+ let ready=false;for(let i=0;i<60;i++){await delay(250);ready=await evaluate('!!document.querySelector(".study-cafe-fire-guide-button")');if(ready)break;}
+ if(!ready)throw new Error('Guide button not visible: '+await evaluate('document.body.innerText.slice(0,600)'));
+ const samples=await evaluate(`JSON.stringify([...document.querySelectorAll('[data-study-cafe-seat-grid] .study-cafe-seat.occupied')].map(seat=>({name:seat.querySelector('.study-cafe-seat-name strong')?.textContent,stage:seat.querySelector('.study-cafe-fire')?.dataset.studyFireStage})))`);
+ const parsed=JSON.parse(samples);
+ if(parsed.slice(0,6).map(s=>s.stage).join(',')!=='5,4,3,2,1,0')throw new Error('Local sample layout: '+samples);
+ console.log('Local ranking seats: '+samples);
+ const closed=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(dir,'seat-header.png'),Buffer.from(closed.data,'base64'));
+ await evaluate('document.querySelector(".study-cafe-fire-guide-button").click()');await delay(900);
+ const state=await evaluate(`(()=>{const modal=document.querySelector('.study-cafe-fire-guide-modal');return {cards:modal.querySelectorAll('.study-cafe-fire-guide-card').length,stages:[...modal.querySelectorAll('.study-cafe-fire')].map(e=>e.dataset.studyFireStage),overflow:modal.scrollWidth>modal.clientWidth,buttonRight:document.querySelector('.study-cafe-fire-guide-button').getBoundingClientRect().right<=innerWidth}})()`);
+ if(state.cards!==6||state.stages.join(',')!=='0,1,2,3,4,5'||state.overflow||!state.buttonRight)throw new Error(JSON.stringify(state));
+ const opened=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(dir,'guide-open.png'),Buffer.from(opened.data,'base64'));
+ await evaluate('document.querySelector(".study-cafe-fire-guide-modal > button").click()');
+ if(await evaluate('!!document.querySelector(".study-cafe-fire-guide-modal")'))throw new Error('Guide did not close');
+ console.log('Actual localhost study-cafe: header button, six stages, mobile bounds, open/close passed.');
+ await send('Browser.close').catch(()=>{});ws.close();
+})().catch(e=>{console.error(e);browser.kill();process.exitCode=1});

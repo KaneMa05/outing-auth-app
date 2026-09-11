@@ -813,7 +813,7 @@ assert.match(styleSource, /body\.student-footer-tap-guard \.study-cafe-seat\s*\{
 assert.match(appSource, /seated \? renderStudyCafeMySeatCard\(student, selectedSeatNumber\) : null/);
 assert.doesNotMatch(appSource, /study-cafe-my-seat-badge/);
 assert.doesNotMatch(styleSource, /\.study-cafe-my-seat-badge/);
-assert.match(appSource, /function renderStudyCafeChairBack\(isMine = false\)/);
+assert.match(appSource, /function renderStudyCafeChairBack\(isMine = false, equipment\)/);
 assert.match(
   appSource,
   /className: "study-cafe-my-seat-character"[\s\S]*?renderStudyCafeSeatedVisual\(studyCafePreviewState\.avatarTone \|\| "navy", true/
@@ -828,7 +828,7 @@ assert.match(appSource, /status: !resolvedSeatNumber[\s\S]*?\? "unseated"/);
 assert.match(appSource, /seatLabel: resolvedSeatNumber \? "" : "좌석 미선택"/);
 assert.match(
   appSource,
-  /function renderStudyCafeSeatedVisual\(tone, isMine = false, options = \{\}\)[\s\S]*?renderStudyCafeChairBack\(isMine\)[\s\S]*?renderStudyCafeAvatar\(tone, isMine[\s\S]*?className: "study-cafe-desk"[\s\S]*?renderStudyCafeWritingArms\(\)/
+  /function renderStudyCafeSeatedVisual\(tone, isMine = false, options = \{\}\)[\s\S]*?renderStudyCafeChairBack\(isMine, options\.equipment\)[\s\S]*?renderStudyCafeAvatar\(tone, isMine[\s\S]*?className: "study-cafe-desk"[\s\S]*?renderStudyCafeWritingArms\(\)/
 );
 assert.match(
   appSource,
@@ -873,11 +873,11 @@ assert.doesNotMatch(
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-card\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)[^}]*gap: 7px[^}]*margin: 10px 8px 2px[^}]*padding-inline: 0/
+  /\.study-cafe-room \.study-cafe-my-seat-card\s*\{[^}]*grid-template-columns: 56px minmax\(0, 1fr\) auto[^}]*gap: 8px[^}]*min-height: 96px[^}]*margin: 8px 8px 2px[^}]*padding: 8px/
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-character\s*\{[^}]*grid-column: 1[^}]*width: 100%[^}]*height: 122px[^}]*aspect-ratio: auto[^}]*justify-self: stretch[^}]*place-items: center/
+  /\.study-cafe-room \.study-cafe-my-seat-character\s*\{[^}]*grid-column: 1[^}]*width: 100%[^}]*height: 72px[^}]*aspect-ratio: auto[^}]*justify-self: stretch[^}]*place-items: center/
 );
 assert.match(
   styleSource,
@@ -885,11 +885,11 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*grid-column: 2 \/ -1/
+  /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*grid-column: 2/
 );
 assert.match(
   styleSource,
-  /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*padding-right: 12px/,
+  /\.study-cafe-room \.study-cafe-my-seat-copy\s*\{[^}]*padding-right: 0/,
   "the selected-seat controls should keep breathing room from the card edge"
 );
 assert.match(
@@ -1099,7 +1099,7 @@ assert.match(appSource, /Array\.from\(\{ length: STUDY_CAFE_SEAT_COUNT \}/);
 assert.match(appSource, /function renderStudyCafeRoomTabs\(student\)/);
 assert.match(appSource, /function openStudyCafeRankingGuideModal\(\)/);
 assert.match(appSource, /data-study-cafe-ranking-help/);
-assert.match(appSource, /textContent: "랭킹룸 안내"/);
+assert.match(appSource, /title: "랭킹룸 안내"/);
 assert.doesNotMatch(appSource, /textContent: "\? 랭킹룸 안내"/);
 assert.match(appSource, /오늘 누적된 순공시간이 긴 순서대로/);
 assert.match(appSource, /순위는 15초마다 갱신/);
@@ -1153,7 +1153,8 @@ assert.match(
 );
 assert.match(appSource, /ariaLabel: "일시정지"/);
 assert.match(appSource, /el\("strong", \{\}, occupant\.name\)/);
-assert.match(appSource, /el\("em", \{\}, occupant\.track\)/);
+assert.doesNotMatch(appSource, /el\("em", \{\}, occupant\.track\)/);
+assert.match(appSource, /el\("span", \{\}, occupant\.fullTrack \|\| occupant\.track \|\| "직렬 미등록"\)/);
 assert.match(appSource, /track: summarizeStudyCafeTrack\(student\?\.track\)/);
 assert.match(appSource, /fullTrack: student\?\.track \|\| "온라인 수강"/);
 assert.match(appSource, /function summarizeStudyCafeTrack\(value\)/);
@@ -1169,7 +1170,7 @@ assert.match(styleSource, /\.study-cafe-seat-number/);
 assert.match(styleSource, /\.study-cafe-avatar-arm/);
 assert.match(
   styleSource,
-  /\.study-cafe-avatar-arm\s*\{[^}]*top: 40px[^}]*width: 10px[^}]*height: 18px/
+  /\.study-cafe-avatar-arm\s*\{[^}]*top: 40px[^}]*width: 8px[^}]*height: 14px/
 );
 assert.match(styleSource, /\.study-cafe-avatar\s*\{[^}]*top: 46px/);
 assert.match(styleSource, /\.study-cafe-avatar\s*\{[^}]*z-index: 5/);
@@ -1254,7 +1255,7 @@ assert.doesNotMatch(styleSource, /\.footer-icon-study-ranking::after\s*\{\s*cont
 assert.match(styleSource, /\.study-cafe-footer-menu button\.active::after/);
 assert.match(
   styleSource,
-  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(25% - 5\.25px\)[^}]*transform 220ms/s
+  /\.study-cafe-footer-menu::before\s*\{[^}]*width: calc\(25% - 6\.5px\)[^}]*transform 220ms/s
 );
 assert.doesNotMatch(styleSource, /\.study-cafe-footer-menu\[data-active-index="4"\]::before/);
 assert.doesNotMatch(styleSource, /\.study-cafe-footer-menu\[data-active-index="5"\]::before/);
@@ -1316,7 +1317,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260909-idle-seat-push-test/);
+assert.match(indexSource, /app\.js\?v=20260911-hair-shop/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

@@ -8,6 +8,84 @@ const teacherHtml = fs.readFileSync("teacher.html", "utf8");
 const styleSource = fs.readFileSync("styles.css", "utf8");
 const authSource = fs.readFileSync("api/teacher-auth-utils.js", "utf8");
 
+require("node:test")("dashboard failure stops render retries and leaves both admin dialogs usable", async () => {
+  const vm = require("node:vm");
+  const extract = (source, name) => {
+    const match = source.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n}`));
+    assert.ok(match, name);
+    return match[0];
+  };
+  const nodes = [];
+  const dialogs = [];
+  let requests = 0;
+  let retrySucceeds = false;
+  const dashboard = { loading: false, loaded: false, error: "", data: null };
+  const context = vm.createContext({
+    studyCafeAdminState: dashboard,
+    currentRoute: "study-cafe-admin",
+    teacherAuth: { user: { username: "admin" } },
+    isTeacherAdmin: () => true,
+    hasTeacherPermission: () => true,
+    ensureStudyCafeAdminRefresh() {},
+    renderStudyCafeVisibilitySettingsPanel: () => null,
+    renderDataLoadingState: () => null,
+    console: { error() {} },
+    AbortSignal,
+    el(tag, props = {}, children = []) {
+      const node = { tag, ...props, children, isConnected: true,
+        append(...items) { this.children = items; },
+        appendChild(item) { this.children.push(item); },
+        replaceChildren(...items) { this.children = items; },
+        setAttribute() {},
+        addEventListener(type, listener) { this[type] = listener; },
+      };
+      nodes.push(node);
+      return node;
+    },
+    openInfoModal(options) { dialogs.push(options); },
+    async fetch(url, options) {
+      const action = JSON.parse(options.body).action;
+      if (action === "dashboard") {
+        requests++;
+        // Bound the pre-fix failure loop so the regression test can report it.
+        if (requests > 3) return new Promise(() => {});
+        return { ok: retrySucceeds, json: async () => retrySucceeds
+          ? { ok: true } : { ok: false, error: "unsupported_local_action" } };
+      }
+      return { ok: true, json: async () => ({ ok: true, items: [], bots: [] }) };
+    },
+  });
+  vm.runInContext([
+    extract(sharedSource, "button"),
+    ...["requestStudyCafeAdminDashboard", "loadStudyCafeAdminDashboard", "renderStudyCafeAdmin", "renderStudyCafeFeedbackAdminEntry"].map(name => extract(teacherSource, name)),
+    fs.readFileSync("feedback-hub.js", "utf8"),
+    fs.readFileSync("study-cafe-bot-admin.js", "utf8"),
+    "function render() { renderStudyCafeAdmin(); }",
+  ].join("\n"), context);
+  context.render();
+  for (let i = 0; i < 40; i++) await Promise.resolve();
+  assert.equal(requests, 1, "a failed dashboard must not automatically request again on render");
+  assert.equal(dashboard.loading, false);
+  assert.ok(dashboard.error);
+  const click = label => {
+    const node = nodes.findLast(n => n.tag === "button" && n.children === label);
+    assert.ok(node, label);
+    return node.click();
+  };
+  click("의견 · 새 기능 관리");
+  click("봇 관리 열기");
+  for (let i = 0; i < 40; i++) await Promise.resolve();
+  assert.deepEqual(dialogs.map(dialog => dialog.title), ["의견 · 새 기능 관리", "스터디카페 봇 관리"]);
+  assert.equal(requests, 1, "opening dialogs must not restart dashboard requests");
+  retrySucceeds = true;
+  // The successful dashboard layout is covered separately; retain the real retry button.
+  context.render = () => context.requestStudyCafeAdminDashboard();
+  await click("다시 불러오기");
+  assert.equal(requests, 2, "explicit retry remains available");
+  assert.equal(dashboard.loaded, true);
+  assert.equal(dashboard.error, "");
+});
+
 assert.match(teacherHtml, /data-route="study-cafe-admin">온라인 스터디카페/);
 assert.match(teacherHtml, /data-route="study-cafe-history">순공시간 조회/);
 assert.match(appSource, /"study-cafe-admin": "온라인 스터디카페"/);
