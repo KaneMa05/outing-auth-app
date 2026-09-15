@@ -14062,6 +14062,75 @@ body.student-online-mode:has(.student-study-character-page) .student-footer-menu
   background: rgba(64, 108, 120, 0.32);
 }
 
+.study-cafe-power-saving-switch {
+  order: 3;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--room-muted, #486c62);
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.study-cafe-power-saving-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: #82918c;
+}
+
+.study-cafe-power-saving-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.study-cafe-power-saving-switch[aria-checked="true"] .study-cafe-power-saving-track { background: #28785c; }
+.study-cafe-power-saving-switch[aria-checked="true"] .study-cafe-power-saving-track::after { transform: translateX(12px); }
+.study-cafe-power-saving-switch:focus-visible { outline: 2px solid #28785c; outline-offset: 3px; border-radius: 5px; }
+.study-private-room-overview > .study-cafe-power-saving-switch { margin-left: auto; }
+
+/* A static tint dims the app without filtering or animating the whole page. */
+@media screen {
+  body.study-cafe-power-saving::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, .2);
+    pointer-events: none;
+  }
+}
+
+/* Keep the scene and attained fire level visible without continuous motion. */
+body.study-cafe-power-saving .study-cafe-seat-visual *,
+body.study-cafe-power-saving .study-cafe-seat-visual *::before,
+body.study-cafe-power-saving .study-cafe-seat-visual *::after,
+body.study-cafe-power-saving .study-cafe-seat-grid,
+body.study-cafe-power-saving .study-cafe-floating-action,
+body.study-cafe-power-saving .student-study-cafe-page,
+body.study-cafe-power-saving .student-study-timer-page {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.study-cafe-power-saving .study-cafe-desk-cup::after { display: none; }
+
 .study-cafe-seat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

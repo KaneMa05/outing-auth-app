@@ -441,6 +441,9 @@ const studyTimerStatsState = {
   error: "",
 };
 let studyCafePreviewClock = null;
+let studyCafePowerSavingPreference = null;
+let studyCafePowerSavingMemberUpdatedAt = 0;
+let studyCafePowerSavingFireUpdatedAt = 0;
 let studyCafeLocalFallback = false;
 let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
@@ -726,6 +729,7 @@ function render() {
     currentRoute === "study-timer" && studyCafePreviewState.timerFullscreen;
   document.documentElement.classList.toggle("study-timer-fullscreen-mode", studyTimerFullscreenMode);
   document.body.classList.toggle("study-timer-fullscreen-mode", studyTimerFullscreenMode);
+  syncStudyCafePowerSavingMode();
   document.body.classList.toggle("student-home-route", APP_MODE !== "teacher" && currentRoute === "home");
   const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp();
   document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
@@ -2871,6 +2875,7 @@ function ensureStudyCafeRemoteTimers() {
 
 function ensureStudyCafeRankingRoomRefresh() {
   if (studyCafeRankingRoomRefreshTimer) return;
+  let lastRefreshAt = Date.now();
   studyCafeRankingRoomRefreshTimer = window.setInterval(() => {
     if (
       document.visibilityState === "hidden" ||
@@ -2879,6 +2884,8 @@ function ensureStudyCafeRankingRoomRefresh() {
     ) {
       return;
     }
+    if (isStudyCafePowerSavingActive() && Date.now() - lastRefreshAt < 60000) return;
+    lastRefreshAt = Date.now();
     refreshStudyCafeRankingRoomView();
   }, STUDY_CAFE_RANKING_REFRESH_INTERVAL_MS);
 }
@@ -6236,6 +6243,7 @@ function renderStudentStudyCafe() {
       el("div", { className: "study-cafe-seat-section-head", ariaLabel: "좌석 현황" }, [
         el("strong", {}, "좌석 현황"),
         renderStudyCafeFireGuideButton(),
+        renderStudyCafePowerSavingSwitch(),
       ]),
       el(
         "div",
@@ -6662,6 +6670,7 @@ function renderStudentPrivateStudyRoom(student) {
           textContent: `멤버 ${room.members.length}/${room.capacity} 보기`,
           onclick: openStudyRoomMembersModal,
         }),
+        renderStudyCafePowerSavingSwitch(),
       ]),
       el(
         "div",
@@ -10264,15 +10273,66 @@ function formatStudyCafeMemberTime(seconds) {
   return formatStudyCafeElapsed(Math.max(0, Number(seconds) || 0) * 1000);
 }
 
+function isStudyCafePowerSavingEnabled() {
+  if (studyCafePowerSavingPreference === null) {
+    try {
+      studyCafePowerSavingPreference = localStorage.getItem("study-cafe-power-saving") === "true";
+    } catch {
+      studyCafePowerSavingPreference = false;
+    }
+  }
+  return studyCafePowerSavingPreference;
+}
+
+function isStudyCafePowerSavingActive() {
+  return APP_MODE === "student" && ["study-cafe", "study-timer"].includes(currentRoute)
+    && isStudyCafePowerSavingEnabled();
+}
+
+function syncStudyCafePowerSavingMode() {
+  document.body.classList.toggle("study-cafe-power-saving", isStudyCafePowerSavingActive());
+}
+
+function renderStudyCafePowerSavingSwitch() {
+  const control = el("button", {
+    className: "study-cafe-power-saving-switch",
+    type: "button",
+    role: "switch",
+    "aria-label": "절전모드",
+    "aria-checked": String(isStudyCafePowerSavingEnabled()),
+    title: "화면을 어둡게 하고 캐릭터 움직임과 다른 수강생의 시간 갱신을 줄입니다. 내 공부시간은 정상 기록됩니다.",
+    onclick: () => {
+      studyCafePowerSavingPreference = !isStudyCafePowerSavingEnabled();
+      try {
+        localStorage.setItem("study-cafe-power-saving", String(studyCafePowerSavingPreference));
+      } catch { /* Keep the setting for this visit when storage is unavailable. */ }
+      control.setAttribute("aria-checked", String(studyCafePowerSavingPreference));
+      studyCafePowerSavingMemberUpdatedAt = 0;
+      studyCafePowerSavingFireUpdatedAt = 0;
+      syncStudyCafePowerSavingMode();
+    },
+  }, [
+    el("span", {}, "절전모드"),
+    el("span", { className: "study-cafe-power-saving-track", "aria-hidden": "true" }),
+  ]);
+  return control;
+}
+
 function ensureStudyCafePreviewClock() {
   if (studyCafePreviewClock) return;
   studyCafePreviewClock = window.setInterval(() => {
     checkStudyCafeIdleSeat();
+    // Session and idle-seat checks must still run; only skip invisible UI work.
+    if (document.visibilityState === "hidden") return;
+    const powerSaving = isStudyCafePowerSavingActive();
+    const now = Date.now();
+    const updateMembers = !powerSaving || now - studyCafePowerSavingMemberUpdatedAt >= 30000;
     const clock = document.querySelector("[data-study-cafe-clock]");
     if (clock) {
       clock.textContent = formatStudyCafeElapsed(getStudySubjectElapsedMs(studyCafePreviewState.subject));
     }
     document.querySelectorAll("[data-study-member-time]").forEach((time) => {
+      if (powerSaving && time.dataset.studyMemberTime !== "mine" && !updateMembers) return;
       const seconds = time.dataset.studyMemberTime === "mine"
         ? Math.floor(getStudySubjectTotalElapsedMs() / 1000)
         : (Number(time.dataset.studyBaseSeconds) || 0) +
@@ -10285,8 +10345,10 @@ function ensureStudyCafePreviewClock() {
                     : STUDY_CAFE_PREVIEW_EPOCH)) /
                   1000
               ));
-      time.textContent = formatStudyCafeMemberTime(seconds);
+      const label = formatStudyCafeMemberTime(seconds);
+      if (time.textContent !== label) time.textContent = label;
     });
+    if (updateMembers) studyCafePowerSavingMemberUpdatedAt = now;
     document.querySelectorAll("[data-study-total-time]").forEach((totalTime) => {
       totalTime.textContent = formatStudyCafeElapsed(getStudySubjectTotalElapsedMs());
     });
@@ -10294,7 +10356,10 @@ function ensureStudyCafePreviewClock() {
       time.textContent = formatStudyCafeElapsed(getStudySubjectElapsedMs(time.dataset.studySubjectTime));
     });
     updateLectureHomeSummary();
-    updateStudyCafeFireStages();
+    if (!powerSaving || now - studyCafePowerSavingFireUpdatedAt >= 60000) {
+      updateStudyCafeFireStages();
+      studyCafePowerSavingFireUpdatedAt = now;
+    }
   }, 1000);
 }
 

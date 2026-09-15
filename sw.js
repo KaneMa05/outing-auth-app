@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v430-my-seat-time-contrast";
+const CACHE_NAME = "outing-auth-app-v432-study-cafe-power-saving-dim";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -7,7 +7,7 @@ const APP_SHELL = [
   "/manifest.webmanifest?v=20260512-weekly-detail-flow",
   "/app-icon.png",
   "/apple-touch-icon.png",
-  "/styles.css?v=20260911-my-seat-time-contrast",
+  "/styles.css?v=20260915-study-cafe-power-saving-dim",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
   "/shared.js?v=20260911-study-cafe-visibility",
@@ -19,7 +19,7 @@ const APP_SHELL = [
   "/student-rewards.js?v=20260911-reward-break-celebration",
   "/final-scope-data.js?v=20260908-final-scope-plan",
   "/feedback-hub.js?v=20260911-feedback-free-only",
-  "/app.js?v=20260911-hair-shop-bot-admin-reward-break-fire-guide-icon",
+  "/app.js?v=20260915-study-cafe-power-saving-dim",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
   "/styles.css?v=20260911-hair-shop-bot-admin",
   "/teacher.js?v=20260911-admin-dashboard-retry",
