@@ -10,6 +10,6 @@
 - [통계 화면 비교](study-share-existing-stats-v8.png)
 - [공유 미리보기 비교](study-share-previews-v8.png)
 
-시안은 예시 데이터다. 실제 앱에는 v8 방향을 기준으로 기록 공유, PNG 저장, 기기 공유 기능을 로컬 구현했다. 푸시·배포는 진행하지 않았다.
+시안은 예시 데이터다. 실제 앱에는 v8 방향을 기준으로 기록 공유, PNG 저장, 기기 공유 기능을 구현하고 2026-09-17 운영 배포했다. [배포 기록](../releases/20260917-study-share-ox-members.md).
 
 - [구현 범위 및 검증 결과](IMPLEMENTATION.md)

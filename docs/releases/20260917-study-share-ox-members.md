@@ -1,6 +1,8 @@
 # Study record sharing and registered-student OX release — 2026-09-17
 
 - Production: https://app.ronparkpass.com
+- Deployment: `dpl_GzVJ8xHPqNse1T73UBrSEY3D4pNB` (READY, production domains assigned)
+- Deployed source commit: `1ac8c6a`
 - Base deployment / rollback target: `dpl_5kghqrTycTw2qCc9YXKUUfsa6tLj`
 - Base source: `176cca7` (includes deployed `37de805` and its release record)
 - Release branch: `release/study-share-ox-members-20260917`
@@ -38,5 +40,16 @@ with the previous application while OX is disabled.
 Administrator workflow: 형사법 OX 관리 → 이용 수강생 관리 → 전체 수강생 · 등록하기
 → search by name/student ID → OX 등록 → 등록 수강생 학습 시작 when ready.
 
-Final deployment identifier and production verification will be recorded after
-the deployment completes. No Git push is required for the direct Vercel deployment.
+Production verification completed at 2026-09-17 12:50 UTC: all 14 checked source
+assets match the validated release, all 49 service worker resource requests return
+HTTP 200, public configuration is unchanged, and internal docs/SQL/import sources
+return 404. Unauthenticated OX requests and anonymous OX table reads are denied.
+Server status checks for each student category return disabled. OX registration
+and learning remain off until the administrator explicitly chooses users and
+starts learning. Final scores and private identity counts/fingerprint were checked
+again after deployment. No Git push was performed; Vercel was deployed directly.
+
+The post-deployment counts remain 329 students, 237 final scores and 114 private
+identities; the final-score fingerprint is unchanged. Future releases must start
+from this release branch or explicitly preserve its changes. The main working
+directory remains an uncommitted development workspace.
