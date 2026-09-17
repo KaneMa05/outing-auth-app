@@ -18,7 +18,9 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await db.exec(read('supabase/migrations/20260917124608_criminal_law_ox.sql'));
     await db.exec(read('supabase/migrations/20260917124623_criminal_law_ox_members.sql'));
     await db.exec('set role service_role');
-    const invoke=async(action,actor,body={})=>(await db.query('select ox_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
+    const counts={};
+    const invoke=async(action,actor,body={})=>{counts[action]=(counts[action]||0)+1;return (await db.query('select ox_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;};
+    await invoke('admin_import',{type:'admin',id:'qa'},{collections:[{id:'criminal-law',name:'형법',scope:'형법',sort_order:1}],chapters:[{id:'c1',collection_id:'criminal-law',display_name:'테스트 단원',part_title:'형법총론',sort_order:1}],questions:Array.from({length:12},(_,i)=>({id:'q'+i,chapter_id:'c1',prompt:'로컬 성능 검증 지문 '+i,context:'',correct_answer:'O',explanation_html:'로컬 검증 해설',source_question_number:String(i+1),source_page:1,reviewed:true,status:'published'}))});
     process.env.TEACHER_SESSION_SECRET='local-ox-members-qa-only';
     const handler=createHandler({invoke,authenticate:async body=>['offline','managed','lecture'].includes(body.studentId) && body.deviceToken==='fixture-token'?{id:body.studentId}:null});
     const shared=read('shared.js'),app=read('app.js');
@@ -27,7 +29,9 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       let canWrite=true;const hasTeacherPermission=p=>p==='criminal_ox.read'||canWrite;
       const APP_MODE='student';let student={id:'offline'};
       const getAuthedStudent=()=>student,getStudentProfile=()=>({deviceToken:'fixture-token'}),isStandaloneStudentApp=()=>false;
-      ${extract(app,'requestCriminalLawOx')} ${extract(app,'renderCriminalLawOxLocalEntry')}
+      ${extract(app,'requestCriminalLawOx')} ${extract(app,'renderCriminalLawOxLocalEntry')} ${extract(app,'renderCriminalLawOxLocalPreview')}
+      const renderDataLoadingState=message=>el('p',{},message);
+      window.enterOx=()=>{document.querySelector('#app').hidden=true;document.querySelector('#student').replaceChildren(renderCriminalLawOxLocalPreview());};
       const navigate=()=>{};
       window.showStudent=id=>{student={id};requestCriminalLawOx.statusCache=null;document.querySelector('#student').replaceChildren(renderCriminalLawOxLocalEntry());};
       window.studentRequest=(action,body)=>requestCriminalLawOx(action,body).catch(e=>({error:e.code}));
@@ -35,7 +39,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       function render(){document.querySelector('#app').replaceChildren(renderCriminalLawOxAdmin());}
       render();
       </script></body></html>`;
-    const assets=new Set(['styles.css','criminal-law-ox-admin.css']);
+    const assets=new Set(['styles.css','criminal-law-ox-admin.css','criminal-law-ox.css','criminal-law-ox.js']);
     server=http.createServer(async(req,res)=>{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/api/criminal-law-ox') {
@@ -47,7 +51,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
         res.setHeader('Set-Cookie',`${auth.COOKIE_NAME}=${cookie}; HttpOnly; Path=/; SameSite=Strict`);
         res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);
       }
-      if(assets.has(url.pathname.slice(1))){res.setHeader('Content-Type','text/css');return res.end(read(url.pathname.slice(1)));}
+      if(assets.has(url.pathname.slice(1))){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':'text/css');return res.end(read(url.pathname.slice(1)));}
       res.statusCode=404;res.end();
     });
     await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -98,6 +102,22 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       await evaluate(`showStudent('${student}')`);await wait("document.querySelector('#student button')?.hidden===false");
       assert.equal((await evaluate("studentRequest('bootstrap')")).ok,true);
     }
+    const before=counts.bootstrap;
+    await evaluate("enterOx();window.oxPage=renderCriminalLawOxLocalPreview.view.element;enterOx();enterOx()");
+    await wait("document.querySelector('#criminal-ox-preview .ox-content h2')?.textContent==='오늘 학습'");
+    assert.equal(counts.bootstrap-before,1,'Repeated rendering must share one bootstrap');
+    await click('[data-action=daily]');await click('[data-action=chapter][data-id=c1]');
+    await wait("document.querySelector('.ox-answer-grid')");
+    await evaluate("enterOx();enterOx()");
+    assert.equal(await evaluate("document.querySelector('.criminal-law-ox-local-page')===oxPage && !!document.querySelector('.ox-answer-grid')"),true,'Rerender reset the learning screen');
+    assert.equal(counts.bootstrap-before,1,'Rerender fetched the question bank again');
+    await click('[data-action=answer][data-answer=X]');
+    await wait("document.querySelector('.ox-grade-copy h3')?.textContent==='오답이에요'");
+    assert.equal(await evaluate("document.querySelector('.ox-explanation').textContent"),'로컬 검증 해설');
+    await click('[data-action=next]');await wait("document.querySelector('.ox-answer-grid')");
+    const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(dir,'learning-after-rerender.png'),Buffer.from(shot.data,'base64'));
+    await evaluate("document.querySelector('#app').hidden=false;document.querySelector('#student').replaceChildren();renderCriminalLawOxLocalPreview.view=null");
+    console.log('OX loading QA passed: one bootstrap during repeated renders, same quiz/session retained, compact questions grade and show explanations.');
     await click('[data-admin=enabled]');await wait("document.querySelector('.ox-admin-availability').textContent.includes('준비 중')");
     assert.equal((await evaluate("studentRequest('bootstrap')")).error,'ox_disabled');
     await evaluate('canWrite=false;render()');await wait("document.querySelector('[data-admin=enabled]')?.disabled");

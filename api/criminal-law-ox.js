@@ -3,16 +3,26 @@ const auth = require('./teacher-auth-utils');
 const { requestSupabase } = require('./curriculum')._private;
 const actions = new Set(['status','bootstrap','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set']);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
-async function authenticateStudent(body) {
+async function authenticateStudent(body, request=requestSupabase) {
   if (!body.studentId || !body.deviceToken) return null;
-  const validation = await requestSupabase('POST','rpc/validate_student_device', {
+  const validation = await request('POST','rpc/validate_student_device', {
     p_student_id:body.studentId,p_device_token_hash:crypto.createHash('sha256').update(body.deviceToken).digest('hex'),
     p_client_display_mode:String(body.client?.displayMode || '').slice(0,40) || null,
     p_client_user_agent:String(body.client?.userAgent || '').slice(0,500) || null
   });
   if (validation?.valid !== true) return null;
-  const rows = await requestSupabase('GET',`students?id=eq.${encodeURIComponent(body.studentId)}&is_active=eq.true&select=id&limit=1`);
-  return rows?.[0] || null;
+  // Device validation already checks the active student. ox_service checks it
+  // again along with account type and current enrollment on every request.
+  return {id:body.studentId};
+}
+function compactBootstrap(data) {
+  if (!data?.catalog?.questions) return data;
+  return {...data,catalog:{...data.catalog,questions:data.catalog.questions.map(q=>{
+    const item={id:q.id,chapter_id:q.chapter_id,prompt:q.prompt,context:q.context,version:q.version};
+    // Only keep answers the database already authorized for solved questions.
+    if (q.correct_answer !== undefined) item.correct_answer=q.correct_answer;
+    return item;
+  })}};
 }
 function validate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
@@ -70,7 +80,8 @@ function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc
       }
       // Device credentials and client-supplied identities never enter the OX database function.
       const payload={...body}; delete payload.deviceToken; delete payload.studentId; delete payload.actor; delete payload.client; delete payload.action;
-      res.status(200).json(await invoke(body.action,actor,payload));
+      const data=await invoke(body.action,actor,payload);
+      res.status(200).json(body.action==='bootstrap'?compactBootstrap(data):data);
     } catch(error) {
       const known=['revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
       const code=known.find(code=>error.message===code || error.message?.includes(`"message":"${code}"`));
@@ -81,4 +92,4 @@ function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc
 }
 module.exports=createHandler();
 module.exports.createHandler=createHandler;
-module.exports._private={validate};
+module.exports._private={validate,authenticateStudent,compactBootstrap};

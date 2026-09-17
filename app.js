@@ -688,7 +688,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
-  if (nextRoute === 'home' && currentRoute !== 'home') requestCriminalLawOx.statusCache = null;
+  if (nextRoute === 'home' && currentRoute !== 'home' && requestCriminalLawOx.statusCache) requestCriminalLawOx.statusCache.expires = 0;
   const studyRoutes = ["curriculum", "study-todo", "study-cafe", "feedback", "question-board", "study-ranking", "study-timer", "study-character", "study-shop"];
   const currentStudyIndex = studyRoutes.indexOf(currentRoute);
   const nextStudyIndex = studyRoutes.indexOf(nextRoute);
@@ -723,6 +723,7 @@ function render() {
   const requestedRoute = location.hash.replace("#", "") || defaultRoute();
   const normalizedRoute = normalizeRoute(requestedRoute);
   if (normalizedRoute !== currentRoute) currentRoute = normalizedRoute;
+  if (currentRoute !== 'criminal-law-ox' || !getAuthedStudent()) renderCriminalLawOxLocalPreview.view = null;
   if (window.StudyRecordShare && (currentRoute !== "study-timer" || !getAuthedStudent() || !isOnlineStudentExperience(getAuthedStudent()))) {
     window.StudyRecordShare?.close();
   }
@@ -3099,11 +3100,18 @@ function renderCriminalLawOxLocalEntry() {
     ]),
     el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
   ]);
-  entry.hidden = true;
-  entry.style.display = "none";
+  const student=getAuthedStudent(), deviceToken=getStudentProfile(student?.id)?.deviceToken, key=student?.id+':'+deviceToken;
+  const cached=requestCriminalLawOx.statusCache;
+  const visible=cached?.key===key && cached.confirmedAt>Date.now()-30000 && cached.value?.enabled===true;
+  entry.hidden = !visible;
+  entry.style.display = visible ? "" : "none";
   requestCriminalLawOx('status').then(data => {
-    if (data.enabled) { entry.hidden=false; entry.style.display=''; }
-  }).catch(() => {});
+    if (getAuthedStudent()?.id!==student?.id || getStudentProfile(student?.id)?.deviceToken!==deviceToken) return;
+    entry.hidden=!data.enabled; entry.style.display=data.enabled?'':'none';
+    if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
+      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js','data-ox-module-preload':'true'}));
+    }
+  }).catch(() => {entry.hidden=true;entry.style.display='none';});
   return entry;
 }
 
@@ -3112,7 +3120,11 @@ async function requestCriminalLawOx(action, payload={}) {
   if(!student) throw Object.assign(new Error('unauthorized'),{code:'unauthorized'});
   const key=student.id+':'+getStudentProfile(student.id)?.deviceToken;
   const cached=requestCriminalLawOx.statusCache;
-  if(action==='status' && cached?.key===key && cached.expires>Date.now()) return cached.promise;
+  if(action==='status' && cached?.key===key && (cached.pending || cached.expires>Date.now())) return cached.promise;
+  const inFlight=requestCriminalLawOx.bootstrapPending;
+  if(action==='bootstrap' && inFlight?.key===key) return inFlight.promise;
+  const status=action==='status'?{key,pending:true,expires:0,value:cached?.key===key?cached.value:null,confirmedAt:cached?.key===key?cached.confirmedAt:0}:null;
+  const bootstrap=action==='bootstrap'?{key}:null;
   const operation=(async()=>{
   const response=await fetch('/api/criminal-law-ox', {
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -3121,17 +3133,30 @@ async function requestCriminalLawOx(action, payload={}) {
   });
   const data=await response.json();
   if(!response.ok || !data.ok) {
-    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error)) requestCriminalLawOx.statusCache=null;
+    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error) && requestCriminalLawOx.statusCache?.key===key) requestCriminalLawOx.statusCache=null;
     throw Object.assign(new Error(data.error),{code:data.error});
   }
   return data;
   })();
-  if(action==='status') requestCriminalLawOx.statusCache={key,expires:Date.now()+30000,promise:operation};
-  return operation;
+  if(status) {status.promise=operation;requestCriminalLawOx.statusCache=status;}
+  if(bootstrap) {bootstrap.promise=operation;requestCriminalLawOx.bootstrapPending=bootstrap;}
+  try {
+    const data=await operation;
+    if(status && requestCriminalLawOx.statusCache===status) Object.assign(status,{pending:false,value:data,confirmedAt:Date.now(),expires:Date.now()+30000});
+    return data;
+  } catch(error) {
+    if(status && requestCriminalLawOx.statusCache===status) requestCriminalLawOx.statusCache=null;
+    throw error;
+  } finally {
+    if(bootstrap && requestCriminalLawOx.bootstrapPending===bootstrap) requestCriminalLawOx.bootstrapPending=null;
+  }
 }
 
 function renderCriminalLawOxLocalPreview() {
   if (APP_MODE === "teacher") return renderStudentHome();
+  const student=getAuthedStudent(), key=student?.id+':'+getStudentProfile(student?.id)?.deviceToken;
+  const existing=renderCriminalLawOxLocalPreview.view;
+  if (existing?.key===key) return existing.element;
   if (!document.querySelector("link[data-criminal-law-ox-style]")) {
     document.head.appendChild(el("link", {
       rel: "stylesheet",
@@ -3164,9 +3189,9 @@ function renderCriminalLawOxLocalPreview() {
   }).catch(error => {
     if (!content.isConnected) return;
     content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
-      button("다시 시도", "btn secondary", "button", () => render()));
+      button("다시 시도", "btn secondary", "button", () => {renderCriminalLawOxLocalPreview.view=null;render();}));
   });
-  return el("div", { className: "grid student-view criminal-law-ox-local-page" }, [
+  const page=el("div", { className: "grid student-view criminal-law-ox-local-page" }, [
     el("section", { className: "student-notices-panel" }, [
       el("div", { className: "student-notices-head" }, [
         el("h2", {}, "형사법 OX"),
@@ -3178,6 +3203,8 @@ function renderCriminalLawOxLocalPreview() {
     ]),
     content,
   ]);
+  renderCriminalLawOxLocalPreview.view={key,element:page};
+  return page;
 }
 
 function renderLectureStudentHome(student) {
