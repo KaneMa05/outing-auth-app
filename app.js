@@ -1,4 +1,4 @@
-﻿const routeTitles = {
+const routeTitles = {
   home: "홈",
   student: "외출 신청",
   "student-verify": "사진 인증",

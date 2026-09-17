@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "ronpark_outing_auth_v2";
+const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_STUDENT_COHORT = "18";
@@ -2661,7 +2661,8 @@ async function saveStateToRemote() {
 
     // Holidays are saved explicitly by the attendance settings UI. Replaying a
     // browser snapshot here could restore an override another administrator removed.
-    await saveFinalExamScoresToRemote();
+    // Final scores are written only by explicit grade actions. A stale browser
+    // snapshot must never replay scores during an unrelated administrator save.
   }
 
   await saveStudentRegistrationEventsToRemote();
@@ -4812,18 +4813,18 @@ async function deleteAttendanceHolidayFromTeacherApi(dateKey) {
   if (!response.ok || !data?.ok) throw new Error(data?.error || `attendance_holidays_api_${response.status}`);
 }
 
-async function saveFinalExamScoresToRemote() {
+async function saveFinalExamScoresToRemote(records = []) {
   if (!remoteStore) {
     await loadSupabaseSdk();
     remoteStore = createRemoteStore();
   }
-  if (!remoteStore) return;
+  if (!remoteStore) throw new Error("remote_store_unavailable");
   const toNullableNumber = (value) => {
     if (value === "" || value === null || value === undefined) return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   };
-  const rows = (state.finalExamScores || [])
+  const rows = records
     .filter((record) => record.id && record.studentId)
     .map((record) => ({
       id: record.id,
@@ -4841,17 +4842,21 @@ async function saveFinalExamScoresToRemote() {
       updated_at: record.updatedAt || record.updated_at || new Date().toISOString(),
       created_at: record.createdAt || record.created_at || new Date().toISOString(),
     }));
-  const { error: deleteError } = await remoteStore
-    .from("final_exam_scores")
-    .delete()
-    .neq("id", "__never__");
-  if (deleteError) {
-    if (isMissingRelationError(deleteError, "final_exam_scores")) return;
-    throw deleteError;
-  }
   if (!rows.length) return;
   const { error } = await remoteStore.from("final_exam_scores").upsert(rows, { onConflict: "id" });
-  if (error && !isMissingRelationError(error, "final_exam_scores")) throw error;
+  if (error) throw error;
+}
+
+async function deleteFinalExamScoresFromRemote(recordIds = []) {
+  const ids = [...new Set(recordIds.filter(Boolean))];
+  if (!ids.length) return;
+  if (!remoteStore) {
+    await loadSupabaseSdk();
+    remoteStore = createRemoteStore();
+  }
+  if (!remoteStore) throw new Error("remote_store_unavailable");
+  const { error } = await remoteStore.from("final_exam_scores").delete().in("id", ids);
+  if (error) throw error;
 }
 
 async function saveFitnessScoresToRemote(records = state.fitnessScores || []) {

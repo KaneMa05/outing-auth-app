@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v432-study-cafe-power-saving-dim";
+const CACHE_NAME = "outing-auth-app-v436-grade-lookup-performance";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -11,7 +11,8 @@ const APP_SHELL = [
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
   "/shared.js?v=20260911-study-cafe-visibility",
-  "/student.js?v=20260911-attendance-settings",
+  "/shared.js?v=20260917-final-score-safe",
+  "/student.js?v=20260917-grade-lookup-performance",
   "/question-board.js?v=20260902-question-board-skeleton-ui",
   "/inquiry-board.js?v=20260902-inquiry-prefetch",
   "/study-character.js?v=20260911-character-hair-fire",
@@ -25,7 +26,7 @@ const APP_SHELL = [
   "/teacher.js?v=20260911-admin-dashboard-retry",
   "/study-character.js?v=20260911-character-hair",
   "/study-cafe-bot-admin.js?v=20260911-bot-admin",
-  "/teacher-grades.js?v=20260903-weekly-exams-14-button",
+  "/teacher-grades.js?v=20260917-final-score-safe",
   "/teacher-fitness.js?v=20260714-grade-report-print-setup",
   "/teacher-students.js?v=20260901-student-exam-numbers",
   "/teacher-settings.js?v=20260806-learner-board-copy",

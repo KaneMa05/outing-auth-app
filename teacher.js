@@ -1,4 +1,4 @@
-﻿const teacherFilters = {
+const teacherFilters = {
   query: "",
   sort: "name",
 };

@@ -1,4 +1,4 @@
-﻿function renderStudentChecklist() {
+function renderStudentChecklist() {
   const step = getStudentStepFromRoute();
   state.settings.studentStep = step;
   if (step !== "request" && !getActiveOuting(state.settings.lastStudentId) && step !== "done") {
@@ -1867,7 +1867,7 @@ function renderStudentFinalRoundSelect(roundOptions = [1]) {
   return node;
 }
 
-function getStudentFinalGradeSummary(student, round = 1) {
+function getStudentFinalGradeSummary(student, round = 1, includePrevious = true) {
   const records = getStudentFinalScoreRecords(round);
   const cohort = getStudentCohort(student);
   const registeredTrack = getStudentRegisteredTrack(student);
@@ -1972,8 +1972,8 @@ function getStudentFinalGradeSummary(student, round = 1) {
     own.displayTopPercent = Math.max(1, Math.ceil(own.topPercent));
     own.percentile = Math.round((100 - own.topPercent) * 10) / 10;
   }
-  if (own && Number(round) > 1) {
-    const previousOwn = getStudentFinalGradeSummary(student, Number(round) - 1);
+  if (includePrevious && own && Number(round) > 1) {
+    const previousOwn = getStudentFinalGradeSummary(student, Number(round) - 1, false);
     if (previousOwn?.rank) {
       own.previousRank = previousOwn.rank;
       own.rankDelta = Number(previousOwn.rank) - Number(own.rank);
@@ -2103,14 +2103,40 @@ function normalizeStudentFinalSubjectSummary(subject, subjectScore = {}, track =
   };
 }
 
-function getStudentWeeklyGradeSummary(exam, student) {
-  const sections = getStudentExamSections(exam, student);
-  const ownSubmissions = sections.map((section) => ({ section, submission: getStudentSubmission(student.id, section.id) }));
+function createStudentWeeklyGradeLookup() {
+  // Keep this lookup local to one render so edits and remote refreshes are visible immediately.
+  const submissionsByStudent = new Map();
+  (state.examSubmissions || []).forEach((submission) => {
+    if (submission.status !== "submitted") return;
+    if (!submissionsByStudent.has(submission.studentId)) submissionsByStudent.set(submission.studentId, new Map());
+    const sections = submissionsByStudent.get(submission.studentId);
+    // Match getStudentSubmission's first submitted record, including legacy duplicates.
+    if (!sections.has(submission.examSectionId)) sections.set(submission.examSectionId, submission);
+  });
+  const sectionsByExam = new Map();
+  const answersBySection = new Map();
+  const forTrack = (cache, key, student, load) => {
+    if (!cache.has(key)) cache.set(key, new Map());
+    const tracks = cache.get(key);
+    const track = getStudentRegisteredTrack(student);
+    if (!tracks.has(track)) tracks.set(track, load());
+    return tracks.get(track);
+  };
+  return {
+    getSections: (exam, student) => forTrack(sectionsByExam, exam.id, student, () => getStudentExamSections(exam, student)),
+    getAnswers: (section, student) => forTrack(answersBySection, section.id, student, () => getStudentVisibleSectionAnswers(section, student)),
+    getSubmission: (studentId, sectionId) => submissionsByStudent.get(studentId)?.get(sectionId),
+  };
+}
+
+function getStudentWeeklyGradeSummary(exam, student, gradeLookup = createStudentWeeklyGradeLookup(), includePrevious = true) {
+  const sections = gradeLookup.getSections(exam, student);
+  const ownSubmissions = sections.map((section) => ({ section, submission: gradeLookup.getSubmission(student.id, section.id) }));
   const submitted = ownSubmissions.filter((item) => item.submission);
-  const maxScore = sections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, student), section), 0);
+  const maxScore = sections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(gradeLookup.getAnswers(section, student), section), 0);
   const score = submitted.reduce((sum, item) => sum + (Number(item.submission.score) || 0), 0);
   const wrongCount = submitted.reduce((sum, item) => {
-    const questionCount = getStudentVisibleSectionAnswers(item.section, student).length;
+    const questionCount = gradeLookup.getAnswers(item.section, student).length;
     return sum + Math.max(0, questionCount - (Number(item.submission.correctCount) || 0));
   }, 0);
   const cohort = getStudentCohort(student);
@@ -2119,9 +2145,9 @@ function getStudentWeeklyGradeSummary(exam, student) {
     getStudentCohort(item) === cohort && isSameGradeRankingGroup(getStudentRegisteredTrack(item), registeredTrack)
   );
   const peerScores = peers.map((peer) => {
-    const peerSections = getStudentExamSections(exam, peer);
-    const peerMax = peerSections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, peer), section), 0);
-    const peerSubmitted = peerSections.map((section) => getStudentSubmission(peer.id, section.id)).filter(Boolean);
+    const peerSections = gradeLookup.getSections(exam, peer);
+    const peerMax = peerSections.reduce((sum, section) => sum + sumWeeklyAnswerPoints(gradeLookup.getAnswers(section, peer), section), 0);
+    const peerSubmitted = peerSections.map((section) => gradeLookup.getSubmission(peer.id, section.id)).filter(Boolean);
     const peerScore = peerSubmitted.reduce((sum, submission) => sum + (Number(submission.score) || 0), 0);
     return {
       id: peer.id,
@@ -2137,8 +2163,8 @@ function getStudentWeeklyGradeSummary(exam, student) {
   const topPercent = own && sorted.length ? calculateStudentTopPercent(rank, sorted.length) : 0;
   const displayTopPercent = rank ? Math.max(1, Math.ceil(topPercent)) : 0;
   const percentile = own ? Math.round((100 - topPercent) * 10) / 10 : 0;
-  const subjectSummaries = ownSubmissions.map((item) => getStudentSubjectGradeSummary(exam, student, item.section, item.submission, peers));
-  const previousSummary = Number(exam.weekNumber) > 1 ? getStudentPreviousWeeklyGradeSummary(exam, student) : null;
+  const subjectSummaries = ownSubmissions.map((item) => getStudentSubjectGradeSummary(exam, student, item.section, item.submission, peers, gradeLookup));
+  const previousSummary = includePrevious && Number(exam.weekNumber) > 1 ? getStudentPreviousWeeklyGradeSummary(exam, student, gradeLookup) : null;
   return {
     title: formatStudentWeeklyExamName(exam.weekNumber),
     score,
@@ -2158,28 +2184,28 @@ function getStudentWeeklyGradeSummary(exam, student) {
   };
 }
 
-function getStudentPreviousWeeklyGradeSummary(exam, student) {
+function getStudentPreviousWeeklyGradeSummary(exam, student, gradeLookup = createStudentWeeklyGradeLookup()) {
   const previousExam = (state.exams || []).find((item) =>
     String(item.cohort || "") === String(exam.cohort || "") &&
     Number(item.weekNumber) === Number(exam.weekNumber) - 1
   );
   if (!previousExam) return null;
-  return getStudentWeeklyGradeSummary(previousExam, student);
+  return getStudentWeeklyGradeSummary(previousExam, student, gradeLookup, false);
 }
 
-function getStudentSubjectGradeSummary(exam, student, section, submission, peers) {
-  const questionCount = getStudentVisibleSectionAnswers(section, student).length;
-  const maxScore = sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(section, student), section);
+function getStudentSubjectGradeSummary(exam, student, section, submission, peers, gradeLookup = createStudentWeeklyGradeLookup()) {
+  const questionCount = gradeLookup.getAnswers(section, student).length;
+  const maxScore = sumWeeklyAnswerPoints(gradeLookup.getAnswers(section, student), section);
   const score = submission ? Number(submission.score) || 0 : 0;
   const correctCount = submission ? Number(submission.correctCount) || 0 : 0;
   const wrongCount = submission ? Math.max(0, questionCount - correctCount) : null;
   const peerScores = peers.map((peer) => {
-    const peerSection = getStudentExamSections(exam, peer).find((item) => item.subject === section.subject);
+    const peerSection = gradeLookup.getSections(exam, peer).find((item) => item.subject === section.subject);
     if (!peerSection) return null;
-    const peerSubmission = getStudentSubmission(peer.id, peerSection.id);
+    const peerSubmission = gradeLookup.getSubmission(peer.id, peerSection.id);
     if (!peerSubmission) return null;
-    const peerQuestionCount = getStudentVisibleSectionAnswers(peerSection, peer).length;
-    const peerMaxScore = sumWeeklyAnswerPoints(getStudentVisibleSectionAnswers(peerSection, peer), peerSection);
+    const peerQuestionCount = gradeLookup.getAnswers(peerSection, peer).length;
+    const peerMaxScore = sumWeeklyAnswerPoints(gradeLookup.getAnswers(peerSection, peer), peerSection);
     const peerScore = Number(peerSubmission.score) || 0;
     return {
       id: peer.id,

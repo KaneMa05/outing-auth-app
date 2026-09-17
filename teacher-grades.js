@@ -2502,6 +2502,7 @@ async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohor
   if (!nextRecords.length) {
     return notify("저장할 성적 데이터가 없습니다.");
   }
+  if (!await persistFinalExamScoresToRemote(nextRecords)) return;
   const targetIds = new Set(nextRecords.map((record) => String(record.studentId)));
   state.finalExamScores = [
     ...((state.finalExamScores || []).filter((record) =>
@@ -2511,7 +2512,6 @@ async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohor
     ...nextRecords,
   ];
   saveState({ skipRemote: true });
-  await persistFinalExamScoresToRemote();
   notify(externalCount
     ? `${nextRecords.length}명 저장, 미등록 응시자 ${externalCount}명도 석차에 반영했습니다.`
     : `${nextRecords.length}명의 파이널 성적을 일괄 저장했습니다.`);
@@ -2522,19 +2522,25 @@ async function deleteFinalBulkScores(round, participants = []) {
   const targetIds = new Set(participants.map((student) => String(student.id)).filter(Boolean));
   if (!targetIds.size) return notify("삭제할 파이널 성적이 없습니다.");
   const currentRound = Number(round) || 1;
-  const deleteCount = (state.finalExamScores || []).filter((record) =>
+  const recordsToDelete = (state.finalExamScores || []).filter((record) =>
     Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0) === currentRound &&
     targetIds.has(String(record.studentId || record.student_id || record.studentNumber || ""))
-  ).length;
+  );
+  const deleteCount = recordsToDelete.length;
   if (!deleteCount) return notify("삭제할 파이널 성적이 없습니다.");
   const scopeText = gradeManagementTrackFilter ? `${gradeManagementTrackFilter} 직렬 ` : "";
   if (!confirm(`${currentRound}회차 ${scopeText}파이널 성적 ${deleteCount}건을 일괄 삭제할까요?`)) return;
+  try {
+    await deleteFinalExamScoresFromRemote(recordsToDelete.map((record) => record.id));
+  } catch (error) {
+    console.error(error);
+    return notify("파이널 성적을 서버에서 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
   state.finalExamScores = (state.finalExamScores || []).filter((record) =>
     Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0) !== currentRound ||
     !targetIds.has(String(record.studentId || record.student_id || record.studentNumber || ""))
   );
   saveState({ skipRemote: true });
-  await persistFinalExamScoresToRemote();
   notify(`${deleteCount}건의 파이널 성적을 삭제했습니다.`);
   render();
 }
@@ -2651,6 +2657,7 @@ async function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
     status: "등록 완료",
     updatedAt: new Date().toISOString(),
   };
+  if (!await persistFinalExamScoresToRemote([record])) return;
   state.finalExamScores = [
     ...((state.finalExamScores || []).filter((item) =>
       Number(item.round || item.roundNumber || item.session || item.sessionNumber || item.examRound || item.examNumber || 0) !== Number(round) ||
@@ -2659,7 +2666,6 @@ async function saveFinalScoreEdit(round, student, subjectInputs, wrongInput) {
     record,
   ];
   saveState({ skipRemote: true });
-  await persistFinalExamScoresToRemote();
   closeInfoModal();
   notify(`${student.name || student.id} 학생의 파이널 성적을 저장했습니다.`);
   render();
@@ -2732,7 +2738,9 @@ async function saveFinalScoreInputs(round, students = []) {
       updatedAt: new Date().toISOString(),
     });
   });
-  const targetIds = new Set(students.map((student) => String(student.id)));
+  if (!nextRecords.length) return notify("저장할 성적 데이터가 없습니다.");
+  if (!await persistFinalExamScoresToRemote(nextRecords)) return;
+  const targetIds = new Set(nextRecords.map((record) => String(record.studentId)));
   state.finalExamScores = [
     ...((state.finalExamScores || []).filter((record) =>
       Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0) !== Number(round) ||
@@ -2741,17 +2749,18 @@ async function saveFinalScoreInputs(round, students = []) {
     ...nextRecords,
   ];
   saveState({ skipRemote: true });
-  await persistFinalExamScoresToRemote();
   notify(`${nextRecords.length}명의 파이널 성적을 저장했습니다.`);
   render();
 }
 
-async function persistFinalExamScoresToRemote() {
+async function persistFinalExamScoresToRemote(records) {
   try {
-    await saveFinalExamScoresToRemote();
+    await saveFinalExamScoresToRemote(records);
+    return true;
   } catch (error) {
     console.error(error);
-    notify("파이널 성적을 서버에 저장하지 못했습니다. Supabase 스키마를 확인해주세요.");
+    notify("파이널 성적을 서버에 저장하지 못했습니다. 입력 내용을 유지하고 잠시 후 다시 시도해주세요.");
+    return false;
   }
 }
 
