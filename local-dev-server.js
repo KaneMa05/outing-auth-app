@@ -43,6 +43,7 @@ const apiHandlers = {
   "/api/teacher-logout": require("./api/teacher-logout"),
   "/api/managers": require("./api/managers"),
   "/api/exam-files": require("./api/exam-files"),
+  "/api/final-score-identities": require("./api/final-score-identities"),
   "/api/penalties": require("./api/penalties"),
   "/api/students": require("./api/students"),
   "/api/student-reset-registration": require("./api/student-reset-registration"),

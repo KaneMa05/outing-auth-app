@@ -2411,7 +2411,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
     return el("tr", {}, [
-      el("td", {}, formatStudentNumber(summary.student.id)),
+      el("td", {}, summary.student.isExternalFinalScore ? "-" : formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
       el("td", {}, summary.student.isExternalFinalScore ? "미등록" : "등록"),
       el("td", {}, getTeacherStudentRegisteredTrack(summary.student) || "-"),
@@ -2426,7 +2426,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   });
   const bulkTextarea = el("textarea", {
     className: "grade-bulk-textarea",
-    placeholder: "엑셀 표를 그대로 붙여넣으세요.\n예: 이름\t직렬\t법규\t개론\t형사\t영어\t항해\t기관\t형소법(공판)\t개수",
+    placeholder: "엑셀 표를 그대로 붙여넣으세요.\n이름\t인강 아이디\t직렬\t법규\t개론\t형사\t영어\t항해\t기관\t형소법(공판)\t개수\n기존 이름·직렬 형식도 사용할 수 있습니다.",
     rows: 5,
   });
   const bulkSaveButton = button("일괄 저장", "btn", "button", () => saveFinalBulkScoreInput(round, students, bulkTextarea.value, cohort));
@@ -2438,7 +2438,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
     ]),
     el("div", { className: "grade-bulk-input" }, [
       el("div", { className: "grade-input-actions" }, [
-        el("p", { className: "subtle" }, "엑셀에서 성적 표를 복사해 붙여넣으면 등록 학생은 자동 매칭되고, 매칭되지 않은 행도 미등록 응시자로 석차에 반영됩니다."),
+        el("p", { className: "subtle" }, "이름·인강 아이디·직렬·점수 순서로 붙여넣으면 인강 아이디로 학생을 구분합니다. 아이디는 관리자 입력에서만 사용하며 성적표에는 표시하지 않습니다. 현재 기수 외 응시자도 석차에 반영됩니다."),
         el("div", { className: "grade-bulk-action-buttons" }, [
           bulkDeleteButton,
           bulkSaveButton,
@@ -2451,9 +2451,10 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   ]);
 }
 
-async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohort = selectedStudentCohort) {
+async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohort = selectedStudentCohort, resolvedStudents = []) {
   const parsed = parseFinalBulkScoreRows(rawText);
   if (!parsed.rows.length) return notify("붙여넣은 성적 데이터가 없습니다.");
+  if (parsed.usesLectureIds && parsed.rows.some((row) => !row.lectureId)) return notify("인강 아이디가 비어 있는 행이 있습니다. 각 행의 아이디를 입력해주세요.");
   const studentById = new Map(students.map((student) => [String(student.id), student]));
   const studentsByName = new Map();
   students.forEach((student) => {
@@ -2462,13 +2463,25 @@ async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohor
     if (!studentsByName.has(key)) studentsByName.set(key, []);
     studentsByName.get(key).push(student);
   });
+  let matchPlan;
+  try {
+    matchPlan = parsed.usesLectureIds
+      ? await resolveFinalBulkLectureIdentities(parsed.rows, cohort, resolvedStudents)
+      : planFinalBulkStudentMatches(parsed.rows, studentById, studentsByName, cohort, resolvedStudents);
+  } catch (error) {
+    notify(error.message || "인강 아이디를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    return false;
+  }
+  if (matchPlan.issues.length) {
+    openFinalBulkStudentMatchModal(round, students, rawText, cohort, parsed.rows, matchPlan);
+    return false;
+  }
   const nextRecords = [];
   let externalCount = 0;
-  parsed.rows.forEach((row) => {
+  parsed.rows.forEach((row, index) => {
     if (!String(row.name || row.id || "").trim()) return;
-    const matchedStudent = matchFinalBulkStudent(row, studentById, studentsByName);
-    const student = matchedStudent || createFinalExternalStudentFromRow(row, cohort);
-    if (!matchedStudent) externalCount += 1;
+    const student = matchPlan.students[index];
+    if (student?.isExternalFinalScore) externalCount += 1;
     if (!student) {
       return;
     }
@@ -2516,6 +2529,130 @@ async function saveFinalBulkScoreInput(round, students = [], rawText = "", cohor
     ? `${nextRecords.length}명 저장, 미등록 응시자 ${externalCount}명도 석차에 반영했습니다.`
     : `${nextRecords.length}명의 파이널 성적을 일괄 저장했습니다.`);
   render();
+  return true;
+}
+
+async function resolveFinalBulkLectureIdentities(rows, cohort, resolvedStudents = []) {
+  const response = await fetch("/api/final-score-identities", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cohort: String(cohort || ""),
+      entries: rows.map((row, index) => ({
+        lectureId: row.lectureId,
+        name: row.name,
+        track: row.track,
+        resolved: resolvedStudents[index] ? {
+          id: resolvedStudents[index].id,
+          external: resolvedStudents[index].isExternalFinalScore === true,
+        } : null,
+      })),
+    }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.ok) {
+    const messages = {
+      unauthorized: "관리자 로그인이 만료되었습니다. 다시 로그인해주세요.",
+      forbidden: "성적 입력 권한이 없습니다.",
+      duplicate_lecture_id: "같은 인강 아이디가 두 번 입력되었습니다. 중복 행을 확인해주세요.",
+      invalid_identity: "이름·인강 아이디 형식을 확인해주세요.",
+      invalid_cohort: "성적을 입력할 기수를 선택해주세요.",
+      invalid_student_selection: "선택한 학생과 입력 정보를 다시 확인해주세요.",
+      linked_student_not_in_cohort: "이 아이디에 연결된 학생의 기수가 변경되었습니다. 학생 정보를 확인해주세요.",
+      student_identity_conflict: "이미 다른 인강 아이디에 연결된 학생입니다. 학생 선택 또는 인강 아이디를 확인해주세요.",
+      identity_table_unavailable: "인강 아이디 저장 기능이 아직 준비되지 않았습니다. 관리자에게 문의해주세요.",
+    };
+    throw new Error(`${result?.row ? `${result.row}행: ` : ""}${messages[result?.error] || "인강 아이디를 저장하지 못했습니다. 입력 내용을 유지하고 다시 시도해주세요."}`);
+  }
+  if (!Array.isArray(result.students) || result.students.length !== rows.length || !Array.isArray(result.issues)) throw new Error("인강 아이디 확인 결과가 올바르지 않습니다.");
+  return result;
+}
+
+function planFinalBulkStudentMatches(rows, studentById, studentsByName, cohort, resolvedStudents = []) {
+  const issues = new Set();
+  const choices = [];
+  const plannedStudents = rows.map((row, index) => {
+    const candidates = row.id
+      ? [studentById.get(String(row.id))].filter(Boolean)
+      : (studentsByName.get(String(row.name || "").trim()) || [])
+        .filter((student) => !row.track || getTeacherStudentRegisteredTrack(student) === row.track);
+    const externalById = new Map();
+    (state.finalExamScores || []).forEach((record) => {
+      if (!record.isExternalFinalScore || String(record.cohort || "") !== String(cohort || "")) return;
+      if (String(record.studentName || "").trim() !== String(row.name || "").trim()) return;
+      if (row.track && normalizeCoastGuardTrack(record.track) !== row.track) return;
+      externalById.set(String(record.studentId), {
+        id: String(record.studentId), name: record.studentName, track: record.track,
+        finalScoreCohort: cohort, isExternalFinalScore: true,
+      });
+    });
+    choices[index] = [...candidates, ...externalById.values()];
+    if (resolvedStudents[index]) return resolvedStudents[index];
+    if (!row.id && choices[index].length > 1) issues.add(index);
+    if (!row.id && choices[index].length === 1) return choices[index][0];
+    return matchFinalBulkStudent(row, studentById, studentsByName) || createFinalExternalStudentFromRow(row, cohort);
+  });
+  const rowByStudentId = new Map();
+  plannedStudents.forEach((student, index) => {
+    if (!String(rows[index].name || rows[index].id || "").trim()) return;
+    const id = String(student.id);
+    if (rowByStudentId.has(id)) {
+      issues.add(rowByStudentId.get(id));
+      issues.add(index);
+    } else rowByStudentId.set(id, index);
+  });
+  return { students: plannedStudents, choices, issues: [...issues].sort((a, b) => a - b) };
+}
+
+function openFinalBulkStudentMatchModal(round, students, rawText, cohort, rows, plan) {
+  const selectors = new Map();
+  const newExternalStudents = new Map();
+  const fields = plan.issues.map((index) => {
+    const row = rows[index];
+    const options = [el("option", { value: "" }, "학생을 선택해주세요")];
+    plan.choices[index].forEach((student, choiceIndex) => {
+      const label = student.isExternalFinalScore
+        ? `기존 별도 응시자 · ${student.name} (${student.id})`
+        : `현재 기수 학생 · ${student.name} (${student.id})`;
+      options.push(el("option", { value: String(choiceIndex) }, label));
+    });
+    options.push(el("option", { value: "new-external" }, "현재 기수 외 응시자로 별도 저장 (온라인·외부 등)"));
+    const selector = el("select", { ariaLabel: `${index + 1}행 ${row.name} 학생 선택` }, options);
+    selectors.set(index, selector);
+    const scores = getGradeSubjectHeaders().map((subject) => `${subject} ${row.subjectScores[subject] || "-"}`).join(" / ");
+    return field(`${index + 1}행 · ${row.name}${row.lectureId ? ` · 인강 아이디 ${row.lectureId}` : ""} · ${row.track || "직렬 미입력"} · 오답 ${row.wrongCount || "0"}개`, selector, "", scores);
+  });
+  const saveButton = button("구분하여 전체 저장", "btn", "submit");
+  const form = el("form", {}, [
+    el("p", { className: "subtle" }, "이름과 직렬이 같아 학생을 구분할 수 없습니다. 각 성적의 학생을 선택해주세요. 별도 응시자는 이번 기수의 석차에 반영되며 다른 학생 계정에는 연결되지 않습니다."),
+    ...fields,
+    el("div", { className: "attendance-modal-actions" }, [button("취소", "btn secondary", "button", closeInfoModal), saveButton]),
+  ]);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (saveButton.disabled) return;
+    const resolved = [...plan.students];
+    for (const [index, selector] of selectors) {
+      if (!selector.value) return notify(`${index + 1}행 학생을 선택해주세요.`);
+      if (selector.value === "new-external") {
+        if (!newExternalStudents.has(index)) {
+          const student = createFinalExternalStudentFromRow(rows[index], cohort);
+          newExternalStudents.set(index, { ...student, id: `${student.id}-${createId()}` });
+        }
+        resolved[index] = newExternalStudents.get(index);
+      } else resolved[index] = plan.choices[index][Number(selector.value)];
+    }
+    const ids = resolved.map((student) => String(student.id));
+    if (new Set(ids).size !== ids.length) return notify("서로 다른 성적에 같은 학생을 선택했습니다. 각 행을 다른 학생으로 구분해주세요.");
+    saveButton.disabled = true;
+    try {
+      if (await saveFinalBulkScoreInput(round, students, rawText, cohort, resolved)) closeInfoModal();
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+  openInfoModal({ title: "동명이인 성적 구분", content: form, showConfirm: false });
 }
 
 async function deleteFinalBulkScores(round, participants = []) {
@@ -2551,15 +2688,18 @@ function parseFinalBulkScoreRows(rawText = "") {
   const delimiter = lines.some((line) => line.includes("\t")) ? "\t" : ",";
   const splitLine = (line) => line.split(delimiter).map((cell) => String(cell || "").trim());
   const headers = splitLine(lines[0]).map(normalizeFinalBulkHeader);
-  const hasHeader = headers.some((header) => ["name", "track", "wrongCount", "id"].includes(header) || getGradeSubjectHeaders().includes(header));
-  const effectiveHeaders = hasHeader ? headers : ["name", "track", ...getGradeSubjectHeaders(), "wrongCount"];
+  const hasHeader = (headers.includes("name") || headers.includes("id")) &&
+    (headers.includes("track") || headers.some((header) => getGradeSubjectHeaders().includes(header)));
+  const usesLectureIds = hasHeader ? headers.includes("lectureId") : splitLine(lines[0]).length === getGradeSubjectHeaders().length + 4;
+  const effectiveHeaders = hasHeader ? headers : ["name", ...(usesLectureIds ? ["lectureId"] : []), "track", ...getGradeSubjectHeaders(), "wrongCount"];
   const dataLines = hasHeader ? lines.slice(1) : lines;
   const rows = dataLines.map((line) => {
     const cells = splitLine(line);
-    const row = { id: "", name: "", track: "", wrongCount: "", subjectScores: {} };
+    const row = { id: "", lectureId: "", name: "", track: "", wrongCount: "", subjectScores: {} };
     effectiveHeaders.forEach((header, index) => {
       const value = cells[index] ?? "";
       if (header === "id") row.id = value;
+      else if (header === "lectureId") row.lectureId = value;
       else if (header === "name") row.name = value;
       else if (header === "track") row.track = normalizeCoastGuardTrack(value);
       else if (header === "wrongCount") row.wrongCount = value;
@@ -2567,11 +2707,12 @@ function parseFinalBulkScoreRows(rawText = "") {
     });
     return row;
   });
-  return { rows };
+  return { rows, usesLectureIds };
 }
 
 function normalizeFinalBulkHeader(header) {
   const value = String(header || "").replace(/\s/g, "").trim();
+  if (["아이디", "인강아이디", "인강ID", "인강id", "온라인아이디", "온라인ID", "lectureId", "lecture_id"].includes(value)) return "lectureId";
   if (["번호", "학번", "id", "ID", "studentId"].includes(value)) return "id";
   if (["이름", "성명", "name"].includes(value)) return "name";
   if (["직렬", "트랙", "track"].includes(value)) return "track";
@@ -2580,11 +2721,12 @@ function normalizeFinalBulkHeader(header) {
 }
 
 function matchFinalBulkStudent(row, studentById, studentsByName) {
-  if (row.id && studentById.has(String(row.id))) return studentById.get(String(row.id));
+  if (row.id) return studentById.get(String(row.id)) || null;
   const candidates = studentsByName.get(String(row.name || "").trim()) || [];
   if (!candidates.length) return null;
   if (!row.track) return candidates.length === 1 ? candidates[0] : null;
-  return candidates.find((student) => getTeacherStudentRegisteredTrack(student) === row.track) || null;
+  const trackMatches = candidates.filter((student) => getTeacherStudentRegisteredTrack(student) === row.track);
+  return trackMatches.length === 1 ? trackMatches[0] : null;
 }
 
 function openFinalScoreEditModal(round, student, record) {

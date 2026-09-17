@@ -90,6 +90,7 @@ async function main() {
   context.getTeacherStudentRegisteredTrack = () => "";
   context.calculateFinalSubjectTotalsForTrack = () => ({ score: 80, maxScore: 100, submittedCount: 1, wrongCount: 4 });
   context.selectedStudentCohort = "18";
+  vm.runInContext(extract(grades, "planFinalBulkStudentMatches"), context);
   vm.runInContext(extract(grades, "saveFinalBulkScoreInput"), context);
   const beforeFailedSave = calls.length;
   await context.saveFinalBulkScoreInput(1, [{ id: "a", name: "Student" }], "input", "18");
