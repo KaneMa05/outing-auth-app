@@ -29,7 +29,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       let canWrite=true;const hasTeacherPermission=p=>p==='criminal_ox.read'||canWrite;
       const APP_MODE='student';let student={id:'offline'};
       const getAuthedStudent=()=>student,getStudentProfile=()=>({deviceToken:'fixture-token'}),isStandaloneStudentApp=()=>false;
-      ${extract(app,'requestCriminalLawOx')} ${extract(app,'renderCriminalLawOxLocalEntry')} ${extract(app,'renderCriminalLawOxLocalPreview')}
+      ${extract(app,'criminalLawOxEntryHint')} ${extract(app,'requestCriminalLawOx')} ${extract(app,'renderCriminalLawOxLocalEntry')} ${extract(app,'renderCriminalLawOxLocalPreview')}
       const renderDataLoadingState=message=>el('p',{},message);
       window.enterOx=()=>{document.querySelector('#app').hidden=true;document.querySelector('#student').replaceChildren(renderCriminalLawOxLocalPreview());};
       const navigate=()=>{};
@@ -83,6 +83,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await wait("document.querySelectorAll('[data-admin=member-set]').length===3");
     await click('[data-admin=member-set][data-id=offline]');await wait("document.querySelector('[data-id=offline][data-allowed=false]')");
     await evaluate("showStudent('offline')");await wait("document.querySelector('#student button')?.hidden===false");
+    assert.equal(await evaluate("showStudent('offline');document.querySelector('#student button').hidden"),false,'Saved enrollment must show the card before a new status response');
     assert.equal((await evaluate("studentRequest('bootstrap')")).ok,true);
     await evaluate("showStudent('lecture')");assert.equal((await evaluate("studentRequest('status')")).enabled,false);
     // Search and filter remain independent of the question list.

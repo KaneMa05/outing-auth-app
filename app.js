@@ -3088,6 +3088,29 @@ function renderStudentHome() {
   ]);
 }
 
+function criminalLawOxEntryHint(studentId, deviceToken, enabled) {
+  if (!studentId || !deviceToken) return false;
+  // A device-specific display hint, never an authorization credential. Avoid
+  // copying the raw device token into another localStorage entry.
+  let fingerprint=0xcbf29ce484222325n;
+  for (const character of String(deviceToken)) fingerprint=BigInt.asUintN(64,(fingerprint^BigInt(character.codePointAt(0)))*0x100000001b3n);
+  const device=fingerprint.toString(16), storageKey='outing-criminal-ox-entry-v1';
+  try {
+    if (enabled===true) {
+      localStorage.setItem(storageKey,JSON.stringify({studentId:String(studentId),device,confirmedAt:Date.now()}));
+      return true;
+    }
+    const saved=JSON.parse(localStorage.getItem(storageKey) || 'null');
+    const matches=saved?.studentId===String(studentId) && saved.device===device;
+    if (enabled===false) {
+      if (matches) localStorage.removeItem(storageKey);
+      return false;
+    }
+    const age=Date.now()-saved?.confirmedAt;
+    return matches && Number.isFinite(saved.confirmedAt) && age>=0 && age<7*24*60*60*1000;
+  } catch { return false; }
+}
+
 function renderCriminalLawOxLocalEntry() {
   if (APP_MODE === "teacher") return null;
   const entry = button("", "lecture-home-shortcut criminal-law-ox-local-entry", "button", () => navigate("criminal-law-ox"), [
@@ -3102,7 +3125,8 @@ function renderCriminalLawOxLocalEntry() {
   ]);
   const student=getAuthedStudent(), deviceToken=getStudentProfile(student?.id)?.deviceToken, key=student?.id+':'+deviceToken;
   const cached=requestCriminalLawOx.statusCache;
-  const visible=cached?.key===key && cached.confirmedAt>Date.now()-30000 && cached.value?.enabled===true;
+  const recent=cached?.key===key && cached.confirmedAt>Date.now()-30000;
+  const visible=recent ? cached.value?.enabled===true : criminalLawOxEntryHint(student?.id,deviceToken);
   entry.hidden = !visible;
   entry.style.display = visible ? "" : "none";
   requestCriminalLawOx('status').then(data => {
@@ -3111,14 +3135,18 @@ function renderCriminalLawOxLocalEntry() {
     if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
       document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js','data-ox-module-preload':'true'}));
     }
-  }).catch(() => {entry.hidden=true;entry.style.display='none';});
+  }).catch(() => {
+    const stillCurrent=getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
+    const keepVisible=stillCurrent && criminalLawOxEntryHint(student?.id,deviceToken);
+    entry.hidden=!keepVisible;entry.style.display=keepVisible?'':'none';
+  });
   return entry;
 }
 
 async function requestCriminalLawOx(action, payload={}) {
   const student=getAuthedStudent();
   if(!student) throw Object.assign(new Error('unauthorized'),{code:'unauthorized'});
-  const key=student.id+':'+getStudentProfile(student.id)?.deviceToken;
+  const deviceToken=getStudentProfile(student.id)?.deviceToken, key=student.id+':'+deviceToken;
   const cached=requestCriminalLawOx.statusCache;
   if(action==='status' && cached?.key===key && (cached.pending || cached.expires>Date.now())) return cached.promise;
   const inFlight=requestCriminalLawOx.bootstrapPending;
@@ -3133,7 +3161,10 @@ async function requestCriminalLawOx(action, payload={}) {
   });
   const data=await response.json();
   if(!response.ok || !data.ok) {
-    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error) && requestCriminalLawOx.statusCache?.key===key) requestCriminalLawOx.statusCache=null;
+    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error)) {
+      criminalLawOxEntryHint(student.id,deviceToken,false);
+      if(requestCriminalLawOx.statusCache?.key===key) requestCriminalLawOx.statusCache=null;
+    }
     throw Object.assign(new Error(data.error),{code:data.error});
   }
   return data;
@@ -3142,7 +3173,10 @@ async function requestCriminalLawOx(action, payload={}) {
   if(bootstrap) {bootstrap.promise=operation;requestCriminalLawOx.bootstrapPending=bootstrap;}
   try {
     const data=await operation;
-    if(status && requestCriminalLawOx.statusCache===status) Object.assign(status,{pending:false,value:data,confirmedAt:Date.now(),expires:Date.now()+30000});
+    if(status && requestCriminalLawOx.statusCache===status) {
+      Object.assign(status,{pending:false,value:data,confirmedAt:Date.now(),expires:Date.now()+30000});
+      if(getAuthedStudent()?.id===student.id && getStudentProfile(student.id)?.deviceToken===deviceToken) criminalLawOxEntryHint(student.id,deviceToken,data.enabled===true);
+    }
     return data;
   } catch(error) {
     if(status && requestCriminalLawOx.statusCache===status) requestCriminalLawOx.statusCache=null;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v439-ox-loading";
+const CACHE_NAME = "outing-auth-app-v440-ox-home-instant";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -21,7 +21,7 @@ const APP_SHELL = [
   "/final-scope-data.js?v=20260908-final-scope-plan",
   "/feedback-hub.js?v=20260911-feedback-free-only",
   "/study-record-share.js?v=20260917-study-share-fixes",
-  "/app.js?v=20260917-ox-loading",
+  "/app.js?v=20260917-ox-home-instant",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
   "/styles.css?v=20260911-hair-shop-bot-admin",
   "/teacher.js?v=20260911-admin-dashboard-retry",
@@ -41,7 +41,7 @@ const APP_SHELL = [
   "/criminal-law-ox-admin.css?v=20260917-ox-members",
   "/criminal-law-ox.js",
   "/criminal-law-ox.css",
-  "/app.js?v=20260917-ox-loading",
+  "/app.js?v=20260917-ox-home-instant",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",
