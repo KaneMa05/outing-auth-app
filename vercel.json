@@ -33,7 +33,7 @@
       ]
     },
     {
-      "source": "/:file(shared|student|teacher|teacher-grades|teacher-fitness|teacher-students|teacher-settings|teacher-penalties|teacher-seats|question-board|feedback-hub|curriculum-data|curriculum-admin|study-character|study-shop|student-rewards|study-cafe-bot-admin|app|supabase).js",
+      "source": "/:file(shared|student|teacher|teacher-grades|teacher-fitness|teacher-students|teacher-settings|teacher-penalties|teacher-seats|question-board|feedback-hub|curriculum-data|curriculum-admin|criminal-law-ox|criminal-law-ox-admin|study-character|study-shop|student-rewards|study-record-share|study-cafe-bot-admin|app|supabase).js",
       "headers": [
         {
           "key": "Cache-Control",

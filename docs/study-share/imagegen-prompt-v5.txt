@@ -1,0 +1,32 @@
+Tool: built-in ImageGen
+Use case: ui-mockup
+Create a high fidelity Korean mobile product design presentation for 론박스터디. User wants study sharing to feel as natural as sharing a finished run: automatic record, satisfying review, optional instant sharing. Retain a subtle personal planner flavor only in the exported card; app itself should look like a real calm modern Korean study app.
+ONE landscape board, high resolution approximately 2700x1700. Exactly THREE front-facing phone app screens arranged left to right with thin arrows between, no bulky device hardware. Warm pale gray board, generous space. Heading "공부를 마치면, 기록이 된다." Subtitle "종료 → 기록 확인 → 공유". Above each phone labels "01 공부 종료", "02 오늘 기록", "03 공유 미리보기". Footer small "일간 · 주간 · 월간 모두 같은 흐름 | 예시 데이터".
+Design: white app surfaces, navy typography #132238, blue #075da4 primary buttons, quiet gray dividers, rounded 16px cards. Very legible Korean sans serif. Mature calm authentic app UI, no trophies, confetti or achievement shouting. No Instagram logos, auto posting claims or fake verified badges. Display all text crisp and uncluttered, realistic touch target sizes.
+SCREEN 1 - existing subject timer page after ending a subject, no blocking popup:
+Top back arrow "과목 타이머".
+Small segmented tabs "타이머" selected and "통계".
+Main today total label "오늘 총 순공시간", large "07:30:00".
+Below section "과목별 타이머" and three rows with subtle play icons:
+"해양경찰학" "03:00:00"
+"해사법규" "02:30:00"
+"항해학" "02:00:00"
+Below a small integrated pale blue completion notice with check icon: "항해학 기록을 저장했어요". Supporting "오늘 총 7시간 30분 공부했어요". Inside notice secondary button "오늘 기록 보기". Notice is a modest inline card, not full-page success takeover. Bottom supportive line "이어서 공부할 과목을 선택하세요". Preserve comfortable whitespace, no compulsory sharing.
+SCREEN 2 - study record review:
+Back arrow header "공부 기록".
+Period segmented control "일간" selected, "주간", "월간".
+Date selector "〈 2026.09.15 〉".
+Title "오늘도 차곡차곡".
+Large main total label "순공시간" and "7시간 30분".
+Compact second metrics row "할 일 달성률 75%" with caption "8개 중 6개 완료".
+Section "오늘의 공부 흐름". One horizontal timeline 09:00 to18:00 with ticks 09,12,15,18. Colored study intervals: sage 09-12; blank break12-13; peach13-15:30; blank15:30-16; blue16-18. Do not fabricate a geographic route or heart rate. Small legend "공부한 시간 · 휴식은 빈칸".
+Three rows below matching timeline colors: "해양경찰학 3시간", "해사법규 2시간 30분", "항해학 2시간".
+Small note row "오늘의 한 줄" "조금씩 쌓이는 중."
+Pinned full-width blue CTA "기록 공유".
+SCREEN 3 - focused share preview:
+Back arrow title "기록 공유".
+Large portrait preview occupying upper two thirds: ivory faint-grid planner paper, clean simple exported study card. It must look like a shareable personal record, never an app dashboard screenshot. Tiny brand 론박스터디 at top, date2026.09.15, handwritten headline "오늘도 차곡차곡". Main number "7시간 30분", label "오늘 순공시간". Then same sage/peach/blue study timeline with 09,12,15,18 ticks and same gaps. Compact "할 일 달성률 75%" and "8개 중 6개 완료". Three compact subject/time rows matching screen2. Bottom handwritten "조금씩 쌓이는 중." Lots of breathing room, understated yellow underline. No UI buttons inside exported card.
+Below preview compact style chooser "기록" selected, "플래너", "사진".
+One unobtrusive settings row "표시 항목 설정" with chevron.
+At bottom secondary outlined "이미지 저장", primary blue "공유하기".
+Constraints: Three complete screens, no clipping. ALL screen data internally consistent. Total 7h30, todo6/8. Small progress bars if used must be75%. Screen1 optional entry after subject stop preserves ability to continue studying. Screen2 period tabs preserve daily weekly monthly scope. Screen3 default record template ready without required customization. Share action means opening the phone share menu, no auto Instagram upload. Avoid dense annotations outside phones; simple professional concept presentation.

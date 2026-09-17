@@ -1,0 +1,10 @@
+Tool: built-in ImageGen
+Reference: docs/study-share/study-share-concept.png
+Use case: ui-mockup
+Edit target: the attached existing Korean study share design board.
+Create a refined version of this two-panel high fidelity Korean mobile UI concept. Preserve its navy blue visual identity, two-panel composition, brand 론박스터디, excellent Korean typography and exact example data. Landscape board with clean pale blue background. Title "오늘의 공부를, 한 장으로." Subtitle "공부 인증 · SNS 공유 시안". Left section "01 앱 인증 화면", right "02 SNS 공유 이미지".
+PRIMARY FIX: The left phone's card preview MUST be an exact miniature of the right navy story card, including navy background, subject rows and typography hierarchy. Selected style is 블루 and subject toggle is ON. Use small but crisp text. Enlarge left phone width a little if needed. Fit full preview, controls and buttons neatly.
+LEFT: focused app screen, back arrow, header "오늘의 공부 인증", date 2026.09.15. Navy portrait card preview with same information as right. Beneath preview concise style selector "공유 스타일" with 블루 selected and 화이트 alternative. Two compact toggle rows "닉네임 표시" OFF and "과목별 시간 표시" ON. Bottom buttons "이미지 저장" and primary "공유하기". No bottom navigation.
+RIGHT: standalone 9:16 navy story card with safe generous margins, understated fine grid and thin arcs. Exact content: top brand 론박스터디, date 2026.09.15; headline "오늘도, 이만큼 해냈다."; label "오늘 순공시간"; most prominent white "7시간" and "30분"; metric "할 일 달성률" and "75%", progress bar 75% filled, caption "8개 중 6개 완료"; subject rows "해양경찰학  3시간", "해사법규  2시간 30분", "항해학  2시간"; footer quote "나와의 약속을 지킨 하루" and small brand 론박스터디. Keep story design mature, celebratory and minimal.
+Board footer "오늘 기록 확인 → 인증 카드 꾸미기 → 이미지 저장 / 공유" and small "예시 데이터".
+Constraints: Exactly two main panels, no extra variants. All text Korean accurate. Preview and exported image MUST have same navy design and same displayed content, no personal identifying information, no fake verified badges or rankings. No additional captions outside specified ones. Flat front facing product presentation, polished spacing, no device hardware.

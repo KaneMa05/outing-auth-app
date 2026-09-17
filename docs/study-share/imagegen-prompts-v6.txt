@@ -1,0 +1,37 @@
+Tool: built-in ImageGen
+
+WEEKLY
+Use case: ui-mockup
+Generate a high-fidelity Korean study app concept board for 론박스터디, WEEKLY STATISTICS and WEEKLY SHARE PREVIEW. ONE landscape 1600x1200-ish board with exactly TWO large front-facing mobile screens, equal height, thin arrow between them. Pale warm gray background, navy #132238 ink, white app surfaces, blue #075da4 buttons, muted sage/peach/light blue accents. Highly readable Korean. No phone hardware. Header "주간 기록 공유" subtitle "타이머 → 통계 → 기록 공유". Section labels above screens "01 주간 통계" and "02 공유 미리보기". Small board footer "기간 종료 후의 예시 데이터".
+LEFT phone: header back arrow "과목 타이머"; mode switch "타이머" and selected "통계". Below period switch "일간", selected "주간", "월간". Date nav "〈 9월 14일 – 9월 20일 〉" year small2026. Title "한 주 동안 쌓은 공부".
+Two compact stats: "총 순공시간" big "42시간 30분"; "할 일 달성률" big "85%" with "40개 중 34개 완료".
+Main plot heading "요일별 공부시간". Seven clean vertical bars proportional to 6,7.5,5.5,6.5,7,6,4 hours. Label bars with "6h", "7.5h", "5.5h", "6.5h", "7h", "6h", "4h". Below bars exact weekday labels "월 화 수 목 금 토 일". Baseline labeled "시간" subtly, color bars muted blue and sage, highest Tuesday highlighted in blue. No streak flame icons.
+Below compact planner table section "요일별 할 일" and column labels "요일", "완료 / 계획". Seven compact rows: 월5/6, 화6/8, 수4/5, 목6/6, 금5/5, 토5/6, 일3/4. Make each easily legible, clean separators.
+Small reflection line "이번 주 한 줄" / "매일 책상에 앉은 나, 잘했어."
+Full-width blue button at bottom of scroll content "기록 공유", not floating over content.
+RIGHT phone: header back arrow "기록 공유".
+Large ivory faint-grid portrait share card within screen, taking upper majority, mature handwritten planner flavor. Tiny brand "론박스터디", range "2026.09.14 – 09.20". Handwritten title "이번 주도 차곡차곡", understated yellow underline. Main label "한 주 순공시간" and main number "42시간 30분". Same seven bar chart and exact values/day labels as left. Under it "할 일 달성률 85%" and "40개 중 34개 완료", thin85% track. Below small "7일 동안 남긴 공부 기록". Bottom handwritten "매일 책상에 앉은 나, 잘했어." Generous whitespace and fine grid. No app UI inside exported card. Note this is weekly, must never show daily7h30 as total, no monthly calendar.
+Below preview style selector "기록" selected, "플래너", "사진". One row gear icon "표시 항목 설정". Bottom outlined "이미지 저장" and blue "공유하기". All content fits comfortably.
+Constraints: Exactly two screens. Correct data sum42h30 and34/40=85%. User selects a period in stats and it carries automatically to share preview. App UI uses clean sans serif; exported card can have readable handwriting. All example data hypothetical. No large external promotional text, no auto post or verified claims, no nicknames. Crisp polished UI. Show all controls fully.
+
+MONTHLY
+Use case: ui-mockup
+Generate a high-fidelity Korean study app concept board for 론박스터디, MONTHLY STATISTICS and MONTHLY SHARE PREVIEW. ONE landscape1600x1200-ish board with exactly TWO large front-facing mobile screens, equal height, thin arrow between. Pale warm gray backdrop, navy #132238 ink, white surfaces, blue #075da4 buttons, muted sage/peach/light blue accents. Readable Korean, no physical phone hardware. Header "월간 기록 공유" subtitle "타이머 → 통계 → 기록 공유". Section labels "01 월간 통계" and "02 공유 미리보기". Small board footer "기간 종료 후의 예시 데이터".
+LEFT phone: back header "과목 타이머"; tabs "타이머" and selected "통계". Period switch "일간", "주간", selected "월간". Month selector "〈 2026년 9월 〉". Title "한 달의 꾸준함".
+Two stats: "누적 순공시간" large "156시간"; "할 일 달성률" large "80%" caption "150개 중 120개 완료".
+Main section "공부 달력". Neat large seven-column calendar headers "월 화 수 목 금 토 일". September2026 starts TUESDAY. Exactly30 distinct date numbers in5 rows:
+blank,1,2,3,4,5,6
+7,8,9,10,11,12,13
+14,15,16,17,18,19,20
+21,22,23,24,25,26,27
+28,29,30,blank,blank,blank,blank
+Highlight26 study dates with equal pale sage circles: all except6,13,20,27. Legend "색칠한 날 = 공부한 날". Calendar is study day presence NOT completion percentage. Under it compact "공부한 날 26일 / 30일".
+Below section "과목별 누적시간" with three proportional horizontal bars and exact rows "해양경찰학 62시간", "해사법규 54시간", "항해학 40시간". Colors sage, peach, pale blue. Sum156h.
+Small reflection "한 달 돌아보기" and "꾸준함이 실력이 되는 중."
+Bottom full-width blue "기록 공유" at bottom of content, not covering anything.
+RIGHT phone: back header "기록 공유". Large warm ivory faint-square-grid portrait exported share card. Tiny brand "론박스터디", month "2026.09". Handwritten title "9월의 공부 기록", understated peach underline. Label "누적 순공시간", main number "156시간". SAME September calendar layout with all30 dates accurately placed, SAME26 sage-highlighted dates, dates6,13,20,27 unfilled. Small "공부한 날 26일 / 30일". Under calendar "할 일 달성률 80%" and "150개 중 120개 완료". Footer handwritten "꾸준함이 실력이 되는 중." Clean calm personal planner feel with plenty of whitespace. Do not put UI controls inside exported card. This is MONTHLY not weekly: no7-bar main chart, no daily timeline.
+Below preview style selector "기록" selected, "플래너", "사진". One row gear icon "표시 항목 설정". Bottom outlined "이미지 저장", blue "공유하기".
+Constraints: Exactly two screens. All figures and dates internally consistent,26/30 is study days and80% refers to120/150 tasks. They must not be equated. No avatars, verified badges, external Instagram logos, auto posting claims or gamified trophies. No extra unrelated illustrations. This is fictional completed-month data. Controls and cards fully visible. App clean sans serif and share card legible handwriting, precise balanced spacing.
+
+MONTHLY BACKGROUND REFINEMENT
+Edit this exact monthly Korean study sharing UI board. Change ONLY the background and alpha compositing: make the ENTIRE canvas fully opaque and fill the exterior background with uniform warm light gray #f3f2ef. Remove transparent/black holes, ragged white halos, noise and speckles around the two phones. Keep a very subtle clean soft gray drop shadow. All existing phone contents, text, dates, data, charts, calendar date positions, spacing, and dimensions must remain exactly unchanged. Ensure the dark navy title "월간 기록 공유", subtitle, section labels and footer remain readable on the light gray opaque backdrop. Do not remove labels. Do not redesign any screen. The result must be an opaque polished product design presentation with no transparency.

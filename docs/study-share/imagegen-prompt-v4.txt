@@ -1,0 +1,43 @@
+Tool: built-in ImageGen
+Use case: ui-mockup / style-transfer
+Input image: reference and edit target is the previous warm handwritten daily study planner. Expand this concept into a polished design comparison board showing DAILY, WEEKLY, MONTHLY planner share images.
+Create ONE landscape high resolution image approximately 3000x1900, with exactly THREE complete portrait 4:5 planner pages side by side, equal size and aligned. Their content must be large and sharp. Above pages small Korean labels "일간 인증", "주간 인증", "월간 인증". Quiet top-left board heading "나의 공부를 기록하는 세 가지 방법". Small subtitle "일간 · 주간 · 월간 플래너 인증". Bottom caption "모든 기록은 예시입니다".
+Visual treatment: preserve warm ivory paper, faint square grids, black fine-tip handwritten Korean, muted sage/peach/butter yellow highlighting, neat hand-drawn checkboxes, understated tiny brand 론박스터디 at bottom of EACH exported page. Gentle paper shadows on beige backdrop. Each is a clean usable flat planner graphic, no stationery blocking text, no phone frames, no Instagram UI. Beautiful personal journal feeling. Avoid dashboard panels, giant numbers, navy backgrounds, photoreal pen objects or clutter. All text highly legible, careful Hangul.
+LEFT DAILY PAGE:
+Date "2026.09.15".
+Handwritten title "오늘의 공부 기록", butter yellow underline.
+Compact summary "순공시간 7시간 30분" and "할 일 달성률 75%", small "8개 중 6개 완료".
+Main handwritten study checklist with 3 subject sections and exactly 8 checkboxes, 6 checked and 2 empty:
+Sage subject label "해양경찰학" with time "3시간". Checked "기본서 복습", checked "기출 40문항", checked "오답 정리".
+Peach subject "해사법규" with "2시간 30분". Checked "핵심 조문 암기", checked "문제 풀이", empty "틀린 지문 복습".
+Pale blue subject "항해학" with "2시간". Checked "공식 정리", empty "복습 20문항".
+Bottom "오늘의 한 줄" then "조금씩 쌓이는 중." and tiny 론박스터디.
+MIDDLE WEEKLY PAGE:
+Date "2026.09.14 — 09.20".
+Handwritten title "이번 주 공부 기록", sage underline.
+Compact summary "순공시간 42시간 30분" and "할 일 달성률 85%", small "40개 중 34개 완료".
+Main seven-row weekly journal table with fine ruled lines, 3 clear columns "요일" "공부시간" "완료 / 계획".
+Rows EXACTLY:
+"월" "6시간" "5 / 6"
+"화" "7시간 30분" "6 / 8"
+"수" "5시간 30분" "4 / 5"
+"목" "6시간 30분" "6 / 6"
+"금" "7시간" "5 / 5"
+"토" "6시간" "5 / 6"
+"일" "4시간" "3 / 4"
+Add pale subtle highlighter strokes along each time, ruled planner margins and tiny star next to Friday. All time rows total 42h30, tasks 34/40.
+Below main table handwritten small note heading "이번 주 돌아보기" then "매일 책상에 앉은 나, 잘했어."
+Tiny 론박스터디 footer.
+RIGHT MONTHLY PAGE:
+Date "2026.09".
+Handwritten title "9월의 공부 기록", peach underline.
+Compact summary "누적 순공시간 156시간" and "할 일 달성률 80%", small "150개 중 120개 완료".
+Main full September 2026 calendar, neat handwritten seven column labels "월 화 수 목 금 토 일". September 1 is TUESDAY. Calendar five rows:
+blank,1,2,3,4,5,6;
+7,8,9,10,11,12,13;
+14,15,16,17,18,19,20;
+21,22,23,24,25,26,27;
+28,29,30,blank,blank,blank,blank.
+Put 30 dates exactly once. Light sage circles or highlighter fills on exactly 26 dates. Unfilled dates 6,13,20,27. This is a study-day calendar, NOT task achievement percent. Legend "색칠한 날 = 공부한 날". Beneath calendar small "공부한 날 26일 / 30일".
+Bottom note heading "한 달 돌아보기" then "꾸준함이 실력이 되는 중." Tiny 론박스터디 footer.
+Constraints: No content cut off. Same paper typography and spacing family across all three. All data are fictional completed-period examples. Daily Sep15 values match weekly Tuesday 7h30 and 6/8. Overall weekly and monthly ratios refer to completed tasks divided by planned tasks, not average daily percentages. No extra metrics, claims of verification or people. Accurate Korean and accurate dates/numbers essential.

@@ -685,7 +685,8 @@ assert.match(styleSource, /\.study-ranking-back-button\s*\{/);
 assert.match(styleSource, /\.study-ranking-page-head > div\s*\{[^}]*text-align: center/);
 assert.match(styleSource, /\.study-ranking-back-button\s*\{[^}]*justify-self: start/);
 assert.match(styleSource, /\.study-ranking-my-chip\s*\{[^}]*justify-self: end/);
-assert.match(appSource, /inStudentFooter && \["study-timer", "question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
+assert.match(appSource, /inStudentFooter && currentRoute === "study-timer"\s*\? studyTimerFooterRoute/);
+assert.match(appSource, /inStudentFooter && \["question-board", "notifications", "notices"\]\.includes\(currentRoute\)[\s\S]*?\? "home"/);
 assert.match(appSource, /button\("← 마이", "study-character-back-button", "button", \(\) => navigate\("mypage"\)\)/);
 assert.match(styleSource, /\.study-character-page-head\s*\{[^}]*grid-column: 1 \/ -1/);
 assert.match(styleSource, /\.study-character-back-button/);
@@ -1317,7 +1318,7 @@ assert.match(appSource, /className: "study-character-seat-detail-button"[\s\S]*?
 assert.match(styleSource, /\.study-character-seat-detail-button\s*\{[^}]*position: absolute[^}]*inset: 0[^}]*width: 100%[^}]*height: 100%/);
 assert.doesNotMatch(styleSource, /study-character-preview-scene/);
 assert.match(styleSource, /\.study-cafe-my-seat-character \.study-cafe-desk-cosmetics \.study-cafe-cosmetic\s*\{[^}]*scale\(0\.68\)/);
-assert.match(indexSource, /app\.js\?v=20260915-study-cafe-power-saving/);
+assert.match(indexSource, /app\.js\?v=20260917-ox-members/);
 assert.match(
   appSource,
   /renderStudyCafeSeatedVisual\(occupant\.tone \|\| "blue", isMine, \{/

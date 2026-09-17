@@ -1,0 +1,17 @@
+Tool: built-in ImageGen
+Use case: ui-mockup / style-transfer
+Input image: previous study achievement design board, EDIT TARGET for an entirely new visual treatment. Preserve the brand 론박스터디 and sample study totals only. User requests a share image that feels like a personal study planner posted on Instagram.
+Primary request: Redesign as ONE finished shareable daily planner image, portrait 4:5, high resolution. Show the actual exported planner artwork only, without a surrounding presentation board or phone. The impression should be a beautifully filled-in physical study planner photographed directly from above, intimate and quietly proud.
+Style: realistic warm ivory paper with faint square grid, black fine-tip pen lettering, very legible Korean handwriting paired with small clean printed section headings. Muted sage, butter yellow and dusty peach highlighter marks. A narrow beige desk border, subtle paper shadows, a tiny piece of translucent washi tape near top. The paper fills 94% of frame. Everything straight and highly readable. Plenty of handwriting and checked tasks create the authentic personal planner feeling. Minimal tiny star doodles only, tasteful restrained stationery aesthetic.
+Composition: top date and handwritten title. Compact top summary strips, main central study checklist taking at least half the page, three subject sections, small bottom reflection. No giant dashboard numbers, no dark blue background, no charts or promotional slogan, no app controls or Instagram interface.
+Exact text and hierarchy:
+Top small "2026.09.15  TUE" and large handwritten "오늘의 공부 기록", with subtle pale yellow underline.
+Summary line as two compact ruled boxes: "순공시간  7시간 30분" and "할 일 달성률  75%". Below second box smaller "8개 중 6개 완료". These are factual example values, never labeled verified.
+Central section heading "TODAY'S PLAN".
+Subject 1 label with sage highlight "해양경찰학", right "3시간". Under it THREE handwritten checklist rows: CHECKED "기본서 1단원 복습"; CHECKED "기출문제 40문항"; CHECKED "오답 정리".
+Subject 2 label with peach highlight "해사법규", right "2시간 30분". Under it THREE handwritten checklist rows: CHECKED "핵심 조문 암기"; CHECKED "단원별 문제 풀이"; EMPTY checkbox "틀린 지문 다시 보기".
+Subject 3 label with pale blue highlight "항해학", right "2시간". Under it TWO handwritten checklist rows: CHECKED "공식 정리"; EMPTY checkbox "복습 문제 20문항".
+There must be exactly EIGHT task boxes total, SIX checked and TWO empty, matching 75%. Completed task text should remain readable; subtle highlighter behind some completed lines, no heavy strike-through.
+Bottom ruled reflection area heading "오늘의 한 줄", handwritten "조금씩 쌓이는 중. 오늘도 수고했어!".
+Very bottom small handwritten tags "#공스타그램  #플래너인증  #오늘의공부" and extremely understated small brand "론박스터디". Branding should feel like a small stationery imprint.
+All Korean text crisp, properly spelled, intentional whitespace, gentle natural paper texture, a polished planner students would proudly share. All subject durations sum to 7시간 30분. No real personal details, no photos of people, no extra numbers or invented metrics. Image is a design concept with fictional study records.

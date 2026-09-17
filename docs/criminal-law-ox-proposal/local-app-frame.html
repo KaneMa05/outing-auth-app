@@ -1,0 +1,1556 @@
+<!doctype html>
+<html lang="ko" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>형사법 OX</title>
+<style>:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html > body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive > .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align="right"]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align="center"]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget > :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls > .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type="file"] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type="file"]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: "";
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type="radio"]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: "";
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed="true"],
+  [aria-selected="true"],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type="file"]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="time"],
+    [type="week"]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: "";
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget > svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html>body{padding:0}</style>
+</head>
+<body>
+<div id="criminal-ox-preview" aria-label="형사법 OX 모바일 시안">
+  <style>
+    #criminal-ox-preview { --ox-bg:light-dark(#f5f6f2,#171e1d); --ox-paper:light-dark(#ffffff,#222b29); --ox-ink:light-dark(#1d302e,#eef5f1); --ox-muted:light-dark(#60716b,#abbeb6); --ox-line:light-dark(#dee6e0,#3b4b44); --ox-soft:light-dark(#e8efe9,#2b3d34); --ox-accent:light-dark(#176451,#9bd9b6); --ox-on:light-dark(#ffffff,#123c2c); --ox-red:light-dark(#b92f2f,#ffacac); --ox-red-bg:light-dark(#fff0eb,#452c2b); --ox-green:light-dark(#176b3c,#9be0b4); --ox-blue:light-dark(#295d9a,#a7caff); --ox-question-size:19px; font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; color:var(--ox-ink); }
+    #criminal-ox-preview * { box-sizing:border-box; }
+    #criminal-ox-preview .ox-caption { max-width:460px; margin:0 auto 10px; font-size:12px; color:var(--ox-muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    #criminal-ox-preview .ox-phone { max-width:460px; margin:auto; border:1px solid var(--ox-line); border-radius:26px; background:var(--ox-bg); overflow:hidden; }
+    #criminal-ox-preview .ox-header { padding:22px 24px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--ox-paper); border-bottom:1px solid var(--ox-line); }
+    #criminal-ox-preview .ox-brand { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:700; letter-spacing:-.6px; }
+    #criminal-ox-preview .ox-mark { background:var(--ox-accent); color:var(--ox-on); padding:6px 8px; border-radius:9px; letter-spacing:1px; font-size:14px; }
+    #criminal-ox-preview .ox-header small { color:var(--ox-muted); font-size:12px; }
+    #criminal-ox-preview .ox-content { padding:26px 24px; min-height:570px; }
+    #criminal-ox-preview h2 { font-size:27px; font-weight:700; line-height:1.4; letter-spacing:-1px; margin:7px 0 12px; }
+    #criminal-ox-preview h3 { font-size:16px; font-weight:700; line-height:1.5; margin:0; }
+    #criminal-ox-preview p { margin:8px 0; }
+    #criminal-ox-preview .ox-eyebrow { font-size:11px; letter-spacing:1.5px; font-weight:700; color:var(--ox-accent); }
+    #criminal-ox-preview .ox-sub { color:var(--ox-muted); font-size:13px; line-height:1.65; }
+    #criminal-ox-preview .ox-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    #criminal-ox-preview .ox-card { background:var(--ox-paper); border:1px solid var(--ox-line); padding:20px; border-radius:17px; margin-top:16px; }
+    #criminal-ox-preview .ox-hero { background:var(--ox-accent); color:var(--ox-on); border:0; padding:24px; }
+    #criminal-ox-preview .ox-hero .ox-sub { color:inherit; opacity:.88; }
+    #criminal-ox-preview .ox-hero h3 { font-size:23px; margin:8px 0; line-height:1.4; }
+    #criminal-ox-preview .ox-button { border:1px solid var(--ox-line); color:var(--ox-ink); background:var(--ox-paper); padding:12px 15px; border-radius:11px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; min-height:44px; max-width:100%; }
+    #criminal-ox-preview .ox-button:disabled { opacity:.55; cursor:default; }
+    #criminal-ox-preview .ox-primary { background:var(--ox-accent); color:var(--ox-on); border-color:var(--ox-accent); }
+    #criminal-ox-preview .ox-wide { width:100%; margin-top:16px; }
+    #criminal-ox-preview .ox-hero .ox-button { background:var(--ox-on); color:var(--ox-accent); border:0; }
+    #criminal-ox-preview .ox-plain { background:transparent; border:0; padding:7px 0; min-height:44px; color:var(--ox-accent); font-size:13px; font-weight:600; cursor:pointer; }
+    #criminal-ox-preview .ox-stats { display:grid; grid-template-columns:1fr 1fr; margin:22px 0; gap:16px; }
+    #criminal-ox-preview .ox-stats>div+div { border-left:1px solid var(--ox-line); padding-left:20px; }
+    #criminal-ox-preview .ox-number { font-size:27px; font-weight:700; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+    #criminal-ox-preview .ox-number small { font-size:13px; color:var(--ox-muted); font-weight:400; letter-spacing:0; }
+    #criminal-ox-preview .ox-section { margin-top:26px; }
+    #criminal-ox-preview .ox-badge { display:inline-block; padding:5px 8px; border-radius:6px; background:var(--ox-soft); color:var(--ox-accent); font-size:11px; font-weight:600; }
+    #criminal-ox-preview .ox-danger { background:var(--ox-red-bg); color:var(--ox-red); }
+    #criminal-ox-preview .ox-meter { background:var(--ox-soft); height:6px; border-radius:4px; overflow:hidden; margin-top:9px; }
+    #criminal-ox-preview .ox-meter>span { display:block; height:100%; background:var(--ox-accent); }
+    #criminal-ox-preview .ox-rule { border:0; border-top:1px solid var(--ox-line); margin:18px 0; }
+    #criminal-ox-preview .ox-nav { background:var(--ox-paper); border-bottom:1px solid var(--ox-line); display:grid; grid-template-columns:repeat(4,1fr); padding:6px 8px; }
+    #criminal-ox-preview .ox-app-nav { background:var(--ox-paper); border-top:1px solid var(--ox-line); display:flex; justify-content:space-around; gap:4px; padding:18px 10px; color:var(--ox-muted); font-size:11px; }
+    #criminal-ox-preview .ox-app-nav span:first-child { color:var(--ox-accent); font-weight:700; }
+    #criminal-ox-preview .ox-existing { background:var(--ox-soft); border-radius:17px; padding:20px; margin-top:16px; }
+    #criminal-ox-preview .ox-nav button { display:flex; flex-direction:column; align-items:center; gap:5px; background:transparent; border:0; border-radius:10px; padding:9px 2px; color:var(--ox-muted); cursor:pointer; min-height:54px; font-size:11px; font-family:inherit; }
+    #criminal-ox-preview .ox-nav button[aria-current="page"] { color:var(--ox-accent); background:var(--ox-soft); font-weight:700; }
+    #criminal-ox-preview .ox-filters { display:flex; flex-wrap:wrap; gap:7px; margin:20px 0; }
+    #criminal-ox-preview .ox-filter { border:1px solid var(--ox-line); border-radius:9px; padding:10px 12px; background:var(--ox-paper); color:var(--ox-muted); cursor:pointer; font-size:12px; min-height:40px; font-family:inherit; }
+    #criminal-ox-preview .ox-filter[aria-pressed="true"] { color:var(--ox-on); background:var(--ox-accent); border-color:var(--ox-accent); }
+    #criminal-ox-preview .ox-chapter { width:100%; text-align:left; display:flex; gap:13px; align-items:center; border:0; border-bottom:1px solid var(--ox-line); background:transparent; color:var(--ox-ink); padding:17px 0; cursor:pointer; font-family:inherit; }
+    #criminal-ox-preview .ox-chapter-index { font-size:12px; color:var(--ox-muted); font-variant-numeric:tabular-nums; }
+    #criminal-ox-preview .ox-chapter-body { flex:1; min-width:0; }
+    #criminal-ox-preview .ox-chapter-body strong { display:block; font-size:15px; line-height:1.6; }
+    #criminal-ox-preview .ox-question { font-size:var(--ox-question-size); line-height:1.95; letter-spacing:-.4px; word-break:keep-all; overflow-wrap:anywhere; margin:22px 0 26px; }
+    #criminal-ox-preview .ox-context { background:var(--ox-soft); padding:14px; border-radius:10px; font-size:13px; line-height:1.8; margin-top:18px; }
+    #criminal-ox-preview .ox-answer-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    #criminal-ox-preview .ox-answer { padding:16px; background:var(--ox-paper); border:1.5px solid var(--ox-line); border-radius:14px; min-height:100px; color:var(--ox-ink); cursor:pointer; }
+    #criminal-ox-preview .ox-answer b { display:block; font-size:36px; font-weight:500; }
+    #criminal-ox-preview .ox-answer small { font:inherit; font-size:12px; }
+    #criminal-ox-preview .ox-answer:disabled { cursor:default; opacity:.58; }
+    #criminal-ox-preview .ox-answer.ox-selected { border-color:var(--ox-accent); background:var(--ox-soft); color:var(--ox-accent); opacity:1; }
+    #criminal-ox-preview .ox-explanation { font-size:15px; line-height:1.95; margin-top:16px; word-break:keep-all; overflow-wrap:anywhere; }
+    #criminal-ox-preview .ox-explanation u { text-decoration-thickness:.09em; text-underline-offset:.19em; }
+    #criminal-ox-preview .ox-correct { color:var(--ox-green); }
+    #criminal-ox-preview .ox-incorrect { color:var(--ox-red); }
+    #criminal-ox-preview .ox-source { font-size:11px; line-height:1.7; color:var(--ox-muted); margin-top:18px; overflow-wrap:anywhere; }
+    #criminal-ox-preview .ox-note { width:100%; margin-top:8px; border:1px solid var(--ox-line); border-radius:10px; padding:12px; font:inherit; font-size:16px; line-height:1.7; background:var(--ox-bg); color:var(--ox-ink); resize:vertical; }
+    #criminal-ox-preview details { margin-top:15px; }
+    #criminal-ox-preview summary { font-size:13px; cursor:pointer; min-height:44px; padding:10px 0; color:var(--ox-accent); }
+    #criminal-ox-preview .ox-short-prompt { font-size:15px; line-height:1.85; margin:15px 0; }
+    #criminal-ox-preview .ox-empty { padding:35px 8px; text-align:center; }
+    #criminal-ox-preview .ox-empty h3 { margin-bottom:12px; }
+    #criminal-ox-preview .ox-result { padding:25px 0; text-align:center; }
+    #criminal-ox-preview .ox-result .ox-number { font-size:53px; margin:16px 0; }
+    #criminal-ox-preview .ox-live { font-size:12px; color:var(--ox-accent); margin-top:12px; min-height:18px; }
+    #criminal-ox-preview .ox-footnote { max-width:460px; margin:10px auto 0; color:var(--ox-muted); font-size:11px; line-height:1.6; }
+    #criminal-ox-preview button:focus-visible, #criminal-ox-preview summary:focus-visible { outline:3px solid var(--ox-blue); outline-offset:3px; }
+    @media(max-width:380px) { #criminal-ox-preview .ox-content { padding:22px 17px; } #criminal-ox-preview .ox-header { padding:18px 17px; } #criminal-ox-preview .ox-card { padding:16px; } #criminal-ox-preview h2 { font-size:24px; } }
+  </style>
+  <div class="ox-caption"><span>수강생 앱에 추가 · 모바일 시안</span><span>실제 지문 / 예시 학습 기록</span></div>
+  <div class="ox-phone">
+    <header class="ox-header"><div class="ox-brand"><span class="ox-mark">OX</span>형사법 OX</div><small>한 지문씩, 확실하게</small></header>
+    <nav class="ox-nav" aria-label="형사법 OX 내부 메뉴"></nav>
+    <main class="ox-content"><span class="ox-eyebrow">DAILY STUDY</span><h2>오늘의 한 걸음,<br>확실한 정답으로.</h2><p class="ox-sub">오늘 학습과 오답 복습을 한곳에서.</p></main>
+    <div class="ox-app-nav" aria-label="기존 수강생 앱 하단 메뉴 · 배치 참고"></div>
+  </div>
+  <p class="ox-footnote">단원별 대표 문항을 체험하는 시안입니다. 제출·메모·복습 상태는 시안을 열어둔 동안만 반영됩니다.</p>
+  <script type="application/json" id="criminal-ox-data">{"collections":[{"id":"criminal-law","name":"형법 OX","subject":"형법","scope":"총론·각론","source_filename":"(4차) 형법OX.pdf","source_page_count":573,"sort_order":1},{"id":"criminal-procedure-investigation-evidence","name":"형사소송법 OX - 수사·증거","subject":"형사소송법","scope":"수사·증거","source_filename":"(내지) 형소법OX_수사증거.pdf","source_page_count":238,"sort_order":2},{"id":"criminal-procedure-trial","name":"형사소송법 OX - 공판","subject":"형사소송법","scope":"공판","source_filename":"(1차) 공판.pdf","source_page_count":156,"sort_order":3}],"chapters":[{"id":"criminal-law-01-basic-concepts","part_title":"형법총론 · 제1편 서론","chapter_title":"제1장 형법의 기본개념","section_title":null,"display_name":"형법의 기본개념","start_page":8,"collection_id":"criminal-law","sort_order":1,"end_page":27,"question_count":55},{"id":"criminal-law-02-scope","part_title":"형법총론 · 제1편 서론","chapter_title":"제2장 형법의 적용범위","section_title":null,"display_name":"형법의 적용범위","start_page":28,"collection_id":"criminal-law","sort_order":2,"end_page":39,"question_count":34},{"id":"criminal-law-03-crime-theory","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제1장 범죄론의 기초","section_title":null,"display_name":"범죄론의 기초","start_page":40,"collection_id":"criminal-law","sort_order":3,"end_page":45,"question_count":27},{"id":"criminal-law-04-elements","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제2장 구성요건론","section_title":null,"display_name":"구성요건론","start_page":46,"collection_id":"criminal-law","sort_order":4,"end_page":95,"question_count":158},{"id":"criminal-law-05-unlawfulness","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제3장 위법성론","section_title":null,"display_name":"위법성론","start_page":96,"collection_id":"criminal-law","sort_order":5,"end_page":122,"question_count":85},{"id":"criminal-law-06-culpability","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제4장 책임론","section_title":null,"display_name":"책임론","start_page":123,"collection_id":"criminal-law","sort_order":6,"end_page":153,"question_count":110},{"id":"criminal-law-07-attempt","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제5장 미수론","section_title":null,"display_name":"미수론","start_page":154,"collection_id":"criminal-law","sort_order":7,"end_page":177,"question_count":96},{"id":"criminal-law-08-participation","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제6장 정범 및 공범론","section_title":null,"display_name":"정범 및 공범론","start_page":178,"collection_id":"criminal-law","sort_order":8,"end_page":211,"question_count":107},{"id":"criminal-law-09-number-of-crimes","part_title":"형법총론 · 제2편 범죄론","chapter_title":"제7장 죄수론","section_title":null,"display_name":"죄수론","start_page":212,"collection_id":"criminal-law","sort_order":9,"end_page":231,"question_count":55},{"id":"criminal-law-10-punishment-types","part_title":"형법총론 · 제3편 형벌론","chapter_title":"제1장 형벌의 종류","section_title":null,"display_name":"형벌의 종류","start_page":232,"collection_id":"criminal-law","sort_order":10,"end_page":239,"question_count":27},{"id":"criminal-law-11-sentencing","part_title":"형법총론 · 제3편 형벌론","chapter_title":"제2장 형의 양정","section_title":null,"display_name":"형의 양정","start_page":240,"collection_id":"criminal-law","sort_order":11,"end_page":244,"question_count":21},{"id":"criminal-law-12-recidivism","part_title":"형법총론 · 제3편 형벌론","chapter_title":"제3장 누범","section_title":null,"display_name":"누범","start_page":245,"collection_id":"criminal-law","sort_order":12,"end_page":246,"question_count":6},{"id":"criminal-law-13-suspension","part_title":"형법총론 · 제3편 형벌론","chapter_title":"제4장 형의 유예제도","section_title":null,"display_name":"형의 유예제도","start_page":247,"collection_id":"criminal-law","sort_order":13,"end_page":251,"question_count":14},{"id":"criminal-law-14-limitation-extinction","part_title":"형법총론 · 제3편 형벌론","chapter_title":"제5장 형의 시효와 소멸","section_title":null,"display_name":"형의 시효와 소멸","start_page":252,"collection_id":"criminal-law","sort_order":14,"end_page":255,"question_count":2},{"id":"criminal-law-15-life-body","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제1장 생명과 신체에 대한 죄","section_title":null,"display_name":"생명과 신체에 대한 죄","start_page":256,"collection_id":"criminal-law","sort_order":15,"end_page":281,"question_count":80},{"id":"criminal-law-16-intimidation","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제2장 자유에 관한 죄","section_title":"제1절 협박의 죄","display_name":"협박의 죄","start_page":282,"collection_id":"criminal-law","sort_order":16,"end_page":291,"question_count":27},{"id":"criminal-law-17-coercion","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제2장 자유에 관한 죄","section_title":"제2절 강요의 죄","display_name":"강요의 죄","start_page":292,"collection_id":"criminal-law","sort_order":17,"end_page":295,"question_count":9},{"id":"criminal-law-18-arrest-confinement","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제2장 자유에 관한 죄","section_title":"제3절 체포와 감금의 죄","display_name":"체포와 감금의 죄","start_page":296,"collection_id":"criminal-law","sort_order":18,"end_page":300,"question_count":15},{"id":"criminal-law-19-kidnapping-trafficking","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제2장 자유에 관한 죄","section_title":"제4절 약취와 유인 및 인신매매의 죄","display_name":"약취와 유인 및 인신매매의 죄","start_page":301,"collection_id":"criminal-law","sort_order":19,"end_page":304,"question_count":11},{"id":"criminal-law-20-sexual-offenses","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제2장 자유에 관한 죄","section_title":"제5절 강간과 추행의 죄","display_name":"강간과 추행의 죄","start_page":305,"collection_id":"criminal-law","sort_order":20,"end_page":316,"question_count":31},{"id":"criminal-law-21-reputation","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제3장 명예와 신용에 관한 죄","section_title":"제1절 명예에 관한 죄","display_name":"명예에 관한 죄","start_page":317,"collection_id":"criminal-law","sort_order":21,"end_page":331,"question_count":40},{"id":"criminal-law-22-credit-business-auction","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제3장 명예와 신용에 관한 죄","section_title":"제2절 신용·업무와 경매에 관한 죄","display_name":"신용·업무와 경매에 관한 죄","start_page":332,"collection_id":"criminal-law","sort_order":22,"end_page":344,"question_count":35},{"id":"criminal-law-23-private-peace","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제4장 사생활의 평온에 관한 죄","section_title":null,"display_name":"사생활의 평온에 관한 죄","start_page":345,"collection_id":"criminal-law","sort_order":23,"end_page":354,"question_count":28},{"id":"criminal-law-24-property-general","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제1절 재산죄 일반론","display_name":"재산죄 일반론","start_page":355,"collection_id":"criminal-law","sort_order":24,"end_page":364,"question_count":31},{"id":"criminal-law-25-theft","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제2절 절도의 죄","display_name":"절도의 죄","start_page":365,"collection_id":"criminal-law","sort_order":25,"end_page":372,"question_count":23},{"id":"criminal-law-26-robbery","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제3절 강도의 죄","display_name":"강도의 죄","start_page":373,"collection_id":"criminal-law","sort_order":26,"end_page":386,"question_count":43},{"id":"criminal-law-27-fraud","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제4절 사기의 죄","display_name":"사기의 죄","start_page":387,"collection_id":"criminal-law","sort_order":27,"end_page":404,"question_count":45},{"id":"criminal-law-28-extortion","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제5절 공갈의 죄","display_name":"공갈의 죄","start_page":405,"collection_id":"criminal-law","sort_order":28,"end_page":406,"question_count":5},{"id":"criminal-law-29-embezzlement","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제6절 횡령의 죄","display_name":"횡령의 죄","start_page":407,"collection_id":"criminal-law","sort_order":29,"end_page":423,"question_count":47},{"id":"criminal-law-30-breach-of-trust","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제7절 배임의 죄","display_name":"배임의 죄","start_page":424,"collection_id":"criminal-law","sort_order":30,"end_page":437,"question_count":36},{"id":"criminal-law-31-stolen-goods","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제8절 장물의 죄","display_name":"장물의 죄","start_page":438,"collection_id":"criminal-law","sort_order":31,"end_page":442,"question_count":15},{"id":"criminal-law-32-damage","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제9절 손괴의 죄","display_name":"손괴의 죄","start_page":443,"collection_id":"criminal-law","sort_order":32,"end_page":446,"question_count":11},{"id":"criminal-law-33-obstruction-of-rights","part_title":"형법각론 · 제1편 개인적 법익에 대한 죄","chapter_title":"제5장 재산에 대한 죄","section_title":"제10절 권리행사를 방해하는 죄","display_name":"권리행사를 방해하는 죄","start_page":447,"collection_id":"criminal-law","sort_order":33,"end_page":455,"question_count":23},{"id":"criminal-law-34-public-safety","part_title":"형법각론 · 제2편 사회적 법익에 대한 죄","chapter_title":"제1장 공공의 안전과 평온에 대한 죄","section_title":null,"display_name":"공공의 안전과 평온에 대한 죄","start_page":456,"collection_id":"criminal-law","sort_order":34,"end_page":472,"question_count":55},{"id":"criminal-law-35-public-credit","part_title":"형법각론 · 제2편 사회적 법익에 대한 죄","chapter_title":"제2장 공공의 신용에 관한 죄","section_title":null,"display_name":"공공의 신용에 관한 죄","start_page":473,"collection_id":"criminal-law","sort_order":35,"end_page":506,"question_count":91},{"id":"criminal-law-36-social-morality","part_title":"형법각론 · 제2편 사회적 법익에 대한 죄","chapter_title":"제3장 사회도덕에 대한 죄","section_title":null,"display_name":"사회도덕에 대한 죄","start_page":507,"collection_id":"criminal-law","sort_order":36,"end_page":511,"question_count":12},{"id":"criminal-law-37-state-existence","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제1장 국가의 존립에 대한 죄","section_title":null,"display_name":"국가의 존립에 대한 죄","start_page":512,"collection_id":"criminal-law","sort_order":37,"end_page":513,"question_count":7},{"id":"criminal-law-38-public-official-duties","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제2장 국가의 기능에 대한 죄","section_title":"제1절 공무원의 직무에 관한 죄","display_name":"공무원의 직무에 관한 죄","start_page":514,"collection_id":"criminal-law","sort_order":38,"end_page":535,"question_count":62},{"id":"criminal-law-39-obstruction-public-duty","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제2장 국가의 기능에 대한 죄","section_title":"제2절 공무방해에 관한 죄","display_name":"공무방해에 관한 죄","start_page":536,"collection_id":"criminal-law","sort_order":39,"end_page":547,"question_count":32},{"id":"criminal-law-40-escape-concealment","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제2장 국가의 기능에 대한 죄","section_title":"제3절 도주와 범인은닉의 죄","display_name":"도주와 범인은닉의 죄","start_page":548,"collection_id":"criminal-law","sort_order":40,"end_page":555,"question_count":21},{"id":"criminal-law-41-perjury-evidence","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제2장 국가의 기능에 대한 죄","section_title":"제4절 위증과 증거인멸의 죄","display_name":"위증과 증거인멸의 죄","start_page":556,"collection_id":"criminal-law","sort_order":41,"end_page":564,"question_count":28},{"id":"criminal-law-42-false-accusation","part_title":"형법각론 · 제3편 국가적 법익에 대한 죄","chapter_title":"제2장 국가의 기능에 대한 죄","section_title":"제5절 무고의 죄","display_name":"무고의 죄","start_page":565,"collection_id":"criminal-law","sort_order":42,"end_page":573,"question_count":26},{"id":"procedure-ie-01-investigation-general","part_title":"제1편 수사","chapter_title":"제1장 수사총론","section_title":null,"display_name":"수사총론","start_page":4,"collection_id":"criminal-procedure-investigation-evidence","sort_order":1,"end_page":71,"question_count":228},{"id":"procedure-ie-02-compulsory-investigation","part_title":"제1편 수사","chapter_title":"제2장 강제처분과 강제수사","section_title":null,"display_name":"강제처분과 강제수사","start_page":72,"collection_id":"criminal-procedure-investigation-evidence","sort_order":2,"end_page":142,"question_count":232},{"id":"procedure-ie-03-investigation-close","part_title":"제1편 수사","chapter_title":"제3장 수사의 종결","section_title":null,"display_name":"수사의 종결","start_page":143,"collection_id":"criminal-procedure-investigation-evidence","sort_order":3,"end_page":159,"question_count":50},{"id":"procedure-ie-04-evidence-concepts","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":null,"display_name":"증거의 의의와 종류","start_page":160,"collection_id":"criminal-procedure-investigation-evidence","sort_order":4,"end_page":162,"question_count":8},{"id":"procedure-ie-05-proof-principles","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제1절 증명의 기본원칙","display_name":"증명의 기본원칙","start_page":163,"collection_id":"criminal-procedure-investigation-evidence","sort_order":5,"end_page":172,"question_count":37},{"id":"procedure-ie-06-illegal-evidence","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제2절 위법수집증거배제법칙","display_name":"위법수집증거배제법칙","start_page":173,"collection_id":"criminal-procedure-investigation-evidence","sort_order":6,"end_page":181,"question_count":22},{"id":"procedure-ie-07-confession-exclusion","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제3절 자백배제법칙","display_name":"자백배제법칙","start_page":182,"collection_id":"criminal-procedure-investigation-evidence","sort_order":7,"end_page":186,"question_count":13},{"id":"procedure-ie-08-hearsay","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제4절 전문법칙","display_name":"전문법칙","start_page":187,"collection_id":"criminal-procedure-investigation-evidence","sort_order":8,"end_page":212,"question_count":85},{"id":"procedure-ie-09-evidence-consent","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제5절 증거동의","display_name":"증거동의","start_page":213,"collection_id":"criminal-procedure-investigation-evidence","sort_order":9,"end_page":218,"question_count":17},{"id":"procedure-ie-10-free-evaluation","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제6절 자유심증주의","display_name":"자유심증주의","start_page":219,"collection_id":"criminal-procedure-investigation-evidence","sort_order":10,"end_page":224,"question_count":17},{"id":"procedure-ie-11-impeachment","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제7절 탄핵증거","display_name":"탄핵증거","start_page":225,"collection_id":"criminal-procedure-investigation-evidence","sort_order":11,"end_page":230,"question_count":17},{"id":"procedure-ie-12-confession-corroboration","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제8절 자백의 보강법칙","display_name":"자백의 보강법칙","start_page":231,"collection_id":"criminal-procedure-investigation-evidence","sort_order":12,"end_page":236,"question_count":19},{"id":"procedure-ie-13-trial-record","part_title":"제2편 증거","chapter_title":"제1장 증거의 의의와 종류","section_title":"제9절 공판조서의 증명력","display_name":"공판조서의 증명력","start_page":237,"collection_id":"criminal-procedure-investigation-evidence","sort_order":13,"end_page":238,"question_count":5},{"id":"procedure-trial-01-foundations","part_title":"제1편 총설","chapter_title":"제1장 형사소송법의 기초","section_title":null,"display_name":"형사소송법의 기초","start_page":4,"collection_id":"criminal-procedure-trial","sort_order":1,"end_page":10,"question_count":32},{"id":"procedure-trial-02-principles","part_title":"제1편 총설","chapter_title":"제2장 형사소송법의 이념과 구조","section_title":null,"display_name":"형사소송법의 이념과 구조","start_page":11,"collection_id":"criminal-procedure-trial","sort_order":2,"end_page":17,"question_count":25},{"id":"procedure-trial-03-subjects-acts","part_title":"제2편 소송주체와 소송행위","chapter_title":null,"section_title":null,"display_name":"소송주체와 소송행위","start_page":18,"collection_id":"criminal-procedure-trial","sort_order":3,"end_page":47,"question_count":97},{"id":"procedure-trial-04-defendant-detention","part_title":"제3편 피고인 구속 등","chapter_title":null,"section_title":null,"display_name":"피고인 구속 등","start_page":48,"collection_id":"criminal-procedure-trial","sort_order":4,"end_page":59,"question_count":40},{"id":"procedure-trial-05-prosecution-scope","part_title":"제4편 공판","chapter_title":"제1장 공소의 제기와 법원의 심판대상","section_title":null,"display_name":"공소의 제기와 법원의 심판대상","start_page":60,"collection_id":"criminal-procedure-trial","sort_order":5,"end_page":73,"question_count":42},{"id":"procedure-trial-06-trial-procedure","part_title":"제4편 공판","chapter_title":"제2장 공판절차","section_title":null,"display_name":"공판절차","start_page":74,"collection_id":"criminal-procedure-trial","sort_order":6,"end_page":102,"question_count":106},{"id":"procedure-trial-07-judgment","part_title":"제4편 공판","chapter_title":"제3장 재판","section_title":null,"display_name":"재판","start_page":103,"collection_id":"criminal-procedure-trial","sort_order":7,"end_page":117,"question_count":45},{"id":"procedure-trial-08-appeal","part_title":"제5편 상소·비상구제절차·특별형사절차·형의 집행","chapter_title":"제1장 상소","section_title":null,"display_name":"상소","start_page":118,"collection_id":"criminal-procedure-trial","sort_order":8,"end_page":137,"question_count":61},{"id":"procedure-trial-09-extraordinary-remedies","part_title":"제5편 상소·비상구제절차·특별형사절차·형의 집행","chapter_title":"제2장 비상구제절차","section_title":null,"display_name":"비상구제절차","start_page":138,"collection_id":"criminal-procedure-trial","sort_order":9,"end_page":144,"question_count":31},{"id":"procedure-trial-10-special-procedure","part_title":"제5편 상소·비상구제절차·특별형사절차·형의 집행","chapter_title":"제3장 특별형사절차","section_title":null,"display_name":"특별형사절차","start_page":145,"collection_id":"criminal-procedure-trial","sort_order":10,"end_page":156,"question_count":45}],"questions":[{"id":"criminal-law-001-choice-1","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"001","source_option_label":"①","source_page":8,"origin_type":"derived_mcq","context":"형법의 성격과 기능에 대한 설명 중 가장 옳지 않은 것은? (2024순경수사)","prompt":"다음 선택지의 내용은 옳다. 형법은 가언적(假言的) 규범으로서 평가규범임과 동시에 의사결정규범이다.","correct_answer":"O","explanation":"형법은 범죄를 전제조건으로 하여 이에 대한 법적 효과로서 형벌을 과하는 가설적(가언적) 규범이 다. 또한 형법은 일정한 행위가 법적으로 무가치하다고 평가하는 평가규범으로서 인간의 공동생활에 대한 외 적 규율이 된다. 한편 형법은 일반 국민에게 형법이 무가치하다고 평가한 행위를 의사결정해서는 안 된다는 의무를 부과함으로써 의사결정에 있어 하나의 기준으로 작용하는 의사결정규범의 성격을 갖는다.","explanation_html":"형법은 범죄를 전제조건으로 하여 이에 대한 법적 효과로서 형벌을 과하는 가설적(가언적) 규범이 다. 또한 형법은 일정한 행위가 법적으로 무가치하다고 평가하는 평가규범으로서 인간의 공동생활에 대한 외 적 규율이 된다. 한편 형법은 일반 국민에게 형법이 무가치하다고 평가한 행위를 의사결정해서는 안 된다는 의무를 부과함으로써 의사결정에 있어 하나의 기준으로 작용하는 의사결정규범의 성격을 갖는다.","underline_count":0},{"id":"criminal-law-001-choice-2","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"001","source_option_label":"②","source_page":8,"origin_type":"derived_mcq","context":"형법의 성격과 기능에 대한 설명 중 가장 옳지 않은 것은? (2024순경수사)","prompt":"다음 선택지의 내용은 옳다. 형법은 실체법이면서 공법(公法)이다.","correct_answer":"O","explanation":"형법은 재판의 대상인 사건의 실체에 관한 법으로서 실체법이다. 또한 형법은 사인인 범죄자를 처벌 하는 국가의 형벌권에 관한 법으로서 공법이다.","explanation_html":"형법은 재판의 대상인 사건의 실체에 관한 법으로서 실체법이다. 또한 형법은 사인인 범죄자를 처벌 하는 국가의 형벌권에 관한 법으로서 공법이다.","underline_count":0},{"id":"criminal-law-001-choice-3","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"001","source_option_label":"③","source_page":8,"origin_type":"derived_mcq","context":"형법의 성격과 기능에 대한 설명 중 가장 옳지 않은 것은? (2024순경수사)","prompt":"다음 선택지의 내용은 옳다. 형법은 수사기관과 재판기관의 준거법이라는 점에서 행정법임과 동시에 사법법(司法法)에 속한다.","correct_answer":"X","explanation":"형법은 재판에 적용되는 법으로서 사법법(司法法)이다. 따라서 형법은 합목적성보다는 법적 안정성 을 추구한다. 따라서 행정법에 속하지는 않는다.","explanation_html":"형법은 재판에 적용되는 법으로서 사법법(司法法)이다. 따라서 형법은 합목적성보다는 법적 안정성 을 추구한다. 따라서 행정법에 속하지는 않는다.","underline_count":0},{"id":"criminal-law-001-choice-4","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"001","source_option_label":"④","source_page":8,"origin_type":"derived_mcq","context":"형법의 성격과 기능에 대한 설명 중 가장 옳지 않은 것은? (2024순경수사)","prompt":"다음 선택지의 내용은 옳다. 형법은 보호적 기능과 보장적 기능을 가진다.","correct_answer":"O","explanation":"형법은 법익을 보호하는 기능을 가진다. 또한 형법은 범죄가 무엇인지를 확정해 줌으로써 그에 해당 하지 않는 행위에 대해서는 일반 국민에게 행동의 자유를 보장하는 보장적 기능을 가진다.","explanation_html":"형법은 법익을 보호하는 기능을 가진다. 또한 형법은 범죄가 무엇인지를 확정해 줌으로써 그에 해당 하지 않는 행위에 대해서는 일반 국민에게 행동의 자유를 보장하는 보장적 기능을 가진다.","underline_count":0},{"id":"criminal-law-002","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"002","source_option_label":null,"source_page":8,"origin_type":"original_ox","context":null,"prompt":"국가형벌권의 자의적인 행사로부터 개인의 자유와 권리를 보호하기 위하여 원칙적으로 법률로 범죄와 형벌을 정하여야 한다.","correct_answer":"O","explanation":"죄형법정주의는 국가형벌권의 자의적인 행사로부터 개인의 자유와 권리를 보호하기 위하여 범죄와 형벌을 법 률로 정할 것을 요구한다(대판[전합] 2021.01.21. 2018도5475). (2024경위승진, 2024경사승진)","explanation_html":"죄형법정주의는 국가형벌권의 자의적인 행사로부터 개인의 자유와 권리를 보호하기 위하여 범죄와 형벌을 법 률로 정할 것을 요구한다(대판[전합] 2021.01.21. 2018도5475). (2024경위승진, 2024경사승진)","underline_count":0},{"id":"criminal-law-003","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"003","source_option_label":null,"source_page":9,"origin_type":"original_ox","context":null,"prompt":"성문법률주의란 범죄와 형벌은 성문의 법률로 규정되어야 한다는 원칙을 말하며, 여기서의 법률 은 실질적 의미의 법률을 의미한다.","correct_answer":"X","explanation":"법률주의란 범죄와 형벌은 성문의 법률로 규정되어야 한다는 원칙으로, 성문법주의라고도 한다. 여기서의 법 률은 국회에서 제정한 형식적 의미의 법률을 의미 한다. (2025순경공채, 2026경위승진)","explanation_html":"법률주의란 범죄와 형벌은 성문의 법률로 규정되어야 한다는 원칙으로, 성문법주의라고도 한다. 여기서의 \u003cu>법 률은 국회에서 제정한 형식적 의미의 법률을 의미\u003c/u> 한다. (2025순경공채, 2026경위승진)","underline_count":1},{"id":"criminal-law-004","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"004","source_option_label":null,"source_page":9,"origin_type":"original_ox","context":null,"prompt":"위임명령에 규정될 내용 및 범위의 기본사항은 구체적이고 분명하게 규정되어 있어야 하므로, 법 률이나 상위명령으로부터 위임명령에 규정될 내용의 대강만을 예측할 수 있는 경우에는 죄형법정주의 에 반한다.","correct_answer":"X","explanation":"위임명령은 법률이나 상위명령에서 구체적으로 범위를 정한 개별적인 위임이 있을 때에 가능하고, 여기에서 구체적인 위임의 범위는 규제하고자 하는 대상의 종류와 성격에 따라 달라지는 것이어서 일률적 기준을 정할 수는 없지만, 적어도 위임명령에 규정될 내용 및 범위의 기본사항이 구체적으로 규정되어 있어서 누구라도 당 해 법률이나 상위법령으로부터 위임명령에 규정될 내용의 대강을 예측할 수 있어야 한다 (대판 2022.04.14. 2020추5169). (2023경위승진, 2025순경공채)","explanation_html":"위임명령은 법률이나 상위명령에서 구체적으로 범위를 정한 개별적인 위임이 있을 때에 가능하고, 여기에서 구체적인 위임의 범위는 규제하고자 하는 대상의 종류와 성격에 따라 달라지는 것이어서 일률적 기준을 정할 수는 없지만, \u003cu>적어도 위임명령에 규정될 내용 및 범위의 기본사항이 구체적으로 규정되어 있어서 누구라도 당 해 법률이나 상위법령으로부터 위임명령에 규정될 내용의 대강을 예측할 수 있어야 한다\u003c/u> (대판 2022.04.14. 2020추5169). (2023경위승진, 2025순경공채)","underline_count":1},{"id":"criminal-law-005","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"005","source_option_label":null,"source_page":9,"origin_type":"original_ox","context":null,"prompt":"구 식품위생법 제11조 제2항이 과대광고 등의 범위 및 기타 필요한 사항을 보건복지부령에 위임 하고 있는 것은 과대광고 등으로 인한 형사처벌에 관한 내용을 법률이 아닌 시행령에 규정하고 있다고 판단되므로 위임입법의 한계를 벗어난 것으로 죄형법정주의에 반한다.","correct_answer":"X","explanation":"식품위생법 제11조 제2항이 과대광고 등의 범위 및 기타 필요한 사항을 보건복지부령에 위임하고 있는 것은 과대광고 등으로 인한 형사처벌에 관련된 법규의 내용을 빠짐없이 형식적 의미의 법률에 의하여 규정한다는 것은 사실상 불가능하다는 고려에서 비롯된 것이고, 또한 같은법시행규칙 제6조 제1항은 처벌대상인 행위가 어떠한 것인지 예측할 수 있도록 구체적으로 규정되어 있다고 할 것이므로 식품위생법 제11조 등의 규정은 위임입법의 한계나 죄형법정주의에 위반되지 않는다 (대판 2002.11.26. 2002도2998). (2025순경공채)","explanation_html":"\u003cu>식품위생법 제11조 제2항이 과대광고 등의 범위 및 기타 필요한 사항을 보건복지부령에 위임하고 있는 것은\u003c/u> 과대광고 등으로 인한 형사처벌에 관련된 법규의 내용을 빠짐없이 형식적 의미의 법률에 의하여 규정한다는 것은 사실상 불가능하다는 고려에서 비롯된 것이고, 또한 같은법시행규칙 제6조 제1항은 처벌대상인 행위가 어떠한 것인지 예측할 수 있도록 구체적으로 규정되어 있다고 할 것이므로 식품위생법 제11조 등의 규정은 \u003cu>위임입법의 한계나 죄형법정주의에 위반되지 않는다\u003c/u> (대판 2002.11.26. 2002도2998). (2025순경공채)","underline_count":2},{"id":"criminal-law-006","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"006","source_option_label":null,"source_page":10,"origin_type":"original_ox","context":null,"prompt":"법률의 시행령이 형사처벌에 관한 사항을 명확히 규정하고 있다면 법률의 명시적인 위임범위를 벗어나 처벌의 대상을 확장하더라도 죄형법정주의에 어긋나는 것은 아니다.","correct_answer":"X","explanation":"일반적으로 법률의 시행령은 모법인 법률에 의하여 위임받은 사항이나, 법률이 규정한 범위 내에서 법률을 현 실적으로 집행하는 데 필요한 세부적인 사항만을 규정할 수 있을 뿐, 법률의 위임 없이 법률이 규정한 개인의 권리·의무에 관한 내용을 변경·보충하거나 법률에서 규정하지 아니한 새로운 내용을 규정할 수 없는 것이고, 특히 법률의 시행령이 형사처벌에 관한 사항을 규정하면서 법률의 명시적인 위임 범위를 벗어나 그 처벌의 대 상을 확장하는 것은 헌법 제12조 제1항과 제13조 제1항에서 천명하고 있는 죄형법정주의의 원칙에도 어긋나 는 것으로 결코 허용될 수 없다고 할 것이다(대판[전합] 1999.02.11. 98도2816). (2023경위승진, 2026해경공채)","explanation_html":"일반적으로 법률의 시행령은 모법인 법률에 의하여 위임받은 사항이나, 법률이 규정한 범위 내에서 법률을 현 실적으로 집행하는 데 필요한 세부적인 사항만을 규정할 수 있을 뿐, 법률의 위임 없이 법률이 규정한 개인의 권리·의무에 관한 내용을 변경·보충하거나 법률에서 규정하지 아니한 새로운 내용을 규정할 수 없는 것이고, 특히 \u003cu>법률의 시행령이 형사처벌에 관한 사항을 규정하면서 법률의 명시적인 위임 범위를 벗어나 그 처벌의 대 상을 확장하는 것은 헌법 제12조 제1항과 제13조 제1항에서 천명하고 있는 죄형법정주의의 원칙에도 어긋나 는 것으로 결코 허용될 수 없다고\u003c/u> 할 것이다(대판[전합] 1999.02.11. 98도2816). (2023경위승진, 2026해경공채)","underline_count":1},{"id":"criminal-law-007","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"007","source_option_label":null,"source_page":10,"origin_type":"original_ox","context":null,"prompt":"일반적으로 법률의 위임에 의하여 효력을 갖는 법규명령의 경우 구법에 위임의 근거가 없어 무효 였더라도 사후에 법 개정으로 위임의 근거가 부여되면 그때부터는 유효한 법규명령이 된다.","correct_answer":"O","explanation":"일반적으로 법률의 위임에 의하여 효력을 갖는 법규명령의 경우, 구법에 위임의 근거가 없어 무효였더라도 사 후에 법 개정으로 위임의 근거가 부여되면 그때부터는 유효한 법규명령이 되나, 반대로 구법의 위임에 의한 유효한 법규명령이 법 개정으로 위임의 근거가 없어지게 되면 그때부터 무효인 법규명령이 되므로, 어떤 법령 의 위임 근거 유무에 따른 유효 여부를 심사하려면 법 개정의 전·후에 걸쳐 모두 심사하여야만 그 법규명령의 시기에 따른 유효·무효를 판단할 수 있다(대판 1995.06.30. 93추83). (2025순경공채)","explanation_html":"일반적으로 법률의 위임에 의하여 효력을 갖는 법규명령의 경우, 구법에 위임의 근거가 없어 무효였더라도 사 후에 법 개정으로 위임의 근거가 부여되면 그때부터는 유효한 법규명령이 되나, 반대로 구법의 위임에 의한 유효한 법규명령이 법 개정으로 위임의 근거가 없어지게 되면 그때부터 무효인 법규명령이 되므로, 어떤 법령 의 위임 근거 유무에 따른 유효 여부를 심사하려면 법 개정의 전·후에 걸쳐 모두 심사하여야만 그 법규명령의 시기에 따른 유효·무효를 판단할 수 있다(대판 1995.06.30. 93추83). (2025순경공채)","underline_count":0},{"id":"criminal-law-008","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"008","source_option_label":null,"source_page":10,"origin_type":"original_ox","context":null,"prompt":"「특정범죄가중처벌등에관한법률」의 위임을 받은 동법 시행령에서 농업협동조합중앙회를 ‘정부관 리기업체’의 하나로 규정한 경우 위임입법의 한계를 벗어난 것이다.","correct_answer":"X","explanation":"특정범죄 가중처벌 등에 관한 법률 제4조 제1항의 위임을 받은 특정범죄 가중처벌 등에 관한 법률 시행령 제 2조 제48호가 농업협동조합중앙회를 ‘정부관리기업체’의 하나로 규정한 것이 위임입법의 한계를 벗어난 것 으로서 위헌·위법이라고 할 수 없다 (대판 2007.11.30. 2007도6556). (2025해경학과)","explanation_html":"특정범죄 가중처벌 등에 관한 법률 제4조 제1항의 위임을 받은 특정범죄 가중처벌 등에 관한 법률 시행령 제 2조 제48호가 \u003cu>농업협동조합중앙회를 ‘정부관리기업체’의 하나로 규정한 것이 위임입법의 한계를 벗어난 것 으로서 위헌·위법이라고 할 수 없다\u003c/u> (대판 2007.11.30. 2007도6556). (2025해경학과)","underline_count":1},{"id":"criminal-law-009","chapter_id":"criminal-law-01-basic-concepts","source_question_number":"009","source_option_label":null,"source_page":11,"origin_type":"original_ox","context":null,"prompt":"구 「어선법 시행규칙」에서 어선검사증서에 기재할 사항을 구체적으로 규정하면서 기재할 사항 에 총톤수를 포함시킨 것은 법의 위임에 따른 것으로서 위임입법의 한계를 벗어났다고 보기 어렵다.","correct_answer":"O","explanation":"어선의 소유자인 피고인이 어선검사증서에 기재된 총톤수(9.77t)가 약 2t 정도 증가되도록 선체 상부구조물 을 증설하였음에도 임시검사를 받지 아니하고 어선을 항행 또는 조업에 사용하였다고 하여 구 어선법위반으 로 기소된 사안에서, 피고인의 행위를 위 법 제44조 제1항 제4호에 따라 처벌하는 것이 죄형법정주의에 위배 되지 않는다는 이유로, 이와 달리 위 법이 어선검사증서에 기재할 사항을 같은 법 시행규칙에 위임하지 않았 다는 등의 그릇된 전제에서 공소사실을 무죄로 판단한 원심판결에 위임입법, 죄형법정주의 등에 관한 법리오 해 등의 잘못이 있다고 한 사례(대판 2018.06.28. 2017도13426). (2025해경학과)","explanation_html":"\u003cu>어선의 소유자인 피고인이 어선검사증서에 기재된 총톤수(9.77t)가 약 2t 정도 증가되도록 선체 상부구조물 을 증설하였음에도 임시검사를 받지 아니하고 어선을 항행 또는 조업에 사용하였다고 하여 구 어선법위반으 로 기소된 사안\u003c/u>에서, \u003cu>피고인의 행위를 위 법 제44조 제1항 제4호에 따라 처벌하는 것이 죄형법정주의에 위배 되지 않는다는\u003c/u> 이유로, 이와 달리 위 법이 어선검사증서에 기재할 사항을 같은 법 시행규칙에 위임하지 않았 다는 등의 그릇된 전제에서 공소사실을 무죄로 판단한 원심판결에 위임입법, 죄형법정주의 등에 관한 법리오 해 등의 잘못이 있다고 한 사례(대판 2018.06.28. 2017도13426). (2025해경학과)","underline_count":2},{"id":"criminal-law-053","chapter_id":"criminal-law-02-scope","source_question_number":"053","source_option_label":null,"source_page":28,"origin_type":"original_ox","context":null,"prompt":"甲이 乙을 아사시켜 살해하기 위하여 乙을 감금하고 있던 중, 살인죄의 법정형을 무겁게 하는 법 개정이 행하여져 시행된 경우에, 살인의 결과가 발생하면 구법이 적용된다.","correct_answer":"X","explanation":"형법 제1조 제1항에 있어서 행위시라 함은 범죄행위의 종료시를 의미한다(대판 1994.05.10. 94도563). 범죄행위 종료 후 결과가 발생하더라도 결과발생시가 아니라 범죄행위 종료시가 행위시에 해당한다. 살인죄에 있어 사람을 살해하는 방법은 제한이 없으므로, 감금하여 아사시키는 것 역시 살인행위로 볼 수 있 다. 甲이 乙을 감금함으로써 살인의 실행착수가 있고 계속 굶기고 있는 이상 아직 범죄행위가 종료된 것으로 볼 수 없고, 그 사이에 형법의 개정이 이루어진 경우, 최종행위가 종료한 시점에 시행 중인 법, 즉 신법이 적용 되어야 한다. (2025경위공채)","explanation_html":"형법 제1조 제1항에 있어서 행위시라 함은 범죄행위의 종료시를 의미한다(대판 1994.05.10. 94도563). 범죄행위 종료 후 결과가 발생하더라도 결과발생시가 아니라 범죄행위 종료시가 행위시에 해당한다. 살인죄에 있어 사람을 살해하는 방법은 제한이 없으므로, 감금하여 아사시키는 것 역시 살인행위로 볼 수 있 다. 甲이 乙을 감금함으로써 살인의 실행착수가 있고 \u003cu>계속 굶기고 있는 이상 아직 범죄행위가 종료된 것으로 볼 수 없고,\u003c/u> 그 사이에 형법의 개정이 이루어진 경우, \u003cu>최종행위가 종료한 시점에 시행 중인 법, 즉 신법이 적용 되어야 한다\u003c/u>. (2025경위공채)","underline_count":2},{"id":"criminal-law-084-item-1","chapter_id":"criminal-law-03-crime-theory","source_question_number":"084","source_option_label":"㉠","source_page":40,"origin_type":"derived_mcq","context":"다음 중 「형법」상 친고죄인 것으로 옳은 것을 모두 고른 것은? (다툼이 있는 경우 판례에 의함) (2023경위승진)","prompt":"다음 선택지의 내용은 옳다. 사자명예훼손죄","correct_answer":"O","explanation":"형법 제308조, 제312조 제1항","explanation_html":"형법 제308조, 제312조 제1항","underline_count":0},{"id":"criminal-law-099","chapter_id":"criminal-law-04-elements","source_question_number":"099","source_option_label":null,"source_page":46,"origin_type":"original_ox","context":null,"prompt":"고의는 일반적 주관적 불법요소로서 인적 행위 불법의 핵심적 요소에 해당한다.","correct_answer":"O","explanation":"고의는 일반적 주관적 불법요소로서 인적 행위 불법(인적 행위반가치)의 핵심적 요소에 해당한다. (2025경위승진)","explanation_html":"고의는 일반적 주관적 불법요소로서 인적 행위 불법(인적 행위반가치)의 핵심적 요소에 해당한다. (2025경위승진)","underline_count":0},{"id":"criminal-law-228-choice-1","chapter_id":"criminal-law-05-unlawfulness","source_question_number":"228","source_option_label":"①","source_page":96,"origin_type":"derived_mcq","context":"위법성 판단에 대한 설명 중 가장 옳지 않은 것은? (2024경위공채)","prompt":"다음 선택지의 내용은 옳다. 형식적 위법성론에 따르면 구성요건해당 행위는 위법성조각사유가 없는 한 위법성이 인정된다.","correct_answer":"O","explanation":"형식적 위법성론이란 위법성의 평가 기준을 형식적인 법률 규정 즉 실정법에 두는 견해이다. 따라서 구성요건에 해당하는 행위는 위법성조각사유 규정에 해당하지 않으면 위법성이 인정된다.","explanation_html":"형식적 위법성론이란 위법성의 평가 기준을 형식적인 법률 규정 즉 실정법에 두는 견해이다. 따라서 구성요건에 해당하는 행위는 위법성조각사유 규정에 해당하지 않으면 위법성이 인정된다.","underline_count":0},{"id":"criminal-law-298","chapter_id":"criminal-law-06-culpability","source_question_number":"298","source_option_label":null,"source_page":123,"origin_type":"original_ox","context":null,"prompt":"책임은 반드시 불법을 전제로 하여 성립되는 것은 아니다. 다만, 책임이 없으면 형벌을 과할 수 없다.","correct_answer":"X","explanation":"책임은 불법을 전제로 하여 성립되는 것이다 . 책임주의란 “책임 없으면 형벌없다”는 근대형법의 원칙으로 서 책임이 전제되어야만 형벌을 과할 수 있고, 형벌의 종류와 정도는 책임에 상응해야 한다는 원칙을 말한다. (2024경위공채, 2026경사승진)","explanation_html":"\u003cu>책임은 불법을 전제로 하여 성립되는 것이다\u003c/u> . 책임주의란 “책임 없으면 형벌없다”는 근대형법의 원칙으로 서 책임이 전제되어야만 형벌을 과할 수 있고, 형벌의 종류와 정도는 책임에 상응해야 한다는 원칙을 말한다. (2024경위공채, 2026경사승진)","underline_count":1},{"id":"criminal-law-382","chapter_id":"criminal-law-07-attempt","source_question_number":"382","source_option_label":null,"source_page":154,"origin_type":"original_ox","context":null,"prompt":"간첩이 불특정 다수인인 경찰관으로부터의 체포 기타 방해를 배제하기 위하여 무기를 휴대하였 다면 살인예비죄가 성립한다.","correct_answer":"X","explanation":"살인대상이 특정되지 아니한 한 살인예비죄의 성립을 인정할 수 없다. 피고인은 간첩에 당하여 불특정 다수 인인 경찰관으로부터 체포 기타 방해를 받을 경우에는 이를 배제하기 위하여 무기를 휴대한 것 임이 명백한 바 이 경우에 있어서의 무기 소지는 법령 제5호 위반으로 문책함은 별론이라 할 것이나 살인 대상이 특정되지 아 니한 살인예비죄의 성립은 이를 인정할 수 없다 (대판 1959.07.31. 4292형상308). (2026경사승진)","explanation_html":"살인대상이 특정되지 아니한 한 살인예비죄의 성립을 인정할 수 없다. \u003cu>피고인은 간첩에 당하여 불특정 다수 인인 경찰관으로부터 체포 기타 방해를 받을 경우에는 이를 배제하기 위하여 무기를 휴대한 것 임\u003c/u>이 명백한 바 이 경우에 있어서의 무기 소지는 법령 제5호 위반으로 문책함은 별론이라 할 것이나 \u003cu>살인 대상이 특정되지 아 니한 살인예비죄의 성립은 이를 인정할 수 없다\u003c/u> (대판 1959.07.31. 4292형상308). (2026경사승진)","underline_count":2},{"id":"criminal-law-445","chapter_id":"criminal-law-08-participation","source_question_number":"445","source_option_label":null,"source_page":178,"origin_type":"original_ox","context":null,"prompt":"집합범은 다수의 행위자가 동일한 목표를 향하여 같은 방향에서 공동으로 작용하는 범죄이며, 모 든 집합범은 참여한 모든 자에 대하여 동일한 법정형을 규정하고 있다.","correct_answer":"X","explanation":"가담자들이 공동의 목표를 위하여 의사방향이 일치된 형태로 범죄를 실현하도록 되어 있는 범죄구성요건인 집단범의 경우를 집합범이라고 한다. 이러한 집합범에서 내란죄의 경우는 가담 정도에 따라 상이한 법정형이 부과된다. (2023경위공채)","explanation_html":"가담자들이 공동의 목표를 위하여 의사방향이 일치된 형태로 범죄를 실현하도록 되어 있는 범죄구성요건인 집단범의 경우를 집합범이라고 한다. 이러한 집합범에서 \u003cu>내란죄의 경우는 가담 정도에 따라 상이한 법정형이 부과된다\u003c/u>. (2023경위공채)","underline_count":1},{"id":"criminal-law-539","chapter_id":"criminal-law-09-number-of-crimes","source_question_number":"539","source_option_label":null,"source_page":212,"origin_type":"original_ox","context":null,"prompt":"피고인이 수개의 선거비용 항목을 허위기재한 하나의 선거비용 보전청구서를 제출하여 대한민국 으로부터 선거비용을 과다 보전받아 이를 편취한 경우, 각 선거비용 항목에 따라 별개의 사기죄가 성립 하는 것이 아니라 일죄로 평가하여야 한다.","correct_answer":"O","explanation":"피고인이 수개의 선거비용 항목을 허위기재한 하나의 선거비용 보전청구서를 제출하여 대한민국으로부터 선 거비용을 과다 보전받아 이를 편취하였다면 이는 일죄로 평가되어야 하고, 각 선거비용 항목에 따라 별개의 사기죄가 성립하는 것은 아니다(대판 2017.05.30. 2016도21713). (2025경위공채)","explanation_html":"피고인이 수개의 선거비용 항목을 허위기재한 하나의 선거비용 보전청구서를 제출하여 대한민국으로부터 선 거비용을 과다 보전받아 이를 편취하였다면 이는 \u003cu>일죄로 평가\u003c/u>되어야 하고, 각 선거비용 항목에 따라 별개의 사기죄가 성립하는 것은 아니다(대판 2017.05.30. 2016도21713). (2025경위공채)","underline_count":1},{"id":"criminal-law-588","chapter_id":"criminal-law-10-punishment-types","source_question_number":"588","source_option_label":null,"source_page":232,"origin_type":"original_ox","context":null,"prompt":"유기징역은 1개월 이상 30년 이하로 하고, 자격정지는 1개월 이상 15년 이하로 한다.","correct_answer":"X","explanation":"징역 또는 금고는 무기 또는 유기로 하고 유기는 1개월 이상 30년 이하로 한다. 단, 유기징역 또는 유기금고 에 대하여 형을 가중하는 때에는 50년까지로 한다(형법 제42조). 자격의 전부 또는 일부에 대한 정지는 1년 이상 15년 이하로 한다(형법 제44조 제1항). (2026경위승진)","explanation_html":"징역 또는 금고는 무기 또는 유기로 하고 유기는 1개월 이상 30년 이하로 한다. 단, 유기징역 또는 유기금고 에 대하여 형을 가중하는 때에는 50년까지로 한다(형법 제42조). 자격의 전부 또는 일부에 대한 정지는 \u003cu>1년\u003c/u> 이상 15년 이하로 한다(형법 제44조 제1항). (2026경위승진)","underline_count":1},{"id":"criminal-law-612","chapter_id":"criminal-law-11-sentencing","source_question_number":"612","source_option_label":null,"source_page":240,"origin_type":"original_ox","context":null,"prompt":"법률상 감경할 사유가 수 개 있는 때에는 거듭 감경할 수 있다.","correct_answer":"O","explanation":"법률상 감경할 사유가 수 개 있는 때에는 거듭 감경할 수 있다(제55조 제2항). (2024순경수사)","explanation_html":"법률상 감경할 사유가 수 개 있는 때에는 거듭 감경할 수 있다(제55조 제2항). (2024순경수사)","underline_count":0},{"id":"criminal-law-626","chapter_id":"criminal-law-12-recidivism","source_question_number":"626","source_option_label":null,"source_page":245,"origin_type":"original_ox","context":null,"prompt":"누범이 성립하기 위해서는 누범에 해당하는 전과사실과 새로이 범한 범죄 사이에 일정한 상관관 계가 있을 것이 요구된다.","correct_answer":"X","explanation":"형법 제35조가 누범에 해당하는 전과사실과 새로이 범한 범죄 사이에 일정한 상관관계가 있다고 인정되는 경 우에 한하여 적용되는 것으로 제한하여 해석하여야 할 아무런 이유나 근거가 없고 , 위 규정이 헌법상의 평등 원칙 등에 위배되는 것도 아니다(대판 2008.12.24. 2006도1427). (2025해경학과)","explanation_html":"\u003cu>형법 제35조가 누범에 해당하는 전과사실과 새로이 범한 범죄 사이에 일정한 상관관계가 있다고 인정되는 경 우에 한하여 적용되는 것으로 제한하여 해석하여야 할 아무런 이유나 근거가 없고\u003c/u> , 위 규정이 헌법상의 평등 원칙 등에 위배되는 것도 아니다(대판 2008.12.24. 2006도1427). (2025해경학과)","underline_count":1},{"id":"criminal-law-632","chapter_id":"criminal-law-13-suspension","source_question_number":"632","source_option_label":null,"source_page":247,"origin_type":"original_ox","context":null,"prompt":"주형에 대해 선고유예하지 않으면서 부가형에 대하여만 선고유예 할 수 있다.","correct_answer":"X","explanation":"형법 제59조에 의하더라도 몰수는 선고유예의 대상으로 규정되어 있지 아니하고 다만 몰수 또는 이에 갈음하는 추징은 부가형적 성질을 띠고 있어 그 주형에 대하여 선고를 유예하는 경우에는 그 부가할 몰수 추징에 대하여 도 선고를 유예할 수 있으나, 그 주형에 대하여 선고를 유예하지 아니하면서 이에 부가할 몰수 추징에 대하여서 만 선고를 유예할 수는 없다(대판 1988.06.21. 88도551). (2023경위승진, 2024경위승진, 2024경사승진, 2025경사승진)","explanation_html":"형법 제59조에 의하더라도 몰수는 선고유예의 대상으로 규정되어 있지 아니하고 다만 몰수 또는 이에 갈음하는 추징은 부가형적 성질을 띠고 있어 그 주형에 대하여 선고를 유예하는 경우에는 그 부가할 몰수 추징에 대하여 도 선고를 유예할 수 있으나, \u003cu>그 주형에 대하여 선고를 유예하지 아니하면서 이에 부가할 몰수 추징에 대하여서 만 선고를 유예할 수는 없다(\u003c/u>대판 1988.06.21. 88도551). (2023경위승진, 2024경위승진, 2024경사승진, 2025경사승진)","underline_count":1},{"id":"criminal-law-646","chapter_id":"criminal-law-14-limitation-extinction","source_question_number":"646","source_option_label":null,"source_page":252,"origin_type":"original_ox","context":null,"prompt":"징역 또는 금고의 집행을 종료하거나 집행이 면제된 자가 피해자의 손해를 보상하고 벌금 이상의 형 을 받음이 없이 7년을 경과한 때에는 본인 또는 검사의 신청에 의하여 그 재판의 실효를 선고할 수 있다.","correct_answer":"X","explanation":"징역 또는 금고의 집행을 종료하거나 집행이 면제된 자가 피해자의 손해를 보상하고 자격정지 이상의 형을 받 음이 없이 7년을 경과한 때에는 본인 또는 검사의 신청에 의하여 그 재판의 실효를 선고할 수 있다(형법 제81 조). (2024경위공채)","explanation_html":"징역 또는 금고의 집행을 종료하거나 집행이 면제된 자가 피해자의 손해를 보상하고 \u003cu>자격정지 이상의 형을 받 음이 없이\u003c/u> 7년을 경과한 때에는 본인 또는 검사의 신청에 의하여 그 재판의 실효를 선고할 수 있다(형법 제81 조). (2024경위공채)","underline_count":1},{"id":"criminal-law-648","chapter_id":"criminal-law-15-life-body","source_question_number":"648","source_option_label":null,"source_page":256,"origin_type":"original_ox","context":null,"prompt":"자살을 결의한 후 자살 도중에 있는 자를 살해한 경우 자살방조죄가 아니라 살인죄가 성립한다.","correct_answer":"O","explanation":"설문은 추월적 인과관계에 대한 내용이다. 이 경우 제2행위에 대해서도 인과관계가 인정된다. 따라서 자살을 결의한 후 자살 도중에 있는 자를 살해한 경우는 사람을 살해한 경우로서 자살방조죄가 아니라 살인죄가 성립 한다. (2025경위공채)","explanation_html":"설문은 추월적 인과관계에 대한 내용이다. 이 경우 제2행위에 대해서도 인과관계가 인정된다. 따라서 자살을 결의한 후 자살 도중에 있는 자를 살해한 경우는 사람을 살해한 경우로서 자살방조죄가 아니라 살인죄가 성립 한다. (2025경위공채)","underline_count":0},{"id":"criminal-law-728","chapter_id":"criminal-law-16-intimidation","source_question_number":"728","source_option_label":null,"source_page":282,"origin_type":"original_ox","context":null,"prompt":"협박죄는 미수범 처벌조항을 두고 있으므로 침해범으로 보아야 한다.","correct_answer":"X","explanation":"협박죄는 사람의 의사결정의 자유를 보호법익으로 하는 위험범이라 봄이 상당하고, 협박죄의 미수범 처벌조 항은 해악의 고지가 현실적으로 상대방에게 도달하지 아니한 경우나, 도달은 하였으나 상대방이 이를 지각 하지 못하였거나 고지된 해악의 의미를 인식하지 못한 경우 등에 적용될 뿐이다 (대판[전합] 2007.09.28. 2007도606). (2023경위공채, 2026해경공채)","explanation_html":"\u003cu>협박죄는\u003c/u> 사람의 의사결정의 자유를 보호법익으로 하는 \u003cu>위험범이\u003c/u>라 봄이 상당하고, \u003cu>협박죄의 미수범 처벌조 항은 해악의 고지가 현실적으로 상대방에게 도달하지 아니한 경우나, 도달은 하였으나 상대방이 이를 지각 하지 못하였거나 고지된 해악의 의미를 인식하지 못한 경우 등에 적용될 뿐이다 (\u003c/u>대판[전합] 2007.09.28. 2007도606). (2023경위공채, 2026해경공채)","underline_count":3},{"id":"criminal-law-752","chapter_id":"criminal-law-17-coercion","source_question_number":"752","source_option_label":null,"source_page":292,"origin_type":"original_ox","context":null,"prompt":"강요죄는 폭행 또는 협박으로 사람의 권리행사를 방해하거나 의무 없는 일을 하게 하는 범죄이 다. 여기에서 협박은 객관적으로 사람의 의사결정의 자유를 제한하거나 의사실행의 자유를 방해할 정 도로 겁을 먹게 할 만한 해악을 고지하는 것을 말한다. 이와 같은 협박이 인정되기 위해서는 발생 가능 한 것으로 생각할 수 있는 정도의 구체적인 해악의 고지가 있어야 한다.","correct_answer":"O","explanation":"강요죄는 폭행 또는 협박으로 사람의 권리행사를 방해하거나 의무 없는 일을 하게 하는 범죄이다. 여기에서 협박은 객관적으로 사람의 의사결정의 자유를 제한하거나 의사실행의 자유를 방해할 정도로 겁을 먹게 할 만 한 해악을 고지하는 것을 말한다. 이와 같은 협박이 인정되기 위해서는 발생 가능한 것으로 생각할 수 있는 정 도의 구체적인 해악의 고지가 있어야 한다(대판 2020.02.06. 2018도8808). (2023경위승진)","explanation_html":"강요죄는 폭행 또는 협박으로 사람의 권리행사를 방해하거나 의무 없는 일을 하게 하는 범죄이다. 여기에서 협박은 객관적으로 사람의 의사결정의 자유를 제한하거나 의사실행의 자유를 방해할 정도로 겁을 먹게 할 만 한 해악을 고지하는 것을 말한다. 이와 같은 협박이 인정되기 위해서는 발생 가능한 것으로 생각할 수 있는 정 도의 구체적인 해악의 고지가 있어야 한다(대판 2020.02.06. 2018도8808). (2023경위승진)","underline_count":0},{"id":"criminal-law-761","chapter_id":"criminal-law-18-arrest-confinement","source_question_number":"761","source_option_label":null,"source_page":296,"origin_type":"original_ox","context":null,"prompt":"정신병자도 감금죄의 객체가 될 수 있다.","correct_answer":"O","explanation":"정신병자도 감금죄의 객체가 될 수 있다(대판 2002.10.11. 2002도4315). (2023경사승진)","explanation_html":"정신병자도 감금죄의 객체가 될 수 있다(대판 2002.10.11. 2002도4315). (2023경사승진)","underline_count":0},{"id":"criminal-law-776","chapter_id":"criminal-law-19-kidnapping-trafficking","source_question_number":"776","source_option_label":null,"source_page":301,"origin_type":"original_ox","context":null,"prompt":"甲이 아버지와 함께 살고 있는 A녀(14세)의 동의만을 얻어 그녀를 자신의 사실상 지배하로 옮긴 경우, 미성년자약취·유인죄가 성립한다.","correct_answer":"O","explanation":"형법 제287조에 규정된 미성년자약취죄의 입법 취지는 심신의 발육이 불충분하고 지려와 경험이 풍부하지 못한 미성년자를 특별히 보호하기 위하여 그를 약취하는 행위를 처벌하려는 데 그 입법의 취지가 있으며, 미 성년자의 자유 외에 보호감독자의 감호권도 그 보호법익으로 하고 있다는 점을 고려하면, 피고인과 공범들이 미성년자를 보호·감독하고 있던 그 아버지의 감호권을 침해하여 그녀를 자신들의 사실상 지배하로 옮긴 이상 미성년자약취죄가 성립한다 할 것이고, 약취행위에 미성년자의 동의가 있었다 하더라도 본죄의 성립에는 변 함이 없다(대판 2003.02.11. 2002도7115). (2024순경수사)","explanation_html":"형법 제287조에 규정된 미성년자약취죄의 입법 취지는 심신의 발육이 불충분하고 지려와 경험이 풍부하지 못한 미성년자를 특별히 보호하기 위하여 그를 약취하는 행위를 처벌하려는 데 그 입법의 취지가 있으며, 미 성년자의 자유 외에 보호감독자의 감호권도 그 보호법익으로 하고 있다는 점을 고려하면, 피고인과 공범들이 미성년자를 보호·감독하고 있던 그 아버지의 감호권을 침해하여 그녀를 자신들의 사실상 지배하로 옮긴 이상 미성년자약취죄가 성립한다 할 것이고, 약취행위에 미성년자의 동의가 있었다 하더라도 본죄의 성립에는 변 함이 없다(대판 2003.02.11. 2002도7115). (2024순경수사)","underline_count":0},{"id":"criminal-law-787","chapter_id":"criminal-law-20-sexual-offenses","source_question_number":"787","source_option_label":null,"source_page":305,"origin_type":"original_ox","context":null,"prompt":"「형법」은 제2편 제32장에서 ‘강간과 추행의 죄’를 규정하고 있는데, 이 장에 규정된 죄는 모두 개 인의 성적 자유 또는 성적 자기 결정권을 침해하는 것을 내용으로 한다. 여기에서 ‘성적 자유’는 적극적 으로 성행위를 할 수 있는 자유가 아니라 소극적으로 원치 않는 성행위를 하지 않을 자유를 말하고, ‘성 적 자기결정권’은 성행위를 할 것인가 여부, 성행위를 할 때 상대방을 누구로 할 것인가 여부, 성행위의 방법 등을 스스로 결정할 수 있는 권리를 의미한다.","correct_answer":"O","explanation":"형법 제302조는 “미성년자 또는 심신미약자에 대하여 위계 또는 위력으로써 간음 또는 추행을 한 자는 5년 이하의 징역에 처한다.”라고 규정하고 있다. 형법은 제2편 제32장에서 ‘강간과 추행의 죄’를 규정하고 있는 데, 이 장에 규정된 죄는 모두 개인의 성적 자유 또는 성적 자기결정권을 침해하는 것을 내용으로 한다. 여기 에서 ‘성적 자유’는 적극적으로 성행위를 할 수 있는 자유가 아니라 소극적으로 원치 않는 성행위를 하지 않을 자유를 말하고, ‘성적 자기결정권’은 성행위를 할 것인가 여부, 성행위를 할 때 상대방을 누구로 할 것인가 여 부, 성행위의 방법 등을 스스로 결정할 수 있는 권리를 의미한다. 형법 제32장의 죄의 기본적 구성요건은 강 간죄(제297조)나 강제추행죄(제298조)인데, 이 죄는 미성년자나 심신미약자와 같이 판단능력이나 대처능 력이 일반인에 비하여 낮은 사람은 낮은 정도의 유·무형력의 행사에 의해서도 저항을 제대로 하지 못하고 피 해를 입을 가능성이 있기 때문에 범죄의 성립요건을 보다 완화된 형태로 규정한 것이다(대판 2019.06.13. 2019도3341). (2023경위승진)","explanation_html":"형법 제302조는 “미성년자 또는 심신미약자에 대하여 위계 또는 위력으로써 간음 또는 추행을 한 자는 5년 이하의 징역에 처한다.”라고 규정하고 있다. 형법은 제2편 제32장에서 ‘강간과 추행의 죄’를 규정하고 있는 데, 이 장에 규정된 죄는 모두 개인의 성적 자유 또는 성적 자기결정권을 침해하는 것을 내용으로 한다. 여기 에서 ‘성적 자유’는 적극적으로 성행위를 할 수 있는 자유가 아니라 소극적으로 원치 않는 성행위를 하지 않을 자유를 말하고, ‘성적 자기결정권’은 성행위를 할 것인가 여부, 성행위를 할 때 상대방을 누구로 할 것인가 여 부, 성행위의 방법 등을 스스로 결정할 수 있는 권리를 의미한다. 형법 제32장의 죄의 기본적 구성요건은 강 간죄(제297조)나 강제추행죄(제298조)인데, 이 죄는 미성년자나 심신미약자와 같이 판단능력이나 대처능 력이 일반인에 비하여 낮은 사람은 낮은 정도의 유·무형력의 행사에 의해서도 저항을 제대로 하지 못하고 피 해를 입을 가능성이 있기 때문에 범죄의 성립요건을 보다 완화된 형태로 규정한 것이다(대판 2019.06.13. 2019도3341). (2023경위승진)","underline_count":0},{"id":"criminal-law-818","chapter_id":"criminal-law-21-reputation","source_question_number":"818","source_option_label":null,"source_page":317,"origin_type":"original_ox","context":null,"prompt":"모욕죄와 사자명예훼손죄는 친고죄이다.","correct_answer":"O","explanation":"제308조(사자명예훼손죄)와 제311조(모욕죄)의 죄는 고소가 있어야 공소를 제기할 수 있다(형법 제312조 제1항). (2024경위승진, 2024경사승진)","explanation_html":"제308조(사자명예훼손죄)와 제311조(모욕죄)의 죄는 고소가 있어야 공소를 제기할 수 있다(형법 제312조 제1항). (2024경위승진, 2024경사승진)","underline_count":0},{"id":"criminal-law-858","chapter_id":"criminal-law-22-credit-business-auction","source_question_number":"858","source_option_label":null,"source_page":332,"origin_type":"original_ox","context":null,"prompt":"경비원이 상사의 명령에 의하여 일시적으로 수행하는 유인물의 배부행위는 설사 계속적인 직무 권한에 속하지 아니한 일시적인 것이라 할지라도 업무방해죄의 업무에 해당한다.","correct_answer":"O","explanation":"경비원은 상사의 명령에 의하여 주로 경비업무 등 노무를 제공하는 직분을 가지고 있는 것이므로 상사의 명에 의하여 그 직장의 업무를 수행한다면 설사 그 업무가 본조의 계속적인 직무권한에 속하지 아니한 일시적인 것 이라 할지라도 본죄의 업무에 해당한다(대판 1971.05.24. 71도399). (2025경사승진)","explanation_html":"경비원은 상사의 명령에 의하여 주로 경비업무 등 노무를 제공하는 직분을 가지고 있는 것이므로 상사의 명에 의하여 그 직장의 업무를 수행한다면 설사 그 업무가 본조의 계속적인 직무권한에 속하지 아니한 일시적인 것 이라 할지라도 본죄의 업무에 해당한다(대판 1971.05.24. 71도399). (2025경사승진)","underline_count":0},{"id":"criminal-law-890","chapter_id":"criminal-law-23-private-peace","source_question_number":"890","source_option_label":null,"source_page":345,"origin_type":"original_ox","context":null,"prompt":"권리자가 자신의 권리를 실현함에 있어 법에 정하여진 절차에 의하지 아니하고 타인의 주거 또는 건조물에 침입한 경우에는 주거침입죄가 성립한다.","correct_answer":"O","explanation":"주거침입죄는 사실상의 주거의 평온을 보호법익으로 하는 것이므로 그 거주자 또는 간수자가 건조물 등에 주 거 또는 간수할 권리를 가지고 있는 여부는 범죄의 성립을 좌우하는 것이 아니며 점유할 권리없는 자의 점유 라 하더라도 그 주거의 평온은 보호되어야 할 것이므로 권리자가 그 권리를 실현함에 있어 법에 정하여진 절 차에 의하지 아니하고 그 주거 또는 건조물에 침입하는 경우에는 주거침입죄가 성립한다(대판 1984.04.24. 83도1429). (2025경사승진)","explanation_html":"주거침입죄는 사실상의 주거의 평온을 보호법익으로 하는 것이므로 그 거주자 또는 간수자가 건조물 등에 주 거 또는 간수할 권리를 가지고 있는 여부는 범죄의 성립을 좌우하는 것이 아니며 점유할 권리없는 자의 점유 라 하더라도 그 주거의 평온은 보호되어야 할 것이므로 권리자가 그 권리를 실현함에 있어 법에 정하여진 절 차에 의하지 아니하고 그 주거 또는 건조물에 침입하는 경우에는 주거침입죄가 성립한다(대판 1984.04.24. 83도1429). (2025경사승진)","underline_count":0},{"id":"criminal-law-912","chapter_id":"criminal-law-24-property-general","source_question_number":"912","source_option_label":null,"source_page":355,"origin_type":"original_ox","context":null,"prompt":"피해자가 자기 논에 물을 품어 넣기 위하여 특수한 공작물을 설치하여 저수하였다 하여도, 그 물 은 절도죄의 객체가 되지 못한다.","correct_answer":"O","explanation":"자기 논에 물을 품어 넣기 위하여 토지개량조합의 배수로에 토지개량조합규칙에 위배되는 행위로서 특수한 공 작물을 설치하여 자기 논에 물을 저수하였다 하여도 그 물이 물을 막은 사람의 사실상이나 법률상 지배하는 것이 되지 못한다고 인정되므로 그 물은 절도죄의 객체가 되지 못한다(대판 1964.06.23. 64도209). (2025순경공채)","explanation_html":"자기 논에 물을 품어 넣기 위하여 토지개량조합의 배수로에 토지개량조합규칙에 위배되는 행위로서 특수한 공 작물을 설치하여 자기 논에 물을 저수하였다 하여도 그 물이 물을 막은 사람의 사실상이나 법률상 지배하는 것이 되지 못한다고 인정되므로 그 물은 절도죄의 객체가 되지 못한다(대판 1964.06.23. 64도209). (2025순경공채)","underline_count":0},{"id":"criminal-law-943","chapter_id":"criminal-law-25-theft","source_question_number":"943","source_option_label":null,"source_page":365,"origin_type":"original_ox","context":null,"prompt":"식당 건물의 임차인이 임대계약 종료 후 퇴거하면서 종전부터 사용하던 냉장고의 전원을 켜둔 채 그대로 두었다가 약 한 달 후에 철거하여 그 기간 동안 전기가 소비된 경우, 타인의 점유·관리하에 있던 전기가 아니어서 절도죄가 성립하지 않는다.","correct_answer":"O","explanation":"임차인이 임대계약 종료 후 식당건물에서 퇴거하면서 종전부터 사용하던 냉장고의 전원을 켜 둔 채 그대로 두 었다가 약 1개월 후 철거해 가는 바람에 그 기간 동안 전기가 소비된 사안에서, 임차인이 퇴거 후에도 냉장고 에 관한 점유·관리를 그대로 보유하고 있었다고 보아야 하므로, 냉장고를 통하여 전기를 계속 사용하였다고 하더라도 이는 당초부터 자기의 점유·관리하에 있던 전기를 사용한 것일 뿐 타인의 점유·관리하에 있던 전기 가 아니어서 절도죄가 성립하지 않는다고 한 사례(대판 2008.07.10. 2008도3252). (2026경사승진)","explanation_html":"임차인이 임대계약 종료 후 식당건물에서 퇴거하면서 종전부터 사용하던 냉장고의 전원을 켜 둔 채 그대로 두 었다가 약 1개월 후 철거해 가는 바람에 그 기간 동안 전기가 소비된 사안에서, 임차인이 퇴거 후에도 냉장고 에 관한 점유·관리를 그대로 보유하고 있었다고 보아야 하므로, 냉장고를 통하여 전기를 계속 사용하였다고 하더라도 이는 당초부터 자기의 점유·관리하에 있던 전기를 사용한 것일 뿐 타인의 점유·관리하에 있던 전기 가 아니어서 절도죄가 성립하지 않는다고 한 사례(대판 2008.07.10. 2008도3252). (2026경사승진)","underline_count":0},{"id":"criminal-law-966","chapter_id":"criminal-law-26-robbery","source_question_number":"966","source_option_label":null,"source_page":373,"origin_type":"original_ox","context":null,"prompt":"「형법」 제333조(강도)에서의 ‘재산상 이익’은 반드시 사법상 유효한 재산상의 이득만을 의미하는 것은 아니나, 단지 외견상 재산상의 이득을 얻을 것이라고 인정할 수 있는 사실관계만으로는 재산상의 이익을 인정할 수 없다.","correct_answer":"X","explanation":"형법 제333조 후단의 강도죄, 이른바 강제이득죄의 요건인 재산상의 이익이란 재물 이외의 재산상의 이익을 말하는 것으로서 적극적 이익(적극적인 재산의 증가)이든 소극적 이익(소극적인 부채의 감소)이든 상관없는 것 이고, 강제이득죄는 권리의무관계가 외형상으로라도 불법적으로 변동되는 것을 막고자함에 있는 것으로서 항 거불능이나 반항을 억압할 정도의 폭행 협박을 그 요건으로 하는 강도죄의 성질상 그 권리의무관계의 외형상 변동의 사법상 효력의 유무는 그 범죄의 성립에 영향이 없고, 법률상 정당하게 그 이행을 청구할 수 있는 것이 아니라도 강도죄에 있어서의 재산상의 이익에 해당하는 것이며 , 따라서 이와 같은 재산상의 이익은 반드시 사 법상 유효한 재산상의 이득만을 의미하는 것이 아니고 외견상 재산상의 이득을 얻을 것이라고 인정할 수 있는 사실관계만 있으면 된다(대판 1994.02.22. 93도428). (2024경위승진, 2024경사승진, 2025경위승진, 2025경위공채)","explanation_html":"형법 제333조 후단의 강도죄, 이른바 강제이득죄의 요건인 재산상의 이익이란 재물 이외의 재산상의 이익을 말하는 것으로서 적극적 이익(적극적인 재산의 증가)이든 소극적 이익(소극적인 부채의 감소)이든 상관없는 것 이고, \u003cu>강제이득죄는 권리의무관계가 외형상으로라도 불법적으로 변동되는 것을 막고자함에 있는 것으로서 항 거불능이나 반항을 억압할 정도의 폭행 협박을 그 요건으로 하는 강도죄의 성질상 그 권리의무관계의 외형상 변동의 사법상 효력의 유무는 그 범죄의 성립에 영향이 없고, 법률상 정당하게 그 이행을 청구할 수 있는 것이 아니라도 강도죄에 있어서의 재산상의 이익에 해당하는 것이며 ,\u003c/u> 따라서 이와 같은 \u003cu>재산상의 이익은 반드시 사 법상 유효한 재산상의 이득만을 의미하는 것이 아니고 외견상 재산상의 이득을 얻을 것이라고 인정할 수 있는 사실관계만 있으면 된다(\u003c/u>대판 1994.02.22. 93도428). (2024경위승진, 2024경사승진, 2025경위승진, 2025경위공채)","underline_count":2},{"id":"criminal-law-1006","chapter_id":"criminal-law-27-fraud","source_question_number":"1006","source_option_label":null,"source_page":387,"origin_type":"original_ox","context":null,"prompt":"침해행정 영역에서 일반 국민이 담당 공무원을 기망하여 권력작용에 의한 재산권 제한을 면하는 경우에는, 부과권자와 직접적인 권력작용을 사기죄의 보호법익인 재산권과 동일하게 평가할 수 없다.","correct_answer":"O","explanation":"기망행위에 의하여 국가적 또는 공공적 법익을 침해하는 경우라도 그와 동시에 형법상 사기죄의 보호법익인 재산권을 침해하는 것과 동일하게 평가할 수 있는 때에는 행정법규에서 사기죄의 특별관계에 해당하는 처벌 규정을 별도로 두고 있지 않는 한 사기죄가 성립할 수 있다. 그런데 중앙행정기관의 장, 지방자치단체의 장 등 법률에 따라 금전적 부담의 부과권한을 부여받은 자(이하 ‘부과권자’라 한다)가 재화 또는 용역의 제공과 관계 없이 특정 공익사업과 관련하여 권력작용으로 부담금을 부과하는 것은 일반 국민의 재산권을 제한하는 침해 행정에 속한다. 이러한 침해행정 영역에서 일반 국민이 담당 공무원을 기망하여 권력작용에 의한 재산권 제한 을 면하는 경우에는 부과권자의 직접적인 권력작용을 사기죄의 보호법익인 재산권과 동일하게 평가할 수 없 는 것이므로, 행정법규에서 그러한 행위에 대한 처벌규정을 두어 처벌함은 별론으로 하고, 사기죄는 성립할 수 없다(대판 2019.12.24. 2019도2003). (2025경위공채)","explanation_html":"기망행위에 의하여 국가적 또는 공공적 법익을 침해하는 경우라도 그와 동시에 형법상 사기죄의 보호법익인 재산권을 침해하는 것과 동일하게 평가할 수 있는 때에는 행정법규에서 사기죄의 특별관계에 해당하는 처벌 규정을 별도로 두고 있지 않는 한 사기죄가 성립할 수 있다. 그런데 중앙행정기관의 장, 지방자치단체의 장 등 법률에 따라 금전적 부담의 부과권한을 부여받은 자(이하 ‘부과권자’라 한다)가 재화 또는 용역의 제공과 관계 없이 특정 공익사업과 관련하여 권력작용으로 부담금을 부과하는 것은 일반 국민의 재산권을 제한하는 침해 행정에 속한다. 이러한 침해행정 영역에서 일반 국민이 담당 공무원을 기망하여 권력작용에 의한 재산권 제한 을 면하는 경우에는 부과권자의 직접적인 권력작용을 사기죄의 보호법익인 재산권과 동일하게 평가할 수 없 는 것이므로, 행정법규에서 그러한 행위에 대한 처벌규정을 두어 처벌함은 별론으로 하고, 사기죄는 성립할 수 없다(대판 2019.12.24. 2019도2003). (2025경위공채)","underline_count":0},{"id":"criminal-law-1051","chapter_id":"criminal-law-28-extortion","source_question_number":"1051","source_option_label":null,"source_page":405,"origin_type":"original_ox","context":null,"prompt":"甲이 乙의 돈을 절취한 다음 다른 금전과 섞거나 교환하지 않고 쇼핑백 등에 넣어 자신의 집에 숨겨두었는데, 丙이 乙의 지시로 甲에게 겁을 주어 쇼핑백 등에 들어 있던 절취된 돈을 교부받아 갈취 하였다면, 위 돈은 타인인 甲의 재물이라고 볼 수 없다.","correct_answer":"O","explanation":"공갈죄의 대상이 되는 재물은 타인의 재물을 의미하므로, 사람을 공갈하여 자기의 재물을 교부받는 경우에는 공갈죄가 성립하지 아니한다. 그리고 타인의 재물인지는 민법, 상법, 기타의 실체법에 의하여 결정되는데, 금 전을 도난당한 경우 절도범이 절취한 금전만 소지하고 있는 때 등과 같이 구체적으로 절취된 금전을 특정할 수 있어 객관적으로 다른 금전 등과 구분됨이 명백한 예외적인 경우에는 절도 피해자에 대한 관계에서 그 금 전이 절도범인 타인의 재물이라고 할 수 없다. ⇒ 갑이 을의 돈을 절취한 다음 다른 금전과 섞거나 교환하지 않고 쇼핑백 등에 넣어 자신의 집에 숨겨두었는 데, 피고인이 을의 지시로 병과 함께 갑에게 겁을 주어 위 돈을 교부받아 갈취하였다고 하여 폭력행위 등 처벌 에 관한 법률 위반(공동공갈)으로 기소된 사안에서, 위 금전을 타인인 갑의 재물이라고 할 수 없어 공갈죄가 성립된다고 볼 수 없는데도, 이와 달리 보아 유죄를 인정한 원심판결에 법리오해의 위법이 있다고 한 사례(대 판 2012.08.30. 2012도6157). (2024경위승진, 2024경사승진)","explanation_html":"공갈죄의 대상이 되는 재물은 타인의 재물을 의미하므로, 사람을 공갈하여 자기의 재물을 교부받는 경우에는 공갈죄가 성립하지 아니한다. 그리고 타인의 재물인지는 민법, 상법, 기타의 실체법에 의하여 결정되는데, 금 전을 도난당한 경우 절도범이 절취한 금전만 소지하고 있는 때 등과 같이 구체적으로 절취된 금전을 특정할 수 있어 객관적으로 다른 금전 등과 구분됨이 명백한 예외적인 경우에는 절도 피해자에 대한 관계에서 그 금 전이 절도범인 타인의 재물이라고 할 수 없다. ⇒ 갑이 을의 돈을 절취한 다음 다른 금전과 섞거나 교환하지 않고 쇼핑백 등에 넣어 자신의 집에 숨겨두었는 데, 피고인이 을의 지시로 병과 함께 갑에게 겁을 주어 위 돈을 교부받아 갈취하였다고 하여 폭력행위 등 처벌 에 관한 법률 위반(공동공갈)으로 기소된 사안에서, 위 금전을 타인인 갑의 재물이라고 할 수 없어 공갈죄가 성립된다고 볼 수 없는데도, 이와 달리 보아 유죄를 인정한 원심판결에 법리오해의 위법이 있다고 한 사례(대 판 2012.08.30. 2012도6157). (2024경위승진, 2024경사승진)","underline_count":0},{"id":"criminal-law-1056","chapter_id":"criminal-law-29-embezzlement","source_question_number":"1056","source_option_label":null,"source_page":407,"origin_type":"original_ox","context":null,"prompt":"횡령죄에 있어서 재물의 보관이라 함은 재물에 대한 법률상의 지배력이 있는 상태를 의미하는 것으로서, 그 보관이 위탁관계에 기인하여야 할 것은 물론이고, 그것이 반드시 사용대차, 임대차, 위임 등의 계약에 의하여 설정되어야 한다.","correct_answer":"X","explanation":"횡령죄에 있어서의 재물의 보관이라 함은 재물에 대한 사실상 또는 법률상 지배력이 있는 상태를 의미하 므로 그 보관이 위탁관계에 기인하여야 할 것임은 물론이나 그것이 반드시 사용대차, 임대차, 위임 등의 계 약에 의하여 설정되는 것임을 요하지 아니하고 사무관리, 관습, 조리, 신의칙에 의해서도 성립된다 (대판 1987.10.13. 87도1778). (2026경사승진)","explanation_html":"횡령죄에 있어서의 재물의 보관이라 함은 재물에 대한 사실상 또는 법률상 지배력이 있는 상태를 의미하 므로 그 보관이 위탁관계에 기인하여야 할 것임은 물론이나 \u003cu>그것이 반드시 사용대차, 임대차, 위임 등의 계 약에 의하여 설정되는 것임을 요하지 아니하고 사무관리, 관습, 조리, 신의칙에 의해서도 성립된다\u003c/u> (대판 1987.10.13. 87도1778). (2026경사승진)","underline_count":1},{"id":"criminal-law-1097","chapter_id":"criminal-law-30-breach-of-trust","source_question_number":"1097","source_option_label":null,"source_page":424,"origin_type":"original_ox","context":null,"prompt":"이익대립관계에 있는 통상의 계약관계에서 채무자가 성실한 급부이행에 의해 상대방이 계약상 권리의 만족 내지 채권의 실현이라는 이익을 얻게 되는 관계에 있다거나, 계약을 이행함에 있어 상대방 을 보호하거나 배려할 부수적인 의무가 있다는 것만으로는 채무자를 배임죄 성립에 필요한 타인의 사 무를 처리하는 자라고 할 수 없다.","correct_answer":"O","explanation":"배임죄는 타인의 사무를 처리하는 자가 임무에 위배하는 행위로써 재산상의 이익을 취득하거나 제3자로 하여 금 이를 취득하게 하여 사무의 주체인 타인에게 손해를 가할 때 성립하는 것이므로 범죄의 주체는 타인의 사 무를 처리하는 지위에 있어야 한다.여기에서 ‘타인의 사무를 처리하는 자’라고 하려면, 타인의 재산관리에 관 한 사무의 전부 또는 일부를 타인을 위하여 대행하는 경우와 같이 당사자 관계의 전형적·본질적 내용이 통상 의 계약에서 이익대립관계를 넘어서 그들 사이의 신임관계에 기초하여 타인의 재산을 보호 또는 관리하는 것 이어야 한다. 이익대립관계에 있는 통상의 계약관계에서 채무자의 성실한 급부이행에 의해 상대방이 계약상 권리의 만족 내지 채권의 실현이라는 이익을 얻게 되는 관계라거나, 계약의 이행과정에서 상대방을 보호하거 나 배려할 부수적인 의무가 있다는 것만으로는 채무자를 타인의 사무를 처리하는 자라고 할 수 없고 , 위임 등 과 같이 계약의 전형적·본질적인 급부의 내용이 상대방의 재산상 사무를 일정한 권한을 가지고 맡아 처리하는 경우여야 한다(대판[전합] 2022.12.22. 2020도8682). (2025경위공채, 2026경위승진)","explanation_html":"배임죄는 타인의 사무를 처리하는 자가 임무에 위배하는 행위로써 재산상의 이익을 취득하거나 제3자로 하여 금 이를 취득하게 하여 사무의 주체인 타인에게 손해를 가할 때 성립하는 것이므로 범죄의 주체는 타인의 사 무를 처리하는 지위에 있어야 한다.여기에서 ‘타인의 사무를 처리하는 자’라고 하려면, 타인의 재산관리에 관 한 사무의 전부 또는 일부를 타인을 위하여 대행하는 경우와 같이 당사자 관계의 전형적·본질적 내용이 통상 의 계약에서 이익대립관계를 넘어서 그들 사이의 신임관계에 기초하여 타인의 재산을 보호 또는 관리하는 것 이어야 한다. \u003cu>이익대립관계에 있는 통상의 계약관계에서 채무자의 성실한 급부이행에 의해 상대방이 계약상 권리의 만족 내지 채권의 실현이라는 이익을 얻게 되는 관계라거나, 계약의 이행과정에서 상대방을 보호하거 나 배려할 부수적인 의무가 있다는 것만으로는 채무자를 타인의 사무를 처리하는 자라고 할 수 없고\u003c/u> , 위임 등 과 같이 계약의 전형적·본질적인 급부의 내용이 상대방의 재산상 사무를 일정한 권한을 가지고 맡아 처리하는 경우여야 한다(대판[전합] 2022.12.22. 2020도8682). (2025경위공채, 2026경위승진)","underline_count":1},{"id":"criminal-law-1133","chapter_id":"criminal-law-31-stolen-goods","source_question_number":"1133","source_option_label":null,"source_page":438,"origin_type":"original_ox","context":null,"prompt":"장물죄는 재산범인 본범이 영득한 재물에 사후적으로 관여하는 사후종범적 성격을 가지고 있으 므로 절도죄보다 법정형을 가볍게 규정하고 있다.","correct_answer":"X","explanation":"절도죄의 법정형은 6년 이하의 징역 또는 1천만원 이하의 벌금이다(형법 제329조). 장물죄의 법정형은 7년 이하의 징역 또는 1천500만원 이하의 벌금이다(형법 제362조). 즉, 장물죄의 법정형이 절도죄의 법정형보다 가볍게 규정되어 있지 않고, 오히려 더 중하게 규정되어 있다. (2023경사승진)","explanation_html":"절도죄의 법정형은 6년 이하의 징역 또는 1천만원 이하의 벌금이다(형법 제329조). 장물죄의 법정형은 7년 이하의 징역 또는 1천500만원 이하의 벌금이다(형법 제362조). 즉, \u003cu>장물죄의 법정형이 절도죄의 법정형보다 가볍게 규정되어 있지 않고,\u003c/u> 오히려 더 중하게 규정되어 있다. (2023경사승진)","underline_count":1},{"id":"criminal-law-1148","chapter_id":"criminal-law-32-damage","source_question_number":"1148","source_option_label":null,"source_page":443,"origin_type":"original_ox","context":null,"prompt":"재건축사업으로 철거가 예정되어 있었고 그 입주자들이 모두 이사하여 아무도 거주하지 않는 아파트라 하더라도, 그 아파트 자체의 객관적 성상이 본래 사용목적인 주거용으로 사용될 수 없는 상태 가 아니었고 그 소유자들이 재건축조합으로의 신탁등기 및 인도를 거부하는 상황이었다면, 위 아파트 는 재물손괴죄의 객체가 된다.","correct_answer":"O","explanation":"재건축사업으로 철거가 예정되어 있었고 그 입주자들이 모두 이사하여 아무도 거주하지 않은 채 비어 있는 아 파트라 하더라도, 그 아파트 자체의 객관적 성상이 본래 사용목적인 주거용으로 사용될 수 없는 상태가 아니 었고, 더욱이 그 소유자들이 재건축조합으로의 신탁등기 및 인도를 거부하는 방법으로 계속 그 소유권을 행사 하고 있는 상황이었다면 위와 같은 사정만으로는 위 아파트가 재물로서의 이용가치나 효용이 없는 물건으로 되었다고 할 수 없으므로, 위 아파트는 재물손괴죄의 객체가 된다고 할 것이다(대판 2010.02.25. 2009도 8473). (2023경위승진)","explanation_html":"재건축사업으로 철거가 예정되어 있었고 그 입주자들이 모두 이사하여 아무도 거주하지 않은 채 비어 있는 아 파트라 하더라도, 그 아파트 자체의 객관적 성상이 본래 사용목적인 주거용으로 사용될 수 없는 상태가 아니 었고, 더욱이 그 소유자들이 재건축조합으로의 신탁등기 및 인도를 거부하는 방법으로 계속 그 소유권을 행사 하고 있는 상황이었다면 위와 같은 사정만으로는 위 아파트가 재물로서의 이용가치나 효용이 없는 물건으로 되었다고 할 수 없으므로, 위 아파트는 재물손괴죄의 객체가 된다고 할 것이다(대판 2010.02.25. 2009도 8473). (2023경위승진)","underline_count":0},{"id":"criminal-law-1159","chapter_id":"criminal-law-33-obstruction-of-rights","source_question_number":"1159","source_option_label":null,"source_page":447,"origin_type":"original_ox","context":null,"prompt":"물건의 소유자가 아닌 甲이 소유자 乙의 권리행사방해 범행에 가담한 경우, 乙에게 고의가 없어 범죄가 성립하지 않더라도 甲은 권리행사방해죄의 공범으로 처벌될 수 있다.","correct_answer":"X","explanation":"물건의 소유자가 아닌 사람은 형법 제33조본문에 따라 소유자의 권리행사방해 범행에 가담한 경우에 한하여 그의 공범이 될 수 있을 뿐이다. 그러나 권리행사방해죄의 공범으로 기소된 물건의 소유자에게 고의가 없는 등으로 범죄가 성립하지 않는다면 공동정범이 성립할 여지가 없다 (대판 2017.05.30. 2017도4578). (2024 경위승진) (2024경사승진)","explanation_html":"물건의 소유자가 아닌 사람은 형법 제33조본문에 따라 소유자의 권리행사방해 범행에 가담한 경우에 한하여 그의 공범이 될 수 있을 뿐이다. 그러나 \u003cu>권리행사방해죄의 공범으로 기소된 물건의 소유자에게 고의가 없는 등으로 범죄가 성립하지 않는다면 공동정범이 성립할 여지가 없다 (\u003c/u>대판 2017.05.30. 2017도4578). (2024 경위승진) (2024경사승진)","underline_count":1},{"id":"criminal-law-1182","chapter_id":"criminal-law-34-public-safety","source_question_number":"1182","source_option_label":null,"source_page":456,"origin_type":"original_ox","context":null,"prompt":"사형, 무기 또는 장기 4년 이상의 징역에 해당하는 범죄를 목적으로 하는 단체 또는 집단을 조직 하거나 이에 가입 또는 그 구성원으로 활동한 사람은 그 목적한 죄의 정한 형으로 처벌하고, 그 형을 감 경할 수 없다.","correct_answer":"X","explanation":"사형, 무기 또는 장기 4년 이상의 징역에 해당하는 범죄를 목적으로 하는 단체 또는 집단을 조직하거나 이에 가입 또는 그 구성원으로 활동한 사람은 그 목적한 죄에 정한 형으로 처벌한다. 다만, 형을 감경할 수 있다 (형 법 제114조). (2026경위승진)","explanation_html":"사형, 무기 또는 장기 4년 이상의 징역에 해당하는 범죄를 목적으로 하는 단체 또는 집단을 조직하거나 이에 가입 또는 그 구성원으로 활동한 사람은 그 목적한 죄에 정한 형으로 처벌한다. 다만, \u003cu>형을 감경할 수 있다\u003c/u> (형 법 제114조). (2026경위승진)","underline_count":1},{"id":"criminal-law-1231","chapter_id":"criminal-law-35-public-credit","source_question_number":"1231","source_option_label":null,"source_page":473,"origin_type":"original_ox","context":null,"prompt":"진정한 통화인 미화 1달러 및 2달러 지폐의 발행연도, 발행번호, 미국 재무부를 상징하는 문양, 재무부장관의 사인, 일부 색상을 고친 경우, 통화가 변조되었다고 볼 수 없다.","correct_answer":"O","explanation":"진정한 통화에 대한 가공행위로 인하여 기존 통화의 명목가치나 실질가치가 변경되었다거나 객관적으로 보아 일반인으로 하여금 기존 통화와 다른 진정한 화폐로 오신하게 할 정도의 새로운 물건을 만들어 낸 것으로 볼 수 없다면 통화가 변조되었다고 볼 수 없다(대판 2004.03.26. 2003도5640). ⇒ 진정한 통화인 미화 1달러 및 2달러 지폐의 발행연도, 발행번호, 미국 재무부를 상징하는 문양, 재무부장 관의 사인, 일부 색상을 고친 것만으로는 통화가 변조되었다고 볼 수 없다고 한 사례. (2024경위공채)","explanation_html":"진정한 통화에 대한 가공행위로 인하여 기존 통화의 명목가치나 실질가치가 변경되었다거나 객관적으로 보아 일반인으로 하여금 기존 통화와 다른 진정한 화폐로 오신하게 할 정도의 새로운 물건을 만들어 낸 것으로 볼 수 없다면 통화가 변조되었다고 볼 수 없다(대판 2004.03.26. 2003도5640). ⇒ 진정한 통화인 미화 1달러 및 2달러 지폐의 발행연도, 발행번호, 미국 재무부를 상징하는 문양, 재무부장 관의 사인, 일부 색상을 고친 것만으로는 통화가 변조되었다고 볼 수 없다고 한 사례. (2024경위공채)","underline_count":0},{"id":"criminal-law-1319","chapter_id":"criminal-law-36-social-morality","source_question_number":"1319","source_option_label":null,"source_page":507,"origin_type":"original_ox","context":null,"prompt":"어떤 물건이 음란한 물건에 해당하는지 여부는 행위자의 주관적 의도와 반포, 전시 등이 행하여 진 상황, 그리고 해당 물건 자체의 객관적 측면을 종합적으로 고려하여 판단하여야 한다.","correct_answer":"X","explanation":"어떤 물건이 음란한 물건에 해당하는지 여부는 행위자의 주관적 의도나 반포, 전시 등이 행하여진 상황에 관 계없이 그 물건 자체에 관하여 객관적으로 판단하여야 한다 (대판 2003.05.16. 2003도988). (2025해경학과)","explanation_html":"어떤 물건이 음란한 물건에 해당하는지 여부는 \u003cu>행위자의 주관적 의도나 반포, 전시 등이 행하여진 상황에 관 계없이 그 물건 자체에 관하여 객관적으로 판단하여야 한다 (\u003c/u>대판 2003.05.16. 2003도988). (2025해경학과)","underline_count":1},{"id":"criminal-law-1331","chapter_id":"criminal-law-37-state-existence","source_question_number":"1331","source_option_label":null,"source_page":512,"origin_type":"original_ox","context":null,"prompt":"내란죄의 ‘폭동’의 내용으로서 폭행·협박은 최광의의 의미로서 그 정도가 한 지방의 평온을 해할 정도의 위력이 있음을 요한다.","correct_answer":"O","explanation":"형법상 내란죄의 구성요건인 폭동의 내용으로서의 폭행 또는 협박은 일체의 유형력의 행사나 외포심을 생 기게 하는 해악의 고지를 의미하는 최광의의 폭행·협박을 말하는 것으로서, 이를 준비하거나 보조하는 행위 를 전체적으로 파악한 개념이며, 그 정도가 한 지방의 평온을 해할 정도의 위력이 있음을 요한다(대판[전합] 2015.01.22. 2014도10978). (2024경위공채)","explanation_html":"형법상 내란죄의 구성요건인 폭동의 내용으로서의 폭행 또는 협박은 일체의 유형력의 행사나 외포심을 생 기게 하는 해악의 고지를 의미하는 최광의의 폭행·협박을 말하는 것으로서, 이를 준비하거나 보조하는 행위 를 전체적으로 파악한 개념이며, 그 정도가 한 지방의 평온을 해할 정도의 위력이 있음을 요한다(대판[전합] 2015.01.22. 2014도10978). (2024경위공채)","underline_count":0},{"id":"criminal-law-1337-choice-1","chapter_id":"criminal-law-38-public-official-duties","source_question_number":"1337","source_option_label":"①","source_page":514,"origin_type":"derived_mcq","context":"다음 중 「형법」상 구성요건에 대한 설명으로 가장 옳은 것은? (다툼이 있는 경우 판례에 의함) (2023경사승진)","prompt":"다음 선택지의 내용은 옳다. 외교상기밀누설죄(제113조 제1항), 공무상비밀누설죄(제127조) 및 업무상비밀누설죄(제317조 제1항) 는 신분범이다.","correct_answer":"X","explanation":"외교상 기밀누설죄는 외교상의 기밀을 누설하는 경우와 누설할 목적으로 외교상의 기밀을 탐지 또는 수집하는 경우를 처벌하는 범죄이며, 주체는 제한이 없는 일반범이다. 하지만 공무상비밀누설죄는 공무원 또 는 공무원이었던 자로 규정되어 있는 신분범이며, 업무상비밀누설죄 역시 의사 등으로 규정되어 있는 신분범 이다.","explanation_html":"외교상 기밀누설죄는 외교상의 기밀을 누설하는 경우와 누설할 목적으로 외교상의 기밀을 탐지 또는 수집하는 경우를 처벌하는 범죄이며, 주체는 제한이 없는 일반범이다. 하지만 공무상비밀누설죄는 공무원 또 는 공무원이었던 자로 규정되어 있는 신분범이며, 업무상비밀누설죄 역시 의사 등으로 규정되어 있는 신분범 이다.","underline_count":0},{"id":"criminal-law-1396","chapter_id":"criminal-law-39-obstruction-public-duty","source_question_number":"1396","source_option_label":null,"source_page":536,"origin_type":"original_ox","context":null,"prompt":"피고인이 국민권익위원회 운영지원과 소속 기간제근로자로서 청사 안전관리 및 민원인 안내 등 의 사무를 담당한 乙의 공무집행을 방해한 경우, 乙은 공무집행방해죄에서의 공무원에 해당하지 않는다.","correct_answer":"O","explanation":"피고인이, 국민권익위원회 운영지원과 소속 기간제근로자로서 청사 안전관리 및 민원인 안내 등의 사무를 담 당한 갑의 공무집행을 방해하였다는 내용으로 기소된 사안에서, 갑은 법령의 근거에 기하여 국가 등의 사무에 종사하는 형법상 공무원이라고 보기 어렵다 고 한 사례(대판 2015.05.29. 2015도3430). (2025순경공채)","explanation_html":"피고인이, 국민권익위원회 운영지원과 소속 기간제근로자로서 청사 안전관리 및 민원인 안내 등의 사무를 담 당한 갑의 공무집행을 방해하였다는 내용으로 기소된 사안에서, \u003cu>갑은 법령의 근거에 기하여 국가 등의 사무에 종사하는 형법상 공무원이라고 보기 어렵다 고\u003c/u> 한 사례(대판 2015.05.29. 2015도3430). (2025순경공채)","underline_count":1},{"id":"criminal-law-1425","chapter_id":"criminal-law-40-escape-concealment","source_question_number":"1425","source_option_label":null,"source_page":548,"origin_type":"original_ox","context":null,"prompt":"도주죄는 즉시범으로서, 범인이 간수자의 실력적 지배를 이탈한 상태에 이르렀을 때에 기수가 되어 도주행위가 종료된다.","correct_answer":"O","explanation":"도주죄는 즉시범으로서 범인이 간수자의 실력적 지배를 이탈한 상태에 이르렀을 때에 기수가 되어 도주행위 가 종료하는 것이다(대판 1991.10.11. 91도1656). (2024순경수사)","explanation_html":"도주죄는 즉시범으로서 범인이 간수자의 실력적 지배를 이탈한 상태에 이르렀을 때에 기수가 되어 도주행위 가 종료하는 것이다(대판 1991.10.11. 91도1656). (2024순경수사)","underline_count":0},{"id":"criminal-law-1446","chapter_id":"criminal-law-41-perjury-evidence","source_question_number":"1446","source_option_label":null,"source_page":556,"origin_type":"original_ox","context":null,"prompt":"제3자가 심문절차로 진행되는 가처분신청사건에서 증인으로 출석하여 선서를 하고 허위 공술 을 한 경우 위증죄가 성립하지 않는다.","correct_answer":"O","explanation":"가처분사건이 변론절차에 의하여 진행될 때에는 제3자를 증인으로 선서하게 하고 증언을 하게 할 수 있으나 심문절차에 의할 경우에는 법률상 명문의 규정도 없고, 또 구 민사소송법(2002. 1. 26. 법률 제6626호로 전 문 개정되기 전의 것)의 증인신문에 관한 규정이 준용되지도 아니하므로 선서를 하게 하고 증언을 시킬 수 없 다고 할 것이고, 따라서 제3자가 심문절차로 진행되는 가처분 신청사건에서 증인으로 출석하여 선서를 하고 진술함에 있어서 허위의 공술을 하였다고 하더라도 그 선서는 법률상 근거가 없어 무효라고 할 것이므로 위증 죄는 성립하지 않는다(대판 2003.07.25. 2003도180). (2023경위승진)","explanation_html":"가처분사건이 변론절차에 의하여 진행될 때에는 제3자를 증인으로 선서하게 하고 증언을 하게 할 수 있으나 심문절차에 의할 경우에는 법률상 명문의 규정도 없고, 또 구 민사소송법(2002. 1. 26. 법률 제6626호로 전 문 개정되기 전의 것)의 증인신문에 관한 규정이 준용되지도 아니하므로 선서를 하게 하고 증언을 시킬 수 없 다고 할 것이고, 따라서 제3자가 심문절차로 진행되는 가처분 신청사건에서 증인으로 출석하여 선서를 하고 진술함에 있어서 허위의 공술을 하였다고 하더라도 그 선서는 법률상 근거가 없어 무효라고 할 것이므로 위증 죄는 성립하지 않는다(대판 2003.07.25. 2003도180). (2023경위승진)","underline_count":0},{"id":"criminal-law-1472","chapter_id":"criminal-law-42-false-accusation","source_question_number":"1472","source_option_label":null,"source_page":565,"origin_type":"original_ox","context":null,"prompt":"무고죄는 국가의 형사사법권 또는 징계권의 적정한 행사를 주된 보호법익으로 하는 것이지 개 인의 부당하게 처벌 또는 징계받지 아니할 이익을 보호하는 죄는 아니므로, 설사 무고에 있어서 피무고 자의 승낙이 있었다고 하더라도 무고죄의 성립에는 영향을 미치지 못한다.","correct_answer":"X","explanation":"무고죄는 국가의 형사사법권 또는 징계권의 적정한 행사를 주된 보호법익으로 하고 다만, 개인의 부당하게 처 벌 또는 징계받지 아니할 이익을 부수적으로 보호하는 죄이므로, 설사 무고에 있어서 피무고자의 승낙이 있었 다고 하더라도 무고죄의 성립에는 영향을 미치지 못한다 할 것이고 , 무고죄에 있어서 형사처분 또는 징계처분 을 받게 할 목적은 허위신고를 함에 있어서 다른 사람이 그로 인하여 형사 또는 징계처분을 받게 될 것이라는 인식이 있으면 족한 것이고 그 결과발생을 희망하는 것까지를 요하는 것은 아니므로, 고소인이 고소장을 수 사기관에 제출한 이상 그러한 인식은 있었다고 보아야 한다(대판 2005.09.30. 2005도2712). (2025경위승진, 2026경사승진)","explanation_html":"\u003cu>무고죄는 국가의 형사사법권 또는 징계권의 적정한 행사를 주된 보호법익으로 하고 다만, 개인의 부당하게 처 벌 또는 징계받지 아니할 이익을 부수적으로 보호하는 죄이므로, 설사 무고에 있어서 피무고자의 승낙이 있었 다고 하더라도 무고죄의 성립에는 영향을 미치지 못한다 할 것이고 ,\u003c/u> 무고죄에 있어서 형사처분 또는 징계처분 을 받게 할 목적은 허위신고를 함에 있어서 다른 사람이 그로 인하여 형사 또는 징계처분을 받게 될 것이라는 인식이 있으면 족한 것이고 그 결과발생을 희망하는 것까지를 요하는 것은 아니므로, 고소인이 고소장을 수 사기관에 제출한 이상 그러한 인식은 있었다고 보아야 한다(대판 2005.09.30. 2005도2712). (2025경위승진, 2026경사승진)","underline_count":1},{"id":"criminal-procedure-investigation-evidence-001","chapter_id":"procedure-ie-01-investigation-general","source_question_number":"001","source_option_label":null,"source_page":4,"origin_type":"original_ox","context":null,"prompt":"「형사소송법」에서 검사는 범죄혐의가 있다고 사료하는 때에는 범인, 범죄사실과 증거를 수사한다 고 규정하고 있으나, 검사가 모든 범죄에 대해 수사를 개시할 수 있는 것은 아니다.","correct_answer":"O","explanation":"검사는 공익의 대표자로서 다음 각 호의 직무와 권한이 있다(검찰청법 제4조 제1항). 범죄수사, 공소의 제기 및 그 유지에 필요한 사항. 다만, 검사가 수사를 개시할 수 있는 범죄의 범위는 다음 각 목과 같다. 가. 부패범죄, 경제범죄 등 대통령령으로 정하는 중요 범죄 나. 경찰공무원(다른 법률에 따라 사법경찰관리의 직무를 행하는 자를 포함한다) 및 고위공직자범죄수사처 소속 공무원(「고위공직자범죄수사처 설치 및 운영에 관한 법률」에 따른 파견공무원을 포함한다)이 범한 범죄 다. 가목ㆍ나목의 범죄 및 사법경찰관이 송치한 범죄와 관련하여 인지한 각 해당 범죄와 직접 관련성이 있는 범죄 (2024경위공채)","explanation_html":"검사는 공익의 대표자로서 다음 각 호의 직무와 권한이 있다(검찰청법 제4조 제1항). 범죄수사, 공소의 제기 및 그 유지에 필요한 사항. 다만, 검사가 수사를 개시할 수 있는 범죄의 범위는 다음 각 목과 같다. 가. 부패범죄, 경제범죄 등 대통령령으로 정하는 중요 범죄 나. 경찰공무원(다른 법률에 따라 사법경찰관리의 직무를 행하는 자를 포함한다) 및 고위공직자범죄수사처 소속 공무원(「고위공직자범죄수사처 설치 및 운영에 관한 법률」에 따른 파견공무원을 포함한다)이 범한 범죄 다. 가목ㆍ나목의 범죄 및 사법경찰관이 송치한 범죄와 관련하여 인지한 각 해당 범죄와 직접 관련성이 있는 범죄 (2024경위공채)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-213-choice-1","chapter_id":"procedure-ie-02-compulsory-investigation","source_question_number":"213","source_option_label":"①","source_page":72,"origin_type":"derived_mcq","context":"다음 중 사후적 구제제도로 보기에 가장 옳지 않은 것은? (다툼이 있는 경우 판례에 의함)","prompt":"다음 선택지의 내용은 옳다. 구속 전 피의자심문","correct_answer":"X","explanation":"구속 전 피의자심문은 구속영장을 청구받은 판사가 피의자를 직접 심문하여 구속여부를 결정하는 제 도로서(형사소송법 제201조의2 제1항), 사전적 구제제도에 해당한다.","explanation_html":"\u003cu>구속 전 피의자심문은\u003c/u> 구속영장을 청구받은 판사가 피의자를 직접 심문하여 구속여부를 결정하는 제 도로서(형사소송법 제201조의2 제1항), \u003cu>사전적 구제제도에 해당한다\u003c/u>.","underline_count":2},{"id":"criminal-procedure-investigation-evidence-437-choice-1","chapter_id":"procedure-ie-03-investigation-close","source_question_number":"437","source_option_label":"①","source_page":143,"origin_type":"derived_mcq","context":"협의의 불기소 결정에 관한 유형과 결정 이유의 연결이 가장 옳지 않은 것은?","prompt":"다음 선택지의 내용은 옳다. 공소권없음 - 고소·고발사건의 사안의 경중, 분쟁의 종국적 해결여부 등을 고려할 때 수사 또는 소추에 관 한 공공의 이익이 없거나 극히 적은 경우로서 수사를 개시·진행할 필요성이 인정되지 않는 경우","correct_answer":"X","explanation":"고소·고발사건의 사안의 경중, 분쟁의 종국적 해결여부 등을 고려할 때 수사 또는 소추에 관한 공공의 이익이 없거나 극히 적은 경우로서 수사를 개시·진행할 필요성이 인정되지 않는 경우는 공소권없음의 사유가 아니라 각하 사유에 해당한다(검찰사건사무규칙 제115조 제3항 제5호 사목).","explanation_html":"고소·고발사건의 사안의 경중, 분쟁의 종국적 해결여부 등을 고려할 때 수사 또는 소추에 관한 공공의 이익이 없거나 극히 적은 경우로서 수사를 개시·진행할 필요성이 인정되지 않는 경우는 공소권없음의 사유가 아니라 \u003cu>각하\u003c/u> 사유에 해당한다(검찰사건사무규칙 제115조 제3항 제5호 사목).","underline_count":1},{"id":"criminal-procedure-investigation-evidence-484","chapter_id":"procedure-ie-04-evidence-concepts","source_question_number":"484","source_option_label":null,"source_page":160,"origin_type":"original_ox","context":null,"prompt":"「형사소송법」 상 소명의 대상에는 기피사유의 소명, 증언거부사유의 소명, 증거보전청구사유의 소 명, 판사에 대한 증인신문청구사유의 소명, 상소권회복원인사유의 소명이 있다.","correct_answer":"O","explanation":"소명이란 어떤 사실의 존부에 관하여 법관에게 확신을 갖게 할 필요는 없고 법관으로 하여금 단지 진실할 것 이라는 인식을 갖게 함으로써 족한 것을 말한다. 소명의 대상은 명문의 규정이 있는 경우에만 허용된다. 「형사 소송법」 상 소명의 대상에는 기피사유의 소명, 증언거부사유의 소명, 증거보전청구사유의 소명, 판사에 대한 증인신문청구사유의 소명, 상소권회복원인사유의 소명 등이 있다. (2024경위공채)","explanation_html":"소명이란 어떤 사실의 존부에 관하여 법관에게 확신을 갖게 할 필요는 없고 법관으로 하여금 단지 진실할 것 이라는 인식을 갖게 함으로써 족한 것을 말한다. 소명의 대상은 명문의 규정이 있는 경우에만 허용된다. 「형사 소송법」 상 소명의 대상에는 기피사유의 소명, 증언거부사유의 소명, 증거보전청구사유의 소명, 판사에 대한 증인신문청구사유의 소명, 상소권회복원인사유의 소명 등이 있다. (2024경위공채)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-492","chapter_id":"procedure-ie-05-proof-principles","source_question_number":"492","source_option_label":null,"source_page":163,"origin_type":"original_ox","context":null,"prompt":"구성요건에 해당하는 사실은 객관적 구성요건 요소인가 주관적 구성요건요소인가를 구분하지 않 고 모두 엄격한 증명의 대상이다.","correct_answer":"O","explanation":"구성요건에 해당하는 사실은 엄격한 증명에 의하여 이를 인정하여야 하고, 증거능력이 없는 증거는 구성요건 사실을 추인하게 하는 간접사실이나 구성요건 사실을 입증하는 직접증거의 증명력을 보강하는 보조사실의 인 정자료로도 사용할 수 없다(대판 2008.12.11. 2008도7112). (2026경위승진)","explanation_html":"구성요건에 해당하는 사실은 엄격한 증명에 의하여 이를 인정하여야 하고, 증거능력이 없는 증거는 구성요건 사실을 추인하게 하는 간접사실이나 구성요건 사실을 입증하는 직접증거의 증명력을 보강하는 보조사실의 인 정자료로도 사용할 수 없다(대판 2008.12.11. 2008도7112). (2026경위승진)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-518","chapter_id":"procedure-ie-06-illegal-evidence","source_question_number":"518","source_option_label":null,"source_page":173,"origin_type":"original_ox","context":null,"prompt":"위법수집증거배제법칙은 영미법상 판례에 의해 확립된 증거법칙으로, 우리나라 「형사소송법」에는 명문의 규정이 없지만 일반적인 형사법의 대원칙으로 자리잡고 있다.","correct_answer":"X","explanation":"위법수집증거배제법칙은 형사소송법 제 308조의2에 명문화되어 있다 . 적법한 절차에 따르지 아니하고 수집 한 증거는 증거로 할 수 없다(제308조의2). (2024경위승진, 2024경장승진, 2024순경공채)","explanation_html":"\u003cu>위법수집증거배제법칙은 형사소송법 제 308조의2에 명문화되어 있다 .\u003c/u> 적법한 절차에 따르지 아니하고 수집 한 증거는 증거로 할 수 없다(제308조의2). (2024경위승진, 2024경장승진, 2024순경공채)","underline_count":1},{"id":"criminal-procedure-investigation-evidence-540","chapter_id":"procedure-ie-07-confession-exclusion","source_question_number":"540","source_option_label":null,"source_page":182,"origin_type":"original_ox","context":null,"prompt":"자백은 일단 자백하였다가 이를 번복 내지 취소하더라도 그 효력이 없어지는 것은 아니기에, 피고 인이 항소이유서에 ‘돈이 급해 지어서는 안 될 죄를 지었습니다.’, ‘진심으로 뉘우치고 있습니다.’라고 기 재하였고 항소심 공판기일에 그 항소이유서를 진술하였다면, 이어진 검사의 신문에 범죄사실을 부인하 였고 수사단계에서도 일관되게 범죄사실을 부인하여 온 사정이 있다고 하더라도 피고인이 자백한 것으 로 볼 수 있다.","correct_answer":"X","explanation":"피고인이 제출한 항소이유서에 ‘피고인은 돈이 급해 지어서는 안 될 죄를 지었습니다.’, ‘진심으로 뉘우치고 있 습니다.’라고 기재되어 있고 피고인은 항소심 제2회 공판기일에 위 항소이유서를 진술하였으나, 곧 이어서 있 은 검사와 재판장 및 변호인의 각 심문에 대하여 피고인은 범죄사실을 부인하였고, 수사단계에서도 일관되게 그와 같이 범죄사실을 부인하여 온 점에 비추어 볼 때, 위와 같이 추상적인 항소이유서의 기재만을 가지고 범 죄사실을 자백한 것으로 볼 수 없다고 한 사례(대판 1999.11.12. 99도3341). (2024경장승진)","explanation_html":"피고인이 제출한 항소이유서에 ‘피고인은 돈이 급해 지어서는 안 될 죄를 지었습니다.’, ‘진심으로 뉘우치고 있 습니다.’라고 기재되어 있고 피고인은 항소심 제2회 공판기일에 위 항소이유서를 진술하였으나, 곧 이어서 있 은 검사와 재판장 및 변호인의 각 심문에 대하여 피고인은 범죄사실을 부인하였고, 수사단계에서도 일관되게 그와 같이 범죄사실을 부인하여 온 점에 비추어 볼 때, \u003cu>위와 같이 추상적인 항소이유서의 기재만을 가지고 범 죄사실을 자백한 것으로 볼 수 없다\u003c/u>고 한 사례(대판 1999.11.12. 99도3341). (2024경장승진)","underline_count":1},{"id":"criminal-procedure-investigation-evidence-553","chapter_id":"procedure-ie-08-hearsay","source_question_number":"553","source_option_label":null,"source_page":187,"origin_type":"original_ox","context":null,"prompt":"타인의 진술을 내용으로 하는 진술이 전문증거인지 여부와 관련하여 원진술의 존재 자체가 요증사 실인 경우에는 전문증거이지 본래증거가 아니다.","correct_answer":"X","explanation":"어떤 진술이 범죄사실에 대한 직접증거로 사용함에 있어서는 전문증거가 된다고 하더라도 그와 같은 진술을 하였다는 것 자체 또는 그 진술의 진실성과 관계없는 간접사실에 대한 정황증거로 사용함에 있어서는 반드시 전문증거가 되는 것은 아니다 (대판 2000.02.25. 99도1252). (2024순경수사)","explanation_html":"어떤 진술이 범죄사실에 대한 직접증거로 사용함에 있어서는 전문증거가 된다고 하더라도 \u003cu>그와 같은 진술을 하였다는 것 자체\u003c/u> 또는 그 진술의 진실성과 관계없는 간접사실에 대한 정황증거로 사용함에 있어서는 \u003cu>반드시 전문증거가 되는 것은 아니다\u003c/u> (대판 2000.02.25. 99도1252). (2024순경수사)","underline_count":2},{"id":"criminal-procedure-investigation-evidence-612","chapter_id":"procedure-ie-09-evidence-consent","source_question_number":"612","source_option_label":null,"source_page":213,"origin_type":"original_ox","context":null,"prompt":"검사와 피고인이 증거로 할 수 있음을 동의한 서류 또는 물건은 진정한 것으로 인정한 때에는 증거 로 할 수 있다.","correct_answer":"O","explanation":"검사와 피고인이 증거로 할 수 있음을 동의한 서류 또는 물건은 진정한 것으로 인정한 때에는 증거로 할 수 있 다(제318조 제1항). (2024순경공채)","explanation_html":"검사와 피고인이 증거로 할 수 있음을 동의한 서류 또는 물건은 진정한 것으로 인정한 때에는 증거로 할 수 있 다(제318조 제1항). (2024순경공채)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-629","chapter_id":"procedure-ie-10-free-evaluation","source_question_number":"629","source_option_label":null,"source_page":219,"origin_type":"original_ox","context":null,"prompt":"증거의 증명력을 법관의 자유판단에 의하도록 하는 것은 그것이 실체적 진실발견에 적합하기 때문 이지 법관의 자의적인 판단을 인용한다는 것은 아니다.","correct_answer":"O","explanation":"자유심증주의를 규정한 형사소송법 제308조가 증거의 증명력을 법관의 자유판단에 의하도록 한 것은 그것이 실체적 진실발견에 적합하기 때문이지 법관의 자의적인 판단을 인용한다는 것은 아니므로, 증거판단에 관한 전권을 가지고 있는 사실심 법관은 사실인정에 있어 공판절차에서 획득된 인식과 조사된 증거를 남김없이 고 려하여야 한다(대판 2007.05.10. 2007도1950). (2025경장승진)","explanation_html":"자유심증주의를 규정한 형사소송법 제308조가 증거의 증명력을 법관의 자유판단에 의하도록 한 것은 그것이 실체적 진실발견에 적합하기 때문이지 법관의 자의적인 판단을 인용한다는 것은 아니므로, 증거판단에 관한 전권을 가지고 있는 사실심 법관은 사실인정에 있어 공판절차에서 획득된 인식과 조사된 증거를 남김없이 고 려하여야 한다(대판 2007.05.10. 2007도1950). (2025경장승진)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-646","chapter_id":"procedure-ie-11-impeachment","source_question_number":"646","source_option_label":null,"source_page":225,"origin_type":"original_ox","context":null,"prompt":"탄핵증거는 진술의 증명력을 감쇄하기 위한 증거이다.","correct_answer":"O","explanation":"진술의 증명력을 다투기 위한 증거를 탄핵증거라고 한다. 여기서 다툰다는 의미는 증명력의 감쇄를 의미한다. (2024순경수사)","explanation_html":"진술의 증명력을 다투기 위한 증거를 탄핵증거라고 한다. 여기서 다툰다는 의미는 증명력의 감쇄를 의미한다. (2024순경수사)","underline_count":0},{"id":"criminal-procedure-investigation-evidence-663","chapter_id":"procedure-ie-12-confession-corroboration","source_question_number":"663","source_option_label":null,"source_page":231,"origin_type":"original_ox","context":null,"prompt":"자백보강법칙은 일반형사사건은 물론이고 간이공판절차, 약식명령절차 및 즉결심판절차에서도 적용된다.","correct_answer":"X","explanation":"자백의 보강법칙은 일반 형사소송절차에서 적용된다. 헌법 제12조 제7항의 ‘정식재판’이란 이런 의미에서 형 사사건을 의미한다고 볼 수 있다. 형사사건인 이상 간이공판절차에 있어서는 물론 약식명령절차에 있어서도 자백의 보강법칙이 적용된다. 그러나 즉결심판에 관한 절차법의 적용을 받는 즉 결심판과 소년법의 적용을 받 는 소년보호사건에는 보강법칙이 적용되지 않으므 로, 자백만으로 사실을 인정하여도 위법이 아니다 . (2023경 장승진, 2024경위공채, 2026경위승진)","explanation_html":"자백의 보강법칙은 일반 형사소송절차에서 적용된다. 헌법 제12조 제7항의 ‘정식재판’이란 이런 의미에서 형 사사건을 의미한다고 볼 수 있다. 형사사건인 이상 간이공판절차에 있어서는 물론 약식명령절차에 있어서도 자백의 보강법칙이 적용된다. 그러나 \u003cu>즉결심판에 관한 절차법의 적용을 받는 즉 결심판과 소년법의 적용을 받 는 소년보호사건에는 보강법칙이 적용되지 않으므 로, 자백만으로 사실을 인정하여도 위법이 아니다\u003c/u> . (2023경 장승진, 2024경위공채, 2026경위승진)","underline_count":1},{"id":"criminal-procedure-investigation-evidence-680","chapter_id":"procedure-ie-13-trial-record","source_question_number":"680","source_option_label":null,"source_page":237,"origin_type":"original_ox","context":null,"prompt":"공판조서의 기재가 명백한 오기인 경우를 제외하고 공판기일의 소송절차로서 공판조서에 기재된 것은 조서만으로써 증명이 되지만, 그 증명력은 공판조서 이외의 자료에 의한 반증이 허용되지 않는 절 대적인 것은 아니다.","correct_answer":"X","explanation":"공판조서의 기재가 명백한 오기인 경우를 제외하고는 공판기일의 소송절차로서 공판조서에 기재된 것은 조서 만으로써 증명하여야 하고 그 증명력은 공판조서 이외의 자 료에 의한 반증이 허용되지 않는 절대 적인 것이다 (대판 2012.06.14. 2011도12571). (2024경위공채)","explanation_html":"공판조서의 기재가 명백한 오기인 경우를 제외하고는 공판기일의 소송절차로서 공판조서에 기재된 것은 조서 만으로써 증명하여야 하고 \u003cu>그 증명력은 공판조서 이외의 자 료에 의한 반증이 허용되지 않는 절대 적인 것이다\u003c/u> (대판 2012.06.14. 2011도12571). (2024경위공채)","underline_count":1},{"id":"criminal-procedure-trial-001","chapter_id":"procedure-trial-01-foundations","source_question_number":"001","source_option_label":null,"source_page":4,"origin_type":"original_ox","context":null,"prompt":"실질적 의미의 「형사소송법」이란 내용과 명칭이 모두 「형사소송법」인 법률을 말하며 가장 중요한 법원이 된다.","correct_answer":"X","explanation":"실질적 의미의 형사소송법은 그 명칭과 상관없이 형벌권 행사 절차가 규정되어 있으면 형사소송법이 되는 경 우를 말한다. (2025경위승진)","explanation_html":"실질적 의미의 형사소송법은 그 명칭과 상관없이 형벌권 행사 절차가 규정되어 있으면 형사소송법이 되는 경 우를 말한다. (2025경위승진)","underline_count":0},{"id":"criminal-procedure-trial-018-choice-1","chapter_id":"procedure-trial-02-principles","source_question_number":"018","source_option_label":"①","source_page":11,"origin_type":"derived_mcq","context":"다음 중 실체적 진실주의의 제도적 표현으로 가장 옳은 것은? ( )","prompt":"다음 선택지의 내용은 옳다. 비상상고제도","correct_answer":"X","explanation":"검찰총장은 판결이 확정한 후 그 사건의 심판이 법령에 위반한 것을 발견한 때에는 대법원에 비상상고 를 할 수 있다(제441조). 비상상고는 실체적 진실의 발견이 아닌 법령해석의 통일을 위해 존재하는 제도이다.","explanation_html":"검찰총장은 판결이 확정한 후 그 사건의 심판이 \u003cu>법령에 위반\u003c/u>한 것을 발견한 때에는 대법원에 비상상고 를 할 수 있다(제441조). 비상상고는 실체적 진실의 발견이 아닌 법령해석의 통일을 위해 존재하는 제도이다.","underline_count":1},{"id":"criminal-procedure-trial-037","chapter_id":"procedure-trial-03-subjects-acts","source_question_number":"037","source_option_label":null,"source_page":18,"origin_type":"original_ox","context":null,"prompt":"합병으로 인하여 소멸한 피고인 법인이 그 종업원 등의 위법행위에 대해 양벌규정에 따라 부담하 던 형사책임은 합병으로 인하여 존속하는 법인에 승계된다.","correct_answer":"X","explanation":"법인이 형사처벌을 면탈하기 위한 방편으로 합병제도 등을 남용하는 경우 이를 처벌하거나 형사책임을 승계 시킬 수 있는 근거규정을 특별히 두고 있지 않은 현행법하에서는 합병으로 인하여 소멸한 법인이 그 종업원 등의 위법행위에 대해 양벌규정에 따라 부담하던 형사책임은 그 성질상 이전을 허용하지 않는 것으로서 합병 으로 인하여 존속하는 법인에 승계되지 않는다 (대판 2009.12.24. 2008도7012). (2026경위승진)","explanation_html":"법인이 형사처벌을 면탈하기 위한 방편으로 합병제도 등을 남용하는 경우 이를 처벌하거나 형사책임을 승계 시킬 수 있는 근거규정을 특별히 두고 있지 않은 현행법하에서는 \u003cu>합병으로 인하여 소멸한 법인이 그 종업원 등의 위법행위에 대해 양벌규정에 따라 부담하던 형사책임은 그 성질상 이전을 허용하지 않는 것으로서 합병 으로 인하여 존속하는 법인에 승계되지 않는다\u003c/u> (대판 2009.12.24. 2008도7012). (2026경위승진)","underline_count":1},{"id":"criminal-procedure-trial-125","chapter_id":"procedure-trial-04-defendant-detention","source_question_number":"125","source_option_label":null,"source_page":48,"origin_type":"original_ox","context":null,"prompt":"피고인에 대하여 범죄사실의 요지, 구속의 이유와 변호인을 선임할 수 있음을 말하고 진술거부 권이 있음을 고지한 후가 아니면 구속할 수 없다. 다만, 피고인이 도망한 경우에는 그러하지 아니하다.","correct_answer":"X","explanation":"피고인에 대하여 범죄사실의 요지, 구속의 이유와 변호인을 선임할 수 있음을 말하고 변명할 기회를 준 후가 아니면 구속할 수 없다 . 다만, 피고인이 도망한 경우에는 그러하지 아니하다(형사소송법 제72조). (2023해경수 사, 2026경위승진)","explanation_html":"피고인에 대하여 범죄사실의 요지, 구속의 이유와 변호인을 선임할 수 있음을 말하고 \u003cu>변명할 기회를 준 후가 아니면 구속할 수 없다 .\u003c/u> 다만, 피고인이 도망한 경우에는 그러하지 아니하다(형사소송법 제72조). (2023해경수 사, 2026경위승진)","underline_count":1},{"id":"criminal-procedure-trial-162","chapter_id":"procedure-trial-05-prosecution-scope","source_question_number":"162","source_option_label":null,"source_page":60,"origin_type":"original_ox","context":null,"prompt":"공소제기에 현저한 방식위반이 있는 경우에는 공소제기절차가 법률의 규정에 위반하여 무효인 때에 해당하지만, 피고인과 변호인이 절차위배의 공소제기에 대하여 이의를 제기하지 아니하고 변론에 응한 때에는 그 하자가 치유된다.","correct_answer":"X","explanation":"형사소송법이 공소의 제기에 관하여 서면주의와 엄격한 요식행위를 채용한 것은 공소의 제기에 의해서 법원 의 심판이 개시되므로 심판을 구하는 대상을 명확하게 하고 피고인의 방어권을 보장하기 위한 것이다. 따라 서 위와 같은 엄격한 형식과 절차에 따른 공소장의 제출은 공소제기라는 소송행위가 성립하기 위한 본질적 요 소라고 할 것이므로, 공소의 제기에 현저한 방식 위반이 있는 경우에는 공소제기의 절차가 법률의 규정에 위 반하여 무효인 경우에 해당하고, 위와 같은 절차위배의 공소제기에 대하여 피고인과 변호인이 이의를 제기 하지 아니하고 변론에 응하였다고 하여 그 하자가 치유되지는 않는다 (대판 2009.02.26. 2008도11813). ⇒ 검사가 공판기일에서 피고인 등이 특정되어 있지 않은 공소장변경허가신청서를 공소장에 갈음하는 것으로 구두진술하고 피고인과 변호인이 이의를 제기하지 않은 사안에서, 이를 적법한 공소제기로 볼 수 없다고 본 사례(대판 2009.02.26. 2008도11813). (2023경위공채, 2025경장승진)","explanation_html":"형사소송법이 공소의 제기에 관하여 서면주의와 엄격한 요식행위를 채용한 것은 공소의 제기에 의해서 법원 의 심판이 개시되므로 심판을 구하는 대상을 명확하게 하고 피고인의 방어권을 보장하기 위한 것이다. 따라 서 위와 같은 엄격한 형식과 절차에 따른 공소장의 제출은 공소제기라는 소송행위가 성립하기 위한 본질적 요 소라고 할 것이므로, 공소의 제기에 현저한 방식 위반이 있는 경우에는 공소제기의 절차가 법률의 규정에 위 반하여 무효인 경우에 해당하고, \u003cu>위와 같은 절차위배의 공소제기에 대하여 피고인과 변호인이 이의를 제기 하지 아니하고 변론에 응하였다고 하여 그 하자가 치유되지는 않는다 (\u003c/u>대판 2009.02.26. 2008도11813). ⇒ 검사가 공판기일에서 피고인 등이 특정되어 있지 않은 공소장변경허가신청서를 공소장에 갈음하는 것으로 구두진술하고 피고인과 변호인이 이의를 제기하지 않은 사안에서, 이를 적법한 공소제기로 볼 수 없다고 본 사례(대판 2009.02.26. 2008도11813). (2023경위공채, 2025경장승진)","underline_count":1},{"id":"criminal-procedure-trial-201","chapter_id":"procedure-trial-06-trial-procedure","source_question_number":"201","source_option_label":null,"source_page":74,"origin_type":"original_ox","context":null,"prompt":"법원은 공소의 제기가 있는 때에는 지체 없이, 늦어도 제1회 공판기일 전 5일까지 공소장부본을 피고인 또는 변호인에게 송달하여야 한다.","correct_answer":"O","explanation":"법원은 공소의 제기가 있는 때에는 지체 없이 공소장의 부본을 피고인 또는 변호인에게 송달하여야 한다. 단, 제1회 공판기일 전 5일까지 송달하여야 한다(형사소송법 제266조). (2025경장승진)","explanation_html":"법원은 공소의 제기가 있는 때에는 지체 없이 공소장의 부본을 피고인 또는 변호인에게 송달하여야 한다. 단, 제1회 공판기일 전 5일까지 송달하여야 한다(형사소송법 제266조). (2025경장승진)","underline_count":0},{"id":"criminal-procedure-trial-300","chapter_id":"procedure-trial-07-judgment","source_question_number":"300","source_option_label":null,"source_page":103,"origin_type":"original_ox","context":null,"prompt":"구두변론주의의 원칙상 판결, 결정, 명령은 구두변론을 거쳐야 한다.","correct_answer":"X","explanation":"판결은 법률에 다른 규정이 없으면 구두변론(口頭辯論)을 거쳐서 하여야 한다(형사소송법 제37조 제1항). 결 정이나 명령은 구두변론을 거치지 아니할 수 있다 (형사소송법 제37조 제2항). (2025경위공채)","explanation_html":"판결은 법률에 다른 규정이 없으면 구두변론(口頭辯論)을 거쳐서 하여야 한다(형사소송법 제37조 제1항). \u003cu>결 정이나 명령은 구두변론을 거치지 아니할 수 있다\u003c/u> (형사소송법 제37조 제2항). (2025경위공채)","underline_count":1},{"id":"criminal-procedure-trial-342","chapter_id":"procedure-trial-08-appeal","source_question_number":"342","source_option_label":null,"source_page":118,"origin_type":"original_ox","context":null,"prompt":"변호인의 상소취하에 대한 피고인의 동의는 공판정에서 구술로 할 수 있는바, 그 경우 구술 동의 는 명시적으로 이루어질 필요는 없다.","correct_answer":"X","explanation":"변호인은 피고인의 동의를 얻어 상소를 취하할 수 있으므로(형사소송법 제351조, 제341조), 변호인의 상소 취하에 피고인의 동의가 없다면 상소취하의 효력은 발생하지 아니한다. 한편 변호인이 상소취하를 할 때 원칙 적으로 피고인은 이에 동의하는 취지의 서면을 제출하여야 하나(형사소송규칙 제153조 제2항), 피고인은 공 판정에서 구술로써 상소취하를 할 수 있으므로(형사소송법 제352조 제1항 단서), 변호인의 상소취하에 대한 피고인의 동의도 공판정에서 구술로써 할 수 있다. 다만 상소를 취하하거나 상소의 취하에 동의한 자는 다시 상소를 하지 못하는 제한을 받게 되므로(형사소송법 제354조), 상소취하에 대한 피고인의 구술 동의는 명시 적으로 이루어져야만 한다(대판 2015.09.10. 2015도7821). (2025경장승진)","explanation_html":"변호인은 피고인의 동의를 얻어 상소를 취하할 수 있으므로(형사소송법 제351조, 제341조), 변호인의 상소 취하에 피고인의 동의가 없다면 상소취하의 효력은 발생하지 아니한다. 한편 변호인이 상소취하를 할 때 원칙 적으로 피고인은 이에 동의하는 취지의 서면을 제출하여야 하나(형사소송규칙 제153조 제2항), 피고인은 공 판정에서 구술로써 상소취하를 할 수 있으므로(형사소송법 제352조 제1항 단서), 변호인의 상소취하에 대한 피고인의 동의도 공판정에서 구술로써 할 수 있다. 다만 상소를 취하하거나 상소의 취하에 동의한 자는 다시 상소를 하지 못하는 제한을 받게 되므로(형사소송법 제354조), \u003cu>상소취하에 대한 피고인의 구술 동의는 명시 적으로 이루어져야만 한다(\u003c/u>대판 2015.09.10. 2015도7821). (2025경장승진)","underline_count":1},{"id":"criminal-procedure-trial-398","chapter_id":"procedure-trial-09-extraordinary-remedies","source_question_number":"398","source_option_label":null,"source_page":138,"origin_type":"original_ox","context":null,"prompt":"형사재판에서 재심은 유죄의 확정판결 및 유죄판결에 대한 항소 또는 상고를 기각한 확정판결뿐 만 아니라 면소판결을 대상으로 한 재심청구도 가능하다.","correct_answer":"X","explanation":"형사재판에서 재심은 형사소송법 제420조, 제421조 제1항의 규정에 의하여 유죄 확정판결 및 유죄판결에 대한 항소 또는 상고를 기각한 확정판결에 대하여만 허용된다. 면소판결은 유죄 확정판결이라 할 수 없으므로 면소판결을 대상으로 한 재심청구는 부적법하다 (대결 2018.05.02. 2015모3243). (2023경위공채, 2025경장승진)","explanation_html":"형사재판에서 재심은 형사소송법 제420조, 제421조 제1항의 규정에 의하여 유죄 확정판결 및 유죄판결에 대한 항소 또는 상고를 기각한 확정판결에 대하여만 허용된다. \u003cu>면소판결은 유죄 확정판결이라 할 수 없으므로 면소판결을 대상으로 한 재심청구는 부적법하다\u003c/u> (대결 2018.05.02. 2015모3243). (2023경위공채, 2025경장승진)","underline_count":1},{"id":"criminal-procedure-trial-416","chapter_id":"procedure-trial-10-special-procedure","source_question_number":"416","source_option_label":null,"source_page":145,"origin_type":"original_ox","context":null,"prompt":"벌금, 구류, 과료 또는 몰수에 처할 수 있는 사건에 대하여 검사는 공소의 제기와 동시에 서면으 로 약식명령을 청구할 수 있다.","correct_answer":"X","explanation":"지방법원은 그 관할에 속한 사건에 대하여 검사의 청구가 있는 때에는 공판절차 없이 약식명령으로 피고인을 벌금, 과료 또는 몰수 에 처할 수 있다(형사소송법 제448조 제1항). 하지만 구류는 규정되어 있지 않다. (2023 경장승진, 2023해경수사, 2023경위공채, 2024경위공채, 2026경위승진)","explanation_html":"지방법원은 그 관할에 속한 사건에 대하여 검사의 청구가 있는 때에는 공판절차 없이 약식명령으로 피고인을 \u003cu>벌금, 과료 또는 몰수 에\u003c/u> 처할 수 있다(형사소송법 제448조 제1항). 하지만 구류는 규정되어 있지 않다. (2023 경장승진, 2023해경수사, 2023경위공채, 2024경위공채, 2026경위승진)","underline_count":1}]}</script>
+  <script>
+  (() => {
+    const root = document.getElementById('criminal-ox-preview');
+    const data = JSON.parse(root.querySelector('#criminal-ox-data').textContent);
+    const main = root.querySelector('main');
+    const nav = root.querySelector('nav');
+    const byId = new Map(data.questions.map(q => [q.id,q]));
+    const chapters = new Map(data.chapters.map(c => [c.id,c]));
+    const collections = new Map(data.collections.map(c => [c.id,c]));
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const safeHtml = html => { const doc = new DOMParser().parseFromString(html,'text/html'); const walk = n => n.nodeType===3 ? esc(n.textContent) : (n.nodeType===1 && n.tagName==='U' ? '<u>'+Array.from(n.childNodes).map(walk).join('')+'</u>' : Array.from(n.childNodes).map(walk).join('')); return Array.from(doc.body.childNodes).map(walk).join(''); };
+    const attempts = [];
+    const notes = new Map();
+    const note = id => { if(!notes.has(id)) notes.set(id,{text:'',bookmark:false,mastered:false}); return notes.get(id); };
+    const add = (id,answer,seed=false) => {const q=byId.get(id); if(!q)return; attempts.push({id,answer,correct:answer===q.correct_answer,seed}); if(answer!==q.correct_answer)note(id).mastered=false;};
+    add('criminal-law-001-choice-1','O',true); add('criminal-law-001-choice-2','O',true);
+    for(let i=0;i<3;i++) add('criminal-law-003','O',true);
+    add('criminal-law-004','O',true); add('criminal-law-005','O',true);
+    note('criminal-law-003').text='형식적 의미와 실질적 의미를 구분해서 다시 읽기.';
+    let route='home', collection='criminal-law', filter='미완료', allChapters=false, allWeak=false, session=null, origin='home';
+    const design={palette:'blue',fontSize:19,newUser:false,category:'lecture'};
+    const effective = () => design.newUser ? attempts.filter(a=>!a.seed) : attempts;
+    const stats = id => { const a=effective().filter(a=>a.id===id); const last=a[a.length-1]; const wrong=a.filter(a=>!a.correct).length; let label=wrong ? (last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요') : ''; if(wrong&&note(id).mastered)label='복습 완료'; return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };
+    const reviews = () => data.questions.map(q=>({q,...stats(q.id)})).filter(s=>s.wrong).sort((a,b)=>a.priority-b.priority||b.wrong-a.wrong);
+    const chapterStat = c => { const latest=new Map(); effective().filter(a=>byId.get(a.id).chapter_id===c.id).forEach(a=>latest.set(a.id,a)); const solved=latest.size, right=Array.from(latest.values()).filter(a=>a.correct).length; const accuracy=solved ? right/solved*100:null; const progress=solved/c.question_count*100; const enough=solved>=Math.min(5,c.question_count); const label=!enough?'데이터 부족':accuracy<50?'매우 취약':accuracy<70?'취약':accuracy<85?'주의':'양호'; return {c,solved,accuracy,progress,wrong:solved-right,label,rank:({'매우 취약':1,'취약':2,'주의':3,'양호':4,'데이터 부족':5}[label]),score:enough?(100-accuracy)*.7+(100-progress)*.3:0}; };
+    const meter = (v,label,color='') => `<div class="ox-meter" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(v)}"><span style="width:${v}%;${color?'background:'+color:''}"></span></div>`;
+    const button = (label,action,extra='',classes='') => `<button type="button" class="ox-button ${classes}" data-action="${action}" ${extra}>${label}</button>`;
+    const source = q => { const c=chapters.get(q.chapter_id), book=collections.get(c.collection_id); return `<div class="ox-source">${q.origin_type==='derived_mcq'?'객관식 파생':'원문 OX'} · ${esc(q.source_question_number)}${esc(q.source_option_label)}<br>${esc(book.source_filename)} · PDF ${q.source_page}쪽</div>`; };
+    function renderNav(){ const items=[['home','house','오늘'],['chapters','book-open','단원'],['review','rotate-ccw','오답'],['weak','chart-no-axes-combined','취약']]; nav.hidden=route==='quiz'||route==='entry'; nav.style.display=nav.hidden?'none':''; nav.innerHTML=items.map(([id,icon,label])=>`<button type="button" data-action="nav" data-route="${id}" ${route===id?'aria-current="page"':''}><i data-lucide="${icon}" aria-hidden="true"></i>${label}</button>`).join(''); const titles={lecture:'인터넷 수강생',online:'온라인 관리반',offline:'오프라인 수강생'}; root.querySelector('.ox-header').innerHTML=route==='entry'?`<div class="ox-brand">론박스터디</div><small>${titles[design.category]}</small>`:`<button type="button" class="ox-plain" data-action="nav" data-route="entry">← 수강생 홈</button><div class="ox-brand"><span class="ox-mark">OX</span>형사법</div>`; const footer=root.querySelector('.ox-app-nav'); footer.style.display=route==='quiz'?'none':''; footer.innerHTML=({lecture:['홈','플래너','스터디카페','마이'],online:['홈','스터디카페','성적','마이'],offline:['홈','출석','외출','성적','마이']}[design.category]).map(l=>`<span>${l}</span>`).join(''); }
+    function entry(){const due=reviews().filter(s=>s.label!=='복습 완료').length; const offline=design.category==='offline'; main.innerHTML=`<span class="ox-eyebrow">MY STUDY</span><h2>오늘도, 나의 속도로.</h2><p class="ox-sub">${offline?'출석부터 학습까지, 차근차근.':'공부를 시작할 준비가 되었나요?'}</p><section class="ox-existing"><div class="ox-row"><h3>${offline?'출석 · 외출':'온라인 스터디카페'}</h3><span class="ox-sub">기존 영역</span></div><p class="ox-sub">${offline?'기존 출석·외출 안내와 행동 영역':'내 공부 공간과 학습 타이머'}</p></section><section class="ox-card ox-hero"><div class="ox-row"><span style="font-size:12px;letter-spacing:1px">STUDY · OX</span><span style="font-size:12px">2,960문항</span></div><h3>형사법 OX</h3><p class="ox-sub">오늘 풀고, 다시 맞히고.<br>헷갈리는 지문을 확실한 정답으로.</p><div style="font-size:12px;margin:18px 0 4px">형법 · 수사·증거 · 공판${due?` / 복습 ${due}개`:''}</div>${button('형사법 OX 시작하기 →','nav','data-route="home"','ox-wide')}</section><div class="ox-section"><h3>학습 바로가기</h3><p class="ox-sub">${design.category==='lecture'?'타이머 · 순공 랭킹 · 공지사항':'기존 학습 안내와 공지사항'}</p></div>`; }
+    function home(){const due=reviews().filter(s=>s.label!=='복습 완료'); const done=new Set(effective().map(a=>a.id)).size; const today=attempts.filter(a=>!a.seed).length; const weak=data.chapters.map(chapterStat).sort((a,b)=>a.rank-b.rank||b.score-a.score)[0]; const continuing=session&&session.index<session.ids.length;
+      main.innerHTML=`<span class="ox-eyebrow">DAILY STUDY</span><h2>오늘의 한 걸음,<br>확실한 정답으로.</h2><p class="ox-sub">${due.length?'놓쳤던 지문부터 가볍게 다시 시작해요.':'첫 지문부터 차근차근 시작해요.'}</p>
+      <section class="ox-card ox-hero"><div class="ox-row"><span style="font-size:12px">TODAY’S OX</span><span style="font-size:12px">오늘 ${today}문항 풀이</span></div><h3>${continuing?'이어서 풀 준비 됐나요?':'오늘의 10문항'}</h3><p class="ox-sub">${continuing?`${session.index+1}번째 문제부터 이어갑니다.`:due.length?`복습할 오답 ${Math.min(5,due.length)}개와 새로운 지문을 함께.`:'형법의 기본개념부터 시작합니다.'}</p>${button(continuing?'학습 이어하기 →':'오늘 학습 시작 →',continuing?'resume':'daily','','ox-wide')}</section>
+      <div class="ox-stats"><div><div class="ox-sub">복습할 오답</div><div class="ox-number">${due.length}<small> 문항</small></div></div><div><div class="ox-sub">전체 학습</div><div class="ox-number">${done}<small> / 2,960</small></div></div></div>
+      <section class="ox-section"><div class="ox-row"><h3>먼저 살펴볼 단원</h3><button type="button" class="ox-plain" data-action="nav" data-route="weak">전체 보기 →</button></div><div class="ox-card" style="margin-top:4px"><div class="ox-row"><h3>${esc(weak.c.display_name)}</h3><span class="ox-badge ${weak.rank<3?'ox-danger':''}">${weak.label}</span></div><p class="ox-sub">${weak.accuracy===null?'아직 학습 기록이 없어요.':`최신 정답률 ${Math.round(weak.accuracy)}% · ${weak.wrong}문항 오답`}</p>${meter(weak.progress,'단원 학습률')}${button(weak.solved?'이 단원 다시 풀기':'첫 단원 시작하기','chapter',`data-id="${weak.c.id}"`,'ox-wide')}</div></section><div class="ox-row ox-section"><span class="ox-sub">3개 영역 · 65개 단원</span><button type="button" class="ox-plain" data-action="nav" data-route="chapters">단원 골라 풀기 →</button></div>`; }
+    function chapterView(){const list=data.chapters.filter(c=>c.collection_id===collection); const count=list.reduce((sum,c)=>sum+c.question_count,0); const short=['형법','수사·증거','공판']; main.innerHTML=`<span class="ox-eyebrow">CHAPTERS</span><h2>어디부터 풀까요?</h2><p class="ox-sub">목차 순서대로, 또는 필요한 단원부터.</p><div class="ox-filters">${data.collections.map((c,i)=>`<button type="button" class="ox-filter" aria-pressed="${c.id===collection}" data-action="collection" data-id="${c.id}">${short[i]}</button>`).join('')}</div><div class="ox-row"><h3>${esc(collections.get(collection).scope)}</h3><span class="ox-sub">${list.length}단원 · ${count.toLocaleString()}문항</span></div>${(allChapters?list:list.slice(0,8)).map(c=>{const s=chapterStat(c);return `<button type="button" class="ox-chapter" data-action="chapter" data-id="${c.id}"><span class="ox-chapter-index">${String(c.sort_order).padStart(2,'0')}</span><span class="ox-chapter-body"><strong>${esc(c.display_name)}</strong><span class="ox-sub">${c.question_count}문항 · ${s.solved}문항 학습</span>${meter(s.progress,'단원 학습률')}</span><span aria-hidden="true">›</span></button>`;}).join('')}${list.length>8?button(allChapters?'단원 접기':`전체 ${list.length}개 단원 보기`,'expand-chapters','','ox-wide'):''}<p class="ox-sub">시안에서는 각 단원의 대표 문항을 풀어볼 수 있어요.</p>`; }
+    function start(ids,label){ if(!ids.length)return; origin=['home','chapters','review','weak'].includes(route)?route:'home'; session={ids:[...new Set(ids)],index:0,answers:[],label}; route='quiz'; render(); }
+    function daily(){ const due=reviews().filter(s=>s.label!=='복습 완료').slice(0,5).map(s=>s.q.id); const rest=data.questions.filter(q=>q.chapter_id===data.chapters[0].id&&!due.includes(q.id)); const fresh=rest.filter(q=>!stats(q.id).last), old=rest.filter(q=>stats(q.id).last); start([...due,...fresh.map(q=>q.id),...old.map(q=>q.id)].slice(0,10),'오늘의 10문항'); }
+    function quiz(){const q=byId.get(session.ids[session.index]), c=chapters.get(q.chapter_id), a=session.answers[session.index]; const n=note(q.id); main.innerHTML=`<div class="ox-row"><button type="button" class="ox-plain" data-action="leave">← 나가기</button><span class="ox-sub">${session.index+1} / ${session.ids.length}</span><button type="button" class="ox-plain" data-action="bookmark" data-id="${q.id}" aria-pressed="${n.bookmark}">${n.bookmark?'★ 저장됨':'☆ 북마크'}</button></div>${meter((session.index+(a?1:0))/session.ids.length*100,'세트 진행률')}<div class="ox-section"><span class="ox-eyebrow">${esc(collections.get(c.collection_id).subject)}</span><h3 style="margin-top:8px">${esc(c.display_name)}</h3><p class="ox-sub">${q.origin_type==='derived_mcq'?'객관식 파생':'원문 OX'} · ${esc(q.source_question_number)}${esc(q.source_option_label)}</p></div>${q.context?`<div class="ox-context"><strong>원문 맥락</strong><br>${esc(q.context)}</div><p class="ox-sub">아래 지문의 내용이 옳으면 O, 틀리면 X를 선택하세요.</p>`:''}<div class="ox-question">${esc(q.prompt)}</div><div class="ox-answer-grid">${['O','X'].map(v=>`<button type="button" class="ox-answer ${a&&a.answer===v?'ox-selected':''}" data-action="answer" data-answer="${v}" ${a?'disabled':''} aria-label="${v}: ${v==='O'?'옳다':'틀리다'}"><b>${v}</b><small>${v==='O'?'옳다':'틀리다'}</small></button>`).join('')}</div><div aria-live="polite">${a?`<section class="ox-card"><div class="ox-row"><h3 class="${a.correct?'ox-correct':'ox-incorrect'}">${a.correct?'정답이에요':'다시 기억해둘 지문이에요'}</h3><span class="ox-badge">정답 ${q.correct_answer}</span></div><p class="ox-sub">내 답 ${a.answer} · ${stats(q.id).label||'학습 기록에 반영됨'}</p><div class="ox-explanation">${safeHtml(q.explanation_html)}</div>${source(q)}<details><summary>나만의 메모 ${n.text?'· 작성됨':''}</summary><label class="ox-sub" for="ox-memo">기억할 내용을 적어주세요</label><textarea id="ox-memo" class="ox-note" rows="3">${esc(n.text)}</textarea>${button('메모 저장','memo',`data-id="${q.id}"`)}<div id="ox-message" class="ox-live" role="status"></div></details></section>${button(session.index===session.ids.length-1?'학습 결과 보기':'다음 문제 →','next','','ox-primary ox-wide')}`:'<p class="ox-sub" style="text-align:center;margin-top:18px">선택 후 정답과 원문 해설을 확인하세요.</p>'}</div>`; }
+    function result(){const right=session.answers.filter(a=>a.correct).length, wrong=session.answers.filter(a=>!a.correct).map(a=>a.id); main.innerHTML=`<div class="ox-result"><span class="ox-eyebrow">SESSION COMPLETE</span><h2>한 걸음 더 단단해졌어요.</h2><p class="ox-sub">${esc(session.label)}</p><div class="ox-number">${right}<small> / ${session.ids.length} 정답</small></div><p class="ox-sub">${wrong.length?`다시 살펴볼 ${wrong.length}개 지문을 오답노트에 모았어요.`:'이번 세트는 모두 맞혔어요.'}</p></div><div class="ox-card"><h3>다음 학습</h3><p class="ox-sub">${wrong.length?'방금 틀린 지문을 다시 읽으면 차이를 더 쉽게 기억할 수 있어요.':'다시 맞힌 오답은 오답노트에서 복습 완료로 표시할 수 있어요.'}</p>${wrong.length?button('방금 틀린 문제 다시 풀기','retry-session','','ox-primary ox-wide'):button('오답노트 확인하기','nav','data-route="review"','ox-primary ox-wide')}${button('오늘 화면으로','nav','data-route="home"','ox-wide')}</div>`; }
+    function review(){let list=reviews(); const labels=['미완료','반복 오답','복습 필요','다시 맞힘','복습 완료']; const visible=list.filter(s=>filter==='미완료'?s.label!=='복습 완료':s.label===filter); main.innerHTML=`<span class="ox-eyebrow">REVIEW NOTE</span><h2>틀린 지문이,<br>확실한 정답이 되도록.</h2><p class="ox-sub">한 번 맞힌 문제도 충분히 확인한 후 완료해요.</p><div class="ox-filters">${labels.map(l=>`<button type="button" class="ox-filter" data-action="filter" data-filter="${l}" aria-pressed="${filter===l}">${l}</button>`).join('')}</div><div class="ox-row"><h3>${filter} <span class="ox-sub">${visible.length}문항</span></h3>${visible.length?button('모아 풀기','review-all','','ox-primary'):''}</div>${visible.length?visible.map(s=>{const q=s.q,n=note(q.id); return `<article class="ox-card"><div class="ox-row"><span class="ox-badge ${s.priority<3?'ox-danger':''}">${s.label}</span><span class="ox-sub">누적 ${s.wrong}회 오답</span></div><p class="ox-source">${esc(chapters.get(q.chapter_id).display_name)} · ${esc(q.source_question_number)}${esc(q.source_option_label)}</p><p class="ox-short-prompt">${esc(q.prompt)}</p><details><summary>최근 답 · 정답 · 해설 · 메모 보기</summary><p class="ox-sub">최근 답 ${s.last.answer} / 정답 ${q.correct_answer}</p>${q.context?`<div class="ox-context">${esc(q.context)}</div>`:''}<div class="ox-explanation">${safeHtml(q.explanation_html)}</div>${source(q)}<p class="ox-sub">메모: ${esc(n.text)||'작성한 메모가 없어요.'}</p><p class="ox-sub">북마크: ${n.bookmark?'저장됨':'저장하지 않음'}</p></details><div class="ox-row" style="margin-top:14px">${button('다시 풀기','one',`data-id="${q.id}"`,'ox-primary')}${button(n.mastered?'완료 취소':'복습 완료','master',`data-id="${q.id}"`)}</div></article>`;}).join(''):`<div class="ox-empty"><h3>${filter==='미완료'?'지금 복습할 오답이 없어요.':'해당 상태의 문항이 없어요.'}</h3><p class="ox-sub">학습을 이어가면 기록이 여기에 모입니다.</p>${button('단원 골라 풀기','nav','data-route="chapters"')}</div>`}`; }
+    function weakness(){const list=data.chapters.map(chapterStat).sort((a,b)=>a.rank-b.rank||b.score-a.score||data.chapters.indexOf(a.c)-data.chapters.indexOf(b.c)); const visible=allWeak?list:list.slice(0,5); const colors={'매우 취약':'var(--ox-red)','취약':'light-dark(#a95112,#ffb070)','주의':'light-dark(#8b7000,#f2d776)','양호':'var(--ox-green)','데이터 부족':'var(--ox-muted)'}; main.innerHTML=`<span class="ox-eyebrow">FOCUS CHAPTERS</span><h2>다음 공부할 곳이<br>선명해져요.</h2><p class="ox-sub">문항별 최신 답으로 정답률을 계산해요.<br>서로 다른 5문항 이상 풀면 등급이 나타납니다.</p>${visible.map(s=>`<article class="ox-card"><div class="ox-row"><h3>${esc(s.c.display_name)}</h3><span class="ox-badge" style="color:${colors[s.label]}">${s.rank<3?'! ':''}${s.label}</span></div><p class="ox-source">${esc(collections.get(s.c.collection_id).name)} · ${s.c.question_count}문항</p><div class="ox-row" style="margin-top:16px"><span class="ox-sub">최신 정답률</span><strong style="font-size:14px">${s.accuracy===null?'미측정':Math.round(s.accuracy)+'%'}</strong></div>${meter(s.accuracy||0,'최신 정답률',colors[s.label])}<div class="ox-row" style="margin-top:14px"><span class="ox-sub">학습률 · ${s.solved}/${s.c.question_count}</span><strong style="font-size:14px">${Math.round(s.progress)}%</strong></div>${meter(s.progress,'학습률','var(--ox-muted)')}<p class="ox-sub" style="margin-top:16px">${s.rank===5?`서로 다른 ${Math.max(0,Math.min(5,s.c.question_count)-s.solved)}문항을 더 풀고 확인해요.`:s.wrong?`최근에 틀린 ${s.wrong}개 지문부터 확인해요.`:'새로운 지문으로 학습 범위를 넓혀보세요.'}</p>${button('이 단원 학습하기','chapter',`data-id="${s.c.id}"`,'ox-wide')}</article>`).join('')}${button(allWeak?'주요 단원만 보기':'전체 65개 단원 보기','expand-weak','','ox-wide')}`; }
+    function render(){const palette=design.palette==='blue'; root.style.setProperty('--ox-accent',palette?'light-dark(#075da4,#aacfff)':'light-dark(#176451,#9bd9b6)'); root.style.setProperty('--ox-on',palette?'light-dark(#ffffff,#173a61)':'light-dark(#ffffff,#123c2c)'); root.style.setProperty('--ox-bg',palette?'light-dark(#f3f7fb,#17202b)':'light-dark(#f5f6f2,#171e1d)'); root.style.setProperty('--ox-soft',palette?'light-dark(#e8f1fb,#263b52)':'light-dark(#e8efe9,#2b3d34)'); root.style.setProperty('--ox-question-size',design.fontSize+'px'); ({entry,home,chapters:chapterView,quiz,result,review,weak:weakness}[route]||home)(); renderNav(); if(globalThis.lucide)lucide.createIcons({attrs:{width:18,height:18}}); }
+    root.addEventListener('click',e=>{const b=e.target.closest('button[data-action]'); if(!b||b.disabled)return; const action=b.dataset.action,id=b.dataset.id;
+      if(action==='nav'){route=b.dataset.route;}
+      else if(action==='collection'){collection=id;allChapters=false;}
+      else if(action==='expand-chapters')allChapters=!allChapters;
+      else if(action==='expand-weak')allWeak=!allWeak;
+      else if(action==='daily'){daily();return;}
+      else if(action==='resume')route='quiz';
+      else if(action==='chapter'){start(data.questions.filter(q=>q.chapter_id===id).map(q=>q.id),chapters.get(id).display_name+' · 대표 문항');return;}
+      else if(action==='one'){start([id],'오답 다시 풀기');return;}
+      else if(action==='leave')route=origin;
+      else if(action==='answer'){if(session.answers[session.index])return; const q=byId.get(session.ids[session.index]), answer=b.dataset.answer; add(q.id,answer); session.answers[session.index]={id:q.id,answer,correct:answer===q.correct_answer};}
+      else if(action==='next'){if(!session.answers[session.index])return;session.index++; if(session.index===session.ids.length)route='result';}
+      else if(action==='retry-session'){start(session.answers.filter(a=>!a.correct).map(a=>a.id),'방금 틀린 문제');return;}
+      else if(action==='bookmark')note(id).bookmark=!note(id).bookmark;
+      else if(action==='memo'){note(id).text=root.querySelector('#ox-memo').value; root.querySelector('#ox-message').textContent='시안에 메모를 저장했어요.';return;}
+      else if(action==='master')note(id).mastered=!note(id).mastered;
+      else if(action==='filter')filter=b.dataset.filter;
+      else if(action==='review-all'){start(reviews().filter(s=>filter==='미완료'?s.label!=='복습 완료':s.label===filter).map(s=>s.q.id),'오답 모아 풀기');return;}
+      render();
+    });
+    render();
+    if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:render}); tweak.addSelect(design,'category',{label:'수강생 화면',options:[{label:'인터넷 수강생',value:'lecture'},{label:'온라인 관리반',value:'online'},{label:'오프라인 수강생',value:'offline'}]}); tweak.addSelect(design,'palette',{label:'강조색',options:[{label:'기존 앱 파랑',value:'blue'},{label:'차분한 청록',value:'teal'}]}); tweak.addSlider(design,'fontSize',{label:'지문 크기',min:17,max:23,unit:'px'}); tweak.addToggle(design,'newUser',{label:'첫 사용자 상태 보기'});}
+  })();
+  </script>
+</div>
+
+<script src="https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js"></script>
+<script src="https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js"></script>
+<script>
+(() => {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =>
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest("[data-tooltip]")
+      : null;
+  const containsTarget = (trigger, target) =>
+    target?.nodeType != null && trigger.contains(target);
+  const getContent = (trigger) =>
+    trigger.getAttribute("data-tooltip")?.trim() ?? "";
+  const getPlacement = (trigger) => {
+    const placement = trigger.getAttribute("data-tooltip-placement");
+    return tooltipPlacements.has(placement) ? placement : "top";
+  };
+  const getTooltip = () => {
+    if (tooltip == null) {
+      tooltip = document.createElement("div");
+      tooltip.id = tooltipId;
+      tooltip.className = "tooltip";
+      tooltip.setAttribute("role", "tooltip");
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) => {
+    const ids = new Set(
+      (trigger.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute("aria-describedby");
+    } else {
+      trigger.setAttribute("aria-describedby", [...ids].join(" "));
+    }
+  };
+  const clearOpenTimeout = () => {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) => {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) => {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              "--tooltip-available-width",
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              "--tooltip-available-height",
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: "fixed",
+    })
+      .then(({ x, y }) => {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = "visible";
+      })
+      .catch(() => {
+        if (activeTrigger === trigger && request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) => {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = "hidden";
+    floating.style.transform = "translate(0, 0)";
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () => {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) => {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() < skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() => {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) => {
+    lastPointerWasTouch =
+      event.type === "pointerdown" && event.pointerType === "touch";
+  };
+  const handleTouchClick = (event) => {
+    const isTouch = event.pointerType === "touch" || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch && activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() => {
+      if (activeTrigger === trigger && !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) => {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) => {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(":focus-visible")) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) => {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () => {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener("pointerover", handlePointerOpen);
+    document.removeEventListener("pointerdown", handlePointer);
+    document.removeEventListener("pointercancel", handlePointer);
+    document.removeEventListener("click", handleTouchClick);
+    document.removeEventListener("pointerout", handleLeave);
+    document.removeEventListener("focusin", handleFocusIn);
+    document.removeEventListener("focusout", handleLeave);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("contextmenu", handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener("pointerover", handlePointerOpen);
+  document.addEventListener("pointerdown", handlePointer);
+  document.addEventListener("pointercancel", handlePointer);
+  document.addEventListener("click", handleTouchClick);
+  document.addEventListener("pointerout", handleLeave);
+  document.addEventListener("focusin", handleFocusIn);
+  document.addEventListener("focusout", handleLeave);
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("contextmenu", handleContextMenu);
+  window.addEventListener("pagehide", destroy, { once: true });
+})();
+</script>
+<script id="codex-visualization-tabs">
+(() => {
+  const selector = '.nav[role="tablist"] [role="tab"]';
+  const disabled = ':disabled,[aria-disabled="true"]';
+  const selectTab = (selected) => {
+    const panelId = selected.getAttribute("aria-controls");
+    for (const tab of selected.closest('[role="tablist"]').querySelectorAll('[role="tab"]')) {
+      const active = tab === selected;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+      const id = tab.getAttribute("aria-controls");
+      const panel = id && document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden && selected.id) {
+          panel.setAttribute("aria-labelledby", selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) => {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === "click") {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]'),
+    ).filter((candidate) => !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll('.nav[role="tablist"]')) {
+    const selected =
+      list.querySelector('[role="tab"][aria-selected="true"]') ??
+      list.querySelector('[role="tab"].active') ??
+      list.querySelector('[role="tab"]');
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener("click", interact);
+  document.addEventListener("keydown", interact);
+  window.addEventListener("pagehide", () => {
+    document.removeEventListener("click", interact);
+    document.removeEventListener("keydown", interact);
+  }, { once: true });
+})();
+</script>
+<script id="codex-visualization-lucide" async src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<script>
+(() => {
+  const initialize = () => {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById("codex-visualization-lucide")
+    ?.addEventListener("load", initialize, { once: true });
+})();
+</script>
+
+
+<style>
+html,body {margin:0;padding:0!important;background:transparent!important;overflow:hidden;}
+#criminal-ox-preview .ox-caption,
+#criminal-ox-preview .ox-header,
+#criminal-ox-preview .ox-app-nav {display:none!important;}
+#criminal-ox-preview .ox-phone {max-width:none;border:0;border-radius:14px;}
+#criminal-ox-preview .ox-content {min-height:0;}
+#criminal-ox-preview .ox-footnote {max-width:none;margin:12px 4px;}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('criminal-ox-preview');
+  let lastHeight = 0;
+  const report = () => {
+    const height = Math.ceil(root.getBoundingClientRect().height + 16);
+    if (height === lastHeight) return;
+    lastHeight = height;
+    parent.postMessage({type:'criminal-law-ox-preview-height',height}, '*');
+  };
+  new ResizeObserver(report).observe(root);
+  report();
+})();
+</script>
+</body>
+</html>

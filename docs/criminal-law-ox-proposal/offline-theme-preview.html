@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>형사법 OX · 오프라인 밝은 테마</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="../../criminal-law-ox.css">
+  <style>
+    .theme-preview { max-width:432px; margin:auto; padding:24px 24px 128px; }
+    .theme-preview-label { margin:0 0 24px; color:var(--muted); font-size:.72rem; line-height:1.7; }
+    .theme-preview .student-notices-head { margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <main class="theme-preview criminal-law-ox-local-page">
+    <p class="theme-preview-label">오프라인 수강생 · 밝은 테마 미리보기<br>예시 기록으로 확인하며 실제 학습 기록에는 저장되지 않습니다.</p>
+    <div class="student-notices-head">
+      <h2>형사법 OX</h2>
+      <div class="criminal-law-ox-header-actions">
+        <button id="preview-bookmarks" class="mini-btn criminal-law-ox-bookmarks-button" aria-label="북마크한 문제">
+          <svg class="criminal-law-ox-bookmarks-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z"/></svg>
+          북마크
+        </button>
+        <button id="preview-home" class="mini-btn">홈</button>
+      </div>
+    </div>
+    <div id="preview-content"></div>
+  </main>
+  <footer class="student-footer-menu normal-student-footer" aria-label="오프라인 수강생 메뉴">
+    <a href="../../#home" class="active"><span class="footer-icon footer-icon-home" aria-hidden="true"></span><span>홈</span></a>
+    <a href="../../#attendance"><span class="footer-icon footer-icon-attendance" aria-hidden="true"></span><span>출석</span></a>
+    <a href="../../#student"><span class="footer-icon footer-icon-outing" aria-hidden="true"></span><span>외출</span></a>
+    <a href="../../#grades"><span class="footer-icon footer-icon-grades" aria-hidden="true"></span><span>성적</span></a>
+    <a href="../../#mypage"><span class="footer-icon footer-icon-mypage" aria-hidden="true"></span><span>마이</span></a>
+  </footer>
+  <script type="module">
+    import {mount} from './local-app-preview.js';
+    const host = document.getElementById('preview-content');
+    let controller = mount(host);
+    document.getElementById('preview-bookmarks').onclick = () => controller.openBookmarks();
+    document.getElementById('preview-home').onclick = () => { controller = mount(host); };
+  </script>
+</body>
+</html>

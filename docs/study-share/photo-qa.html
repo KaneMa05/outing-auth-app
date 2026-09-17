@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>기록 공유 사진 로컬 검증</title>
+<link rel="stylesheet" href="/styles.css">
+<style>body{padding:24px;background:#edf3f8}main{max-width:560px;margin:auto}#results{white-space:pre-wrap;color:#123}button{margin:4px}</style>
+<main><h1>기록 공유 사진 검증</h1><p>앱 로고를 테스트 이미지로 사용합니다. 서버로 업로드하지 않습니다.</p>
+<button id="run">사진 기능 자동 검증</button><button id="preview">사진 합성 미리보기</button><pre id="results" role="status">검증 대기</pre></main>
+<script src="/study-record-share.js"></script>
+<script>
+const results=document.querySelector('#results');
+const log=message=>{results.textContent+='\n'+message;};
+const check=(value,message)=>{if(!value)throw Error(message);log('PASS '+message);};
+const pause=()=>new Promise(resolve=>setTimeout(resolve,30));
+async function waitFor(predicate){for(let i=0;i<200;i++){if(predicate())return;await pause();}throw Error('Timed out');}
+function data(period){const count=period==='daily'?1:period==='weekly'?7:30;const days=Array.from({length:count},(_,i)=>({date:'2026-09-'+String(i+1).padStart(2,'0'),totalSeconds:27000,longestSeconds:10800,firstStartedAt:'2026-09-01T00:00:00Z',lastEndedAt:'2026-09-01T09:00:00Z'}));return{dateFrom:days[0].date,dateTo:days.at(-1).date,days,summary:{totalSeconds:count*27000},subjectTotals:{'해양경찰학':count*10800,'해사법규':count*9000,'항해학':count*7200},serverNow:'2026-09-30T09:00:00Z'};}
+const plans=async()=>Array.from({length:30},(_,i)=>({studyDate:'2026-09-'+String(i+1).padStart(2,'0'),total:10,completed:8}));
+const named=(name)=>Array.from(document.querySelectorAll('dialog button')).find(button=>button.textContent===name);
+const preview=()=>document.querySelector('.study-record-share-image');
+async function choose(file){const input=document.querySelector('input[aria-label="앨범 사진 선택"]');const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));await waitFor(()=>!named('사진 인증').disabled);await waitFor(()=>preview().complete&&preview().naturalWidth>0);}
+async function fixture(){const blob=await (await fetch('/icon-512.png')).blob();return new File([blob],'test-photo.png',{type:'image/png'});}
+async function open(period,photoState){await StudyRecordShare.open({data:data(period),period,today:'2026-09-30',loadPlans:plans,photoState});await waitFor(()=>preview().complete&&preview().naturalWidth>0);}
+document.querySelector('#run').onclick=async()=>{
+ results.textContent='검증 중';
+ try{
+  const photo=await fixture();const photoState={image:null};const cardHeights=[];
+  for(const period of ['daily','weekly','monthly']){
+   await open(period,photoState);const oldHeight=preview().naturalHeight;const oldSrc=preview().src;
+   check(preview().naturalWidth===1080&&oldHeight>1080,period+' 기록 카드 원래 너비와 내용 높이로 출력');cardHeights.push(oldHeight);
+   check(named('기록 카드').getAttribute('aria-pressed')==='true'&&!named('이미지 저장').disabled,period+' 기록 카드 기본 선택과 즉시 저장');
+   check(document.querySelector('.study-record-share-actions').children.length===2,period+' 하단 저장과 공유만 표시');
+   named('사진 인증').click();
+   check(!document.querySelector('.study-record-share-photo-picker').hidden&&preview().hidden&&named('이미지 저장').disabled,period+' 사진 선택 전 촬영 안내와 저장 비활성');
+   document.querySelector('input[aria-label="촬영 사진 선택"]').dispatchEvent(new Event('cancel'));
+   check(named('사진 인증').getAttribute('aria-pressed')==='true',period+' 촬영 취소 후 형식 유지');
+   await choose(photo);check(!!named('사진 변경'),period+' 사진 로드 성공');
+   check(preview().src!==oldSrc&&preview().naturalHeight===1440,period+' 사진과 기록 정방형 합성');
+   check(preview().naturalWidth===1440,period+' PNG 너비 1440');
+   check(!named('이미지 저장').disabled,period+' 저장 활성화');
+   const image=photoState.image;
+   named('기록 카드').click();await waitFor(()=>!preview().hidden&&!named('이미지 저장').disabled);await waitFor(()=>preview().complete&&preview().naturalHeight===oldHeight);
+   check(photoState.image===image,period+' 기록 카드 전환 시 사진 보관');
+   named('사진 인증').click();await waitFor(()=>!preview().hidden&&!named('이미지 저장').disabled);await waitFor(()=>preview().complete&&preview().naturalHeight===1440);
+   check(photoState.image===image,period+' 사진 인증 복귀 시 기존 사진 복원');
+   named('사진 변경').click();check(!named('사진 삭제').hidden,period+' 삭제 메뉴');
+   named('사진 삭제').click();check(photoState.image===null&&preview().hidden&&named('이미지 저장').disabled,period+' 사진 삭제 후 선택 화면');
+   named('기록 카드').click();await waitFor(()=>!preview().hidden&&!named('이미지 저장').disabled);await waitFor(()=>preview().complete&&preview().naturalHeight===oldHeight);
+   check(named('기록 카드').getAttribute('aria-pressed')==='true',period+' 기본 카드 복원');
+   StudyRecordShare.close();
+  }
+  check(new Set(cardHeights).size===3,'일간·주간·월간 기록 카드가 내용에 따라 서로 다른 높이로 저장');
+  await open('daily',photoState);named('사진 인증').click();await choose(photo);
+  const selected=photoState.image;
+  await choose(new File(['broken'],'broken.png',{type:'image/png'}));
+  check(photoState.image===selected&&!named('이미지 저장').disabled,'손상된 사진 선택 시 기존 사진 유지');
+  check(document.querySelector('.study-record-share-status').textContent.includes('열 수 없어요'),'잘못된 사진 안내');
+  await open('monthly',photoState);check(!!named('사진 변경'),'기간 변경 시 사진 유지');
+  const checkbox=document.querySelector('.study-record-share-fields input');const before=preview().src;checkbox.click();await waitFor(()=>preview().src!==before&&!named('이미지 저장').disabled);check(photoState.image===selected,'표시 항목 변경 시 사진 유지');
+  for(const period of ['daily','weekly','monthly']){
+   await open(period,photoState);
+   named('사진 인증').click();await waitFor(()=>!preview().hidden&&!named('이미지 저장').disabled);
+   check(!document.querySelector('.study-record-share-ratio').hidden,period+' 사진 인증에서만 비율 설정 표시');
+    for(const [ratio,height] of [['1:1',1440],['3:4',1920],['9:16',2560]]){
+     const input=document.querySelector('select[aria-label="이미지 비율"]');const old=preview().src;
+     input.value=ratio;input.dispatchEvent(new Event('change',{bubbles:true}));
+     await waitFor(()=>preview().src!==old&&!preview().hidden&&!named('이미지 저장').disabled);
+     await waitFor(()=>preview().complete&&preview().naturalWidth===1440&&preview().naturalHeight===height);
+     check(photoState.ratio===ratio,period+' 사진 인증 '+ratio+' 실제 PNG 크기 확인');
+    }
+   named('기록 카드').click();await waitFor(()=>!preview().hidden&&!named('이미지 저장').disabled);await waitFor(()=>preview().complete&&preview().naturalHeight>0&&preview().naturalWidth===1080);
+   check(document.querySelector('.study-record-share-ratio').hidden&&photoState.ratio==='9:16',period+' 기록 카드는 내용에 맞게 저장, 사진 비율은 유지');
+  }
+  await open('daily',photoState);check(document.querySelector('select').value==='9:16','기간 변경 시 비율 유지');
+  StudyRecordShare.close();log('전체 검증 완료');
+ }catch(error){StudyRecordShare.close();log('FAIL '+error.message);}
+};
+document.querySelector('#preview').onclick=async()=>{await open('daily',{image:null});named('사진 인증').click();await choose(await fixture());};
+</script>
+</html>

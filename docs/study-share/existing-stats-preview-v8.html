@@ -1,0 +1,252 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>기존 통계 기반 기록 공유 시안</title><link rel="stylesheet" href="../../styles.css"><style>
+body{padding:28px!important;background:#edf1f5!important}body::after{display:none!important}h1.board-title{font:700 24px 'Gong Gothic Light',sans-serif!important;color:#132238!important;margin:0 0 9px}.board-note{margin:0 0 24px;color:#536377;font-size:13px;line-height:1.6}.boards{display:grid;grid-template-columns:repeat(3,390px);gap:22px;align-items:start}.period-label{font-size:17px;color:#132238;margin:0 0 12px}.mock-screen{background:#0b2746;padding:16px;border:1px solid #cad4df;border-radius:18px}.mock-stack{display:grid;gap:12px}.mock-screen button{font-family:inherit;cursor:pointer}.share-entry{width:100%;min-height:46px;border:1px solid #075da4;border-radius:12px;background:#075da4;color:#fff;font-size:14px;font-weight:700}.share-entry-top{width:auto;min-height:40px;padding:8px 12px;border-color:#87a8c2;border-radius:9px;background:transparent;color:#fff;font-size:12px;white-space:nowrap;align-self:end}.preview-head{display:flex;align-items:center;gap:12px;color:#fff;font-size:16px;padding:4px 0 10px}.preview-back{border:0;background:transparent;color:inherit;font-size:25px;padding:0 8px 0 0}.share-sheet{background:#fff;border-radius:12px;padding:12px;display:grid;gap:12px}.sheet-head{display:flex;justify-content:space-between;align-items:center;padding:6px 3px 0;color:#132238;font-size:12px}.sheet-head span{color:#64748b;font-size:11px}.share-sheet .study-timer-stats-calendar-card{padding:12px 9px}.share-sheet .study-timer-stats-summary,.share-sheet .study-timer-subject-stats{padding:14px 11px}.share-sheet .study-timer-subject-stats-list article{gap:5px;grid-template-columns:8px minmax(64px,auto) minmax(24px,1fr) auto}.share-sheet .study-timer-subject-stats-list article>strong{font-size:.68rem}.share-sheet .study-timer-monthly-day time{font-size:.44rem}.share-sheet .study-timer-stats-date-nav{grid-template-columns:1fr}.share-sheet .study-timer-stats-date-nav strong{font-size:.94rem}.share-completion{border-top:1px solid #e6edf4;padding:12px 3px 1px;display:flex;justify-content:space-between;font-size:12px;color:#42556a}.share-completion strong{color:#06386f}.preview-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.preview-actions .save{background:white;color:#075da4}.prototype-note{color:#cbd5e1;font-size:11px;text-align:center;margin:0;line-height:1.5}.board-foot{margin-top:18px;font-size:12px;color:#64748b}.mock-screen .study-timer-page-head h2{font-family:'Hakgyoansim Poster B',sans-serif}html{scrollbar-gutter:auto}@media(max-width:700px){body{padding:16px!important}.boards{grid-template-columns:minmax(0,390px);justify-content:center}.mock-screen{padding:12px}}
+.study-timer-weekly-chart{gap:6px}.chart-time-unit{margin:0;color:var(--muted);font-size:.62rem;text-align:right}.study-timer-weekly-day>time{font-variant-numeric:tabular-nums;font-size:.6rem}.study-timer-monthly-day time,.share-sheet .study-timer-monthly-day time{font-variant-numeric:tabular-nums;font-size:.55rem;white-space:nowrap}
+</style></head><body class="student-online-mode"><h1 class="board-title">통계 화면 · 기존 구성 유지</h1><p class="board-note">‘타이머 통계’ 제목 오른쪽에서 선택한 기간의 기록을 공유합니다.</p><main class="boards"></main><p class="board-foot">디자인 검토용 · 모든 수치는 기간 종료 후를 가정한 예시입니다.</p><script>
+function el(tag, props = {}, children = []) {
+  const node = document.createElement(tag);
+  Object.entries(props).forEach(([key, value]) => {
+    if (key === "className") node.className = value;
+    else if (key === "style") node.setAttribute("style", value);
+    else if (key === "ariaModal") node.setAttribute("aria-modal", value);
+    else if (key === "ariaLabel") node.setAttribute("aria-label", value);
+    else if (key in node) node[key] = value;
+    else node.setAttribute(key, value);
+  });
+
+  const items = Array.isArray(children) ? children : [children];
+  items.flat().forEach((child) => {
+    if (child === null || child === undefined || child === "") return;
+    node.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
+  });
+  return node;
+}
+
+
+
+
+
+
+function button(text, className, type = "submit", onClick, children = null) {
+  const node = el("button", { className, type }, children || text);
+  if (onClick) node.addEventListener("click", onClick);
+  return node;
+}
+
+function renderStudyTimerDailyOverview(data) {
+  const day = data.days?.[0] || {};
+  return el("div", { className: "study-timer-daily-overview" }, [
+    el("div", { className: "study-timer-daily-total" }, [
+      el("span", {}, formatStudyTimerStatsDayLabel(day.date)),
+      el("strong", {}, formatStudyCafeElapsed((day.totalSeconds || 0) * 1000)),
+      day.totalSeconds ? null : el("p", {}, "아직 기록된 공부시간이 없습니다."),
+    ]),
+    el("div", { className: "study-timer-daily-details" }, [
+      renderStudyTimerDailyMetric("최대 집중시간", formatStudyCafeElapsed((day.longestSeconds || 0) * 1000)),
+      renderStudyTimerDailyMetric("시작시간", formatStudyTimerStatsClock(day.firstStartedAt)),
+      renderStudyTimerDailyMetric("종료시간", formatStudyTimerStatsClock(day.lastEndedAt)),
+    ]),
+  ]);
+}
+
+function renderStudyTimerDailyMetric(label, value) {
+  return el("div", {}, [
+    el("span", {}, label),
+    el("strong", {}, value || "-"),
+  ]);
+}
+
+function renderStudyTimerWeeklyChart(data) {
+  const days = Array.isArray(data.days) ? data.days : [];
+  const maximum = Math.max(1, ...days.map((day) => Number(day.totalSeconds) || 0));
+  return el("div", { className: "study-timer-weekly-chart" }, [
+    el(
+      "div",
+      { className: "study-timer-weekly-bars" },
+      days.map((day) => {
+        const seconds = Number(day.totalSeconds) || 0;
+        const height = seconds ? Math.max(10, Math.round((seconds / maximum) * 100)) : 4;
+        return el("div", { className: `study-timer-weekly-day ${seconds ? "studied" : ""}` }, [
+          el("time", {}, seconds ? formatStudyShareChartDuration(seconds) : "-"),
+          el("span", { className: "study-timer-weekly-bar-track" }, [
+            el("i", { style: `height:${height}%` }),
+          ]),
+          el("strong", {}, formatStudyTimerStatsWeekday(day.date)),
+          el("small", {}, String(Number(day.date?.slice(-2)) || "")),
+        ]);
+      })
+    ),
+  ]);
+}
+
+function renderStudyTimerMonthlyCalendar(data) {
+  const days = Array.isArray(data.days) ? data.days : [];
+  const firstDate = parseStudyTimerDateKey(days[0]?.date);
+  const leading = firstDate ? firstDate.getDay() : 0;
+  const maximum = Math.max(1, ...days.map((day) => Number(day.totalSeconds) || 0));
+  return el("div", { className: "study-timer-monthly-calendar" }, [
+    el(
+      "div",
+      { className: "study-timer-monthly-weekdays" },
+      ["일", "월", "화", "수", "목", "금", "토"].map((day) => el("span", {}, day))
+    ),
+    el("div", { className: "study-timer-monthly-days" }, [
+      ...Array.from({ length: leading }, () => el("span", { className: "study-timer-monthly-day blank" })),
+      ...days.map((day) => {
+        const seconds = Number(day.totalSeconds) || 0;
+        const level = seconds ? Math.max(1, Math.ceil((seconds / maximum) * 4)) : 0;
+        const isToday = day.date === formatStudyBusinessDateKey(new Date());
+        return el("article", {
+          className: `study-timer-monthly-day level-${level} ${isToday ? "today" : ""}`,
+          title: `${day.date} ${formatStudyCafeElapsed(seconds * 1000)}`,
+        }, [
+          el("strong", {}, String(Number(day.date?.slice(-2)) || "")),
+          seconds ? el("time", {}, formatStudyShareChartDuration(seconds)) : null,
+        ]);
+      }),
+    ]),
+    el("div", { className: "study-timer-monthly-legend" }, [
+      el("span", {}, "적게"),
+      ...[0, 1, 2, 3, 4].map((level) => el("i", { className: `level-${level}` })),
+      el("span", {}, "많이"),
+    ]),
+  ]);
+}
+
+function renderStudyTimerStatsSummary(data) {
+  const summary = data.summary || {};
+  const periodLabel = studyTimerStatsState.period === "daily"
+    ? "선택일"
+    : studyTimerStatsState.period === "weekly"
+      ? "선택 주"
+      : "선택 월";
+  return el("section", { className: "study-timer-stats-summary" }, [
+    el("div", { className: "study-timer-stats-summary-head" }, [
+      el("span", {}, periodLabel),
+      el("strong", {}, studyTimerStatsState.period === "daily" ? formatStudyTimerStatsRangeLabel(data) : `${data.dateFrom} ~ ${data.dateTo}`),
+    ]),
+    el("div", { className: "study-timer-stats-summary-grid" }, [
+      renderStudyTimerStatsMetric("총 순공시간", formatStudyCafeElapsed((summary.totalSeconds || 0) * 1000)),
+      renderStudyTimerStatsMetric("공부한 날", `${summary.studiedDays || 0}일`),
+      renderStudyTimerStatsMetric("하루 평균", formatStudyCafeElapsed((summary.dailyAverageSeconds || 0) * 1000)),
+      renderStudyTimerStatsMetric("최고 기록", formatStudyCafeElapsed((summary.maxDailySeconds || 0) * 1000)),
+    ]),
+  ]);
+}
+
+function renderStudyTimerStatsMetric(label, value) {
+  return el("div", {}, [
+    el("span", {}, label),
+    el("strong", {}, value),
+  ]);
+}
+
+function renderStudyTimerSubjectStats(data) {
+  const entries = Object.entries(data.subjectTotals || {})
+    .map(([subject, seconds]) => ({ subject, seconds: Number(seconds) || 0 }))
+    .filter((item) => item.seconds > 0)
+    .sort((left, right) => right.seconds - left.seconds);
+  const maximum = Math.max(1, ...entries.map((item) => item.seconds));
+  return el("section", { className: "study-timer-subject-stats" }, [
+    el("div", { className: "study-timer-subject-stats-head" }, [
+      el("strong", {}, "과목별 순공시간"),
+      el("span", {}, `${entries.length}개 과목`),
+    ]),
+    entries.length
+      ? el("div", { className: "study-timer-subject-stats-list" }, entries.map((item, index) =>
+          el("article", {}, [
+            el("span", { className: `study-timer-subject-stat-dot tone-${index % 6}` }),
+            el("strong", {}, item.subject),
+            el("span", { className: "study-timer-subject-stat-bar" }, [
+              el("i", { style: `width:${Math.max(5, Math.round((item.seconds / maximum) * 100))}%` }),
+            ]),
+            el("time", {}, formatStudyCafeElapsed(item.seconds * 1000)),
+          ])
+        ))
+      : el("div", { className: "empty" }, "이 기간에는 과목별 공부 기록이 없습니다."),
+  ]);
+}
+
+function formatStudyTimerStatsRangeLabel(range) {
+  const start = parseStudyTimerDateKey(range.dateFrom);
+  const end = parseStudyTimerDateKey(range.dateTo);
+  if (!start || !end) return "";
+  if (studyTimerStatsState.period === "monthly") {
+    return `${start.getFullYear()}년 ${start.getMonth() + 1}월`;
+  }
+  if (studyTimerStatsState.period === "weekly") {
+    return `${start.getMonth() + 1}.${start.getDate()} – ${end.getMonth() + 1}.${end.getDate()}`;
+  }
+  return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일`;
+}
+
+function formatStudyTimerStatsDayLabel(dateKey) {
+  const date = parseStudyTimerDateKey(dateKey);
+  if (!date) return "선택한 날짜";
+  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${new Intl.DateTimeFormat("ko-KR", { weekday: "short" }).format(date)})`;
+}
+
+function formatStudyTimerStatsWeekday(dateKey) {
+  const date = parseStudyTimerDateKey(dateKey);
+  return date ? new Intl.DateTimeFormat("ko-KR", { weekday: "short" }).format(date).replace("요일", "") : "";
+}
+
+function formatStudyTimerStatsClock(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+function formatStudyCafeCompactDuration(seconds) {
+  const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes}분`;
+  return minutes ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+}
+
+function formatStudyCafeElapsed(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000));
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function parseStudyTimerDateKey(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+}
+
+function formatStudyBusinessDateKey(value = new Date()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const shiftedKst = new Date(date.getTime() + 5 * 60 * 60 * 1000);
+  return [
+    shiftedKst.getUTCFullYear(),
+    String(shiftedKst.getUTCMonth() + 1).padStart(2, "0"),
+    String(shiftedKst.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function formatStudyShareChartDuration(seconds){const minutes=Math.floor(Math.max(0,Number(seconds)||0)/60);return Math.floor(minutes/60)+':'+String(minutes%60).padStart(2,'0');}
+const studyTimerStatsState = {period:'daily'};
+const periods=['daily','weekly','monthly'];
+const labels={daily:'일간',weekly:'주간',monthly:'월간'};
+const hours=[6,7.5,5.5,6.5,7,6,4];
+const daily={date:'2026-09-15',totalSeconds:27000,longestSeconds:10800,sessionCount:3,firstStartedAt:'2026-09-15T09:00:00+09:00',lastEndedAt:'2026-09-15T18:00:00+09:00'};
+const monthlyDays=Array.from({length:30},(_,i)=>({date:'2026-09-'+String(i+1).padStart(2,'0'),totalSeconds:[6,13,20,27].includes(i+1)?0:21600}));
+monthlyDays[13].totalSeconds=21600;monthlyDays[14].totalSeconds=27000;monthlyDays[15].totalSeconds=19800;monthlyDays[16].totalSeconds=23400;monthlyDays[17].totalSeconds=25200;monthlyDays[18].totalSeconds=21600;monthlyDays[19].totalSeconds=14400;monthlyDays[0].totalSeconds=9000;monthlyDays[1].totalSeconds=10800;
+const examples={daily:{dateFrom:'2026-09-15',dateTo:'2026-09-15',days:[daily],subjectTotals:{'해양경찰학':10800,'해사법규':9000,'항해학':7200},summary:{totalSeconds:27000,studiedDays:1,dailyAverageSeconds:27000,maxDailySeconds:27000},todo:[6,8]},weekly:{dateFrom:'2026-09-14',dateTo:'2026-09-20',days:hours.map((h,i)=>({date:'2026-09-'+(14+i),totalSeconds:h*3600})),subjectTotals:{'해양경찰학':61200,'해사법규':52200,'항해학':39600},summary:{totalSeconds:153000,studiedDays:7,dailyAverageSeconds:21857,maxDailySeconds:27000},todo:[34,40]},monthly:{dateFrom:'2026-09-01',dateTo:'2026-09-30',days:monthlyDays,subjectTotals:{'해양경찰학':223200,'해사법규':194400,'항해학':144000},summary:{totalSeconds:561600,studiedDays:27,dailyAverageSeconds:20800,maxDailySeconds:27000},todo:[120,150]}};
+function graphic(period,data){if(period==='daily')return renderStudyTimerDailyOverview(data);const chart=period==='weekly'?renderStudyTimerWeeklyChart(data):renderStudyTimerMonthlyCalendar(data);chart.prepend(el('p',{className:'chart-time-unit'},'공부시간 (시간:분)'));return chart;}
+function components(period,sharing){studyTimerStatsState.period=period;const data=examples[period];return [el('section',{className:'study-timer-stats-calendar-card'},[el('div',{className:'study-timer-stats-date-nav'},[sharing?null:button('‹','study-timer-stats-date-button','button'),el('strong',{},formatStudyTimerStatsRangeLabel(data)),sharing?null:button('›','study-timer-stats-date-button','button')]),graphic(period,data)]),renderStudyTimerStatsSummary(data),renderStudyTimerSubjectStats(data)]}
+function renderColumn(period,sharing=false){const host=document.getElementById(period);host.replaceChildren();if(!sharing){host.append(el('div',{className:'mock-stack'},[el('header',{className:'study-timer-page-head'},[el('div',{},[el('span',{},'매일 오전 4시에 하루 기록이 새로 시작됩니다'),el('h2',{},'타이머 통계')]),button('기록 공유','share-entry share-entry-top','button',()=>renderColumn(period,true))]),el('nav',{className:'study-timer-mode-tabs'},[button('타이머','study-timer-mode-button','button'),button('통계','study-timer-mode-button active','button')]),el('nav',{className:'study-timer-stats-periods'},periods.map(p=>button(labels[p],'study-timer-stats-period-button'+(p===period?' active':''),'button'))),...components(period,false)]));}else{const data=examples[period];host.append(el('div',{className:'mock-stack'},[el('header',{className:'preview-head'},[button('‹','preview-back','button',()=>renderColumn(period,false)),'기록 공유']),el('section',{className:'share-sheet'},[el('div',{className:'sheet-head'},[el('strong',{},'론박스터디'),el('span',{},labels[period]+' 공부 기록')]),...components(period,true),el('div',{className:'share-completion'},[el('span',{},'할 일 달성률'),el('strong',{},Math.round(data.todo[0]/data.todo[1]*100)+'% · '+data.todo[0]+'/'+data.todo[1]+' 완료')])]),el('div',{className:'preview-actions'},[button('이미지 저장','share-entry save','button',()=>alert('디자인 미리보기입니다. 실제 저장 기능은 구현 전입니다.')),button('공유하기','share-entry','button',()=>alert('디자인 미리보기입니다. 실제 공유 기능은 구현 전입니다.'))]),el('p',{className:'prototype-note'},'디자인 시안 · 저장과 공유는 구현 전입니다.')]));}}
+periods.forEach(period=>{document.querySelector('.boards').append(el('section',{},[el('h2',{className:'period-label'},labels[period]),el('div',{className:'mock-screen',id:period})]));renderColumn(period)});
+window.setPreview=sharing=>{document.querySelector('.board-title').textContent=sharing?'공유 미리보기 · 기존 통계 스타일':'통계 화면 · 기존 구성 유지';document.querySelector('.board-note').textContent=sharing?'같은 그래프와 요약을 이미지로 담고, 하단에서 저장하거나 공유합니다.':'‘타이머 통계’ 제목 오른쪽에서 선택한 기간의 기록을 공유합니다.';periods.forEach(p=>renderColumn(p,sharing));};
+window.previewChecks=()=>periods.map(p=>({period:p,total:examples[p].days.reduce((n,d)=>n+d.totalSeconds,0),summary:examples[p].summary.totalSeconds,studiedDays:examples[p].days.filter(d=>d.totalSeconds>0).length,subjects:Object.values(examples[p].subjectTotals).reduce((n,v)=>n+v,0)}));
+</script></body></html>

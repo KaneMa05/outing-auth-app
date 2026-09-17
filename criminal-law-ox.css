@@ -1,0 +1,255 @@
+/* Scoped OX learning styles. App fonts, header, navigation and shared controls stay untouched. */
+.criminal-law-ox-local-page .criminal-law-ox-header-actions { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.criminal-law-ox-local-page .criminal-law-ox-header-actions .mini-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:28px; height:28px; min-height:28px; padding:0; }
+.criminal-law-ox-local-page .criminal-law-ox-header-actions .criminal-law-ox-bookmarks-button { width:auto; gap:4px; padding:0 8px; font-size:.75rem; }
+.criminal-law-ox-local-page .criminal-law-ox-bookmarks-icon { display:block; width:14px; height:14px; flex:0 0 14px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+#criminal-ox-preview {
+  --ox-paper:var(--surface); --ox-ink:var(--ink); --ox-muted:var(--muted);
+  --ox-line:var(--line); --ox-soft:var(--surface-soft); --ox-accent:var(--accent);
+  --ox-red:var(--danger); --ox-green:var(--ok);
+  color:var(--ox-ink); font:inherit; min-width:0;
+}
+body.student-online-mode #criminal-ox-preview {
+  --ox-paper:#e9f0f2; --ox-ink:#173b52; --ox-muted:#60798c;
+  --ox-line:#d0dde2; --ox-soft:#dde7ea; --ox-accent:var(--online-brand-accent);
+  --ox-green:#1f766f;
+}
+/* Follow the host app's light theme for offline students. */
+body:not(.student-online-mode) #criminal-ox-preview {
+  --ox-paper:var(--surface); --ox-soft:#edf3fa; --ox-line:#dce6f0;
+  --ox-ink:var(--ink); --ox-muted:#596d83; --ox-accent:var(--accent);
+}
+body:not(.student-online-mode) #criminal-ox-preview .ox-nav {
+  background:var(--ox-soft); border:1px solid var(--ox-line);
+}
+body:not(.student-online-mode) #criminal-ox-preview .ox-nav button[aria-current="page"] {
+  background:var(--ox-paper); color:var(--ox-accent);
+  box-shadow:0 2px 6px rgba(19,54,91,.09);
+}
+body:not(.student-online-mode) #criminal-ox-preview :is(.ox-card,.ox-chapter-panel,.ox-review-panel,.ox-quiz-paper,.ox-empty,.ox-result,.ox-completion,.ox-weak-overview,.ox-weak-table) {
+  border:1px solid var(--ox-line); box-shadow:0 4px 14px rgba(19,54,91,.035);
+}
+body:not(.student-online-mode) #criminal-ox-preview :is(.ox-chapter-head,.ox-review-head) {
+  background:#f8fafd;
+}
+body:not(.student-online-mode) #criminal-ox-preview .ox-quiz .ox-answer:not(.ox-selected) {
+  background:#f5f8fc; border-color:#c8d8e9; color:var(--ox-accent);
+}
+body:not(.student-online-mode) #criminal-ox-preview .ox-quiz .ox-answer:disabled:not(.ox-selected) {
+  opacity:.65;
+}
+#criminal-ox-preview .ox-caption,
+#criminal-ox-preview .ox-header,
+#criminal-ox-preview .ox-app-nav,
+#criminal-ox-preview .ox-eyebrow,
+#criminal-ox-preview .ox-nav i { display:none!important; }
+#criminal-ox-preview .ox-phone { background:transparent; }
+#criminal-ox-preview h2 { margin:0 0 8px; font-size:1.06rem; line-height:1.5; letter-spacing:normal; color:var(--ox-ink); }
+#criminal-ox-preview h3 { margin:0; font-size:1rem; line-height:1.5; color:var(--ox-ink); }
+#criminal-ox-preview p { margin:8px 0; }
+#criminal-ox-preview .ox-content { min-width:0; }
+#criminal-ox-preview .ox-page-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin:6px 0 12px; }
+#criminal-ox-preview .ox-page-heading h2 { margin:0; }
+#criminal-ox-preview .ox-page-heading .ox-button { width:auto; flex:0 0 auto; min-height:36px; padding:8px 12px; }
+body.student-online-mode #criminal-ox-preview .ox-page-heading h2 { color:var(--online-ui-text); }
+body.student-online-mode #criminal-ox-preview .ox-page-heading + .ox-sub { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-content > h2 { padding-top:6px; }
+#criminal-ox-preview .ox-content > h2,
+#criminal-ox-preview .ox-content > h2 + .ox-sub { color:var(--ink); }
+body.student-online-mode #criminal-ox-preview .ox-content > h2 { color:var(--online-ui-text); }
+body.student-online-mode #criminal-ox-preview .ox-content > h2 + .ox-sub { color:var(--online-ui-muted); }
+body.student-online-mode #criminal-ox-preview .ox-content > .ox-sub { color:var(--online-ui-muted); }
+body.student-online-mode #criminal-ox-preview .ox-content > [aria-live] > .ox-sub { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-sub { color:var(--ox-muted); font-size:.8rem; line-height:1.65; }
+#criminal-ox-preview .ox-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+#criminal-ox-preview .ox-card { background:var(--ox-paper); border:1px solid var(--ox-line); padding:16px 18px; border-radius:18px; margin-top:10px; box-shadow:none; }
+#criminal-ox-preview .ox-hero { color:var(--ox-ink); }
+#criminal-ox-preview .ox-hero h3 { margin:10px 0 6px; font-size:1.06rem; }
+#criminal-ox-preview .ox-hero > .ox-row > span:first-child { display:none; }
+#criminal-ox-preview .ox-button { max-width:100%; font-family:inherit; font-size:.82rem; }
+#criminal-ox-preview .ox-button.ox-primary,
+#criminal-ox-preview .ox-hero .ox-button.ox-primary { background:var(--ox-accent); color:#fff; }
+#criminal-ox-preview .ox-wide { width:100%; margin-top:12px; }
+#criminal-ox-preview .ox-plain { color:var(--ox-accent); min-height:36px; }
+#criminal-ox-preview .ox-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; padding:5px; margin-bottom:14px; border-radius:14px; background:var(--surface-soft); }
+body.student-online-mode #criminal-ox-preview .ox-nav { background:rgba(255,255,255,.16); border:1px solid rgba(207,226,232,.34); }
+#criminal-ox-preview .ox-nav button { border:0; border-radius:10px; padding:11px 4px; background:transparent; color:var(--ox-muted); font:inherit; font-size:.82rem; cursor:pointer; min-height:42px; }
+body.student-online-mode #criminal-ox-preview .ox-nav button { color:#e8f1f7; }
+#criminal-ox-preview .ox-nav button[aria-current="page"] { background:var(--ox-accent); color:#fff; font-weight:700; }
+#criminal-ox-preview .ox-review-shortcut { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:66px; margin:12px 0 0; padding:16px 18px; border:1px solid var(--ox-line); border-radius:14px; background:var(--ox-paper); color:var(--ox-ink); font:inherit; font-size:.86rem; text-align:left; cursor:pointer; }
+#criminal-ox-preview .ox-review-shortcut-count { display:flex; align-items:center; gap:6px; color:var(--ox-muted); font-size:.76rem; white-space:nowrap; }
+#criminal-ox-preview .ox-review-shortcut-count strong { color:var(--ox-accent); font-size:1.25rem; }
+#criminal-ox-preview .ox-review-shortcut-count > span { margin-left:8px; font-size:1.2rem; }
+#criminal-ox-preview .ox-review-shortcut:disabled { cursor:default; opacity:.65; }
+#criminal-ox-preview .ox-number { font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums; }
+#criminal-ox-preview .ox-number small { color:var(--ox-muted); font-size:.8rem; font-weight:400; }
+#criminal-ox-preview .ox-section { margin-top:18px; }
+#criminal-ox-preview .ox-section > .ox-row > h3 { color:var(--ink); }
+body.student-online-mode #criminal-ox-preview .ox-section > .ox-row > h3 { color:var(--online-ui-text); }
+#criminal-ox-preview .ox-badge { display:inline-block; border-radius:6px; background:var(--ox-soft); color:var(--ox-accent); padding:4px 8px; font-size:.72rem; }
+#criminal-ox-preview .ox-danger { color:var(--ox-red); }
+#criminal-ox-preview .ox-meter { background:var(--ox-soft); height:6px; border-radius:6px; overflow:hidden; margin-top:8px; }
+#criminal-ox-preview .ox-meter > span { display:block; height:100%; background:var(--ox-accent); }
+#criminal-ox-preview .ox-filters { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0; }
+#criminal-ox-preview .ox-filter { min-height:38px; font-size:.78rem; }
+#criminal-ox-preview .ox-filter[aria-pressed="true"] { background:var(--ox-accent); color:#fff; border-color:var(--ox-accent); }
+#criminal-ox-preview .ox-subject-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:18px 0 14px; }
+#criminal-ox-preview .ox-subject-filters .ox-filter { width:100%; min-height:42px; border-radius:10px; }
+#criminal-ox-preview .ox-law-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin:0 0 14px; padding:4px; border:1px solid var(--ox-line); border-radius:12px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-law-filter { min-width:0; min-height:40px; padding:9px 6px; border:0; border-radius:8px; background:transparent; color:var(--ox-muted); font:inherit; font-size:.82rem; cursor:pointer; }
+#criminal-ox-preview .ox-law-filter[aria-pressed="true"] { background:var(--ox-accent); color:#fff; font-weight:700; }
+#criminal-ox-preview .ox-chapter-panel { min-width:0; overflow:hidden; border:1px solid var(--ox-line); border-radius:18px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-chapter-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px 12px; padding:16px; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-chapter-head h3 { font-size:.94rem; }
+#criminal-ox-preview .ox-chapter-head .ox-sub { font-size:.74rem; }
+#criminal-ox-preview .ox-chapter-list { padding:0 16px; }
+#criminal-ox-preview .ox-chapter { width:100%; display:grid; grid-template-columns:22px minmax(0,1fr) 10px; gap:10px; align-items:center; text-align:left; font:inherit; padding:15px 0; border:0; border-radius:0; background:transparent; color:var(--ox-ink); cursor:pointer; }
+#criminal-ox-preview .ox-chapter + .ox-chapter { border-top:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-chapter-index { align-self:start; padding-top:3px; font-size:.72rem; font-variant-numeric:tabular-nums; color:var(--ox-muted); }
+#criminal-ox-preview .ox-chapter-body { min-width:0; flex:1; }
+#criminal-ox-preview .ox-chapter-body strong { display:block; font-size:.94rem; line-height:1.5; overflow-wrap:anywhere; }
+#criminal-ox-preview .ox-chapter-meta { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 8px; margin-top:5px; font-size:.72rem; line-height:1.5; color:var(--ox-muted); }
+#criminal-ox-preview .ox-chapter-started { color:var(--ox-green); }
+#criminal-ox-preview .ox-chapter .ox-meter { height:4px; margin-top:9px; }
+#criminal-ox-preview .ox-chapter-chevron { color:var(--ox-muted); font-size:1.05rem; }
+#criminal-ox-preview .ox-chapter-bottom { border-top:1px solid var(--ox-line); padding:4px 16px; }
+#criminal-ox-preview .ox-chapter-more { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:46px; padding:10px; border:0; border-radius:10px; background:transparent; color:var(--ox-accent); font:inherit; font-size:.8rem; cursor:pointer; }
+#criminal-ox-preview .ox-question { margin:18px 0; background:var(--ox-paper); border-radius:18px; padding:22px 18px; font-size:1.1rem; line-height:1.95; word-break:keep-all; overflow-wrap:anywhere; }
+#criminal-ox-preview .ox-context { padding:14px 18px; border-radius:14px; background:var(--ox-paper); font-size:.85rem; line-height:1.8; margin-top:14px; }
+#criminal-ox-preview .ox-answer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+#criminal-ox-preview .ox-answer { display:flex; flex-direction:column; gap:0; min-height:56px; border:1px solid var(--ox-line); border-radius:10px; background:var(--ox-paper); color:var(--ox-ink); }
+#criminal-ox-preview .ox-answer b { font-size:1.9rem; font-weight:700; }
+#criminal-ox-preview .ox-answer small { font-size:.78rem; }
+#criminal-ox-preview .ox-answer.ox-selected { background:var(--ox-accent); border-color:var(--ox-accent); color:#fff; opacity:1; }
+#criminal-ox-preview .ox-explanation { font-size:.94rem; line-height:1.95; margin-top:14px; word-break:keep-all; overflow-wrap:anywhere; }
+#criminal-ox-preview .ox-explanation u { text-underline-offset:.19em; text-decoration-thickness:.09em; }
+#criminal-ox-preview .ox-question-stats { margin-top:18px; padding:10px 0 0; border-top:1px solid var(--ox-line); color:var(--ox-muted); }
+#criminal-ox-preview .ox-question-stats-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.72rem; }
+#criminal-ox-preview .ox-question-stats-heading > span { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+#criminal-ox-preview .ox-question-stats-heading strong { color:var(--ox-muted); font-size:.78rem; font-weight:500; font-variant-numeric:tabular-nums; }
+#criminal-ox-preview .ox-correct { color:var(--ox-green); }
+#criminal-ox-preview .ox-incorrect { color:var(--ox-red); }
+#criminal-ox-preview .ox-source { font-size:.72rem; color:var(--ox-muted); line-height:1.7; margin-top:14px; overflow-wrap:anywhere; }
+#criminal-ox-preview details { margin-top:12px; }
+#criminal-ox-preview summary { color:var(--ox-accent); font-size:.82rem; cursor:pointer; min-height:42px; padding:11px 0; }
+#criminal-ox-preview .ox-note { margin:8px 0; font:inherit; font-size:1rem; line-height:1.7; }
+#criminal-ox-preview .ox-short-prompt { font-size:.95rem; line-height:1.8; }
+#criminal-ox-preview .ox-empty,
+#criminal-ox-preview .ox-result { padding:24px 18px; background:var(--ox-paper); border-radius:18px; text-align:center; }
+#criminal-ox-preview .ox-review-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); margin:18px 0 14px; gap:8px; }
+#criminal-ox-preview .ox-review-filters .ox-filter { width:100%; min-height:42px; border-radius:10px; padding:8px 10px; }
+#criminal-ox-preview .ox-review-completed { margin-top:16px; }
+#criminal-ox-preview .ox-review-completed > summary { padding:10px 2px; color:var(--ox-muted); }
+body.student-online-mode #criminal-ox-preview .ox-review-completed > summary,
+body.student-online-mode #criminal-ox-preview .ox-review-completed > summary .ox-review-count { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-review-panel { overflow:hidden; min-width:0; border:1px solid var(--ox-line); border-radius:18px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-review-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:16px; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-review-head h3 { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:.94rem; }
+#criminal-ox-preview .ox-review-count { font-size:.75rem; font-weight:400; color:var(--ox-muted); }
+#criminal-ox-preview .ox-review-head .ox-button { width:auto; flex:0 0 auto; min-height:36px; padding:8px 12px; }
+#criminal-ox-preview .ox-review-empty { padding:28px 18px 20px; text-align:center; }
+#criminal-ox-preview .ox-review-empty h3 { font-size:.94rem; }
+#criminal-ox-preview .ox-review-empty .ox-sub { margin:10px 0 16px; }
+#criminal-ox-preview .ox-review-empty .ox-wide { margin-top:0; min-height:42px; }
+#criminal-ox-preview .ox-review-item { margin:0 16px; padding:16px 0; }
+#criminal-ox-preview .ox-review-item + .ox-review-item { border-top:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-review-meta { display:flex; align-items:baseline; gap:12px; }
+#criminal-ox-preview .ox-review-meta .ox-source { flex:1; min-width:0; margin:0; }
+#criminal-ox-preview .ox-review-meta .ox-sub { flex:0 0 auto; white-space:nowrap; font-size:.72rem; }
+#criminal-ox-preview .ox-review-item > .ox-short-prompt { margin:10px 0 4px; }
+#criminal-ox-preview .ox-review-item > details { margin-top:8px; }
+#criminal-ox-preview .ox-review-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+#criminal-ox-preview .ox-review-actions .ox-button { min-width:0; min-height:42px; }
+#criminal-ox-preview .ox-result .ox-number { font-size:2rem; margin:16px 0; }
+#criminal-ox-preview .ox-completion { padding:24px 20px 18px; background:var(--ox-paper); border:1px solid var(--ox-line); border-radius:18px; }
+#criminal-ox-preview .ox-completion > h2 { color:var(--ox-green); font-size:1.3rem; margin:8px 0; }
+#criminal-ox-preview .ox-completion-score { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 0 12px; margin-top:18px; border-top:1px solid var(--ox-line); font-size:.86rem; }
+#criminal-ox-preview .ox-completion-score > strong { font-size:2rem; color:var(--ox-accent); font-variant-numeric:tabular-nums; }
+#criminal-ox-preview .ox-completion-score small { font-size:1rem; margin-left:3px; }
+#criminal-ox-preview .ox-completion-wrong { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; color:var(--ox-muted); font-size:.78rem; }
+#criminal-ox-preview .ox-completion-actions .ox-button { min-height:44px; margin-top:8px; }
+#criminal-ox-preview .ox-completion .ox-completion-next { margin:16px 0 0; color:var(--ox-muted); font-size:.72rem; text-align:center; }
+#criminal-ox-preview .ox-weak-heading { position:relative; min-height:32px; }
+#criminal-ox-preview .ox-weak-heading > h2 { padding-right:100px; margin:0; }
+body.student-online-mode #criminal-ox-preview .ox-weak-heading > h2 { color:var(--online-ui-text); }
+#criminal-ox-preview .ox-weak-guide { margin:0; }
+#criminal-ox-preview .ox-weak-guide > summary { position:absolute; top:0; right:0; min-height:32px; padding:5px 0; color:var(--muted); font-size:.75rem; }
+body.student-online-mode #criminal-ox-preview .ox-weak-guide > summary { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-weak-guide-body { margin-top:12px; padding:16px; border:1px solid var(--ox-line); border-radius:14px; background:var(--ox-paper); font-size:.76rem; line-height:1.7; }
+#criminal-ox-preview .ox-weak-guide-body h3 { font-size:.84rem; }
+#criminal-ox-preview .ox-weak-thresholds { display:grid; grid-template-columns:auto 1fr; gap:6px 18px; margin:12px 0; padding-bottom:12px; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-weak-thresholds dt { font-weight:700; }
+#criminal-ox-preview .ox-weak-thresholds dd { margin:0; text-align:right; }
+#criminal-ox-preview .ox-weak-guide-body .ox-sub { margin-bottom:0; font-size:.7rem; }
+#criminal-ox-preview .ox-weak-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:14px 0; margin:16px 0 12px; border-radius:14px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-weak-overview > div { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:5px 8px; padding:0 8px; font-size:.76rem; }
+#criminal-ox-preview .ox-weak-overview > div + div { border-left:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-weak-overview strong { font-size:1.1rem; }
+#criminal-ox-preview .ox-weak-overview small { margin-left:3px; font-size:.65rem; font-weight:400; color:var(--ox-muted); }
+#criminal-ox-preview .ox-weak-table { overflow:hidden; border:1px solid var(--ox-line); border-radius:14px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-weak-columns,
+#criminal-ox-preview .ox-weak-row > summary { display:grid; grid-template-columns:minmax(0,1fr) 48px 58px 10px; gap:8px; align-items:center; padding:12px 14px; }
+#criminal-ox-preview .ox-weak-columns { color:var(--ox-muted); font-size:.65rem; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-weak-columns > span:nth-child(2),
+#criminal-ox-preview .ox-weak-columns > span:nth-child(3) { text-align:center; }
+#criminal-ox-preview .ox-weak-row { margin:0; }
+#criminal-ox-preview .ox-weak-row + .ox-weak-row { border-top:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-weak-row > summary { min-height:56px; color:var(--ox-ink); list-style:none; }
+#criminal-ox-preview .ox-weak-row > summary::-webkit-details-marker { display:none; }
+#criminal-ox-preview .ox-weak-name { min-width:0; font-size:.8rem; line-height:1.5; overflow-wrap:anywhere; }
+#criminal-ox-preview .ox-weak-rate { text-align:center; font-size:.8rem; font-variant-numeric:tabular-nums; }
+#criminal-ox-preview .ox-weak-status { text-align:center; font-size:.66rem; white-space:nowrap; }
+#criminal-ox-preview .ox-weak-weak { color:#ad3944; }
+#criminal-ox-preview .ox-weak-caution { color:#886317; }
+#criminal-ox-preview .ox-weak-good { color:var(--ox-green); }
+#criminal-ox-preview .ox-weak-pending { color:var(--ox-muted); }
+#criminal-ox-preview .ox-weak-chevron { color:var(--ox-muted); text-align:center; }
+#criminal-ox-preview .ox-weak-row[open] > summary .ox-weak-chevron { transform:rotate(180deg); }
+#criminal-ox-preview .ox-weak-detail { padding:0 14px 14px; }
+#criminal-ox-preview .ox-weak-detail .ox-sub { font-size:.72rem; }
+#criminal-ox-preview .ox-weak-pending > summary { color:var(--muted); }
+body.student-online-mode #criminal-ox-preview .ox-weak-pending > summary { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-live { font-size:.8rem; min-height:18px; margin-top:8px; color:var(--ox-accent); }
+#criminal-ox-preview .ox-footnote { margin:14px 0 0; font-size:.72rem; line-height:1.7; color:var(--muted); }
+body.student-online-mode #criminal-ox-preview .ox-footnote { color:var(--online-ui-muted); }
+#criminal-ox-preview .ox-content > .ox-row,
+#criminal-ox-preview .ox-content > .ox-section:not(:has(.ox-card)) { padding:12px 14px; background:var(--ox-paper); border-radius:14px; }
+#criminal-ox-preview button:focus-visible,
+#criminal-ox-preview summary:focus-visible { outline:3px solid var(--ox-accent); outline-offset:3px; }
+#criminal-ox-preview .ox-chapter:focus-visible { outline-offset:-3px; border-radius:8px; }
+#criminal-ox-preview .ox-quiz-toolbar { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin:4px 0 8px; color:var(--ink); }
+#criminal-ox-preview .ox-quiz-tool { width:fit-content; min-height:40px; padding:8px 0; border:0; background:transparent; color:inherit; font:inherit; font-size:.78rem; cursor:pointer; }
+#criminal-ox-preview .ox-quiz-tool:last-child { justify-self:end; }
+#criminal-ox-preview .ox-quiz-count { font-size:.76rem; font-variant-numeric:tabular-nums; opacity:.85; }
+body.student-online-mode #criminal-ox-preview .ox-quiz-toolbar { color:var(--online-ui-text); }
+#criminal-ox-preview .ox-quiz > .ox-meter { height:3px; margin:0 0 16px; }
+body.student-online-mode #criminal-ox-preview .ox-quiz > .ox-meter { background:rgba(255,255,255,.2); }
+#criminal-ox-preview .ox-quiz-paper { position:relative; padding:20px; border-radius:18px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-quiz-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 10px; padding-bottom:14px; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-quiz-heading h3 { font-size:.9rem; }
+#criminal-ox-preview .ox-quiz-heading .ox-sub { font-size:.7rem; }
+#criminal-ox-preview .ox-quiz .ox-question { position:relative; margin:0; padding:24px 0 28px; border-radius:0; background:transparent; font-size:1.04rem; line-height:1.9; }
+#criminal-ox-preview .ox-quiz .ox-context { margin-top:16px; padding:12px; border-radius:8px; background:var(--ox-soft); }
+#criminal-ox-preview .ox-quiz .ox-answer { justify-content:center; align-items:center; gap:0; height:56px; min-height:56px; padding:10px; border-radius:10px; background:transparent; }
+#criminal-ox-preview .ox-quiz .ox-answer.ox-selected { background:var(--ox-accent); color:#fff; }
+#criminal-ox-preview .ox-quiz .ox-answer:disabled:not(.ox-selected) { opacity:.5; }
+#criminal-ox-preview .ox-answer-symbol { display:block; position:relative; width:22px; height:22px; box-sizing:border-box; }
+#criminal-ox-preview .ox-symbol-o { border:2.5px solid currentColor; border-radius:50%; }
+#criminal-ox-preview .ox-symbol-x::before,
+#criminal-ox-preview .ox-symbol-x::after { content:''; position:absolute; top:9.75px; left:-2px; width:26px; height:2.5px; border-radius:2px; background:currentColor; transform:rotate(45deg); }
+#criminal-ox-preview .ox-symbol-x::after { transform:rotate(-45deg); }
+#criminal-ox-preview .ox-quiz .ox-quiz-hint { margin:14px 0 0; text-align:center; color:var(--ox-muted); font-size:.7rem; line-height:1.65; }
+#criminal-ox-preview .ox-quiz-feedback { margin-top:22px; padding-top:20px; border-top:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-quiz-feedback h3 { font-size:.94rem; }
+#criminal-ox-preview .ox-grade-result { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+#criminal-ox-preview .ox-grade-mark { display:block; position:absolute; top:12px; left:-22px; width:108px; height:108px; fill:none; stroke:#d93632; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+#criminal-ox-preview .ox-grade-copy { display:grid; gap:5px; min-width:0; }
+#criminal-ox-preview .ox-grade-copy h3 { font-size:1.08rem; }
+#criminal-ox-preview .ox-grade-copy h3.ox-correct { color:#075da4; }
+#criminal-ox-preview .ox-grade-copy h3.ox-incorrect { color:#d93632; }
+#criminal-ox-preview:has(.ox-quiz) .ox-footnote { display:none; }
+@media(max-width:380px) {
+  #criminal-ox-preview .ox-quiz-paper { padding:16px; }
+  #criminal-ox-preview .ox-card { padding:14px; }
+  #criminal-ox-preview .ox-button { padding:10px 12px; }
+}

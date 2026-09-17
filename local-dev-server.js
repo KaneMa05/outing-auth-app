@@ -71,6 +71,14 @@ const mimeTypes = {
 http
   .createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (url.pathname === "/api/criminal-law-ox") {
+      const handler = require('./api/criminal-law-ox').createHandler({
+        invoke: require('./local-criminal-law-ox').invoke,
+        authenticate: async body => getLocalAuthenticatedStudent(body, ['offline', 'online_managed', 'lecture']),
+      });
+      await runApiHandler(handler, req, res, url);
+      return;
+    }
     if (url.pathname === "/_local/admin-preview") {
       handleLocalAdminPreview(req, res);
       return;
@@ -847,7 +855,7 @@ async function runApiHandler(handler, req, res) {
 function serveStatic(pathname, res) {
   const safePath = pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
   const absolutePath = path.resolve(ROOT, "." + safePath);
-  if (!absolutePath.startsWith(ROOT) || path.basename(absolutePath).toLowerCase().startsWith(".local-study-cafe-feedback")) {
+  if (!absolutePath.startsWith(ROOT + path.sep) || safePath.split(/[\\/]/).some(part => part.startsWith('.')) || path.basename(absolutePath).toLowerCase().startsWith(".local-study-cafe-feedback")) {
     res.writeHead(403);
     res.end("Forbidden");
     return;

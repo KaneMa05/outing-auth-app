@@ -19,6 +19,7 @@ const routeTitles = {
   "inquiry-board": "문의하기",
   "inquiry-board-admin": "문의 관리",
   "curriculum-admin": "커리큘럼 관리",
+  "criminal-law-ox-admin": "형사법 OX 관리",
   mypage: "마이페이지",
   faq: "자주 묻는 질문",
   "push-settings": "푸시 알림 설정",
@@ -31,6 +32,7 @@ const routeTitles = {
   "study-character": "캐릭터",
   "study-shop": "스터디 상점",
   curriculum: "커리큘럼 퀘스트",
+  "criminal-law-ox": "형사법 OX",
   teacher: "외출 관리",
   "teacher-accounts": "선생님 계정",
   managers: "담당자 등록",
@@ -455,6 +457,7 @@ let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
 let studentStudyRouteTransitionDirection = 0;
 let studyRankingFooterRoute = "home";
+let studyTimerFooterRoute = "home";
 let studyCafeIdleReleasePending = false;
 let studyCafeSessionRevision = 0;
 let studyCafeAutoPauseTimer = null;
@@ -661,10 +664,11 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
+  if (normalized === "criminal-law-ox") return normalized;
   if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
   const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "faq", "push-settings", "other-settings", "notifications", "curriculum", "study-todo", "study-cafe", "feedback", "question-board", "inquiry-board", "study-timer", "study-ranking", "study-character", "study-shop", "notices"];
   const authedStudent = getAuthedStudent();
@@ -684,6 +688,7 @@ function defaultRoute() {
 
 function navigate(route) {
   const nextRoute = normalizeRoute(route || defaultRoute());
+  if (nextRoute === 'home' && currentRoute !== 'home') requestCriminalLawOx.statusCache = null;
   const studyRoutes = ["curriculum", "study-todo", "study-cafe", "feedback", "question-board", "study-ranking", "study-timer", "study-character", "study-shop"];
   const currentStudyIndex = studyRoutes.indexOf(currentRoute);
   const nextStudyIndex = studyRoutes.indexOf(nextRoute);
@@ -693,6 +698,9 @@ function navigate(route) {
       : 0;
   if (nextRoute === "study-ranking") {
     studyRankingFooterRoute = currentRoute === "study-cafe" ? "study-cafe" : "home";
+  }
+  if (nextRoute === "study-timer" && currentRoute !== "study-timer") {
+    studyTimerFooterRoute = currentRoute === "study-cafe" ? "study-cafe" : "home";
   }
   if (nextRoute === "study-cafe" && currentRoute !== "study-cafe") {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = false;
@@ -715,6 +723,9 @@ function render() {
   const requestedRoute = location.hash.replace("#", "") || defaultRoute();
   const normalizedRoute = normalizeRoute(requestedRoute);
   if (normalizedRoute !== currentRoute) currentRoute = normalizedRoute;
+  if (window.StudyRecordShare && (currentRoute !== "study-timer" || !getAuthedStudent() || !isOnlineStudentExperience(getAuthedStudent()))) {
+    window.StudyRecordShare?.close();
+  }
   if (String(requestedRoute).split("?")[0] !== currentRoute) {
     history.replaceState(null, "", `${location.href.split("#")[0]}#${currentRoute}`);
   }
@@ -743,7 +754,11 @@ function render() {
         ? "mypage"
         : inStudentFooter && currentRoute === "study-ranking"
           ? studyRankingFooterRoute
-        : inStudentFooter && ["study-timer", "question-board", "notifications", "notices"].includes(currentRoute)
+        : inStudentFooter && currentRoute === "study-timer"
+          ? studyTimerFooterRoute
+        : inStudentFooter && currentRoute === "criminal-law-ox"
+          ? "home"
+        : inStudentFooter && ["question-board", "notifications", "notices"].includes(currentRoute)
           ? "home"
           : currentRoute;
     button.hidden = !allowed;
@@ -804,6 +819,7 @@ function render() {
           "question-board-admin": renderQuestionBoardAdmin,
           "inquiry-board-admin": renderInquiryAdmin,
           "curriculum-admin": renderCurriculumAdmin,
+          "criminal-law-ox-admin": renderCriminalLawOxAdmin,
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
           managers: renderManagersAdmin,
@@ -831,6 +847,7 @@ function render() {
           "other-settings": () => requireStudentAuth(renderStudentOtherSettings),
           notifications: () => requireStudentAuth(renderStudentNotifications),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
+          "criminal-law-ox": () => requireStudentAuth(renderCriminalLawOxLocalPreview),
           "feedback": () => requireStudentAuth(renderStudentFeedbackHub),
           "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
@@ -3066,6 +3083,100 @@ function renderStudentHome() {
           button(homeAction.buttonText, "btn", "button", homeAction.action),
         ])
       : null,
+    renderCriminalLawOxLocalEntry(),
+  ]);
+}
+
+function renderCriminalLawOxLocalEntry() {
+  if (APP_MODE === "teacher") return null;
+  const entry = button("", "lecture-home-shortcut criminal-law-ox-local-entry", "button", () => navigate("criminal-law-ox"), [
+    el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
+      el("span", { className: "footer-icon footer-icon-study-todo" }),
+    ]),
+    el("span", { className: "lecture-home-shortcut-copy" }, [
+      el("strong", {}, "형사법 OX"),
+      el("span", {}, "단원별 문제 풀이와 오답 복습"),
+    ]),
+    el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
+  ]);
+  entry.hidden = true;
+  entry.style.display = "none";
+  requestCriminalLawOx('status').then(data => {
+    if (data.enabled) { entry.hidden=false; entry.style.display=''; }
+  }).catch(() => {});
+  return entry;
+}
+
+async function requestCriminalLawOx(action, payload={}) {
+  const student=getAuthedStudent();
+  if(!student) throw Object.assign(new Error('unauthorized'),{code:'unauthorized'});
+  const key=student.id+':'+getStudentProfile(student.id)?.deviceToken;
+  const cached=requestCriminalLawOx.statusCache;
+  if(action==='status' && cached?.key===key && cached.expires>Date.now()) return cached.promise;
+  const operation=(async()=>{
+  const response=await fetch('/api/criminal-law-ox', {
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({...payload,action,studentId:student.id,deviceToken:getStudentProfile(student.id)?.deviceToken,
+      client:{displayMode:isStandaloneStudentApp()?'standalone':'browser',userAgent:navigator.userAgent}}),
+  });
+  const data=await response.json();
+  if(!response.ok || !data.ok) {
+    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error)) requestCriminalLawOx.statusCache=null;
+    throw Object.assign(new Error(data.error),{code:data.error});
+  }
+  return data;
+  })();
+  if(action==='status') requestCriminalLawOx.statusCache={key,expires:Date.now()+30000,promise:operation};
+  return operation;
+}
+
+function renderCriminalLawOxLocalPreview() {
+  if (APP_MODE === "teacher") return renderStudentHome();
+  if (!document.querySelector("link[data-criminal-law-ox-style]")) {
+    document.head.appendChild(el("link", {
+      rel: "stylesheet",
+      href: "./criminal-law-ox.css",
+      "data-criminal-law-ox-style": "true",
+    }));
+  }
+  const content = el("div", {}, renderDataLoadingState("OX 학습 화면을 불러오는 중입니다."));
+  let previewController = null;
+  const bookmarkIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  bookmarkIcon.setAttribute("class", "criminal-law-ox-bookmarks-icon");
+  bookmarkIcon.setAttribute("viewBox", "0 0 24 24");
+  bookmarkIcon.setAttribute("aria-hidden", "true");
+  bookmarkIcon.setAttribute("focusable", "false");
+  const bookmarkStar = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  bookmarkStar.setAttribute("d", "m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z");
+  bookmarkIcon.appendChild(bookmarkStar);
+  const bookmarksButton = button("", "mini-btn criminal-law-ox-bookmarks-button", "button", () => previewController?.openBookmarks(), [
+    bookmarkIcon,
+    el("span", {}, "북마크"),
+  ]);
+  bookmarksButton.setAttribute("aria-label", "북마크한 문제");
+  bookmarksButton.setAttribute("title", "북마크한 문제");
+  bookmarksButton.disabled = true;
+  Promise.all([import("./criminal-law-ox.js"),requestCriminalLawOx('bootstrap')]).then(([{ mount },bootstrap]) => {
+    if (content.isConnected) {
+      previewController = mount(content,{bootstrap,request:requestCriminalLawOx});
+      bookmarksButton.disabled = false;
+    }
+  }).catch(error => {
+    if (!content.isConnected) return;
+    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
+      button("다시 시도", "btn secondary", "button", () => render()));
+  });
+  return el("div", { className: "grid student-view criminal-law-ox-local-page" }, [
+    el("section", { className: "student-notices-panel" }, [
+      el("div", { className: "student-notices-head" }, [
+        el("h2", {}, "형사법 OX"),
+        el("div", { className: "criminal-law-ox-header-actions" }, [
+          bookmarksButton,
+          button("홈", "mini-btn", "button", () => navigate("home")),
+        ]),
+      ]),
+    ]),
+    content,
   ]);
 }
 
@@ -3078,6 +3189,7 @@ function renderLectureStudentHome(student) {
     renderStudyCafeHomeCard(student),
     renderQuestionBoardHomePreview(student),
     renderFinalScopeHomeEntry(),
+    renderCriminalLawOxLocalEntry(),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
         el("div", {}, [
@@ -7854,7 +7966,7 @@ function renderStudentStudyTimer() {
         el("span", {}, "매일 오전 4시에 하루 기록이 새로 시작됩니다"),
         el("h2", {}, studyTimerStatsState.mode === "stats" ? "타이머 통계" : "과목 타이머"),
       ]),
-      active ? el("span", { className: "study-timer-active-chip" }, studyCafePreviewState.paused ? "일시정지" : "측정 중") : null,
+      renderStudyTimerHeaderActions(active),
     ]),
     renderStudyTimerModeTabs(),
     ...(studyTimerStatsState.mode === "stats" ? [renderStudyTimerStats()] : timerContent),
@@ -7883,6 +7995,53 @@ function renderStudyTimerModeTabs() {
       }
     ),
   ]);
+}
+
+function renderStudyTimerHeaderActions(active) {
+  const status = active
+    ? el("span", { className: "study-timer-active-chip" }, studyCafePreviewState.paused ? "일시정지" : "측정 중")
+    : null;
+  if (studyTimerStatsState.mode !== "stats") return status;
+  const range = getStudyTimerStatsRange();
+  const data = studyTimerStatsState.cache[`${range.dateFrom}:${range.dateTo}`];
+  const ready = Boolean(data && !data.localOnly && data.summary?.totalSeconds > 0 && !studyTimerStatsState.error);
+  return el("div", { className: "study-timer-head-actions" }, [
+    el("button", {
+      className: "study-timer-share-button", type: "button", disabled: !ready,
+      title: !data ? "공부 기록을 불러오는 중입니다."
+        : data.localOnly || studyTimerStatsState.error ? "서버의 공부 기록을 확인한 뒤 공유할 수 있습니다."
+          : !data.summary?.totalSeconds ? "공부 기록이 있는 기간을 선택해 주세요." : "선택한 기간의 기록 공유",
+      onclick: openStudyTimerRecordShare,
+    }, "기록 공유"),
+    status,
+  ]);
+}
+
+async function loadStudyTimerSharePlans(range, today) {
+  const dateTo = range.dateTo < today ? range.dateTo : today;
+  const months = [...new Set(enumerateStudyTimerDateKeys(range.dateFrom, dateTo).map(date => date.slice(0, 7)))];
+  const results = await Promise.all(months.map(monthKey => requestStudyCafeAction("todo_month_summary", { monthKey })));
+  if (results.some(result => !result.ok || !Array.isArray(result.plans))) throw new Error("planner_summary_unavailable");
+  return results.flatMap(result => result.plans);
+}
+
+async function openStudyTimerRecordShare() {
+  const student = getAuthedStudent();
+  if (!student || !isOnlineStudentExperience(student) || currentRoute !== "study-timer" || studyTimerStatsState.mode !== "stats") return;
+  const range = getStudyTimerStatsRange();
+  const data = studyTimerStatsState.cache[`${range.dateFrom}:${range.dateTo}`];
+  if (!data || data.localOnly || !data.summary?.totalSeconds || studyTimerStatsState.error) return;
+  const today = formatStudyBusinessDateKey(new Date(data.serverNow || Date.now()));
+  try {
+    if (!window.StudyRecordShare) throw new Error("share_not_loaded");
+    await window.StudyRecordShare.open({
+      data, period: studyTimerStatsState.period, today,
+      loadPlans: () => loadStudyTimerSharePlans(range, today),
+      isCurrent: () => currentRoute === "study-timer" && getAuthedStudent()?.id === student.id && isOnlineStudentExperience(getAuthedStudent()),
+    });
+  } catch {
+    notify("공유 화면을 열지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
 }
 
 function renderStudyTimerStats() {
@@ -7948,7 +8107,7 @@ function renderStudyTimerDailyOverview(data) {
     el("div", { className: "study-timer-daily-total" }, [
       el("span", {}, formatStudyTimerStatsDayLabel(day.date)),
       el("strong", {}, formatStudyCafeElapsed((day.totalSeconds || 0) * 1000)),
-      el("p", {}, day.totalSeconds ? `${day.sessionCount || 0}번 집중한 순공시간` : "아직 기록된 공부시간이 없습니다."),
+      day.totalSeconds ? null : el("p", {}, "아직 기록된 공부시간이 없습니다."),
     ]),
     el("div", { className: "study-timer-daily-details" }, [
       renderStudyTimerDailyMetric("최대 집중시간", formatStudyCafeElapsed((day.longestSeconds || 0) * 1000)),
@@ -7969,6 +8128,7 @@ function renderStudyTimerWeeklyChart(data) {
   const days = Array.isArray(data.days) ? data.days : [];
   const maximum = Math.max(1, ...days.map((day) => Number(day.totalSeconds) || 0));
   return el("div", { className: "study-timer-weekly-chart" }, [
+    el("p", { className: "study-timer-chart-unit" }, "공부시간 (시간:분)"),
     el(
       "div",
       { className: "study-timer-weekly-bars" },
@@ -7976,7 +8136,7 @@ function renderStudyTimerWeeklyChart(data) {
         const seconds = Number(day.totalSeconds) || 0;
         const height = seconds ? Math.max(10, Math.round((seconds / maximum) * 100)) : 4;
         return el("div", { className: `study-timer-weekly-day ${seconds ? "studied" : ""}` }, [
-          el("time", {}, seconds ? formatStudyCafeCompactDuration(seconds) : "-"),
+          el("time", { title: formatStudyCafeCompactDuration(seconds) }, seconds ? formatStudyTimerChartDuration(seconds) : "-"),
           el("span", { className: "study-timer-weekly-bar-track" }, [
             el("i", { style: `height:${height}%` }),
           ]),
@@ -7994,6 +8154,7 @@ function renderStudyTimerMonthlyCalendar(data) {
   const leading = firstDate ? firstDate.getDay() : 0;
   const maximum = Math.max(1, ...days.map((day) => Number(day.totalSeconds) || 0));
   return el("div", { className: "study-timer-monthly-calendar" }, [
+    el("p", { className: "study-timer-chart-unit" }, "공부시간 (시간:분)"),
     el(
       "div",
       { className: "study-timer-monthly-weekdays" },
@@ -8010,7 +8171,7 @@ function renderStudyTimerMonthlyCalendar(data) {
           title: `${day.date} ${formatStudyCafeElapsed(seconds * 1000)}`,
         }, [
           el("strong", {}, String(Number(day.date?.slice(-2)) || "")),
-          seconds ? el("time", {}, formatStudyCafeCompactDuration(seconds)) : null,
+          seconds ? el("time", {}, formatStudyTimerChartDuration(seconds)) : null,
         ]);
       }),
     ]),
@@ -8032,7 +8193,7 @@ function renderStudyTimerStatsSummary(data) {
   return el("section", { className: "study-timer-stats-summary" }, [
     el("div", { className: "study-timer-stats-summary-head" }, [
       el("span", {}, periodLabel),
-      el("strong", {}, `${data.dateFrom} ~ ${data.dateTo}`),
+      el("strong", {}, studyTimerStatsState.period === "daily" ? formatStudyTimerStatsRangeLabel(data) : `${data.dateFrom} ~ ${data.dateTo}`),
     ]),
     el("div", { className: "study-timer-stats-summary-grid" }, [
       renderStudyTimerStatsMetric("총 순공시간", formatStudyCafeElapsed((summary.totalSeconds || 0) * 1000)),
@@ -8215,6 +8376,11 @@ function formatStudyCafeCompactDuration(seconds) {
   const minutes = totalMinutes % 60;
   if (!hours) return `${minutes}분`;
   return minutes ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+}
+
+function formatStudyTimerChartDuration(seconds) {
+  const minutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
 function formatStudyTimerDateKey(date) {
@@ -11131,6 +11297,7 @@ function renderHome() {
         hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
         hasTeacherPermission("inquiries.read") ? moduleCard("문의 관리", "수강생이 남긴 비공개 문의를 확인하고 답변합니다.", "inquiry-board-admin", "운영 중") : null,
         hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 회차와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
+        hasTeacherPermission("criminal_ox.read") ? moduleCard("형사법 OX 관리", "문제와 해설을 검토하고 공개 상태를 관리합니다.", "criminal-law-ox-admin", "문제 관리") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,

@@ -1,0 +1,160 @@
+<div id="cafe-share-placement" aria-label="스터디카페 기록 공유 배치 시안">
+  <style>
+    #cafe-share-placement {font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#173449;}
+    #cafe-share-placement * {box-sizing:border-box;}
+    #cafe-share-placement .rp-phone {width:100%;max-width:390px;margin:auto;background:#0b2746;border-radius:20px;overflow:hidden;border:1px solid #34516a;}
+    #cafe-share-placement button {font:inherit;cursor:pointer;}
+    #cafe-share-placement .rp-top {display:flex;align-items:center;justify-content:space-between;padding:19px 18px;color:#fff;gap:8px;}
+    #cafe-share-placement .rp-top strong {font-size:19px;}
+    #cafe-share-placement .rp-top small {display:block;color:#a9d4ec;font-size:11px;margin-bottom:4px;}
+    #cafe-share-placement .rp-top button {background:transparent;border:1px solid #87a4bc;color:#fff;border-radius:9px;padding:9px 12px;min-height:40px;white-space:nowrap;font-size:12px;}
+    #cafe-share-placement .rp-screen {padding:0 12px 16px;}
+    #cafe-share-placement .rp-room {background:#e9eeee;border:1px solid #c7d3d7;border-radius:16px;padding:12px 10px;}
+    #cafe-share-placement .rp-room-head {display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    #cafe-share-placement .rp-room-head strong {font-size:12px;letter-spacing:.35px;}
+    #cafe-share-placement .rp-room-head small {font-size:11px;color:#557077;display:block;margin-top:5px;}
+    #cafe-share-placement .rp-live {font-size:11px;white-space:nowrap;color:#306653;}
+    #cafe-share-placement .rp-my-seat {background:#edf6f7;border:1px solid #9abac1;border-radius:14px;padding:10px;}
+    #cafe-share-placement .rp-identity {display:grid;grid-template-columns:46px 1fr auto;gap:8px;align-items:center;}
+    #cafe-share-placement .rp-avatar {height:60px;border-radius:10px;background:#fff;display:grid;place-items:center;color:#3b6e76;}
+    #cafe-share-placement .rp-avatar svg {width:28px;height:28px;}
+    #cafe-share-placement .rp-name small {font-size:11px;color:#47737b;display:block;}
+    #cafe-share-placement .rp-name strong {font-size:14px;display:block;margin:5px 0;}
+    #cafe-share-placement .rp-name span {font-size:11px;color:#637984;}
+    #cafe-share-placement .rp-session {text-align:right;font-size:12px;}
+    #cafe-share-placement .rp-session time {display:block;background:#fff;border-radius:6px;padding:6px;margin-bottom:6px;font-variant-numeric:tabular-nums;}
+    #cafe-share-placement .rp-session span {font-size:11px;color:#35765d;}
+    #cafe-share-placement .rp-today {display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #cddfe2;}
+    #cafe-share-placement .rp-today small {display:block;font-size:11px;color:#55707c;margin-bottom:4px;}
+    #cafe-share-placement .rp-today strong {font-size:22px;color:#123b61;font-variant-numeric:tabular-nums;}
+    #cafe-share-placement .rp-share {display:flex;align-items:center;gap:5px;justify-content:center;border:1px solid #9ab6c1;border-radius:8px;background:#fff;color:#234e68;padding:9px 10px;font-size:12px;min-height:40px;white-space:nowrap;}
+    #cafe-share-placement .rp-share svg {width:14px;height:14px;}
+    #cafe-share-placement .rp-shortcuts {display:flex;justify-content:flex-end;gap:12px;padding:13px 0;font-size:11px;color:#49616d;}
+    #cafe-share-placement .rp-notice {font-size:11px;background:#f8fafb;padding:11px;border-radius:8px;color:#5b6f79;}
+    #cafe-share-placement .rp-room-tabs {display:flex;gap:5px;margin:13px 0;}
+    #cafe-share-placement .rp-room-tabs span {flex:1;text-align:center;padding:8px 0;border-radius:7px;background:#f8fafb;font-size:11px;}
+    #cafe-share-placement .rp-room-tabs span:first-child {background:#527a80;color:#fff;}
+    #cafe-share-placement .rp-seat-heading {display:flex;justify-content:space-between;font-size:12px;margin:16px 0 10px;}
+    #cafe-share-placement .rp-seat-heading span {color:#647c81;font-size:11px;}
+    #cafe-share-placement .rp-seats {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;}
+    #cafe-share-placement .rp-seat {min-height:80px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;background:#f6f9f9;border:1px solid #c9d7db;border-radius:10px;font-size:11px;color:#5b747d;}
+    #cafe-share-placement .rp-seat svg {width:22px;height:22px;color:#759299;}
+    #cafe-share-placement .rp-seat.rp-mine {background:#d9eded;border-color:#649296;color:#315b64;}
+    #cafe-share-placement .rp-study-actions {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+    #cafe-share-placement .rp-study-actions span {padding:12px 8px;text-align:center;border-radius:9px;background:#fff;color:#45606e;font-size:12px;}
+    #cafe-share-placement .rp-study-actions span:last-child {background:#126197;color:#fff;}
+    #cafe-share-placement .rp-bottom {display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #e1e7ed;padding:12px 0 13px;}
+    #cafe-share-placement .rp-bottom span {font-size:11px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#8996a3;}
+    #cafe-share-placement .rp-bottom svg {width:18px;height:18px;}
+    #cafe-share-placement .rp-bottom .rp-selected {color:#075da4;}
+    #cafe-share-placement [hidden] {display:none!important;}
+    #cafe-share-placement .rp-preview {background:#f0f4f7;padding:0 12px 14px;}
+    #cafe-share-placement .rp-preview-header {display:flex;align-items:center;gap:12px;margin:0 -12px 14px;padding:13px;background:#fff;border-bottom:1px solid #e0e7ee;}
+    #cafe-share-placement .rp-preview-header button {background:transparent;border:0;color:#173449;min-width:38px;min-height:38px;}
+    #cafe-share-placement .rp-preview-header strong {font-size:16px;}
+    #cafe-share-placement .rp-paper {background:#fff;border-radius:12px;padding:18px 12px;}
+    #cafe-share-placement .rp-paper-brand {display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;color:#06386f;font-size:13px;}
+    #cafe-share-placement .rp-paper-brand span {font-size:11px;color:#66798d;}
+    #cafe-share-placement .rp-date {text-align:center;font-size:17px;margin-bottom:15px;}
+    #cafe-share-placement .rp-total {background:#edf7ff;border-radius:13px;padding:19px 8px;text-align:center;color:#06386f;}
+    #cafe-share-placement .rp-total span {display:block;font-size:12px;margin-bottom:12px;}
+    #cafe-share-placement .rp-total strong {font-size:37px;letter-spacing:-1px;font-variant-numeric:tabular-nums;}
+    #cafe-share-placement .rp-details {display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:12px 0 18px;text-align:center;}
+    #cafe-share-placement .rp-details div {background:#f6f8fa;padding:12px 0;border-radius:6px;}
+    #cafe-share-placement .rp-details small {font-size:10px;display:block;color:#718399;margin-bottom:6px;}
+    #cafe-share-placement .rp-details strong {font-size:11px;}
+    #cafe-share-placement .rp-summary-head {font-size:11px;display:flex;justify-content:space-between;margin:14px 0 10px;color:#65788a;}
+    #cafe-share-placement .rp-metrics {display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+    #cafe-share-placement .rp-metric {background:#f5f8fa;border-radius:9px;padding:11px;}
+    #cafe-share-placement .rp-metric small {display:block;font-size:10px;color:#6b7e92;margin-bottom:6px;}
+    #cafe-share-placement .rp-metric strong {font-size:17px;color:#06386f;}
+    #cafe-share-placement .rp-subjects {margin-top:20px;font-size:12px;}
+    #cafe-share-placement .rp-subject {display:grid;grid-template-columns:75px 1fr 66px;align-items:center;gap:6px;margin-top:13px;font-size:10px;}
+    #cafe-share-placement .rp-subject i {height:6px;display:block;background:#1179b5;border-radius:4px;}
+    #cafe-share-placement .rp-subject time {text-align:right;color:#64798e;}
+    #cafe-share-placement .rp-completion {display:flex;justify-content:space-between;font-size:11px;color:#60758a;margin-top:23px;}
+    #cafe-share-placement .rp-export-actions {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+    #cafe-share-placement .rp-export-actions button {padding:13px 4px;border:1px solid #c4d4e0;background:#fff;border-radius:9px;color:#124b77;font-size:13px;cursor:default;}
+    #cafe-share-placement .rp-export-actions button:last-child {background:#075da4;border-color:#075da4;color:#fff;}
+  </style>
+  <div class="rp-phone">
+    <div class="rp-cafe">
+      <header class="rp-top"><div><small>함께 집중하는 공간</small><strong>스터디카페</strong></div><button type="button" class="rp-timer-entry">타이머 · 통계</button></header>
+      <main class="rp-screen">
+        <section class="rp-room">
+          <div class="rp-room-head"><div><strong>RONPARK STUDYCAFE</strong><small>1호실 · 차분하게 집중하기</small></div><span class="rp-live">● 18명 집중 중</span></div>
+          <section class="rp-my-seat">
+            <div class="rp-identity"><div class="rp-avatar"><i data-lucide="user-round" aria-hidden="true"></i></div><div class="rp-name"><small>내 좌석 · 7번</small><strong>공부하는 나</strong><span>해양경찰학</span></div><div class="rp-session"><time>01:20:00</time><span>● 공부 중</span></div></div>
+            <div class="rp-today"><div><small>오늘 공부시간</small><strong>07:30:00</strong></div><button type="button" class="rp-share"><i data-lucide="share-2" aria-hidden="true"></i>기록 공유</button></div>
+          </section>
+          <div class="rp-shortcuts"><span>순공 랭킹</span><span>스터디방 목록</span></div>
+          <div class="rp-notice">스터디카페 소식 및 건의사항　›</div>
+          <div class="rp-room-tabs"><span>1호실</span><span>2호실</span><span>랭킹룸</span></div>
+          <div class="rp-seat-heading"><strong>좌석 현황</strong><span>절전 모드</span></div>
+          <div class="rp-seats" aria-label="좌석 현황 예시">
+            <div class="rp-seat"><i data-lucide="armchair" aria-hidden="true"></i><span>1번 · 빈 좌석</span></div>
+            <div class="rp-seat"><i data-lucide="user-round" aria-hidden="true"></i><span>공부 중</span></div>
+            <div class="rp-seat"><i data-lucide="user-round" aria-hidden="true"></i><span>공부 중</span></div>
+            <div class="rp-seat rp-mine"><i data-lucide="user-round" aria-hidden="true"></i><span>7번 · 내 좌석</span></div>
+            <div class="rp-seat"><i data-lucide="armchair" aria-hidden="true"></i><span>8번 · 빈 좌석</span></div>
+            <div class="rp-seat"><i data-lucide="user-round" aria-hidden="true"></i><span>공부 중</span></div>
+          </div>
+        </section>
+        <div class="rp-study-actions"><span>일시정지</span><span>공부 종료</span></div>
+      </main>
+      <nav class="rp-bottom" aria-label="수강생 앱 메뉴"><span><i data-lucide="house" aria-hidden="true"></i>홈</span><span><i data-lucide="notebook-pen" aria-hidden="true"></i>플래너</span><span class="rp-selected"><i data-lucide="coffee" aria-hidden="true"></i>스터디카페</span><span><i data-lucide="user-round" aria-hidden="true"></i>마이</span></nav>
+    </div>
+    <section class="rp-preview" hidden aria-label="오늘 기록 공유 미리보기">
+      <header class="rp-preview-header"><button type="button" class="rp-back" aria-label="스터디카페로 돌아가기"><i data-lucide="arrow-left" aria-hidden="true"></i></button><strong>기록 공유</strong></header>
+      <div class="rp-paper">
+        <div class="rp-paper-brand"><strong>론박스터디</strong><span>일간 공부 기록</span></div>
+        <div class="rp-date"><strong>2026년 9월 16일</strong></div>
+        <div class="rp-total"><span>9월 16일 (수)</span><strong>07:30:00</strong></div>
+        <div class="rp-details"><div><small>최대 집중시간</small><strong>03:00:00</strong></div><div><small>시작시간</small><strong>오전 09:00</strong></div><div><small>종료시간</small><strong>오후 06:00</strong></div></div>
+        <div class="rp-summary-head"><span>선택일</span><strong>2026년 9월 16일</strong></div>
+        <div class="rp-metrics"><div class="rp-metric"><small>총 순공시간</small><strong>07:30:00</strong></div><div class="rp-metric"><small>공부한 날</small><strong>1일</strong></div><div class="rp-metric"><small>하루 평균</small><strong>07:30:00</strong></div><div class="rp-metric"><small>최고 기록</small><strong>07:30:00</strong></div></div>
+        <div class="rp-subjects"><strong>과목별 순공시간</strong><div class="rp-subject"><span>해양경찰학</span><i></i><time>03:00:00</time></div><div class="rp-subject"><span>해사법규</span><i style="width:83%"></i><time>02:30:00</time></div><div class="rp-subject"><span>항해학</span><i style="width:67%"></i><time>02:00:00</time></div></div>
+        <div class="rp-completion"><span>할 일 달성률</span><strong>80% · 8/10 완료</strong></div>
+      </div>
+      <footer class="rp-export-actions"><button type="button" disabled aria-label="이미지 저장: 시안용 표시">이미지 저장</button><button type="button" disabled aria-label="공유하기: 시안용 표시">공유하기</button></footer>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('cafe-share-placement');
+      const cafe = root.querySelector('.rp-cafe');
+      const preview = root.querySelector('.rp-preview');
+      const share = root.querySelector('.rp-share');
+      const originalRow = root.querySelector('.rp-today');
+      const roomHead = root.querySelector('.rp-room-head');
+      const state = { placement: 'time' };
+      function renderPlacement() {
+        (state.placement === 'time' ? originalRow : roomHead).append(share);
+      }
+      function showPreview() { cafe.hidden = true; preview.hidden = false; root.querySelector('.rp-back').focus({preventScroll:true}); }
+      share.addEventListener('click', showPreview);
+      root.querySelector('.rp-back').addEventListener('click', () => { preview.hidden = true; cafe.hidden = false; share.focus({preventScroll:true}); });
+      root.querySelector('.rp-timer-entry').addEventListener('click', () => {
+        const button = root.querySelector('.rp-timer-entry');
+        const top = root.querySelector('.rp-top');
+        const isStats = button.dataset.stats === 'true';
+        if (isStats) { showPreview(); return; }
+        top.querySelector('small').textContent = '매일 오전 4시에 하루 기록이 새로 시작됩니다';
+        top.querySelector('strong').textContent = '타이머 통계';
+        button.textContent = '기록 공유'; button.dataset.stats = 'true';
+        root.querySelector('.rp-screen').hidden = true;
+        const stats = document.createElement('div'); stats.className = 'rp-stats-mock'; stats.style.cssText = 'padding:0 12px 16px';
+        const tabs = document.createElement('div'); tabs.className='rp-room-tabs'; tabs.innerHTML='<span>일간</span><span>주간</span><span>월간</span>';
+        const returnButton = document.createElement('button'); returnButton.type='button'; returnButton.className='rp-share'; returnButton.textContent='‹ 스터디카페'; returnButton.style.marginBottom='12px';
+        returnButton.onclick = () => { stats.remove(); root.querySelector('.rp-screen').hidden=false;top.querySelector('small').textContent='함께 집중하는 공간';top.querySelector('strong').textContent='스터디카페';button.textContent='타이머 · 통계';delete button.dataset.stats; };
+        stats.append(returnButton,tabs,root.querySelector('.rp-paper').cloneNode(true));
+        cafe.insertBefore(stats,root.querySelector('.rp-bottom'));
+      });
+      renderPlacement();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: renderPlacement });
+        tweak.addSelect(state,'placement',{ label:'기록 공유 위치',options:[{label:'오늘 공부시간 옆 · 추천',value:'time'},{label:'카페 제목 옆',value:'header'}] });
+      }
+    })();
+  </script>
+</div>
