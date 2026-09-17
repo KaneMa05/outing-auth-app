@@ -6,7 +6,7 @@ const db = new PGlite();
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create table public.students(id text primary key); insert into students values ('18001');
     create table public.final_exam_scores(id text primary key, score int); insert into final_exam_scores values ('round-1-existing',90);`);
-  await db.exec(fs.readFileSync('supabase/migrations/20260917025621_final_score_lecture_identities.sql', 'utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20260917042923_final_score_lecture_identities.sql', 'utf8'));
   for (const role of ['anon', 'authenticated']) {
     const result = await db.query(`select has_table_privilege($1,'public.final_score_identities','select') as can_read, has_table_privilege($1,'public.final_score_identities','insert') as can_write`, [role]);
     assert.deepEqual(result.rows[0], { can_read: false, can_write: false });
