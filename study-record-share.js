@@ -46,6 +46,27 @@
     return `${d.year}년 ${d.month}월 ${d.day}일`;
   }
 
+  function recordRange(period, anchor) {
+    if (!PERIODS[period]) throw new Error("invalid_period");
+    dateParts(anchor);
+    const start = new Date(`${anchor}T12:00:00Z`), end = new Date(start);
+    if (period === "weekly") {
+      start.setUTCDate(start.getUTCDate() - (start.getUTCDay() || 7) + 1);
+      end.setTime(start.getTime()); end.setUTCDate(end.getUTCDate() + 6);
+    } else if (period === "monthly") {
+      start.setUTCDate(1); end.setUTCMonth(end.getUTCMonth() + 1, 0);
+    }
+    return { dateFrom: start.toISOString().slice(0, 10), dateTo: end.toISOString().slice(0, 10) };
+  }
+
+  function shiftRecordAnchor(period, anchor, amount) {
+    recordRange(period, anchor);
+    const date = new Date(`${anchor}T12:00:00Z`);
+    if (period === "monthly") date.setUTCMonth(date.getUTCMonth() + amount, 1);
+    else date.setUTCDate(date.getUTCDate() + amount * (period === "weekly" ? 7 : 1));
+    return date.toISOString().slice(0, 10);
+  }
+
   function aggregatePlans(plans, from, to, today) {
     const end = today && today < to ? today : to;
     let total = 0, completed = 0;
@@ -326,12 +347,14 @@
     catch { return false; }
   }
 
-  async function open({ data, period, today, loadPlans, isCurrent = () => true, photoState = { image: null } }) {
+  async function open({ data, period, today, loadPlans, loadRecord, anchorDate = data?.dateFrom, isCurrent = () => true, photoState = { image: null } }) {
     close();
     if (!photoState.mode) photoState.mode = "card";
     if (photoState.ratio !== "original" && !RATIOS[photoState.ratio]) photoState.ratio = "1:1";
     // Copy only display data; never include student names, registration numbers or credentials.
-    const model = createModel(data, period, today);
+    let model = createModel(data, period, today);
+    dateParts(anchorDate);
+    const selection = { period, anchor: anchorDate > today ? today : anchorDate };
     const node = (tag, className, text) => {
       const element = document.createElement(tag); element.className = className;
       if (text) element.textContent = text;
@@ -344,10 +367,36 @@
     const header = node("header", "study-record-share-head");
     const back = node("button", "study-record-share-back", "‹"); back.type = "button"; back.setAttribute("aria-label", "통계로 돌아가기");
     const title = node("h2", "", "기록 공유");
+    const picker = node("div", "study-record-share-period-picker");
+    picker.hidden = typeof loadRecord !== "function";
+    layout.classList.toggle("has-period-picker", !picker.hidden);
+    const tabs = node("nav", "study-timer-stats-periods"); tabs.setAttribute("aria-label", "공유할 기록 기간 선택");
+    const periodButtons = Object.entries(PERIODS).map(([value, label]) => {
+      const button = node("button", "study-timer-stats-period-button", label); button.type = "button";
+      button.dataset.sharePeriod = value;
+      button.addEventListener("click", () => {
+        if (sharing || loadingPhoto || selection.period === value) return;
+        selection.period = value; void loadSelection();
+      });
+      tabs.append(button); return button;
+    });
+    const dates = node("div", "study-timer-stats-date-nav study-record-share-dates");
+    const previous = node("button", "study-timer-stats-date-button", "‹"); previous.type = "button"; previous.setAttribute("aria-label", "이전 기간");
+    const next = node("button", "study-timer-stats-date-button", "›"); next.type = "button"; next.setAttribute("aria-label", "다음 기간");
+    const rangeTitle = node("strong", ""); rangeTitle.setAttribute("aria-live", "polite");
+    for (const [button, amount] of [[previous, -1], [next, 1]]) button.addEventListener("click", () => {
+      if (sharing || loadingPhoto || button.disabled) return;
+      selection.anchor = shiftRecordAnchor(selection.period, selection.anchor, amount);
+      if (selection.anchor > today) selection.anchor = today;
+      void loadSelection();
+    });
+    dates.append(previous, rangeTitle, next); picker.append(tabs, dates);
     const content = node("div", "study-record-share-content");
     const status = node("p", "study-record-share-status", "공유 이미지를 준비하고 있어요."); status.setAttribute("role", "status");
     const preview = node("img", "study-record-share-image"); preview.hidden = true; preview.alt = `${model.heading} ${PERIODS[period]} 공부 기록`;
     const note = node("p", "study-record-share-note"); note.hidden = true;
+    const retry = node("button", "study-record-share-retry", "다시 불러오기"); retry.type = "button"; retry.hidden = true;
+    retry.addEventListener("click", () => { void loadSelection(); });
     const formatPicker = node("div", "study-record-share-formats");
     formatPicker.setAttribute("role", "group"); formatPicker.setAttribute("aria-label", "공유 이미지 형식");
     const cardFormat = node("button", "", "기록 카드"); cardFormat.type = "button";
@@ -391,13 +440,14 @@
     albumInput.hidden = true; albumInput.setAttribute("aria-label", "앨범 사진 선택");
     photoMenu.append(camera, album, removePhoto);
     photoTools.append(photoMenu, photoButton);
-    header.append(back, title); content.append(formatPicker, ratioRow, options, photoPicker, status, preview, photoTools, note, cameraInput, albumInput); actions.append(save, share);
-    layout.append(header, content, actions); dialog.append(layout); document.body.append(dialog);
+    header.append(back, title); content.append(formatPicker, ratioRow, options, photoPicker, status, retry, preview, photoTools, note, cameraInput, albumInput); actions.append(save, share);
+    layout.append(header, picker, content, actions); dialog.append(layout); document.body.append(dialog);
     const view = { dialog, trigger, url: "", file: null };
     active = view;
     const current = () => active === view && dialog.isConnected && isCurrent();
-    const fields = { ...defaultFields(period), ...selections[period] };
+    let fields = { ...defaultFields(period), ...selections[period] };
     let revision = 0;
+    let recordRevision = 0;
     let sharing = false;
     let loadingPhoto = false;
     let ready = false;
@@ -412,6 +462,9 @@
       const busy = !ready || loadingPhoto || sharing;
       for (const control of [cardFormat, photoFormat, ratioSelect, photoButton, takePhoto, chooseAlbum, camera, album, removePhoto]) control.disabled = busy;
       optionList.disabled = busy;
+      for (const button of periodButtons) button.disabled = loadingPhoto || sharing;
+      previous.disabled = loadingPhoto || sharing;
+      next.disabled = loadingPhoto || sharing || recordRange(selection.period, selection.anchor).dateTo >= today;
     }
     syncPhotoUI();
     function changeFormat(mode) {
@@ -534,14 +587,8 @@
         }
       } finally { sharing = false; if (current()) { syncPhotoUI(); share.disabled = !view.file || !canShareFile(view.file); } }
     });
-    try {
-      if (loadPlans) {
-        try { model.completion = aggregatePlans(await loadPlans(), model.from, model.to, today); }
-        catch {
-          if (current()) { note.hidden = false; note.textContent = "할 일 달성률을 불러오지 못해 공부시간만 표시합니다."; }
-        }
-      }
-      if (!current()) { if (active === view) close(); return; }
+    function renderOptions() {
+      optionList.replaceChildren(node("legend", "", "공유 이미지에 넣을 항목"));
       const available = [
         ...(period === "daily" ? [] : [["chart", period === "weekly" ? "요일별 그래프" : "공부 달력"]]),
         ["subjects", "과목별 공부시간", !model.subjects.length],
@@ -561,14 +608,64 @@
         });
         optionList.append(item);
       }
-      ready = true;
-      await refreshImage();
-    } catch {
-      if (current()) { status.hidden = false; status.textContent = "이미지를 만들지 못했어요. 통계로 돌아가 다시 시도해 주세요."; }
     }
+
+    async function loadSelection(initialData) {
+      if (!current()) { if (active === view) close(); return; }
+      const ticket = ++recordRevision;
+      const latest = () => {
+        if (!current()) { if (active === view) close(); return false; }
+        return ticket === recordRevision;
+      };
+      const selectedPeriod = selection.period, range = recordRange(selectedPeriod, selection.anchor);
+      const from = dateParts(range.dateFrom), to = dateParts(range.dateTo);
+      rangeTitle.textContent = selectedPeriod === "daily" ? dateLabel(range.dateFrom)
+        : selectedPeriod === "monthly" ? `${from.year}년 ${from.month}월`
+          : `${from.year}. ${from.month}.${from.day} – ${to.year !== from.year ? to.year + ". " : ""}${to.month}.${to.day}`;
+      for (const button of periodButtons) {
+        const selected = button.dataset.sharePeriod === selectedPeriod;
+        button.classList.toggle("active", selected); button.setAttribute("aria-pressed", String(selected));
+      }
+      dialog.setAttribute("aria-label", `${PERIODS[selectedPeriod]} 기록 공유, ${rangeTitle.textContent}`);
+      ready = false; ++revision;
+      view.file = null;
+      if (view.url) URL.revokeObjectURL(view.url);
+      view.url = ""; preview.removeAttribute("src"); preview.hidden = true;
+      save.disabled = true; share.disabled = true; options.hidden = true; retry.hidden = true; note.hidden = true;
+      status.hidden = false; status.textContent = "공부 기록을 불러오는 중입니다.";
+      syncPhotoUI(); setPhotoMenu(false);
+      try {
+        const record = initialData || await loadRecord(range);
+        if (!latest()) return;
+        if (!record || record.localOnly || record.ok === false || record.dateFrom !== range.dateFrom || record.dateTo !== range.dateTo) throw new Error("unconfirmed_record");
+        if (Number(record.summary?.totalSeconds) === 0) {
+          status.textContent = "이 기간에는 공유할 공부 기록이 없습니다. 다른 기간을 선택해 주세요.";
+          return;
+        }
+        const nextModel = createModel(record, selectedPeriod, today);
+        let plansFailed = false;
+        if (loadPlans) {
+          try { nextModel.completion = aggregatePlans(await loadPlans(range, today), nextModel.from, nextModel.to, today); }
+          catch { plansFailed = true; }
+        }
+        if (!latest()) return;
+        model = nextModel; period = selectedPeriod;
+        fields = { ...defaultFields(period), ...selections[period] };
+        preview.alt = `${model.heading} ${PERIODS[period]} 공부 기록`;
+        note.hidden = !plansFailed;
+        note.textContent = plansFailed ? "할 일 달성률을 불러오지 못해 공부시간만 표시합니다." : "";
+        renderOptions(); options.hidden = false; ready = true;
+        await refreshImage();
+      } catch {
+        if (!latest()) return;
+        status.hidden = false; status.textContent = "이 기간의 기록을 불러오지 못했어요. 다시 불러오거나 다른 기간을 선택해 주세요.";
+        retry.hidden = typeof loadRecord !== "function";
+      }
+    }
+    await loadSelection(data);
   }
 
-  const api = { open, close, createModel, aggregatePlans, duration, renderCard, canShareFile };
+  const api = { open, close, createModel, aggregatePlans, duration, renderCard, canShareFile, recordRange, shiftRecordAnchor };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.StudyRecordShare = api;
 })(typeof window !== "undefined" ? window : globalThis);

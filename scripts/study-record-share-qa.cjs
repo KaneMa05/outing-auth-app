@@ -20,8 +20,10 @@ const ensureStudyCafeRemoteLoaded=()=>{},ensureStudyCafePreviewClock=()=>{},getS
 const notify=message=>{window.lastNotice=message};
 const requestStudyTimerStats=()=>{};
 const plans=[5,6,4,6,5,5,3].map((completed,i)=>({studyDate:'2026-09-'+(14+i),completed,total:[6,8,5,6,5,6,4][i]}));
-let failPlans=false, planGate=null;
-async function requestStudyCafeAction(action,payload){if(action!=='todo_month_summary')throw Error('Unexpected API action');if(planGate)await planGate;return {ok:!failPlans,plans:plans.filter(p=>p.studyDate.startsWith(payload.monthKey))};}
+let failPlans=false, planGate=null, failRecords=false, emptyRecords=false, holdRecords=false;
+window.pendingRecords=[];
+function recordForRange(range){const days=enumerateStudyTimerDateKeys(range.dateFrom,range.dateTo).map(date=>({date,totalSeconds:emptyRecords?0:3600}));return {ok:true,...range,serverNow:'2026-09-30T12:00:00Z',days,summary:{totalSeconds:days.length*(emptyRecords?0:3600)},subjectTotals:emptyRecords?{}:{'해양경찰학':days.length*3600}};}
+async function requestStudyCafeAction(action,payload){if(action==='stats'){if(holdRecords)return new Promise(resolve=>pendingRecords.push({range:{...payload},resolve}));return failRecords?{ok:false}:recordForRange(payload);}if(action!=='todo_month_summary')throw Error('Unexpected API action');if(planGate)await planGate;return {ok:!failPlans,plans:plans.filter(p=>p.studyDate.startsWith(payload.monthKey))};}
 function dataFor(period){const weekly=[6,7.5,5.5,6.5,7,6,4],days=period==='daily'?[{date:'2026-09-15',totalSeconds:27000,longestSeconds:10800,firstStartedAt:'2026-09-15T09:00:00+09:00',lastEndedAt:'2026-09-15T18:00:00+09:00'}]:period==='weekly'?weekly.map((h,i)=>({date:'2026-09-'+(14+i),totalSeconds:h*3600})):Array.from({length:30},(_,i)=>({date:'2026-09-'+String(i+1).padStart(2,'0'),totalSeconds:i===0?43500:i===1?86400:[5,12,19,26].includes(i)?0:21600}));const totalSeconds=days.reduce((n,d)=>n+d.totalSeconds,0),studiedDays=days.filter(d=>d.totalSeconds).length;return{ok:true,serverNow:'2026-09-30T12:00:00Z',dateFrom:days[0].date,dateTo:days.at(-1).date,days,summary:{totalSeconds,studiedDays,dailyAverageSeconds:Math.floor(totalSeconds/studiedDays),maxDailySeconds:Math.max(...days.map(d=>d.totalSeconds))},subjectTotals:{'해양경찰학':Math.floor(totalSeconds*.4),'해사법규':Math.floor(totalSeconds*.3),'항해학':totalSeconds-Math.floor(totalSeconds*.4)-Math.floor(totalSeconds*.3)}};}
 ['daily','weekly','monthly'].forEach(p=>{const data=dataFor(p);studyTimerStatsState.cache[data.dateFrom+':'+data.dateTo]=data;});
 function render(){document.querySelector('#app').replaceChildren(renderStudentStudyTimer());}
@@ -58,6 +60,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
    await waitFor("!!document.querySelector('.study-record-share-image')?.src");
    await check("document.querySelector('.study-record-share-image').naturalWidth===1080",'PNG resolution');
    await check("document.querySelector('.study-record-share-dialog').scrollWidth<=window.innerWidth",'Dialog overflow');
+   await check("Array.from(document.querySelectorAll('[data-share-period]')).length===3 && Array.from(document.querySelectorAll('[data-share-period],.study-record-share-dates,.study-record-share-actions')).every(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth})",'Period controls or footer clipped');
    if(width===390){
     const base64=await evaluate("fetch(document.querySelector('.study-record-share-image').src).then(r=>r.blob()).then(b=>new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(b)}))");
     fs.writeFileSync(path.join(dir,period+'-export.png'),Buffer.from(base64,'base64'));
@@ -68,6 +71,47 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   }
  }
  console.log('320/390px statistics, full minute labels (including 12:05 and 24:00), three PNG exports and scroll restoration passed.');
+ await evaluate("setPeriod('daily');openShare()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await evaluate("holdRecords=true;document.querySelector('[data-share-period=weekly]').click();document.querySelector('[data-share-period=monthly]').click()");
+ await check("pendingRecords.length===2 && document.querySelector('.study-record-share-image').hidden && !document.querySelector('.study-record-share-image').getAttribute('src') && Array.from(document.querySelectorAll('.study-record-share-actions button')).every(n=>n.disabled)",'Pending period exposed old image');
+ await evaluate("pendingRecords[1].resolve(recordForRange(pendingRecords[1].range))");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await evaluate("window.latestImage=document.querySelector('.study-record-share-image').src;pendingRecords[0].resolve(recordForRange(pendingRecords[0].range))");await delay(200);
+ await check("document.querySelector('.study-record-share-image').src===latestImage && document.querySelector('[data-share-period=monthly]').getAttribute('aria-pressed')==='true'",'Old response replaced selected month');
+ await evaluate("holdRecords=false;failRecords=true;document.querySelector('[data-share-period=weekly]').click()");
+ await waitFor("!document.querySelector('.study-record-share-retry').hidden");
+ await check("document.querySelector('.study-record-share-image').hidden && Array.from(document.querySelectorAll('.study-record-share-actions button')).every(n=>n.disabled)",'Failed record kept downloadable file');
+ await evaluate("failRecords=false;document.querySelector('.study-record-share-retry').click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await evaluate("emptyRecords=true;document.querySelector('[data-share-period=daily]').click()");
+ await waitFor("document.querySelector('.study-record-share-status').textContent.includes('공유할 공부 기록이 없습니다')");
+ await check("document.querySelector('.study-record-share-image').hidden && Array.from(document.querySelectorAll('.study-record-share-actions button')).every(n=>n.disabled)",'Empty record kept downloadable file');
+ await evaluate("emptyRecords=false;document.querySelector('.study-record-share-dates button').click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await check("document.querySelector('.study-record-share-dates strong').textContent.includes('14')",'Previous day failed');
+ await evaluate("document.querySelectorAll('.study-record-share-formats button')[1].click()");
+ await evaluate("(async()=>{const canvas=document.createElement('canvas');canvas.width=400;canvas.height=600;const ctx=canvas.getContext('2d');ctx.fillStyle='#647887';ctx.fillRect(0,0,400,600);const blob=await new Promise(r=>canvas.toBlob(r));const transfer=new DataTransfer();transfer.items.add(new File([blob],'photo.png',{type:'image/png'}));const input=document.querySelector('input[aria-label=\"앨범 사진 선택\"]');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await waitFor("!document.querySelector('.study-record-share-photo-button').disabled && !!document.querySelector('.study-record-share-image')?.src");
+ await evaluate("const ratio=document.querySelector('.study-record-share-ratio select');ratio.value='3:4';ratio.dispatchEvent(new Event('change'));document.querySelector('[data-share-period=weekly]').click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src && !document.querySelector('.study-record-share-actions .secondary').disabled");
+ await check("document.querySelectorAll('.study-record-share-formats button')[1].getAttribute('aria-pressed')==='true' && document.querySelector('.study-record-share-ratio select').value==='3:4' && !document.querySelector('.study-record-share-photo-tools').hidden",'Period change lost photo or ratio');
+ await waitFor("document.querySelector('.study-record-share-image').naturalWidth===1440 && document.querySelector('.study-record-share-image').naturalHeight===1920");
+ await evaluate("document.querySelectorAll('.study-record-share-formats button')[0].click();document.querySelector('[data-share-period=monthly]').click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await check("document.querySelectorAll('.study-record-share-dates button')[1].disabled",'Future month navigation enabled');
+ await evaluate("document.querySelector('.study-record-share-dates button').click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await check("document.querySelector('.study-record-share-dates strong').textContent.includes('8월')",'Previous month failed');
+ await evaluate("document.querySelectorAll('.study-record-share-dates button')[1].click()");
+ await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await check("document.querySelector('.study-record-share-dates strong').textContent.includes('9월')",'Next month failed');
+ await evaluate("StudyRecordShare.close()");
+ await check("studyTimerStatsState.period==='daily' && formatStudyTimerDateKey(studyTimerStatsState.anchorDate)==='2026-09-15'",'Share changed underlying statistics selection');
+ await evaluate("openShare()");await waitFor("!!document.querySelector('.study-record-share-image')?.src");
+ await evaluate("pendingRecords=[];holdRecords=true;document.querySelector('[data-share-period=weekly]').click();StudyRecordShare.close();pendingRecords[0].resolve(recordForRange(pendingRecords[0].range));holdRecords=false");await delay(200);
+ await check("!document.querySelector('.study-record-share-dialog')",'Closed pending records reopened preview');
+ console.log('Period/date controls, response race, loading/error/empty states, retry, retained photo/ratio and close during record load passed.');
  await evaluate("setPeriod('weekly');Object.defineProperty(navigator,'canShare',{configurable:true,writable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,writable:true,value:async data=>{window.sentFile=data.files[0];throw new DOMException('cancel','AbortError')}});openShare()");
  await waitFor("!!document.querySelector('.study-record-share-image')?.src");
  await evaluate("document.querySelector('.study-record-share-actions .btn:not(.secondary)').click()");await delay(80);

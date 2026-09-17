@@ -6295,7 +6295,7 @@ function renderStudentStudyCafe() {
         ]),
       ]),
       seated ? renderStudyCafeMySeatCard(student, selectedSeatNumber) : null,
-      el("div", { className: `study-cafe-room-label-row ${roomContextText ? "" : "actions-only"}`.trim() }, [
+      el("div", { className: `study-cafe-room-label-row study-cafe-stats-navigation ${roomContextText ? "" : "actions-only"}`.trim() }, [
         roomContextText
           ? el("span", { "data-study-cafe-room-context": "true" }, roomContextText)
           : null,
@@ -6317,6 +6317,7 @@ function renderStudentStudyCafe() {
                 ]
               )
             : null,
+          renderStudyCafeStatsButton(student),
           state.settings.studyRoomListEnabled === true
             ? el(
                 "button",
@@ -6377,6 +6378,22 @@ function renderStudentStudyCafe() {
       : null,
     active ? renderStudyCafeFloatingActions(student) : null,
   ]);
+}
+
+function renderStudyCafeStatsButton(student) {
+  if (!isOnlineStudentExperience(student)) return null;
+  return el("button", {
+    type: "button",
+    className: "study-cafe-ranking-button study-cafe-stats-button",
+    ariaLabel: "공부시간 통계 보기",
+    title: "공부시간 통계",
+    onclick: () => {
+      studyTimerStatsState.mode = "stats";
+      studyTimerStatsState.period = "daily";
+      studyTimerStatsState.anchorDate = parseStudyTimerDateKey(formatStudyBusinessDateKey(new Date()));
+      navigate("study-timer");
+    },
+  }, "통계");
 }
 
 function renderStudyCafeNotice() {
@@ -6747,6 +6764,7 @@ function renderStudentPrivateStudyRoom(student) {
         ]),
         el("div", { className: "study-cafe-room-toolbar-actions study-private-room-actions" }, [
           renderStudyCafeShopChip(student),
+          renderStudyCafeStatsButton(student),
           button("전체 카페 보기", "study-room-cafe-button", "button", browsePublicStudyCafe),
           room.role === "host"
             ? button("방 관리", "study-room-manage-button", "button", openStudyRoomManageModal)
@@ -8036,7 +8054,13 @@ async function openStudyTimerRecordShare() {
     if (!window.StudyRecordShare) throw new Error("share_not_loaded");
     await window.StudyRecordShare.open({
       data, period: studyTimerStatsState.period, today,
-      loadPlans: () => loadStudyTimerSharePlans(range, today),
+      anchorDate: formatStudyTimerDateKey(studyTimerStatsState.anchorDate),
+      loadRecord: async selectedRange => {
+        const result = await requestStudyCafeAction("stats", selectedRange);
+        if (!result.ok || result.localOnly) throw new Error("share_record_unavailable");
+        return result;
+      },
+      loadPlans: (selectedRange = range, selectedToday = today) => loadStudyTimerSharePlans(selectedRange, selectedToday),
       isCurrent: () => currentRoute === "study-timer" && getAuthedStudent()?.id === student.id && isOnlineStudentExperience(getAuthedStudent()),
     });
   } catch {

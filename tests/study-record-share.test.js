@@ -56,6 +56,16 @@ test("daily heading has one date and compact duration preserves minutes", () => 
   assert.equal(share.duration(561600, true), "156:00:00");
 });
 
+test("share period ranges handle Sunday, year boundaries and leap years without changing the input anchor", () => {
+  assert.deepEqual(share.recordRange('daily','2026-09-17'),{dateFrom:'2026-09-17',dateTo:'2026-09-17'});
+  assert.deepEqual(share.recordRange('weekly','2027-01-03'),{dateFrom:'2026-12-28',dateTo:'2027-01-03'});
+  assert.deepEqual(share.recordRange('monthly','2028-02-29'),{dateFrom:'2028-02-01',dateTo:'2028-02-29'});
+  assert.equal(share.shiftRecordAnchor('monthly','2026-01-31',1),'2026-02-01');
+  assert.equal(share.shiftRecordAnchor('monthly','2026-01-31',-1),'2025-12-01');
+  assert.equal(share.shiftRecordAnchor('weekly','2026-12-31',1),'2027-01-07');
+  assert.throws(()=>share.recordRange('daily','2026-02-30'),/invalid_date/);
+});
+
 function extract(name) {
   const source = fs.readFileSync("app.js", "utf8");
   const start = source.indexOf(`function ${name}(`);

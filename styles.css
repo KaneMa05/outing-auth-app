@@ -11175,6 +11175,40 @@ html.study-record-share-open body {
   height: min(940px, calc(100dvh - 32px));
 }
 
+.study-record-share-layout.has-period-picker {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.study-record-share-period-picker {
+  padding: 0 16px 13px;
+  display: grid;
+  gap: 10px;
+}
+
+.study-record-share-period-picker[hidden],
+.study-record-share-retry[hidden],
+.study-record-share-options[hidden],
+.study-record-share-image[hidden] { display: none; }
+
+.study-record-share-period-picker .study-timer-stats-period-button {
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.study-record-share-period-picker .study-record-share-dates { grid-template-columns: 32px minmax(0, 1fr) 32px; }
+.study-record-share-period-picker .study-record-share-dates strong { font-size: .8rem; line-height: 1.4; color: inherit; white-space: normal; }
+.study-record-share-dates .study-timer-stats-date-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.study-record-share-retry { padding: 10px 14px; border: 1px solid #67839c; border-radius: 8px; background: transparent; color: inherit; font: inherit; }
+
 .study-record-share-head {
   display: flex;
   align-items: center;
@@ -14265,6 +14299,18 @@ body.student-online-mode:has(.student-study-character-page) .student-footer-menu
   outline: 2px solid #a86b12;
   outline-offset: 2px;
 }
+
+.study-cafe-room .study-cafe-stats-button {
+  padding: 3px 9px;
+  white-space: nowrap;
+  background: #edf6f7;
+  border-color: #adc9cf;
+  color: var(--room-ink);
+}
+
+.study-cafe-stats-navigation { gap: 6px; }
+.study-cafe-stats-navigation .study-cafe-room-label-actions { gap: 5px; }
+.study-cafe-stats-navigation .study-cafe-ranking-help-button { flex-shrink: 0; }
 
 .study-cafe-first-use-guide {
   display: flex;
