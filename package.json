@@ -6,7 +6,7 @@
     "build": "node build-config.js",
     "test:criminal-law-ox": "node tests/criminal-law-ox.test.cjs",
     "test:planner-subjects": "node tests/planner-subjects.test.js",
-    "pretest": "node tests/release-safety.test.js && node tests/criminal-law-ox-loading.test.cjs && node tests/study-character-fire.test.js && node tests/student-rewards.test.js && node tests/student-roster-export.test.js && node tests/planner-subjects.test.js && node tests/study-record-share.test.js && node tests/student-grade-performance.test.js",
+    "pretest": "node tests/release-safety.test.js && node tests/criminal-law-ox-loading.test.cjs && node tests/study-character-fire.test.js && node tests/student-rewards.test.js && node tests/student-roster-export.test.js && node tests/planner-subjects.test.js && node tests/study-record-share.test.js && node tests/student-grade-performance.test.js && node tests/weekly-investigation-subjects.test.js",
     "test:study-character-fire": "node tests/study-character-fire.test.js",
     "test:student-rewards": "node tests/student-rewards.test.js",
     "test:student-rewards:db": "node tests/student-rewards-db.test.js",

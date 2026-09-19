@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v440-ox-home-instant";
+const CACHE_NAME = "outing-auth-app-v441-investigation-weekly-subjects";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -10,8 +10,7 @@ const APP_SHELL = [
   "/styles.css?v=20260917-study-share-fixes",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
-  "/shared.js?v=20260911-study-cafe-visibility",
-  "/shared.js?v=20260917-final-score-safe",
+  "/shared.js?v=20260919-investigation-weekly-subjects",
   "/student.js?v=20260917-grade-lookup-performance",
   "/question-board.js?v=20260902-question-board-skeleton-ui",
   "/inquiry-board.js?v=20260902-inquiry-prefetch",

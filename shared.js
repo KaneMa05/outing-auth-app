@@ -306,6 +306,7 @@ const WEEKLY_NO_WRITTEN_EXAM_TRACKS = [
 ];
 const WEEKLY_VTS_TRACKS = Object.keys(WEEKLY_TRACK_EXCLUDED_SUBJECTS);
 const WEEKLY_DEFAULT_TRACK_SUBJECTS = {
+  "수사특채": ["해양경찰학개론", "형사법", "형사법(공판)"],
   "경찰직 - 공채(순경)": ["해사법규", "해양경찰학개론", "형사법"],
   "경찰직 - 해경학과 항해(경장)": ["해사법규", "해양경찰학개론", "형사법", "항해학"],
   "경찰직 - 해경학과 기관(경장)": ["해사법규", "해양경찰학개론", "형사법", "기관학"],
