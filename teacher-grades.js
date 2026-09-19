@@ -1414,7 +1414,7 @@ async function deleteWeeklyExamSubjectSetting(settingId, options = {}) {
 
 function renderTrackSubjectManagement() {
   if (!hasTeacherPermission("grades.read")) return renderForbidden();
-  const tracks = getCoastGuardTrackOptions().filter((track) => track !== "기타");
+  const tracks = normalizeTrackOptionList([...getCoastGuardTrackOptions(), "수사특채"]);
   const activeSettings = new Set(
     (state.examSubjectSettings || [])
       .filter((setting) => setting.isActive !== false)

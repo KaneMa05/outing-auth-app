@@ -67,4 +67,55 @@ assert.equal(context.getVisibleStudentExams({ ...learner, track: "경찰직 - �
 
 state.examAnswers = [];
 assert.equal(context.getVisibleStudentExams(learner).length, 0, "unregistered answers must remain hidden");
-console.log("weekly investigation subject tests passed");
+// Management must include the track even when older saved dropdown options omit it.
+const findNodes = (node, predicate) => [
+  ...(node && predicate(node) ? [node] : []),
+  ...(node?.children || []).flatMap((child) => findNodes(child, predicate)),
+];
+context.el = (tag, props = {}, children = []) => ({
+  tag, ...props, children: Array.isArray(children) ? children : [children], handlers: {},
+  addEventListener(event, handler) { this.handlers[event] = handler; },
+  querySelector(selector) {
+    const name = selector.match(/^input\[name="(.*)"\]$/)?.[1];
+    return findNodes(this, (node) => node.tag === "input" && node.name === name)[0] || null;
+  },
+});
+context.table = (headers, rows) => context.el("table", {}, rows);
+context.panel = (title, children) => context.el("section", {}, children);
+context.button = (label, className, type, onClick) => context.el("button", { label, className, type, onClick });
+context.hasTeacherPermission = () => true;
+context.renderForbidden = () => { throw new Error("Unexpected forbidden view"); };
+context.getCoastGuardTrackOptions = () => ["경찰직 - 공채(순경)", "기타"];
+context.CSS = { escape: (value) => value };
+context.createId = (() => { let id = 0; return () => `setting-${++id}`; })();
+context.saveState = context.render = context.notify = () => {};
+let savedSettings;
+context.saveExamSubjectSettingsToRemote = async (settings) => { savedSettings = plain(settings); };
+for (const name of ["renderTrackSubjectManagement", "resetTrackSubjectDefaults"]) {
+  vm.runInContext(extract(teacher, name), context);
+}
+const getForm = () => findNodes(context.renderTrackSubjectManagement(), (node) => node.tag === "form")[0];
+const inputs = (form, track) => findNodes(form, (node) => node.tag === "input" && node.name.startsWith(`${track}|||`));
+const checkedSubjects = (form, track) => inputs(form, track).filter((node) => node.checked).map((node) => node.name.split("|||")[1]);
+
+(async () => {
+  const form = getForm();
+  assert.equal(inputs(form, "수사특채").length, 7, "missing saved track still gets a management row");
+  assert.deepEqual(checkedSubjects(form, "수사특채"), expected);
+  const previousPublicSubjects = checkedSubjects(form, "경찰직 - 공채(순경)");
+  await form.handlers.submit({ preventDefault() {} });
+  assert.deepEqual(savedSettings.filter((row) => row.track === "수사특채" && row.isActive).map((row) => row.subject), expected);
+  assert.deepEqual(checkedSubjects(getForm(), "수사특채"), expected, "saved subjects survive rendering again");
+  assert.deepEqual(checkedSubjects(getForm(), "경찰직 - 공채(순경)"), previousPublicSubjects);
+
+  const savedForm = getForm();
+  inputs(savedForm, "수사특채").find((node) => node.name.endsWith("|||형사법(공판)")).checked = false;
+  await savedForm.handlers.submit({ preventDefault() {} });
+  assert.deepEqual(checkedSubjects(getForm(), "수사특채"), ["해양경찰학개론", "형사법"], "management changes persist");
+  const resetForm = getForm();
+  context.resetTrackSubjectDefaults(resetForm, ["수사특채"]);
+  assert.deepEqual(checkedSubjects(resetForm, "수사특채"), expected, "reset restores all three subjects");
+  context.getCoastGuardTrackOptions = () => ["경찰직 - 공채(순경)", "수사특채", "기타"];
+  assert.equal(inputs(getForm(), "수사특채").length, 7, "a saved track must not create duplicate rows");
+  console.log("weekly investigation subject and management tests passed");
+})().catch((error) => { console.error(error); process.exit(1); });
