@@ -3194,7 +3194,7 @@ function renderCriminalLawOxLocalPreview() {
   if (!document.querySelector("link[data-criminal-law-ox-style]")) {
     document.head.appendChild(el("link", {
       rel: "stylesheet",
-      href: "./criminal-law-ox.css?v=20260920-ox-learning",
+      href: "./criminal-law-ox.css?v=20260920-ox-explanation-bold",
       "data-criminal-law-ox-style": "true",
     }));
   }

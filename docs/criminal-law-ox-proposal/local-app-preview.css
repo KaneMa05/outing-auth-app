@@ -9,12 +9,12 @@
   src:url("/fonts/NanumGothic-Bold.woff") format("woff");
   font-style:normal; font-weight:700; font-display:swap;
 }
-/* Source textbooks use Nanum Gothic Bold for questions and Regular for explanations. */
+/* Keep the textbook font; use Bold for explanations too for screen readability. */
 #criminal-ox-preview :is(.ox-question,.ox-short-prompt,.ox-context,.ox-explanation) {
   font-family:"OX Textbook Nanum Gothic", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-weight:400;
 }
-#criminal-ox-preview :is(.ox-question,.ox-short-prompt) { font-weight:700; }
+#criminal-ox-preview :is(.ox-question,.ox-short-prompt,.ox-explanation) { font-weight:700; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions .mini-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:28px; height:28px; min-height:28px; padding:0; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions .criminal-law-ox-bookmarks-button { width:auto; gap:4px; padding:0 8px; font-size:.75rem; }

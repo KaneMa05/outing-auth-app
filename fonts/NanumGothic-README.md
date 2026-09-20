@@ -1,8 +1,10 @@
 # OX textbook fonts
 
 The three original criminal-law OX textbooks use NanumGothicBold for OX
-question statements and NanumGothic for explanations. The student OX view
-uses these weights only for question, context and explanation content.
+question statements and NanumGothic for explanations. At the user's request,
+the student OX view uses Bold (700) for both questions and explanations for
+screen readability, while context remains Regular (400). These fonts apply
+only to question, context and explanation content.
 
 Source: https://github.com/google/fonts/tree/main/ofl/nanumgothic
 
