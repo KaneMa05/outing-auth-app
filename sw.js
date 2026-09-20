@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v442-investigation-subject-management";
+const CACHE_NAME = "outing-auth-app-v443-ox-learning";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -20,7 +20,7 @@ const APP_SHELL = [
   "/final-scope-data.js?v=20260908-final-scope-plan",
   "/feedback-hub.js?v=20260911-feedback-free-only",
   "/study-record-share.js?v=20260917-study-share-fixes",
-  "/app.js?v=20260917-ox-home-instant",
+  "/app.js?v=20260920-ox-learning",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
   "/styles.css?v=20260911-hair-shop-bot-admin",
   "/teacher.js?v=20260911-admin-dashboard-retry",
@@ -38,9 +38,9 @@ const APP_SHELL = [
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20260917-ox-members",
   "/criminal-law-ox-admin.css?v=20260917-ox-members",
-  "/criminal-law-ox.js",
-  "/criminal-law-ox.css",
-  "/app.js?v=20260917-ox-home-instant",
+  "/criminal-law-ox.js?v=20260920-ox-learning",
+  "/criminal-law-ox.css?v=20260920-ox-learning",
+  "/app.js?v=20260920-ox-learning",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",

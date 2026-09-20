@@ -1,0 +1,38 @@
+{
+  "project_id": "ehzrwkvuarertwvwoyus",
+  "actor": "spacing-correction-20260920",
+  "before": {
+    "notes": {
+      "md5": "40b96f731daafe7e97bafe6fd1582cc1",
+      "count": 4
+    },
+    "attempts": {
+      "md5": "98889b8b664ecf345f98014a69a0481e",
+      "count": 104
+    },
+    "progress": {
+      "md5": "17db409ca6c187dd6dd8ac214c6403ce",
+      "count": 104
+    },
+    "question_metadata": "2820f6492a925b9ac3669b6737983ed2"
+  },
+  "verification": {
+    "notes": 5,
+    "attempts": 114,
+    "progress": 114,
+    "published": 2543,
+    "questions": 2960,
+    "history_rows": 1022,
+    "changed_fields": 1904,
+    "markup_changes": 0,
+    "removed_spaces": 1275,
+    "revision_errors": 0,
+    "metadata_changes": 0,
+    "nonspace_changes": 0,
+    "question_metadata": "2820f6492a925b9ac3669b6737983ed2",
+    "distinct_questions": 1022,
+    "html_plain_mismatches": 0,
+    "unrelated_entry_changes": 0,
+    "current_entry_mismatches": 0
+  }
+}

@@ -3133,7 +3133,7 @@ function renderCriminalLawOxLocalEntry() {
     if (getAuthedStudent()?.id!==student?.id || getStudentProfile(student?.id)?.deviceToken!==deviceToken) return;
     entry.hidden=!data.enabled; entry.style.display=data.enabled?'':'none';
     if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js','data-ox-module-preload':'true'}));
+      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260920-ox-learning','data-ox-module-preload':'true'}));
     }
   }).catch(() => {
     const stillCurrent=getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
@@ -3194,7 +3194,7 @@ function renderCriminalLawOxLocalPreview() {
   if (!document.querySelector("link[data-criminal-law-ox-style]")) {
     document.head.appendChild(el("link", {
       rel: "stylesheet",
-      href: "./criminal-law-ox.css",
+      href: "./criminal-law-ox.css?v=20260920-ox-learning",
       "data-criminal-law-ox-style": "true",
     }));
   }
@@ -3215,7 +3215,7 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  Promise.all([import("./criminal-law-ox.js"),requestCriminalLawOx('bootstrap')]).then(([{ mount },bootstrap]) => {
+  Promise.all([import("./criminal-law-ox.js?v=20260920-ox-learning"),requestCriminalLawOx('bootstrap',{summaryOnly:true})]).then(([{ mount },bootstrap]) => {
     if (content.isConnected) {
       previewController = mount(content,{bootstrap,request:requestCriminalLawOx});
       bookmarksButton.disabled = false;

@@ -1,0 +1,30 @@
+{
+  "project_id": "ehzrwkvuarertwvwoyus",
+  "verification": {
+    "notes": 5,
+    "attempts": 124,
+    "by_actor": [
+      {
+        "actor": "spacing-correction-followup-20260920",
+        "questions": 2338
+      },
+      {
+        "actor": "spacing-correction-polish-20260920",
+        "questions": 348
+      }
+    ],
+    "progress": 124,
+    "published": 2543,
+    "questions": 2960,
+    "history_rows": 2686,
+    "markup_changes": 0,
+    "metadata_changes": 0,
+    "nonspace_changes": 0,
+    "question_metadata": "2820f6492a925b9ac3669b6737983ed2",
+    "distinct_questions": 2383,
+    "html_plain_mismatches": 0,
+    "investigation_questions": 590,
+    "unrelated_entry_changes": 0,
+    "current_entry_mismatches": 0
+  }
+}

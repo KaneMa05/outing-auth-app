@@ -71,6 +71,14 @@ test("service worker installs every current page asset and never caches API requ
       assert.ok(stored.has("/" + match[1]), `${filename}: ${match[1]} missing from precache`);
     }
   }
+  // Lazy OX assets need versioned URLs too: an existing worker serves cached
+  // unversioned files even while the next worker is still installing.
+  const oxAssets = [...fs.readFileSync("app.js", "utf8").matchAll(/\.\/(criminal-law-ox\.(?:js|css)(?:\?v=[^'"\s]+)?)/g)].map(match => match[1]);
+  assert.equal(oxAssets.length, 3, "Expected OX module preload, import and stylesheet");
+  for (const asset of oxAssets) {
+    assert.match(asset, /\?v=.+/, "Lazy OX assets must bypass older cached URLs");
+    assert.ok(stored.has("/" + asset), `${asset} missing from precache`);
+  }
   for (const [url, method] of [["/api/study-cafe", "POST"], ["/api/app-settings", "GET"]]) {
     handlers.fetch({ request: { url: `https://app.test${url}`, method }, respondWith: () => assert.fail("API must bypass cache") });
   }

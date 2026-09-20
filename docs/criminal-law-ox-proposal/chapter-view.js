@@ -15,7 +15,7 @@ function chapterView() {
   const visible = allChapters ? list : list.slice(0, 8);
   const short = ['형법', '수사·증거', '공판'];
   main.innerHTML = `
-    <div class="ox-page-heading"><h2>단원 학습</h2><span class="ox-sub">한 번에 10문항</span></div>
+    <div class="ox-page-heading"><h2>단원 학습</h2><button type="button" class="ox-set-size-trigger" data-action="chapter-size" aria-haspopup="dialog">한 번에 ${chapterSetSize}문항 <span aria-hidden="true">⌄</span></button></div>
     <div class="ox-filters ox-subject-filters" role="group" aria-label="학습 과목">
       ${data.collections.map((c, i) => `<button type="button" class="mini-btn ox-filter" aria-pressed="${c.id === collection}" data-action="collection" data-id="${c.id}">${short[i]}</button>`).join('')}
     </div>

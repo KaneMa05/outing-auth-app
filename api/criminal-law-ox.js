@@ -1,8 +1,34 @@
 const crypto = require('crypto');
 const auth = require('./teacher-auth-utils');
 const { requestSupabase } = require('./curriculum')._private;
-const actions = new Set(['status','bootstrap','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set']);
+const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set']);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
+const DEVICE_SESSION_COOKIE = 'outing_ox_device_session';
+const DEVICE_SESSION_SECONDS = 12 * 60 * 60;
+const deviceHash = token => crypto.createHash('sha256').update(token).digest('hex');
+const deviceSessionSecret = () => process.env.OX_SESSION_SECRET || process.env.TEACHER_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Domain separation prevents these credentials being used as teacher sessions.
+const signDeviceSession = (payload, secret) => crypto.createHmac('sha256',secret).update('ox-device-session-v1:'+payload).digest('base64url');
+function readDeviceSession(req, body, secret, now) {
+  const token=auth.readCookie(req,DEVICE_SESSION_COOKIE);
+  if (!secret || !token || token.length>2048 || !body.studentId || !body.deviceToken) return null;
+  const parts=token.split('.');
+  if (parts.length!==2) return null;
+  const [payload,signature]=parts, expected=signDeviceSession(payload,secret);
+  const actual=Buffer.from(signature), target=Buffer.from(expected);
+  if (actual.length!==target.length || !crypto.timingSafeEqual(actual,target)) return null;
+  try {
+    const session=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));
+    if (session.studentId!==body.studentId || session.device!==deviceHash(body.deviceToken)
+      || !Number.isInteger(session.exp) || session.exp<=now || session.exp>now+DEVICE_SESSION_SECONDS) return null;
+    return {id:session.studentId};
+  } catch { return null; }
+}
+function deviceSessionCookie(req, body, studentId, secret, now) {
+  const payload=Buffer.from(JSON.stringify({studentId,device:deviceHash(body.deviceToken),exp:now+DEVICE_SESSION_SECONDS})).toString('base64url');
+  const secure=req.headers['x-forwarded-proto']==='https' || req.socket?.encrypted || process.env.VERCEL==='1';
+  return `${DEVICE_SESSION_COOKIE}=${payload}.${signDeviceSession(payload,secret)}; HttpOnly; SameSite=Strict; Path=/api/criminal-law-ox; Max-Age=${DEVICE_SESSION_SECONDS}${secure?'; Secure':''}`;
+}
 async function authenticateStudent(body, request=requestSupabase) {
   if (!body.studentId || !body.deviceToken) return null;
   const validation = await request('POST','rpc/validate_student_device', {
@@ -29,6 +55,10 @@ function validate(body) {
   if (body.studentId !== undefined && (typeof body.studentId !== 'string' || body.studentId.length>120)) fail('invalid_request');
   if (body.deviceToken !== undefined && (typeof body.deviceToken !== 'string' || body.deviceToken.length>256)) fail('invalid_request');
   const action=body.action;
+  if (action==='bootstrap' && body.summaryOnly!==undefined && typeof body.summaryOnly!=='boolean') fail('invalid_request');
+  if (action==='questions' && (!Array.isArray(body.questions) || body.questions.length<1 || body.questions.length>50
+    || body.questions.some(q=>!q || typeof q.id!=='string' || !q.id || q.id.length>120 || !Number.isInteger(q.version) || q.version<1)
+    || new Set(body.questions.map(q=>q.id)).size!==body.questions.length)) fail('invalid_request');
   if (['submit','note','detail'].includes(action)) {
     if (typeof body.questionId!=='string' || body.questionId.length>120 || !Number.isInteger(body.version) || body.version<1) fail('invalid_request');
   }
@@ -55,7 +85,19 @@ function validate(body) {
     for (const key of ['search','chapterId','status']) if (body[key]!==undefined && (typeof body[key]!=='string' || body[key].length>500)) fail('invalid_request');
   }
 }
-function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc/ox_service',{p_action:action,p_actor:actor,p_body:body}), authenticate=authenticateStudent }={}) {
+async function invokeLearning(action,actor,body,request=requestSupabase) {
+  const progressive=action==='questions' || (action==='bootstrap' && body.summaryOnly===true);
+  try {
+    return await request('POST',progressive?'rpc/ox_learning_data':'rpc/ox_service',{p_action:action,p_actor:actor,p_body:body});
+  } catch(error) {
+    // Safe rolling deployment: an older DB can still serve the full bootstrap.
+    if (action==='bootstrap' && progressive && error.storeStatus===404) {
+      return request('POST','rpc/ox_service',{p_action:action,p_actor:actor,p_body:{}});
+    }
+    throw error;
+  }
+}
+function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent, sessionSecret=deviceSessionSecret, now=()=>Math.floor(Date.now()/1000) }={}) {
   return async (req,res)=> {
     res.setHeader('Cache-Control','no-store');
     try {
@@ -66,7 +108,7 @@ function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc
       if(typeof body==='string') body=JSON.parse(body);
       if(Buffer.byteLength(JSON.stringify(body))>100000) fail('request_too_large',413);
       validate(body);
-      let actor;
+      let actor, newDeviceCookie;
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
         if(!session) fail('unauthorized',401);
@@ -74,13 +116,19 @@ function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc
         if(!auth.hasPermission(session,permission)) fail('forbidden',403);
         actor={type:'admin',id:session.username};
       } else {
-        const student=await authenticate(body);
+        const secret=sessionSecret(), timestamp=now();
+        const cached=readDeviceSession(req,body,secret,timestamp);
+        const student=cached || await authenticate(body);
         if(!student) fail('unauthorized',401);
         actor={type:'student',id:student.id};
+        // Fixed expiry: answering questions never extends a revoked device's session.
+        // Without a signing secret, keep the existing authenticated request path.
+        if (!cached && secret && body.deviceToken) newDeviceCookie=deviceSessionCookie(req,body,student.id,secret,timestamp);
       }
       // Device credentials and client-supplied identities never enter the OX database function.
       const payload={...body}; delete payload.deviceToken; delete payload.studentId; delete payload.actor; delete payload.client; delete payload.action;
       const data=await invoke(body.action,actor,payload);
+      if (newDeviceCookie && data?.ok) res.setHeader('Set-Cookie',newDeviceCookie);
       res.status(200).json(body.action==='bootstrap'?compactBootstrap(data):data);
     } catch(error) {
       const known=['revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
@@ -92,4 +140,4 @@ function createHandler({ invoke=(action,actor,body)=>requestSupabase('POST','rpc
 }
 module.exports=createHandler();
 module.exports.createHandler=createHandler;
-module.exports._private={validate,authenticateStudent,compactBootstrap};
+module.exports._private={validate,authenticateStudent,compactBootstrap,invokeLearning};

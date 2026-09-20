@@ -40,7 +40,7 @@ function home() {
     <section class="ox-card ox-hero">
       <div class="ox-row"><span></span><span class="ox-sub">오늘 ${today}문항 풀이</span></div>
       <h3>${completed ? '오늘 학습 완료' : continuing ? esc(session.label) : '오늘 학습할 단원'}</h3>
-      <p class="ox-sub">${completed ? `${esc(session.label)} · ${session.ids.length}문항을 모두 풀었어요.` : continuing ? `${answered} / ${session.ids.length}문항 풀이` : '선택한 단원의 안 푼 문제를 10문항씩 풀어요.'}</p>
+      <p class="ox-sub">${completed ? `${esc(session.label)} · ${session.ids.length}문항을 모두 풀었어요.` : continuing ? `${answered} / ${session.ids.length}문항 풀이` : `선택한 단원의 안 푼 문제를 ${chapterSetSize}문항씩 풀어요.`}</p>
       ${button(completed ? '학습 결과 보기' : continuing ? '학습 이어하기 →' : '단원 선택하고 시작 →', completed ? 'session-result' : continuing ? 'resume' : 'daily', '', 'ox-primary ox-wide')}
       ${completed || continuing ? button('다른 단원 선택', 'daily', '', 'ox-wide') : ''}
     </section>
@@ -77,7 +77,7 @@ function chapterView() {
   const visible = allChapters ? list : list.slice(0, 8);
   const short = ['형법', '수사·증거', '공판'];
   main.innerHTML = `
-    <div class="ox-page-heading"><h2>단원 학습</h2><span class="ox-sub">한 번에 10문항</span></div>
+    <div class="ox-page-heading"><h2>단원 학습</h2><button type="button" class="ox-set-size-trigger" data-action="chapter-size" aria-haspopup="dialog">한 번에 ${chapterSetSize}문항 <span aria-hidden="true">⌄</span></button></div>
     <div class="ox-filters ox-subject-filters" role="group" aria-label="학습 과목">
       ${data.collections.map((c, i) => `<button type="button" class="mini-btn ox-filter" aria-pressed="${c.id === collection}" data-action="collection" data-id="${c.id}">${short[i]}</button>`).join('')}
     </div>
@@ -119,12 +119,60 @@ function start(ids, label, options = {}) {
 
     function daily(){ route='chapters'; render(); }
 let activeChapterId = null;
-const CHAPTER_SET_SIZE = 10;
+const CHAPTER_SET_SIZES = [10, 15, 20];
+let chapterSetSize = 10;
+
+function showChapterSizePicker() {
+  if (root.querySelector('.ox-set-size-dialog')) return;
+  const trigger = root.querySelector('[data-action="chapter-size"]');
+  const dialog = document.createElement('dialog');
+  dialog.className = 'ox-set-size-dialog';
+  dialog.setAttribute('aria-labelledby', 'ox-set-size-title');
+  dialog.setAttribute('aria-describedby', 'ox-set-size-description');
+  dialog.innerHTML = `<h2 id="ox-set-size-title">한 번에 풀 문항 수</h2>
+    <p id="ox-set-size-description" class="ox-sub">단원 학습에서 풀 문항 수를 선택해주세요.</p>
+    <div class="ox-set-size-options" role="group" aria-label="문항 수">
+      ${CHAPTER_SET_SIZES.map(size => `<button type="button" data-chapter-size="${size}" aria-pressed="${size === chapterSetSize}" ${size === chapterSetSize ? 'autofocus' : ''}>${size}문항</button>`).join('')}
+    </div>
+    <button type="button" class="ox-set-size-close">닫기</button>`;
+  dialog.addEventListener('click', event => {
+    const option = event.target.closest('button[data-chapter-size]');
+    if (option) {
+      const size = Number(option.dataset.chapterSize);
+      if (!CHAPTER_SET_SIZES.includes(size)) return;
+      chapterSetSize = size;
+      trigger.innerHTML = `한 번에 ${chapterSetSize}문항 <span aria-hidden="true">⌄</span>`;
+      dialog.close();
+    } else if (event.target.closest('.ox-set-size-close')) {
+      dialog.close();
+    } else if (event.target === dialog) {
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right
+          || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+    }
+  });
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    if (trigger.isConnected) trigger.focus();
+  }, { once: true });
+  root.append(dialog);
+  dialog.showModal();
+}
 
 function chapterQuestions(id) {
   return data.questions.filter(q => q.chapter_id === id).sort((a, b) =>
     Number(a.source_question_number) - Number(b.source_question_number)
     || String(a.source_option_label || '').localeCompare(String(b.source_option_label || ''), 'ko'));
+}
+
+function shuffleQuestionIds(ids) {
+  const shuffled = [...ids];
+  // Shuffle the entire eligible chapter before splitting it into study sets.
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 function chapterCompletion(c) {
@@ -161,12 +209,12 @@ function startChapter(id, mode = 'learn') {
   const questions = mode === 'wrong' ? s.wrong : mode === 'all' ? s.questions : s.questions.filter(q => !stats(q.id).last);
   // A sampled chapter may have no unseen items; it is still not fully completed.
   const selected = questions.length || mode === 'wrong' ? questions : s.questions;
-  startChapterSet(c, selected.map(q => q.id), mode);
+  startChapterSet(c, shuffleQuestionIds(selected.map(q => q.id)), mode);
 }
 
 function startChapterSet(c, ids, mode) {
-  start(ids.slice(0, CHAPTER_SET_SIZE), c.display_name, {
-    chapterId: c.id, chapterMode: mode, chapterRemaining: ids.slice(CHAPTER_SET_SIZE),
+  start(ids.slice(0, chapterSetSize), c.display_name, {
+    chapterId: c.id, chapterMode: mode, chapterRemaining: ids.slice(chapterSetSize),
   });
 }
 
@@ -199,7 +247,7 @@ function chapterSessionResult() {
     <div class="ox-completion-score"><span>이번 학습 정답</span><strong>${right}<small> / ${session.ids.length}</small></strong></div>
     <p class="ox-sub">단원 진도 ${s.solved} / ${c.question_count}문항</p>
     <div class="ox-completion-actions">
-      ${remaining.length ? button(`다음 ${Math.min(CHAPTER_SET_SIZE, remaining.length)}문항 풀기`, 'chapter-continue', '', 'ox-primary ox-wide')
+      ${remaining.length ? button(`다음 ${Math.min(chapterSetSize, remaining.length)}문항 풀기`, 'chapter-continue', '', 'ox-primary ox-wide')
         : button('이어서 학습하기', 'chapter', `data-id="${c.id}"`, 'ox-primary ox-wide')}
       ${button('단원 목록으로', 'nav', 'data-ox-route="chapters"', 'ox-wide')}
     </div>
@@ -224,7 +272,7 @@ function chapterCompletionView() {
     <div class="ox-completion-actions">
       ${s.wrong.length ? button('오답만 다시 풀기', 'chapter-wrong', `data-id="${c.id}"`, 'ox-primary ox-wide') : ''}
       ${nextButton(!s.wrong.length)}
-      ${button('10문항씩 다시 풀기', 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
+      ${button(`${chapterSetSize}문항씩 다시 풀기`, 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
     </div>
     ${next ? `<p class="ox-completion-next">다음 · ${esc(next.display_name)}</p>` : ''}
   </section>
@@ -325,12 +373,12 @@ function quiz() {
     <div class="ox-quiz-toolbar">
       <button type="button" class="ox-quiz-tool" data-action="leave">← 나가기</button>
       <span class="ox-quiz-count"><strong>${session.index + 1}</strong> / ${session.ids.length}</span>
-      <button type="button" class="ox-quiz-tool" data-action="bookmark" data-id="${q.id}" aria-pressed="${n.bookmark}">${n.bookmark ? '★ 저장됨' : '☆ 북마크'}</button>
     </div>
     ${meter((session.index + (a ? 1 : 0)) / session.ids.length * 100, '세트 진행률')}
     <section class="ox-quiz-paper${a ? ' ox-graded' : ''}" aria-label="문제와 해설">
       <header class="ox-quiz-heading">
         <h3>${esc(c.display_name)}</h3>
+        <button type="button" class="ox-quiz-tool ox-quiz-bookmark" data-action="bookmark" data-id="${q.id}" aria-label="${n.bookmark ? '현재 문제 북마크 해제' : '현재 문제 북마크 저장'}" aria-pressed="${n.bookmark}">${n.bookmark ? '★ 저장됨' : '☆ 북마크'}</button>
       </header>
       ${display.context ? `<div class="ox-context"><p>${esc(display.context)}</p></div>` : ''}
       <div class="ox-question">
@@ -480,6 +528,7 @@ function weakness() {
     root.addEventListener('click',e=>{const b=e.target.closest('button[data-action]'); if(!b||b.disabled)return; const action=b.dataset.action,id=b.dataset.id;
       if(action==='nav'){route=b.dataset.oxRoute;}
       else if(action==='collection'){collection=id;allChapters=false;}
+      else if(action==='chapter-size'){showChapterSizePicker();return;}
       else if(action==='law-part'){if(!['general','specific'].includes(b.dataset.part))return;criminalLawPart=b.dataset.part;allChapters=false;}
       else if(action==='expand-chapters')allChapters=!allChapters;
       else if(action==='expand-weak')allWeak=!allWeak;

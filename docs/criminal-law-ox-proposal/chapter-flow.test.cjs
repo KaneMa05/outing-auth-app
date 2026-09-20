@@ -108,5 +108,80 @@ vm.runInContext(`
   const sampled = data.chapters[1];
   for (const q of chapterQuestions(sampled.id)) add(q.id, q.correct_answer);
   assert.equal(chapterCompletion(sampled).complete, false);
+  // Larger selections still cover the chapter exactly once, including the short final set.
+  for (const size of [15, 20]) {
+    chapterSetSize = size;
+    attempts.length = 0;
+    route = 'chapters';
+    startChapter(first.id);
+    const selectedIds = [], selectedSizes = [];
+    while (true) {
+      selectedSizes.push(session.ids.length);
+      selectedIds.push(...session.ids);
+      session.answers = session.ids.map(id => {
+        add(id, byId.get(id).correct_answer);
+        return { id, correct: true };
+      });
+      chapterSessionResult();
+      if (!remainingChapterIds().length) break;
+      assert.ok(main.innerHTML.includes('다음 ' + Math.min(size, remainingChapterIds().length) + '문항 풀기'));
+      continueChapterSet();
+    }
+    assert.deepEqual(selectedSizes, size === 15 ? [15, 15, 15, 10] : [20, 20, 15]);
+    assert.equal(new Set(selectedIds).size, 55);
+    assert.ok(main.innerHTML.includes(size + '문항씩 다시 풀기'));
+    startChapter(first.id, 'all');
+    assert.equal(session.ids.length, size);
+  }
 `, context);
-console.log('PASS: 10-question sets, final short set, full coverage, replay/review continuation, latest-answer accuracy and record preservation');
+vm.runInContext(`
+  const originalRandom = Math.random;
+  try {
+    // Each possible draw for three items produces a distinct permutation.
+    const permutations = new Set();
+    const input = Object.freeze(['a', 'b', 'c']);
+    for (let last = 0; last < 3; last++) {
+      for (let middle = 0; middle < 2; middle++) {
+        const draws = [(last + 0.5) / 3, (middle + 0.5) / 2];
+        Math.random = () => draws.shift();
+        permutations.add(shuffleQuestionIds(input).join(''));
+        assert.equal(draws.length, 0);
+      }
+    }
+    assert.equal(permutations.size, 6);
+    assert.deepEqual(shuffleQuestionIds([]), []);
+    assert.deepEqual(shuffleQuestionIds(['a']), ['a']);
+
+    // Learning, wrong-answer review and replay all draw from the whole chapter.
+    // A high draw keeps source order; zero draws rotate every eligible ID.
+    chapterSetSize = 10;
+    for (const mode of ['learn', 'wrong', 'all']) {
+      attempts.length = 0;
+      const ordered = chapterQuestions(first.id);
+      for (const q of ordered.slice(0, 15)) add(q.id, q.correct_answer === 'O' ? 'X' : 'O');
+      for (const q of ordered.slice(15, 20)) add(q.id, q.correct_answer);
+      const eligible = (mode === 'learn' ? ordered.slice(20)
+        : mode === 'wrong' ? ordered.slice(0, 15) : ordered).map(q => q.id);
+      Math.random = () => 0.999;
+      startChapter(first.id, mode);
+      const firstOrder = [...session.ids, ...session.chapterRemaining];
+      assert.deepEqual(firstOrder, [...eligible]);
+      Math.random = () => 0;
+      startChapter(first.id, mode);
+      const randomOrder = [...session.ids, ...session.chapterRemaining];
+      assert.deepEqual(randomOrder, [...eligible.slice(1), eligible[0]]);
+      assert.notDeepEqual(randomOrder, firstOrder);
+      assert.ok(session.ids.includes(eligible[10]), 'Shuffle must happen before taking the first set');
+      assert.equal(new Set(randomOrder).size, eligible.length);
+      assert.ok(randomOrder.every(id => byId.get(id).chapter_id === first.id));
+      // Continuing consumes the saved random order without reshuffling or repeats.
+      Math.random = () => { throw Error('Continuation must retain the existing order'); };
+      continueChapterSet();
+      assert.deepEqual(session.ids, randomOrder.slice(10, 20));
+      assert.deepEqual(session.chapterRemaining, randomOrder.slice(20));
+    }
+  } finally {
+    Math.random = originalRandom;
+  }
+`, context);
+console.log('PASS: random chapter selection, complete coverage, set sizes, replay/review continuation and record preservation');

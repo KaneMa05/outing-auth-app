@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const context = {
-  session: null, route: 'home', attempts: [], main: {innerHTML: ''},
+  session: null, route: 'home', attempts: [], chapterSetSize: 10, main: {innerHTML: ''},
   pendingReviewItems: () => [], esc: String, render: () => {},
   button: (label, action) => `<button data-action="${action}">${label}</button>`,
 };

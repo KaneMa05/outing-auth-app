@@ -13,9 +13,11 @@ test('OX SQL: publication, grading, deduplication, student isolation, revisions,
     await db.exec("alter table students add column name text default '수강생';alter table students add column class_name text default '테스트반';alter table students add column student_category text default 'offline';alter table students add column account_type text default 'student';");
     await db.exec('update ox_config set enabled=true');
     await db.exec(fs.readFileSync('supabase/migrations/20260917124623_criminal_law_ox_members.sql','utf8'));
+    await db.exec(fs.readFileSync('supabase/migrations/20260920114238_ox_progressive_loading.sql','utf8'));
     assert.equal((await db.query('select enabled from ox_config')).rows[0].enabled,false);
     const admin={type:'admin',id:'teacher'},a={type:'student',id:'a'},b={type:'student',id:'b'};
     const call=async(action,actor,body={})=>(await db.query('select ox_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
+    const lazy=async(action,actor,body={})=>(await db.query('select ox_learning_data($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
     const q={id:'q1',chapter_id:'c1',prompt:'지문',context:'',correct_answer:'O',explanation_html:'<u>해설</u>',explanation:'해설',source_question_number:'1',original_prompt:'원래 지문'};
     await call('admin_import',admin,{collections:[{id:'book',sort_order:1}],chapters:[{id:'c1',collection_id:'book',sort_order:1}],questions:[{...q,reviewed:true,status:'published'},{...q,id:'draft',status:'draft'}]});
     await assert.rejects(call('admin_catalog',a),/forbidden/);
@@ -25,11 +27,30 @@ test('OX SQL: publication, grading, deduplication, student isolation, revisions,
     await call('admin_enabled',admin,{enabled:true});
     assert.equal((await call('status',a)).enabled,false);
     for(const action of ['bootstrap','detail','submit','note']) await assert.rejects(call(action,a),/ox_not_registered/);
+    for(const action of ['bootstrap','questions']) await assert.rejects(lazy(action,a),/ox_not_registered/);
+    await assert.rejects(lazy('bootstrap',admin),/unauthorized/);
     await assert.rejects(call('admin_member_set',a,{memberId:'a',allowed:true}),/forbidden/);
     for(const id of ['a','b']) await call('admin_member_set',admin,{memberId:id,allowed:true});
     assert.equal((await call('status',a)).enabled,true);
     await assert.rejects(call('bootstrap',{type:'student',id:'inactive'}),/unauthorized/);
+    await assert.rejects(lazy('bootstrap',{type:'student',id:'inactive'}),/unauthorized/);
     let initial=await call('bootstrap',a);
+    const light=await lazy('bootstrap',a);
+    assert.deepEqual(light.catalog.questions,[{id:'q1',chapter_id:'c1',version:1}]);
+    for(const field of ['progress','notes','statistics','todayCount']) assert.deepEqual(light[field],initial[field]);
+    assert.deepEqual(light.catalog.chapters,initial.catalog.chapters);
+    const texts=await lazy('questions',a,{questions:[{id:'q1',version:1}]});
+    assert.deepEqual(texts.questions,[{id:'q1',version:1,prompt:'지문',context:''}]);
+    assert.equal((await call('bootstrap',a)).progress.length,0,'Reading texts never records an answer');
+    for(const questions of [[],Array.from({length:51},()=>({id:'q1',version:1})),[{id:'q1',version:0}]]) await assert.rejects(lazy('questions',a,{questions}),/invalid_request/);
+    await assert.rejects(lazy('questions',a,{questions:[{id:'draft',version:1}]}),/question_unavailable/);
+    await assert.rejects(lazy('questions',a,{questions:[{id:'q1',version:2}]}),/question_changed/);
+    for(const role of ['anon','authenticated']) {
+      await db.exec(`set role ${role}`);
+      await assert.rejects(lazy('bootstrap',a),/permission denied/);
+      await db.exec('reset role');
+    }
+    assert.equal((await db.query("select prosecdef from pg_proc where oid='public.ox_learning_data(text,jsonb,jsonb)'::regprocedure")).rows[0].prosecdef,false);
     assert.equal(initial.catalog.questions.length,1);assert.equal(initial.catalog.chapters[0].question_count,1);
     assert.equal(initial.catalog.questions[0].correct_answer,undefined);assert.equal(initial.catalog.questions[0].explanation_html,undefined);
     await assert.rejects(call('detail',a,{questionId:'q1',version:1}),/answer_required/);
@@ -42,6 +63,10 @@ test('OX SQL: publication, grading, deduplication, student isolation, revisions,
     await call('submit',a,{...submit,answer:'O',submissionId:crypto.randomUUID()});
     let after=await call('bootstrap',a);assert.equal(after.todayCount,2);assert.equal(after.progress[0].correct,true);assert.equal(after.progress[0].wrong_count,1);
     assert.deepEqual(after.statistics.q1,{answered:1,wrong:1});
+    const solvedLight=await lazy('bootstrap',a);
+    assert.equal(solvedLight.catalog.questions[0].correct_answer,'O');
+    for(const field of ['progress','notes','statistics','todayCount']) assert.deepEqual(solvedLight[field],after[field]);
+    assert.equal((await lazy('bootstrap',b)).catalog.questions[0].correct_answer,undefined);
     assert.equal((await call('bootstrap',b)).progress.length,0);
     const second=await call('submit',b,{...submit,answer:'O',submissionId:crypto.randomUUID()});assert.deepEqual(second.statistics,{answered:2,wrong:1});
     await call('note',a,{questionId:'q1',version:1,memo:'메모'});await call('note',a,{questionId:'q1',version:1,bookmark:true,mastered:true});
@@ -58,6 +83,8 @@ test('OX SQL: publication, grading, deduplication, student isolation, revisions,
     await assert.rejects(call('admin_save',admin,{question:q,status:'published',reviewed:true}),/revision_conflict/);
     await assert.rejects(call('submit',a,{...submit,submissionId:crypto.randomUUID()}),/question_changed/);
     after=await call('bootstrap',a);assert.equal(after.progress.length,0);assert.equal(after.catalog.questions[0].correct_answer,undefined);assert.equal(after.notes[0].has_memo,true);
+    assert.equal((await lazy('bootstrap',a)).catalog.questions[0].correct_answer,undefined);
+    await assert.rejects(lazy('questions',a,{questions:[{id:'q1',version:1}]}),/question_changed/);
     assert.equal((await call('admin_history',admin,{id:'q1'})).history.length,1);
     const explanation=await call('admin_save',admin,{question:{...q,prompt:'수정 지문',explanation_html:'해설 보완'},revision:2,status:'published',reviewed:true});assert.equal(explanation.item.content_version,2);
     await assert.rejects(call('admin_save',admin,{question:{...q,id:'q-new'},revision:0,status:'published',reviewed:false}),/invalid_question/);
@@ -66,11 +93,13 @@ test('OX SQL: publication, grading, deduplication, student isolation, revisions,
     await call('admin_member_set',admin,{memberId:'a',allowed:false});
     assert.equal((await call('status',a)).enabled,false);
     for(const action of ['bootstrap','detail','submit','note']) await assert.rejects(call(action,a,{questionId:'q1',version:2}),/ox_not_registered/);
+    for(const action of ['bootstrap','questions']) await assert.rejects(lazy(action,a),/ox_not_registered/);
     assert.equal((await call('status',b)).enabled,true);
     await call('admin_member_set',admin,{memberId:'a',allowed:true});
     assert.equal((await call('bootstrap',a)).notes[0].has_memo,true);
     assert.equal((await db.query("select count(*)::int as n from ox_attempts where student_id='a'")).rows[0].n,3);
     await call('admin_enabled',admin,{enabled:false});
+    for(const action of ['bootstrap','questions']) await assert.rejects(lazy(action,a),/ox_disabled/);
     assert.equal((await call('status',a)).enabled,false);
     await assert.rejects(call('submit',a,submit),/ox_disabled/);
     for(const id of ['inactive','missing']) await assert.rejects(call('admin_member_set',admin,{memberId:id,allowed:true}),/student_unavailable/);

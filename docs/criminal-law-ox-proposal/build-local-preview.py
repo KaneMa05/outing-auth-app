@@ -63,7 +63,7 @@ runtime = runtime.replace("else if(action==='chapter-restart')", "else if(action
 collection_action = "else if(action==='collection'){collection=id;allChapters=false;}"
 if runtime.count(collection_action) != 1:
     raise RuntimeError('Expected one collection navigation handler')
-runtime = runtime.replace(collection_action, collection_action + "\n      else if(action==='law-part'){if(!['general','specific'].includes(b.dataset.part))return;criminalLawPart=b.dataset.part;allChapters=false;}")
+runtime = runtime.replace(collection_action, collection_action + "\n      else if(action==='chapter-size'){showChapterSizePicker();return;}\n      else if(action==='law-part'){if(!['general','specific'].includes(b.dataset.part))return;criminalLawPart=b.dataset.part;allChapters=false;}")
 review_view = (root / 'review-view.js').read_text(encoding='utf-8')
 runtime, review_replacements = re.subn(r'    function review\(\).*?(?=    function weakness\()', lambda _: review_view + '\n', runtime, flags=re.S)
 if review_replacements != 1:

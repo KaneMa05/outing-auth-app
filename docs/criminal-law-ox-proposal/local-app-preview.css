@@ -1,7 +1,24 @@
 /* Local OX only. App fonts, header, navigation and shared controls stay untouched. */
+@font-face {
+  font-family:"OX Textbook Nanum Gothic";
+  src:url("/fonts/NanumGothic-Regular.woff") format("woff");
+  font-style:normal; font-weight:400; font-display:swap;
+}
+@font-face {
+  font-family:"OX Textbook Nanum Gothic";
+  src:url("/fonts/NanumGothic-Bold.woff") format("woff");
+  font-style:normal; font-weight:700; font-display:swap;
+}
+/* Source textbooks use Nanum Gothic Bold for questions and Regular for explanations. */
+#criminal-ox-preview :is(.ox-question,.ox-short-prompt,.ox-context,.ox-explanation) {
+  font-family:"OX Textbook Nanum Gothic", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-weight:400;
+}
+#criminal-ox-preview :is(.ox-question,.ox-short-prompt) { font-weight:700; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions .mini-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:28px; height:28px; min-height:28px; padding:0; }
 .criminal-law-ox-local-page .criminal-law-ox-header-actions .criminal-law-ox-bookmarks-button { width:auto; gap:4px; padding:0 8px; font-size:.75rem; }
+.criminal-law-ox-local-page:has(.ox-quiz) .criminal-law-ox-header-actions .criminal-law-ox-bookmarks-button { display:none; }
 .criminal-law-ox-local-page .criminal-law-ox-bookmarks-icon { display:block; width:14px; height:14px; flex:0 0 14px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 #criminal-ox-preview {
   --ox-paper:var(--surface); --ox-ink:var(--ink); --ox-muted:var(--muted);
@@ -50,6 +67,15 @@ body:not(.student-online-mode) #criminal-ox-preview .ox-quiz .ox-answer:disabled
 #criminal-ox-preview .ox-content { min-width:0; }
 #criminal-ox-preview .ox-page-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin:6px 0 12px; }
 #criminal-ox-preview .ox-page-heading h2 { margin:0; }
+#criminal-ox-preview .ox-set-size-trigger { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:6px 0 6px 8px; border:0; background:transparent; color:var(--ox-muted); font:inherit; font-size:.8rem; cursor:pointer; }
+#criminal-ox-preview .ox-set-size-trigger > span { color:var(--ox-accent); }
+#criminal-ox-preview .ox-set-size-dialog { box-sizing:border-box; width:calc(100% - 32px); max-width:360px; max-height:calc(100dvh - 32px); margin:auto; padding:24px; border:1px solid var(--ox-line); border-radius:18px; background:var(--ox-paper); color:var(--ox-ink); font:inherit; box-shadow:0 16px 48px rgba(0,0,0,.2); }
+#criminal-ox-preview .ox-set-size-dialog::backdrop { background:rgba(0,0,0,.45); }
+#criminal-ox-preview .ox-set-size-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:20px 0 16px; }
+#criminal-ox-preview .ox-set-size-options button { min-width:0; min-height:48px; padding:8px 4px; border:1px solid var(--ox-line); border-radius:10px; background:var(--ox-paper); color:var(--ox-ink); font:inherit; font-size:.9rem; cursor:pointer; }
+#criminal-ox-preview .ox-set-size-options button[aria-pressed="true"] { border-color:var(--ox-accent); background:var(--ox-accent); color:#fff; font-weight:700; }
+#criminal-ox-preview .ox-set-size-close { width:100%; min-height:44px; border:0; border-radius:10px; background:var(--ox-soft); color:var(--ox-muted); font:inherit; font-size:.85rem; cursor:pointer; }
+#criminal-ox-preview :is(.ox-set-size-trigger,.ox-set-size-options button,.ox-set-size-close):focus-visible { outline:2px solid var(--ox-accent); outline-offset:3px; }
 #criminal-ox-preview .ox-page-heading .ox-button { width:auto; flex:0 0 auto; min-height:36px; padding:8px 12px; }
 body.student-online-mode #criminal-ox-preview .ox-page-heading h2 { color:var(--online-ui-text); }
 body.student-online-mode #criminal-ox-preview .ox-page-heading + .ox-sub { color:var(--online-ui-muted); }
@@ -225,8 +251,10 @@ body.student-online-mode #criminal-ox-preview .ox-quiz-toolbar { color:var(--onl
 #criminal-ox-preview .ox-quiz > .ox-meter { height:3px; margin:0 0 16px; }
 body.student-online-mode #criminal-ox-preview .ox-quiz > .ox-meter { background:rgba(255,255,255,.2); }
 #criminal-ox-preview .ox-quiz-paper { position:relative; padding:20px; border-radius:18px; background:var(--ox-paper); }
-#criminal-ox-preview .ox-quiz-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 10px; padding-bottom:14px; border-bottom:1px solid var(--ox-line); }
-#criminal-ox-preview .ox-quiz-heading h3 { font-size:.9rem; }
+#criminal-ox-preview .ox-quiz-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 10px; padding-bottom:14px; border-bottom:1px solid var(--ox-line); }
+#criminal-ox-preview .ox-quiz-heading h3 { min-width:0; overflow-wrap:anywhere; font-size:.9rem; }
+#criminal-ox-preview .ox-quiz-heading .ox-quiz-bookmark { min-height:44px; padding:8px 10px; border:1px solid var(--ox-line); border-radius:10px; background:var(--ox-paper); color:var(--ox-accent); white-space:nowrap; }
+#criminal-ox-preview .ox-quiz-heading .ox-quiz-bookmark[aria-pressed="true"] { background:var(--ox-soft); border-color:var(--ox-accent); }
 #criminal-ox-preview .ox-quiz-heading .ox-sub { font-size:.7rem; }
 #criminal-ox-preview .ox-quiz .ox-question { position:relative; margin:0; padding:24px 0 28px; border-radius:0; background:transparent; font-size:1.04rem; line-height:1.9; }
 #criminal-ox-preview .ox-quiz .ox-context { margin-top:16px; padding:12px; border-radius:8px; background:var(--ox-soft); }

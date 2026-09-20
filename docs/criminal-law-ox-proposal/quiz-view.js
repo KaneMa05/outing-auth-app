@@ -10,12 +10,12 @@ function quiz() {
     <div class="ox-quiz-toolbar">
       <button type="button" class="ox-quiz-tool" data-action="leave">← 나가기</button>
       <span class="ox-quiz-count"><strong>${session.index + 1}</strong> / ${session.ids.length}</span>
-      <button type="button" class="ox-quiz-tool" data-action="bookmark" data-id="${q.id}" aria-pressed="${n.bookmark}">${n.bookmark ? '★ 저장됨' : '☆ 북마크'}</button>
     </div>
     ${meter((session.index + (a ? 1 : 0)) / session.ids.length * 100, '세트 진행률')}
     <section class="ox-quiz-paper${a ? ' ox-graded' : ''}" aria-label="문제와 해설">
       <header class="ox-quiz-heading">
         <h3>${esc(c.display_name)}</h3>
+        <button type="button" class="ox-quiz-tool ox-quiz-bookmark" data-action="bookmark" data-id="${q.id}" aria-label="${n.bookmark ? '현재 문제 북마크 해제' : '현재 문제 북마크 저장'}" aria-pressed="${n.bookmark}">${n.bookmark ? '★ 저장됨' : '☆ 북마크'}</button>
       </header>
       ${display.context ? `<div class="ox-context"><p>${esc(display.context)}</p></div>` : ''}
       <div class="ox-question">

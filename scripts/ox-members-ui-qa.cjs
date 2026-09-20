@@ -17,9 +17,10 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await db.query("insert into students(id,name,class_name,student_category) values ('offline','오프라인 예시','오프라인반','offline'),('managed','온라인 예시','관리반','online_managed'),('lecture','인터넷 예시','인터넷반','lecture')");
     await db.exec(read('supabase/migrations/20260917124608_criminal_law_ox.sql'));
     await db.exec(read('supabase/migrations/20260917124623_criminal_law_ox_members.sql'));
+    await db.exec(read('supabase/migrations/20260920114238_ox_progressive_loading.sql'));
     await db.exec('set role service_role');
     const counts={};
-    const invoke=async(action,actor,body={})=>{counts[action]=(counts[action]||0)+1;return (await db.query('select ox_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;};
+    const invoke=async(action,actor,body={})=>{counts[action]=(counts[action]||0)+1;const rpc=action==='questions'||(action==='bootstrap'&&body.summaryOnly===true)?'ox_learning_data':'ox_service';return (await db.query(`select ${rpc}($1,$2::jsonb,$3::jsonb) result`,[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;};
     await invoke('admin_import',{type:'admin',id:'qa'},{collections:[{id:'criminal-law',name:'형법',scope:'형법',sort_order:1}],chapters:[{id:'c1',collection_id:'criminal-law',display_name:'테스트 단원',part_title:'형법총론',sort_order:1}],questions:Array.from({length:12},(_,i)=>({id:'q'+i,chapter_id:'c1',prompt:'로컬 성능 검증 지문 '+i,context:'',correct_answer:'O',explanation_html:'로컬 검증 해설',source_question_number:String(i+1),source_page:1,reviewed:true,status:'published'}))});
     process.env.TEACHER_SESSION_SECRET='local-ox-members-qa-only';
     const handler=createHandler({invoke,authenticate:async body=>['offline','managed','lecture'].includes(body.studentId) && body.deviceToken==='fixture-token'?{id:body.studentId}:null});
@@ -52,6 +53,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
         res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);
       }
       if(assets.has(url.pathname.slice(1))){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':'text/css');return res.end(read(url.pathname.slice(1)));}
+      if(['/fonts/NanumGothic-Regular.woff','/fonts/NanumGothic-Bold.woff'].includes(url.pathname)){res.setHeader('Content-Type','font/woff');return res.end(fs.readFileSync(path.join(root,url.pathname.slice(1))));}
       res.statusCode=404;res.end();
     });
     await new Promise(r=>server.listen(0,'127.0.0.1',r));

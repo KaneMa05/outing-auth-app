@@ -3,7 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
-const {authenticateStudent,compactBootstrap}=require('../api/criminal-law-ox')._private;
+const {createHandler}=require('../api/criminal-law-ox');
+const {authenticateStudent,compactBootstrap,invokeLearning,validate}=require('../api/criminal-law-ox')._private;
 const source=fs.readFileSync('app.js','utf8');
 function extract(name){const start=source.search(new RegExp('(?:async )?function '+name+'\\('));assert.ok(start>=0);const tail=source.slice(start),end=tail.search(/\n(?:async )?function /);return tail.slice(0,end);}
 function fixture(storage=new Map()){
@@ -104,4 +105,186 @@ test('late authorization failures cannot clear another account status',async()=>
 test('only the OX function overrides the default deployment region',()=>{
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
   assert.deepEqual(config.functions,{'api/criminal-law-ox.js':{regions:['syd1']}});assert.equal(config.regions,undefined);
+});
+
+function sessionFixture(secret='ox-session-test-secret') {
+  let now=1000,deviceActive=true,denied=null;
+  const validations=[],operations=[];
+  const handler=createHandler({sessionSecret:()=>secret,now:()=>now,
+    authenticate:async body=>{
+      validations.push(body);
+      return deviceActive && body.studentId==='a' && body.deviceToken==='registered-device'?{id:'a'}:null;
+    },
+    invoke:async(action,actor,body)=>{
+      operations.push({action,actor,body});
+      if(denied) throw Error(denied);
+      return {ok:true,enabled:true};
+    }});
+  return {validations,operations,advance:seconds=>{now+=seconds;},revoke:()=>{deviceActive=false;},deny:code=>{denied=code;},
+    request:async(body={},cookie='')=>{
+      const headers={};let status,result;
+      await handler({method:'POST',headers:{host:'localhost',cookie,'x-forwarded-proto':'https'},
+        body:{action:'status',studentId:'a',deviceToken:'registered-device',...body}},
+      {setHeader:(name,value)=>{headers[name]=value;},status(value){status=value;return this;},json(value){result=value;}});
+      return {status,result,headers,cookie:headers['Set-Cookie']?.split(';')[0]};
+    }};
+}
+
+test('a registered OX session skips device DB validation on subsequent learning requests',async()=>{
+  const f=sessionFixture(),first=await f.request();
+  assert.equal(first.status,200);assert.equal(f.validations.length,1);
+  for(const attribute of ['HttpOnly','SameSite=Strict','Path=/api/criminal-law-ox','Max-Age=43200','Secure']) assert.ok(first.headers['Set-Cookie'].includes(attribute));
+  const decoded=JSON.parse(Buffer.from(first.cookie.split('=')[1].split('.')[0],'base64url').toString());
+  assert.equal(decoded.studentId,'a');assert.equal(decoded.device,crypto.createHash('sha256').update('registered-device').digest('hex'));
+  assert.ok(!first.headers['Set-Cookie'].includes('registered-device'));
+  for(const body of [{action:'bootstrap'},{action:'submit',questionId:'q',version:1,answer:'O',submissionId:crypto.randomUUID()},
+    {action:'detail',questionId:'q',version:1},{action:'note',questionId:'q',version:1,bookmark:true}]) {
+    const response=await f.request({...body,actor:{type:'admin',id:'forged'}},first.cookie);
+    assert.equal(response.status,200);assert.equal(response.headers['Set-Cookie'],undefined);
+    assert.deepEqual(f.operations.at(-1).actor,{type:'student',id:'a'});
+    assert.equal(f.operations.at(-1).body.deviceToken,undefined);assert.equal(f.operations.at(-1).body.actor,undefined);
+  }
+  assert.equal(f.validations.length,1,'Only the first request validates the device');
+  assert.equal(f.operations.length,5,'Every request still checks OX access and saves through ox_service');
+});
+
+test('device sessions cannot be forged or reused by another student or device',async()=>{
+  for(const scenario of ['signature','student','device','malformed','trailing']) {
+    const f=sessionFixture(),first=await f.request();f.revoke();
+    let cookie=first.cookie,body={};
+    if(scenario==='signature') cookie=cookie.slice(0,-1)+(cookie.endsWith('A')?'B':'A');
+    if(scenario==='student') body.studentId='b';
+    if(scenario==='device') body.deviceToken='other-device';
+    if(scenario==='malformed') cookie='outing_ox_device_session=invalid';
+    if(scenario==='trailing') cookie+='.';
+    const result=await f.request(body,cookie);
+    assert.equal(result.status,401,scenario);assert.equal(f.validations.length,2,scenario);assert.equal(f.operations.length,1,scenario);
+    assert.equal(result.headers['Set-Cookie'],undefined);
+  }
+});
+
+test('sessions have a fixed 12-hour expiry and recheck revoked devices at expiry',async()=>{
+  const f=sessionFixture(),first=await f.request();f.revoke();f.advance(43199);
+  const last=await f.request({},first.cookie);
+  assert.equal(last.status,200);assert.equal(last.headers['Set-Cookie'],undefined);assert.equal(f.validations.length,1);
+  f.advance(1);
+  assert.equal((await f.request({},first.cookie)).status,401);assert.equal(f.validations.length,2);
+  const active=sessionFixture(),initial=await active.request();active.advance(43200);
+  const renewed=await active.request({},initial.cookie);
+  assert.equal(renewed.status,200);assert.ok(renewed.cookie);assert.notEqual(renewed.cookie,initial.cookie);assert.equal(active.validations.length,2);
+});
+
+test('an OX device session does not bypass current enrollment, account, or service checks',async()=>{
+  for(const [error,status] of [['ox_not_registered',403],['unauthorized',401],['ox_disabled',404]]) {
+    const f=sessionFixture(),first=await f.request();f.deny(error);
+    const denied=await f.request({},first.cookie);
+    assert.equal(denied.status,status);assert.equal(denied.result.error,error);assert.equal(f.validations.length,1);
+    assert.equal(denied.headers['Set-Cookie'],undefined);
+  }
+});
+
+test('OX cookies do not grant administrator access or accept teacher tokens',async()=>{
+  const f=sessionFixture(),first=await f.request();
+  assert.equal((await f.request({action:'admin_catalog'},first.cookie)).status,401);
+  const auth=require('../api/teacher-auth-utils');
+  const token=first.cookie.split('=')[1];
+  assert.equal(auth.readSessionToken(token,'ox-session-test-secret'),false);
+  const teacherToken=auth.createSessionToken('ox-session-test-secret',{username:'a',role:'admin',permissions:['*']});
+  f.revoke();
+  assert.equal((await f.request({},'outing_ox_device_session='+teacherToken)).status,401);
+});
+
+test('missing signing configuration and missing cookies retain existing device authentication',async()=>{
+  const f=sessionFixture('');
+  assert.equal((await f.request()).cookie,undefined);assert.equal((await f.request()).status,200);assert.equal(f.validations.length,2);
+  f.revoke();assert.equal((await f.request()).status,401);
+  const enabled=sessionFixture();await enabled.request();await enabled.request();assert.equal(enabled.validations.length,2);
+});
+
+test('failed OX requests never issue a reusable device session',async()=>{
+  const f=sessionFixture();f.deny('ox_not_registered');
+  const response=await f.request();assert.equal(response.status,403);assert.equal(response.cookie,undefined);
+});
+
+test('progressive loading routes only new learning requests to the new RPC and supports older databases',async()=>{
+  const calls=[];const request=async(...args)=>{calls.push(args);return {ok:true};};
+  const actor={type:'student',id:'a'};
+  await invokeLearning('bootstrap',actor,{summaryOnly:true},request);assert.equal(calls.at(-1)[1],'rpc/ox_learning_data');
+  await invokeLearning('questions',actor,{questions:[{id:'q',version:1}]},request);assert.equal(calls.at(-1)[1],'rpc/ox_learning_data');
+  for(const action of ['bootstrap','submit','admin_catalog']) {await invokeLearning(action,actor,{},request);assert.equal(calls.at(-1)[1],'rpc/ox_service');}
+  const paths=[];
+  await invokeLearning('bootstrap',actor,{summaryOnly:true},async(method,path)=>{
+    paths.push(path);if(path==='rpc/ox_learning_data')throw Object.assign(Error('missing'),{storeStatus:404});return {ok:true};
+  });
+  assert.deepEqual(paths,['rpc/ox_learning_data','rpc/ox_service']);
+  let failures=0;await assert.rejects(invokeLearning('bootstrap',actor,{summaryOnly:true},async()=>{failures++;throw Error('ox_not_registered');}),/ox_not_registered/);
+  assert.equal(failures,1,'Authorization failures never fall back');
+  const light=compactBootstrap({catalog:{questions:[{id:'q',chapter_id:'c',version:1}]}});
+  assert.equal(light.catalog.questions[0].prompt,undefined);
+  assert.ok(source.includes("requestCriminalLawOx('bootstrap',{summaryOnly:true})"));
+});
+
+test('question batch validation rejects excessive, duplicated and malformed requests',()=>{
+  validate({action:'questions',questions:[{id:'q',version:1}]});
+  for(const questions of [undefined,[],[null],[{id:'',version:1}],[{id:'q',version:0}],[{id:'q',version:1},{id:'q',version:1}],Array.from({length:51},(_,i)=>({id:String(i),version:1}))]) {
+    assert.throws(()=>validate({action:'questions',questions}),/invalid_request/);
+  }
+  assert.throws(()=>validate({action:'bootstrap',summaryOnly:'true'}),/invalid_request/);
+});
+
+function questionFixture(count=45) {
+  const requests=[],views=[],errors=[];
+  const questions=Array.from({length:count},(_,i)=>({id:'q'+i,chapter_id:'c',version:1}));
+  const context=vm.createContext({Map,Set,Promise,Error,route:'home',origin:'chapters',session:{ids:questions.map(q=>q.id),index:0},
+    byId:new Map(questions.map(q=>[q.id,q])),root:{isConnected:true},main:{innerHTML:''},
+    renderNav:()=>{},renderLoadedView:()=>views.push(context.route),button:label=>label,showError:error=>errors.push(error.code),
+    reviewItemsForFilter:()=>questions.slice(0,3).map(q=>({q})),bookmarkedQuestions:()=>questions.slice(3,5),
+    request:(action,body)=>new Promise((resolve,reject)=>requests.push({action,body,resolve,reject}))});
+  const snippet=fs.readFileSync('scripts/ox-question-loading-runtime.js','utf8');
+  assert.ok(fs.readFileSync('criminal-law-ox.js','utf8').replace(/\r\n/g,'\n').includes(snippet.replace(/\r\n/g,'\n').trim()));
+  vm.runInContext(snippet,context);
+  return {context,requests,views,errors,questions,respond:(index,transform=x=>x)=>{
+    requests[index].resolve({questions:requests[index].body.questions.map(q=>transform({...q,prompt:'Text '+q.id,context:''}))});
+  },flush:()=>new Promise(resolve=>setImmediate(resolve))};
+}
+
+test('home and chapters render without texts; quiz loads a stable 20-question batch only once',async()=>{
+  const f=questionFixture();f.context.render();f.context.route='chapters';f.context.render();
+  assert.equal(f.requests.length,0);assert.deepEqual(f.views,['home','chapters']);
+  f.context.route='quiz';f.context.render();f.context.render();
+  assert.equal(f.requests.length,1);assert.equal(f.requests[0].body.questions.length,20);
+  assert.equal(f.views.length,2,'No blank question is shown');f.respond(0);await f.flush();
+  assert.equal(f.views.at(-1),'quiz');
+  for(let i=1;i<20;i++){f.context.session.index=i;f.context.render();}
+  assert.equal(f.requests.length,1,'Advancing within a batch never fetches one extra question per answer');
+  f.context.session.index=20;f.context.render();assert.equal(f.requests.length,2);f.respond(1);await f.flush();
+  assert.equal(f.questions[40].prompt,undefined);
+});
+
+test('review and bookmarks fetch only visible texts and obsolete loads cannot overwrite navigation',async()=>{
+  const f=questionFixture();f.context.route='review';f.context.render();assert.equal(f.requests[0].body.questions.length,3);
+  f.context.route='bookmarks';f.context.render();assert.equal(f.requests[1].body.questions.length,2);
+  f.respond(0);await f.flush();assert.equal(f.views.length,0);
+  f.respond(1);await f.flush();assert.deepEqual(f.views,['bookmarks']);
+  f.context.route='review';f.context.render();assert.equal(f.requests.length,2);assert.equal(f.views.at(-1),'review');
+});
+
+test('failed text loads retry and malformed or changed batches never partially update questions',async()=>{
+  const f=questionFixture();f.context.route='quiz';f.context.render();
+  f.requests[0].reject(Object.assign(Error('offline'),{code:'offline'}));await f.flush();
+  assert.deepEqual(f.errors,['offline']);assert.ok(f.context.main.innerHTML.includes('다시 시도'));
+  f.context.render();assert.equal(f.requests.length,2);
+  f.respond(1,q=>q.id==='q19'?{...q,version:2}:q);await f.flush();
+  assert.equal(f.errors.at(-1),'question_changed');assert.ok(f.questions.every(q=>q.prompt===undefined));
+  f.context.render();f.respond(2);await f.flush();assert.equal(f.views.at(-1),'quiz');
+});
+
+test('large text lists use bounded sequential batches and ignore unmounted views',async()=>{
+  const f=questionFixture(105);const operation=f.context.loadQuestionTexts(f.questions);
+  assert.equal(f.requests.length,1);assert.equal(f.requests[0].body.questions.length,50);
+  f.respond(0);await f.flush();assert.equal(f.requests.length,2);assert.equal(f.requests[1].body.questions.length,50);
+  f.respond(1);await f.flush();assert.equal(f.requests.length,3);assert.equal(f.requests[2].body.questions.length,5);
+  f.respond(2);await operation;
+  const gone=questionFixture();gone.context.route='quiz';gone.context.render();gone.context.root.isConnected=false;gone.respond(0);await gone.flush();
+  assert.equal(gone.views.length,0);
 });
