@@ -3218,9 +3218,6 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  const refreshBooksButton=button("↻", "mini-btn", "button", () => {requestCriminalLawOx.statusCache=null;renderCriminalLawOxLocalPreview.view=null;render();});
-  refreshBooksButton.setAttribute("aria-label", "구매 권한 새로고침");
-  refreshBooksButton.setAttribute("title", "구매 권한 새로고침");
   Promise.all([import("./criminal-law-ox.js?v=20260921-ox-book-access"),requestCriminalLawOx('bootstrap',{summaryOnly:true})]).then(([{ mount },bootstrap]) => {
     if (content.isConnected) {
       previewController = mount(content,{bootstrap,request:requestCriminalLawOx,onAccessRefresh:()=>{requestCriminalLawOx.statusCache=null;renderCriminalLawOxLocalPreview.view=null;render();}});
@@ -3237,7 +3234,6 @@ function renderCriminalLawOxLocalPreview() {
         el("h2", {}, "형사법 OX"),
         el("div", { className: "criminal-law-ox-header-actions" }, [
           bookmarksButton,
-          refreshBooksButton,
           button("홈", "mini-btn", "button", () => navigate("home")),
         ]),
       ]),

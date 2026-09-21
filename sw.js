@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v446-ox-book-access";
+const CACHE_NAME = "outing-auth-app-v447-ox-header-cleanup";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -42,7 +42,7 @@ const APP_SHELL = [
   "/criminal-law-ox-admin.css?v=20260921-ox-book-access",
   "/criminal-law-ox.js?v=20260921-ox-book-access",
   "/criminal-law-ox.css?v=20260920-ox-explanation-bold",
-  "/app.js?v=20260921-ox-book-access",
+  "/app.js?v=20260921-ox-header-cleanup",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",
