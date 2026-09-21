@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const auth = require('./teacher-auth-utils');
 const { requestSupabase } = require('./curriculum')._private;
-const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set']);
+const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history']);
+const bookIds = ['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
 const DEVICE_SESSION_COOKIE = 'outing_ox_device_session';
 const DEVICE_SESSION_SECONDS = 12 * 60 * 60;
@@ -69,6 +70,20 @@ function validate(body) {
   }
   if (action==='admin_enabled' && typeof body.enabled!=='boolean') fail('invalid_request');
   if (action==='admin_member_set' && (typeof body.memberId!=='string' || !body.memberId.trim() || body.memberId.length>120 || typeof body.allowed!=='boolean')) fail('invalid_request');
+  if (['admin_book_set','admin_member_history'].includes(action) && (typeof body.memberId!=='string' || !body.memberId.trim() || body.memberId.length>120)) fail('invalid_request');
+  if ((action==='admin_book_set' || (action==='admin_member_set' && body.revision!==undefined)) && (!Number.isInteger(body.revision) || body.revision<0)) fail('invalid_request');
+  if (action==='admin_book_set') {
+    if (typeof body.active!=='boolean' || !Array.isArray(body.collectionIds) || !body.collectionIds.length || body.collectionIds.length>3
+      || body.collectionIds.some(id=>!bookIds.includes(id)) || new Set(body.collectionIds).size!==body.collectionIds.length
+      || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500) fail('invalid_request');
+    if (body.active) {
+      const date=typeof body.purchaseDate==='string' && /^\d{4}-\d{2}-\d{2}$/.test(body.purchaseDate) ? new Date(body.purchaseDate+'T00:00:00Z') : null;
+      const koreanToday=new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
+      if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==body.purchaseDate || body.purchaseDate>koreanToday) fail('invalid_request');
+    }
+  }
+  if (action==='admin_members' && ((body.collectionId!==undefined && body.collectionId!=='' && !bookIds.includes(body.collectionId))
+    || (body.bookStatus!==undefined && !['','active','stopped'].includes(body.bookStatus)))) fail('invalid_request');
   if (action==='admin_members' && body.registeredOnly!==undefined && typeof body.registeredOnly!=='boolean') fail('invalid_request');
   if (action==='admin_save') {
     const q=body.question;
@@ -112,7 +127,7 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
         if(!session) fail('unauthorized',401);
-        const permission=['admin_save','admin_enabled','admin_member_set'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
+        const permission=['admin_save','admin_enabled','admin_member_set','admin_book_set'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
         if(!auth.hasPermission(session,permission)) fail('forbidden',403);
         actor={type:'admin',id:session.username};
       } else {
@@ -131,9 +146,9 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       if (newDeviceCookie && data?.ok) res.setHeader('Set-Cookie',newDeviceCookie);
       res.status(200).json(body.action==='bootstrap'?compactBootstrap(data):data);
     } catch(error) {
-      const known=['revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
+      const known=['access_conflict','book_already_active','book_selection_required','ox_book_required','revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
       const code=known.find(code=>error.message===code || error.message?.includes(`"message":"${code}"`));
-      const status=code?.includes('conflict') || code==='question_changed'?409:code==='unauthorized'?401:['forbidden','ox_not_registered'].includes(code)?403:['ox_disabled','question_unavailable','student_unavailable'].includes(code)?404:code==='method_not_allowed'?405:code==='request_too_large'?413:code?400:503;
+      const status=code?.includes('conflict') || ['question_changed','book_already_active'].includes(code)?409:code==='unauthorized'?401:['forbidden','ox_not_registered','ox_book_required'].includes(code)?403:['ox_disabled','question_unavailable','student_unavailable'].includes(code)?404:code==='method_not_allowed'?405:code==='request_too_large'?413:code?400:503;
       res.status(status).json({ok:false,error:code || 'ox_unavailable'});
     }
   };

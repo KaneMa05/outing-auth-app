@@ -3,6 +3,7 @@ const questionTextLoads = new Map();
 let questionRenderVersion = 0;
 
 function questionsForCurrentView() {
+  if (typeof bookAccessBlocked !== 'undefined' && bookAccessBlocked) return [];
   if (route === 'quiz') {
     const start = Math.floor(session.index / 20) * 20;
     return session.ids.slice(start, start + 20).map(id => byId.get(id));

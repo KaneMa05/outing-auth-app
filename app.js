@@ -3128,14 +3128,15 @@ function renderCriminalLawOxLocalEntry() {
   const student=getAuthedStudent(), deviceToken=getStudentProfile(student?.id)?.deviceToken, key=student?.id+':'+deviceToken;
   const cached=requestCriminalLawOx.statusCache;
   const recent=cached?.key===key && cached.confirmedAt>Date.now()-30000;
-  const visible=recent ? cached.value?.enabled===true : criminalLawOxEntryHint(student?.id,deviceToken);
+  const visible=recent ? cached.value?.enabled===true || cached.value?.hasAccessHistory===true : criminalLawOxEntryHint(student?.id,deviceToken);
   entry.hidden = !visible;
   entry.style.display = visible ? "" : "none";
   requestCriminalLawOx('status').then(data => {
     if (getAuthedStudent()?.id!==student?.id || getStudentProfile(student?.id)?.deviceToken!==deviceToken) return;
-    entry.hidden=!data.enabled; entry.style.display=data.enabled?'':'none';
+    const available=data.enabled || data.hasAccessHistory;
+    entry.hidden=!available; entry.style.display=available?'':'none';
     if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260920-ox-learning','data-ox-module-preload':'true'}));
+      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260921-ox-book-access','data-ox-module-preload':'true'}));
     }
   }).catch(() => {
     const stillCurrent=getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
@@ -3163,7 +3164,7 @@ async function requestCriminalLawOx(action, payload={}) {
   });
   const data=await response.json();
   if(!response.ok || !data.ok) {
-    if(['ox_disabled','ox_not_registered','unauthorized'].includes(data.error)) {
+    if(['ox_disabled','ox_not_registered','ox_book_required','unauthorized'].includes(data.error)) {
       criminalLawOxEntryHint(student.id,deviceToken,false);
       if(requestCriminalLawOx.statusCache?.key===key) requestCriminalLawOx.statusCache=null;
     }
@@ -3177,7 +3178,7 @@ async function requestCriminalLawOx(action, payload={}) {
     const data=await operation;
     if(status && requestCriminalLawOx.statusCache===status) {
       Object.assign(status,{pending:false,value:data,confirmedAt:Date.now(),expires:Date.now()+30000});
-      if(getAuthedStudent()?.id===student.id && getStudentProfile(student.id)?.deviceToken===deviceToken) criminalLawOxEntryHint(student.id,deviceToken,data.enabled===true);
+      if(getAuthedStudent()?.id===student.id && getStudentProfile(student.id)?.deviceToken===deviceToken) criminalLawOxEntryHint(student.id,deviceToken,data.enabled===true || data.hasAccessHistory===true);
     }
     return data;
   } catch(error) {
@@ -3217,14 +3218,17 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  Promise.all([import("./criminal-law-ox.js?v=20260920-ox-learning"),requestCriminalLawOx('bootstrap',{summaryOnly:true})]).then(([{ mount },bootstrap]) => {
+  const refreshBooksButton=button("↻", "mini-btn", "button", () => {requestCriminalLawOx.statusCache=null;renderCriminalLawOxLocalPreview.view=null;render();});
+  refreshBooksButton.setAttribute("aria-label", "구매 권한 새로고침");
+  refreshBooksButton.setAttribute("title", "구매 권한 새로고침");
+  Promise.all([import("./criminal-law-ox.js?v=20260921-ox-book-access"),requestCriminalLawOx('bootstrap',{summaryOnly:true})]).then(([{ mount },bootstrap]) => {
     if (content.isConnected) {
-      previewController = mount(content,{bootstrap,request:requestCriminalLawOx});
+      previewController = mount(content,{bootstrap,request:requestCriminalLawOx,onAccessRefresh:()=>{requestCriminalLawOx.statusCache=null;renderCriminalLawOxLocalPreview.view=null;render();}});
       bookmarksButton.disabled = false;
     }
   }).catch(error => {
     if (!content.isConnected) return;
-    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
+    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_book_required' ? "현재 이용 가능한 교재가 없습니다. 구매 확인 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다." : error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
       button("다시 시도", "btn secondary", "button", () => {renderCriminalLawOxLocalPreview.view=null;render();}));
   });
   const page=el("div", { className: "grid student-view criminal-law-ox-local-page" }, [
@@ -3233,6 +3237,7 @@ function renderCriminalLawOxLocalPreview() {
         el("h2", {}, "형사법 OX"),
         el("div", { className: "criminal-law-ox-header-actions" }, [
           bookmarksButton,
+          refreshBooksButton,
           button("홈", "mini-btn", "button", () => navigate("home")),
         ]),
       ]),

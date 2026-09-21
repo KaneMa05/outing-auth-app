@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v445-final-scope-admin";
+const CACHE_NAME = "outing-auth-app-v446-ox-book-access";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -38,11 +38,11 @@ const APP_SHELL = [
   "/inquiry-board.js?v=20260828-independent-inquiries",
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
-  "/criminal-law-ox-admin.js?v=20260917-ox-members",
-  "/criminal-law-ox-admin.css?v=20260917-ox-members",
-  "/criminal-law-ox.js?v=20260920-ox-learning",
+  "/criminal-law-ox-admin.js?v=20260921-ox-book-access",
+  "/criminal-law-ox-admin.css?v=20260921-ox-book-access",
+  "/criminal-law-ox.js?v=20260921-ox-book-access",
   "/criminal-law-ox.css?v=20260920-ox-explanation-bold",
-  "/app.js?v=20260921-final-scope-admin",
+  "/app.js?v=20260921-ox-book-access",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",
