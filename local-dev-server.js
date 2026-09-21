@@ -627,6 +627,14 @@ async function handleLocalAppSettings(req, res) {
     if (!session) return sendLocalJson(res, 401, { ok: false, error: "unauthorized" });
     const body = await readLocalJson(req);
     const rawSettings = body.settings || body;
+    if (Object.prototype.hasOwnProperty.call(rawSettings, "finalScopePlan")) {
+      if (!hasPermission(session, "curriculum.write")) return sendLocalJson(res, 403, { ok: false, error: "forbidden" });
+      try {
+        rawSettings.finalScopePlan = require("./final-scope-model").normalize(rawSettings.finalScopePlan);
+      } catch (error) {
+        return sendLocalJson(res, 400, { ok: false, error: "invalid_final_scope_plan", message: error.message });
+      }
+    }
     const dateOverride = rawSettings.attendanceDateOverride;
     const writesDateOverride = Object.prototype.hasOwnProperty.call(rawSettings, "attendanceDateOverride");
     if (writesDateOverride && !hasPermission(session, "attendance.write")) {
@@ -713,6 +721,7 @@ function readLocalAppSettings() {
     curriculumQuestEnabled: false,
     phoneVerificationEnabled: false,
     studentDday: null,
+    finalScopePlan: null,
   };
   if (!fs.existsSync(LOCAL_APP_SETTINGS_FILE)) return defaults;
   try {

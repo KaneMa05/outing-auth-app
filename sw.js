@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v444-ox-explanation-bold";
+const CACHE_NAME = "outing-auth-app-v445-final-scope-admin";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "/styles.css?v=20260917-study-share-fixes",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
-  "/shared.js?v=20260919-investigation-weekly-subjects",
+  "/shared.js?v=20260921-final-scope-admin",
   "/student.js?v=20260917-grade-lookup-performance",
   "/question-board.js?v=20260902-question-board-skeleton-ui",
   "/inquiry-board.js?v=20260902-inquiry-prefetch",
@@ -18,9 +18,11 @@ const APP_SHELL = [
   "/study-shop.js?v=20260911-hair-shop-rewards",
   "/student-rewards.js?v=20260911-reward-break-celebration",
   "/final-scope-data.js?v=20260908-final-scope-plan",
+  "/final-scope-model.js?v=20260921-final-scope-admin",
+  "/final-scope-admin.js?v=20260921-final-scope-admin",
+  "/final-scope-admin.css?v=20260921-final-scope-admin",
   "/feedback-hub.js?v=20260911-feedback-free-only",
   "/study-record-share.js?v=20260917-study-share-fixes",
-  "/app.js?v=20260920-ox-learning",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
   "/styles.css?v=20260911-hair-shop-bot-admin",
   "/teacher.js?v=20260911-admin-dashboard-retry",
@@ -40,7 +42,7 @@ const APP_SHELL = [
   "/criminal-law-ox-admin.css?v=20260917-ox-members",
   "/criminal-law-ox.js?v=20260920-ox-learning",
   "/criminal-law-ox.css?v=20260920-ox-explanation-bold",
-  "/app.js?v=20260920-ox-explanation-bold",
+  "/app.js?v=20260921-final-scope-admin",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",

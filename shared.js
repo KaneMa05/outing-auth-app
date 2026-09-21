@@ -145,6 +145,7 @@ const routePermissions = {
   "question-board-admin": "question_board.read",
   "inquiry-board-admin": "inquiries.read",
   "curriculum-admin": "curriculum.read",
+  "final-scope-admin": "curriculum.read",
   "criminal-law-ox-admin": "criminal_ox.read",
   notices: "notices.read",
   "teacher-accounts": "accounts.write",
@@ -182,7 +183,7 @@ function canUseRoute(route) {
 }
 
 function firstAllowedTeacherRoute() {
-  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
+  return ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"].find(canUseRoute) || "home";
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -547,6 +548,7 @@ function defaultState() {
       curriculumQuestEnabled: false,
       phoneVerificationEnabled: false,
       studentDday: null,
+      finalScopePlan: null,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
     },
@@ -4436,6 +4438,8 @@ async function loadAppSettingsFromApi() {
 
 function applyRemoteAppSettings(settings) {
   if (!settings) return;
+  state.settings.finalScopePlan = typeof FinalScopePlanModel !== "undefined"
+    ? FinalScopePlanModel.normalizeOrNull(settings.finalScopePlan) : null;
   state.settings.attendanceDeadline = normalizeAttendanceDeadlineValue(settings.attendanceDeadline);
   state.settings.attendanceDeadlineEnabled = settings.attendanceDeadlineEnabled === true;
   state.settings.attendanceDateDeadlines = normalizeAttendanceDateDeadlines(settings.attendanceDateDeadlines);
@@ -5863,7 +5867,6 @@ function el(tag, props = {}, children = []) {
   });
   return node;
 }
-
 
 
 

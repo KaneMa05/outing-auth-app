@@ -8,10 +8,12 @@ const {
 
 const SETTINGS_NOTICE_ID = "__app_settings__";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
+const finalScopeModel = require("../final-scope-model");
 
 module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
+      res.setHeader("Cache-Control", "no-store");
       const settings = await loadSettings();
       res.status(200).json({ ok: true, settings });
       return;
@@ -47,6 +49,19 @@ module.exports = async function handler(req, res) {
         "phoneVerificationEnabled"
       );
       const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday");
+      const writesFinalScopePlan = Object.prototype.hasOwnProperty.call(rawSettings, "finalScopePlan");
+      if (writesFinalScopePlan) {
+        if (!hasPermission(session, "curriculum.write")) {
+          res.status(403).json({ ok: false, error: "forbidden" });
+          return;
+        }
+        try {
+          rawSettings.finalScopePlan = finalScopeModel.normalize(rawSettings.finalScopePlan);
+        } catch (error) {
+          res.status(400).json({ ok: false, error: "invalid_final_scope_plan", message: error.message });
+          return;
+        }
+      }
       if (writesAttendanceSettings && !hasPermission(session, "attendance.write")) {
         res.status(403).json({ ok: false, error: "forbidden" });
         return;
@@ -157,6 +172,7 @@ function normalizeSettings(settings) {
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
     phoneVerificationEnabled: settings.phoneVerificationEnabled === true,
     studentDday: normalizeStudentDday(settings.studentDday),
+    finalScopePlan: finalScopeModel.normalizeOrNull(settings.finalScopePlan),
   };
   if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {
     normalized.seatAssignments = normalizeSeatAssignments(settings.seatAssignments);

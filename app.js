@@ -19,6 +19,7 @@ const routeTitles = {
   "inquiry-board": "문의하기",
   "inquiry-board-admin": "문의 관리",
   "curriculum-admin": "커리큘럼 관리",
+  "final-scope-admin": "회독 플랜 관리",
   "criminal-law-ox-admin": "형사법 OX 관리",
   mypage: "마이페이지",
   faq: "자주 묻는 질문",
@@ -664,7 +665,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -820,6 +821,7 @@ function render() {
           "question-board-admin": renderQuestionBoardAdmin,
           "inquiry-board-admin": renderInquiryAdmin,
           "curriculum-admin": renderCurriculumAdmin,
+          "final-scope-admin": renderFinalScopeAdmin,
           "criminal-law-ox-admin": renderCriminalLawOxAdmin,
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
@@ -3877,7 +3879,7 @@ function openFinalScopePlanGuide() {
     content: el("div", { className: "final-scope-guide-content" }, [
       el("span", { className: "final-scope-guide-kicker" }, "STUDY GUIDE"),
       el("strong", { className: "final-scope-guide-title" }, [
-        el("span", { className: "final-scope-guide-highlight" }, "26년 3차 해양경찰"),
+        el("span", { className: "final-scope-guide-highlight" }, getFinalScopePlanData()?.title || "회독 플랜"),
         " 대비 회독 플랜",
       ]),
       el("p", {}, "회독 기간을 점차 줄여가며 전체 시험 범위를 반복 학습하는 계획이에요."),
@@ -3886,12 +3888,7 @@ function openFinalScopePlanGuide() {
           el("span", { role: "columnheader" }, "모의고사 회차 구분"),
           el("span", { role: "columnheader" }, "플랜"),
         ]),
-        ...[
-          ["1~3회차", "12일 동안 1회독"],
-          ["4~6회차", "9일 동안 1회독"],
-          ["7~9회차", "6일 동안 1회독"],
-          ["10~12회차", "전범위 모의고사"],
-        ].map(([rounds, plan]) => el("div", { className: "final-scope-guide-row", role: "row" }, [
+        ...FinalScopePlanModel.guideRows(getFinalScopePlanData()).map(([rounds, plan]) => el("div", { className: "final-scope-guide-row", role: "row" }, [
           el("span", { role: "cell" }, rounds),
           el("strong", { role: "cell" }, plan),
         ])),
@@ -5270,9 +5267,9 @@ function renderStudyCafeMiniAvatar(tone) {
 }
 
 function getFinalScopePlanData() {
-  return window.FINAL_SCOPE_PLAN && typeof window.FINAL_SCOPE_PLAN === "object"
-    ? window.FINAL_SCOPE_PLAN
-    : null;
+  const defaults = window.FINAL_SCOPE_PLAN;
+  if (!defaults || typeof defaults !== "object") return null;
+  return state.settings.finalScopePlan ? { ...defaults, ...state.settings.finalScopePlan } : defaults;
 }
 
 function getFinalScopeSubjects(student, plan) {
@@ -5285,10 +5282,11 @@ function getFinalScopeSubjects(student, plan) {
 }
 
 function formatFinalScopeRoundCode(code) {
-  if (code === "전 범위") return "전범위";
-  const matches = [...String(code || "").matchAll(/(\d+)-(\d+)/g)];
-  if (!matches.length) return code;
-  return `${matches[0][1]}일 1회독 · ${matches[0][2]}~${matches.at(-1)[2]}일차`;
+  const text = String(code || "").trim();
+  if (text.replace(/\s/g, "") === "전범위") return "전범위";
+  const match = text.match(/^(\d+)-(\d+)(?:\s*~\s*(?:\1-)?(\d+))?$/);
+  if (!match) return text;
+  return `${match[1]}일 1회독 · ${match[2]}${match[3] ? `~${match[3]}` : ""}일차`;
 }
 
 function formatFinalScopeUnitCode(code) {
@@ -11382,6 +11380,7 @@ function renderHome() {
         hasTeacherPermission("question_board.read") ? moduleCard("게시판 관리", "수강생 과목 게시글과 댓글, 신고 내용을 관리합니다.", "question-board-admin", "운영 중") : null,
         hasTeacherPermission("inquiries.read") ? moduleCard("문의 관리", "수강생이 남긴 비공개 문의를 확인하고 답변합니다.", "inquiry-board-admin", "운영 중") : null,
         hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 회차와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
+        hasTeacherPermission("curriculum.read") ? moduleCard("회독 플랜 관리", "회차별 시험일과 과목별 회독 범위를 수정합니다.", "final-scope-admin", "운영 중") : null,
         hasTeacherPermission("criminal_ox.read") ? moduleCard("형사법 OX 관리", "문제와 해설을 검토하고 공개 상태를 관리합니다.", "criminal-law-ox-admin", "문제 관리") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,

@@ -1,0 +1,20 @@
+.final-scope-admin { min-width:0; }
+.final-scope-admin-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.final-scope-admin-actions h3 { margin:0; flex:1; }
+.final-scope-admin-actions > .btn { width:auto; }
+.final-scope-admin-actions > .field { flex:1 1 240px; }
+.final-scope-admin-fields { min-width:0; margin:20px 0 0; padding:0; border:0; }
+.final-scope-admin-fields > .field { margin-bottom:18px; }
+.final-scope-admin-fields .form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.final-scope-admin-subject { margin-top:24px; padding-top:20px; border-top:1px solid var(--line); }
+.final-scope-admin-unit { display:grid; grid-template-columns:130px minmax(0,1fr) auto; gap:12px; align-items:start; margin-top:14px; }
+.final-scope-admin-unit > button { margin-top:27px; }
+.final-scope-admin .field { min-width:0; }
+.final-scope-admin input,.final-scope-admin textarea,.final-scope-admin select { width:100%; box-sizing:border-box; }
+.final-scope-admin textarea { resize:vertical; min-height:88px; line-height:1.65; }
+.final-scope-admin-error { color:var(--danger); }
+@media(max-width:600px) {
+  .final-scope-admin-fields .form-grid { grid-template-columns:1fr; }
+  .final-scope-admin-unit { grid-template-columns:minmax(0,1fr) auto; }
+  .final-scope-admin-unit > .field:nth-child(2) { grid-column:1 / -1; grid-row:2; }
+}
