@@ -23,10 +23,107 @@
 .ox-admin .ox-admin-book-status.active{background:#e8f3ed;color:#176541}
 .ox-admin .ox-admin-book-choices{display:flex;flex-wrap:wrap;gap:16px;margin:12px 0}
 .ox-admin .ox-admin-book-editor fieldset{border:0;padding:0;min-width:0;display:grid;gap:12px}
-.ox-admin .ox-admin-book-editor label:not(.ox-admin-check){display:grid;gap:6px}
+.ox-admin .ox-admin-book-editor label:not(.ox-admin-check):not(.ox-grant-person):not(.ox-grant-student-cell){display:grid;gap:6px}
 .ox-admin .ox-admin-book-editor textarea{width:100%;box-sizing:border-box}
 .ox-admin .ox-admin-book-editor>p{overflow-wrap:anywhere}
 .ox-admin .ox-admin-book-history{padding:12px 0;border-top:1px solid #e2e8f0;overflow-wrap:anywhere}
 .ox-admin .ox-admin-book-history p{margin:6px 0}
 .ox-admin .ox-admin-member-actions{flex-wrap:wrap}
+.ox-admin .ox-grant-picker{margin:0;padding:0;min-width:0}
+.ox-admin .ox-grant-filter-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:12px}
+.ox-admin .ox-grant-hint{font-size:12px;color:#526777;margin:6px 0}
+.ox-admin .ox-grant-roster{max-height:310px;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid #c5d6de}
+.ox-admin .ox-grant-roster>li{padding:10px 0}
+.ox-admin .ox-grant-picker .ox-admin-pagination{margin:8px 0 0}
+.ox-admin .ox-grant-options{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px 24px}
+.ox-admin .ox-grant-options>div{flex:1;min-width:230px}
+.ox-admin .ox-grant-options>label{flex:1;min-width:180px}
+.ox-admin .ox-grant-options>[hidden]{display:none!important}
+.ox-admin .ox-grant-label{font-size:13px;font-weight:700}
+.ox-admin .ox-grant-options .ox-admin-book-choices{margin:8px 0;gap:14px}
+.ox-admin .ox-grant-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:2px}
+.ox-admin .ox-grant-footer>div{flex:1;min-width:180px;display:grid;gap:4px;font-size:13px}
+.ox-admin .ox-grant-footer small{font-size:12px;color:#526777}
+@media(max-width:600px){.ox-admin .ox-grant-filter-row{grid-template-columns:1fr}.ox-admin .ox-grant-footer>.btn{width:100%}}
+.ox-admin .ox-grant-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ox-admin .ox-grant-person{display:flex;flex-direction:row;align-items:flex-start;gap:10px;cursor:pointer;width:100%;min-width:0}
+.ox-admin .ox-grant-person>input{width:18px;height:18px;flex:0 0 18px;margin-top:3px}
+.ox-admin .ox-grant-person>span{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere;opacity:1}
+.ox-admin .ox-grant-panel{padding-top:18px}
+.ox-admin .ox-grant-panel .ox-admin-heading{align-items:center;gap:12px}
+.ox-admin .ox-grant-panel .ox-admin-heading h4{margin:0}
+.ox-admin .ox-grant-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ox-admin .ox-grant-tools{gap:12px;padding:10px 12px;background:#edf3f7;border-radius:6px}
+.ox-admin .ox-grant-tools .ox-admin-check{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.ox-admin .ox-grant-tools input{width:16px;height:16px;margin:0}
+.ox-admin .ox-grant-tools [data-grant-count]{font-size:12px;font-weight:500;color:#526777}
+.ox-admin .ox-grant-tools .ox-grant-refresh{margin-left:auto;background:transparent}
+.ox-admin .ox-grant-tools .ox-grant-clear{background:transparent;color:#526777}
+.ox-admin .ox-grant-hint{margin:8px 0;font-size:12px}
+.ox-admin .ox-grant-compose{display:grid;gap:14px;padding:16px;background:#edf3f7;border-radius:8px;margin-top:4px}
+.ox-admin .ox-grant-compose textarea{min-height:42px;height:42px;padding:10px 12px;line-height:20px;resize:vertical}
+.ox-admin .ox-grant-compose .ox-grant-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;border-top:1px solid #d3e0e8;padding-top:14px;margin:0}
+.ox-admin .ox-grant-compose .ox-grant-footer>.btn{width:auto;min-width:160px;min-height:42px;margin:0}
+.ox-admin .ox-grant-compose .ox-grant-footer>div{min-width:0;line-height:1.6}
+.ox-admin .ox-grant-panel [hidden]{display:none!important}
+.ox-admin .ox-grant-panel [data-grant-message]:empty{display:none}
+.ox-grant-sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media(max-width:600px){.ox-admin .ox-grant-compose{padding:12px}.ox-admin .ox-grant-compose .ox-grant-footer{grid-template-columns:1fr}.ox-admin .ox-grant-compose .ox-grant-footer>.btn{width:100%}.ox-admin .ox-grant-tools{gap:8px}.ox-admin .ox-grant-panel .ox-admin-heading{flex-wrap:wrap}}
+/* A dedicated workspace keeps roster management and question editing out of the grant flow. */
+.ox-admin.ox-grant-focused>:not(.ox-admin-members),.ox-admin.ox-grant-focused .ox-admin-members>:not([data-book-editor]){display:none!important}
+.ox-admin.ox-grant-focused .ox-admin-members{border:0;padding:0;margin:0;background:transparent}
+.ox-admin.ox-grant-focused .ox-grant-panel{border:0;margin:0;padding:0}
+.ox-admin.ox-grant-focused .ox-grant-panel .ox-admin-heading h4{font-size:20px}
+.ox-admin .ox-grant-form>fieldset{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.ox-admin .ox-grant-directory{min-width:0;display:grid;gap:14px}
+.ox-admin .ox-grant-panel h5{font-size:15px;line-height:1.5;margin:0;font-weight:700}
+.ox-admin .ox-grant-form .ox-grant-filter-row{grid-template-columns:minmax(140px,1fr) minmax(150px,1.5fr);gap:10px}
+.ox-admin .ox-grant-form .ox-grant-tools{border-radius:6px 6px 0 0;padding:10px;gap:8px}
+.ox-admin .ox-grant-form .ox-grant-hint{margin:0;padding:8px 10px;background:#edf3f7;border-bottom:1px solid #d3e0e8}
+.ox-admin .ox-grant-table-wrap{max-height:470px;overflow:auto;border:1px solid #d3e0e8;border-top:0;border-radius:0 0 6px 6px;background:#fff}
+.ox-admin .ox-grant-table{width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;font-size:12px;line-height:1.6}
+.ox-admin .ox-grant-table th{padding:10px 12px;background:#f6f8fa;color:#526777;position:sticky;top:0;z-index:1;font-weight:600}
+.ox-admin .ox-grant-table th:first-child{width:36%}
+.ox-admin .ox-grant-table td{padding:12px;border-top:1px solid #e5ebef;vertical-align:top;overflow-wrap:anywhere}
+.ox-admin .ox-grant-table td>small,.ox-admin .ox-grant-table td>span{display:block}
+.ox-admin .ox-grant-table small{display:block;font-size:11px;color:#627583;font-weight:400}
+.ox-admin .ox-grant-table strong{font-size:13px}
+.ox-admin .ox-grant-table tr.is-selected{background:#edf6fb}
+.ox-admin .ox-grant-panel label.ox-grant-student-cell{display:flex;align-items:flex-start;gap:8px;cursor:pointer}
+.ox-admin .ox-grant-student-cell input{width:16px;height:16px;margin:3px 0 0;flex:0 0 16px}
+.ox-admin .ox-grant-student-cell>span{opacity:1;min-width:0;font-weight:400}
+.ox-admin .ox-grant-empty{text-align:center;padding:28px 12px!important;color:#627583}
+.ox-admin .ox-grant-form .ox-grant-compose{margin:0;position:sticky;top:16px;border:1px solid #d3e0e8;gap:20px;padding:18px;background:#f6f8fa}
+.ox-admin .ox-grant-form .ox-grant-options{display:grid;gap:18px}
+.ox-admin .ox-grant-form .ox-grant-options>div,.ox-admin .ox-grant-form .ox-grant-options>label{min-width:0}
+.ox-admin .ox-grant-form .ox-grant-options .ox-admin-book-choices{display:grid;gap:10px;margin:10px 0 0}
+.ox-admin .ox-grant-form .ox-grant-options .ox-admin-check{display:flex;align-items:center;gap:8px;font-size:13px}
+.ox-admin .ox-grant-form .ox-grant-compose textarea{height:76px;min-height:76px}
+.ox-admin .ox-grant-form .ox-grant-footer{grid-template-columns:1fr;gap:12px}
+.ox-admin .ox-grant-form .ox-grant-footer>.btn{width:100%}
+@media(max-width:900px){.ox-admin .ox-grant-form>fieldset{grid-template-columns:1fr;gap:20px}.ox-admin .ox-grant-form .ox-grant-compose{position:static}.ox-admin .ox-grant-form .ox-grant-options .ox-admin-book-choices{display:flex;flex-wrap:wrap}.ox-admin .ox-grant-table-wrap{max-height:360px}}
+@media(max-width:500px){.ox-admin .ox-grant-form .ox-grant-filter-row{grid-template-columns:1fr}.ox-admin .ox-grant-table thead{display:none}.ox-admin .ox-grant-table,.ox-admin .ox-grant-table tbody{display:block}.ox-admin .ox-grant-table tr{display:grid;grid-template-columns:1fr;border-bottom:1px solid #e5ebef;padding:10px}.ox-admin .ox-grant-table td{display:block;border:0;padding:3px 0}.ox-admin .ox-grant-table td[data-label]{padding-left:24px}.ox-admin .ox-grant-table td[data-label]::before{content:attr(data-label) ' · ';float:left;margin-right:4px;color:#627583}.ox-admin .ox-grant-table td>small{margin-left:0}}
 @media(max-width:600px){.ox-admin .ox-admin-member-list>li{align-items:stretch;flex-direction:column}.ox-admin .ox-admin-member-actions{justify-content:flex-start}}
+
+/* Keep each member row quiet; reveal its actions only when requested. */
+.ox-admin .ox-admin-member-list>li{flex-wrap:nowrap;align-items:flex-start}
+.ox-admin .ox-admin-member-list>li>div:first-child{flex:1}
+.ox-admin .ox-admin-member-actions{position:relative;flex:none;align-self:flex-start}
+.ox-admin .ox-member-manage{display:flex;align-items:center;gap:12px;min-height:36px;padding:7px 12px}
+.ox-admin .ox-member-manage[aria-expanded=true]{background:#dceaf4}
+.ox-admin .ox-member-action-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;display:grid;gap:2px;width:190px;padding:6px;background:#fff;border:1px solid #c5d6de;border-radius:10px;box-shadow:0 8px 24px #123b5326}
+.ox-admin .ox-member-action-menu .mini-btn{width:100%;margin:0;padding:10px 12px;min-height:40px;text-align:left;border:0;border-radius:6px;background:transparent;color:#123b53;font-size:13px}
+.ox-admin .ox-member-action-menu .mini-btn:hover:not(:disabled),.ox-admin .ox-member-action-menu .mini-btn:focus-visible{background:#edf4f8}
+.ox-admin .ox-member-action-menu .mini-btn:disabled{opacity:.4;cursor:not-allowed}
+.ox-admin .ox-member-action-menu [data-admin=member-set]{border-top:1px solid #e2e8f0;border-radius:0;margin-top:4px;padding-top:12px}
+.ox-admin .ox-member-action-menu [data-admin=member-set][data-allowed=false]{color:#ad3434}
+@media(max-width:600px){.ox-admin .ox-admin-member-list>li{flex-direction:row}.ox-admin .ox-member-manage{gap:6px;padding:7px 10px}}
+
+.ox-admin .ox-member-track-filter{max-width:100%;min-width:0}
+.ox-admin .ox-member-track-filter select{width:240px;max-width:100%}
+
+.ox-admin .ox-grant-form .ox-grant-filter-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.ox-admin .ox-grant-filter-row>label{min-width:0}
+.ox-admin .ox-grant-filter-row select{width:100%;min-width:0}
+.ox-admin .ox-grant-search-field{grid-column:1/-1}
+@media(max-width:500px){.ox-admin .ox-grant-form .ox-grant-filter-row{grid-template-columns:1fr}}

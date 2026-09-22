@@ -1,15 +1,16 @@
 /* Existing teacher/admin shell owns navigation, typography and authentication. */
 function renderCriminalLawOxAdmin() {
   const host=el('section',{className:'card ox-admin'},[]);
-  if(!document.querySelector('link[data-ox-admin-style]')) document.head.appendChild(el('link',{rel:'stylesheet',href:'./criminal-law-ox-admin.css?v=20260922-ox-cohort-filter','data-ox-admin-style':'true'}));
+  if(!document.querySelector('link[data-ox-admin-style]')) document.head.appendChild(el('link',{rel:'stylesheet',href:'./criminal-law-ox-admin.css?v=20260922-ox-recipient-selection','data-ox-admin-style':'true'}));
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const write=hasTeacherPermission('criminal_ox.write'),readDevices=hasTeacherPermission('students.read');
   let catalog, page=0, items=[], total=0, selected=null, search='', chapterId='', status='', unreviewed=false, busy=false, requestId=0;
-  let memberPage=0, memberSearch='', registeredOnly=true, memberRequestId=0, memberTotal=0, memberCollection='', memberStatus='', memberCohort='';
-  let memberCohorts=[], cohortsReady=false;
+  let memberPage=0, memberSearch='', registeredOnly=true, memberRequestId=0, memberTotal=0, memberCollection='', memberStatus='', memberCohort='', memberTrack='';
+  let memberCohorts=[], memberTracks=[], cohortsReady=false;
   const lectureIdLabel=s=>s.lecture_ids?.length?s.lecture_ids.join(' / '):'미등록';
   const cohortLabel=s=>s.student_category==='lecture'?'기수 없음':s.cohort?`${s.cohort}기`:'기수 미지정';
   const cohortOptions=()=>[['','전체 기수'],...memberCohorts.map(c=>[c,`${c}기`]),['lecture','인터넷 수강생 (기수 없음)'],['unassigned','기수 미지정']].map(([value,label])=>`<option value="${escape(value)}" ${memberCohort===value?'selected':''}>${escape(label)}</option>`).join('');
+  const trackOptions=()=>[['','전체 직렬'],...memberTracks.map(t=>[t,t]),['unassigned','직렬 미지정']].map(([value,label])=>`<option value="${escape(value)}" ${memberTrack===value?'selected':''}>${escape(label)}</option>`).join('');
   let memberItems=new Map(), bookEditorVersion=0;
   const books=[['criminal-law','형법'],['criminal-procedure-investigation-evidence','수사·증거'],['criminal-procedure-trial','공판']];
   const bookName=id=>books.find(b=>b[0]===id)?.[1] || 'OX 전체';
@@ -31,14 +32,14 @@ function renderCriminalLawOxAdmin() {
       <div class="ox-admin-availability"><div><span>수강생 학습 <strong>${catalog.enabled?'등록 수강생만 사용 중':'준비 중'}</strong></span><p>학습을 시작해도 교재 구매 권한 또는 유효한 이용권이 있는 수강생에게 OX가 표시됩니다.</p></div><button class="mini-btn" data-admin="enabled" ${write?'':'disabled'}>${catalog.enabled?'학습 사용 중지':'등록 수강생 학습 시작'}</button></div>
       <section class="ox-admin-members" aria-labelledby="ox-members-title"><h3 id="ox-members-title">교재 구매 · 이용 수강생 관리</h3><p>교재 구매 또는 별도 이용권으로 학습을 개방할 수 있습니다. 이용을 중지해도 풀이 기록과 메모는 보존됩니다.</p>
         <form data-member-form class="ox-admin-member-filters"><label class="ox-admin-search">수강생 검색<input name="memberSearch" placeholder="이름 · 학생 ID · 인강 아이디" maxlength="500" value="${escape(memberSearch)}"></label><label>표시 대상<select name="registeredOnly"><option value="true" ${registeredOnly?'selected':''}>등록된 수강생</option><option value="false" ${registeredOnly?'':'selected'}>전체 수강생 · 등록하기</option></select></label><button class="btn secondary" type="submit">검색</button></form>
-        <div class="ox-admin-member-filters"><label>기수<select data-member-cohort ${cohortsReady?'':'disabled'}>${cohortOptions()}</select></label><label>구매 교재<select data-member-collection><option value="">전체 교재</option>${books.map(([id,name])=>`<option value="${id}" ${memberCollection===id?'selected':''}>${name}</option>`).join('')}</select></label><label>구매 이용 상태<select data-member-status><option value="">전체 상태</option><option value="active" ${memberStatus==='active'?'selected':''}>이용 중</option><option value="stopped" ${memberStatus==='stopped'?'selected':''}>중지</option></select></label></div>
+        <div class="ox-admin-member-filters"><label>기수<select data-member-cohort ${cohortsReady?'':'disabled'}>${cohortOptions()}</select></label><label class="ox-member-track-filter">직렬<select data-member-track ${cohortsReady?'':'disabled'}>${trackOptions()}</select></label><label>구매 교재<select data-member-collection><option value="">전체 교재</option>${books.map(([id,name])=>`<option value="${id}" ${memberCollection===id?'selected':''}>${name}</option>`).join('')}</select></label><label>구매 이용 상태<select data-member-status><option value="">전체 상태</option><option value="active" ${memberStatus==='active'?'selected':''}>이용 중</option><option value="stopped" ${memberStatus==='stopped'?'selected':''}>중지</option></select></label></div>
         <button class="mini-btn" data-admin="grants">OX 이용권 일괄 지급·이력</button> <button class="mini-btn" data-admin="device-requests" ${readDevices?'':'disabled'}>기기 교체 신청 확인</button><p role="status" data-member-message></p><div data-members></div><div data-book-editor></div>
       </section>
       <form class="ox-admin-filters"><label>단원<select name="chapterId"><option value="">전체 단원</option>${chaptersOptions(chapterId)}</select></label><label>상태<select name="status"><option value="">전체 상태</option>${Object.entries(statusNames).map(([v,l])=>`<option value="${v}" ${v===status?'selected':''}>${l}</option>`).join('')}</select></label><label class="ox-admin-search">지문 검색<input name="search" placeholder="지문 또는 관리 번호" value="${escape(search)}" maxlength="500"></label><button class="btn secondary" type="submit">검색</button><label class="ox-admin-check"><input type="checkbox" name="unreviewed" ${unreviewed?'checked':''}> 미검토 문항만</label></form>
       <p role="status" data-message></p><div data-list></div><div data-editor></div>`;
     host.querySelector('.ox-admin-filters').onsubmit=event=>{event.preventDefault();const form=new FormData(event.target);search=form.get('search').trim();chapterId=form.get('chapterId');status=form.get('status');unreviewed=form.has('unreviewed');page=0;loadList();};
     host.querySelector('[data-member-form]').onsubmit=event=>{event.preventDefault();if(busy)return;const form=new FormData(event.target);memberSearch=form.get('memberSearch').trim();registeredOnly=form.get('registeredOnly')==='true';memberPage=0;loadMembers();};
-    for(const selector of ['[data-member-cohort]','[data-member-collection]','[data-member-status]']) host.querySelector(selector).onchange=()=>{if(busy)return;memberCohort=host.querySelector('[data-member-cohort]').value;memberCollection=host.querySelector('[data-member-collection]').value;memberStatus=host.querySelector('[data-member-status]').value;memberPage=0;loadMembers();};
+    for(const selector of ['[data-member-cohort]','[data-member-track]','[data-member-collection]','[data-member-status]']) host.querySelector(selector).onchange=()=>{if(busy)return;if(selector==='[data-member-cohort]'){memberTrack='';host.querySelector('[data-member-track]').value='';}memberCohort=host.querySelector('[data-member-cohort]').value;memberTrack=host.querySelector('[data-member-track]').value;memberCollection=host.querySelector('[data-member-collection]').value;memberStatus=host.querySelector('[data-member-status]').value;memberPage=0;loadMembers();};
     list();
     loadMembers();
   }
@@ -46,10 +47,11 @@ function renderCriminalLawOxAdmin() {
     bookEditorVersion++;
     host.querySelector('[data-book-editor]').replaceChildren();
     const id=++memberRequestId, message=host.querySelector('[data-member-message]');
+    host.querySelector('[data-member-track]').disabled=true;
     message.textContent='수강생을 불러오는 중…';
     host.querySelector('[data-members]').replaceChildren();
     try {
-      const data=await api('admin_members',{page:memberPage,search:memberSearch,registeredOnly,collectionId:memberCollection,bookStatus:memberStatus,cohort:memberCohort});
+      const data=await api('admin_members',{page:memberPage,search:memberSearch,registeredOnly,collectionId:memberCollection,bookStatus:memberStatus,cohort:memberCohort,track:memberTrack});
       if(id!==memberRequestId)return;
       memberTotal=data.total;
       if(Array.isArray(data.cohorts)){
@@ -58,9 +60,14 @@ function renderCriminalLawOxAdmin() {
         memberCohorts.sort((a,b)=>Number(b)-Number(a));cohortsReady=true;
         const select=host.querySelector('[data-member-cohort]');select.innerHTML=cohortOptions();select.disabled=false;
       }
+      if(Array.isArray(data.tracks)){
+        memberTracks=data.tracks;
+        if(memberTrack&&memberTrack!=='unassigned'&&!memberTracks.includes(memberTrack))memberTracks.push(memberTrack);
+        const select=host.querySelector('[data-member-track]');select.innerHTML=trackOptions();select.disabled=false;
+      }
       memberItems=new Map(data.items.map(s=>[s.id,s]));
       if(memberPage>0 && memberPage*30>=memberTotal){memberPage=Math.max(0,Math.ceil(memberTotal/30)-1);return loadMembers(successMessage);}
-      host.querySelector('[data-members]').innerHTML=`<div class="ox-admin-list-head"><span>${memberTotal.toLocaleString()}명</span><span>${memberPage+1} / ${Math.max(1,Math.ceil(memberTotal/30))} 페이지</span></div><ul class="ox-admin-member-list">${data.items.map(s=>`<li><div><strong>${escape(s.name)}</strong><span>${escape(cohortLabel(s))} · ${escape(categoryNames[s.student_category] || s.student_category)} · ${escape(s.class_name)}</span><small>학생 ID: ${escape(s.id)}${s.is_active?'':' · 비활성 계정'}</small><small>인강 아이디: ${escape(lectureIdLabel(s))}</small><div class="ox-admin-book-statuses">${books.map(([id,name])=>{const b=s.books?.find(x=>x.collection_id===id);return `<span class="ox-admin-book-status ${b?.active&&s.allowed?'active':''}">${name} · ${!b?'미등록':b.active&&s.allowed?'이용 중':'중지'}${b?.source==='legacy'?' (구매 확인 필요)':''}</span>`;}).join('')}</div>${s.grants?.length?`<small>지급 이용권: ${s.grants.map(g=>bookName(g.id)).join(' · ')}</small>`:''}${(s.books?.length||s.grants?.length)&&!s.allowed?'<small>OX 전체 이용 중지 상태입니다.</small>':''}</div><div class="ox-admin-member-actions"><button class="mini-btn" data-admin="book-add" data-id="${escape(s.id)}" ${write&&s.is_active?'':'disabled'}>교재 구매 등록</button><button class="mini-btn" data-admin="book-stop" data-id="${escape(s.id)}" ${write&&s.books?.some(b=>b.active)?'':'disabled'}>교재 이용 중지</button><button class="mini-btn" data-admin="device-list" data-id="${escape(s.id)}" ${readDevices?'':'disabled'}>등록 기기</button><button class="mini-btn" data-admin="book-history" data-id="${escape(s.id)}">변경 이력</button>${(s.books?.some(b=>b.active)||s.grants?.length)?`<button class="mini-btn" data-admin="member-set" data-id="${escape(s.id)}" data-revision="${s.access_revision}" data-allowed="${!s.allowed}" ${write&&(s.is_active||s.allowed)?'':'disabled'}>${s.allowed?'OX 전체 중지':'OX 전체 재개'}</button>`:''}</div></li>`).join('') || `<li>${registeredOnly?'조건에 맞는 등록 수강생이 없습니다. 필터나 표시 대상을 확인해주세요.':'검색 결과가 없습니다.'}</li>`}</ul><div class="ox-admin-pagination"><button class="mini-btn" data-admin="member-previous" ${memberPage===0?'disabled':''}>이전</button><button class="mini-btn" data-admin="member-next" ${(memberPage+1)*30>=memberTotal?'disabled':''}>다음</button></div>`;
+      host.querySelector('[data-members]').innerHTML=`<div class="ox-admin-list-head"><span>${memberTotal.toLocaleString()}명</span><span>${memberPage+1} / ${Math.max(1,Math.ceil(memberTotal/30))} 페이지</span></div><ul class="ox-admin-member-list">${data.items.map((s,index)=>`<li><div><strong>${escape(s.name)}</strong><span>${escape(cohortLabel(s))} · ${escape(categoryNames[s.student_category] || s.student_category)} · ${escape(s.class_name)}</span><small>직렬: ${escape(s.track||'미지정')}</small><small>학생 ID: ${escape(s.id)}${s.is_active?'':' · 비활성 계정'}</small><small>인강 아이디: ${escape(lectureIdLabel(s))}</small><div class="ox-admin-book-statuses">${books.map(([id,name])=>{const b=s.books?.find(x=>x.collection_id===id);return `<span class="ox-admin-book-status ${b?.active&&s.allowed?'active':''}">${name} · ${!b?'미등록':b.active&&s.allowed?'이용 중':'중지'}${b?.source==='legacy'?' (구매 확인 필요)':''}</span>`;}).join('')}</div>${s.grants?.length?`<small>지급 이용권: ${s.grants.map(g=>bookName(g.id)).join(' · ')}</small>`:''}${(s.books?.length||s.grants?.length)&&!s.allowed?'<small>OX 전체 이용 중지 상태입니다.</small>':''}</div><div class="ox-admin-member-actions"><button type="button" class="mini-btn ox-member-manage" data-admin="member-menu" data-id="${escape(s.id)}" aria-label="${escape(s.name)} 관리" aria-expanded="false" aria-controls="ox-member-actions-${index}">관리 <span aria-hidden="true">⌄</span></button><div class="ox-member-action-menu" id="ox-member-actions-${index}" hidden><button class="mini-btn" data-admin="book-add" data-id="${escape(s.id)}" ${write&&s.is_active?'':'disabled'}>교재 구매 등록</button><button class="mini-btn" data-admin="book-stop" data-id="${escape(s.id)}" ${write&&s.books?.some(b=>b.active)?'':'disabled'}>교재 이용 중지</button><button class="mini-btn" data-admin="device-list" data-id="${escape(s.id)}" ${readDevices?'':'disabled'}>등록 기기</button><button class="mini-btn" data-admin="book-history" data-id="${escape(s.id)}">변경 이력</button>${(s.books?.some(b=>b.active)||s.grants?.length)?`<button class="mini-btn" data-admin="member-set" data-id="${escape(s.id)}" data-revision="${s.access_revision}" data-allowed="${!s.allowed}" ${write&&(s.is_active||s.allowed)?'':'disabled'}>${s.allowed?'OX 전체 중지':'OX 전체 재개'}</button>`:''}</div></div></li>`).join('') || `<li>${registeredOnly?'조건에 맞는 등록 수강생이 없습니다. 필터나 표시 대상을 확인해주세요.':'검색 결과가 없습니다.'}</li>`}</ul><div class="ox-admin-pagination"><button class="mini-btn" data-admin="member-previous" ${memberPage===0?'disabled':''}>이전</button><button class="mini-btn" data-admin="member-next" ${(memberPage+1)*30>=memberTotal?'disabled':''}>다음</button></div>`;
       message.textContent=successMessage;
     } catch(error){if(id===memberRequestId){message.textContent=error.message;host.querySelector('[data-members]').innerHTML='<button class="mini-btn" data-admin="member-retry">다시 시도</button>';}}
   }
@@ -128,16 +135,46 @@ function renderCriminalLawOxAdmin() {
     host.querySelector('[data-editor]').scrollIntoView({behavior:'smooth',block:'start'});
     form.querySelector('[name=prompt]').focus({preventScroll:true});
   }
+  function closeMemberMenus(except=null) {
+    host.querySelectorAll('[data-admin=member-menu][aria-expanded=true]').forEach(toggle=>{
+      if(toggle===except)return;
+      toggle.setAttribute('aria-expanded','false');
+      toggle.nextElementSibling.hidden=true;
+    });
+  }
+  host.addEventListener('keydown',event=>{
+    if(event.key!=='Escape')return;
+    const toggle=host.querySelector('[data-admin=member-menu][aria-expanded=true]');
+    if(toggle){event.preventDefault();closeMemberMenus();toggle.focus();}
+  });
+  host.addEventListener('focusout',event=>{
+    const actions=event.target.closest('.ox-admin-member-actions');
+    if(actions&&!actions.contains(event.relatedTarget))closeMemberMenus();
+  });
   host.addEventListener('click',async event=>{
-    const b=event.target.closest('[data-admin]');if(!b || b.disabled || busy)return;
+    const b=event.target.closest('[data-admin]');
+    if(b?.dataset.admin==='member-menu'){
+      const open=b.getAttribute('aria-expanded')!=='true';
+      closeMemberMenus();
+      b.setAttribute('aria-expanded',String(open));b.nextElementSibling.hidden=!open;
+      return;
+    }
+    if(!b?.disabled){
+      const toggle=b?.closest('.ox-admin-member-actions')?.querySelector('[data-admin=member-menu]');
+      closeMemberMenus();
+      if(toggle)toggle.focus({preventScroll:true});
+    }
+    if(!b || b.disabled || busy)return;
     try {
       if(b.dataset.admin==='grants') {
         const version=++bookEditorVersion,panel=host.querySelector('[data-book-editor]');panel.replaceChildren();
-        const {mountGrants}=await import('./criminal-law-ox-grants-admin.js?v=20260922-ox-bulk-grants');
+        const {mountGrants}=await import('./criminal-law-ox-grants-admin.js?v=20260922-ox-recipient-selection');
         if(version!==bookEditorVersion)return;
+        memberRequestId++;
+        host.classList.add('ox-grant-focused');
         const content=el('div',{});panel.replaceChildren(content);
-        mountGrants(content,{api,canWrite:write,cohorts:memberCohorts,enabled:catalog.enabled,onClose:()=>loadMembers()});
-        panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+        mountGrants(content,{api,canWrite:write,cohorts:memberCohorts,initialCohort:memberCohort,initialTrack:memberTrack,enabled:catalog.enabled,onClose:()=>{host.classList.remove('ox-grant-focused');loadMembers();host.querySelector('[data-admin=grants]')?.focus();}});
+        host.scrollIntoView({behavior:'smooth',block:'start'});
       }
       if(['device-list','device-requests'].includes(b.dataset.admin)) {
         bookEditorVersion++;const version=bookEditorVersion;
