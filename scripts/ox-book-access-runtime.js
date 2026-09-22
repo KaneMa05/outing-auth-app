@@ -6,7 +6,7 @@ function bookTabs() {
 }
 function lockedBookView() {
   const title=bookLabels[collection] || '해당';
-  main.innerHTML=`<h2>단원 학습</h2>${bookTabs()}<section class="ox-card"><h3>${esc(title)} 교재 구매 후 이용 가능</h3><p class="ox-sub">${esc(title)} 교재 구매자에게 제공되는 학습 서비스입니다. 구매하셨다면 학원에 구매 확인을 요청해주세요.</p>${button('구매 권한 새로고침','refresh-books','','ox-wide')}</section>`;
+  main.innerHTML=`<h2>단원 학습</h2>${bookTabs()}<section class="ox-card"><h3>${esc(title)} 이용 권한 확인 필요</h3><p class="ox-sub">${esc(title)} 교재 구매 또는 이용권 지급이 필요한 영역입니다. 학원에 이용 권한을 확인해주세요.</p>${button('이용 권한 새로고침','refresh-books','','ox-wide')}</section>`;
 }
 function blockBookAccess(error) {
   if(!['ox_book_required','ox_not_registered','ox_disabled','unauthorized'].includes(error.code))return false;

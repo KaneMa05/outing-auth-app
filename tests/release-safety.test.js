@@ -73,8 +73,10 @@ test("service worker installs every current page asset and never caches API requ
   }
   // Lazy OX assets need versioned URLs too: an existing worker serves cached
   // unversioned files even while the next worker is still installing.
-  const oxAssets = [...fs.readFileSync("app.js", "utf8").matchAll(/\.\/(criminal-law-ox\.(?:js|css)(?:\?v=[^'"\s]+)?)/g)].map(match => match[1]);
-  assert.equal(oxAssets.length, 3, "Expected OX module preload, import and stylesheet");
+  const oxAssets = ["app.js", "criminal-law-ox-access.js", "criminal-law-ox-admin.js"].flatMap(file =>
+    [...fs.readFileSync(file, "utf8").matchAll(/\.\/((?:criminal-law-ox(?:-[a-z-]+)?|student-device-manager)\.(?:js|css)(?:\?v=[^'"\s]+)?)/g)].map(match => match[1]));
+  for(const name of ['criminal-law-ox.js','criminal-law-ox.css','criminal-law-ox-access.js','criminal-law-ox-device-admin.js','criminal-law-ox-grants-admin.js','student-device-manager.js'])
+    assert.ok(oxAssets.some(asset=>asset.startsWith(name+'?')), `Missing OX dependency: ${name}`);
   for (const asset of oxAssets) {
     assert.match(asset, /\?v=.+/, "Lazy OX assets must bypass older cached URLs");
     assert.ok(stored.has("/" + asset), `${asset} missing from precache`);

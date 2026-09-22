@@ -1310,6 +1310,7 @@ async function openTeacherStudentDeviceManager(studentId) {
       title: `${student.name || "학생"} 등록 기기 관리`,
       className: "student-device-manager-modal",
       content: el("div", { className: "student-device-manager-content" }, [
+        button("기기 교체 신청 확인", "btn secondary", "button", () => openTeacherDeviceRequests()),
         el("p", { className: "subtle" }, `현재 ${devices.length}/2대가 등록되어 있습니다.`),
         devices.length
           ? el("div", { className: "student-device-list" }, devices.map((device) =>
@@ -1333,6 +1334,20 @@ async function openTeacherStudentDeviceManager(studentId) {
   } finally {
     closeLoadingModal();
   }
+}
+
+async function openTeacherDeviceRequests() {
+  const content=el("div",{});
+  openInfoModal({title:"기기 교체 신청",content});
+  if(!document.querySelector('link[data-ox-device-admin-style]'))document.head.appendChild(el('link',{rel:'stylesheet',href:'./criminal-law-ox-admin.css?v=20260922-ox-cohort-filter','data-ox-device-admin-style':'true'}));
+  try{
+    const {mountDeviceAdmin}=await import('./criminal-law-ox-device-admin.js?v=20260922-ox-device-policy');
+    await mountDeviceAdmin(content,{canReset:hasTeacherPermission('students.reset'),onClose:closeInfoModal,api:async(action,body={})=>{
+      const result=await requestTeacherStudentDeviceAction(action,body);
+      if(!result.ok)throw new Error('기기 교체 신청을 처리하지 못했습니다. 권한과 신청 상태를 확인해주세요.');
+      return result;
+    }});
+  }catch{content.replaceChildren(el('p',{},'기기 교체 신청을 불러오지 못했습니다. 다시 열어주세요.'));}
 }
 
 async function revokeTeacherStudentDevice(studentId, device) {

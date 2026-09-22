@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const auth = require('./teacher-auth-utils');
 const { requestSupabase } = require('./curriculum')._private;
-const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history']);
+const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history','device_state','device_register','device_start','device_replace','device_request','device_request_cancel','device_heartbeat','admin_device_list','admin_device_requests','admin_device_decide']);
 const bookIds = ['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
+for(const action of ['preview','issue','list','detail','revoke'])actions.add('admin_grant_'+action);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
 const DEVICE_SESSION_COOKIE = 'outing_ox_device_session';
 const DEVICE_SESSION_SECONDS = 12 * 60 * 60;
@@ -56,6 +57,24 @@ function validate(body) {
   if (body.studentId !== undefined && (typeof body.studentId !== 'string' || body.studentId.length>120)) fail('invalid_request');
   if (body.deviceToken !== undefined && (typeof body.deviceToken !== 'string' || body.deviceToken.length>256)) fail('invalid_request');
   const action=body.action;
+  if(action==='admin_grant_preview') {
+    if(typeof body.cohort!=='string' || (body.cohort!==''&&!/^[0-9]{1,2}$/.test(body.cohort)) || !Array.isArray(body.collectionIds) || body.collectionIds.length<1 || body.collectionIds.length>3 || body.collectionIds.some(id=>!bookIds.includes(id)) || new Set(body.collectionIds).size!==body.collectionIds.length || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500)fail('invalid_request');
+    if(body.expiresOn!==null && body.expiresOn!=='') {
+      const date=typeof body.expiresOn==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(body.expiresOn)?new Date(body.expiresOn+'T00:00:00Z'):null;
+      if(!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==body.expiresOn || body.expiresOn<new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10))fail('invalid_request');
+    }
+  }
+  if(['admin_grant_issue','admin_grant_detail','admin_grant_revoke'].includes(action)&&!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.batchId||'')))fail('invalid_request');
+  if(action==='admin_grant_revoke'&&(typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>500))fail('invalid_request');
+  if(action.startsWith('admin_grant_')&&body.page!==undefined&&(!Number.isInteger(body.page)||body.page<0||body.page>10000))fail('invalid_request');
+  if (body.sessionId!==undefined && !/^[0-9a-f-]{36}$/i.test(body.sessionId)) fail('invalid_request');
+  if (action==='device_start' && ((body.takeover!==undefined && typeof body.takeover!=='boolean') || (body.expectedSessionId!==undefined && !/^[0-9a-f-]{36}$/i.test(body.expectedSessionId)))) fail('invalid_request');
+  if (['device_replace','device_request','admin_device_decide'].includes(action)) {
+    const id=action==='admin_device_decide'?body.requestId:body.targetDeviceId;
+    if(typeof id!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500) fail('invalid_request');
+    if(action==='admin_device_decide' && typeof body.approve!=='boolean') fail('invalid_request');
+  }
+  if(action==='admin_device_list' && (typeof body.memberId!=='string' || !body.memberId || body.memberId.length>120)) fail('invalid_request');
   if (action==='bootstrap' && body.summaryOnly!==undefined && typeof body.summaryOnly!=='boolean') fail('invalid_request');
   if (action==='questions' && (!Array.isArray(body.questions) || body.questions.length<1 || body.questions.length>50
     || body.questions.some(q=>!q || typeof q.id!=='string' || !q.id || q.id.length>120 || !Number.isInteger(q.version) || q.version<1)
@@ -84,6 +103,8 @@ function validate(body) {
   }
   if (action==='admin_members' && ((body.collectionId!==undefined && body.collectionId!=='' && !bookIds.includes(body.collectionId))
     || (body.bookStatus!==undefined && !['','active','stopped'].includes(body.bookStatus)))) fail('invalid_request');
+  if (action==='admin_members' && body.cohort!==undefined && (typeof body.cohort!=='string' ||
+    (!['','lecture','unassigned'].includes(body.cohort) && !/^[0-9]{1,2}$/.test(body.cohort)))) fail('invalid_request');
   if (action==='admin_members' && body.registeredOnly!==undefined && typeof body.registeredOnly!=='boolean') fail('invalid_request');
   if (action==='admin_save') {
     const q=body.question;
@@ -95,22 +116,15 @@ function validate(body) {
     if (/<(?!\/?u>)[^>]*>/i.test(q.explanation_html)) fail('invalid_html');
     if (body.revision===0) body.question={id:q.id,chapter_id:q.chapter_id,prompt:q.prompt,context:q.context,correct_answer:q.correct_answer,explanation_html:q.explanation_html,explanation:q.explanation_html.replace(/<\/?u>/g,''),origin_type:'manual',source_question_number:'0',source_option_label:'',source_page:null};
   }
-  if (['admin_list','admin_members'].includes(action)) {
+  if (['admin_list','admin_members','admin_device_requests'].includes(action)) {
     if (body.page!==undefined && (!Number.isInteger(body.page) || body.page<0 || body.page>10000)) fail('invalid_request');
     for (const key of ['search','chapterId','status']) if (body[key]!==undefined && (typeof body[key]!=='string' || body[key].length>500)) fail('invalid_request');
   }
 }
 async function invokeLearning(action,actor,body,request=requestSupabase) {
-  const progressive=action==='questions' || (action==='bootstrap' && body.summaryOnly===true);
-  try {
-    return await request('POST',progressive?'rpc/ox_learning_data':'rpc/ox_service',{p_action:action,p_actor:actor,p_body:body});
-  } catch(error) {
-    // Safe rolling deployment: an older DB can still serve the full bootstrap.
-    if (action==='bootstrap' && progressive && error.storeStatus===404) {
-      return request('POST','rpc/ox_service',{p_action:action,p_actor:actor,p_body:{}});
-    }
-    throw error;
-  }
+  if(action.startsWith('admin_grant_'))return request('POST','rpc/ox_grant_admin',{p_action:action,p_actor:actor,p_body:body});
+  if(actor.type==='student' || action.startsWith('admin_device_')) return request('POST','rpc/ox_device_gateway',{p_action:action,p_actor:actor,p_body:body});
+  return request('POST','rpc/ox_service',{p_action:action,p_actor:actor,p_body:body});
 }
 function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent, sessionSecret=deviceSessionSecret, now=()=>Math.floor(Date.now()/1000) }={}) {
   return async (req,res)=> {
@@ -127,7 +141,7 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
         if(!session) fail('unauthorized',401);
-        const permission=['admin_save','admin_enabled','admin_member_set','admin_book_set'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
+        const permission=body.action==='admin_device_decide'?'students.reset':body.action.startsWith('admin_device_')?'students.read':['admin_save','admin_enabled','admin_member_set','admin_book_set','admin_grant_preview','admin_grant_issue','admin_grant_revoke'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
         if(!auth.hasPermission(session,permission)) fail('forbidden',403);
         actor={type:'admin',id:session.username};
       } else {
@@ -135,18 +149,20 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
         const cached=readDeviceSession(req,body,secret,timestamp);
         const student=cached || await authenticate(body);
         if(!student) fail('unauthorized',401);
-        actor={type:'student',id:student.id};
+        actor={type:'student',id:student.id,deviceHash:deviceHash(body.deviceToken)};
         // Fixed expiry: answering questions never extends a revoked device's session.
         // Without a signing secret, keep the existing authenticated request path.
         if (!cached && secret && body.deviceToken) newDeviceCookie=deviceSessionCookie(req,body,student.id,secret,timestamp);
       }
-      // Device credentials and client-supplied identities never enter the OX database function.
+      // Only the server-derived hash enters the gateway. It checks live app-device
+      // revocation and the OX session even when authentication uses a cached cookie.
       const payload={...body}; delete payload.deviceToken; delete payload.studentId; delete payload.actor; delete payload.client; delete payload.action;
       const data=await invoke(body.action,actor,payload);
       if (newDeviceCookie && data?.ok) res.setHeader('Set-Cookie',newDeviceCookie);
       res.status(200).json(body.action==='bootstrap'?compactBootstrap(data):data);
     } catch(error) {
-      const known=['access_conflict','book_already_active','book_selection_required','ox_book_required','revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
+      const known=['device_request_changed','device_unavailable','device_already_registered','device_replace_limit','device_limit_reached','device_in_use','device_session_changed','device_not_registered','access_conflict','book_already_active','book_selection_required','ox_book_required','revision_conflict','question_changed','submission_conflict','question_unavailable','ox_disabled','ox_not_registered','student_unavailable','invalid_question','invalid_answer','invalid_memo','invalid_request','invalid_html','answer_required','unsupported_action','unauthorized','forbidden','method_not_allowed','request_too_large'];
+      known.push('grant_empty_targets','grant_unavailable','grant_preview_expired','grant_target_changed');
       const code=known.find(code=>error.message===code || error.message?.includes(`"message":"${code}"`));
       const status=code?.includes('conflict') || ['question_changed','book_already_active'].includes(code)?409:code==='unauthorized'?401:['forbidden','ox_not_registered','ox_book_required'].includes(code)?403:['ox_disabled','question_unavailable','student_unavailable'].includes(code)?404:code==='method_not_allowed'?405:code==='request_too_large'?413:code?400:503;
       res.status(status).json({ok:false,error:code || 'ox_unavailable'});

@@ -160,7 +160,7 @@ test('OX API rejects forged actors and unsupported imports; enforces teacher per
   assert.equal((await request({action:'admin_catalog'},cookie(['criminal_ox.read']))).status,200);
   assert.equal((await request({action:'admin_import'},cookie(['*']))).status,400);
   assert.equal((await request({action:'bootstrap',deviceToken:'valid',actor:{type:'admin',id:'forged'},studentId:'forged'})).status,200);
-  const latest=calls.at(-1);assert.deepEqual(latest[1],{type:'student',id:'actual-student'});assert.equal(latest[2].actor,undefined);assert.equal(latest[2].deviceToken,undefined);
+  const latest=calls.at(-1);assert.deepEqual(latest[1],{type:'student',id:'actual-student',deviceHash:crypto.createHash('sha256').update('valid').digest('hex')});assert.equal(latest[2].actor,undefined);assert.equal(latest[2].deviceToken,undefined);
   assert.equal((await request({action:'bootstrap',deviceToken:'valid'},null,'https://attacker.test')).status,403);
   assert.equal((await request({action:'note',questionId:'q',version:1,memo:null,deviceToken:'valid'})).status,400);
   assert.equal((await request({action:'submit',questionId:'q',version:1,answer:'?',submissionId:crypto.randomUUID(),deviceToken:'valid'})).status,400);

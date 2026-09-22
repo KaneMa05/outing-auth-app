@@ -281,3 +281,10 @@ body.student-online-mode #criminal-ox-preview .ox-quiz > .ox-meter { background:
   #criminal-ox-preview .ox-card { padding:14px; }
   #criminal-ox-preview .ox-button { padding:10px 12px; }
 }
+
+/* OX device policy screens */
+.ox-device-panel{max-width:760px;width:100%;box-sizing:border-box;margin:0 auto;padding:20px;border:1px solid #c5d6de;border-radius:16px;background:#f8fcfd;overflow-wrap:anywhere}
+.ox-device-panel p{line-height:1.65}.ox-device-panel label{display:grid;gap:8px;margin:16px 0}
+.ox-device-panel select,.ox-device-panel textarea{width:100%;max-width:100%;box-sizing:border-box;font:inherit;padding:10px}
+.ox-device-panel button{margin:8px 8px 8px 0}.ox-device-list{padding-left:22px}.ox-device-list li{margin:14px 0}
+.ox-device-list small{display:block;margin-top:5px}

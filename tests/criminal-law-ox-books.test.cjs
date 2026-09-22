@@ -18,7 +18,7 @@ test('book scopes: all eight purchase combinations, legacy preservation, both lo
   const grant=(id,ids,revision=0,active=true)=>call('admin_book_set',admin,{memberId:id,collectionIds:ids,revision,active,purchaseDate:'2026-01-01',reason:'구매 확인'});
   const answer=(id,i)=>call('submit',student(id),{questionId:'q'+i,version:1,answer:'X',submissionId:crypto.randomUUID()});
   try {
-    await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create table students(id text primary key,name text default '학생',class_name text default '반',student_category text default 'offline',account_type text default 'student',is_active boolean default true);grant select on students to service_role;insert into students(id) values('legacy'),('revoked'),('inactive'),('teacher');update students set is_active=false where id='inactive';update students set account_type='teacher' where id='teacher';insert into students(id) select 's'||i from generate_series(0,7)i;");
+    await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create table students(id text primary key,name text default '학생',class_name text default '반',student_category text default 'offline',cohort smallint,account_type text default 'student',is_active boolean default true);grant select on students to service_role;insert into students(id) values('legacy'),('revoked'),('inactive'),('teacher');update students set is_active=false where id='inactive';update students set account_type='teacher' where id='teacher';insert into students(id) select 's'||i from generate_series(0,7)i;");
     for(const file of ['20260917124608_criminal_law_ox.sql','20260917124623_criminal_law_ox_members.sql','20260920114238_ox_progressive_loading.sql']) await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
     await call('admin_import',admin,{collections:books.map((id,i)=>({id,sort_order:i+1,scope:id})),chapters:books.map((id,i)=>({id:'c'+i,collection_id:id,sort_order:i+1})),questions:books.map((id,i)=>({id:'q'+i,chapter_id:'c'+i,prompt:'문제 '+i,context:'',correct_answer:'O',explanation_html:'해설 '+i,source_question_number:'1',reviewed:true,status:'published'}))});
     await call('admin_member_set',admin,{memberId:'legacy',allowed:true});
@@ -27,6 +27,8 @@ test('book scopes: all eight purchase combinations, legacy preservation, both lo
     await answer('legacy',2);
     await call('note',student('legacy'),{questionId:'q2',version:1,memo:'보존 메모',bookmark:true});
     await db.exec(fs.readFileSync(migration,'utf8'));
+    await db.exec(fs.readFileSync('tests/fixtures/ox-lecture-identities.sql','utf8'));
+    await db.exec(fs.readFileSync('supabase/migrations/20260922044735_ox_member_cohort_filter.sql','utf8'));
     await db.exec('set role service_role');
     assert.equal((await call('bootstrap',student('legacy'))).catalog.questions.length,3);
     assert.equal((await call('bootstrap',student('legacy'))).notes[0].has_memo,true);

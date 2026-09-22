@@ -1,0 +1,37 @@
+export function mountGrants(host,{api,canWrite,cohorts=[],enabled=true,onClose,onChanged=()=>{}}){
+ let busy=false,version=0,page=0,batchId=null;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const books=[['criminal-law','형법'],['criminal-procedure-investigation-evidence','수사·증거'],['criminal-procedure-trial','공판']];
+ const names=ids=>ids.map(id=>books.find(b=>b[0]===id)?.[1]||id).join(' · ');
+ const period=b=>b.expires_on?`${b.expires_on}까지 · 오프라인 재원 중`:'오프라인 재원 기간';
+ const state=b=>b.state==='revoked'?'회수':b.expires_on&&b.expires_on<new Date(Date.now()+9*3600000).toISOString().slice(0,10)?'기간 종료':b.state==='issued'?'지급 완료':'지급 전 확인';
+ function shell(body){host.innerHTML=`<section class="ox-admin-editor ox-admin-book-editor"><div class="ox-admin-heading"><h4>OX 이용권 일괄 지급</h4><button class="mini-btn" data-grant-close>닫기</button></div><p>교재 구매와 별도로 제공하는 학습 혜택입니다. 지급·회수해도 구매 권한과 학습 기록은 유지됩니다.</p>${enabled?'':'<p>현재 전체 학습이 준비 상태입니다. 이용권 지급 후에도 학습 시작 설정을 켜야 이용할 수 있습니다.</p>'}${body}<p role="status" data-grant-message></p></section>`;host.querySelector('[data-grant-close]').onclick=()=>{version++;onClose();};}
+ function error(e){const n=host.querySelector('[data-grant-message]');if(n)n.textContent=e.message;}
+ function form(){
+  version++;batchId=null;page=0;
+  const today=new Date(Date.now()+9*3600000).toISOString().slice(0,10);
+  shell(`<form data-grant-form><fieldset ${canWrite?'':'disabled'}><legend>지급 조건</legend><label>대상<select name="cohort"><option value="">오프라인 재원생 전체</option>${cohorts.filter(c=>/^[0-9]{1,2}$/.test(c)).map(c=>`<option value="${esc(c)}">오프라인 ${esc(c)}기</option>`).join('')}</select></label><div class="ox-admin-book-choices">${books.map(([id,name])=>`<label class="ox-admin-check"><input type="checkbox" name="book" value="${id}" checked>${name}</label>`).join('')}</div><label>이용 기간<select name="period"><option value="enrolled">오프라인 재원 기간</option><option value="date">종료일 지정</option></select></label><label data-grant-date hidden>종료일<input type="date" name="expiresOn" min="${today}"></label><label>지급 사유<textarea name="reason" maxlength="500" rows="2" required placeholder="예: 오프라인 재원생 학습 지원"></textarea></label><p>현재 대상에게 한 번 지급합니다. 이후 새로 등록한 학생에게 자동 지급되지 않습니다.</p><button class="btn" type="submit">지급 대상 확인</button></fieldset></form><button class="mini-btn" data-grant-history>지급·회수 이력</button>`);
+  const f=host.querySelector('form');f.elements.period.onchange=()=>{const fixed=f.elements.period.value==='date';host.querySelector('[data-grant-date]').hidden=!fixed;f.elements.expiresOn.required=fixed;};
+  f.onsubmit=async e=>{e.preventDefault();if(busy||!canWrite)return;const data=new FormData(f),ids=data.getAll('book');if(!ids.length){error({message:'이용 영역을 한 개 이상 선택해주세요.'});return;}busy=true;f.querySelector('fieldset').disabled=true;
+   try{const result=await api('admin_grant_preview',{cohort:data.get('cohort'),collectionIds:ids,expiresOn:data.get('period')==='date'?data.get('expiresOn'):null,reason:data.get('reason').trim()});batchId=result.batchId;await detail();}catch(e){error(e);}finally{busy=false;if(f.isConnected)f.querySelector('fieldset').disabled=!canWrite;}
+  };host.querySelector('[data-grant-history]').onclick=()=>{page=0;history();};
+ }
+ async function detail(){
+  const current=++version;try{const data=await api('admin_grant_detail',{batchId,page});if(current!==version||!host.isConnected)return;const b=data.batch;
+   shell(`<p><strong>${state(b)} · ${b.target_count}명 · ${b.cohort?esc(b.cohort)+'기':'오프라인 전체'}</strong></p><p>${names(b.collection_ids)} / ${period(b)}</p><p>사유: ${esc(b.reason)}</p><p>구매한 영역·기존 이용권이 있어도 별도 혜택으로 지급합니다. OX 전체 중지 학생의 중지 상태는 유지합니다.</p><ul class="ox-admin-member-list">${data.items.map(s=>`<li><div><strong>${esc(s.student_name)} · ${esc(s.student_id)}</strong><p>${esc(s.cohort||'기수 미지정')} ${s.cohort?'기':''} · ${esc(s.class_name)}</p><small>구매: ${s.purchased.length?names(s.purchased):'없음'} / 이용권: ${s.granted.length?names(s.granted):'없음'}${s.blocked?' / OX 전체 중지':''}</small></div></li>`).join('')}</ul><div class="ox-admin-pagination"><button class="mini-btn" data-grant-prev ${page===0?'disabled':''}>이전</button><span>${data.total}명 · ${page+1} / ${Math.max(1,Math.ceil(data.total/30))} 페이지</span><button class="mini-btn" data-grant-next ${(page+1)*30>=data.total?'disabled':''}>다음</button></div>
+    ${b.state==='draft'?`<p>위 명단과 조건으로 지급합니다. 대상이 변경되거나 확인 후 10분이 지나면 다시 확인해야 합니다.</p><button class="btn" data-grant-issue ${canWrite?'':'disabled'}>${b.target_count}명에게 이용권 지급</button><button class="mini-btn" data-grant-new>조건 다시 선택</button>`:b.state==='issued'?`<form data-grant-revoke><label>회수 사유<textarea name="reason" maxlength="500" rows="2" required ${canWrite?'':'disabled'}></textarea></label><p>이 지급 건 전체를 회수합니다. 다른 이용권과 교재 구매 권한은 유지됩니다.</p><button class="btn secondary" type="submit" ${canWrite?'':'disabled'}>이 지급 건 전체 회수</button></form>`:`<p>회수 사유: ${esc(b.revoke_reason)}</p>`}<button class="mini-btn" data-grant-history>지급·회수 이력</button>`);
+   host.querySelector('[data-grant-prev]').onclick=()=>{page--;detail();};host.querySelector('[data-grant-next]').onclick=()=>{page++;detail();};
+   host.querySelector('[data-grant-new]')?.addEventListener('click',form);
+   host.querySelector('[data-grant-history]').onclick=()=>{page=0;history();};
+   host.querySelector('[data-grant-issue]')?.addEventListener('click',()=>mutate('admin_grant_issue',{batchId}));
+   host.querySelector('[data-grant-revoke]')?.addEventListener('submit',e=>{e.preventDefault();mutate('admin_grant_revoke',{batchId,reason:new FormData(e.target).get('reason').trim()});});
+  }catch(e){error(e);}
+ }
+ async function mutate(action,body){if(busy||!canWrite)return;busy=true;const locked=[...host.querySelectorAll('button')].filter(b=>!b.disabled);locked.forEach(b=>b.disabled=true);try{await api(action,body);await detail();onChanged();}catch(e){error(e);}finally{busy=false;locked.filter(b=>b.isConnected).forEach(b=>b.disabled=false);}}
+ async function history(){const current=++version;try{const data=await api('admin_grant_list',{page});if(current!==version||!host.isConnected)return;
+  shell(`<button class="btn secondary" data-grant-new ${canWrite?'':'disabled'}>새 이용권 지급</button><h4>지급·회수 이력</h4>${data.items.map(b=>`<div class="ox-admin-book-history"><strong>${state(b)} · ${b.target_count}명 · ${names(b.collection_ids)}</strong><p>${period(b)} / ${esc(b.reason)}</p><small>${esc(b.created_by)} · ${esc(new Date(b.issued_at).toLocaleString('ko-KR'))}${b.revoked_by?' / 회수: '+esc(b.revoked_by):''}</small><button class="mini-btn" data-grant-detail="${esc(b.id)}">명단·상세 보기</button></div>`).join('')||'<p>지급 이력이 없습니다.</p>'}<div class="ox-admin-pagination"><button class="mini-btn" data-grant-prev ${page===0?'disabled':''}>이전</button><span>${data.total}건</span><button class="mini-btn" data-grant-next ${(page+1)*20>=data.total?'disabled':''}>다음</button></div>`);
+  host.querySelector('[data-grant-new]').onclick=form;host.querySelectorAll('[data-grant-detail]').forEach(b=>b.onclick=()=>{batchId=b.dataset.grantDetail;page=0;detail();});host.querySelector('[data-grant-prev]').onclick=()=>{page--;history();};host.querySelector('[data-grant-next]').onclick=()=>{page++;history();};
+ }catch(e){error(e);}}
+ if(canWrite)form();else {shell('<p role="status">지급 이력을 불러오는 중입니다.</p>');history();}
+ return {destroy:()=>{version++;}};
+}

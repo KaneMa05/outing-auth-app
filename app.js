@@ -1011,23 +1011,15 @@ function renderStudentAuth() {
   const authDescription = el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요.");
   let selectedStudent = null;
 
-  const showResetRequestButton = (student) => {
+  const showResetRequestButton = (credentials) => {
     resetRequestArea.innerHTML = "";
     resetRequestArea.hidden = false;
     resetRequestArea.appendChild(
-      button("등록기기 초기화", "btn secondary", "button", () =>
-        openStudentRegistrationResetModal(student, () => {
-          student.passwordHash = "";
-          student.deviceToken = "";
-          student.appRegisteredAt = "";
-          if (state.settings.studentProfiles?.[student.id]) delete state.settings.studentProfiles[student.id];
-          saveState({ skipRemote: true });
-          hideResetRequestButton();
-          profileArea.hidden = true;
-          lookupResult.className = "student-auth-result success";
-          lookupResult.textContent = "등록기기가 초기화되었습니다. 다시 조회한 뒤 새 기기로 등록해주세요.";
-        })
-      )
+      button("기기 교체·신청", "btn secondary", "button", () => {
+        const content=el("div",{});
+        openInfoModal({title:"기기 등록·관리",content});
+        mountStudentDeviceManagement(content,credentials,()=>{closeInfoModal();form.requestSubmit();});
+      })
     );
   };
 
@@ -1168,7 +1160,7 @@ function renderStudentAuth() {
     }
 
     const passwordHash = await hashStudentPassword(data.password);
-    const deviceToken = existingProfile?.deviceToken || createDeviceToken();
+    const deviceToken = existingProfile?.deviceToken || (form.pendingDeviceToken ||= getPendingStudentDeviceToken(studentId));
     const authedAt = new Date().toISOString();
     let registration;
 
@@ -1195,8 +1187,8 @@ function renderStudentAuth() {
     if (!registration.ok) {
       if (registration.error === "device_limit_reached") {
         lookupResult.className = "student-auth-result error";
-        lookupResult.textContent = "등록 가능한 기기 2대를 모두 사용 중입니다. 기존 기기를 초기화하거나 사무실에 문의해주세요.";
-        showResetRequestButton(selectedStudent);
+        lookupResult.textContent = "등록 기기 2대를 사용 중입니다. 아래에서 기존 기기를 선택해 교체하거나 추가 교체를 신청해주세요.";
+        showResetRequestButton({studentId,passwordHash,deviceToken});
         return notify("등록 가능한 기기 2대를 모두 사용 중입니다.");
       }
       if (registration.error === "invalid_credentials") return notify("비밀번호가 일치하지 않습니다.");
@@ -1206,6 +1198,7 @@ function renderStudentAuth() {
       return notify("기기를 등록하지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
 
+    try { localStorage.removeItem('outing-pending-device:'+studentId); } catch {}
     profiles[studentId] = {
       initialTrack: existingProfile?.deviceToken ? existingProfile?.initialTrack || finalTrack : finalTrack,
       track: finalTrack,
@@ -2029,6 +2022,15 @@ function createDeviceToken() {
     return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
+function getPendingStudentDeviceToken(studentId) {
+  const key='outing-pending-device:'+studentId;
+  try {
+    const existing=localStorage.getItem(key);
+    if(existing && /^[a-zA-Z0-9_-]{20,256}$/.test(existing))return existing;
+    const token=createDeviceToken();localStorage.setItem(key,token);return token;
+  } catch { return createDeviceToken(); }
 }
 
 async function registerStudentDeviceWithServer({ studentId, passwordHash, deviceToken, track, gender }) {
@@ -3136,7 +3138,7 @@ function renderCriminalLawOxLocalEntry() {
     const available=data.enabled || data.hasAccessHistory;
     entry.hidden=!available; entry.style.display=available?'':'none';
     if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260921-ox-book-access','data-ox-module-preload':'true'}));
+      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260922-ox-bulk-grants','data-ox-module-preload':'true'}));
     }
   }).catch(() => {
     const stillCurrent=getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
@@ -3153,9 +3155,9 @@ async function requestCriminalLawOx(action, payload={}) {
   const cached=requestCriminalLawOx.statusCache;
   if(action==='status' && cached?.key===key && (cached.pending || cached.expires>Date.now())) return cached.promise;
   const inFlight=requestCriminalLawOx.bootstrapPending;
-  if(action==='bootstrap' && inFlight?.key===key) return inFlight.promise;
+  if(action==='bootstrap' && inFlight?.key===key && inFlight.sessionId===payload.sessionId) return inFlight.promise;
   const status=action==='status'?{key,pending:true,expires:0,value:cached?.key===key?cached.value:null,confirmedAt:cached?.key===key?cached.confirmedAt:0}:null;
-  const bootstrap=action==='bootstrap'?{key}:null;
+  const bootstrap=action==='bootstrap'?{key,sessionId:payload.sessionId}:null;
   const operation=(async()=>{
   const response=await fetch('/api/criminal-law-ox', {
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -3194,10 +3196,11 @@ function renderCriminalLawOxLocalPreview() {
   const student=getAuthedStudent(), key=student?.id+':'+getStudentProfile(student?.id)?.deviceToken;
   const existing=renderCriminalLawOxLocalPreview.view;
   if (existing?.key===key) return existing.element;
+  existing?.controller?.destroy();
   if (!document.querySelector("link[data-criminal-law-ox-style]")) {
     document.head.appendChild(el("link", {
       rel: "stylesheet",
-      href: "./criminal-law-ox.css?v=20260920-ox-explanation-bold",
+      href: "./criminal-law-ox.css?v=20260922-ox-device-policy",
       "data-criminal-law-ox-style": "true",
     }));
   }
@@ -3218,14 +3221,14 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  Promise.all([import("./criminal-law-ox.js?v=20260921-ox-book-access"),requestCriminalLawOx('bootstrap',{summaryOnly:true})]).then(([{ mount },bootstrap]) => {
-    if (content.isConnected) {
-      previewController = mount(content,{bootstrap,request:requestCriminalLawOx,onAccessRefresh:()=>{requestCriminalLawOx.statusCache=null;renderCriminalLawOxLocalPreview.view=null;render();}});
-      bookmarksButton.disabled = false;
+  import("./criminal-law-ox-access.js?v=20260922-ox-device-policy").then(({ mountAccess }) => {
+    if (renderCriminalLawOxLocalPreview.view?.key===key) {
+      previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
+      if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;
     }
   }).catch(error => {
     if (!content.isConnected) return;
-    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_book_required' ? "현재 이용 가능한 교재가 없습니다. 구매 확인 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다." : error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
+    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_book_required' ? "현재 이용 가능한 교재가 없습니다. 교재 구매·이용권 확인 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다." : error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
       button("다시 시도", "btn secondary", "button", () => {renderCriminalLawOxLocalPreview.view=null;render();}));
   });
   const page=el("div", { className: "grid student-view criminal-law-ox-local-page" }, [
@@ -4346,9 +4349,42 @@ function renderStudentMypage() {
     renderStudentPushNotificationCard(student, profile),
     renderStudentOtherSettingsCard(),
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
-    renderStudentDeviceManagementCard(student, profile),
+    renderStudentDeviceRegistrationCard(),
     renderHomeScreenInstallCard(),
   ]);
+}
+
+function renderStudentDeviceRegistrationCard() {
+  const content=el("div", {hidden:true});
+  const trigger=button("", "student-history-button-card student-settings-link", "button", async()=>{
+    const opened=trigger.getAttribute("aria-expanded")==="true";
+    trigger.setAttribute("aria-expanded",String(!opened));content.hidden=opened;
+    if(opened){controller?.destroy();controller=null;content.replaceChildren();return;}
+    const student=getAuthedStudent(),profile=getStudentProfile(student?.id);
+    const panel=el('div',{});content.replaceChildren(panel);
+    controller=await mountStudentDeviceManagement(panel,{studentId:student?.id,deviceToken:profile?.deviceToken});
+  },[
+    el("div",{className:"student-history-head"},[el("h2",{},"기기 등록·관리"),el("span",{},"휴대폰·태블릿 등록 및 교체")]),
+    el("span",{className:"student-settings-chevron",ariaHidden:"true"},"›"),
+  ]);
+  let controller=null;
+  trigger.setAttribute("aria-expanded","false");trigger.setAttribute("data-my-ox-devices","true");
+  const card=el("section",{className:"student-ox-devices-card"},[trigger,content]);
+  return card;
+}
+
+async function mountStudentDeviceManagement(content,credentials,onRegistered=()=>{}) {
+  if(!document.querySelector("link[data-criminal-law-ox-style]"))document.head.appendChild(el("link",{rel:"stylesheet",href:"./criminal-law-ox.css?v=20260922-ox-device-policy","data-criminal-law-ox-style":"true"}));
+  content.replaceChildren(el("p",{role:"status"},"등록 기기를 확인하고 있습니다."));
+  try{
+    const {mountDeviceManager}=await import("./student-device-manager.js?v=20260922-ox-device-policy");
+    if(!content.isConnected||content.hidden)return null;
+    return mountDeviceManager(content,{onRegistered,request:async(action,body={})=>{
+      const result=await requestStudentDeviceAction(action,{...body,...credentials,deviceLabel:getStudentDeviceLabel()});
+      if(!result.ok)throw Object.assign(new Error(result.error),{code:result.error});
+      return result;
+    }});
+  }catch{content.replaceChildren(el("p",{role:"alert"},"불러오지 못했습니다. 닫았다가 다시 열어주세요."));return null;}
 }
 
 function renderStudentFaqItem(item, index) {

@@ -25,6 +25,7 @@
 .ox-admin .ox-admin-book-editor fieldset{border:0;padding:0;min-width:0;display:grid;gap:12px}
 .ox-admin .ox-admin-book-editor label:not(.ox-admin-check){display:grid;gap:6px}
 .ox-admin .ox-admin-book-editor textarea{width:100%;box-sizing:border-box}
+.ox-admin .ox-admin-book-editor>p{overflow-wrap:anywhere}
 .ox-admin .ox-admin-book-history{padding:12px 0;border-top:1px solid #e2e8f0;overflow-wrap:anywhere}
 .ox-admin .ox-admin-book-history p{margin:6px 0}
 .ox-admin .ox-admin-member-actions{flex-wrap:wrap}

@@ -9,7 +9,8 @@ const {
 
 const MAX_TEXT_LENGTH = 500;
 
-module.exports = async function handler(req, res) {
+function createHandler({manage=args=>requestSupabase('POST','rpc/student_device_manage',args),register=registerRemoteDevice,validateDevice=validateRemoteDevice,revokeDevice=revokeRemoteDevice,listDevices=loadActiveDevices}={}) {
+return async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -19,15 +20,46 @@ module.exports = async function handler(req, res) {
   try {
     const body = await readJson(req);
     const action = String(body.action || "register").trim();
-    if (!["register", "validate", "list", "revoke", "admin_list", "admin_revoke"].includes(action)) {
+    if (!["register", "validate", "list", "revoke", "admin_list", "admin_revoke", "device_state", "device_replace", "device_request", "device_request_cancel", "admin_device_list", "admin_device_requests", "admin_device_decide"].includes(action)) {
       res.status(400).json({ ok: false, error: "unsupported_action" });
       return;
     }
 
     const studentId = normalizeText(body.studentId, 64);
-    if (!studentId) {
+    if (!studentId && !["admin_device_requests", "admin_device_decide"].includes(action)) {
       res.status(400).json({ ok: false, error: "missing_required_fields" });
       return;
+    }
+
+    if (action.startsWith("device_") || action.startsWith("admin_device_")) {
+      res.setHeader("Cache-Control", "no-store");
+      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) {
+        res.status(403).json({ok:false,error:"forbidden"}); return;
+      }
+      let actor;
+      if (action.startsWith("admin_")) {
+        const session=readTeacherSession(req);
+        if(!session){res.status(401).json({ok:false,error:"unauthorized"});return;}
+        if(!hasPermission(session, action==='admin_device_decide'?'students.reset':'students.read')){res.status(403).json({ok:false,error:"forbidden"});return;}
+        actor={type:'admin',id:session.username};
+      } else {
+        const deviceToken=normalizeText(body.deviceToken,256);
+        if(!deviceToken){res.status(401).json({ok:false,error:'unauthorized'});return;}
+        actor={type:'student',id:studentId,deviceHash:hashDeviceToken(deviceToken),passwordHash:normalizeText(body.passwordHash,256)};
+      }
+      const payload={memberId:studentId,deviceLabel:normalizeText(body.deviceLabel,80)};
+      if(['device_replace','device_request','admin_device_decide'].includes(action)){
+        const key=action==='admin_device_decide'?'requestId':'targetDeviceId';
+        payload[key]=normalizeUuid(body[key]);payload.reason=normalizeText(body.reason,500);
+        if(!payload[key] || !payload.reason || (action==='admin_device_decide' && typeof body.approve!=='boolean')){res.status(400).json({ok:false,error:'invalid_request'});return;}
+        if(action==='admin_device_decide')payload.approve=body.approve;
+      }
+      if(action==='admin_device_requests'){
+        if(body.page!==undefined && (!Number.isInteger(body.page)||body.page<0||body.page>10000)){res.status(400).json({ok:false,error:'invalid_request'});return;}
+        payload.page=body.page||0;
+      }
+      const result=await manage({p_action:action,p_actor:actor,p_body:payload});
+      res.status(200).json(result); return;
     }
 
     if (action.startsWith("admin_")) {
@@ -41,7 +73,7 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (action === "admin_list") {
-        const devices = await loadActiveDevices(studentId);
+        const devices = await listDevices(studentId);
         res.status(200).json({ ok: true, devices });
         return;
       }
@@ -50,7 +82,7 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ ok: false, error: "missing_target_device" });
         return;
       }
-      const result = await revokeRemoteDevice({
+      const result = await revokeDevice({
         studentId,
         requesterTokenHash: "",
         targetDeviceId,
@@ -73,7 +105,7 @@ module.exports = async function handler(req, res) {
 
     const client = body.client && typeof body.client === "object" ? body.client : {};
     if (["validate", "list", "revoke"].includes(action)) {
-      const validation = await validateRemoteDevice({
+      const validation = await validateDevice({
         studentId,
         deviceToken,
         displayMode: normalizeText(client.displayMode, 40),
@@ -93,7 +125,7 @@ module.exports = async function handler(req, res) {
         return;
       }
       if (action === "list") {
-        const devices = await loadActiveDevices(studentId, hashDeviceToken(deviceToken));
+        const devices = await listDevices(studentId, hashDeviceToken(deviceToken));
         res.status(200).json({ ok: true, devices });
         return;
       }
@@ -103,7 +135,7 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ ok: false, error: "missing_target_device" });
         return;
       }
-      const result = await revokeRemoteDevice({
+      const result = await revokeDevice({
         studentId,
         requesterTokenHash: hashDeviceToken(deviceToken),
         targetDeviceId,
@@ -128,7 +160,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const result = await registerRemoteDevice({
+    const result = await register({
       studentId,
       passwordHash,
       deviceToken,
@@ -163,6 +195,9 @@ module.exports = async function handler(req, res) {
     res.status(error.status || 500).json({ ok: false, error: error.message || "student_device_error" });
   }
 };
+}
+module.exports=createHandler();
+module.exports.createHandler=createHandler;
 
 async function readJson(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -239,8 +274,11 @@ async function requestSupabase(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    const error = new Error("student_device_store_unavailable");
+    const detail=await response.json().catch(()=>({}));
+    const known=['unauthorized','forbidden','invalid_request','device_request_changed','device_unavailable','device_already_registered','device_replace_limit','device_limit_reached','device_not_registered'];
+    const error = new Error(known.includes(detail.message)?detail.message:"student_device_store_unavailable");
     error.status = response.status === 404 ? 503 : 502;
+    if(known.includes(detail.message))error.status=['unauthorized','forbidden'].includes(detail.message)?403:400;
     throw error;
   }
   if (response.status === 204) return null;

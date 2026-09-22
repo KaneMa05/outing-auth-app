@@ -141,7 +141,7 @@ test('a registered OX session skips device DB validation on subsequent learning 
     {action:'detail',questionId:'q',version:1},{action:'note',questionId:'q',version:1,bookmark:true}]) {
     const response=await f.request({...body,actor:{type:'admin',id:'forged'}},first.cookie);
     assert.equal(response.status,200);assert.equal(response.headers['Set-Cookie'],undefined);
-    assert.deepEqual(f.operations.at(-1).actor,{type:'student',id:'a'});
+    assert.deepEqual(f.operations.at(-1).actor,{type:'student',id:'a',deviceHash:crypto.createHash('sha256').update('registered-device').digest('hex')});
     assert.equal(f.operations.at(-1).body.deviceToken,undefined);assert.equal(f.operations.at(-1).body.actor,undefined);
   }
   assert.equal(f.validations.length,1,'Only the first request validates the device');
@@ -206,22 +206,16 @@ test('failed OX requests never issue a reusable device session',async()=>{
   const response=await f.request();assert.equal(response.status,403);assert.equal(response.cookie,undefined);
 });
 
-test('progressive loading routes only new learning requests to the new RPC and supports older databases',async()=>{
+test('student learning always uses the device gateway and cannot fall back around it',async()=>{
   const calls=[];const request=async(...args)=>{calls.push(args);return {ok:true};};
-  const actor={type:'student',id:'a'};
-  await invokeLearning('bootstrap',actor,{summaryOnly:true},request);assert.equal(calls.at(-1)[1],'rpc/ox_learning_data');
-  await invokeLearning('questions',actor,{questions:[{id:'q',version:1}]},request);assert.equal(calls.at(-1)[1],'rpc/ox_learning_data');
-  for(const action of ['bootstrap','submit','admin_catalog']) {await invokeLearning(action,actor,{},request);assert.equal(calls.at(-1)[1],'rpc/ox_service');}
-  const paths=[];
-  await invokeLearning('bootstrap',actor,{summaryOnly:true},async(method,path)=>{
-    paths.push(path);if(path==='rpc/ox_learning_data')throw Object.assign(Error('missing'),{storeStatus:404});return {ok:true};
-  });
-  assert.deepEqual(paths,['rpc/ox_learning_data','rpc/ox_service']);
-  let failures=0;await assert.rejects(invokeLearning('bootstrap',actor,{summaryOnly:true},async()=>{failures++;throw Error('ox_not_registered');}),/ox_not_registered/);
-  assert.equal(failures,1,'Authorization failures never fall back');
-  const light=compactBootstrap({catalog:{questions:[{id:'q',chapter_id:'c',version:1}]}});
-  assert.equal(light.catalog.questions[0].prompt,undefined);
-  assert.ok(source.includes("requestCriminalLawOx('bootstrap',{summaryOnly:true})"));
+  const actor={type:'student',id:'a',deviceHash:'server-hash'};
+  for(const action of ['status','bootstrap','questions','submit','note','detail','device_state']) {
+    await invokeLearning(action,actor,{},request);assert.equal(calls.at(-1)[1],'rpc/ox_device_gateway');
+  }
+  await invokeLearning('admin_catalog',{type:'admin',id:'qa'},{},request);assert.equal(calls.at(-1)[1],'rpc/ox_service');
+  let failures=0;await assert.rejects(invokeLearning('bootstrap',actor,{summaryOnly:true},async()=>{failures++;throw Object.assign(Error('missing gateway'),{storeStatus:404});}),/missing gateway/);
+  assert.equal(failures,1,'Missing policy functions must never bypass device enforcement');
+  assert.ok(fs.readFileSync('criminal-law-ox-access.js','utf8').includes("guarded('bootstrap',{summaryOnly:true})"));
 });
 
 test('question batch validation rejects excessive, duplicated and malformed requests',()=>{
