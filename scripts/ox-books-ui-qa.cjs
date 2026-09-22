@@ -51,6 +51,8 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     const shared=read('shared.js'),app=read('app.js');
     const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><body><main id="app" style="max-width:1050px;margin:24px auto"></main><div id="student"></div><script>
       ${extract(shared,'el')} ${extract(shared,'button')}
+      const resetStudentPullRefresh=()=>{};
+      ${extract(shared,'openInfoModal')} ${extract(shared,'closeInfoModal')} ${extract(shared,'closeInfoModalOnEscape')} ${extract(shared,'closeLoadingModal')}
       let canWrite=true;const hasTeacherPermission=p=>p==='criminal_ox.read'||canWrite;
       const APP_MODE='student';let student={id:'offline'};let studentToken='fixture-token';
       const getAuthedStudent=()=>student,getStudentProfile=()=>({deviceToken:studentToken}),isStandaloneStudentApp=()=>false;
@@ -102,6 +104,15 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     const errors=[];
     ws.addEventListener('message',event=>{const m=JSON.parse(event.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);});
     await send('Runtime.enable');
+    for(const id of ['offline','managed','lecture']){
+      await evaluate(`showStudent('${id}')`);
+      await click('.criminal-law-ox-local-entry');
+      await wait("document.querySelector('.info-modal')?.textContent.includes('업데이트 진행 중입니다.')");
+      assert.equal(await evaluate("document.querySelector('.criminal-law-ox-local-page')===null"),true,'Unapproved students stay on home');
+      await click('.info-modal-panel button');
+      assert.equal(await evaluate("document.querySelector('.info-modal')===null"),true);
+    }
+    await evaluate("document.querySelector('#student').replaceChildren()");
     await click('[data-admin=enabled]');await wait("document.querySelector('.ox-admin-availability').textContent.includes('등록 수강생만 사용 중')");
     await evaluate("document.querySelector('[name=registeredOnly]').value='false';document.querySelector('[data-member-form]').requestSubmit()");
     await wait("document.querySelectorAll('[data-admin=book-add]').length===3");

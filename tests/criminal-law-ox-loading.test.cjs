@@ -8,16 +8,16 @@ const {authenticateStudent,compactBootstrap,invokeLearning,validate}=require('..
 const source=fs.readFileSync('app.js','utf8');
 function extract(name){const start=source.search(new RegExp('(?:async )?function '+name+'\\('));assert.ok(start>=0);const tail=source.slice(start),end=tail.search(/\n(?:async )?function /);return tail.slice(0,end);}
 function fixture(storage=new Map()){
-  let now=100000,student={id:'a'},token='device-a';const requests=[];
-  const node=(tag,props={},children=[])=>({...props,tag,children,style:{}});
+  let now=100000,student={id:'a'},token='device-a';const requests=[],routes=[],modals=[];
+  const node=(tag,props={},children=[])=>({...props,tag,children,style:{},disabled:false});
   const context=vm.createContext({Date:{now:()=>now},APP_MODE:'student',navigator:{userAgent:'qa'},
     getAuthedStudent:()=>student,getStudentProfile:()=>({deviceToken:token}),isStandaloneStudentApp:()=>false,
-    el:node,button:(label,classes,type,onclick,children)=>node('button',{onclick},children),navigate:()=>{},
+    el:node,button:(label,classes,type,onclick,children)=>node('button',{onclick},children),navigate:route=>routes.push(route),openInfoModal:options=>modals.push(options),
     document:{querySelector:()=>true},
     localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     fetch:(url,options)=>new Promise(resolve=>requests.push({body:JSON.parse(options.body),resolve}))});
   vm.runInContext(extract('criminalLawOxEntryHint')+'\n'+extract('requestCriminalLawOx')+'\n'+extract('renderCriminalLawOxLocalEntry'),context);
-  return {context,storage,requests,request:context.requestCriminalLawOx,entry:context.renderCriminalLawOxLocalEntry,
+  return {context,storage,requests,routes,modals,request:context.requestCriminalLawOx,entry:context.renderCriminalLawOxLocalEntry,
     setIdentity:(id,device)=>{student={id};token=device;},advance:ms=>{now+=ms;},
     respond:(i,data,ok=true)=>requests[i].resolve({ok,json:async()=>data})};
 }
@@ -40,54 +40,50 @@ test('compact bootstrap preserves learning fields and never introduces answers o
   for(const field of ['progress','notes','statistics','todayCount'])assert.equal(compact[field],original[field]);
   assert.equal(original.catalog.questions[0].source_page,3);
 });
-test('home shows a recent confirmed card immediately while rechecking enrollment',async()=>{
-  const f=fixture(),first=f.entry();assert.equal(first.hidden,true);assert.equal(f.requests.length,1);
-  f.respond(0,{ok:true,enabled:true});await f.request('status');await Promise.resolve();
-  assert.equal(first.hidden,false);
-  f.request.statusCache.expires=0;
-  const returned=f.entry();assert.equal(returned.hidden,false);assert.equal(f.requests.length,2);
-  f.respond(1,{ok:true,enabled:false});await f.request('status');await Promise.resolve();
-  assert.equal(returned.hidden,true);assert.equal(f.entry().hidden,true);
+test('unapproved students see the home shortcut and only the updating modal',async()=>{
+  for(const hasAccessHistory of [false,true]){
+    const f=fixture(),card=f.entry();assert.equal(card.hidden,false);
+    const click=card.onclick();await card.onclick();assert.equal(f.requests.length,1,'Repeated clicks share the in-flight check');
+    f.respond(0,{ok:true,enabled:false,hasAccessHistory});await click;
+    assert.deepEqual(f.routes,[]);assert.equal(f.modals.length,1);
+    assert.equal(f.modals[0].title,'형사법 OX');assert.equal(f.modals[0].content.children,'업데이트 진행 중입니다.');
+    assert.equal(card.disabled,false);assert.equal(card.hidden,false);
+  }
 });
-test('home rejects expired or other-device hints and failed requests can retry immediately',async()=>{
-  const f=fixture();let pending=f.request('status');f.respond(0,{ok:true,enabled:true});await pending;
-  f.setIdentity('a','device-new');const entry=f.entry();assert.equal(entry.hidden,true);assert.equal(f.requests.length,2);
-  f.respond(1,{ok:false,error:'ox_unavailable'},false);await assert.rejects(f.request('status'));await Promise.resolve();
-  assert.equal(f.request.statusCache,null);
-  pending=f.request('status');assert.equal(f.requests.length,3);f.respond(2,{ok:true,enabled:true});await pending;
-  f.advance(7*24*60*60*1000+1);assert.equal(f.entry().hidden,true);f.respond(3,{ok:true,enabled:false});await f.request('status');
+
+test('approved students enter learning after a current server check',async()=>{
+  const f=fixture(),card=f.entry();f.respond(0,{ok:true,enabled:false});await f.request('status');
+  const click=card.onclick();assert.equal(f.requests.length,2);
+  f.respond(1,{ok:true,enabled:true});await click;
+  assert.deepEqual(f.routes,['criminal-law-ox']);assert.equal(f.modals.length,0);
 });
-test('a restarted app shows a confirmed card before the network responds, then hides revoked access',async()=>{
-  const first=fixture();const initial=first.request('status');first.respond(0,{ok:true,enabled:true});await initial;
-  const restarted=fixture(first.storage);restarted.advance(24*60*60*1000);
-  const card=restarted.entry();assert.equal(card.hidden,false);assert.equal(restarted.requests.length,1);
-  assert.equal(restarted.requests[0].body.action,'status');
-  restarted.respond(0,{ok:true,enabled:false});await restarted.request('status');await Promise.resolve();
-  assert.equal(card.hidden,true);assert.equal(first.storage.size,0);
-  const next=fixture(first.storage);assert.equal(next.entry().hidden,true);next.respond(0,{ok:true,enabled:false});await next.request('status');
+
+test('a cached approval or saved hint cannot bypass revoked access',async()=>{
+  const f=fixture(),card=f.entry();f.respond(0,{ok:true,enabled:true});await f.request('status');
+  assert.ok(f.storage.size);const click=card.onclick();assert.equal(f.requests.length,2);
+  f.respond(1,{ok:true,enabled:false});await click;
+  assert.deepEqual(f.routes,[]);assert.equal(f.modals.length,1);assert.equal(f.storage.size,0);
 });
-test('saved hints are isolated by account and device and contain no raw device credential',async()=>{
-  const f=fixture();const initial=f.request('status');f.respond(0,{ok:true,enabled:true});await initial;
-  assert.ok(![...f.storage.values()].join('').includes('device-a'));
-  const other=fixture(f.storage);other.setIdentity('b','device-a');assert.equal(other.entry().hidden,true);
-  other.respond(0,{ok:true,enabled:false});await other.request('status');assert.equal(f.storage.size,1);
-  const newDevice=fixture(f.storage);newDevice.setIdentity('a','different-device');assert.equal(newDevice.entry().hidden,true);
-  newDevice.respond(0,{ok:true,enabled:false});await newDevice.request('status');assert.equal(f.storage.size,1);
+
+test('account changes discard a pending home click',async()=>{
+  const f=fixture(),card=f.entry(),click=card.onclick();f.setIdentity('b','device-b');
+  f.respond(0,{ok:true,enabled:true});await click;
+  assert.deepEqual(f.routes,[]);assert.deepEqual(f.modals,[]);
 });
-test('temporary outages preserve a known card but authorization errors remove its hint',async()=>{
-  const f=fixture();let pending=f.request('status');f.respond(0,{ok:true,enabled:true});await pending;
-  f.request.statusCache=null;const card=f.entry();assert.equal(card.hidden,false);
-  f.respond(1,{ok:false,error:'ox_unavailable'},false);await assert.rejects(f.request('status'));await Promise.resolve();
-  assert.equal(card.hidden,false);
-  pending=f.request('bootstrap');f.respond(2,{ok:false,error:'ox_not_registered'},false);await assert.rejects(pending);
-  assert.equal(f.storage.size,0);assert.equal(f.entry().hidden,true);f.respond(3,{ok:true,enabled:false});await f.request('status');
+
+test('failed status checks keep home visible, avoid navigation and allow retry',async()=>{
+  const f=fixture(),card=f.entry(),click=card.onclick();
+  f.respond(0,{ok:false,error:'ox_unavailable'},false);await click;
+  assert.equal(card.hidden,false);assert.equal(card.disabled,false);assert.deepEqual(f.routes,[]);
+  assert.ok(f.modals[0].content.children.includes('확인하지 못했습니다'));
+  const retry=card.onclick();f.respond(1,{ok:true,enabled:true});await retry;
+  assert.deepEqual(f.routes,['criminal-law-ox']);
 });
-test('malformed or blocked storage does not prevent authoritative status loading',async()=>{
-  const f=fixture(new Map([['outing-criminal-ox-entry-v1','not json']]));assert.equal(f.entry().hidden,true);
-  f.respond(0,{ok:true,enabled:true});await f.request('status');
-  f.request.statusCache=null;f.context.localStorage.getItem=()=>{throw Error('blocked')};f.context.localStorage.setItem=()=>{throw Error('blocked')};
-  const card=f.entry();assert.equal(card.hidden,true);f.respond(1,{ok:true,enabled:true});await f.request('status');await Promise.resolve();assert.equal(card.hidden,false);
+
+test('student home notice does not render on the teacher screen',()=>{
+  const f=fixture();f.context.APP_MODE='teacher';assert.equal(f.entry(),null);assert.equal(f.requests.length,0);
 });
+
 test('concurrent entry loads share one request, but completed data and other accounts are not cached',async()=>{
   const f=fixture();const a=f.request('bootstrap'),b=f.request('bootstrap');assert.equal(f.requests.length,1);
   f.respond(0,{ok:true,catalog:{questions:[]}});await Promise.all([a,b]);assert.equal(f.request.bootstrapPending,null);

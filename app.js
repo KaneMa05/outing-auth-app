@@ -3117,7 +3117,20 @@ function criminalLawOxEntryHint(studentId, deviceToken, enabled) {
 
 function renderCriminalLawOxLocalEntry() {
   if (APP_MODE === "teacher") return null;
-  const entry = button("", "lecture-home-shortcut criminal-law-ox-local-entry", "button", () => navigate("criminal-law-ox"), [
+  const entry = button("", "lecture-home-shortcut criminal-law-ox-local-entry", "button", async () => {
+    if(entry.disabled || !stillCurrent())return;
+    entry.disabled=true;
+    try {
+      const cached=requestCriminalLawOx.statusCache;
+      if(cached?.key===student.id+':'+deviceToken && !cached.pending)cached.expires=0;
+      const data=await requestCriminalLawOx('status');
+      if(!stillCurrent())return;
+      if(data.enabled===true)navigate('criminal-law-ox');
+      else openInfoModal({title:'형사법 OX',content:el('p',{},'업데이트 진행 중입니다.')});
+    } catch {
+      if(stillCurrent())openInfoModal({title:'형사법 OX',content:el('p',{},'이용 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.')});
+    } finally {entry.disabled=false;}
+  }, [
     el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
       el("span", { className: "footer-icon footer-icon-study-todo" }),
     ]),
@@ -3127,24 +3140,15 @@ function renderCriminalLawOxLocalEntry() {
     ]),
     el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
   ]);
-  const student=getAuthedStudent(), deviceToken=getStudentProfile(student?.id)?.deviceToken, key=student?.id+':'+deviceToken;
-  const cached=requestCriminalLawOx.statusCache;
-  const recent=cached?.key===key && cached.confirmedAt>Date.now()-30000;
-  const visible=recent ? cached.value?.enabled===true || cached.value?.hasAccessHistory===true : criminalLawOxEntryHint(student?.id,deviceToken);
-  entry.hidden = !visible;
-  entry.style.display = visible ? "" : "none";
-  requestCriminalLawOx('status').then(data => {
-    if (getAuthedStudent()?.id!==student?.id || getStudentProfile(student?.id)?.deviceToken!==deviceToken) return;
-    const available=data.enabled || data.hasAccessHistory;
-    entry.hidden=!available; entry.style.display=available?'':'none';
-    if (data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
+  const student=getAuthedStudent(), deviceToken=getStudentProfile(student?.id)?.deviceToken;
+  const stillCurrent=()=>getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
+  entry.hidden=!student;
+  entry.style.display=student?'':'none';
+  // The home shortcut stays visible. Only the server's current access status opens learning.
+  requestCriminalLawOx('status').then(data=>{
+    if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]'))
       document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260922-ox-bulk-grants','data-ox-module-preload':'true'}));
-    }
-  }).catch(() => {
-    const stillCurrent=getAuthedStudent()?.id===student?.id && getStudentProfile(student?.id)?.deviceToken===deviceToken;
-    const keepVisible=stillCurrent && criminalLawOxEntryHint(student?.id,deviceToken);
-    entry.hidden=!keepVisible;entry.style.display=keepVisible?'':'none';
-  });
+  }).catch(()=>{});
   return entry;
 }
 

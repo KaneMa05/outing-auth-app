@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v450-ox-recipient-selection";
+const CACHE_NAME = "outing-auth-app-v451-ox-home-notice";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -46,7 +46,7 @@ const APP_SHELL = [
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20260922-ox-recipient-selection",
   "/criminal-law-ox-device-admin.js?v=20260922-ox-device-policy",
-  "/app.js?v=20260922-ox-device-policy",
+  "/app.js?v=20260922-ox-home-notice",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",
