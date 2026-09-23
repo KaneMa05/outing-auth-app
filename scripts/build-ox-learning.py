@@ -13,6 +13,7 @@ end=runtime.index("    let route='home'",begin)
 runtime=runtime[:begin]+'''    const attempts = bootstrap.progress.map(p=>({id:p.question_id,answer:p.answer,correct:p.correct,seed:true}));
     let todayCount=bootstrap.todayCount;
     const progress=new Map(bootstrap.progress.map(p=>[p.question_id,p]));
+    const attemptCounts=new Map(Object.entries(bootstrap.attemptCounts || {}));
     const statistics=new Map(Object.entries(bootstrap.statistics || {}));
     const notes = new Map();
     const note = id => { if(!notes.has(id)) notes.set(id,{text:'',bookmark:false,mastered:false}); return notes.get(id); };
@@ -27,6 +28,7 @@ runtime=runtime[:begin]+'''    const attempts = bootstrap.progress.map(p=>({id:p
     function showError(error){let node=root.querySelector('[data-ox-error]');if(!node){node=document.createElement('p');node.dataset.oxError='true';node.setAttribute('role','alert');main.prepend(node);}node.textContent=errorMessages[error.code] || '저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.';}
 ''' +runtime[end:]
 runtime=re.sub(r'    const stats = id => .*?; };',"""    const stats = id => { const p=progress.get(id), last=p?{id,answer:p.answer,correct:p.correct}:null, wrong=p?.wrong_count || 0; let label=wrong?(last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요'):'';if(wrong&&note(id).mastered)label='복습 완료';return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };""",runtime)
+runtime=re.sub(r'function questionAttemptCounts\(id\) \{.*?\n\}', "function questionAttemptCounts(id) { return attemptCounts.get(id) || {attempts:0,correct:0,wrong:0}; }",runtime,flags=re.S)
 runtime=runtime.replace('solved/c.question_count*100','c.question_count ? solved/c.question_count*100 : 0').replace('const enough=solved>=Math.min(5,c.question_count)','const enough=c.question_count>0 && solved>=Math.min(5,c.question_count)')
 runtime=runtime.replace('const today = attempts.filter(a => !a.seed).length;', 'const today = todayCount;')
 runtime=runtime.replace("parseFromString(html,'text/html')","parseFromString(html || '','text/html')")
@@ -64,6 +66,7 @@ runtime=re.sub(r"else if\(action==='answer'\).*?(?=\n      else if\(action==='ne
         const submission=session.submissions[session.index];
         const saved=await persist('submit',{questionId:q.id,version:q.version,answer:submission.answer,submissionId:submission.id});
         Object.assign(q,saved.question);progress.set(q.id,saved.progress);statistics.set(q.id,saved.statistics);updateNote(saved.note);
+        for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
         const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};attempts.push(a);todayCount++;session.answers[session.index]=a;
       }""",runtime,flags=re.S)
 runtime=runtime.replace("else if(action==='bookmark')note(id).bookmark=!note(id).bookmark;", "else if(action==='bookmark'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,bookmark:!note(id).bookmark});updateNote(saved.note);}")

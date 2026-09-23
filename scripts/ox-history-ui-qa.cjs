@@ -7,6 +7,7 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
 import {mount} from '/criminal-law-ox.js';
 const records=Array.from({length:20},(_,i)=>({id:'q'+i,chapter_id:'c',version:1,prompt:'검증용 지문 '+(i+1),context:'',correct_answer:'O',explanation_html:'검증용 해설',number:i+1}));
 let progress=records.map((q,i)=>({question_id:q.id,answer:'O',correct:true,wrong_count:i<8?(i===0?4:1):0}));
+let attemptCounts=Object.fromEntries(progress.map(p=>[p.question_id,{attempts:p.wrong_count+1,correct:1,wrong:p.wrong_count}]));
 let notes=records.slice(0,8).map(q=>({question_id:q.id,mastered_version:1,memo:'보존할 메모',bookmark:true}));
 window.calls=[];window.failText=false;
 async function request(action,body){
@@ -19,12 +20,12 @@ async function request(action,body){
   const q=records.find(q=>q.id===body.questionId),p=progress.find(p=>p.question_id===q.id),n=notes.find(n=>n.question_id===q.id);
   if(action==='note'){if('mastered' in body)n.mastered_version=body.mastered?1:null;return {note:{...n}};}
   if(action==='detail')return {question:{...q},note:{...n}};
-  if(action==='submit'){p.answer=body.answer;p.correct=body.answer==='O';if(!p.correct){p.wrong_count++;n.mastered_version=null;}return {question:{...q},progress:{...p},note:{...n},statistics:{answered:10,wrong:4}};}
+  if(action==='submit'){p.answer=body.answer;p.correct=body.answer==='O';const c=attemptCounts[q.id];c.attempts++;if(p.correct)c.correct++;else c.wrong++;if(!p.correct){p.wrong_count++;n.mastered_version=null;}return {question:{...q},progress:{...p},note:{...n},statistics:{answered:10,wrong:4},attemptCounts:{[q.id]:{...c}}};}
   throw Error('Unexpected request: '+action);
 }
 window.show=(category='lecture')=>{
   document.body.className=category==='offline'?'student-mode':'student-mode student-online-mode'+(category==='lecture'?' student-lecture-mode':'');
-  mount(document.querySelector('#host'),{bootstrap:{catalog:{collections:[{id:'criminal-law',name:'형법',scope:'형법',accessible:true}],chapters:[{id:'c',collection_id:'criminal-law',display_name:'형법의 적용범위',part_title:'형법총론',question_count:50}],questions:records.map(q=>({id:q.id,chapter_id:q.chapter_id,version:1,number:q.number}))},progress:structuredClone(progress),notes:structuredClone(notes),todayCount:20},request});
+  mount(document.querySelector('#host'),{bootstrap:{catalog:{collections:[{id:'criminal-law',name:'형법',scope:'형법',accessible:true}],chapters:[{id:'c',collection_id:'criminal-law',display_name:'형법의 적용범위',part_title:'형법총론',question_count:50}],questions:records.map(q=>({id:q.id,chapter_id:q.chapter_id,version:1,number:q.number}))},progress:structuredClone(progress),notes:structuredClone(notes),attemptCounts:structuredClone(attemptCounts),todayCount:20},request});
 };
 window.show();window.ready=true;
 </script></body></html>`;
@@ -57,16 +58,14 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       await click('[data-ox-route="weak"]');
       for(const width of [320,390,768]){
         await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:true});
-        assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'40%');
-        assert.equal(await evaluate("document.querySelector('.ox-weak-status').textContent"),'취약 이력');
+        assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'64.5%');
+        assert.equal(await evaluate("document.querySelector('.ox-weak-status').textContent"),'다시 맞힘');
         await evaluate("document.querySelector('[data-weak-chapter]').open=true");
         assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'),true,category+' '+width+' overflow');
         if(width<=390){const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(out,category+'-'+width+'.png'),Buffer.from(shot.data,'base64'));}
       }
     }
-    await click('[data-action="weak-view"][data-view="current"]');
-    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'100%');
-    await click('[data-action="weak-view"][data-view="history"]');
+    assert.equal(await evaluate("document.querySelector('[data-action=weak-view]')"),null);
     await evaluate("document.querySelector('[data-weak-chapter]').open=true");
     await click('[data-action="history-chapter"]');await wait("document.querySelectorAll('[data-review-question]').length===8");
     assert.equal(await evaluate("document.querySelectorAll('[data-action=master]').length"),8,'completed items remain visible');
@@ -84,9 +83,9 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await click('[data-action="master"]');await wait("document.querySelector('[data-action=master]').textContent==='복습 완료'");
     await click('[data-action="master"]');await wait("document.querySelector('[data-action=master]').textContent==='완료 취소'");
     await click('[data-ox-route="weak"]');
-    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'40%');
+    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'65.6%');
     await evaluate("show('lecture')");await click('[data-ox-route="weak"]');
-    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'40%','remount preserves history');
+    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'65.6%','remount preserves cumulative counts');
     await evaluate("document.querySelector('[data-weak-chapter]').open=true;window.failText=true");
     await click('[data-action="history-chapter"]');await wait("document.querySelector('[data-action=retry-questions]')");
     await click('[data-action="retry-questions"]');await wait("document.querySelectorAll('[data-review-question]').length===8");
@@ -98,7 +97,8 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await click('[data-action="leave"]');await wait("document.querySelector('[data-review-question]')");
     assert.equal(await evaluate("document.querySelector('[data-action=master]').textContent"),'복습 완료','new wrong clears completion');
     await click('[data-ox-route="weak"]');
-    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'40%','repeated wrong does not duplicate historical question');
+    assert.equal(await evaluate("document.querySelector('.ox-weak-rate').textContent"),'63.6%','repeated wrong updates cumulative accuracy');
+    assert.equal(await evaluate("document.querySelector('.ox-weak-history-summary').textContent"),'이전 오답 8문항 · 남은 오답 1문항','repeated wrong does not duplicate historical question');
     assert.deepEqual(errors,[]);
     console.log('PASS: 3 student themes × 3 widths; completed history, filters, lazy load/retry, replay, return scope, remount, re-wrong. Screenshots: '+out);
   }finally{if(ws)ws.close();if(browser)browser.kill();if(server)await new Promise(r=>server.close(r));}

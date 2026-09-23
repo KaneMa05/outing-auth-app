@@ -25,7 +25,7 @@ function fixture() {
     }
   }
   const context = vm.createContext({
-    data, bootstrap: { progress, notes: [{ question_id:'a-0', mastered_version:1, memo:'보존할 메모', bookmark:true }], statistics:{}, todayCount:0 },
+    data, bootstrap: { progress, attemptCounts:Object.fromEntries(progress.map(p=>[p.question_id,{attempts:p.wrong_count+Number(p.correct),correct:Number(p.correct),wrong:p.wrong_count}])), notes: [{ question_id:'a-0', mastered_version:1, memo:'보존할 메모', bookmark:true }], statistics:{}, todayCount:0 },
     main:{innerHTML:''}, byId:new Map(data.questions.map(q=>[q.id,q])), chapters:new Map(data.chapters.map(c=>[c.id,c])), collections:new Map(data.collections.map(c=>[c.id,c])),
     esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
     button:(label,action,extra='',classes='')=>`<button data-action="${action}" class="${classes}" ${extra}>${label}</button>`,
@@ -40,15 +40,17 @@ function fixture() {
   return { run, json:code=>JSON.parse(JSON.stringify(run(code))), html:()=>context.main.innerHTML };
 }
 
-test('20 solved / 8 historical mistakes stays 40% after all corrections, repetitions and completion',()=>{
+test('20 attempts / 8 wrong followed by 8 corrections shows 71.4%, and history survives more practice and completion',()=>{
   const f=fixture();
-  assert.equal(f.run("weaknessStats()[0].historyRate"),40);
+  f.run("for(let i=0;i<20;i++)attemptCounts.set('a-'+i,{attempts:i<8?2:1,correct:1,wrong:i<8?1:0})");
+  assert.equal(f.run("cumulativeAccuracyLabel(weaknessStats()[0])"),'71.4%');
   assert.equal(f.run("weaknessStats()[0].accuracy"),100);
-  f.run(`for(let n=0;n<10;n++)for(let i=0;i<8;i++){const id='a-'+i;attempts.push({id,answer:'O',correct:true});note(id).mastered=true;}`);
-  assert.deepEqual(f.json('((s)=>[s.solved,s.past,s.regained,s.historyRate,s.accuracy,s.repeated])(weaknessStats()[0])'),[20,8,8,40,100,1]);
+  f.run(`for(let n=0;n<10;n++)for(let i=0;i<8;i++){const id='a-'+i;attempts.push({id,answer:'O',correct:true});const c=attemptCounts.get(id);c.attempts++;c.correct++;note(id).mastered=true;}`);
+  assert.deepEqual(f.json('((s)=>[s.solved,s.past,s.regained,s.totalAttempts,s.totalCorrect,s.totalWrong,s.repeated])(weaknessStats()[0])'),[20,8,8,108,100,8,1]);
+  assert.equal(f.run("cumulativeAccuracyLabel(weaknessStats()[0])"),'92.6%');
   f.run('weakness()');
-  assert.match(f.html(),/20문항 중 8문항 틀린 이력 · 모두 다시 맞힘/);
-  assert.match(f.html(),/취약 이력은 그대로 유지/);
+  assert.match(f.html(),/이전 오답 8문항 · 남은 오답 0문항/);
+  assert.match(f.html(),/어려웠던 단원을 다시 복습할 수 있도록 목록에 남겨두었어요/);
   assert.equal(f.run("note('a-0').text"),'보존할 메모');
   assert.equal(f.run("note('a-0').bookmark"),true);
 });
@@ -56,10 +58,9 @@ test('20 solved / 8 historical mistakes stays 40% after all corrections, repetit
 test('first mistake on another solved question adds one history item; repeated mistakes do not',()=>{
   const f=fixture();
   f.run("progress.set('a-8',{question_id:'a-8',correct:false,answer:'X',wrong_count:1});attempts.push({id:'a-8',correct:false,answer:'X'})");
-  assert.equal(f.run('weaknessStats()[0].historyRate'),45);
+  assert.equal(f.run('weaknessStats()[0].past'),9);
   f.run("progress.get('a-8').wrong_count=9;attempts.push({id:'a-8',correct:false,answer:'X'})");
   assert.equal(f.run('weaknessStats()[0].past'),9);
-  assert.equal(f.run('weaknessStats()[0].historyRate'),45);
   assert.equal(f.run('weaknessStats()[0].accuracy'),95);
 });
 
@@ -79,18 +80,18 @@ test('history includes completed items, respects chapter/status/repeat filters a
   assert.match(f.html(),/보존할 메모/);
 });
 
-test('history ranking uses unique-question rate, retains low-sample records, and separates no-history/unlearned chapters',()=>{
+test('one list ranks cumulative accuracy, retains corrected and low-sample chapters, and separates unlearned chapters',()=>{
   const f=fixture();f.run('weakness()');
-  const html=f.html(),table=html.split('aria-label="취약 이력 단원"')[1].split('</section>')[0];
+  const html=f.html(),table=html.split('aria-label="취약 단원"')[1].split('</section>')[0];
   assert.ok(table.indexOf('data-weak-chapter="b"')<table.indexOf('data-weak-chapter="a"'));
-  assert.ok(!table.includes('data-weak-chapter="small"'));
-  assert.match(html,/학습 기록 적음 1단원 보기/);
-  assert.match(html,/취약 이력 없음 1단원 보기/);
+  assert.ok(table.includes('data-weak-chapter="small"'));
+  assert.ok(!html.includes('weak-view'));
+  assert.ok(!html.includes('현재 정답률'));
+  assert.match(html,/아직 풀어본 문항이 적어요/);
+  assert.match(html,/오답 없는 단원 1개 보기/);
   assert.match(html,/미학습 1단원 보기/);
-  assert.equal(f.run('weaknessStats()[3].historyRate'),null);
+  assert.equal(f.run('weaknessStats()[3].cumulativeAccuracy'),null);
   assert.ok(f.run('weaknessStats()[5].rank')<5,'a two-question chapter can be measured after both questions');
-  f.run("weakView='current';weakness()");
-  assert.match(f.html(),/현재 취약도 단원/);
   assert.equal(f.run('weaknessStats()[0].label'),'양호');
 });
 
@@ -116,7 +117,14 @@ test('reload reconstructs historical weakness from bootstrap without any old att
   assert.equal(f.run("attempts.filter(a=>a.id==='a-0').length"),1);
   assert.equal(f.run("stats('a-0').wrong"),4);
   assert.equal(f.run('weaknessStats()[0].past'),8);
-  assert.equal(f.run('weaknessStats()[0].historyRate'),40);
+  assert.deepEqual(f.json('questionAttemptCounts("a-0")'),{attempts:5,correct:1,wrong:4});
+});
+
+test('rounding never turns a historical wrong answer into 100%; no-data is not a perfect score',()=>{
+  const f=fixture();
+  assert.equal(f.run('cumulativeAccuracyLabel({cumulativeAccuracy:99.999,totalWrong:1})'),'99.9%');
+  assert.equal(f.run('cumulativeAccuracyLabel({cumulativeAccuracy:100,totalWrong:0})'),'100%');
+  assert.equal(f.run('cumulativeAccuracyLabel({cumulativeAccuracy:null,totalWrong:0})'),'—');
 });
 
 test('new chapter content is escaped and missing measurements never render NaN',()=>{

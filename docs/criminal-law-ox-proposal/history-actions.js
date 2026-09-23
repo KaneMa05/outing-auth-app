@@ -1,4 +1,3 @@
-      else if(action==='weak-view'){weakView=b.dataset.view==='current'?'current':'history';}
       else if(action==='history-chapter'){openReview('history',id);}
       else if(action==='history-chapter-start'){
         if(!chapters.has(id))return;

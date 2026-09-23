@@ -31,13 +31,13 @@ test('validating a device uses one DB request and retains active-student validat
   assert.equal(await authenticateStudent({},async()=>{throw Error('must not query')}),null);
 });
 test('compact bootstrap preserves learning fields and never introduces answers or explanations',()=>{
-  const original={ok:true,progress:[{question_id:'a'}],notes:[],statistics:{},todayCount:3,catalog:{chapters:[{id:'c'}],collections:[],questions:[
+  const original={ok:true,progress:[{question_id:'a'}],notes:[],statistics:{},attemptCounts:{a:{attempts:28,correct:20,wrong:8}},todayCount:3,catalog:{chapters:[{id:'c'}],collections:[],questions:[
     {id:'a',chapter_id:'c',prompt:'P',context:'C',version:2,origin_type:'source',source_page:3},
     {id:'b',chapter_id:'c',prompt:'Q',context:'',version:1,correct_answer:'O',explanation_html:'hidden'}]}};
   const compact=compactBootstrap(original);
   assert.deepEqual(compact.catalog.questions[0],{id:'a',chapter_id:'c',prompt:'P',context:'C',version:2});
   assert.equal(compact.catalog.questions[1].correct_answer,'O');assert.equal(compact.catalog.questions[1].explanation_html,undefined);
-  for(const field of ['progress','notes','statistics','todayCount'])assert.equal(compact[field],original[field]);
+  for(const field of ['progress','notes','statistics','attemptCounts','todayCount'])assert.equal(compact[field],original[field]);
   assert.equal(original.catalog.questions[0].source_page,3);
 });
 test('unapproved students see the home shortcut and only the updating modal',async()=>{
