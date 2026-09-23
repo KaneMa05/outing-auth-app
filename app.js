@@ -3147,7 +3147,7 @@ function renderCriminalLawOxLocalEntry() {
   // The home shortcut stays visible. Only the server's current access status opens learning.
   requestCriminalLawOx('status').then(data=>{
     if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]'))
-      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260922-ox-bulk-grants','data-ox-module-preload':'true'}));
+      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260923-ox-history','data-ox-module-preload':'true'}));
   }).catch(()=>{});
   return entry;
 }
@@ -3204,7 +3204,7 @@ function renderCriminalLawOxLocalPreview() {
   if (!document.querySelector("link[data-criminal-law-ox-style]")) {
     document.head.appendChild(el("link", {
       rel: "stylesheet",
-      href: "./criminal-law-ox.css?v=20260922-ox-device-policy",
+      href: "./criminal-law-ox.css?v=20260923-ox-history",
       "data-criminal-law-ox-style": "true",
     }));
   }
@@ -3225,7 +3225,7 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  import("./criminal-law-ox-access.js?v=20260922-ox-device-policy").then(({ mountAccess }) => {
+  import("./criminal-law-ox-access.js?v=20260923-ox-history").then(({ mountAccess }) => {
     if (renderCriminalLawOxLocalPreview.view?.key===key) {
       previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
       if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;
@@ -4378,7 +4378,7 @@ function renderStudentDeviceRegistrationCard() {
 }
 
 async function mountStudentDeviceManagement(content,credentials,onRegistered=()=>{}) {
-  if(!document.querySelector("link[data-criminal-law-ox-style]"))document.head.appendChild(el("link",{rel:"stylesheet",href:"./criminal-law-ox.css?v=20260922-ox-device-policy","data-criminal-law-ox-style":"true"}));
+  if(!document.querySelector("link[data-criminal-law-ox-style]"))document.head.appendChild(el("link",{rel:"stylesheet",href:"./criminal-law-ox.css?v=20260923-ox-history","data-criminal-law-ox-style":"true"}));
   content.replaceChildren(el("p",{role:"status"},"등록 기기를 확인하고 있습니다."));
   try{
     const {mountDeviceManager}=await import("./student-device-manager.js?v=20260922-ox-device-policy");

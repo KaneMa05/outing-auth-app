@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build-config.js",
     "test:final-scope-admin": "node tests/final-scope-admin.test.cjs",
-    "test:criminal-law-ox": "node tests/criminal-law-ox.test.cjs && node tests/criminal-law-ox-books.test.cjs && node tests/criminal-law-ox-cohorts.test.cjs && node tests/criminal-law-ox-devices.test.cjs && node tests/criminal-law-ox-grants.test.cjs",
+    "test:criminal-law-ox": "node tests/criminal-law-ox-history.test.cjs && node tests/criminal-law-ox.test.cjs && node tests/criminal-law-ox-books.test.cjs && node tests/criminal-law-ox-cohorts.test.cjs && node tests/criminal-law-ox-devices.test.cjs && node tests/criminal-law-ox-grants.test.cjs",
     "test:planner-subjects": "node tests/planner-subjects.test.js",
     "pretest": "node tests/final-scope-admin.test.cjs && node tests/release-safety.test.js && node tests/criminal-law-ox-loading.test.cjs && node tests/study-character-fire.test.js && node tests/student-rewards.test.js && node tests/student-roster-export.test.js && node tests/planner-subjects.test.js && node tests/study-record-share.test.js && node tests/student-grade-performance.test.js && node tests/weekly-investigation-subjects.test.js",
     "test:study-character-fire": "node tests/study-character-fire.test.js",

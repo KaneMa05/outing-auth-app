@@ -1,0 +1,146 @@
+<div id="ox-history-mock" aria-label="취약단원 개선 시안">
+  <div class="oh-phone">
+    <header class="oh-header"><span class="oh-brand"><b>OX</b> 형사법</span><span class="oh-demo">미리보기 · 예시 기록</span></header>
+    <nav class="oh-main-nav" aria-label="OX 메뉴"><span>오늘</span><span>단원</span><button type="button" data-action="notebook">오답노트</button><button type="button" data-action="weak" aria-current="page">취약</button></nav>
+    <main class="oh-main"></main>
+    <footer class="oh-footer"><span>론박스터디</span><span>학습 기록이 쌓이는 곳</span></footer>
+    <div class="oh-live" aria-live="polite"></div>
+  </div>
+</div>
+<style>
+#ox-history-mock{--oh-bg:light-dark(#f7f9fc,#121c2a);--oh-paper:light-dark(#ffffff,#1b293a);--oh-ink:light-dark(#20354f,#e7edf6);--oh-muted:light-dark(#62738a,#a9b9cc);--oh-line:light-dark(#dfe6ef,#354559);--oh-soft:light-dark(#edf3fa,#24354c);--oh-blue:light-dark(#285dab,#91baff);--oh-fill:light-dark(#285dab,#386bb6);--oh-onfill:#fff;--oh-green:light-dark(#267262,#83cbb3);--oh-greensoft:light-dark(#eaf5ef,#223c36);--oh-red:light-dark(#b14840,#ffafa5);--oh-redsoft:light-dark(#fff1ed,#442d2d);--oh-amber:light-dark(#91622b,#ebc08b);color:var(--oh-ink);font:400 14px/1.6 'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:transparent;padding:8px 0}
+#ox-history-mock *{box-sizing:border-box}
+#ox-history-mock .oh-phone{max-width:460px;margin:auto;background:var(--oh-bg);border:1px solid var(--oh-line);border-radius:24px;overflow:hidden}
+#ox-history-mock button{font:inherit;cursor:pointer;color:inherit;touch-action:manipulation}
+#ox-history-mock button:focus-visible,#ox-history-mock summary:focus-visible{outline:2px solid var(--oh-blue);outline-offset:3px}
+#ox-history-mock button:disabled{cursor:default;opacity:.55}
+#ox-history-mock .oh-header{padding:20px 22px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--oh-paper)}
+#ox-history-mock .oh-brand{font-size:17px;font-weight:600;white-space:nowrap}
+#ox-history-mock .oh-brand b{background:var(--oh-fill);color:var(--oh-onfill);font-size:12px;border-radius:7px;padding:5px 6px;margin-right:5px}
+#ox-history-mock .oh-demo{font-size:11px;color:var(--oh-muted)}
+#ox-history-mock .oh-main-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:0;padding:8px 16px 14px;background:var(--oh-paper)}
+#ox-history-mock .oh-main-nav>*{text-align:center;border:0;background:var(--oh-soft);color:var(--oh-muted);padding:10px 2px;font-size:13px;border-radius:9px;min-height:42px}
+#ox-history-mock .oh-main-nav [aria-current]{background:var(--oh-fill);color:var(--oh-onfill);font-weight:600}
+#ox-history-mock .oh-main{padding:22px 20px 24px;min-height:440px}
+#ox-history-mock h2{font-size:21px;line-height:1.4;letter-spacing:-.6px;margin:0;font-weight:600;color:var(--oh-ink)}
+#ox-history-mock h3{font-size:15px;line-height:1.5;margin:0;font-weight:600;color:var(--oh-ink)}
+#ox-history-mock p{margin:0}
+#ox-history-mock .oh-sub{font-size:12px;color:var(--oh-muted)}
+#ox-history-mock .oh-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px}
+#ox-history-mock .oh-link{border:0;background:transparent;color:var(--oh-blue);padding:8px 0;font-size:12px;min-height:40px}
+#ox-history-mock .oh-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--oh-line);margin-top:18px;margin-bottom:18px}
+#ox-history-mock .oh-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:11px 2px;color:var(--oh-muted)}
+#ox-history-mock .oh-tabs button[aria-pressed="true"]{border-bottom-color:var(--oh-blue);color:var(--oh-blue);font-weight:600}
+#ox-history-mock .oh-summary{display:grid;grid-template-columns:repeat(3,1fr);background:var(--oh-paper);border:1px solid var(--oh-line);border-radius:14px;padding:17px 5px;margin-bottom:18px}
+#ox-history-mock .oh-stat{text-align:center;padding:0 3px}
+#ox-history-mock .oh-stat+.oh-stat{border-left:1px solid var(--oh-line)}
+#ox-history-mock .oh-stat span{display:block;font-size:11px;color:var(--oh-muted)}
+#ox-history-mock .oh-stat strong{font-size:23px;line-height:1.5;font-weight:600;font-variant-numeric:tabular-nums}
+#ox-history-mock .oh-stat small{font-size:11px;margin-left:3px;font-weight:400}
+#ox-history-mock .oh-row-label{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--oh-muted);margin:0 2px 9px}
+#ox-history-mock .oh-chapter{margin-bottom:10px;background:var(--oh-paper);border:1px solid var(--oh-line);border-radius:14px;overflow:hidden}
+#ox-history-mock .oh-chapter summary{list-style:none;cursor:pointer;padding:16px}
+#ox-history-mock .oh-chapter summary::-webkit-details-marker{display:none}
+#ox-history-mock .oh-chapter-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+#ox-history-mock .oh-chapter-title h3{flex:1;min-width:0}
+#ox-history-mock .oh-badge{display:inline-block;border-radius:5px;font-size:11px;padding:2px 7px;background:var(--oh-soft);color:var(--oh-muted);white-space:nowrap;font-weight:400}
+#ox-history-mock .oh-good{background:var(--oh-greensoft);color:var(--oh-green)}
+#ox-history-mock .oh-wrong{background:var(--oh-redsoft);color:var(--oh-red)}
+#ox-history-mock .oh-chevron{font-size:16px;color:var(--oh-muted);margin-left:3px;transition:transform .15s}
+#ox-history-mock details[open] .oh-chevron{transform:rotate(180deg)}
+#ox-history-mock .oh-rate{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 7px}
+#ox-history-mock .oh-rate strong{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums}
+#ox-history-mock .oh-rate span{font-size:12px;color:var(--oh-muted)}
+#ox-history-mock .oh-history-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;color:var(--oh-muted)}
+#ox-history-mock .oh-history-line b{color:var(--oh-blue);font-weight:500}
+#ox-history-mock .oh-detail{padding:0 16px 16px}
+#ox-history-mock .oh-split{border-top:1px solid var(--oh-line);padding-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
+#ox-history-mock .oh-split>div{display:flex;justify-content:space-between;gap:6px;color:var(--oh-muted)}
+#ox-history-mock .oh-split b{color:var(--oh-ink);font-weight:500}
+#ox-history-mock .oh-notice{padding:11px 12px;border-radius:9px;margin-top:12px;background:var(--oh-greensoft);color:var(--oh-green);font-size:12px;line-height:1.7}
+#ox-history-mock .oh-actions{display:flex;gap:8px;margin-top:13px}
+#ox-history-mock .oh-button{border:1px solid var(--oh-line);border-radius:9px;min-height:44px;padding:9px 10px;background:var(--oh-paper);font-size:12px;flex:1}
+#ox-history-mock .oh-primary{background:var(--oh-fill);border-color:var(--oh-fill);color:var(--oh-onfill)}
+#ox-history-mock .oh-note{margin-top:17px;color:var(--oh-muted);font-size:11px;line-height:1.8}
+#ox-history-mock .oh-back{display:block;background:transparent;border:0;padding:0 0 14px;color:var(--oh-blue);font-size:12px;min-height:40px}
+#ox-history-mock .oh-filters{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px}
+#ox-history-mock .oh-filter{background:var(--oh-paper);border:1px solid var(--oh-line);border-radius:20px;padding:8px 11px;font-size:12px;min-height:40px}
+#ox-history-mock .oh-filter[aria-pressed="true"]{background:var(--oh-fill);color:var(--oh-onfill);border-color:var(--oh-fill)}
+#ox-history-mock .oh-list-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 8px;font-size:12px}
+#ox-history-mock .oh-checkbox{display:flex;align-items:center;gap:4px;min-height:40px;color:var(--oh-muted);font-size:12px}
+#ox-history-mock input{accent-color:var(--oh-fill);width:16px;height:16px}
+#ox-history-mock .oh-question{background:var(--oh-paper);border:1px solid var(--oh-line);border-radius:12px;padding:15px;margin-top:10px}
+#ox-history-mock .oh-question-top{display:flex;justify-content:space-between;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px;font-size:11px;color:var(--oh-muted)}
+#ox-history-mock .oh-question h3{font-size:14px;font-weight:500}
+#ox-history-mock .oh-question-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+#ox-history-mock .oh-question .oh-actions{margin-top:12px}
+#ox-history-mock .oh-question .oh-button{font-size:11px;min-height:40px}
+#ox-history-mock .oh-empty{padding:25px 14px;background:var(--oh-paper);border:1px solid var(--oh-line);border-radius:12px;text-align:center;margin-top:10px}
+#ox-history-mock .oh-footer{border-top:1px solid var(--oh-line);padding:15px 20px;display:flex;justify-content:space-between;gap:10px;font-size:10px;color:var(--oh-muted)}
+#ox-history-mock .oh-live{padding:0 20px;font-size:12px;color:var(--oh-green);background:var(--oh-paper)}
+#ox-history-mock .oh-live:not(:empty){padding:12px 20px;border-top:1px solid var(--oh-line)}
+#ox-history-mock .oh-guide{margin:12px 0;padding:12px;border:1px solid var(--oh-line);background:var(--oh-paper);border-radius:10px;font-size:12px;color:var(--oh-muted)}
+#ox-history-mock .oh-quiz-paper{margin-top:18px;border:1px solid var(--oh-line);border-radius:14px;background:var(--oh-paper);padding:20px 17px}
+#ox-history-mock .oh-quiz-paper h3{margin:20px 0;font-size:17px;line-height:1.8}
+#ox-history-mock .oh-answers button{font-size:24px;min-height:65px}
+#ox-history-mock .oh-result{padding:30px 10px;text-align:center}
+#ox-history-mock .oh-result strong{display:block;font-size:38px;color:var(--oh-blue);margin:15px 0}
+@media(max-width:360px){#ox-history-mock .oh-main{padding:18px 13px}#ox-history-mock .oh-header{padding:17px 15px}#ox-history-mock .oh-detail{padding:0 13px 13px}#ox-history-mock .oh-chapter summary{padding:13px}#ox-history-mock .oh-actions{flex-wrap:wrap}#ox-history-mock .oh-actions>.oh-button{flex-basis:125px}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('ox-history-mock');
+const main=root.querySelector('.oh-main');
+const ui={page:'weak',view:'history',chapter:0,filter:'all',repeat:false,guide:false,quiz:[],index:0,answer:null,correct:0,origin:'list'};
+const design={expanded:true,density:'detailed'};
+const titles=['대한민국 영역 안에서 범한 죄','외국인의 국외범에 대한 적용','형법의 시간적 적용 범위','행위시법과 재판시법','범죄 후 법률의 변경','한시법의 적용','외국에서 받은 형의 집행','장소적 적용 범위'];
+const chapters=[
+ {name:'형법의 적용범위',solved:20,total:50,right:20,questions:titles.map((title,i)=>({id:i+1,title,wrong:i===0?4:i===1?3:i===2?2:1,right:true,done:i<3}))},
+ {name:'구성요건과 위법성',solved:20,total:45,right:13,questions:Array.from({length:9},(_,i)=>({id:21+i,title:['구성요건 해당성','위법성 조각사유','정당방위의 성립 요건'][i%3],wrong:i<2?3:1,right:i>=7,done:false}))},
+ {name:'미수범',solved:10,total:32,right:10,questions:Array.from({length:3},(_,i)=>({id:41+i,title:['실행의 착수','중지미수','불능미수'][i],wrong:i===0?2:1,right:true,done:i===0}))}
+];
+const button=(label,action,extra='',primary=false)=>`<button type="button" class="oh-button ${primary?'oh-primary':''}" data-action="${action}" ${extra}>${label}</button>`;
+const stats=c=>({past:c.questions.length,remaining:c.questions.filter(q=>!q.right).length,regained:c.questions.filter(q=>q.right).length,repeat:c.questions.filter(q=>q.wrong>=3).length,historyRate:c.questions.length/c.solved*100,rate:Math.round(c.right/c.solved*100)});
+function nav(){root.querySelectorAll('.oh-main-nav button').forEach(b=>{if((ui.page==='weak'&&b.dataset.action==='weak')||(ui.page!=='weak'&&b.dataset.action==='notebook'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});}
+function render(){nav();if(ui.page==='weak')weak();else if(ui.page==='quiz')quiz();else if(ui.page==='result')result();else list();}
+function weak(){
+const all=chapters.map(stats),past=all.reduce((n,s)=>n+s.past,0),remaining=all.reduce((n,s)=>n+s.remaining,0);
+const order=chapters.map((_,i)=>i).sort((a,b)=>ui.view==='history'?all[b].historyRate-all[a].historyRate||all[b].past-all[a].past||a-b:all[a].rate-all[b].rate||a-b);
+main.innerHTML=`<div class="oh-title"><h2>취약단원</h2><button type="button" class="oh-link" data-action="guide">측정 기준 ⓘ</button></div><p class="oh-sub">다시 맞혀도, 어려웠던 단원은 기록에 남아요.</p>
+${ui.guide?'<div class="oh-guide">오답 경험률 = 틀린 적 있는 문항 수 ÷ 풀어본 문항 수. 같은 문항은 한 번만 세며, 다시 맞히거나 복습 완료해도 취약 이력에 남습니다. 새 문항을 학습하면 비율은 달라질 수 있어요. 현재 정답률은 마지막 답변을 기준으로 따로 표시합니다.</div>':''}
+<div class="oh-tabs" aria-label="취약단원 보기"><button type="button" data-action="view" data-view="history" aria-pressed="${ui.view==='history'}">취약 이력</button><button type="button" data-action="view" data-view="current" aria-pressed="${ui.view==='current'}">현재 상태</button></div>
+<div class="oh-summary">${(ui.view==='history'?[['취약 이력',all.filter(s=>s.past>0).length,'단원'],['틀린 적 있음',past,'문항'],['다시 맞힘',past-remaining,'문항']]:[['취약',all.filter(s=>s.rate<70).length,'단원'],['주의',all.filter(s=>s.rate>=70&&s.rate<85).length,'단원'],['양호',all.filter(s=>s.rate>=85).length,'단원']]).map(([l,v,u])=>`<div class="oh-stat"><span>${l}</span><strong>${v}<small>${u}</small></strong></div>`).join('')}</div>
+<div class="oh-row-label"><span>${ui.view==='history'?'틀렸던 단원 전체':'학습한 단원'}</span><span>${ui.view==='history'?'오답 경험률 높은 순':'현재 취약도 순'}</span></div>
+${order.map(i=>{const c=chapters[i],s=all[i],history=ui.view==='history';return `<details class="oh-chapter" ${design.expanded&&i===0?'open':''}><summary><div class="oh-chapter-title"><h3>${c.name}</h3><span class="oh-badge ${history?'oh-wrong':s.rate>=85?'oh-good':'oh-wrong'}">${history?'취약 이력':s.rate>=85?'양호':s.rate>=70?'주의':'취약'}</span><span class="oh-chevron" aria-hidden="true">⌄</span></div><div class="oh-rate"><span>${history?'오답 경험률':'현재 정답률'}</span><strong>${history?Math.round(s.historyRate):s.rate}%</strong></div><div class="oh-history-line"><b>${c.solved}문항 중 ${s.past}문항 틀린 이력</b><span>·</span><span>${s.remaining?'아직 틀림 '+s.remaining+'문항':'모두 다시 맞힘'}</span></div>${design.density==='detailed'?`<p class="oh-sub" style="margin-top:5px">${history?'현재 정답률 '+s.rate+'% · ':''}${c.solved} / ${c.total}문항 학습${s.repeat?' · 반복 오답 '+s.repeat+'문항':''}</p>`:''}</summary><div class="oh-detail"><div class="oh-split"><div>다시 맞힘 <b>${s.regained}문항</b></div><div>아직 틀림 <b>${s.remaining}문항</b></div></div>${s.remaining===0?`<p class="oh-notice">이전 오답 ${s.past}문항을 모두 다시 맞혔어요.<br>이 단원의 취약 이력은 그대로 유지됩니다.</p>`:''}<div class="oh-actions">${button('이전 오답 '+s.past+'문항 보기','chapter',`data-id="${i}"`,true)}${button('다시 풀기','start-chapter',`data-id="${i}"`)}</div></div></details>`}).join('')}
+<p class="oh-note">오답 경험률은 풀어본 문항 중 틀린 적 있는 문항의 비율이에요.<br>같은 문항을 다시 맞혀도 이 비율과 취약 이력은 유지됩니다.</p>`;
+}
+function currentItems(){const c=chapters[ui.chapter];return c.questions.filter(q=>(ui.filter==='all'||(ui.filter==='wrong'&&!q.right)||(ui.filter==='regained'&&q.right))&&(!ui.repeat||q.wrong>=3));}
+function list(){const c=chapters[ui.chapter],s=stats(c),items=currentItems();main.innerHTML=`<button type="button" class="oh-back" data-action="weak">‹ 취약단원으로</button><h2>${c.name}</h2><p class="oh-sub" style="margin-top:6px">오답 이력 ${s.past}문항 · 복습 완료한 문항 포함</p>
+${s.remaining===0?`<p class="oh-notice">현재 정답률 100% · 이전 오답은 모두 다시 맞혔어요.</p>`:''}
+<div class="oh-filters" aria-label="문항 상태">${[['all','전체 이력',s.past],['wrong','아직 틀림',s.remaining],['regained','다시 맞힘',s.regained]].map(([v,l,n])=>`<button type="button" class="oh-filter" data-action="filter" data-filter="${v}" aria-pressed="${ui.filter===v}">${l} ${n}</button>`).join('')}</div>
+<div class="oh-list-head"><label class="oh-checkbox"><input type="checkbox" data-repeat ${ui.repeat?'checked':''}>반복 오답만</label><button type="button" class="oh-link" data-action="start-filter" ${!items.length?'disabled':''}>${items.length}문항 모아 풀기 →</button></div>
+${items.length?items.map(q=>`<article class="oh-question"><div class="oh-question-top"><span>문항 ${String(q.id).padStart(3,'0')}</span><span>누적 오답 <b>${q.wrong}회</b></span></div><h3>${q.title}</h3><div class="oh-question-meta"><span class="oh-badge ${q.right?'oh-good':'oh-wrong'}">${q.right?'다시 맞힘':'아직 틀림'}</span>${q.wrong>=3?'<span class="oh-badge oh-wrong">반복 오답</span>':''}${q.done?'<span class="oh-badge">복습 완료</span>':''}</div><div class="oh-actions">${button('다시 풀기','start-one',`data-q="${q.id}"`,true)}${button(q.done?'완료 취소':'복습 완료','complete',`data-q="${q.id}"`)}</div></article>`).join(''):'<div class="oh-empty"><h3>해당하는 문항이 없어요.</h3><p class="oh-sub" style="margin-top:6px">전체 이력에서 이전 오답을 확인해 보세요.</p></div>'}
+<p class="oh-note">복습 완료는 목록을 정리하는 표시예요.<br>누적 오답 횟수와 학습 이력은 그대로 남아요.</p>`;}
+function start(items){ui.quiz=items.map(q=>q.id);ui.index=0;ui.answer=null;ui.correct=0;ui.page='quiz';render();}
+function quiz(){const c=chapters[ui.chapter],q=c.questions.find(q=>q.id===ui.quiz[ui.index]);main.innerHTML=`<button type="button" class="oh-back" data-action="list">‹ 오답 이력으로</button><div class="oh-title"><h2>이전 오답 다시 풀기</h2><span class="oh-sub">${ui.index+1} / ${ui.quiz.length}</span></div><p class="oh-sub">${c.name}</p><div class="oh-quiz-paper"><div class="oh-question-top"><span>문항 ${String(q.id).padStart(3,'0')}</span><span>누적 오답 ${q.wrong}회</span></div><h3>${q.title}</h3><p class="oh-sub">풀이 화면 예시입니다. 실제 문항의 지문과 해설이 이곳에 표시됩니다.</p>${ui.answer?`<p class="oh-notice">${ui.answer==='O'?'정답으로 처리했어요.':'오답으로 처리했어요.'}<br>시안에서는 O는 정답, X는 오답으로 반영합니다.</p><div class="oh-actions">${button(ui.index+1===ui.quiz.length?'결과 보기':'다음 문항','next','',true)}</div>`:`<div class="oh-actions oh-answers">${button('O','answer','data-answer="O"',true)}${button('X','answer','data-answer="X"')}</div>`}</div><p class="oh-note">예시 기록으로 동작하며 실제 학습 기록에는 반영되지 않아요.</p>`;}
+function result(){const s=stats(chapters[ui.chapter]);main.innerHTML=`<div class="oh-result"><span class="oh-sub">이전 오답 복습 결과</span><h2 style="margin-top:9px">복습을 마쳤어요</h2><strong>${ui.correct} / ${ui.quiz.length}</strong><p>이번 복습에서 맞힌 문항</p></div><div class="oh-notice">틀린 적 있는 ${s.past}문항의 이력은 그대로 남아 있어요.<br>현재 다시 맞힘 ${s.regained}문항 · 아직 틀림 ${s.remaining}문항</div><div class="oh-actions">${button('오답 이력 확인','list','',true)}${button('취약단원으로','weak')}</div>`;}
+root.addEventListener('change',e=>{if(e.target.matches('[data-repeat]')){ui.repeat=e.target.checked;render();}});
+root.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;root.querySelector('.oh-live').textContent='';
+if(a==='weak'){ui.page='weak';}
+else if(a==='notebook'){ui.page='list';ui.chapter=0;ui.filter='all';ui.repeat=false;}
+else if(a==='view'){ui.view=b.dataset.view;}
+else if(a==='guide'){ui.guide=!ui.guide;}
+else if(a==='chapter'){ui.chapter=Number(b.dataset.id);ui.page='list';ui.filter='all';ui.repeat=false;}
+else if(a==='list'){ui.page='list';}
+else if(a==='filter'){ui.filter=b.dataset.filter;}
+else if(a==='complete'){const q=chapters[ui.chapter].questions.find(q=>q.id===Number(b.dataset.q));q.done=!q.done;render();root.querySelector('.oh-live').textContent=q.done?'복습 완료로 표시했어요. 오답 이력은 유지됩니다.':'복습 완료를 취소했어요.';return;}
+else if(a==='start-chapter'){ui.chapter=Number(b.dataset.id);ui.filter='all';ui.repeat=false;start(chapters[ui.chapter].questions);return;}
+else if(a==='start-filter'){start(currentItems());return;}
+else if(a==='start-one'){start(chapters[ui.chapter].questions.filter(q=>q.id===Number(b.dataset.q)));return;}
+else if(a==='answer'){if(ui.answer)return;ui.answer=b.dataset.answer;const c=chapters[ui.chapter],q=c.questions.find(q=>q.id===ui.quiz[ui.index]),right=ui.answer==='O';if(right&&!q.right)c.right++;if(!right&&q.right)c.right--;q.right=right;if(right)ui.correct++;else{q.wrong++;q.done=false;}}
+else if(a==='next'){if(ui.index+1===ui.quiz.length){ui.page='result';}else{ui.index++;ui.answer=null;}}
+render();});
+render();
+if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:render});tweak.addToggle(design,'expanded',{label:'첫 단원 펼쳐 보기'});tweak.addSelect(design,'density',{label:'단원 정보량',options:[{label:'학습량·반복 오답 표시',value:'detailed'},{label:'간결하게 표시',value:'compact'}]});}
+})();
+</script>

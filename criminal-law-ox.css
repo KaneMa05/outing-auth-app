@@ -214,7 +214,7 @@ body.student-online-mode #criminal-ox-preview .ox-weak-guide > summary { color:v
 #criminal-ox-preview .ox-weak-overview small { margin-left:3px; font-size:.65rem; font-weight:400; color:var(--ox-muted); }
 #criminal-ox-preview .ox-weak-table { overflow:hidden; border:1px solid var(--ox-line); border-radius:14px; background:var(--ox-paper); }
 #criminal-ox-preview .ox-weak-columns,
-#criminal-ox-preview .ox-weak-row > summary { display:grid; grid-template-columns:minmax(0,1fr) 48px 58px 10px; gap:8px; align-items:center; padding:12px 14px; }
+#criminal-ox-preview .ox-weak-row > summary { display:grid; grid-template-columns:minmax(0,1fr) 64px 58px 10px; gap:8px; align-items:center; padding:12px 14px; }
 #criminal-ox-preview .ox-weak-columns { color:var(--ox-muted); font-size:.65rem; border-bottom:1px solid var(--ox-line); }
 #criminal-ox-preview .ox-weak-columns > span:nth-child(2),
 #criminal-ox-preview .ox-weak-columns > span:nth-child(3) { text-align:center; }
@@ -233,6 +233,16 @@ body.student-online-mode #criminal-ox-preview .ox-weak-guide > summary { color:v
 #criminal-ox-preview .ox-weak-row[open] > summary .ox-weak-chevron { transform:rotate(180deg); }
 #criminal-ox-preview .ox-weak-detail { padding:0 14px 14px; }
 #criminal-ox-preview .ox-weak-detail .ox-sub { font-size:.72rem; }
+#criminal-ox-preview .ox-weak-history-summary { grid-column:1 / -1; color:var(--ox-muted); font-size:.72rem; line-height:1.6; overflow-wrap:anywhere; }
+#criminal-ox-preview .ox-history-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:16px 0 12px; }
+#criminal-ox-preview .ox-history-tabs .ox-filter,
+#criminal-ox-preview .ox-history-filters .ox-filter { min-height:42px; padding:8px 10px; border-radius:10px; white-space:normal; }
+#criminal-ox-preview .ox-history-filters { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+#criminal-ox-preview .ox-history-badges { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+#criminal-ox-preview .ox-history-notice { padding:10px 12px; border-radius:10px; background:var(--ox-soft); color:var(--ox-green); font-size:.76rem; line-height:1.7; word-break:keep-all; overflow-wrap:anywhere; }
+@media (max-width:360px) {
+  #criminal-ox-preview .ox-weak-detail .ox-review-actions { grid-template-columns:1fr; }
+}
 #criminal-ox-preview .ox-weak-pending > summary { color:var(--muted); }
 body.student-online-mode #criminal-ox-preview .ox-weak-pending > summary { color:var(--online-ui-muted); }
 #criminal-ox-preview .ox-live { font-size:.8rem; min-height:18px; margin-top:8px; color:var(--ox-accent); }

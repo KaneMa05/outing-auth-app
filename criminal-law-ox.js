@@ -373,25 +373,42 @@ function quiz() {
   </div>`;
 }
 
-    function result(){if(session.chapterId){chapterSessionResult();return;}const right=session.answers.filter(a=>a.correct).length, wrong=session.answers.filter(a=>!a.correct).map(a=>a.id); main.innerHTML=`<div class="ox-result"><span class="ox-eyebrow">SESSION COMPLETE</span><h2>학습 결과</h2><p class="ox-sub">${esc(session.label)}</p><div class="ox-number">${right}<small> / ${session.ids.length} 정답</small></div><p class="ox-sub">${wrong.length?`다시 살펴볼 ${wrong.length}개 지문을 오답노트에 모았어요.`:'이번 세트는 모두 맞혔어요.'}</p></div><div class="ox-card"><h3>다음 학습</h3><p class="ox-sub">${wrong.length?'방금 틀린 지문을 다시 읽으면 차이를 더 쉽게 기억할 수 있어요.':'확인한 오답은 오답노트에서 삭제할 수 있어요.'}</p>${wrong.length?button('방금 틀린 문제 다시 풀기','retry-session','','ox-primary ox-wide'):button('오답노트 확인하기','nav','data-ox-route="review"','ox-primary ox-wide')}${button('오늘 화면으로','nav','data-ox-route="home"','ox-wide')}</div>`; }
+    function result(){if(session.chapterId){chapterSessionResult();return;}const right=session.answers.filter(a=>a.correct).length, wrong=session.answers.filter(a=>!a.correct).map(a=>a.id); main.innerHTML=`<div class="ox-result"><span class="ox-eyebrow">SESSION COMPLETE</span><h2>학습 결과</h2><p class="ox-sub">${esc(session.label)}</p><div class="ox-number">${right}<small> / ${session.ids.length} 정답</small></div><p class="ox-sub">${wrong.length?`다시 살펴볼 ${wrong.length}개 지문을 오답노트에 모았어요.`:'이번 세트는 모두 맞혔어요.'}</p></div><div class="ox-card"><h3>다음 학습</h3><p class="ox-sub">${wrong.length?'방금 틀린 지문을 다시 읽으면 차이를 더 쉽게 기억할 수 있어요.':'복습 완료로 표시해도 오답 이력은 유지돼요.'}</p>${wrong.length?button('방금 틀린 문제 다시 풀기','retry-session','','ox-primary ox-wide'):button('오답노트 확인하기','nav','data-ox-route="review"','ox-primary ox-wide')}${button('오늘 화면으로','nav','data-ox-route="home"','ox-wide')}</div>`; }
 // Inserted into the local preview module by build-local-preview.py.
+let reviewMode = 'pending', reviewChapterId = null, reviewStatus = 'all', reviewRepeated = false;
+
+function openReview(mode = 'pending', chapterId = null) {
+  if (chapterId && !chapters.has(chapterId)) return;
+  reviewMode = mode === 'history' ? 'history' : 'pending';
+  reviewChapterId = chapterId;
+  reviewStatus = 'all';
+  reviewRepeated = false;
+  route = 'review';
+}
+
 function pendingReviewItems() {
   return reviews().filter(s => ['반복 오답', '복습 필요'].includes(s.label));
 }
 
 function reviewItemsForFilter() {
-  return reviews().filter(s => !note(s.q.id).mastered);
+  return reviews().filter(s => {
+    if (reviewChapterId && s.q.chapter_id !== reviewChapterId) return false;
+    if (reviewMode !== 'history') return !note(s.q.id).mastered;
+    if (reviewRepeated && s.wrong < 3) return false;
+    return reviewStatus === 'all' || (reviewStatus === 'wrong' ? !s.last?.correct : !!s.last?.correct);
+  });
 }
 
 function reviewItemMarkup(s) {
   const q = s.q, n = note(q.id);
   const display = questionPresentation(q);
-  return `<article class="ox-review-item">
+  return `<article class="ox-review-item" data-review-question="${esc(q.id)}">
     <div class="ox-review-meta">
       <p class="ox-source">${esc(chapters.get(q.chapter_id).display_name)}</p>
       <span class="ox-sub">누적 ${s.wrong}회 오답</span>
     </div>
     <p class="ox-short-prompt">${esc(display.prompt)}</p>
+    <div class="ox-history-badges"><span class="ox-badge">${s.last?.correct ? '다시 맞힘' : '아직 틀림'}</span>${s.wrong >= 3 ? '<span class="ox-badge ox-danger">반복 오답</span>' : ''}${n.mastered ? '<span class="ox-badge">복습 완료</span>' : ''}</div>
     <details data-question-detail="${q.id}">
       <summary>정답 · 해설 · 메모 보기</summary>
       <p class="ox-sub">정답 ${q.correct_answer}</p>
@@ -403,82 +420,130 @@ function reviewItemMarkup(s) {
     </details>
     <div class="ox-review-actions">
       ${button('다시 풀기', 'one', `data-id="${q.id}"`, 'ox-primary')}
-      ${button('오답 삭제', 'master', `data-id="${q.id}"`)}
+      ${button(n.mastered ? '완료 취소' : '복습 완료', 'master', `data-id="${q.id}"`)}
     </div>
   </article>`;
 }
 
 function review() {
   const visible = reviewItemsForFilter();
+  const history = reviewMode === 'history';
+  const all = reviews().filter(s => !reviewChapterId || s.q.chapter_id === reviewChapterId);
+  const statusOptions = [['all', '전체 이력', all.length], ['wrong', '아직 틀림', all.filter(s => !s.last?.correct).length], ['regained', '다시 맞힘', all.filter(s => s.last?.correct).length]];
   main.innerHTML = `
-    <h2>오답노트</h2>
+    ${reviewChapterId ? button('취약단원으로', 'nav', 'data-ox-route="weak"') : ''}
+    <h2>${reviewChapterId ? esc(chapters.get(reviewChapterId).display_name) : '오답노트'}</h2>
+    ${reviewChapterId ? `<p class="ox-sub">이전 오답 · 복습 완료한 문항 포함</p>${button('전체 단원 이력 보기', 'review-mode', 'data-mode="history"')}` : `<div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>`}
+    ${history ? `<div class="ox-history-filters" role="group" aria-label="오답 이력 상태">${statusOptions.map(([value, label, count]) => `<button type="button" class="mini-btn ox-filter" data-action="history-status" data-status="${value}" aria-pressed="${reviewStatus === value}">${label} ${count}</button>`).join('')}<button type="button" class="mini-btn ox-filter" data-action="history-repeat" aria-pressed="${reviewRepeated}">반복 오답만</button></div>` : ''}
+    <p class="ox-sub">복습 완료로 표시해도 오답 이력은 유지돼요.</p>
     <section class="ox-review-panel" aria-label="오답노트 문항">
       <header class="ox-review-head">
-        <h3>오답<span class="ox-review-count">${visible.length}문항</span></h3>
+        <h3>${history ? '오답 이력' : '복습 목록'}<span class="ox-review-count">${visible.length}문항</span></h3>
         ${visible.length ? button('모아 풀기', 'review-all', '', 'ox-primary') : ''}
       </header>
       ${visible.length ? visible.map(reviewItemMarkup).join('') : `<div class="ox-review-empty">
-        <h3>저장된 오답이 없어요.</h3>
-        <p class="ox-sub">학습을 이어가면 기록이 여기에 모입니다.</p>
+        <h3>${history ? '조건에 맞는 오답 이력이 없어요.' : '복습 목록에 남은 문항이 없어요.'}</h3>
+        <p class="ox-sub">${history ? '전체 이력이나 다른 조건에서 확인해 보세요.' : '복습 완료한 문항은 전체 이력에서 확인할 수 있어요.'}</p>
         ${button('단원 골라 풀기', 'nav', 'data-ox-route="chapters"', 'ox-wide')}
       </div>`}
     </section>`;
 }
 
+let weakView = 'history';
+
+function weaknessStats() {
+  const history = new Map();
+  for (const q of data.questions) {
+    const s = stats(q.id);
+    if (!s.wrong) continue;
+    if (!history.has(q.chapter_id)) history.set(q.chapter_id, { past: 0, regained: 0, repeated: 0 });
+    const item = history.get(q.chapter_id);
+    item.past++;
+    if (s.last?.correct) item.regained++;
+    if (s.wrong >= 3) item.repeated++;
+  }
+  return data.chapters.map((c, index) => {
+    const s = chapterStat(c), h = history.get(c.id) || { past: 0, regained: 0, repeated: 0 };
+    return { ...s, ...h, index, historyRate: s.solved ? h.past / s.solved * 100 : null };
+  });
+}
+
+function weaknessHistoryOrder(a, b) {
+  return b.historyRate - a.historyRate || b.past - a.past || a.index - b.index;
+}
+
 function weaknessRow(s) {
-  const measured = s.rank < 5;
-  const tone = s.rank < 3 ? 'weak' : s.rank === 3 ? 'caution' : s.rank === 4 ? 'good' : 'pending';
-  return `<details class="ox-weak-row">
+  const measured = s.rank < 5, history = weakView === 'history';
+  const tone = history ? (s.past ? 'weak' : 'pending') : s.rank < 3 ? 'weak' : s.rank === 3 ? 'caution' : s.rank === 4 ? 'good' : 'pending';
+  const rate = history ? s.historyRate : (measured ? s.accuracy : null);
+  const status = history ? (s.past ? '취약 이력' : s.solved ? '이력 없음' : '미학습') : (measured ? s.label : '미측정');
+  return `<details class="ox-weak-row" data-weak-chapter="${esc(s.c.id)}">
     <summary>
       <span class="ox-weak-name">${esc(s.c.display_name)}</span>
-      <strong class="ox-weak-rate">${measured ? `${Math.round(s.accuracy)}%` : '—'}</strong>
-      <span class="ox-weak-status ox-weak-${tone}">${measured ? s.label : '미측정'}</span>
+      <strong class="ox-weak-rate">${rate === null ? '—' : `${Math.round(rate)}%`}</strong>
+      <span class="ox-weak-status ox-weak-${tone}">${status}</span>
       <span class="ox-weak-chevron" aria-hidden="true">⌄</span>
+      <span class="ox-weak-history-summary">${s.past ? `${s.solved}문항 중 ${s.past}문항 틀린 이력 · ${s.wrong ? `아직 틀림 ${s.wrong}문항` : '모두 다시 맞힘'}` : s.solved ? `${s.solved}문항 학습 · 틀린 이력 없음` : '아직 학습한 문항이 없어요.'}${s.solved && !measured ? ' · 학습 기록 적음' : ''}</span>
     </summary>
     <div class="ox-weak-detail">
-      <p class="ox-sub">${esc(collections.get(s.c.collection_id).name)}</p>
-      <p class="ox-sub">${s.solved} / ${s.c.question_count}문항 학습 · 최근 오답 ${s.wrong}문항</p>
-      ${!measured ? `<p class="ox-sub">${Math.max(0, Math.min(5, s.c.question_count) - s.solved)}문항 더 풀면 취약도를 확인할 수 있어요.</p>` : ''}
-      ${button('이 단원 학습하기', 'chapter', `data-id="${s.c.id}"`, 'ox-wide')}
+      <p class="ox-sub">${esc(collections.get(s.c.collection_id).name)} · ${s.solved} / ${s.c.question_count}문항 학습</p>
+      <p class="ox-sub">현재 정답률 ${s.accuracy === null ? '—' : `${Math.round(s.accuracy)}%`} · 다시 맞힘 ${s.regained}문항${s.repeated ? ` · 반복 오답 ${s.repeated}문항` : ''}</p>
+      ${!measured ? `<p class="ox-sub">${Math.max(0, Math.min(5, s.c.question_count) - s.solved)}문항 더 풀면 단원 간 비교에 필요한 기록이 모여요.</p>` : ''}
+      ${s.past && !s.wrong ? '<p class="ox-history-notice">이전 오답을 모두 다시 맞혔어요. 취약 이력은 그대로 유지됩니다.</p>' : ''}
+      ${s.past ? `<div class="ox-review-actions">${button(`이전 오답 ${s.past}문항 보기`, 'history-chapter', `data-id="${esc(s.c.id)}"`, 'ox-primary')}${button('이전 오답 다시 풀기', 'history-chapter-start', `data-id="${esc(s.c.id)}"`)}</div>` : button('이 단원 학습하기', 'chapter', `data-id="${esc(s.c.id)}"`, 'ox-wide')}
     </div>
   </details>`;
 }
 
 function weakness() {
-  const list = data.chapters.map(chapterStat).sort((a, b) => a.rank - b.rank || b.score - a.score || data.chapters.indexOf(a.c) - data.chapters.indexOf(b.c));
-  const measured = list.filter(s => s.rank < 5);
-  const pending = list.filter(s => s.rank === 5);
-  const counts = [
-    { label: '취약', count: measured.filter(s => s.rank < 3).length, tone: 'weak' },
-    { label: '주의', count: measured.filter(s => s.rank === 3).length, tone: 'caution' },
-    { label: '양호', count: measured.filter(s => s.rank === 4).length, tone: 'good' }
+  const history = weakView === 'history';
+  const list = weaknessStats();
+  const measured = history
+    ? list.filter(s => s.past && s.rank < 5).sort(weaknessHistoryOrder)
+    : list.filter(s => s.rank < 5).sort((a, b) => a.rank - b.rank || b.score - a.score || a.index - b.index);
+  const pending = history ? list.filter(s => s.past && s.rank === 5).sort(weaknessHistoryOrder) : list.filter(s => s.rank === 5);
+  const noHistory = history ? list.filter(s => !s.past && s.solved) : [];
+  const unlearned = history ? list.filter(s => !s.solved) : [];
+  const counts = history ? [
+    { label: '취약 이력', count: list.filter(s => s.past).length, unit: '단원', tone: 'weak' },
+    { label: '틀린 적 있음', count: list.reduce((n, s) => n + s.past, 0), unit: '문항', tone: 'weak' },
+    { label: '다시 맞힘', count: list.reduce((n, s) => n + s.regained, 0), unit: '문항', tone: 'good' }
+  ] : [
+    { label: '취약', count: measured.filter(s => s.rank < 3).length, unit: '단원', tone: 'weak' },
+    { label: '주의', count: measured.filter(s => s.rank === 3).length, unit: '단원', tone: 'caution' },
+    { label: '양호', count: measured.filter(s => s.rank === 4).length, unit: '단원', tone: 'good' }
   ];
   main.innerHTML = `<div class="ox-weak-heading">
       <h2>취약단원</h2>
       <details class="ox-weak-guide">
-        <summary>판정 기준</summary>
+        <summary>측정 기준</summary>
         <div class="ox-weak-guide-body">
-          <h3>단원 정답률 기준</h3>
-          <dl class="ox-weak-thresholds">
-            <dt class="ox-weak-weak">매우 취약</dt><dd>50% 미만</dd>
-            <dt class="ox-weak-weak">취약</dt><dd>50% 이상 ~ 70% 미만</dd>
-            <dt class="ox-weak-caution">주의</dt><dd>70% 이상 ~ 85% 미만</dd>
-            <dt class="ox-weak-good">양호</dt><dd>85% 이상</dd>
-          </dl>
-          <p>서로 다른 5문항부터 판정해요. 전체가 5문항 미만인 단원은 모두 풀어야 해요. 그전에는 ‘미측정’으로 표시돼요.</p>
-          <p>푼 문항마다 마지막 답안을 기준으로 정답률을 계산하므로, 다시 풀면 결과가 갱신돼요.</p>
-          <p class="ox-sub">상단 ‘취약’에는 ‘매우 취약’도 포함됩니다. 표시 정답률은 반올림하며, 판정은 반올림 전 수치를 기준으로 합니다.</p>
+          <h3>오답 경험률</h3>
+          <p>틀린 적 있는 문항 수 ÷ 풀어본 문항 수 × 100으로 계산해요. 같은 문항은 한 번만 세며, 다시 맞히거나 복습 완료해도 취약 이력에 남아요.</p>
+          <p>새 문항을 학습하거나 처음 틀린 문항이 생기면 비율이 달라질 수 있어요. 현재 이용 가능한 공개 문항의 현재 버전을 기준으로 해요.</p>
+          <h3>현재 정답률</h3>
+          <p>문항별 마지막 답변 기준이에요. 현재 상태는 50% 미만 매우 취약, 70% 미만 취약, 85% 미만 주의, 85% 이상 양호로 표시해요.</p>
+          <p>서로 다른 5문항부터 단원을 비교해요. 전체가 5문항 미만인 단원은 모두 풀어야 해요. 기록이 적어도 이전 오답은 확인할 수 있어요.</p>
+          <p class="ox-sub">비율은 반올림해 표시하며 정렬과 판정에는 반올림 전 값을 사용해요. 현재 상태의 ‘취약’에는 ‘매우 취약’도 포함돼요.</p>
         </div>
       </details>
     </div>
-    <div class="ox-weak-overview" aria-label="단원별 취약도 요약">
-      ${counts.map(item => `<div><span>${item.label}</span><strong class="ox-weak-${item.tone}">${item.count}<small>단원</small></strong></div>`).join('')}
+    <div class="ox-history-tabs" role="group" aria-label="취약단원 보기">
+      <button type="button" class="mini-btn ox-filter" data-action="weak-view" data-view="history" aria-pressed="${history}">취약 이력</button>
+      <button type="button" class="mini-btn ox-filter" data-action="weak-view" data-view="current" aria-pressed="${!history}">현재 상태</button>
     </div>
-    <section class="ox-weak-table" aria-label="취약도 측정 단원">
-      <div class="ox-weak-columns" aria-hidden="true"><span>단원</span><span>정답률</span><span>상태</span><span></span></div>
-      ${measured.length ? measured.map(weaknessRow).join('') : '<div class="ox-review-empty"><h3>아직 진단할 기록이 부족해요.</h3><p class="ox-sub">단원별로 5문항을 풀면 취약도를 보여드려요.<br>5문항 미만인 단원은 모두 풀면 확인할 수 있어요.</p></div>'}
+    <p class="ox-sub">${history ? '다시 맞혀도, 어려웠던 단원은 기록에 남아요.' : '풀어본 문항의 마지막 답변을 기준으로 보여드려요.'}</p>
+    <div class="ox-weak-overview" aria-label="단원별 요약">
+      ${counts.map(item => `<div><span>${item.label}</span><strong class="ox-weak-${item.tone}">${item.count}<small>${item.unit}</small></strong></div>`).join('')}
+    </div>
+    <p class="ox-sub">${history ? '오답 경험률 높은 순' : '현재 취약도 순'}</p>
+    <section class="ox-weak-table" aria-label="${history ? '취약 이력 단원' : '현재 취약도 단원'}">
+      <div class="ox-weak-columns" aria-hidden="true"><span>단원</span><span>${history ? '오답 경험률' : '정답률'}</span><span>상태</span><span></span></div>
+      ${measured.length ? measured.map(weaknessRow).join('') : `<div class="ox-review-empty"><h3>${history ? pending.length ? '아래에서 이전 오답을 확인해 보세요.' : '아직 오답 이력이 없어요.' : '아직 진단할 기록이 부족해요.'}</h3><p class="ox-sub">${history ? pending.length ? '학습 기록이 적은 단원도 이력은 남아요.' : '한 번이라도 틀린 문항이 생기면 이곳에 남아요.' : '단원별로 5문항을 풀면 취약도를 보여드려요.'}</p></div>`}
     </section>
-    ${pending.length ? `<details class="ox-weak-pending"><summary>미측정 ${pending.length}단원 보기</summary><div class="ox-weak-table">${pending.map(weaknessRow).join('')}</div></details>` : ''}`;
+    ${pending.length ? `<details class="ox-weak-pending" ${history ? 'open' : ''}><summary>${history ? '학습 기록 적음' : '미측정'} ${pending.length}단원 보기</summary><div class="ox-weak-table">${pending.map(weaknessRow).join('')}</div></details>` : ''}
+    ${noHistory.length ? `<details class="ox-weak-pending"><summary>취약 이력 없음 ${noHistory.length}단원 보기</summary><div class="ox-weak-table">${noHistory.map(weaknessRow).join('')}</div></details>` : ''}
+    ${unlearned.length ? `<details class="ox-weak-pending"><summary>미학습 ${unlearned.length}단원 보기</summary><div class="ox-weak-table">${unlearned.map(weaknessRow).join('')}</div></details>` : ''}`;
 }
 
 // Injected into the production mount closure by build-ox-learning.py.
@@ -585,13 +650,13 @@ function renderBlockedBooks() {
       try {
       if(action==='refresh-books'){onAccessRefresh?.();return;}
       if(bookAccessBlocked)return;
-      if(action==='nav'){route=b.dataset.oxRoute;}
+      if(action==='nav'){if(b.dataset.oxRoute==='review' && route!=='result')openReview();else route=b.dataset.oxRoute;}
       else if(action==='collection'){collection=id;allChapters=false;}
       else if(action==='chapter-size'){showChapterSizePicker();return;}
       else if(action==='law-part'){if(!['general','specific'].includes(b.dataset.part))return;criminalLawPart=b.dataset.part;allChapters=false;}
       else if(action==='expand-chapters')allChapters=!allChapters;
       else if(action==='expand-weak')allWeak=!allWeak;
-      else if(action==='review-needed'){filter='복습 필요';route='review';}
+      else if(action==='review-needed'){filter='복습 필요';openReview();}
       else if(action==='daily'){daily();return;}
       else if(action==='resume')route='quiz';
       else if(action==='session-result'){showSessionResult();return;}
@@ -617,6 +682,16 @@ function renderBlockedBooks() {
       else if(action==='bookmark'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,bookmark:!note(id).bookmark});updateNote(saved.note);}
       else if(action==='memo'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,memo:root.querySelector('#ox-memo').value});updateNote(saved.note);root.querySelector('#ox-message').textContent='메모를 저장했어요.';return;}
       else if(action==='master'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,mastered:!note(id).mastered});updateNote(saved.note);}
+      else if(action==='weak-view'){weakView=b.dataset.view==='current'?'current':'history';}
+      else if(action==='history-chapter'){openReview('history',id);}
+      else if(action==='history-chapter-start'){
+        if(!chapters.has(id))return;
+        start(reviews().filter(s=>s.q.chapter_id===id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
+      }
+      else if(action==='review-mode'){openReview(b.dataset.mode);}
+      else if(action==='history-status'){if(['all','wrong','regained'].includes(b.dataset.status))reviewStatus=b.dataset.status;}
+      else if(action==='history-repeat'){reviewRepeated=!reviewRepeated;}
+
       else if(action==='filter')filter=b.dataset.filter;
       else if(action==='review-all'){start(reviewItemsForFilter().map(s=>s.q.id),'오답 모아 풀기');return;}
       render();

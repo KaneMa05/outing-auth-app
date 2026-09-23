@@ -36,7 +36,7 @@ runtime, home_replacements = re.subn(r'    function home\(\).*?(?=    function c
 if home_replacements != 1:
     raise RuntimeError('Expected one home view to replace')
 runtime = runtime.replace("reviews().filter(s=>s.label!=='복습 완료').slice(0,5)", 'pendingReviewItems().slice(0,5)')
-runtime = runtime.replace("else if(action==='daily'){daily();return;}", "else if(action==='review-needed'){filter='복습 필요';route='review';}\n      else if(action==='daily'){daily();return;}")
+runtime = runtime.replace("else if(action==='daily'){daily();return;}", "else if(action==='review-needed'){filter='복습 필요';openReview();}\n      else if(action==='daily'){daily();return;}")
 runtime = runtime.replace("else if(action==='resume')route='quiz';", "else if(action==='resume')route='quiz';\n      else if(action==='session-result'){showSessionResult();return;}")
 # Keep the native chapter layout independently editable from the early mockup.
 chapter_view = (root / 'chapter-view.js').read_text(encoding='utf-8')
@@ -68,10 +68,16 @@ review_view = (root / 'review-view.js').read_text(encoding='utf-8')
 runtime, review_replacements = re.subn(r'    function review\(\).*?(?=    function weakness\()', lambda _: review_view + '\n', runtime, flags=re.S)
 if review_replacements != 1:
     raise RuntimeError('Expected one review view to replace')
-weakness_view = (root / 'weakness-view.js').read_text(encoding='utf-8')
+weakness_view = (root / 'weakness-history-view.js').read_text(encoding='utf-8')
 runtime, weakness_replacements = re.subn(r'    function weakness\(\).*?(?=    function render\()', lambda _: weakness_view + '\n', runtime, flags=re.S)
 if weakness_replacements != 1:
     raise RuntimeError('Expected one weakness view to replace')
+nav_action = "if(action==='nav'){route=b.dataset.oxRoute;}"
+if runtime.count(nav_action) != 1:
+    raise RuntimeError('Expected one navigation handler')
+runtime = runtime.replace(nav_action, "if(action==='nav'){if(b.dataset.oxRoute==='review' && route!=='result')openReview();else route=b.dataset.oxRoute;}")
+history_actions = (root / 'history-actions.js').read_text(encoding='utf-8')
+runtime = runtime.replace("      else if(action==='filter')", history_actions + "\n      else if(action==='filter')", 1)
 runtime = runtime.replace("filter='미완료'", "filter='복습 필요'")
 review_selection = "reviews().filter(s=>filter==='미완료'?s.label!=='복습 완료':s.label===filter)"
 if runtime.count(review_selection) != 1:
@@ -92,7 +98,7 @@ if quiz_replacements != 1:
     raise RuntimeError('Expected one quiz view to replace')
 # Reuse actual app buttons, including its font and shared focus/disabled styles.
 runtime = runtime.replace("['review','rotate-ccw','오답']", "['review','rotate-ccw','오답노트']")
-runtime = runtime.replace('다시 맞힌 오답은 오답노트에서 복습 완료로 표시할 수 있어요.', '확인한 오답은 오답노트에서 삭제할 수 있어요.')
+runtime = runtime.replace('다시 맞힌 오답은 오답노트에서 복습 완료로 표시할 수 있어요.', '복습 완료로 표시해도 오답 이력은 유지돼요.')
 runtime = runtime.replace('class="ox-button ', 'class="btn secondary ox-button ')
 runtime = runtime.replace('class="ox-filter"', 'class="mini-btn ox-filter"')
 runtime = runtime.replace('class="ox-plain"', 'class="mini-btn ox-plain"')
