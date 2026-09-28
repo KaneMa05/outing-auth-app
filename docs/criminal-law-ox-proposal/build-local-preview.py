@@ -78,6 +78,14 @@ if runtime.count(nav_action) != 1:
 runtime = runtime.replace(nav_action, "if(action==='nav'){if(b.dataset.oxRoute==='review' && route!=='result')openReview();else route=b.dataset.oxRoute;}")
 history_actions = (root / 'history-actions.js').read_text(encoding='utf-8')
 runtime = runtime.replace("      else if(action==='filter')", history_actions + "\n      else if(action==='filter')", 1)
+runtime = runtime.replace("    root.addEventListener('click'", """    root.addEventListener('change',event=>{
+      const control=event.target;
+      if(route!=='review' || !control.matches('select[data-review-filter]'))return;
+      setReviewFilter(control.dataset.reviewFilter,control.value);
+      render();
+      root.querySelector('select[data-review-filter="'+control.dataset.reviewFilter+'"]')?.focus();
+    });
+    root.addEventListener('click'""", 1)
 runtime = runtime.replace("filter='미완료'", "filter='복습 필요'")
 review_selection = "reviews().filter(s=>filter==='미완료'?s.label!=='복습 완료':s.label===filter)"
 if runtime.count(review_selection) != 1:

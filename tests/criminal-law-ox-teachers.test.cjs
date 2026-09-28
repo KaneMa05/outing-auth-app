@@ -66,7 +66,11 @@ test('Teachers can learn on verified devices without enrollment; student access,
   assert.equal(other.progress.length,0);assert.equal(other.notes.length,0);
   assert.deepEqual(other.attemptCounts,{});
   // Cumulative accuracy counts every actual attempt, including replays, once.
-  for(let i=0;i<28;i++)await learn('submit','teacher2',{sessionId:otherSession,questionId:'q1',version:1,answer:i<8?'X':'O',submissionId:crypto.randomUUID()});
+  for(let i=0;i<28;i++){
+   const saved=await learn('submit','teacher2',{sessionId:otherSession,questionId:'q1',version:1,answer:i<8?'X':'O',submissionId:crypto.randomUUID()});
+   assert.equal(saved.progress.wrong_count,Math.min(i+1,8),'Each save response includes the latest notebook count');
+   assert.equal(saved.attemptCounts.q1.wrong,saved.progress.wrong_count,'Notebook and cumulative accuracy use matching wrong counts');
+  }
   for(const summaryOnly of [true,false]){
    const totals=(await learn('bootstrap','teacher2',{sessionId:otherSession,summaryOnly})).attemptCounts.q1;
    assert.deepEqual(totals,{attempts:28,correct:20,wrong:8});

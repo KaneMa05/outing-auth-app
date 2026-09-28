@@ -133,3 +133,59 @@ test('new chapter content is escaped and missing measurements never render NaN',
   assert.match(f.html(),/&lt;img/);
   assert.ok(!f.html().includes('NaN'));
 });
+
+test('notebook filters chapters in both modes and sorts by actual last answer time or wrong count',()=>{
+  const f=fixture();
+  f.run("progress.get('a-1').answered_at='2026-09-28T10:00:00Z';progress.get('a-2').answered_at='2026-09-28T09:00:00Z';progress.get('a-0').answered_at='2026-09-27T09:00:00Z'");
+  f.run("openReview('history');setReviewFilter('chapter','a')");
+  assert.deepEqual(f.json('reviewItemsForFilter().slice(0,3).map(s=>s.q.id)'),['a-1','a-2','a-0']);
+  f.run("setReviewFilter('sort','wrong')");
+  assert.deepEqual(f.json('reviewItemsForFilter().slice(0,3).map(s=>s.q.id)'),['a-0','a-1','a-2']);
+  f.run("action('review-mode',null,{mode:'pending'})");
+  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('reviewSort'),'wrong');
+  assert.equal(f.run("reviewItemsForFilter().some(s=>s.q.id==='a-0')"),false);
+  assert.ok(f.run("reviewItemsForFilter().every(s=>s.q.chapter_id==='a')"));
+  f.run("start(reviewItemsForFilter().map(s=>s.q.id),'오답 모아 풀기')");
+  assert.deepEqual(f.json('session.ids.slice(0,2)'),['a-1','a-2']);
+  f.run("setReviewFilter('chapter','missing');setReviewFilter('sort','invalid')");
+  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('reviewSort'),'wrong');
+});
+
+test('chapter choices include completed history, group subjects, and escape chapter labels',()=>{
+  const f=fixture();
+  f.run("data.chapters[0].display_name='<단원>';openReview();review()");
+  assert.match(f.html(), /value="collection:law"[^>]*>형법 전체/);
+  assert.match(f.html(), /&lt;단원&gt;/);
+  assert.match(f.html(), /최신순/);
+  assert.match(f.html(), /누적 오답 횟수순/);
+  assert.ok(!f.html().includes('option value="empty"'));
+  f.run("openReview('history','a',true);action('review-mode',null,{mode:'pending'});review()");
+  assert.match(f.html(), /취약단원으로/);
+  assert.match(f.html(), /value="a" selected/);
+});
+
+test('selecting a subject includes its chapters and preserves scope for tabs, counts and replay',()=>{
+  const f=fixture();
+  f.run("data.collections.push({id:'procedure',name:'수사·증거'});collections.set('procedure',data.collections[1]);data.chapters[1].collection_id='procedure';openReview('history');setReviewFilter('chapter','collection:law');review()");
+  assert.ok(f.run("reviewItemsForFilter().every(s=>s.q.chapter_id!=='b')"));
+  assert.equal(f.run('reviewItemsForFilter().length'),10);
+  assert.match(f.html(), /형법 오답노트/);
+  assert.match(f.html(), /전체 이력 10/);
+  f.run("action('review-mode',null,{mode:'pending'});setReviewFilter('sort','wrong');start(reviewItemsForFilter().map(s=>s.q.id),'모아 풀기')");
+  assert.equal(f.run('reviewCollectionId'),'law');
+  assert.equal(f.run('session.ids.length'),9);
+  assert.ok(f.run("session.ids.every(id=>byId.get(id).chapter_id!=='b')"));
+  f.run("setReviewFilter('chapter','collection:procedure');review()");
+  assert.equal(f.run('reviewItemsForFilter().length'),5);
+  assert.match(f.html(), /수사·증거 오답노트/);
+  f.run("setReviewFilter('chapter','collection:missing')");
+  assert.equal(f.run('reviewCollectionId'),'procedure');
+  f.run("setReviewFilter('chapter','a')");
+  assert.equal(f.run('reviewCollectionId'),null);
+  assert.equal(f.run('reviewChapterId'),'a');
+  f.run("setReviewFilter('chapter','')");
+  assert.equal(f.run('reviewChapterId'),null);
+  assert.equal(f.run('reviewItemsForFilter().length'),14);
+});

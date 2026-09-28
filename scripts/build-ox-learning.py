@@ -19,15 +19,30 @@ runtime=runtime[:begin]+'''    const attempts = bootstrap.progress.map(p=>({id:p
     const note = id => { if(!notes.has(id)) notes.set(id,{text:'',bookmark:false,mastered:false}); return notes.get(id); };
     const updateNote=n=>{if(n)notes.set(n.question_id,{text:n.memo || '',hasMemo:n.has_memo || !!n.memo,bookmark:n.bookmark,mastered:n.mastered_version===byId.get(n.question_id)?.version});};
     bootstrap.notes.forEach(updateNote);
-    let pending=false;
+    let pending=false, learningNeedsRefresh=false;
     const errorMessages={question_changed:'문제가 수정되었습니다. 화면을 새로고침해주세요.',question_unavailable:'현재 공개 중인 문제가 아닙니다. 화면을 새로고침해주세요.',ox_not_registered:'OX 이용 등록이 해제되었습니다. 관리자에게 문의해주세요.',ox_disabled:'학습 서비스가 잠시 중지되었습니다.',unauthorized:'다시 로그인해주세요.'};
     async function persist(action,body) {
       pending=true;root.setAttribute('aria-busy','true');
-      try{return await request(action,body);}finally{pending=false;root.removeAttribute('aria-busy');}
+      try{return await request(action,body);}
+      catch(error){if(action==='submit')learningNeedsRefresh=true;throw error;}
+      finally{pending=false;root.removeAttribute('aria-busy');}
+    }
+    async function refreshLearningIfNeeded() {
+      if(!learningNeedsRefresh)return;
+      // A failed response does not tell us whether the answer committed.
+      // Read persisted records before navigating; never invent an extra attempt.
+      const saved=await persist('bootstrap',{summaryOnly:true});
+      progress.clear();for(const p of saved.progress)progress.set(p.question_id,p);
+      attempts.splice(0,attempts.length,...saved.progress.map(p=>({id:p.question_id,answer:p.answer,correct:p.correct,seed:true})));
+      attemptCounts.clear();for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
+      statistics.clear();for(const [id,counts] of Object.entries(saved.statistics || {}))statistics.set(id,counts);
+      notes.clear();saved.notes.forEach(updateNote);
+      todayCount=saved.todayCount;
+      learningNeedsRefresh=false;
     }
     function showError(error){let node=root.querySelector('[data-ox-error]');if(!node){node=document.createElement('p');node.dataset.oxError='true';node.setAttribute('role','alert');main.prepend(node);}node.textContent=errorMessages[error.code] || '저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.';}
 ''' +runtime[end:]
-runtime=re.sub(r'    const stats = id => .*?; };',"""    const stats = id => { const p=progress.get(id), last=p?{id,answer:p.answer,correct:p.correct}:null, wrong=p?.wrong_count || 0; let label=wrong?(last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요'):'';if(wrong&&note(id).mastered)label='복습 완료';return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };""",runtime)
+runtime=re.sub(r'    const stats = id => .*?; };',"""    const stats = id => { const p=progress.get(id), last=p?{id,answer:p.answer,correct:p.correct,answered_at:p.answered_at}:null, wrong=p?.wrong_count || 0; let label=wrong?(last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요'):'';if(wrong&&note(id).mastered)label='복습 완료';return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };""",runtime)
 runtime=re.sub(r'function questionAttemptCounts\(id\) \{.*?\n\}', "function questionAttemptCounts(id) { return attemptCounts.get(id) || {attempts:0,correct:0,wrong:0}; }",runtime,flags=re.S)
 runtime=runtime.replace('solved/c.question_count*100','c.question_count ? solved/c.question_count*100 : 0').replace('const enough=solved>=Math.min(5,c.question_count)','const enough=c.question_count>0 && solved>=Math.min(5,c.question_count)')
 runtime=runtime.replace('const today = attempts.filter(a => !a.seed).length;', 'const today = todayCount;')
@@ -43,6 +58,7 @@ runtime=re.sub(r'// Local design fixtures only\..*?(?=function quiz\()',"""funct
 
 """,runtime,flags=re.S)
 runtime=runtime.replace("root.addEventListener('click',e=>", "root.addEventListener('click',async e=>").replace('if(!b||b.disabled)return;', 'if(!b||b.disabled||pending)return;')
+runtime=runtime.replace("if(route!=='review' || !control.matches", "if(pending || route!=='review' || !control.matches")
 runtime=runtime.replace("    root.addEventListener('click'",'''    root.addEventListener('toggle',async event=>{
       const details=event.target,id=details.dataset?.questionDetail;
       if(!id || !details.open || details.dataset.loading)return;
@@ -65,14 +81,17 @@ runtime=re.sub(r"else if\(action==='answer'\).*?(?=\n      else if\(action==='ne
         session.submissions[session.index] ||= {id:crypto.randomUUID(),answer};
         const submission=session.submissions[session.index];
         const saved=await persist('submit',{questionId:q.id,version:q.version,answer:submission.answer,submissionId:submission.id});
+        const alreadyLoaded=!!saved.progress.answered_at && progress.get(q.id)?.answered_at===saved.progress.answered_at;
         Object.assign(q,saved.question);progress.set(q.id,saved.progress);statistics.set(q.id,saved.statistics);updateNote(saved.note);
         for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
-        const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};attempts.push(a);todayCount++;session.answers[session.index]=a;
+        const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};
+        if(!alreadyLoaded){attempts.push(a);todayCount++;}session.answers[session.index]=a;
+        learningNeedsRefresh=false;
       }""",runtime,flags=re.S)
 runtime=runtime.replace("else if(action==='bookmark')note(id).bookmark=!note(id).bookmark;", "else if(action==='bookmark'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,bookmark:!note(id).bookmark});updateNote(saved.note);}")
 runtime=re.sub(r"else if\(action==='memo'\).*?(?=\n      else if)","else if(action==='memo'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,memo:root.querySelector('#ox-memo').value});updateNote(saved.note);root.querySelector('#ox-message').textContent='메모를 저장했어요.';return;}",runtime)
 runtime=runtime.replace("else if(action==='master')note(id).mastered=!note(id).mastered;", "else if(action==='master'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,mastered:!note(id).mastered});updateNote(saved.note);}")
-runtime=runtime.replace('      render();\n    });','      render();\n      } catch(error){showError(error);}\n    });')
+runtime='      render();\n      } catch(error){showError(error);}\n    });'.join(runtime.rsplit('      render();\n    });',1))
 runtime=runtime.replace("return { openBookmarks() { route='bookmarks'; render(); } };", "return { openBookmarks() { if(pending || route==='quiz')return; route='bookmarks'; render(); } };")
 # Do not keep an unanswered session as a client-side source of truth after reload.
 # Chapters resume from persisted unique progress; all records are server-owned.
@@ -87,7 +106,7 @@ tabs_end=runtime.index('    </div>',tabs_start)+len('    </div>')
 runtime=runtime[:tabs_start]+'    ${bookTabs()}'+runtime[tabs_end:]
 runtime=runtime.replace("    function showError(error){", "    function showError(error){if(blockBookAccess(error))return;")
 runtime=runtime.replace("function renderLoadedView(){", "function renderLoadedView(){if(bookAccessBlocked){renderBlockedBooks();return;}")
-runtime=runtime.replace("      if(action==='nav')", "      if(action==='refresh-books'){onAccessRefresh?.();return;}\n      if(bookAccessBlocked)return;\n      if(action==='nav')")
+runtime=runtime.replace("      if(action==='nav')", "      if(action==='refresh-books'){onAccessRefresh?.();return;}\n      if(bookAccessBlocked)return;\n      if(action!=='answer')await refreshLearningIfNeeded();\n      if(action==='nav')")
 runtime=runtime.replace("if(pending || route==='quiz')return;", "if(bookAccessBlocked || pending || route==='quiz')return;")
 runtime=runtime.replace('    function renderLoadedView(){',(root/'scripts/ox-book-access-runtime.js').read_text(encoding='utf-8')+'\n    function renderLoadedView(){',1)
 markup='<div id="criminal-ox-preview"><header class="ox-header"></header><nav class="ox-nav" aria-label="OX 학습 메뉴"></nav><main class="ox-content"></main><footer class="ox-app-nav"></footer></div>'

@@ -20,17 +20,32 @@ export function mount(host, {bootstrap,request,onAccessRefresh}) {
     const note = id => { if(!notes.has(id)) notes.set(id,{text:'',bookmark:false,mastered:false}); return notes.get(id); };
     const updateNote=n=>{if(n)notes.set(n.question_id,{text:n.memo || '',hasMemo:n.has_memo || !!n.memo,bookmark:n.bookmark,mastered:n.mastered_version===byId.get(n.question_id)?.version});};
     bootstrap.notes.forEach(updateNote);
-    let pending=false;
+    let pending=false, learningNeedsRefresh=false;
     const errorMessages={question_changed:'문제가 수정되었습니다. 화면을 새로고침해주세요.',question_unavailable:'현재 공개 중인 문제가 아닙니다. 화면을 새로고침해주세요.',ox_not_registered:'OX 이용 등록이 해제되었습니다. 관리자에게 문의해주세요.',ox_disabled:'학습 서비스가 잠시 중지되었습니다.',unauthorized:'다시 로그인해주세요.'};
     async function persist(action,body) {
       pending=true;root.setAttribute('aria-busy','true');
-      try{return await request(action,body);}finally{pending=false;root.removeAttribute('aria-busy');}
+      try{return await request(action,body);}
+      catch(error){if(action==='submit')learningNeedsRefresh=true;throw error;}
+      finally{pending=false;root.removeAttribute('aria-busy');}
+    }
+    async function refreshLearningIfNeeded() {
+      if(!learningNeedsRefresh)return;
+      // A failed response does not tell us whether the answer committed.
+      // Read persisted records before navigating; never invent an extra attempt.
+      const saved=await persist('bootstrap',{summaryOnly:true});
+      progress.clear();for(const p of saved.progress)progress.set(p.question_id,p);
+      attempts.splice(0,attempts.length,...saved.progress.map(p=>({id:p.question_id,answer:p.answer,correct:p.correct,seed:true})));
+      attemptCounts.clear();for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
+      statistics.clear();for(const [id,counts] of Object.entries(saved.statistics || {}))statistics.set(id,counts);
+      notes.clear();saved.notes.forEach(updateNote);
+      todayCount=saved.todayCount;
+      learningNeedsRefresh=false;
     }
     function showError(error){if(blockBookAccess(error))return;let node=root.querySelector('[data-ox-error]');if(!node){node=document.createElement('p');node.dataset.oxError='true';node.setAttribute('role','alert');main.prepend(node);}node.textContent=errorMessages[error.code] || '저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.';}
     let route='home', collection=(data.collections.find(c=>c.accessible!==false)?.id || 'criminal-law'), filter='복습 필요', allChapters=false, allWeak=false, session=null, origin='home';
     const design={palette:'blue',fontSize:19,newUser:false,category:'lecture'};
     const effective = () => design.newUser ? attempts.filter(a=>!a.seed) : attempts;
-    const stats = id => { const p=progress.get(id), last=p?{id,answer:p.answer,correct:p.correct}:null, wrong=p?.wrong_count || 0; let label=wrong?(last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요'):'';if(wrong&&note(id).mastered)label='복습 완료';return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };
+    const stats = id => { const p=progress.get(id), last=p?{id,answer:p.answer,correct:p.correct,answered_at:p.answered_at}:null, wrong=p?.wrong_count || 0; let label=wrong?(last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요'):'';if(wrong&&note(id).mastered)label='복습 완료';return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };
     const reviews = () => data.questions.map(q=>({q,...stats(q.id)})).filter(s=>s.wrong).sort((a,b)=>a.priority-b.priority||b.wrong-a.wrong);
     const chapterStat = c => { const latest=new Map(); effective().filter(a=>byId.get(a.id).chapter_id===c.id).forEach(a=>latest.set(a.id,a)); const solved=latest.size, right=Array.from(latest.values()).filter(a=>a.correct).length; const accuracy=solved ? right/solved*100:null; const progress=c.question_count ? solved/c.question_count*100 : 0; const enough=c.question_count>0 && solved>=Math.min(5,c.question_count); const label=!enough?'데이터 부족':accuracy<50?'매우 취약':accuracy<70?'취약':accuracy<85?'주의':'양호'; return {c,solved,accuracy,progress,wrong:solved-right,label,rank:({'매우 취약':1,'취약':2,'주의':3,'양호':4,'데이터 부족':5}[label]),score:enough?(100-accuracy)*.7+(100-progress)*.3:0}; };
     const meter = (v,label,color='') => `<div class="ox-meter" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(v)}"><span style="width:${v}%;${color?'background:'+color:''}"></span></div>`;
@@ -377,11 +392,15 @@ function quiz() {
     function result(){if(session.chapterId){chapterSessionResult();return;}const right=session.answers.filter(a=>a.correct).length, wrong=session.answers.filter(a=>!a.correct).map(a=>a.id); main.innerHTML=`<div class="ox-result"><span class="ox-eyebrow">SESSION COMPLETE</span><h2>학습 결과</h2><p class="ox-sub">${esc(session.label)}</p><div class="ox-number">${right}<small> / ${session.ids.length} 정답</small></div><p class="ox-sub">${wrong.length?`다시 살펴볼 ${wrong.length}개 지문을 오답노트에 모았어요.`:'이번 세트는 모두 맞혔어요.'}</p></div><div class="ox-card"><h3>다음 학습</h3><p class="ox-sub">${wrong.length?'방금 틀린 지문을 다시 읽으면 차이를 더 쉽게 기억할 수 있어요.':'복습 완료로 표시해도 오답 이력은 유지돼요.'}</p>${wrong.length?button('방금 틀린 문제 다시 풀기','retry-session','','ox-primary ox-wide'):button('오답노트 확인하기','nav','data-ox-route="review"','ox-primary ox-wide')}${button('오늘 화면으로','nav','data-ox-route="home"','ox-wide')}</div>`; }
 // Inserted into the local preview module by build-local-preview.py.
 let reviewMode = 'pending', reviewChapterId = null, reviewStatus = 'all', reviewRepeated = false;
+let reviewSort = 'recent', reviewFromWeak = false, reviewCollectionId = null;
 
-function openReview(mode = 'pending', chapterId = null) {
+function openReview(mode = 'pending', chapterId = null, fromWeak = false, collectionId = null) {
   if (chapterId && !chapters.has(chapterId)) return;
+  if (collectionId && !collections.has(collectionId)) return;
   reviewMode = mode === 'history' ? 'history' : 'pending';
   reviewChapterId = chapterId;
+  reviewCollectionId = chapterId ? null : collectionId;
+  reviewFromWeak = fromWeak;
   reviewStatus = 'all';
   reviewRepeated = false;
   route = 'review';
@@ -391,13 +410,48 @@ function pendingReviewItems() {
   return reviews().filter(s => ['반복 오답', '복습 필요'].includes(s.label));
 }
 
+function matchesReviewScope(s) {
+  return (!reviewChapterId || s.q.chapter_id === reviewChapterId)
+    && (!reviewCollectionId || chapters.get(s.q.chapter_id)?.collection_id === reviewCollectionId);
+}
+
 function reviewItemsForFilter() {
   return reviews().filter(s => {
-    if (reviewChapterId && s.q.chapter_id !== reviewChapterId) return false;
+    if (!matchesReviewScope(s)) return false;
     if (reviewMode !== 'history') return !note(s.q.id).mastered;
     if (reviewRepeated && s.wrong < 3) return false;
     return reviewStatus === 'all' || (reviewStatus === 'wrong' ? !s.last?.correct : !!s.last?.correct);
+  }).sort((a, b) => {
+    const recent = (Date.parse(b.last?.answered_at || '') || 0) - (Date.parse(a.last?.answered_at || '') || 0);
+    return (reviewSort === 'wrong' ? b.wrong - a.wrong || recent : recent || b.wrong - a.wrong)
+      || a.q.id.localeCompare(b.q.id, 'ko', { numeric: true });
   });
+}
+
+function setReviewFilter(name, value) {
+  if (name === 'chapter') {
+    if (value.startsWith('collection:')) {
+      const id = value.slice('collection:'.length);
+      if (!collections.has(id)) return;
+      reviewCollectionId = id;
+      reviewChapterId = null;
+    } else {
+      if (value && !chapters.has(value)) return;
+      reviewChapterId = value || null;
+      reviewCollectionId = null;
+    }
+  } else if (name === 'sort' && ['recent', 'wrong'].includes(value)) reviewSort = value;
+}
+
+function reviewControls() {
+  const available = new Set(reviews().map(s => s.q.chapter_id));
+  return `<div class="ox-review-controls">
+    <label>과목 · 단원<select data-review-filter="chapter"><option value="">전체 단원</option>${data.collections.map(collection => {
+      const options = data.chapters.filter(c => c.collection_id === collection.id && (available.has(c.id) || c.id === reviewChapterId));
+      return options.length ? `<option value="collection:${esc(collection.id)}" ${reviewCollectionId === collection.id ? 'selected' : ''}>${esc(collection.name)} 전체</option>${options.map(c => `<option value="${esc(c.id)}" ${reviewChapterId === c.id ? 'selected' : ''}>　${esc(c.display_name)}</option>`).join('')}` : '';
+    }).join('')}</select></label>
+    <label>정렬<select data-review-filter="sort"><option value="recent" ${reviewSort === 'recent' ? 'selected' : ''}>최신순</option><option value="wrong" ${reviewSort === 'wrong' ? 'selected' : ''}>누적 오답 횟수순</option></select></label>
+  </div><p class="ox-sub ox-review-sort-help">${reviewSort === 'recent' ? '마지막으로 푼 문제가 먼저 보여요.' : '많이 틀린 문제가 먼저 보여요.'}</p>`;
 }
 
 function reviewItemMarkup(s) {
@@ -429,12 +483,13 @@ function reviewItemMarkup(s) {
 function review() {
   const visible = reviewItemsForFilter();
   const history = reviewMode === 'history';
-  const all = reviews().filter(s => !reviewChapterId || s.q.chapter_id === reviewChapterId);
+  const all = reviews().filter(matchesReviewScope);
   const statusOptions = [['all', '전체 이력', all.length], ['wrong', '아직 틀림', all.filter(s => !s.last?.correct).length], ['regained', '다시 맞힘', all.filter(s => s.last?.correct).length]];
   main.innerHTML = `
-    ${reviewChapterId ? button('취약단원으로', 'nav', 'data-ox-route="weak"') : ''}
-    <h2>${reviewChapterId ? esc(chapters.get(reviewChapterId).display_name) : '오답노트'}</h2>
-    ${reviewChapterId ? `<p class="ox-sub">이전 오답 · 복습 완료한 문항 포함</p>${button('전체 단원 이력 보기', 'review-mode', 'data-mode="history"')}` : `<div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>`}
+    ${reviewFromWeak ? button('취약단원으로', 'nav', 'data-ox-route="weak"') : ''}
+    <h2>${reviewChapterId ? esc(chapters.get(reviewChapterId).display_name) : reviewCollectionId ? esc(collections.get(reviewCollectionId).name) + ' 오답노트' : '오답노트'}</h2>
+    <div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>
+    ${reviewControls()}
     ${history ? `<div class="ox-history-filters" role="group" aria-label="오답 이력 상태">${statusOptions.map(([value, label, count]) => `<button type="button" class="mini-btn ox-filter" data-action="history-status" data-status="${value}" aria-pressed="${reviewStatus === value}">${label} ${count}</button>`).join('')}<button type="button" class="mini-btn ox-filter" data-action="history-repeat" aria-pressed="${reviewRepeated}">반복 오답만</button></div>` : ''}
     <p class="ox-sub">복습 완료로 표시해도 오답 이력은 유지돼요.</p>
     <section class="ox-review-panel" aria-label="오답노트 문항">
@@ -631,6 +686,13 @@ function renderBlockedBooks() {
 }
 
     function renderLoadedView(){if(bookAccessBlocked){renderBlockedBooks();return;} ({entry,home,chapters:chapterView,bookmarks:bookmarkView,'chapter-complete':chapterCompletionView,quiz,result,review,weak:weakness}[route]||home)(); renderNav(); if(globalThis.lucide)lucide.createIcons({attrs:{width:18,height:18}}); }
+    root.addEventListener('change',event=>{
+      const control=event.target;
+      if(pending || route!=='review' || !control.matches('select[data-review-filter]'))return;
+      setReviewFilter(control.dataset.reviewFilter,control.value);
+      render();
+      root.querySelector('select[data-review-filter="'+control.dataset.reviewFilter+'"]')?.focus();
+    });
     root.addEventListener('toggle',async event=>{
       const details=event.target,id=details.dataset?.questionDetail;
       if(!id || !details.open || details.dataset.loading)return;
@@ -647,6 +709,7 @@ function renderBlockedBooks() {
       try {
       if(action==='refresh-books'){onAccessRefresh?.();return;}
       if(bookAccessBlocked)return;
+      if(action!=='answer')await refreshLearningIfNeeded();
       if(action==='nav'){if(b.dataset.oxRoute==='review' && route!=='result')openReview();else route=b.dataset.oxRoute;}
       else if(action==='collection'){collection=id;allChapters=false;}
       else if(action==='chapter-size'){showChapterSizePicker();return;}
@@ -671,21 +734,24 @@ function renderBlockedBooks() {
         session.submissions[session.index] ||= {id:crypto.randomUUID(),answer};
         const submission=session.submissions[session.index];
         const saved=await persist('submit',{questionId:q.id,version:q.version,answer:submission.answer,submissionId:submission.id});
+        const alreadyLoaded=!!saved.progress.answered_at && progress.get(q.id)?.answered_at===saved.progress.answered_at;
         Object.assign(q,saved.question);progress.set(q.id,saved.progress);statistics.set(q.id,saved.statistics);updateNote(saved.note);
         for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
-        const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};attempts.push(a);todayCount++;session.answers[session.index]=a;
+        const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};
+        if(!alreadyLoaded){attempts.push(a);todayCount++;}session.answers[session.index]=a;
+        learningNeedsRefresh=false;
       }
       else if(action==='next'){if(!session.answers[session.index])return;session.index++; if(session.index===session.ids.length)route='result';}
       else if(action==='retry-session'){start(session.answers.filter(a=>!a.correct).map(a=>a.id),'방금 틀린 문제');return;}
       else if(action==='bookmark'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,bookmark:!note(id).bookmark});updateNote(saved.note);}
       else if(action==='memo'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,memo:root.querySelector('#ox-memo').value});updateNote(saved.note);root.querySelector('#ox-message').textContent='메모를 저장했어요.';return;}
       else if(action==='master'){const saved=await persist('note',{questionId:id,version:byId.get(id).version,mastered:!note(id).mastered});updateNote(saved.note);}
-      else if(action==='history-chapter'){openReview('history',id);}
+      else if(action==='history-chapter'){openReview('history',id,true);}
       else if(action==='history-chapter-start'){
         if(!chapters.has(id))return;
         start(reviews().filter(s=>s.q.chapter_id===id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
       }
-      else if(action==='review-mode'){openReview(b.dataset.mode);}
+      else if(action==='review-mode'){openReview(b.dataset.mode,reviewChapterId,reviewFromWeak,reviewCollectionId);}
       else if(action==='history-status'){if(['all','wrong','regained'].includes(b.dataset.status))reviewStatus=b.dataset.status;}
       else if(action==='history-repeat'){reviewRepeated=!reviewRepeated;}
 
