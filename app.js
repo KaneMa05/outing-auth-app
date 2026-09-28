@@ -3146,8 +3146,10 @@ function renderCriminalLawOxLocalEntry() {
   entry.style.display=student?'':'none';
   // The home shortcut stays visible. Only the server's current access status opens learning.
   requestCriminalLawOx('status').then(data=>{
-    if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]'))
-      document.head.appendChild(el('link',{rel:'modulepreload',href:'./criminal-law-ox.js?v=20260928-ox-compact-filters','data-ox-module-preload':'true'}));
+    if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
+      for(const href of ['./criminal-law-ox-access.js?v=20260928-ox-entry-summary','./criminal-law-ox.js?v=20260928-ox-entry-summary'])
+        document.head.appendChild(el('link',{rel:'modulepreload',href,'data-ox-module-preload':'true'}));
+    }
   }).catch(()=>{});
   return entry;
 }
@@ -3159,9 +3161,10 @@ async function requestCriminalLawOx(action, payload={}) {
   const cached=requestCriminalLawOx.statusCache;
   if(action==='status' && cached?.key===key && (cached.pending || cached.expires>Date.now())) return cached.promise;
   const inFlight=requestCriminalLawOx.bootstrapPending;
-  if(action==='bootstrap' && inFlight?.key===key && inFlight.sessionId===payload.sessionId) return inFlight.promise;
+  const variant=JSON.stringify([payload.summaryOnly===true,payload.homeOnly===true,payload.deferStatistics===true]);
+  if(action==='bootstrap' && inFlight?.key===key && inFlight.sessionId===payload.sessionId && inFlight.variant===variant) return inFlight.promise;
   const status=action==='status'?{key,pending:true,expires:0,value:cached?.key===key?cached.value:null,confirmedAt:cached?.key===key?cached.confirmedAt:0}:null;
-  const bootstrap=action==='bootstrap'?{key,sessionId:payload.sessionId}:null;
+  const bootstrap=action==='bootstrap'?{key,sessionId:payload.sessionId,variant}:null;
   const operation=(async()=>{
   const response=await fetch('/api/criminal-law-ox', {
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -3225,7 +3228,7 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  import("./criminal-law-ox-access.js?v=20260928-ox-compact-filters").then(({ mountAccess }) => {
+  import("./criminal-law-ox-access.js?v=20260928-ox-entry-summary").then(({ mountAccess }) => {
     if (renderCriminalLawOxLocalPreview.view?.key===key) {
       previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
       if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;

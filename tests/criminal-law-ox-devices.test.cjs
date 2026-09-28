@@ -31,6 +31,31 @@ test('Shared app devices: inherit registration, purchase isolation, replacement,
   assert.equal((await call('device_start','one')).sessionId,s1);
   await call('submit','one',{sessionId:s1,questionId:'q',version:1,answer:'X',submissionId:crypto.randomUUID()});
   await call('note','one',{sessionId:s1,questionId:'q',version:1,memo:'보존 메모',bookmark:true});
+  // Exercise the bundled HTTP response against the real gateway and learning SQL.
+  const enter=async(device,extra={},beforeBootstrap=async()=>{})=>{
+    const operations=[];
+    const handler=createHandler({authenticate:async()=>({id:'a'}),sessionSecret:()=>'',invoke:async(action,who,body)=>{
+      operations.push(action);
+      if(action==='bootstrap')await beforeBootstrap();
+      return invokeLearning(action,who,body,async(method,route,args)=>{
+        assert.equal(route,'rpc/ox_device_gateway');
+        return sql('ox_device_gateway',args.p_action,args.p_actor,args.p_body);
+      });
+    }});
+    const res={setHeader(){},status(n){this.statusCode=n;return this;},json(data){this.data=data;}};
+    await handler({method:'POST',headers:{host:'localhost'},body:{action:'device_start',studentId:'a',deviceToken:device,includeBootstrap:true,...extra}},res);
+    return {...res,operations};
+  };
+  const entry=await enter('one');assert.equal(entry.statusCode,200);assert.equal(entry.data.sessionId,s1);
+  assert.deepEqual(entry.operations,['device_start','bootstrap']);
+  assert.equal(entry.data.bootstrap.progress.length,1);assert.equal(entry.data.bootstrap.notes[0].bookmark,true);
+  assert.equal(entry.data.bootstrap.catalog.questions[0].prompt,undefined);
+  assert.equal(entry.data.bootstrap.catalog.questions.some(q=>q.id==='trial-q'),false);
+  const blockedEntry=await enter('two');assert.equal(blockedEntry.data.error,'device_in_use');assert.deepEqual(blockedEntry.operations,['device_start']);
+  const interruptedEntry=await enter('one',{},async()=>{await call('device_start','two',{takeover:true,expectedSessionId:s1});});
+  assert.equal(interruptedEntry.data.error,'device_session_changed');assert.equal(interruptedEntry.data.bootstrap,undefined);
+  const switchedState=await call('device_state','one');
+  s1=(await call('device_start','one',{takeover:true,expectedSessionId:switchedState.activeSessionId})).sessionId;
   // A legacy entitlement is not evidence of a book purchase, even on a valid device.
   await db.exec('reset role');
   await db.exec("insert into students(id) values('legacy');insert into ox_members(student_id,allowed,updated_by) values('legacy',true,'legacy');insert into ox_book_access(student_id,collection_id,source,updated_by) values('legacy','criminal-law','legacy','legacy'),('legacy','criminal-procedure-trial','legacy','legacy')");

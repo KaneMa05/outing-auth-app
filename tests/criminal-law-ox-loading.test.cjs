@@ -98,6 +98,16 @@ test('late authorization failures cannot clear another account status',async()=>
   f.respond(0,{ok:false,error:'unauthorized'},false);await assert.rejects(old);
   assert.equal(f.request.statusCache.key,'b:device-b');assert.equal(f.request.statusCache.value.enabled,true);
 });
+
+test('home summaries, deferred catalogs and full bootstraps never share incompatible pending data',async()=>{
+  const f=fixture();
+  const full=f.request('bootstrap',{summaryOnly:true});
+  const deferred=f.request('bootstrap',{summaryOnly:true,deferStatistics:true});
+  const summary=f.request('bootstrap',{summaryOnly:true,homeOnly:true});
+  assert.equal(f.requests.length,3);
+  f.respond(0,{ok:true,kind:'full'});f.respond(1,{ok:true,kind:'deferred'});f.respond(2,{ok:true,kind:'home'});
+  assert.deepEqual((await Promise.all([full,deferred,summary])).map(data=>data.kind),['full','deferred','home']);
+});
 test('only the OX function overrides the default deployment region',()=>{
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
   assert.deepEqual(config.functions,{'api/criminal-law-ox.js':{regions:['syd1']}});assert.equal(config.regions,undefined);
@@ -200,6 +210,106 @@ test('missing signing configuration and missing cookies retain existing device a
 test('failed OX requests never issue a reusable device session',async()=>{
   const f=sessionFixture();f.deny('ox_not_registered');
   const response=await f.request();assert.equal(response.status,403);assert.equal(response.cookie,undefined);
+});
+
+test('entry combines start and fresh summary with server-issued session and compact fields',async()=>{
+  const calls=[],sessionId=crypto.randomUUID();
+  const handler=createHandler({authenticate:async()=>({id:'a'}),sessionSecret:()=>'',invoke:async(action,actor,body)=>{
+    calls.push({action,actor,body});
+    return action==='device_start'?{ok:true,sessionId}:{ok:true,progress:[{question_id:'q'}],notes:[],catalog:{questions:[{id:'q',chapter_id:'c',version:1,source_page:5}]}};
+  }});
+  const result={setHeader(){},status(code){this.code=code;return this;},json(data){this.data=data;}};
+  await handler({method:'POST',headers:{host:'localhost'},body:{action:'device_start',studentId:'a',deviceToken:'device',includeBootstrap:true,sessionId:crypto.randomUUID(),summaryOnly:false,actor:{type:'admin'}}},result);
+  assert.equal(result.code,200);assert.equal(result.data.sessionId,sessionId);
+  assert.deepEqual(calls.map(c=>c.action),['device_start','bootstrap']);
+  assert.deepEqual(calls[1].body,{sessionId,summaryOnly:true});
+  assert.equal(calls[0].body.includeBootstrap,true);assert.equal(calls[1].actor.type,'student');
+  assert.equal(result.data.bootstrap.progress[0].question_id,'q');
+  assert.equal(result.data.bootstrap.catalog.questions[0].source_page,undefined);
+});
+
+test('entry cannot fetch records before start or after access/session changes, and never issues failed cookies',async()=>{
+  for(const failingAction of ['device_start','bootstrap'])for(const error of ['unauthorized','ox_book_required','ox_disabled','device_session_changed','device_in_use']){
+    const calls=[];
+    const handler=createHandler({authenticate:async()=>({id:'a'}),sessionSecret:()=> 'test-secret',invoke:async(action)=>{
+      calls.push(action);if(action===failingAction)throw Error(error);
+      return {ok:true,sessionId:crypto.randomUUID()};
+    }});
+    const result={headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(data){this.data=data;}};
+    await handler({method:'POST',headers:{host:'localhost'},body:{action:'device_start',studentId:'a',deviceToken:'device',includeBootstrap:true}},result);
+    assert.equal(result.data.error,error);assert.equal(result.data.bootstrap,undefined);assert.equal(result.headers['Set-Cookie'],undefined);
+    assert.equal(calls.length,failingAction==='device_start'?1:2);
+  }
+  const legacy=sessionFixture();await legacy.request({action:'device_start'});
+  assert.deepEqual(legacy.operations.map(o=>o.action),['device_start']);
+  assert.throws(()=>validate({action:'device_start',includeBootstrap:'true'}),/invalid_request/);
+});
+
+function accessFixture(){
+  const requests=[],mounts=[],ready=[],nodes=new Map(),listeners=new Map();let observer;
+  const host={isConnected:true,innerHTML:'',querySelector:selector=>{
+    if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);
+  }};
+  const document={hidden:false,body:{},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)};
+  const context=vm.createContext({document,host,clearTimeout(){},setTimeout:()=>1,
+    MutationObserver:class{constructor(fn){observer=fn;}observe(){}disconnect(){}},
+    mountLearning:(_,options)=>{mounts.push(options);return {};},
+    request:(action,body)=>new Promise((resolve,reject)=>requests.push({action,body,resolve,reject})),onReady:value=>ready.push(value)});
+  vm.runInContext(fs.readFileSync('criminal-law-ox-access.js','utf8').replace(/^import .*;\r?\n/m,'').replace('export function','function')+'\nvar controller=mountAccess(host,{request,onReady});',context);
+  return {requests,mounts,ready,host,nodes,context,
+    respond:(i,data)=>requests[i].resolve(data),reject:(i,code)=>requests[i].reject(Object.assign(Error(code),{code})),
+    visible:value=>{document.hidden=!value;listeners.get('visibilitychange')();},
+    connected:value=>{host.isConnected=value;observer();},flush:()=>new Promise(resolve=>setImmediate(resolve))};
+}
+
+test('normal entry needs one browser request and resume always loads fresh records',async()=>{
+  const f=accessFixture(),bootstrap={ok:true,progress:[{question_id:'latest'}]};
+  assert.equal(f.requests.length,1);assert.equal(f.requests[0].action,'device_start');assert.equal(f.requests[0].body.includeBootstrap,true);
+  f.respond(0,{ok:true,sessionId:'first',bootstrap});await f.flush();
+  assert.equal(f.requests.length,1);assert.equal(f.mounts[0].bootstrap,bootstrap);assert.equal(f.ready.at(-1),true);
+  const detail=f.mounts[0].request('detail',{questionId:'q'});assert.equal(f.requests[1].body.sessionId,'first');
+  f.respond(1,{ok:true});await detail;
+  f.visible(false);f.visible(true);
+  f.respond(2,{ok:true,sessionId:'second',bootstrap:{ok:true,progress:[]}});await f.flush();
+  assert.equal(f.mounts.length,2);assert.equal(f.mounts[1].bootstrap.progress.length,0);assert.equal(f.requests.length,3);
+});
+
+test('older APIs without bundled records fall back to a guarded summary request',async()=>{
+  const f=accessFixture();f.respond(0,{ok:true,sessionId:'old-server'});await f.flush();
+  assert.equal(f.requests[1].action,'bootstrap');assert.equal(f.requests[1].body.sessionId,'old-server');assert.equal(f.requests[1].body.summaryOnly,true);
+  f.respond(1,{ok:true,progress:[]});await f.flush();assert.equal(f.mounts.length,1);
+});
+
+test('another active device still requires explicit takeover with the observed session',async()=>{
+  const f=accessFixture();f.reject(0,'device_in_use');await f.flush();
+  assert.equal(f.requests[1].action,'device_state');
+  f.respond(1,{ok:true,registered:true,activeSessionId:'other',activeHere:false});await f.flush();
+  assert.equal(f.mounts.length,0);assert.equal(f.requests.length,2);
+  const click=f.nodes.get('[data-device-enter]').onclick();
+  assert.equal(f.requests[2].body.takeover,true);assert.equal(f.requests[2].body.expectedSessionId,'other');
+  f.respond(2,{ok:true,sessionId:'here',bootstrap:{ok:true}});await click;assert.equal(f.mounts.length,1);
+});
+
+test('late entry responses cannot mount a hidden, disconnected or destroyed screen',async()=>{
+  for(const kind of ['hidden','disconnected','destroyed']){
+    const f=accessFixture();
+    if(kind==='hidden'){f.visible(false);f.visible(true);}
+    if(kind==='disconnected'){f.connected(false);f.connected(true);}
+    if(kind==='destroyed')f.context.controller.destroy();
+    f.respond(0,{ok:true,sessionId:'obsolete',bootstrap:{ok:true}});await f.flush();
+    assert.equal(f.mounts.length,0);
+    assert.equal(f.requests.length,kind==='destroyed'?1:2);
+    if(kind!=='destroyed'){f.respond(1,{ok:true,sessionId:'new',bootstrap:{ok:true}});await f.flush();assert.equal(f.mounts.length,1);}
+  }
+});
+
+test('failed entry can retry and revoked access does not load device state or learning',async()=>{
+  for(const code of ['ox_unavailable','unauthorized','ox_book_required']){
+    const f=accessFixture();f.reject(0,code);await f.flush();
+    assert.equal(f.mounts.length,0);assert.equal(f.requests.length,1);assert.equal(f.ready.at(-1),false);
+    const retry=f.nodes.get('[data-device-retry]').onclick();
+    f.respond(1,{ok:true,sessionId:'retry',bootstrap:{ok:true}});await retry;assert.equal(f.mounts.length,1);
+  }
 });
 
 test('student learning always uses the device gateway and cannot fall back around it',async()=>{

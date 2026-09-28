@@ -3,6 +3,7 @@ const auth = require('./teacher-auth-utils');
 const { requestSupabase } = require('./curriculum')._private;
 const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history','device_state','device_register','device_start','device_replace','device_request','device_request_cancel','device_heartbeat','admin_device_list','admin_device_requests','admin_device_decide']);
 const bookIds = ['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
+actions.add('attempt_counts');
 for(const action of ['targets','preview','issue','list','detail','revoke'])actions.add('admin_grant_'+action);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
 const DEVICE_SESSION_COOKIE = 'outing_ox_device_session';
@@ -71,6 +72,8 @@ function validate(body) {
   if(action.startsWith('admin_grant_')&&body.page!==undefined&&(!Number.isInteger(body.page)||body.page<0||body.page>10000))fail('invalid_request');
   if (body.sessionId!==undefined && !/^[0-9a-f-]{36}$/i.test(body.sessionId)) fail('invalid_request');
   if (action==='device_start' && ((body.takeover!==undefined && typeof body.takeover!=='boolean') || (body.expectedSessionId!==undefined && !/^[0-9a-f-]{36}$/i.test(body.expectedSessionId)))) fail('invalid_request');
+  if (action==='device_start' && body.includeBootstrap!==undefined && typeof body.includeBootstrap!=='boolean') fail('invalid_request');
+  for(const key of ['homeOnly','deferStatistics','includeStatistics']) if(body[key]!==undefined && typeof body[key]!=='boolean') fail('invalid_request');
   if (['device_replace','device_request','admin_device_decide'].includes(action)) {
     const id=action==='admin_device_decide'?body.requestId:body.targetDeviceId;
     if(typeof id!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500) fail('invalid_request');
@@ -160,7 +163,16 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       // Only the server-derived hash enters the gateway. It checks live app-device
       // revocation and the OX session even when authentication uses a cached cookie.
       const payload={...body}; delete payload.deviceToken; delete payload.studentId; delete payload.actor; delete payload.client; delete payload.action;
-      const data=await invoke(body.action,actor,payload);
+      const includeBootstrap=body.action==='device_start' && payload.includeBootstrap===true;
+      let data=await invoke(body.action,actor,payload);
+      if(includeBootstrap) {
+        if(!data?.ok || !data.sessionId) throw Error('ox_unavailable');
+        // The migrated gateway starts and reads in one transaction. Older databases
+        // ignore the option, so retain the guarded two-call path during rollout.
+        const bootstrap=data.bootstrap || await invoke('bootstrap',actor,{sessionId:data.sessionId,summaryOnly:true});
+        if(!bootstrap?.ok) throw Error('ox_unavailable');
+        data={...data,bootstrap:compactBootstrap(bootstrap)};
+      }
       if (newDeviceCookie && data?.ok) res.setHeader('Set-Cookie',newDeviceCookie);
       res.status(200).json(body.action==='bootstrap'?compactBootstrap(data):data);
     } catch(error) {

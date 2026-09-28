@@ -32,13 +32,14 @@ export function mount(host, {bootstrap,request,onAccessRefresh}) {
       if(!learningNeedsRefresh)return;
       // A failed response does not tell us whether the answer committed.
       // Read persisted records before navigating; never invent an extra attempt.
-      const saved=await persist('bootstrap',{summaryOnly:true});
+      const saved=await persist('bootstrap',{summaryOnly:true,deferStatistics:true});
       progress.clear();for(const p of saved.progress)progress.set(p.question_id,p);
       attempts.splice(0,attempts.length,...saved.progress.map(p=>({id:p.question_id,answer:p.answer,correct:p.correct,seed:true})));
       attemptCounts.clear();for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
       statistics.clear();for(const [id,counts] of Object.entries(saved.statistics || {}))statistics.set(id,counts);
       notes.clear();saved.notes.forEach(updateNote);
       todayCount=saved.todayCount;
+      attemptCountsLoaded=saved.statisticsDeferred!==true;learningWriteVersion++;
       learningNeedsRefresh=false;
     }
     function showError(error){if(blockBookAccess(error))return;let node=root.querySelector('[data-ox-error]');if(!node){node=document.createElement('p');node.dataset.oxError='true';node.setAttribute('role','alert');main.prepend(node);}node.textContent=errorMessages[error.code] || '저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.';}
@@ -54,6 +55,7 @@ export function mount(host, {bootstrap,request,onAccessRefresh}) {
     function entry(){const due=reviews().filter(s=>s.label!=='복습 완료').length; const offline=design.category==='offline'; main.innerHTML=`<span class="ox-eyebrow">MY STUDY</span><h2>오늘도, 나의 속도로.</h2><p class="ox-sub">${offline?'출석부터 학습까지, 차근차근.':'공부를 시작할 준비가 되었나요?'}</p><section class="ox-existing"><div class="ox-row"><h3>${offline?'출석 · 외출':'온라인 스터디카페'}</h3><span class="ox-sub">기존 영역</span></div><p class="ox-sub">${offline?'기존 출석·외출 안내와 행동 영역':'내 공부 공간과 학습 타이머'}</p></section><section class="ox-card ox-hero"><div class="ox-row"><span style="font-size:12px;letter-spacing:1px">STUDY · OX</span><span style="font-size:12px">2,960문항</span></div><h3>형사법 OX</h3><p class="ox-sub">오늘 풀고, 다시 맞히고.<br>헷갈리는 지문을 확실한 정답으로.</p><div style="font-size:12px;margin:18px 0 4px">형법 · 수사·증거 · 공판${due?` / 복습 ${due}개`:''}</div>${button('형사법 OX 시작하기 →','nav','data-ox-route="home"','ox-wide')}</section><div class="ox-section"><h3>학습 바로가기</h3><p class="ox-sub">${design.category==='lecture'?'타이머 · 순공 랭킹 · 공지사항':'기존 학습 안내와 공지사항'}</p></div>`; }
 function home() {
   const due = pendingReviewItems();
+  const dueCount = learningDataLoaded ? due.length : bootstrap.home.reviewCount;
   const today = todayCount;
   const completed = isSessionComplete();
   const answered = session ? session.ids.filter((id, index) => session.answers[index]).length : 0;
@@ -66,8 +68,8 @@ function home() {
       ${button(completed ? '학습 결과 보기' : continuing ? '학습 이어하기 →' : '단원 선택하고 시작 →', completed ? 'session-result' : continuing ? 'resume' : 'daily', '', 'ox-primary ox-wide')}
       ${completed || continuing ? button('다른 단원 선택', 'daily', '', 'ox-wide') : ''}
     </section>
-    <button type="button" class="ox-review-shortcut" data-action="review-needed" ${due.length ? '' : 'disabled'}>
-      <span>복습할 오답</span><span class="ox-review-shortcut-count"><strong>${due.length}</strong> 문항${due.length ? '<span aria-hidden="true">›</span>' : ''}</span>
+    <button type="button" class="ox-review-shortcut" data-action="review-needed" ${dueCount ? '' : 'disabled'}>
+      <span>복습할 오답</span><span class="ox-review-shortcut-count"><strong>${dueCount}</strong> 문항${dueCount ? '<span aria-hidden="true">›</span>' : ''}</span>
     </button>`;
 }
 
@@ -616,6 +618,64 @@ function weakness() {
     ${unlearned.length ? `<details class="ox-weak-pending"><summary>미학습 ${unlearned.length}단원 보기</summary><div class="ox-weak-table">${unlearned.map(weaknessRow).join('')}</div></details>` : ''}`;
 }
 
+// Home is an authoritative server summary. Load the catalog only when navigating
+// into learning, and cumulative counts only when opening the weakness view.
+let learningDataLoaded = bootstrap.homeOnly !== true;
+let attemptCountsLoaded = bootstrap.statisticsDeferred !== true;
+let learningDataPending = null, attemptCountsPending = null, learningWriteVersion = 0;
+
+async function ensureLearningData() {
+  if (learningDataLoaded) return;
+  if (!learningDataPending) learningDataPending = (async () => {
+    const saved = await request('bootstrap', {summaryOnly:true,deferStatistics:true});
+    if (!root.isConnected || bookAccessBlocked) return;
+    Object.assign(data, saved.catalog);
+    byId.clear();data.questions.forEach(q => byId.set(q.id,q));
+    chapters.clear();data.chapters.forEach(c => chapters.set(c.id,c));
+    collections.clear();data.collections.forEach(c => collections.set(c.id,c));
+    collection = data.collections.find(c => c.accessible !== false)?.id || 'criminal-law';
+    progress.clear();saved.progress.forEach(p => progress.set(p.question_id,p));
+    attempts.splice(0,attempts.length,...saved.progress.map(p => ({id:p.question_id,answer:p.answer,correct:p.correct,seed:true})));
+    notes.clear();saved.notes.forEach(updateNote);
+    statistics.clear();Object.entries(saved.statistics || {}).forEach(([id,value]) => statistics.set(id,value));
+    attemptCounts.clear();Object.entries(saved.attemptCounts || {}).forEach(([id,value]) => attemptCounts.set(id,value));
+    todayCount = saved.todayCount;
+    attemptCountsLoaded = saved.statisticsDeferred !== true;
+    learningDataLoaded = true;
+  })().finally(() => {learningDataPending = null;});
+  return learningDataPending;
+}
+
+async function ensureAttemptCounts() {
+  if (attemptCountsLoaded) return;
+  if (!attemptCountsPending) attemptCountsPending = (async () => {
+    const revision = learningWriteVersion;
+    const saved = await request('attempt_counts');
+    if (!root.isConnected || bookAccessBlocked || revision !== learningWriteVersion) return;
+    attemptCounts.clear();Object.entries(saved.attemptCounts || {}).forEach(([id,value]) => attemptCounts.set(id,value));
+    attemptCountsLoaded = true;
+  })().finally(() => {attemptCountsPending = null;});
+  return attemptCountsPending;
+}
+
+function renderDeferredLearning(version) {
+  if (bookAccessBlocked || ['home','entry'].includes(route)
+    || (learningDataLoaded && (route !== 'weak' || attemptCountsLoaded))) return false;
+  renderNav();
+  main.innerHTML = `<p class="ox-sub" role="status">${learningDataLoaded ? '학습 통계를 확인하고 있습니다.' : '학습 목록을 불러오는 중입니다.'}</p>${button('오늘 화면으로','nav','data-ox-route="home"','ox-wide')}`;
+  (async () => {
+    await ensureLearningData();
+    if (version !== questionRenderVersion || !root.isConnected || bookAccessBlocked) return;
+    if (route === 'weak') await ensureAttemptCounts();
+    if (version === questionRenderVersion && root.isConnected && !bookAccessBlocked) render();
+  })().catch(error => {
+    if (version !== questionRenderVersion || !root.isConnected) return;
+    main.innerHTML = `${button('다시 시도','retry-questions','','ox-primary')}${button('오늘 화면으로','nav','data-ox-route="home"')}`;
+    showError(error);
+  });
+  return true;
+}
+
 // Injected into the production mount closure by build-ox-learning.py.
 const questionTextLoads = new Map();
 let questionRenderVersion = 0;
@@ -667,6 +727,7 @@ async function loadQuestionTexts(questions) {
 
 function render() {
   const version = ++questionRenderVersion;
+  if (typeof renderDeferredLearning === 'function' && renderDeferredLearning(version)) return;
   const needed = questionsForCurrentView();
   if (!needed.some(q => typeof q.prompt !== 'string')) { renderLoadedView(); return; }
   renderNav();
@@ -715,11 +776,11 @@ function renderBlockedBooks() {
     root.addEventListener('toggle',async event=>{
       const details=event.target,id=details.dataset?.questionDetail;
       if(!id || !details.open || details.dataset.loading)return;
-      const q=byId.get(id);if(q.explanation_html)return;
+      const q=byId.get(id);if(q.explanation_html && statistics.has(id))return;
       details.dataset.loading='true';
       try {
-        const saved=await request('detail',{questionId:id,version:q.version});
-        Object.assign(q,saved.question);updateNote(saved.note);
+        const saved=await request('detail',{questionId:id,version:q.version,includeStatistics:true});
+        Object.assign(q,saved.question);updateNote(saved.note);if(saved.statistics)statistics.set(id,saved.statistics);
         const wrapper=document.createElement('div');wrapper.innerHTML=reviewItemMarkup({q,...stats(id)});
         if(details.isConnected)details.innerHTML=wrapper.querySelector('details').innerHTML;
       }catch(error){showError(error);}finally{delete details.dataset.loading;}
@@ -756,6 +817,7 @@ function renderBlockedBooks() {
         const alreadyLoaded=!!saved.progress.answered_at && progress.get(q.id)?.answered_at===saved.progress.answered_at;
         Object.assign(q,saved.question);progress.set(q.id,saved.progress);statistics.set(q.id,saved.statistics);updateNote(saved.note);
         for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
+        learningWriteVersion++;
         const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};
         if(!alreadyLoaded){attempts.push(a);todayCount++;}session.answers[session.index]=a;
         learningNeedsRefresh=false;

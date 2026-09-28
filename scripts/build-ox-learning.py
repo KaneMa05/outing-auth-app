@@ -31,13 +31,14 @@ runtime=runtime[:begin]+'''    const attempts = bootstrap.progress.map(p=>({id:p
       if(!learningNeedsRefresh)return;
       // A failed response does not tell us whether the answer committed.
       // Read persisted records before navigating; never invent an extra attempt.
-      const saved=await persist('bootstrap',{summaryOnly:true});
+      const saved=await persist('bootstrap',{summaryOnly:true,deferStatistics:true});
       progress.clear();for(const p of saved.progress)progress.set(p.question_id,p);
       attempts.splice(0,attempts.length,...saved.progress.map(p=>({id:p.question_id,answer:p.answer,correct:p.correct,seed:true})));
       attemptCounts.clear();for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
       statistics.clear();for(const [id,counts] of Object.entries(saved.statistics || {}))statistics.set(id,counts);
       notes.clear();saved.notes.forEach(updateNote);
       todayCount=saved.todayCount;
+      attemptCountsLoaded=saved.statisticsDeferred!==true;learningWriteVersion++;
       learningNeedsRefresh=false;
     }
     function showError(error){let node=root.querySelector('[data-ox-error]');if(!node){node=document.createElement('p');node.dataset.oxError='true';node.setAttribute('role','alert');main.prepend(node);}node.textContent=errorMessages[error.code] || '저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.';}
@@ -46,6 +47,11 @@ runtime=re.sub(r'    const stats = id => .*?; };',"""    const stats = id => { c
 runtime=re.sub(r'function questionAttemptCounts\(id\) \{.*?\n\}', "function questionAttemptCounts(id) { return attemptCounts.get(id) || {attempts:0,correct:0,wrong:0}; }",runtime,flags=re.S)
 runtime=runtime.replace('solved/c.question_count*100','c.question_count ? solved/c.question_count*100 : 0').replace('const enough=solved>=Math.min(5,c.question_count)','const enough=c.question_count>0 && solved>=Math.min(5,c.question_count)')
 runtime=runtime.replace('const today = attempts.filter(a => !a.seed).length;', 'const today = todayCount;')
+home_start=runtime.index('function home() {')
+home_end=runtime.index('\nfunction ',home_start+1)
+home=runtime[home_start:home_end].replace('const due = pendingReviewItems();', 'const due = pendingReviewItems();\n  const dueCount = learningDataLoaded ? due.length : bootstrap.home.reviewCount;').replace('due.length', 'dueCount')
+home=home.replace('learningDataLoaded ? dueCount', 'learningDataLoaded ? due.length')
+runtime=runtime[:home_start]+home+runtime[home_end:]
 runtime=runtime.replace("parseFromString(html,'text/html')","parseFromString(html || '','text/html')")
 runtime=runtime.replace('    seedChapterCompletionPreview();','')
 runtime=re.sub(r'function seedChapterCompletionPreview\(\) \{.*?\n\}', '',runtime,flags=re.S)
@@ -62,11 +68,11 @@ runtime=runtime.replace("if(route!=='review' || !control.matches", "if(pending |
 runtime=runtime.replace("    root.addEventListener('click'",'''    root.addEventListener('toggle',async event=>{
       const details=event.target,id=details.dataset?.questionDetail;
       if(!id || !details.open || details.dataset.loading)return;
-      const q=byId.get(id);if(q.explanation_html)return;
+      const q=byId.get(id);if(q.explanation_html && statistics.has(id))return;
       details.dataset.loading='true';
       try {
-        const saved=await request('detail',{questionId:id,version:q.version});
-        Object.assign(q,saved.question);updateNote(saved.note);
+        const saved=await request('detail',{questionId:id,version:q.version,includeStatistics:true});
+        Object.assign(q,saved.question);updateNote(saved.note);if(saved.statistics)statistics.set(id,saved.statistics);
         const wrapper=document.createElement('div');wrapper.innerHTML=reviewItemMarkup({q,...stats(id)});
         if(details.isConnected)details.innerHTML=wrapper.querySelector('details').innerHTML;
       }catch(error){showError(error);}finally{delete details.dataset.loading;}
@@ -84,6 +90,7 @@ runtime=re.sub(r"else if\(action==='answer'\).*?(?=\n      else if\(action==='ne
         const alreadyLoaded=!!saved.progress.answered_at && progress.get(q.id)?.answered_at===saved.progress.answered_at;
         Object.assign(q,saved.question);progress.set(q.id,saved.progress);statistics.set(q.id,saved.statistics);updateNote(saved.note);
         for(const [id,counts] of Object.entries(saved.attemptCounts || {}))attemptCounts.set(id,counts);
+        learningWriteVersion++;
         const a={id:q.id,answer:submission.answer,correct:submission.answer===q.correct_answer};
         if(!alreadyLoaded){attempts.push(a);todayCount++;}session.answers[session.index]=a;
         learningNeedsRefresh=false;
@@ -98,6 +105,7 @@ runtime=runtime.replace("return { openBookmarks() { route='bookmarks'; render();
 assert 'function render(){' in runtime
 runtime=runtime.replace('function render(){','function renderLoadedView(){',1)
 runtime=runtime.replace('    function renderLoadedView(){',(root/'scripts/ox-question-loading-runtime.js').read_text(encoding='utf-8')+'\n    function renderLoadedView(){',1)
+runtime=runtime.replace('// Injected into the production mount closure', (root/'scripts/ox-deferred-learning-runtime.js').read_text(encoding='utf-8')+'\n// Injected into the production mount closure',1)
 # Book entitlements are supplied for all three catalog labels; learning data is server-filtered.
 runtime=runtime.replace("collection='criminal-law'", "collection=(data.collections.find(c=>c.accessible!==false)?.id || 'criminal-law')")
 runtime=runtime.replace('function chapterView() {', "function chapterView() {\n  if(collections.get(collection)?.accessible===false){lockedBookView();return;}")

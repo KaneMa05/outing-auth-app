@@ -49,6 +49,7 @@ async function loadQuestionTexts(questions) {
 
 function render() {
   const version = ++questionRenderVersion;
+  if (typeof renderDeferredLearning === 'function' && renderDeferredLearning(version)) return;
   const needed = questionsForCurrentView();
   if (!needed.some(q => typeof q.prompt !== 'string')) { renderLoadedView(); return; }
   renderNav();

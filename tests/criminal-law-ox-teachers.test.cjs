@@ -34,6 +34,7 @@ test('Teachers can learn on verified devices without enrollment; student access,
   const priorRoster=await core('admin_members',{registeredOnly:false});
   await db.exec(read(migration));
   await db.exec(read('20260923022226_ox_cumulative_learning_accuracy.sql'));
+  await db.exec(read('20260928071629_ox_entry_summary_and_deferred_statistics.sql'));
   assert.deepEqual((await db.query('select * from ox_progress')).rows,previousRecords,'Existing learning records are preserved without a backfill');
   assert.deepEqual(await core('admin_members',{registeredOnly:false}),priorRoster,'Student administration stays unchanged');
   await db.exec('set role service_role');

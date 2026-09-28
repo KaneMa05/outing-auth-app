@@ -1,5 +1,5 @@
 // OX-only device policy. Learning records always come from the server on entry/resume.
-import {mount as mountLearning} from './criminal-law-ox.js?v=20260928-ox-compact-filters';
+import {mount as mountLearning} from './criminal-law-ox.js?v=20260928-ox-entry-summary';
 
 export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
   let controller=null,sessionId=null,epoch=0,destroyed=false,busy=false,timer=null,checking=false,resumeRequested=false;
@@ -39,23 +39,35 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     checking=true;
     try{await guarded('device_heartbeat');}catch(error){if(sessionId)failed(error);}finally{checking=false;schedule();}
   }
-  async function enter(state,takeover=false){
+  async function enter(state={},takeover=false){
     if(busy || !connected())return;
-    busy=true;stop();const version=epoch;
+    busy=true;stop();const version=epoch;let inspectState=false;
     shell('OX 학습 준비','저장된 학습 기록을 불러오는 중입니다.');
     try{
-      const started=await request('device_start',takeover?{takeover:true,expectedSessionId:state.activeSessionId}:{});
+      const started=await request('device_start',{includeBootstrap:true,homeOnly:true,...(takeover?{takeover:true,expectedSessionId:state.activeSessionId}:{})});
       if(version!==epoch || !connected())return;
       sessionId=started.sessionId;
-      const bootstrap=await guarded('bootstrap',{summaryOnly:true});
+      // Older API deployments ignore includeBootstrap; keep their learning path working.
+      const bootstrap=started.bootstrap || await guarded('bootstrap',{summaryOnly:true});
       if(version!==epoch || !connected())return;
       host.innerHTML='<div data-device-learning></div>';
       controller=mountLearning(host.querySelector('[data-device-learning]'),{bootstrap,request:guarded,onAccessRefresh:()=>load()});
       onReady(true);schedule();
-    }catch(error){if(version===epoch)failed(error);}finally{busy=false;if(resumeRequested){resumeRequested=false;load();}}
+    }catch(error){
+      if(version===epoch && connected()){
+        if(['device_in_use','device_not_registered'].includes(error.code))inspectState=true;
+        else failed(error);
+      }
+    }finally{
+      busy=false;
+      if(resumeRequested){resumeRequested=false;load();}
+      else if(inspectState && version===epoch && connected())load(true);
+    }
   }
   async function load(manage=false){
     if(busy || !connected())return;
+    // Normal entry needs no separate state request; start enforces the same policy.
+    if(!manage)return enter();
     stop();const version=epoch;
     shell('OX 이용 확인','기기 이용 상태를 확인하고 있습니다.');
     try{
