@@ -420,6 +420,7 @@ function quiz() {
 // Inserted into the local preview module by build-local-preview.py.
 let reviewMode = 'pending', reviewChapterId = null, reviewStatus = 'all', reviewRepeated = false;
 let reviewSort = 'recent', reviewFromWeak = false, reviewCollectionId = null;
+let reviewFiltersOpen = false;
 
 function openReview(mode = 'pending', chapterId = null, fromWeak = false, collectionId = null) {
   if (chapterId && !chapters.has(chapterId)) return;
@@ -430,6 +431,7 @@ function openReview(mode = 'pending', chapterId = null, fromWeak = false, collec
   reviewFromWeak = fromWeak;
   reviewStatus = 'all';
   reviewRepeated = false;
+  reviewFiltersOpen = false;
   route = 'review';
 }
 
@@ -478,7 +480,16 @@ function reviewControls() {
       return options.length ? `<option value="collection:${esc(collection.id)}" ${reviewCollectionId === collection.id ? 'selected' : ''}>${esc(collection.name)} 전체</option>${options.map(c => `<option value="${esc(c.id)}" ${reviewChapterId === c.id ? 'selected' : ''}>　${esc(c.display_name)}</option>`).join('')}` : '';
     }).join('')}</select></label>
     <label>정렬<select data-review-filter="sort"><option value="recent" ${reviewSort === 'recent' ? 'selected' : ''}>최신순</option><option value="wrong" ${reviewSort === 'wrong' ? 'selected' : ''}>누적 오답 횟수순</option></select></label>
-  </div><p class="ox-sub ox-review-sort-help">${reviewSort === 'recent' ? '마지막으로 푼 문제가 먼저 보여요.' : '많이 틀린 문제가 먼저 보여요.'}</p>`;
+  </div>`;
+}
+
+function reviewFilterSummary() {
+  const scope = reviewChapterId ? chapters.get(reviewChapterId).display_name
+    : reviewCollectionId ? collections.get(reviewCollectionId).name + ' 전체' : '전체 단원';
+  const values = [scope, reviewSort === 'recent' ? '최신순' : '누적 오답 횟수순'];
+  if (reviewMode === 'history' && reviewStatus !== 'all') values.push(reviewStatus === 'wrong' ? '아직 틀림' : '다시 맞힘');
+  if (reviewMode === 'history' && reviewRepeated) values.push('반복 오답만');
+  return values.join(' · ');
 }
 
 function reviewItemMarkup(s) {
@@ -511,14 +522,21 @@ function review() {
   const visible = reviewItemsForFilter();
   const history = reviewMode === 'history';
   const all = reviews().filter(matchesReviewScope);
+  const filterSummary = reviewFilterSummary();
   const statusOptions = [['all', '전체 이력', all.length], ['wrong', '아직 틀림', all.filter(s => !s.last?.correct).length], ['regained', '다시 맞힘', all.filter(s => s.last?.correct).length]];
   main.innerHTML = `
     ${reviewFromWeak ? button('취약단원으로', 'nav', 'data-ox-route="weak"') : ''}
     <h2>${reviewChapterId ? esc(chapters.get(reviewChapterId).display_name) : reviewCollectionId ? esc(collections.get(reviewCollectionId).name) + ' 오답노트' : '오답노트'}</h2>
-    <div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>
-    ${reviewControls()}
-    ${history ? `<div class="ox-history-filters" role="group" aria-label="오답 이력 상태">${statusOptions.map(([value, label, count]) => `<button type="button" class="mini-btn ox-filter" data-action="history-status" data-status="${value}" aria-pressed="${reviewStatus === value}">${label} ${count}</button>`).join('')}<button type="button" class="mini-btn ox-filter" data-action="history-repeat" aria-pressed="${reviewRepeated}">반복 오답만</button></div>` : ''}
-    <p class="ox-sub">복습 완료로 표시해도 오답 이력은 유지돼요.</p>
+    <div class="ox-review-toolbar">
+      <div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>
+      <button type="button" class="mini-btn ox-review-filter-toggle" data-action="review-filters-toggle" aria-expanded="${reviewFiltersOpen}" aria-controls="ox-review-filter-panel" title="${esc(filterSummary)}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14M7 3v4M13 8v4M8 13v4" /></svg>필터</button>
+    </div>
+    <section id="ox-review-filter-panel" class="ox-review-filter-panel" aria-label="오답노트 필터" ${reviewFiltersOpen ? '' : 'hidden'}>
+      ${reviewControls()}
+      ${history ? `<div class="ox-history-filters" role="group" aria-label="오답 이력 상태">${statusOptions.map(([value, label, count]) => `<button type="button" class="mini-btn ox-filter" data-action="history-status" data-status="${value}" aria-pressed="${reviewStatus === value}">${label} ${count}</button>`).join('')}<button type="button" class="mini-btn ox-filter" data-action="history-repeat" aria-pressed="${reviewRepeated}">반복 오답만</button></div>` : ''}
+      <p class="ox-sub ox-review-filter-note">복습 완료로 표시해도 오답 이력은 유지돼요.</p>
+      <div class="ox-review-filter-actions">${button('초기화', 'review-filters-reset', '', 'ox-plain')}${button('닫기', 'review-filters-close', '', 'ox-primary')}</div>
+    </section>
     <section class="ox-review-panel" aria-label="오답노트 문항">
       <header class="ox-review-head">
         <h3>${history ? '오답 이력' : '복습 목록'}<span class="ox-review-count">${visible.length}문항</span></h3>
@@ -670,6 +688,9 @@ function weakness() {
       else if(action==='review-mode'){openReview(b.dataset.mode,reviewChapterId,reviewFromWeak,reviewCollectionId);}
       else if(action==='history-status'){if(['all','wrong','regained'].includes(b.dataset.status))reviewStatus=b.dataset.status;}
       else if(action==='history-repeat'){reviewRepeated=!reviewRepeated;}
+      else if(action==='review-filters-toggle'){reviewFiltersOpen=!reviewFiltersOpen;}
+      else if(action==='review-filters-close'){reviewFiltersOpen=false;}
+      else if(action==='review-filters-reset'){reviewChapterId=null;reviewCollectionId=null;reviewSort='recent';reviewStatus='all';reviewRepeated=false;}
 
       else if(action==='filter')filter=b.dataset.filter;
       else if(action==='review-all'){start(reviewItemsForFilter().map(s=>s.q.id),'오답 모아 풀기');return;}

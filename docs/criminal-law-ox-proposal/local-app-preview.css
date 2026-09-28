@@ -243,7 +243,21 @@ body.student-online-mode #criminal-ox-preview .ox-weak-guide > summary { color:v
 body.student-online-mode #criminal-ox-preview .ox-review-controls label { color:var(--online-ui-muted); }
 #criminal-ox-preview .ox-review-controls select { width:100%; min-width:0; min-height:44px; border:1px solid var(--ox-line); border-radius:10px; padding:9px 24px 9px 10px; background:var(--ox-paper); color:var(--ox-ink); font:inherit; font-size:.78rem; text-overflow:ellipsis; }
 #criminal-ox-preview .ox-review-controls select:focus-visible { outline:2px solid var(--ox-accent); outline-offset:2px; }
-#criminal-ox-preview .ox-review-sort-help { margin:0 0 14px; font-size:.72rem; }
+#criminal-ox-preview .ox-review-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; margin:12px 0 10px; }
+#criminal-ox-preview .ox-review-toolbar .ox-history-tabs { margin:0; gap:3px; padding:3px; border-radius:12px; background:var(--ox-soft); }
+#criminal-ox-preview .ox-review-toolbar .ox-history-tabs .ox-filter { min-height:36px; padding:6px 8px; border:0; border-radius:9px; font-size:.76rem; }
+#criminal-ox-preview .ox-review-filter-toggle { display:flex; align-items:center; justify-content:center; gap:5px; min-height:42px; padding:8px 11px; border-radius:12px; white-space:nowrap; font-size:.76rem; }
+#criminal-ox-preview .ox-review-filter-toggle svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; }
+#criminal-ox-preview .ox-review-filter-toggle[aria-expanded="true"] { border-color:var(--ox-accent); }
+#criminal-ox-preview .ox-review-filter-panel { margin:0 0 12px; padding:14px; border:1px solid var(--ox-line); border-radius:14px; background:var(--ox-paper); }
+#criminal-ox-preview .ox-review-filter-panel[hidden] { display:none; }
+#criminal-ox-preview .ox-review-filter-panel .ox-review-controls { margin:0 0 8px; }
+#criminal-ox-preview .ox-review-filter-panel .ox-review-controls label { color:var(--ox-muted); }
+#criminal-ox-preview .ox-review-filter-panel .ox-history-filters { gap:6px; margin:10px 0; }
+#criminal-ox-preview .ox-review-filter-panel .ox-history-filters .ox-filter { min-height:36px; padding:6px 9px; font-size:.72rem; }
+#criminal-ox-preview .ox-review-filter-note { font-size:.68rem; }
+#criminal-ox-preview .ox-review-filter-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+#criminal-ox-preview .ox-review-filter-actions .ox-button { width:auto; min-height:38px; margin:0; padding:8px 14px; font-size:.76rem; }
 #criminal-ox-preview .ox-history-badges { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
 #criminal-ox-preview .ox-history-notice { padding:10px 12px; border-radius:10px; background:var(--ox-soft); color:var(--ox-green); font-size:.76rem; line-height:1.7; word-break:keep-all; overflow-wrap:anywhere; }
 @media (max-width:360px) {

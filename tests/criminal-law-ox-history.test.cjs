@@ -189,3 +189,22 @@ test('selecting a subject includes its chapters and preserves scope for tabs, co
   assert.equal(f.run('reviewChapterId'),null);
   assert.equal(f.run('reviewItemsForFilter().length'),14);
 });
+
+test('compact filters start collapsed, preserve selection when closed, and reset without changing history mode',()=>{
+  const f=fixture();
+  f.run("openReview('history');review()");
+  assert.match(f.html(), /id="ox-review-filter-panel"[^>]* hidden/);
+  assert.ok(!f.html().includes('마지막으로 푼 문제가 먼저 보여요'));
+  f.run("action('review-filters-toggle');setReviewFilter('chapter','a');setReviewFilter('sort','wrong');action('history-status',null,{status:'regained'});action('history-repeat');review()");
+  assert.equal(f.run('reviewFiltersOpen'),true);
+  assert.ok(!f.html().includes('ox-review-filter-count'));
+  assert.equal(f.run('reviewItemsForFilter().length'),1);
+  f.run("action('review-filters-close');review()");
+  assert.equal(f.run('reviewFiltersOpen'),false);
+  assert.equal(f.run('reviewItemsForFilter().length'),1);
+  assert.match(f.html(), /aria-expanded="false"/);
+  f.run("action('review-filters-toggle');action('review-filters-reset');review()");
+  assert.equal(f.run('reviewFiltersOpen'),true);
+  assert.equal(f.run('reviewMode'),'history');
+  assert.equal(f.run('reviewItemsForFilter().length'),15);
+});

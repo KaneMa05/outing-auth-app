@@ -6,7 +6,7 @@ const root = path.resolve(__dirname, '..');
 const html = `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>오답노트 · 로컬 미리보기</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/criminal-law-ox.css">
 <style>body{margin:0;background:#f3f6f8}.preview-bar{max-width:640px;margin:20px auto 0;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font:13px sans-serif;color:#546578}.preview-bar select{padding:8px;border:1px solid #ccd5df;border-radius:8px}.criminal-law-ox-local-page{max-width:640px;margin:16px auto 40px;padding:20px 16px;background:var(--surface,#fff);border-radius:16px;box-sizing:border-box}@media(max-width:480px){.criminal-law-ox-local-page{margin:12px 8px 24px;padding:16px 12px}.preview-bar{padding:0 12px;font-size:11px}}</style>
-<style>.preview-bar span{white-space:nowrap}.preview-bar select{width:auto;max-width:180px}body.student-online-mode .preview-bar{color:#d8e6ef}body.student-online-mode .criminal-law-ox-local-page{background:transparent}</style>
+<style>.preview-bar{flex-wrap:wrap}.preview-bar span{white-space:nowrap}.preview-bar select{width:auto;max-width:180px}body.student-online-mode .preview-bar{color:#d8e6ef}body.student-online-mode .criminal-law-ox-local-page{background:transparent}</style>
 <body class="student-mode student-online-mode student-lecture-mode"><div class="preview-bar"><span>로컬 미리보기 · 예시 학습 기록</span><select aria-label="수강생 화면" id="theme"><option value="lecture">인터넷 수강생</option><option value="online">온라인 관리반</option><option value="offline">오프라인 수강생</option></select></div>
 <main class="criminal-law-ox-local-page"><div id="host"></div></main>
 <script type="module">
