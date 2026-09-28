@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+// Original three-request API contract; the new RPC is tested independently.
+process.env.STUDENT_REWARDS_SYNC_RPC_ENABLED = "false";
 const fs = require("node:fs");
 const vm = require("node:vm");
 const { Readable } = require("node:stream");

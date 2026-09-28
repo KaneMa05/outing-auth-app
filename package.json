@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "build": "node build-config.js",
+    "posttest": "node tests/study-cafe-fast-rpc.test.js",
+    "test:cost-logs": "node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-rpc-fallback.test.js",
+    "test:cost-logs:db": "node tests/study-cafe-fast-rpc-db.test.js",
     "test:final-scope-admin": "node tests/final-scope-admin.test.cjs",
     "test:criminal-law-ox": "node tests/criminal-law-ox-history.test.cjs && node tests/criminal-law-ox-review-count.test.cjs && node tests/criminal-law-ox.test.cjs && node tests/criminal-law-ox-books.test.cjs && node tests/criminal-law-ox-cohorts.test.cjs && node tests/criminal-law-ox-devices.test.cjs && node tests/criminal-law-ox-grants.test.cjs && node tests/criminal-law-ox-teachers.test.cjs",
     "test:planner-subjects": "node tests/planner-subjects.test.js",

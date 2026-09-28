@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+// Preserved legacy contract; the enabled fast path has its own API/SQL tests.
+process.env.STUDY_CAFE_HEARTBEAT_RPC_ENABLED = "false";
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 

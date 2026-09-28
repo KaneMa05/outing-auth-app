@@ -1,5 +1,6 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
+const { createRpcRetryState } = require("../supabase-rpc-retry");
 
 const ACTIONS = new Set([
   "list",
@@ -22,7 +23,7 @@ const MESSAGE_WINDOW_MS = 10 * 1000;
 const MESSAGE_WINDOW_LIMIT = 8;
 const ROOM_ACTIVE_STALE_MS = 2 * 60 * 1000;
 const ROOM_IDLE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
-let studyRoomSnapshotRpcSupported = true;
+const studyRoomSnapshotRpc = createRpcRetryState();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -264,7 +265,7 @@ async function listRooms(studentId) {
 }
 
 async function loadOwnRoom(student) {
-  if (studyRoomSnapshotRpcSupported) {
+  if (studyRoomSnapshotRpc.begin()) {
     const studyBounds = getStudyRoomDayBounds();
     try {
       const snapshot = await callRpc("get_study_cafe_room_snapshot", {
@@ -274,12 +275,15 @@ async function loadOwnRoom(student) {
       });
       if (isValidStudyRoomSnapshotPayload(snapshot)) {
         const serialized = serializeStudyRoomSnapshot(snapshot, student);
-        if (serialized) return serialized;
+        if (serialized) {
+          studyRoomSnapshotRpc.succeeded();
+          return serialized;
+        }
       }
-      studyRoomSnapshotRpcSupported = false;
+      studyRoomSnapshotRpc.failed();
       console.warn("Study room snapshot RPC returned an invalid payload; using legacy reads.");
     } catch (error) {
-      studyRoomSnapshotRpcSupported = false;
+      studyRoomSnapshotRpc.failed();
       console.warn("Study room snapshot RPC failed; using legacy reads.", {
         status: error?.storeStatus || error?.status || null,
       });

@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const { createRpcRetryState } = require("../supabase-rpc-retry");
+const rewardSyncRpc = createRpcRetryState();
 
 function isRewardStudent(student) {
   return student?.is_active === true && student.account_type === "student"
@@ -16,7 +18,12 @@ async function requestStore(method, path, body) {
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!response.ok) throw new Error("rewards_unavailable");
+  if (!response.ok) {
+    const error = new Error("rewards_unavailable");
+    error.storeStatus = response.status;
+    error.detail = typeof response.text === "function" ? await response.text().catch(() => "") : "";
+    throw error;
+  }
   return response.status === 204 ? null : response.json();
 }
 
@@ -48,6 +55,40 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ ok: false, error: "invalid_request" });
   }
   try {
+    if (action === "sync" && process.env.STUDENT_REWARDS_SYNC_RPC_ENABLED !== "false" && rewardSyncRpc.begin()) {
+      let authenticated = false;
+      try {
+        const result = await requestStore("POST", "rpc/validate_student_reward_device", {
+          p_student_id: studentId,
+          p_device_token_hash: crypto.createHash("sha256").update(deviceToken).digest("hex"),
+          p_client_display_mode: String(body.client?.displayMode || "").slice(0, 40) || null,
+          p_client_user_agent: String(body.client?.userAgent || "").slice(0, 500) || null,
+        });
+        rewardSyncRpc.succeeded();
+        if (result?.ok === true) {
+          authenticated = true;
+          // End the device validator's student-row lock before the reward
+          // transaction locks enrollment/wallet rows and inserts FK records.
+          const rewards = await requestStore("POST", "rpc/sync_student_rewards", {
+            p_student_id: studentId, p_welcome: body.welcome === true,
+          });
+          return res.status(200).json(rewards);
+        }
+        if (result?.ok === false && ["device_not_active", "student_only"].includes(result.error)) {
+          return res.status(403).json({ ok: false, error: result.error });
+        }
+        throw new Error("rewards_unavailable");
+      } catch (error) {
+        let detail;
+        try { detail = JSON.parse(error.detail); } catch (_) { /* No structured error. */ }
+        if (authenticated || error.storeStatus !== 404 || detail?.code !== "PGRST202") {
+          // Unknown commit outcome: never repeat reward writes through fallback.
+          rewardSyncRpc.succeeded();
+          throw error;
+        }
+        rewardSyncRpc.failed();
+      }
+    }
     const validation = await requestStore("POST", "rpc/validate_student_device", {
       p_student_id: studentId,
       p_device_token_hash: crypto.createHash("sha256").update(deviceToken).digest("hex"),

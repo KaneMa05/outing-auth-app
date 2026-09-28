@@ -18,6 +18,9 @@ const originalFetch = global.fetch;
 const originalWarn = console.warn;
 const originalUrl = process.env.SUPABASE_URL;
 const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const originalNow = Date.now;
+let clock = originalNow();
+Date.now = () => clock;
 
 (async () => {
   process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -41,7 +44,7 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const secondStudyCafeLoad = await loadStudyCafeSnapshotRows("20001", now);
   assert.deepEqual(firstStudyCafeLoad.subjects, [{ name: "fallback-law", sort_order: 0 }]);
   assert.deepEqual(secondStudyCafeLoad.subjects, [{ name: "fallback-law", sort_order: 0 }]);
-  assert.equal(studyCafeRpcCalls, 1, "failed study cafe RPC should be disabled for this server instance");
+  assert.equal(studyCafeRpcCalls, 1, "failed study cafe RPC cools down instead of retrying every request");
 
   let studyRoomRpcCalls = 0;
   global.fetch = async (url) => {
@@ -58,12 +61,57 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const secondRoomLoad = await loadOwnRoom(student);
   assert.deepEqual(firstRoomLoad, { room: null });
   assert.deepEqual(secondRoomLoad, { room: null });
-  assert.equal(studyRoomRpcCalls, 1, "failed room RPC should be disabled for this server instance");
+  assert.equal(studyRoomRpcCalls, 1, "failed room RPC cools down");
+
+  clock += 60000;
+  let resolveProbe;
+  global.fetch = async (url) => {
+    if (url.endsWith("/rpc/get_study_cafe_snapshot_data")) {
+      studyCafeRpcCalls++;
+      return new Promise(resolve => { resolveProbe = resolve; });
+    }
+    return jsonResponse([]);
+  };
+  const recovering = loadStudyCafeSnapshotRows("20001", now);
+  await Promise.resolve();
+  await loadStudyCafeSnapshotRows("20002", now);
+  assert.equal(studyCafeRpcCalls, 2, "only one recovery probe per instance is in flight");
+  const validCafe = Object.fromEntries(["subjects", "todos", "subjectGoals", "profiles", "ownPresence", "activeSessions", "sessions", "presence", "onlineStudents"].map(key => [key, []]));
+  resolveProbe(jsonResponse({ ...validCafe, subjects: [{ name: "recovered" }] }));
+  assert.equal((await recovering).subjects[0].name, "recovered");
+  let normalCalls = 0;
+  global.fetch = async (url) => {
+    normalCalls++;
+    if (url.endsWith("/rpc/get_study_cafe_snapshot_data")) return jsonResponse(validCafe);
+    if (url.endsWith("/rpc/get_study_cafe_room_snapshot")) return jsonResponse({ membership: null, room: null, members: [], profiles: [], students: [], messages: [], sessions: [] });
+    throw new Error(`legacy query after recovery: ${url}`);
+  };
+  await loadStudyCafeSnapshotRows("20001", now);
+  assert.deepEqual(await loadOwnRoom(student), { room: null });
+  assert.equal(normalCalls, 2, "both APIs return to one snapshot request after recovery");
+
+  const { createRpcRetryState } = require("../supabase-rpc-retry");
+  const retry = createRpcRetryState();
+  for (const delay of [60000, 120000, 240000, 300000, 300000]) {
+    assert.equal(retry.begin(), true);
+    retry.failed();
+    clock += delay - 1;
+    assert.equal(retry.begin(), false);
+    clock += 1;
+  }
+  assert.equal(retry.begin(), true);
+  assert.equal(retry.begin(), false, "bounded half-open probe");
+  retry.succeeded();
+  assert.equal(retry.begin(), true);
+  retry.failed();
+  clock += 60000;
+  assert.equal(retry.begin(), true, "success resets the backoff");
 
   console.log("study cafe RPC fallback tests passed");
 })()
   .finally(() => {
     global.fetch = originalFetch;
+    Date.now = originalNow;
     console.warn = originalWarn;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = originalUrl;

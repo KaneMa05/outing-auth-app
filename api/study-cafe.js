@@ -1,5 +1,6 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
+const { createRpcRetryState } = require("../supabase-rpc-retry");
 const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
 const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
 
@@ -42,7 +43,8 @@ const IDLE_PRESENCE_STALE_MS = 15 * 60 * 1000 + 10 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
 const MAX_SEAT_NUMBER = 96;
 const MAX_TODOS_PER_DAY = 60;
-let studyCafeSnapshotRpcSupported = true;
+const studyCafeSnapshotRpc = createRpcRetryState();
+const studyCafeHeartbeatRpc = createRpcRetryState();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -65,7 +67,16 @@ module.exports = async function handler(req, res) {
       res.status(400).json({ ok: false, error: "missing_required_fields" });
       return;
     }
-    const student = await authenticateOnlineStudent({
+    let heartbeatStudent = null;
+    if (action === "heartbeat" && process.env.STUDY_CAFE_HEARTBEAT_RPC_ENABLED !== "false") {
+      const result = await tryStudyCafeHeartbeat({ studentId, deviceToken, client: body.client });
+      if (result?.handled) {
+        res.status(result.status).json(result.payload);
+        return;
+      }
+      heartbeatStudent = result?.student || null;
+    }
+    const student = heartbeatStudent || await authenticateOnlineStudent({
       studentId,
       deviceToken,
       client: body.client,
@@ -588,6 +599,47 @@ function hasStudyCafeAccess(student) {
   return !category && String(student?.id || "").startsWith("2");
 }
 
+async function tryStudyCafeHeartbeat({ studentId, deviceToken, client }) {
+  if (!studyCafeHeartbeatRpc.begin()) return null;
+  let result;
+  try {
+    result = await requestSupabase("POST", "rpc/study_cafe_heartbeat", {
+      p_student_id: studentId,
+      p_device_token_hash: hashDeviceToken(deviceToken),
+      p_client_display_mode: normalizeText(client?.displayMode, 40) || null,
+      p_client_user_agent: normalizeText(client?.userAgent, 500) || null,
+    });
+  } catch (error) {
+    let detail;
+    try { detail = JSON.parse(error.detail); } catch (_) { /* No structured store error. */ }
+    // PGRST202 means PostgREST did not execute the absent RPC. Other failures
+    // may have committed a heartbeat: never replay those through legacy writes.
+    if (error.storeStatus === 404 && detail?.code === "PGRST202") {
+      studyCafeHeartbeatRpc.failed();
+      console.warn("Study cafe heartbeat RPC is not installed; using legacy heartbeat.");
+      return null;
+    }
+    studyCafeHeartbeatRpc.succeeded();
+    throw error;
+  }
+  studyCafeHeartbeatRpc.succeeded();
+  if (result?.ok === true && typeof result.serverNow === "string" && Number.isFinite(Date.parse(result.serverNow))) {
+    return { handled: true, status: 200, payload: { ok: true, serverNow: result.serverNow } };
+  }
+  const errors = { device_not_active: 403, online_student_only: 403, seat_required: 409 };
+  if (result?.ok === false && Object.hasOwn(errors, result.error)) {
+    return { handled: true, status: errors[result.error], payload: { ok: false, error: result.error } };
+  }
+  // Explicit legacy results guarantee that no seat/session write occurred.
+  if (result?.legacy === true && result.student?.id === studentId
+      && result.student.is_active === true && hasStudyCafeAccess(result.student)) {
+    return { handled: false, student: result.student };
+  }
+  const error = new Error("study_cafe_heartbeat_invalid_response");
+  error.status = 502;
+  throw error;
+}
+
 function hasStudyCafeShopAccess(student) {
   return String(student?.student_category || "").trim() === "lecture";
 }
@@ -738,7 +790,7 @@ async function buildStudyCafeSnapshot(student, now) {
 }
 
 async function loadStudyCafeSnapshotRows(studentId, now) {
-  if (studyCafeSnapshotRpcSupported) {
+  if (studyCafeSnapshotRpc.begin()) {
     const bounds = getKstDayBounds(now);
     try {
       const response = await requestSupabase("POST", "rpc/get_study_cafe_snapshot_data", {
@@ -760,6 +812,7 @@ async function loadStudyCafeSnapshotRows(studentId, now) {
         "onlineStudents",
       ];
       if (payload && typeof payload === "object" && requiredCollections.every((key) => Array.isArray(payload[key]))) {
+        studyCafeSnapshotRpc.succeeded();
         return {
           subjects: payload.subjects,
           todos: payload.todos,
@@ -772,10 +825,10 @@ async function loadStudyCafeSnapshotRows(studentId, now) {
           onlineStudents: payload.onlineStudents,
         };
       }
-      studyCafeSnapshotRpcSupported = false;
+      studyCafeSnapshotRpc.failed();
       console.warn("Study cafe snapshot RPC returned an invalid payload; using legacy reads.");
     } catch (error) {
-      studyCafeSnapshotRpcSupported = false;
+      studyCafeSnapshotRpc.failed();
       console.warn("Study cafe snapshot RPC failed; using legacy reads.", {
         status: error?.storeStatus || error?.status || null,
       });
