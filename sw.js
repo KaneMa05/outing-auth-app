@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v458-ox-entry-summary";
+const CACHE_NAME = "outing-auth-app-v459-ox-weak-copy";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -40,13 +40,13 @@ const APP_SHELL = [
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20260922-ox-recipient-selection",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",
-  "/criminal-law-ox.js?v=20260928-ox-entry-summary",
+  "/criminal-law-ox.js?v=20260928-ox-weak-copy",
   "/criminal-law-ox.css?v=20260928-ox-compact-filters",
-  "/criminal-law-ox-access.js?v=20260928-ox-entry-summary",
+  "/criminal-law-ox-access.js?v=20260928-ox-weak-copy",
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20260922-ox-recipient-selection",
   "/criminal-law-ox-device-admin.js?v=20260922-ox-device-policy",
-  "/app.js?v=20260928-ox-entry-summary",
+  "/app.js?v=20260928-ox-weak-copy",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",

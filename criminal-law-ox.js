@@ -605,11 +605,10 @@ function weakness() {
         </div>
       </details>
     </div>
-    <p class="ox-sub">틀렸던 문항이 있는 단원이에요. 모두 다시 맞혀도 복습할 수 있도록 남겨두어요.</p>
     <div class="ox-weak-overview" aria-label="단원별 요약">
       ${counts.map(item => `<div><span>${item.label}</span><strong class="ox-weak-${item.tone}">${item.count}<small>${item.unit}</small></strong></div>`).join('')}
     </div>
-    <p class="ox-sub">누적 정답률 낮은 순 · 단원을 누르면 이전 오답을 볼 수 있어요.</p>
+    <p class="ox-sub">누적 정답률 낮은 순</p>
     <section class="ox-weak-table" aria-label="취약 단원">
       <div class="ox-weak-columns" aria-hidden="true"><span>단원</span><span>누적 정답률</span><span>복습 상태</span><span></span></div>
       ${weak.length ? weak.map(weaknessRow).join('') : '<div class="ox-review-empty"><h3>아직 틀렸던 문항이 없어요.</h3><p class="ox-sub">한 번이라도 틀린 문항이 생기면 해당 단원을 여기에 보여드려요.</p></div>'}
