@@ -633,9 +633,10 @@ function weakness() {
     root.addEventListener('change',event=>{
       const control=event.target;
       if(route!=='review' || !control.matches('select[data-review-filter]'))return;
+      // Dismiss the native picker before replacing its control, especially on mobile.
+      control.blur();
       setReviewFilter(control.dataset.reviewFilter,control.value);
       render();
-      root.querySelector('select[data-review-filter="'+control.dataset.reviewFilter+'"]')?.focus();
     });
     root.addEventListener('click',e=>{const b=e.target.closest('button[data-action]'); if(!b||b.disabled)return; const action=b.dataset.action,id=b.dataset.id;
       if(action==='nav'){if(b.dataset.oxRoute==='review' && route!=='result')openReview();else route=b.dataset.oxRoute;}

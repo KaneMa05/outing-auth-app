@@ -689,9 +689,10 @@ function renderBlockedBooks() {
     root.addEventListener('change',event=>{
       const control=event.target;
       if(pending || route!=='review' || !control.matches('select[data-review-filter]'))return;
+      // Dismiss the native picker before replacing its control, especially on mobile.
+      control.blur();
       setReviewFilter(control.dataset.reviewFilter,control.value);
       render();
-      root.querySelector('select[data-review-filter="'+control.dataset.reviewFilter+'"]')?.focus();
     });
     root.addEventListener('toggle',async event=>{
       const details=event.target,id=details.dataset?.questionDetail;

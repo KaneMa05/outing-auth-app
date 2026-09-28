@@ -81,9 +81,10 @@ runtime = runtime.replace("      else if(action==='filter')", history_actions + 
 runtime = runtime.replace("    root.addEventListener('click'", """    root.addEventListener('change',event=>{
       const control=event.target;
       if(route!=='review' || !control.matches('select[data-review-filter]'))return;
+      // Dismiss the native picker before replacing its control, especially on mobile.
+      control.blur();
       setReviewFilter(control.dataset.reviewFilter,control.value);
       render();
-      root.querySelector('select[data-review-filter="'+control.dataset.reviewFilter+'"]')?.focus();
     });
     root.addEventListener('click'""", 1)
 runtime = runtime.replace("filter='미완료'", "filter='복습 필요'")
