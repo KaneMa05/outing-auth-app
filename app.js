@@ -51,7 +51,7 @@ const routeTitles = {
 };
 const STUDENT_CATEGORY_ROUTES = {
   offline: new Set(["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "push-settings", "other-settings", "notices"]),
-  online_managed: new Set(["home", "study-todo", "study-cafe", "feedback", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"]),
+  online_managed: new Set(["home", "study-todo", "study-cafe", "study-character", "study-shop", "feedback", "grades", "mypage", "push-settings", "other-settings", "notifications", "notices"]),
   lecture: new Set(["home", "curriculum", "study-todo", "study-cafe", "feedback", "question-board", "inquiry-board", "study-ranking", "study-timer", "study-character", "study-shop", "mypage", "faq", "push-settings", "other-settings", "notifications", "notices"]),
 };
 
@@ -4334,7 +4334,7 @@ function renderStudentMypage() {
         profileItem("성별", profile.gender || "-"),
       ]),
     ]),
-    category === "lecture"
+    isOnlineStudentExperience(student)
       ? button("", "student-history-button-card student-settings-link student-character-card", "button", () => navigate("study-character"), [
           el("div", { className: "student-history-head" }, [
             el("h2", {}, "캐릭터"),
@@ -8724,7 +8724,7 @@ function renderStudentStudyCharacter() {
       el("section", { className: "student-study-cafe-access-card" }, [
         el("span", { className: "study-cafe-access-icon", ariaHidden: "true" }, "🙂"),
         el("h2", {}, "온라인 수강생 전용 캐릭터입니다"),
-        el("p", {}, "스터디카페 캐릭터는 등록번호가 2로 시작하는 인터넷 강의 수강생만 설정할 수 있습니다."),
+        el("p", {}, "스터디카페 캐릭터는 온라인 관리반과 인터넷 수강생이 설정할 수 있습니다."),
         button("홈으로", "btn secondary", "button", () => navigate("home")),
       ]),
     ]);
@@ -9640,7 +9640,7 @@ function renderStudyCafeSeatedVisual(tone, isMine = false, options = {}) {
 
 function isStudyCafeFireEnabled() {
   return typeof StudyCharacterStyles !== "undefined" && Boolean(StudyCharacterStyles.fire) &&
-    getStudentCategory(getAuthedStudent()) === "lecture";
+    ["online_managed", "lecture"].includes(getStudentCategory(getAuthedStudent()));
 }
 
 function getStudyCafeFireSeconds(node) {

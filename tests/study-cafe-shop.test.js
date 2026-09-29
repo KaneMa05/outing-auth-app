@@ -88,7 +88,7 @@ assert.match(api, /"shop_purchase"/);
 assert.match(api, /"shop_equip"/);
 assert.match(api, /"shop_unequip"/);
 assert.match(api, /rpc\/unequip_study_cafe_item/);
-assert.match(api, /function hasStudyCafeShopAccess\(student\)[\s\S]*student_category[\s\S]*=== "lecture"/);
+assert.match(api, /function hasStudyCafeShopAccess\(student\)[\s\S]*\["online_managed", "lecture"\]\.includes/);
 assert.match(api, /await awardStudyCafeTimePoints\(studentId, now\)/);
 assert.match(api, /Study cafe shop is not ready/);
 assert.match(api, /\["outfit", "head", "desk", "chair", "hair"\]\.includes\(row\.slot\)/);
@@ -137,7 +137,7 @@ assert.match(shop, /shop-\$\{getStudyCafeShopItemCssClass\(itemId\)\}/);
 assert.match(shop, /\["study-shop", "study-cafe", "study-character"\]\.includes\(currentRoute\)/);
 assert.match(shop, /\["outfit_coast_guard_uniform", "해경 정복", "해양경찰 정복입니다\.", "outfit", "👮", 4000\]/);
 assert.match(index, /styles\.css\?v=20260917-study-share-fixes/);
-assert.match(index, /study-shop\.js\?v=20260911-hair-shop/);
+assert.match(index, /study-shop\.js\?v=20260929-shared-character/);
 assert.match(index, /app\.js\?v=[^"\s]+/);
 assert.doesNotMatch(shop, /head_classic_hat|head_graduation_cap|desk_coast_helicopter|desk_coast_rescue_buoy|desk_coast_lighthouse|head_coast_vessel_cap|head_coast_rescue_helmet|chair_coast_captain/);
 assert.match(shop, /\["desk_coast_patrol_ship", "미니 경비함", [^\n]*, "desk", "🚢", 2400\]/);
@@ -221,7 +221,7 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       return {
         ok: true,
         status: 200,
-        json: async () => [{ id: "20001", name: "관리반", student_category: "online_managed", is_active: true }],
+        json: async () => [{ id: "20001", name: "오프라인", student_category: "offline", is_active: true }],
         text: async () => "",
       };
     }
@@ -241,9 +241,10 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     headers: {},
   }, res);
   assert.equal(res.statusCode, 403);
-  assert.equal(res.payload.error, "lecture_student_only");
+  assert.equal(res.payload.error, "online_student_only");
 
   let awardedStudentId = "";
+  let studentCategory = "lecture";
   global.fetch = async (url, options) => {
     if (url.endsWith("/rpc/validate_student_device")) {
       return { ok: true, status: 200, json: async () => ({ valid: true }), text: async () => "" };
@@ -252,7 +253,7 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       return {
         ok: true,
         status: 200,
-        json: async () => [{ id: "900001", name: "9번대 수강생", student_category: "lecture", is_active: true }],
+        json: async () => [{ id: "900001", name: "수강생", student_category: studentCategory, is_active: true }],
         text: async () => "",
       };
     }
@@ -271,16 +272,19 @@ const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     throw new Error(`unexpected request: ${options.method} ${url}`);
   };
 
-  const lectureRes = response();
-  await handler({
-    method: "POST",
-    body: { action: "shop_load", studentId: "900001", deviceToken: "device-secret" },
-    headers: {},
-  }, lectureRes);
-  assert.equal(lectureRes.statusCode, 200);
-  assert.equal(lectureRes.payload.ok, true);
-  assert.equal(lectureRes.payload.wallet.balance, 15);
-  assert.equal(awardedStudentId, "900001");
+  for (const category of ["lecture", "online_managed"]) {
+    studentCategory = category;
+    const lectureRes = response();
+    await handler({
+      method: "POST",
+      body: { action: "shop_load", studentId: "900001", deviceToken: "device-secret" },
+      headers: {},
+    }, lectureRes);
+    assert.equal(lectureRes.statusCode, 200);
+    assert.equal(lectureRes.payload.ok, true);
+    assert.equal(lectureRes.payload.wallet.balance, 15);
+    assert.equal(awardedStudentId, "900001");
+  }
   console.log("study cafe shop tests passed");
 })().finally(() => {
   global.fetch = originalFetch;

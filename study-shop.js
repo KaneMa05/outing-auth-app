@@ -104,7 +104,7 @@ function hydrateStudyCafeShop(data) {
 
 async function ensureStudyCafeShopLoaded(options = {}) {
   const student = getAuthedStudent();
-  if (getStudentCategory(student) !== "lecture" || studyCafeShopState.loading) return false;
+  if (!["online_managed", "lecture"].includes(getStudentCategory(student)) || studyCafeShopState.loading) return false;
   if (studyCafeShopState.loaded && options.force !== true) return true;
   studyCafeShopState.loading = true;
   try {
@@ -205,7 +205,7 @@ function saveLocalStudyCafeShop() {
 }
 
 function renderStudyCafeShopChip(student = getAuthedStudent()) {
-  if (getStudentCategory(student) !== "lecture" || studyCafeShopState.available === false) return null;
+  if (!["online_managed", "lecture"].includes(getStudentCategory(student)) || studyCafeShopState.available === false) return null;
   const label = studyCafeShopState.available === true ? `${studyCafeShopState.balance.toLocaleString("ko-KR")}P` : "상점";
   return el("button", {
     className: "study-cafe-shop-chip",
@@ -397,8 +397,8 @@ function renderStudyCafeShopAccessDenied() {
   return el("div", { className: "grid student-view student-study-cafe-access" }, [
     el("section", { className: "student-study-cafe-access-card" }, [
       el("span", { className: "study-cafe-access-icon", ariaHidden: "true" }, "🛍️"),
-      el("h2", {}, "인터넷 수강생 전용 상점입니다"),
-      el("p", {}, "스터디 상점은 인터넷 수강생 화면에서만 이용할 수 있습니다."),
+      el("h2", {}, "온라인 수강생 전용 상점입니다"),
+      el("p", {}, "스터디 상점은 온라인 관리반과 인터넷 수강생이 이용할 수 있습니다."),
       button("홈으로", "btn secondary", "button", () => navigate("home")),
     ]),
   ]);
@@ -420,7 +420,7 @@ function renderStudyCafeShopStatus(loading) {
 
 function renderStudentStudyShop() {
   const student = getAuthedStudent();
-  if (getStudentCategory(student) !== "lecture") return renderStudyCafeShopAccessDenied();
+  if (!["online_managed", "lecture"].includes(getStudentCategory(student))) return renderStudyCafeShopAccessDenied();
   ensureStudyCafeShopLoaded();
   const loading = studyCafeShopState.loading && !studyCafeShopState.loaded;
   if (loading || studyCafeShopState.available === false) return renderStudyCafeShopStatus(loading);

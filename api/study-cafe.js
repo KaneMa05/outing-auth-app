@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
 
     if (["shop_load", "shop_purchase", "shop_equip", "shop_unequip"].includes(action)) {
       if (!hasStudyCafeShopAccess(student)) {
-        res.status(403).json({ ok: false, error: "lecture_student_only" });
+        res.status(403).json({ ok: false, error: "online_student_only" });
         return;
       }
       if (action === "shop_load") {
@@ -641,7 +641,7 @@ async function tryStudyCafeHeartbeat({ studentId, deviceToken, client }) {
 }
 
 function hasStudyCafeShopAccess(student) {
-  return String(student?.student_category || "").trim() === "lecture";
+  return ["online_managed", "lecture"].includes(String(student?.student_category || "").trim());
 }
 
 async function authenticateOnlineStudent({ studentId, deviceToken, client }) {

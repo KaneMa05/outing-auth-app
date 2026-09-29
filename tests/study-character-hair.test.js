@@ -17,7 +17,7 @@ test('six hairstyles include the unchanged default and exact approved preview ge
   for (const value of [undefined, null, '', 'deleted-style', '<svg>']) assert.equal(hair.normalize(value), 'default');
 });
 
-test('profile API blocks free hairstyle changes and still loads hair and preserves other profile fields', async () => {
+for (const supportedCategory of ['lecture', 'online_managed']) test(`${supportedCategory}: profile API blocks free hair changes and preserves other profile fields`, async () => {
   const oldFetch = global.fetch;
   const oldUrl = process.env.SUPABASE_URL;
   const oldKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,7 +25,7 @@ test('profile API blocks free hairstyle changes and still loads hair and preserv
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
   const profile = { student_id: 'hair-test', avatar_tone: 'rose', nickname: '테스터', status_message: '공부 중' };
   const writes = [];
-  let category = 'lecture';
+  let category = supportedCategory;
   let authenticated = true;
   const response = payload => ({ ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) });
   global.fetch = async (url, options = {}) => {
@@ -73,7 +73,7 @@ test('profile API blocks free hairstyle changes and still loads hair and preserv
     assert.equal((await invoke({ action: 'load' })).payload.profile.hairStyle, 'default', 'existing profiles retain the old default hair');
     category = 'offline';
     assert.equal((await invoke({ action: 'save_profile', hairStyle: 'wave' })).statusCode, 403);
-    category = 'lecture'; authenticated = false;
+    category = supportedCategory; authenticated = false;
     assert.equal((await invoke({ action: 'save_profile', hairStyle: 'wave' })).statusCode, 403);
   } finally {
     global.fetch = oldFetch;

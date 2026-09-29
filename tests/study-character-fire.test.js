@@ -35,10 +35,10 @@ function appFunctions(names) {
   }).join('\n');
 }
 
-test('actual app updater preserves DOM and levels through pause, uses own total, limits the feature to lecture, and resets at KST 04:00', () => {
+for (const supportedCategory of ['lecture', 'online_managed']) test(`${supportedCategory}: updater preserves DOM, pause, own total and KST 04:00 reset`, () => {
   let now = Date.parse('2026-09-11T18:59:59Z'); // KST 03:59:59, study day Sep 11.
   let total = 9 * 3600000;
-  let category = 'lecture';
+  let category = supportedCategory;
   const context = vm.createContext({
     StudyCharacterStyles: character,
     Date: class extends Date { static now() { return now; } },
@@ -73,10 +73,10 @@ test('actual app updater preserves DOM and levels through pause, uses own total,
   total = 3 * 3600000;
   context.updateStudyCafeFireNode(node);
   assert.equal(node.dataset.studyFireStage, '1');
-  for (const value of ['offline', 'online_managed', '', 'teacher']) {
+  for (const value of ['offline', '', 'teacher']) {
     category = value;
     assert.equal(context.isStudyCafeFireEnabled(), false);
   }
-  category = 'lecture';
+  category = supportedCategory;
   assert.equal(context.isStudyCafeFireEnabled(), true);
 });

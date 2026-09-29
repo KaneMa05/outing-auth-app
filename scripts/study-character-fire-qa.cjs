@@ -44,7 +44,8 @@ window.qaChecks=()=>{
  ownSeconds=10799;updateStudyCafeFireStages();check(mine.dataset.studyFireStage==='0','corrected total');
  ownSeconds=10800;studyCafePreviewState.running=true;updateStudyCafeFireStages();check(mine.dataset.studyFireStage==='1','live threshold');
  check(avatar===document.querySelector('#mine .study-cafe-avatar'),'avatar DOM retained');
- for(const c of ['online_managed','offline','teacher']){category=c;check(!scene(10).querySelector('.study-cafe-fire'),'scope '+c)}category='lecture';
+ category='online_managed';check(!!scene(10).querySelector('.study-cafe-fire'),'managed fire');
+ for(const c of ['offline','teacher']){category=c;check(!scene(10).querySelector('.study-cafe-fire'),'scope '+c)}category='lecture';
  ownSeconds=36000;updateStudyCafeFireStages();
  document.querySelectorAll('.qa-detail').forEach((s,i)=>{check(!!s.querySelector('.shop-outfit-coast-guard-uniform'),'outfit '+i);check(!!s.querySelector('.item-head-coast-guard-dress-cap'),'hat '+i);check(s.querySelectorAll('.study-cafe-desk-cosmetics > *').length===4,'desk items '+i);check(Number(getComputedStyle(s.querySelector('.study-cafe-fire')).zIndex)<Number(getComputedStyle(s.querySelector('.study-cafe-avatar')).zIndex),'fire behind avatar '+i)});
  return failures;

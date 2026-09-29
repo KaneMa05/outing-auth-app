@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v459-ox-weak-copy";
+const CACHE_NAME = "outing-auth-app-v461-shared-character";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -15,7 +15,7 @@ const APP_SHELL = [
   "/question-board.js?v=20260902-question-board-skeleton-ui",
   "/inquiry-board.js?v=20260902-inquiry-prefetch",
   "/study-character.js?v=20260911-character-hair-fire",
-  "/study-shop.js?v=20260911-hair-shop-rewards",
+  "/study-shop.js?v=20260929-shared-character",
   "/student-rewards.js?v=20260911-reward-break-celebration",
   "/final-scope-data.js?v=20260908-final-scope-plan",
   "/final-scope-model.js?v=20260921-final-scope-admin",
@@ -46,7 +46,7 @@ const APP_SHELL = [
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20260922-ox-recipient-selection",
   "/criminal-law-ox-device-admin.js?v=20260922-ox-device-policy",
-  "/app.js?v=20260928-ox-weak-copy",
+  "/app.js?v=20260929-shared-character",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",
