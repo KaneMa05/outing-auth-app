@@ -102,13 +102,13 @@ function renderFitnessInputPanel(students, records) {
   const rows = visibleStudents.map((student) => renderFitnessInputRow(student, recordByStudent.get(String(student.id))));
   const bulkSaveButton = button("일괄 저장", "btn", "button", () => saveFitnessBulkScores());
   return panel("점수 입력", [
-    el("p", { className: "subtle" }, "오프라인반 학생만 표시됩니다. 원점수를 입력하면 성별 기준에 따라 환산 점수와 총점이 자동 계산됩니다."),
+    el("p", { className: "subtle" }, "오프라인반 학생만 표시됩니다. 원점수를 입력하면 성별 기준에 따라 환산 점수와 총점이 자동 계산됩니다. 미측정 시 사유만 입력하여 저장할 수 있습니다."),
     hasTeacherPermission("fitness.write") && visibleStudents.length
       ? el("div", { className: "fitness-bulk-actions" }, [bulkSaveButton])
       : null,
     table(
-      ["번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산"],
-      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 7 }, el("div", { className: "empty table-empty" }, "조회할 오프라인반 학생이 없습니다."))])]
+      ["번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "미측정 사유"],
+      rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 8 }, el("div", { className: "empty table-empty" }, "조회할 오프라인반 학생이 없습니다."))])]
     ),
     hasTeacherPermission("fitness.write") && visibleStudents.length
       ? el("div", { className: "fitness-bulk-actions bottom" }, [button("일괄 저장", "btn", "button", () => saveFitnessBulkScores())])
@@ -139,12 +139,21 @@ function renderFitnessInputRow(student, record) {
       updateFitnessScoreSummary(scoreSummary, calculateFitnessScore(readFitnessControlValues(controls), gender));
     });
   });
+  controls.memo = el("input", {
+    className: "fitness-reason-input",
+    type: "text",
+    value: record?.memo || "",
+    placeholder: "미측정 사유 입력",
+    ariaLabel: `${student.name || student.id} 미측정 사유`,
+    disabled: !hasTeacherPermission("fitness.write"),
+  });
   const row = el("tr", {}, [
     el("td", {}, formatStudentNumber(student.id)),
     el("td", {}, student.name || "-"),
     el("td", {}, fitnessGenderLabel(gender)),
     ...FITNESS_EVENTS.map((event) => el("td", {}, controls[event.key])),
     el("td", {}, scoreSummary),
+    el("td", {}, controls.memo),
   ]);
   fitnessInputRows.push({ student, controls, existingRecord: record, gender });
   return row;
@@ -156,7 +165,7 @@ function renderFitnessLookupPanel(students, records) {
     .filter((record) => studentIds.has(String(record.studentId)))
     .filter((record) => isFitnessRecordMatched(record))));
   const canDelete = hasTeacherPermission("fitness.write");
-  const headers = ["성별 순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일", canDelete ? "처리" : null].filter(Boolean);
+  const headers = ["성별 순위", "번호", "이름", "성별", "윗몸", "팔굽", "악력", "환산", "총점", "측정일", "미측정 사유", canDelete ? "처리" : null].filter(Boolean);
   const rows = summaries.map((record) => {
     const converted = record.convertedScores || calculateFitnessScore(record, normalizeFitnessGender(record.gender)).converted;
     return el("tr", {}, [
@@ -170,6 +179,7 @@ function renderFitnessLookupPanel(students, records) {
       el("td", {}, formatFitnessConvertedScores(converted)),
       el("td", {}, `${formatFitnessNumber(record.totalScore)}점`),
       el("td", {}, formatDateCompact(record.measuredAt || record.updatedAt || record.createdAt)),
+      el("td", { className: "fitness-reason-text" }, record.memo || "-"),
       canDelete
         ? el("td", { className: "student-admin-actions" }, [
             button("삭제", "mini-btn danger", "button", () => deleteFitnessScore(record)),
@@ -293,6 +303,10 @@ function applyFitnessRanks(records = []) {
   const rankedRecords = records.map((record) => ({ ...record }));
   const groups = new Map();
   rankedRecords.forEach((record) => {
+    if (FITNESS_EVENTS.every((event) => record[event.key] === "" || record[event.key] === null || record[event.key] === undefined)) {
+      record.rank = 0;
+      return;
+    }
     const gender = normalizeFitnessGender(record.gender);
     if (!groups.has(gender)) groups.set(gender, []);
     groups.get(gender).push(record);
@@ -625,6 +639,7 @@ function readFitnessControlValues(controls) {
     const raw = String(controls[event.key]?.value || "").trim();
     values[event.key] = raw === "" ? "" : Number(raw);
   });
+  if (controls.memo) values.memo = String(controls.memo.value || "").trim();
   return values;
 }
 
@@ -661,7 +676,7 @@ function formatFitnessMonth(value) {
 async function saveFitnessStudentScore(student, controls, existingRecord) {
   if (!hasTeacherPermission("fitness.write")) return notify("체력평가 입력 권한이 없습니다.");
   const values = readFitnessControlValues(controls);
-  if (FITNESS_EVENTS.every((event) => values[event.key] === "")) return notify("체력 점수를 하나 이상 입력해주세요.");
+  if (FITNESS_EVENTS.every((event) => values[event.key] === "") && !values.memo && !existingRecord) return notify("체력 점수 또는 미측정 사유를 입력해주세요.");
   const record = buildFitnessScoreRecord(student, values, existingRecord);
   const previousFitnessScores = JSON.parse(JSON.stringify(state.fitnessScores || []));
   state.fitnessScores = [
@@ -696,7 +711,7 @@ function buildFitnessScoreRecord(student, values, existingRecord) {
     ...values,
     convertedScores: score.converted,
     totalScore: score.totalScore,
-    memo: existingRecord?.memo || "",
+    memo: values.memo ?? existingRecord?.memo ?? "",
     measuredAt: existingRecord?.measuredAt || now,
     updatedAt: now,
     createdAt: existingRecord?.createdAt || now,
@@ -742,11 +757,11 @@ async function saveFitnessBulkScores() {
   const records = fitnessInputRows
     .map(({ student, controls, existingRecord }) => {
       const values = readFitnessControlValues(controls);
-      if (FITNESS_EVENTS.every((event) => values[event.key] === "")) return null;
+      if (FITNESS_EVENTS.every((event) => values[event.key] === "") && !values.memo && !existingRecord) return null;
       return buildFitnessScoreRecord(student, values, existingRecord);
     })
     .filter(Boolean);
-  if (!records.length) return notify("저장할 체력 점수가 없습니다.");
+  if (!records.length) return notify("저장할 체력 점수 또는 미측정 사유가 없습니다.");
   const previousFitnessScores = JSON.parse(JSON.stringify(state.fitnessScores || []));
   const recordIds = new Set(records.map((record) => record.id));
   state.fitnessScores = [

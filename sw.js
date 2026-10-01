@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v461-shared-character";
+const CACHE_NAME = "outing-auth-app-v463-fitness-reason";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -24,12 +24,12 @@ const APP_SHELL = [
   "/feedback-hub.js?v=20260911-feedback-free-only",
   "/study-record-share.js?v=20260917-study-share-fixes",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
-  "/styles.css?v=20260911-hair-shop-bot-admin",
+  "/styles.css?v=20261001-fitness-reason",
   "/teacher.js?v=20260911-admin-dashboard-retry",
   "/study-character.js?v=20260911-character-hair",
   "/study-cafe-bot-admin.js?v=20260911-bot-admin",
   "/teacher-grades.js?v=20260919-investigation-subject-management",
-  "/teacher-fitness.js?v=20260714-grade-report-print-setup",
+  "/teacher-fitness.js?v=20261001-fitness-reason",
   "/teacher-students.js?v=20260922-ox-device-policy",
   "/teacher-settings.js?v=20260806-learner-board-copy",
   "/teacher-penalties.js?v=20260716-penalty-reason-edit",

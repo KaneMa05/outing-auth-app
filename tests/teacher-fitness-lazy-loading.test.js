@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const sharedSource = fs.readFileSync("shared.js", "utf8");
-const fitnessSource = fs.readFileSync("teacher-fitness.js", "utf8");
+const sharedSource = fs.readFileSync("shared.js", "utf8").replace(/\r\n/g, "\n");
+const fitnessSource = fs.readFileSync("teacher-fitness.js", "utf8").replace(/\r\n/g, "\n");
 const loaderSource = sharedSource.match(
   /async function loadTeacherFitnessScoresByStudentIds\([\s\S]*?\n}\n\nasync function loadTeacherFitnessData/
 )?.[0].replace(/\n\nasync function loadTeacherFitnessData$/, "");

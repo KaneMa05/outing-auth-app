@@ -2119,6 +2119,19 @@ th {
   padding: 6px 8px;
 }
 
+.fitness-reason-input {
+  width: 220px;
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.fitness-reason-text {
+  min-width: 180px;
+  max-width: 320px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .fitness-bulk-actions {
   display: flex;
   justify-content: flex-end;
