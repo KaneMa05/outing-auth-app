@@ -35,10 +35,11 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
   await db.exec(read('supabase/migrations/20260922060528_ox_grant_recipient_selection.sql'));
   await db.exec(read('supabase/migrations/20260922061015_ox_member_track_filter.sql'));
   await db.exec(read('supabase/migrations/20261001082345_ox_managed_grants_and_fast_preview.sql'));
+  await db.exec(read('supabase/migrations/20261001090401_ox_pass_only_access.sql'));
     await db.exec("update students set track='수사특채' where id='managed';update students set track=null where id='lecture';");
     await db.exec('set role service_role');
     const counts={};
-    const invoke=async(action,actor,body={})=>{counts[action]=(counts[action]||0)+1;const rpc=action.startsWith('admin_grant_')?'ox_grant_admin':actor.deviceHash||action.startsWith('device_')||action.startsWith('admin_device_')?'ox_device_gateway':action==='questions'||(action==='bootstrap'&&body.summaryOnly===true)?'ox_learning_data':'ox_service';return (await db.query(`select ${rpc}($1,$2::jsonb,$3::jsonb) result`,[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;};
+    const invoke=async(action,actor,body={})=>{counts[action]=(counts[action]||0)+1;if(action==='admin_book_set')action='admin_pass_set';const rpc=['admin_members','admin_pass_set'].includes(action)?'ox_pass_admin':action.startsWith('admin_grant_')?'ox_grant_admin':actor.deviceHash||action.startsWith('device_')||action.startsWith('admin_device_')?'ox_device_gateway':action==='questions'||(action==='bootstrap'&&body.summaryOnly===true)?'ox_learning_data':'ox_service';return (await db.query(`select ${rpc}($1,$2::jsonb,$3::jsonb) result`,[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;};
     const bookIds=['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
     await invoke('admin_import',{type:'admin',id:'qa'},{collections:bookIds.map((id,i)=>({id,name:['형법','수사·증거','공판'][i],scope:['형법','수사·증거','공판'][i],sort_order:i+1})),chapters:bookIds.map((id,i)=>({id:'c'+i,collection_id:id,display_name:'검증 단원 '+i,part_title:i===0?'형법총론':'공판',sort_order:i+1})),questions:bookIds.flatMap((id,i)=>Array.from({length:3},(_,j)=>({id:'q'+i+j,chapter_id:'c'+i,prompt:'로컬 검증 지문 '+i+'-'+j,context:'',correct_answer:'O',explanation_html:'로컬 검증 해설',source_question_number:String(j+1),reviewed:true,status:'published'})))});
     process.env.TEACHER_SESSION_SECRET='local-ox-members-qa-only';
@@ -99,7 +100,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
     const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
     const wait=async expression=>{for(let n=0;n<100;n++){if(await evaluate(expression))return;await delay(50);}throw Error('Timeout: '+expression);};
-    const click=selector=>evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});const menu=target.closest('.ox-member-action-menu');if(menu?.hidden)menu.previousElementSibling.click();target.click();})()`);
+    const click=async selector=>{await wait(`document.querySelector(${JSON.stringify(selector)})`);return evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});const menu=target.closest('.ox-member-action-menu');if(menu?.hidden)menu.previousElementSibling.click();target.click();})()`);};
     await send('Page.enable');await send('Page.navigate',{url:origin});
     await wait("document.querySelector('[data-members]')?.textContent.includes('조건에 맞는 등록 수강생이 없습니다')");
     const errors=[];
@@ -179,7 +180,8 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     for(const [index,id] of ['offline','managed','lecture'].entries()) {
       await click(`[data-admin=book-add][data-id=${id}]`);
       await click(`[name=book][value=${bookIds[index]}]`);
-      await evaluate("document.querySelector('[name=reason]').value='학원 구매 확인';document.querySelector('[data-book-form]').requestSubmit()");
+      assert.equal(await evaluate("document.querySelector('[name=purchaseDate]')===null"),true,'Pass issuance needs no purchase date');
+      await evaluate("document.querySelector('[name=reason]').value='개별 이용권 지급';document.querySelector('[data-book-form]').requestSubmit()");
       await wait("document.querySelector('[data-member-message]').textContent.includes('등록을 완료')");
       await evaluate(`showStudent('${id}')`);
       const bootstrap=await evaluate("studentRequest('bootstrap')");
@@ -215,23 +217,23 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await click('[data-action=answer][data-answer=X]');await wait("document.querySelector('.ox-explanation')");
     assert.equal(await evaluate("document.querySelector('.ox-explanation').textContent"),'로컬 검증 해설');
     await click('[data-action=next]');await wait("document.querySelector('.ox-answer-grid')");
-    await invoke('admin_book_set',{type:'admin',id:'qa'},{memberId:'lecture',collectionIds:[bookIds[2]],active:false,reason:'구매 취소',revision:1});
-    await click('[data-action=answer][data-answer=O]');await wait("document.querySelector('.ox-device-panel')?.textContent.includes('현재 이용 가능한 교재가 없습니다')");
+    await invoke('admin_book_set',{type:'admin',id:'qa'},{memberId:'lecture',collectionIds:[bookIds[2]],active:false,reason:'이용권 회수',revision:1});
+    await click('[data-action=answer][data-answer=O]');await wait("document.querySelector('.ox-device-panel')?.textContent.includes('현재 이용 가능한 이용권이 없습니다')");
     assert.equal(await evaluate("document.querySelector('.ox-answer-grid')===null"),true);
     await invoke('admin_book_set',{type:'admin',id:'qa'},{memberId:'lecture',collectionIds:[bookIds[2]],active:true,reason:'재개방',purchaseDate:'2026-01-01',revision:2});
     await click('[data-device-retry]');await wait("document.querySelector('.ox-content h2')?.textContent==='오늘 학습'");
     assert.equal((await evaluate("studentRequest('bootstrap')")).progress.length,1);
     // Additional purchases take effect through the explicit refresh control.
-    await invoke('admin_book_set',{type:'admin',id:'qa'},{memberId:'lecture',collectionIds:[bookIds[0]],active:true,reason:'추가 구매',purchaseDate:'2026-01-01',revision:3});
+    await invoke('admin_book_set',{type:'admin',id:'qa'},{memberId:'lecture',collectionIds:[bookIds[0]],active:true,reason:'추가 지급',purchaseDate:'2026-01-01',revision:3});
     await click('[data-action=daily]');await click('[data-action=collection][data-id=criminal-law]');await click('[data-action=refresh-books]');
     await wait("document.querySelector('.ox-content h2')?.textContent==='오늘 학습'");
     await click('[data-action=daily]');assert.equal(await evaluate("document.querySelector('[data-action=collection][data-id=criminal-law]').textContent.includes('잠금')"),false);
     await evaluate("window.learning=false;window.myPage=false;document.querySelector('#app').hidden=false;document.querySelector('#student').replaceChildren();renderCriminalLawOxLocalPreview.view=null;render()");
     await wait("document.querySelector('[data-admin=book-stop][data-id=lecture]')");
     await click('[data-admin=book-stop][data-id=lecture]');await click('[name=book][value=criminal-law]');
-    await evaluate("document.querySelector('[name=reason]').value='교재 반품 확인';document.querySelector('[data-book-form]').requestSubmit()");
+    await evaluate("document.querySelector('[name=reason]').value='개별 이용권 회수 확인';document.querySelector('[data-book-form]').requestSubmit()");
     await wait("document.querySelector('[data-member-message]').textContent.includes('이용을 중지')");
-    await click('[data-admin=book-history][data-id=lecture]');await wait("document.querySelector('[data-book-history]').textContent.includes('교재 반품 확인')");
+    await click('[data-admin=book-history][data-id=lecture]');await wait("document.querySelector('[data-book-history]').textContent.includes('개별 이용권 회수 확인')");
     assert.equal((await invoke('bootstrap',{type:'student',id:'lecture'},{})).catalog.chapters.length,1);
     // Real device policy screens: second device takeover, self replacement, exception approval.
     const openDevice=async token=>{
@@ -339,11 +341,31 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
       assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Managed picker overflow');
       const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(dir,'managed-grants-'+width+'.png'),Buffer.from(shot.data,'base64'));
     }
+    await evaluate("document.querySelector('[name=book][value=criminal-procedure-trial]').checked=false");
     await evaluate("document.querySelector('[data-grant-form] [name=reason]').value='관리반 학습 지원';document.querySelector('[data-grant-form]').requestSubmit()");
     await wait("document.querySelector('[data-grant-issue]')?.textContent.includes('1명')");
     assert.equal(await evaluate("document.querySelector('[data-book-editor]').textContent.includes('온라인 관리반 재원 기간')"),true);
     await click('[data-grant-issue]');await wait("document.querySelector('[data-grant-revoke]')");
-    assert.equal((await invoke('bootstrap',{type:'student',id:'managed'},{})).catalog.chapters.length,3,'Managed student can use granted scopes');
+    assert.equal((await invoke('bootstrap',{type:'student',id:'managed'},{})).catalog.chapters.length,2,'Managed student can use only granted/purchased scopes');
+    await click('[data-grant-close]');
+    await wait("document.querySelector('[data-admin=member-menu][data-id=managed]')");
+    const managedBadges=()=>evaluate("Array.from(document.querySelector('[data-admin=member-menu][data-id=managed]').closest('li').querySelectorAll('.ox-admin-book-status')).map(n=>({label:n.textContent,active:n.classList.contains('active')}))");
+    assert.deepEqual(await managedBadges(),[
+      {label:'형법 · 이용 중',active:true},
+      {label:'수사·증거 · 이용 중',active:true},
+      {label:'공판 · 미지급',active:false},
+    ],'Granted scopes must not be marked unregistered');
+    await send('Emulation.setDeviceMetricsOverride',{width:1100,height:950,deviceScaleFactor:1,mobile:false});
+    const grantStatusShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(dir,'managed-grant-status.png'),Buffer.from(grantStatusShot.data,'base64'));
+    await invoke('admin_member_set',{type:'admin',id:'qa'},{memberId:'managed',allowed:false,revision:(await invoke('admin_members',{type:'admin',id:'qa'},{search:'managed',registeredOnly:true})).items.find(s=>s.id==='managed').access_revision});
+    await evaluate("render()");await wait("document.querySelector('[data-admin=member-menu][data-id=managed]')");
+    const stoppedBadges=await managedBadges();
+    assert.equal(stoppedBadges.every(b=>!b.active),true,'Whole-account suspension overrides grants');
+    assert.equal(stoppedBadges[0].label,'형법 · 중지');
+    await invoke('admin_member_set',{type:'admin',id:'qa'},{memberId:'managed',allowed:true,revision:(await invoke('admin_members',{type:'admin',id:'qa'},{search:'managed',registeredOnly:true})).items.find(s=>s.id==='managed').access_revision});
+    await click('[data-admin=grants]');await wait("document.querySelector('[data-grant-form]')");
+    await click('[data-grant-history]');await wait("document.querySelector('[data-grant-detail]')");
+    await click('[data-grant-detail]');await wait("document.querySelector('[data-grant-revoke]')");
     await evaluate("document.querySelector('[data-grant-revoke] [name=reason]').value='관리반 지원 종료';document.querySelector('[data-grant-revoke]').requestSubmit()");
     await wait("document.querySelector('[data-book-editor]').textContent.includes('회수 사유: 관리반 지원 종료')");
     assert.equal((await invoke('bootstrap',{type:'student',id:'managed'},{})).catalog.chapters.length,1,'Managed purchase survives revocation');

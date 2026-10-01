@@ -3147,7 +3147,7 @@ function renderCriminalLawOxLocalEntry() {
   // The home shortcut stays visible. Only the server's current access status opens learning.
   requestCriminalLawOx('status').then(data=>{
     if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      for(const href of ['./criminal-law-ox-access.js?v=20260928-ox-weak-copy','./criminal-law-ox.js?v=20260928-ox-weak-copy'])
+      for(const href of ['./criminal-law-ox-access.js?v=20261001-pass-only','./criminal-law-ox.js?v=20261001-pass-only'])
         document.head.appendChild(el('link',{rel:'modulepreload',href,'data-ox-module-preload':'true'}));
     }
   }).catch(()=>{});
@@ -3228,14 +3228,14 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  import("./criminal-law-ox-access.js?v=20260928-ox-weak-copy").then(({ mountAccess }) => {
+  import("./criminal-law-ox-access.js?v=20261001-pass-only").then(({ mountAccess }) => {
     if (renderCriminalLawOxLocalPreview.view?.key===key) {
       previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
       if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;
     }
   }).catch(error => {
     if (!content.isConnected) return;
-    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_book_required' ? "현재 이용 가능한 교재가 없습니다. 교재 구매·이용권 확인 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다." : error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
+    content.replaceChildren(el("p", { role: "alert" }, error.code==='ox_book_required' ? "현재 이용 가능한 이용권이 없습니다. 이용권 지급 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다." : error.code==='ox_not_registered' ? "형사법 OX는 이용 등록된 수강생만 사용할 수 있습니다. 관리자에게 문의해주세요." : error.code==='ox_disabled' ? "형사법 OX 학습을 준비하고 있습니다." : "학습 화면을 불러오지 못했습니다. 다시 시도해주세요."),
       button("다시 시도", "btn secondary", "button", () => {renderCriminalLawOxLocalPreview.view=null;render();}));
   });
   const page=el("div", { className: "grid student-view criminal-law-ox-local-page" }, [

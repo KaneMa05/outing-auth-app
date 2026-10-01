@@ -1,5 +1,5 @@
 // OX-only device policy. Learning records always come from the server on entry/resume.
-import {mount as mountLearning} from './criminal-law-ox.js?v=20260928-ox-weak-copy';
+import {mount as mountLearning} from './criminal-law-ox.js?v=20261001-pass-only';
 
 export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
   let controller=null,sessionId=null,epoch=0,destroyed=false,busy=false,timer=null,checking=false,resumeRequested=false;
@@ -9,7 +9,7 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     device_in_use:'다른 기기에서 OX를 학습 중입니다.',device_not_registered:'기기 등록이 필요합니다.',device_limit_reached:'등록 기기 2대를 사용 중입니다.',
     device_replace_limit:'최근 30일간 직접 교체 1회를 사용했습니다. 추가 교체는 관리자에게 신청해주세요.',
     device_request_changed:'기기 신청 상태가 변경되었습니다. 다시 확인해주세요.',device_unavailable:'등록 기기가 변경되었습니다. 기기 정보를 확인해주세요.',
-    ox_disabled:'형사법 OX 학습을 준비하고 있습니다.',ox_not_registered:'OX 이용 등록을 확인해주세요.',ox_book_required:'현재 이용 가능한 교재가 없습니다. 교재 구매·이용권 확인 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다.',
+    ox_disabled:'형사법 OX 학습을 준비하고 있습니다.',ox_not_registered:'OX 이용 등록을 확인해주세요.',ox_book_required:'현재 이용 가능한 이용권이 없습니다. 이용권 지급 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다.',
     unauthorized:'현재 앱 기기 등록이 해제되었습니다. 홈에서 다시 로그인해주세요.'};
   const connected=()=>!destroyed&&host.isConnected;
   function stop(){epoch++;sessionId=null;controller=null;clearTimeout(timer);timer=null;onReady(false);}

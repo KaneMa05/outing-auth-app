@@ -4,6 +4,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history','device_state','device_register','device_start','device_replace','device_request','device_request_cancel','device_heartbeat','admin_device_list','admin_device_requests','admin_device_decide']);
 const bookIds = ['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
 actions.add('attempt_counts');
+actions.add('admin_pass_set');
 for(const action of ['targets','preview','issue','list','detail','revoke'])actions.add('admin_grant_'+action);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
 const DEVICE_SESSION_COOKIE = 'outing_ox_device_session';
@@ -94,13 +95,13 @@ function validate(body) {
   }
   if (action==='admin_enabled' && typeof body.enabled!=='boolean') fail('invalid_request');
   if (action==='admin_member_set' && (typeof body.memberId!=='string' || !body.memberId.trim() || body.memberId.length>120 || typeof body.allowed!=='boolean')) fail('invalid_request');
-  if (['admin_book_set','admin_member_history'].includes(action) && (typeof body.memberId!=='string' || !body.memberId.trim() || body.memberId.length>120)) fail('invalid_request');
-  if ((action==='admin_book_set' || (action==='admin_member_set' && body.revision!==undefined)) && (!Number.isInteger(body.revision) || body.revision<0)) fail('invalid_request');
-  if (action==='admin_book_set') {
+  if (['admin_book_set','admin_pass_set','admin_member_history'].includes(action) && (typeof body.memberId!=='string' || !body.memberId.trim() || body.memberId.length>120)) fail('invalid_request');
+  if ((['admin_book_set','admin_pass_set'].includes(action) || (action==='admin_member_set' && body.revision!==undefined)) && (!Number.isInteger(body.revision) || body.revision<0)) fail('invalid_request');
+  if (['admin_book_set','admin_pass_set'].includes(action)) {
     if (typeof body.active!=='boolean' || !Array.isArray(body.collectionIds) || !body.collectionIds.length || body.collectionIds.length>3
       || body.collectionIds.some(id=>!bookIds.includes(id)) || new Set(body.collectionIds).size!==body.collectionIds.length
       || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500) fail('invalid_request');
-    if (body.active) {
+    if (body.active && action==='admin_book_set') {
       const date=typeof body.purchaseDate==='string' && /^\d{4}-\d{2}-\d{2}$/.test(body.purchaseDate) ? new Date(body.purchaseDate+'T00:00:00Z') : null;
       const koreanToday=new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
       if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==body.purchaseDate || body.purchaseDate>koreanToday) fail('invalid_request');
@@ -128,6 +129,7 @@ function validate(body) {
   }
 }
 async function invokeLearning(action,actor,body,request=requestSupabase) {
+  if(['admin_members','admin_pass_set','admin_book_set'].includes(action))return request('POST','rpc/ox_pass_admin',{p_action:action==='admin_book_set'?'admin_pass_set':action,p_actor:actor,p_body:body});
   if(action.startsWith('admin_grant_'))return request('POST','rpc/ox_grant_admin',{p_action:action,p_actor:actor,p_body:body});
   if(actor.type==='student' || action.startsWith('admin_device_')) return request('POST','rpc/ox_device_gateway',{p_action:action,p_actor:actor,p_body:body});
   return request('POST','rpc/ox_service',{p_action:action,p_actor:actor,p_body:body});
@@ -147,7 +149,7 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
         if(!session) fail('unauthorized',401);
-        const permission=body.action==='admin_device_decide'?'students.reset':body.action.startsWith('admin_device_')?'students.read':['admin_save','admin_enabled','admin_member_set','admin_book_set','admin_grant_preview','admin_grant_issue','admin_grant_revoke'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
+        const permission=body.action==='admin_device_decide'?'students.reset':body.action.startsWith('admin_device_')?'students.read':['admin_save','admin_enabled','admin_member_set','admin_book_set','admin_pass_set','admin_grant_preview','admin_grant_issue','admin_grant_revoke'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
         if(!auth.hasPermission(session,permission)) fail('forbidden',403);
         actor={type:'admin',id:session.username};
       } else {
