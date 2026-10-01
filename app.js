@@ -21,6 +21,7 @@ const routeTitles = {
   "curriculum-admin": "커리큘럼 관리",
   "final-scope-admin": "회독 플랜 관리",
   "criminal-law-ox-admin": "형사법 OX 관리",
+  "data-analytics": "데이터 분석",
   mypage: "마이페이지",
   faq: "자주 묻는 질문",
   "push-settings": "푸시 알림 설정",
@@ -665,7 +666,7 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "data-analytics", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
@@ -823,6 +824,7 @@ function render() {
           "curriculum-admin": renderCurriculumAdmin,
           "final-scope-admin": renderFinalScopeAdmin,
           "criminal-law-ox-admin": renderCriminalLawOxAdmin,
+          "data-analytics": () => renderDataAnalyticsAdmin(),
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
           managers: renderManagersAdmin,
@@ -11426,6 +11428,7 @@ function renderHome() {
         hasTeacherPermission("curriculum.read") ? moduleCard("커리큘럼 관리", "과목별 회차와 강의, 공개 상태를 구성합니다.", "curriculum-admin", "운영 중") : null,
         hasTeacherPermission("curriculum.read") ? moduleCard("회독 플랜 관리", "회차별 시험일과 과목별 회독 범위를 수정합니다.", "final-scope-admin", "운영 중") : null,
         hasTeacherPermission("criminal_ox.read") ? moduleCard("형사법 OX 관리", "문제와 해설을 검토하고 공개 상태를 관리합니다.", "criminal-law-ox-admin", "문제 관리") : null,
+        hasTeacherPermission("analytics.read") ? moduleCard("데이터 분석", "형사법 OX의 날짜별 이용자 수와 풀이 현황을 확인합니다.", "data-analytics", "이용 현황") : null,
         hasTeacherPermission("notices.read") ? moduleCard("공지 관리", "학생 홈에 표시되는 중요 공지를 등록하고 관리합니다.", "notices", "운영 중") : null,
         hasTeacherPermission("managers.read") ? moduleCard("담당자 등록", "상/벌점 처리 담당자 명단을 등록하고 관리합니다.", "managers", "운영 중") : null,
         hasTeacherPermission("students.read") ? moduleCard("기기 등록 이력", "학생 앱 기기 등록과 초기화 기록을 확인합니다.", "device-history", "운영 중") : null,

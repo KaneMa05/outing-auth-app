@@ -23,6 +23,11 @@ async function database() {
 }
 async function invoke(action,actor,body) {
   const db=await database();
+  if (action==='admin_analytics') {
+    const installed=await db.query("select to_regprocedure('public.ox_usage_analytics(jsonb,date,date)') as found");
+    if (!installed.rows[0].found) await db.exec(fs.readFileSync(path.join(__dirname,'supabase/migrations/20261001140723_ox_usage_analytics.sql'),'utf8'));
+    return (await db.query('select public.ox_usage_analytics($1::jsonb,$2::date,$3::date) as result',[JSON.stringify(actor),body.startDate,body.endDate])).rows[0].result;
+  }
   // The local admin searches the same roster as the local student preview.
   // Copy only display/access fields; never copy passwords or device credentials.
   const stateFile=path.join(__dirname,'.local-dev-state.json');

@@ -4,6 +4,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const actions = new Set(['status','bootstrap','questions','detail','submit','note','admin_catalog','admin_list','admin_history','admin_save','admin_enabled','admin_members','admin_member_set','admin_book_set','admin_member_history','device_state','device_register','device_start','device_replace','device_request','device_request_cancel','device_heartbeat','admin_device_list','admin_device_requests','admin_device_decide']);
 const bookIds = ['criminal-law','criminal-procedure-investigation-evidence','criminal-procedure-trial'];
 actions.add('attempt_counts');
+actions.add('admin_analytics');
 actions.add('admin_pass_set');
 for(const action of ['targets','preview','issue','list','detail','revoke'])actions.add('admin_grant_'+action);
 const fail = (message, status=400) => { throw Object.assign(new Error(message),{status}); };
@@ -59,6 +60,14 @@ function validate(body) {
   if (body.studentId !== undefined && (typeof body.studentId !== 'string' || body.studentId.length>120)) fail('invalid_request');
   if (body.deviceToken !== undefined && (typeof body.deviceToken !== 'string' || body.deviceToken.length>256)) fail('invalid_request');
   const action=body.action;
+  if (action==='admin_analytics') {
+    const validDate=value=>typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
+    const today=new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
+    if (!validDate(body.startDate) || !validDate(body.endDate) || body.startDate>body.endDate
+      || body.endDate>today || body.startDate<'2026-09-17'
+      || (Date.parse(body.endDate)-Date.parse(body.startDate))/86400000>365) fail('invalid_request');
+  }
   if(['admin_grant_targets','admin_grant_preview'].includes(action) && (typeof body.cohort!=='string' || (!['','online_managed'].includes(body.cohort)&&!/^[0-9]{1,2}$/.test(body.cohort))))fail('invalid_request');
   if(action==='admin_grant_preview' && body.studentIds!==undefined && (!Array.isArray(body.studentIds) || body.studentIds.length<1 || body.studentIds.length>10000 || body.studentIds.some(id=>typeof id!=='string'||!id||id.length>120) || new Set(body.studentIds).size!==body.studentIds.length))fail('invalid_request');
   if(action==='admin_grant_preview') {
@@ -129,6 +138,7 @@ function validate(body) {
   }
 }
 async function invokeLearning(action,actor,body,request=requestSupabase) {
+  if(action==='admin_analytics')return request('POST','rpc/ox_usage_analytics',{p_actor:actor,p_start:body.startDate,p_end:body.endDate});
   if(['admin_members','admin_pass_set','admin_book_set'].includes(action))return request('POST','rpc/ox_pass_admin',{p_action:action==='admin_book_set'?'admin_pass_set':action,p_actor:actor,p_body:body});
   if(action.startsWith('admin_grant_'))return request('POST','rpc/ox_grant_admin',{p_action:action,p_actor:actor,p_body:body});
   if(actor.type==='student' || action.startsWith('admin_device_')) return request('POST','rpc/ox_device_gateway',{p_action:action,p_actor:actor,p_body:body});
@@ -149,7 +159,7 @@ function createHandler({ invoke=invokeLearning, authenticate=authenticateStudent
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
         if(!session) fail('unauthorized',401);
-        const permission=body.action==='admin_device_decide'?'students.reset':body.action.startsWith('admin_device_')?'students.read':['admin_save','admin_enabled','admin_member_set','admin_book_set','admin_pass_set','admin_grant_preview','admin_grant_issue','admin_grant_revoke'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
+        const permission=body.action==='admin_analytics'?'analytics.read':body.action==='admin_device_decide'?'students.reset':body.action.startsWith('admin_device_')?'students.read':['admin_save','admin_enabled','admin_member_set','admin_book_set','admin_pass_set','admin_grant_preview','admin_grant_issue','admin_grant_revoke'].includes(body.action)?'criminal_ox.write':'criminal_ox.read';
         if(!auth.hasPermission(session,permission)) fail('forbidden',403);
         actor={type:'admin',id:session.username};
       } else {

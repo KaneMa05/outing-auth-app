@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v466-pass-only";
+const CACHE_NAME = "outing-auth-app-v467-analytics";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -39,6 +39,10 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
+  "/shared.js?v=20261001-analytics",
+  "/app.js?v=20261001-analytics",
+  "/data-analytics-admin.js?v=20261001-analytics",
+  "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",
   "/criminal-law-ox.js?v=20261001-pass-only",
   "/criminal-law-ox.css?v=20260928-ox-compact-filters",
