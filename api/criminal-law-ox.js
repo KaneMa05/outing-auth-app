@@ -58,10 +58,10 @@ function validate(body) {
   if (body.studentId !== undefined && (typeof body.studentId !== 'string' || body.studentId.length>120)) fail('invalid_request');
   if (body.deviceToken !== undefined && (typeof body.deviceToken !== 'string' || body.deviceToken.length>256)) fail('invalid_request');
   const action=body.action;
-  if(['admin_grant_targets','admin_grant_preview'].includes(action) && (typeof body.cohort!=='string' || (body.cohort!==''&&!/^[0-9]{1,2}$/.test(body.cohort))))fail('invalid_request');
+  if(['admin_grant_targets','admin_grant_preview'].includes(action) && (typeof body.cohort!=='string' || (!['','online_managed'].includes(body.cohort)&&!/^[0-9]{1,2}$/.test(body.cohort))))fail('invalid_request');
   if(action==='admin_grant_preview' && body.studentIds!==undefined && (!Array.isArray(body.studentIds) || body.studentIds.length<1 || body.studentIds.length>10000 || body.studentIds.some(id=>typeof id!=='string'||!id||id.length>120) || new Set(body.studentIds).size!==body.studentIds.length))fail('invalid_request');
   if(action==='admin_grant_preview') {
-    if(typeof body.cohort!=='string' || (body.cohort!==''&&!/^[0-9]{1,2}$/.test(body.cohort)) || !Array.isArray(body.collectionIds) || body.collectionIds.length<1 || body.collectionIds.length>3 || body.collectionIds.some(id=>!bookIds.includes(id)) || new Set(body.collectionIds).size!==body.collectionIds.length || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500)fail('invalid_request');
+    if(typeof body.cohort!=='string' || (!['','online_managed'].includes(body.cohort)&&!/^[0-9]{1,2}$/.test(body.cohort)) || !Array.isArray(body.collectionIds) || body.collectionIds.length<1 || body.collectionIds.length>3 || body.collectionIds.some(id=>!bookIds.includes(id)) || new Set(body.collectionIds).size!==body.collectionIds.length || typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>500)fail('invalid_request');
     if(body.expiresOn!==null && body.expiresOn!=='') {
       const date=typeof body.expiresOn==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(body.expiresOn)?new Date(body.expiresOn+'T00:00:00Z'):null;
       if(!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==body.expiresOn || body.expiresOn<new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10))fail('invalid_request');

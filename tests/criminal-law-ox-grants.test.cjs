@@ -21,6 +21,7 @@ test('Bulk benefits: reviewed offline snapshot, pagination, purchase union, expi
   await db.exec(fs.readFileSync('tests/fixtures/ox-exam-subjects.sql','utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20260922060528_ox_grant_recipient_selection.sql','utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20260922061015_ox_member_track_filter.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261001082345_ox_managed_grants_and_fast_preview.sql','utf8'));
   await db.exec("insert into students(id,track) values('no-criminal','함정요원 순경 항해'),('no-written','함정요원'),('no-track',null),('unknown-track','확인 전 직렬');");
   const members=body=>core('admin_members',{registeredOnly:false,...body});
   const trackPage=await members({cohort:'18',track:'공채'});
@@ -120,10 +121,42 @@ test('Bulk benefits: reviewed offline snapshot, pagination, purchase union, expi
   const changedTrack=(await preview({studentIds:['s17']})).batchId;
   await db.exec('reset role');await db.exec("update students set track='VTS' where id='s17'");await db.exec('set role service_role');
   await assert.rejects(grant('issue',{batchId:changedTrack}),/grant_target_changed/);
+  // Online managed grants are independent of offline cohorts and purchased books.
+  await db.exec('reset role');
+  await db.exec("insert into students(id,student_category,cohort,track) values('online-second','online_managed',null,'수사특채'),('online-no-exam','online_managed',18,'기타'),('online-inactive','online_managed',18,'공채'),('online-teacher','online_managed',18,'공채');update students set is_active=false where id='online-inactive';update students set account_type='teacher' where id='online-teacher';");
+  await register('online-second');
+  await db.exec('set role service_role');
+  const managedTargets=await grant('targets',{cohort:'online_managed'});
+  assert.deepEqual(managedTargets.items.map(s=>s.student_id).sort(),['online','online-second','s1']);
+  assert.ok(!(await grant('targets',{cohort:''})).items.some(s=>s.student_id==='online'));
+  for(const id of ['s0','lecture','online-no-exam','online-inactive','online-teacher'])await assert.rejects(preview({cohort:'online_managed',studentIds:[id]}),/grant_target_changed/);
+  const managedPreview=(await preview({cohort:'online_managed',studentIds:['online','online-second'],collectionIds:[books[0]]})).batchId;
+  assert.equal((await learn('status','online')).enabled,false,'Preview never grants access');
+  assert.equal((await grant('detail',{batchId:managedPreview})).batch.cohort,'online_managed');
+  assert.equal((await grant('issue',{batchId:managedPreview})).count,2);
+  assert.equal((await grant('issue',{batchId:managedPreview})).count,2,'Retry does not duplicate recipients');
+  assert.equal((await learn('status','online')).enabled,true);
+  const managedSession=(await learn('device_start','online')).sessionId;
+  assert.equal((await learn('bootstrap','online',{sessionId:managedSession})).catalog.chapters.length,1);
+  assert.equal((await learn('status','s1')).enabled,false,'Other managed students do not inherit benefits');
+  await db.exec('reset role');await db.exec("update students set is_active=false where id='online'");await db.exec('set role service_role');
+  assert.equal((await db.query('select ox_has_grant($1,$2) allowed',['online',books[0]])).rows[0].allowed,false,'Inactive managed students lose access');
+  await db.exec('reset role');await db.exec("update students set is_active=true,student_category='offline' where id='online'");await db.exec('set role service_role');
+  assert.equal((await db.query('select ox_has_grant($1,$2) allowed',['online',books[0]])).rows[0].allowed,false,'Managed benefits do not transfer to offline enrollment');
+  await db.exec('reset role');await db.exec("update students set student_category='online_managed' where id='online'");await db.exec('set role service_role');
+  const managedChanged=(await preview({cohort:'online_managed',studentIds:['online-second']})).batchId;
+  await db.exec('reset role');await db.exec("update students set student_category='lecture' where id='online-second'");await db.exec('set role service_role');
+  await assert.rejects(grant('issue',{batchId:managedChanged}),/grant_target_changed/);
+  await core('admin_book_set',{memberId:'online',collectionIds:[books[0]],active:true,revision:0,purchaseDate:'2026-01-01',reason:'managed purchase'});
+  await grant('revoke',{batchId:managedPreview,reason:'managed grant revocation'});
+  assert.equal((await learn('bootstrap','online',{sessionId:managedSession})).catalog.chapters.length,1,'Managed purchase survives benefit revocation');
   const changedSubjects=(await preview({studentIds:['s18']})).batchId;
   await db.exec('reset role');await db.exec("insert into exam_subject_settings(track,subject,is_active) values('경찰직 - 공채(순경)','형사법',false)");await db.exec('set role service_role');
   await assert.rejects(grant('issue',{batchId:changedSubjects}),/grant_target_changed/);
   await grant('revoke',{batchId:chosen,reason:'선택 지급 회수'});
+  const privileges=(await db.query("select proname,prosecdef,has_function_privilege('anon',oid,'execute') anon,has_function_privilege('authenticated',oid,'execute') authenticated,has_function_privilege('service_role',oid,'execute') service from pg_proc where pronamespace='public'::regnamespace and proname in ('ox_grant_targets','ox_grant_admin','ox_has_grant')")).rows;
+  assert.equal(privileges.length,3);
+  for(const p of privileges){assert.equal(p.prosecdef,false);assert.equal(p.anon,false);assert.equal(p.authenticated,false);assert.equal(p.service,true);}
   for(const role of ['anon','authenticated']){await db.exec('reset role');await db.exec('set role '+role);await assert.rejects(grant('list'),/permission denied/);await assert.rejects(db.query('select * from ox_grant_batches'),/permission denied/);}
  }finally{await db.close();}
 });
@@ -138,7 +171,50 @@ test('Grant API validates conditions and limits mutations to OX write permission
  assert.equal(await request({action:'admin_grant_revoke',batchId:crypto.randomUUID(),reason:'회수'},['criminal_ox.read']),403);
  assert.equal(await request({action:'admin_grant_list'},['criminal_ox.read']),200);
  assert.equal(await request({action:'admin_grant_targets',cohort:'18'},['criminal_ox.read']),200);
+ assert.equal(await request({action:'admin_grant_targets',cohort:'online_managed'},['criminal_ox.read']),200);
+ assert.equal(await request({...body,cohort:'online_managed',studentIds:['online']},['criminal_ox.write']),200);
+ assert.equal(await request({...body,cohort:'online_managed'},['criminal_ox.read']),403);
+ for(const cohort of [null,18,{},[],true,'online','online_managed18','100'])assert.throws(()=>validate({...body,cohort}),/invalid_request/);
  for(const studentIds of [[],['s','s'],[null],null])assert.throws(()=>validate({...body,studentIds}),/invalid_request/);
  assert.equal(await request({...body,studentIds:['s1']},['criminal_ox.write']),200);
  const paths=[];await invokeLearning('admin_grant_preview',{type:'admin',id:'qa'},body,async(...args)=>{paths.push(args);return {ok:true};});assert.equal(paths[0][1],'rpc/ox_grant_admin');
+});
+
+
+test('Grant preview keeps identical offline recipients while avoiding repeated roster scans',async()=>{
+ const db=new PGlite();
+ const read=file=>fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n');
+ const original=read('20260922060528_ox_grant_recipient_selection.sql');
+ const migration=read('20261001082345_ox_managed_grants_and_fast_preview.sql');
+ const functionSql=(sql,name)=>sql.match(new RegExp('create (?:or replace )?function public\\.'+name+'\\([^]*?\\$\\$;'))[0];
+ const body={cohort:'18',studentIds:Array.from({length:55},(_,i)=>'bench'+i),collectionIds:[books[0]],expiresOn:null,reason:'performance fixture'};
+ const preview=async()=>{
+   await db.exec('begin');
+   try {
+     const start=performance.now();
+     const result=await db.query("select ox_grant_admin('admin_grant_preview',$1::jsonb,$2::jsonb) result",[JSON.stringify({type:'admin',id:'qa'}),JSON.stringify(body)]);
+     const ms=performance.now()-start;
+     const snapshot=(await db.query('select student_id from ox_grant_recipients where batch_id=$1 order by student_id',[result.rows[0].result.batchId])).rows;
+     return {ms,snapshot};
+   } finally { await db.exec('rollback'); }
+ };
+ try {
+   await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create table students(id text primary key,name text default 'fixture',class_name text default 'class',student_category text default 'offline',cohort smallint default 18,account_type text default 'student',is_active boolean default true,track text);");
+   await db.exec(fs.readFileSync('tests/fixtures/ox-exam-subjects.sql','utf8'));
+   const initial=read('20260922044821_ox_bulk_access_grants.sql');
+   await db.exec(initial.slice(0,initial.indexOf('create function public.ox_has_purchased_book')));
+   await db.exec("alter table ox_grant_batches add column selection_mode text not null default 'all'");
+   await db.exec(functionSql(original,'ox_normalize_grant_track')+functionSql(original,'ox_grant_track_eligible')+functionSql(original,'ox_grant_targets')+functionSql(original,'ox_grant_admin'));
+   await db.exec("insert into students(id,track) select 'bench'||i,case when i<100 then '\uACF5\uCC44' else 'custom-track-'||(i%20) end from generate_series(0,319)i;insert into exam_subject_settings(track,subject,is_active) select case when t=0 then '\uACF5\uCC44' else 'custom-track-'||(t-1) end,case when s=0 then '\uD615\uC0AC\uBC95' else 'subject-'||s end,true from generate_series(0,20)t cross join generate_series(0,7)s;");
+   // Read one actual old preview before replacing the functions.
+   const before=await preview();
+   await db.exec(functionSql(migration,'ox_grant_targets')+functionSql(migration,'ox_grant_admin'));
+   const after=await preview();
+   assert.equal(after.snapshot.length,55);
+   assert.deepEqual(after.snapshot,before.snapshot,'Optimization must not change approved recipients');
+   assert.ok(after.ms<before.ms/2,'Preview should avoid the previous per-student repeated settings scans');
+   console.log('55-student preview with 320 students / 168 subject settings: '+Math.round(before.ms)+'ms -> '+Math.round(after.ms)+'ms');
+   const parity=await db.query("select s.id from students s where ox_grant_track_eligible(s.track) is distinct from exists(select 1 from ox_grant_targets('18') t where t.student_id=s.id)");
+   assert.equal(parity.rows.length,0,'Set-based eligibility matches existing track rules');
+ } finally { await db.close(); }
 });

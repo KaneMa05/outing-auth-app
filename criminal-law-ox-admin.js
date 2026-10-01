@@ -17,7 +17,7 @@ function renderCriminalLawOxAdmin() {
   const categoryNames={offline:'오프라인',online_managed:'온라인 관리반',lecture:'인터넷 수강생'};
   const statusNames={published:'공개',draft:'검토 대기',archived:'보관'};
   const messages={revision_conflict:'다른 관리자가 수정한 문항입니다. 목록을 새로고침한 뒤 다시 열어주세요.',invalid_question:'지문·해설·정답과 검토 완료 여부를 확인해주세요.',invalid_html:'해설에는 밑줄 태그 <u>만 사용할 수 있습니다.',forbidden:'OX 관리 권한이 없습니다.',unauthorized:'관리자 로그인이 필요합니다.',student_unavailable:'등록할 수 없는 계정입니다. 수강생의 활성 상태를 확인해주세요.'};
-  Object.assign(messages,{grant_empty_targets:'조건에 맞는 오프라인 재원생이 없습니다.',grant_unavailable:'지급 건을 찾을 수 없습니다.',grant_preview_expired:'확인 시간이 지났습니다. 조건을 다시 선택해 대상 명단을 확인해주세요.',grant_target_changed:'재원생 명단이 변경되었습니다. 조건을 다시 선택해 대상 명단을 확인해주세요.',device_request_changed:'신청 또는 기기 상태가 변경되었습니다. 목록을 다시 확인해주세요.',device_unavailable:'비밀번호 또는 기기 정보가 변경되어 승인할 수 없습니다. 학생에게 다시 신청하도록 안내해주세요.',access_conflict:'다른 관리자가 이용 권한을 변경했습니다. 목록을 새로고침한 뒤 다시 등록해주세요.',book_already_active:'이미 이용 중인 교재입니다. 목록을 새로고침해주세요.',book_selection_required:'구매한 교재를 선택해 등록해주세요.',invalid_request:'교재·구매일·처리 사유를 확인해주세요.'});
+  Object.assign(messages,{grant_empty_targets:'조건에 맞는 재원생이 없습니다.',grant_unavailable:'지급 건을 찾을 수 없습니다.',grant_preview_expired:'확인 시간이 지났습니다. 조건을 다시 선택해 대상 명단을 확인해주세요.',grant_target_changed:'재원생 명단이 변경되었습니다. 조건을 다시 선택해 대상 명단을 확인해주세요.',device_request_changed:'신청 또는 기기 상태가 변경되었습니다. 목록을 다시 확인해주세요.',device_unavailable:'비밀번호 또는 기기 정보가 변경되어 승인할 수 없습니다. 학생에게 다시 신청하도록 안내해주세요.',access_conflict:'다른 관리자가 이용 권한을 변경했습니다. 목록을 새로고침한 뒤 다시 등록해주세요.',book_already_active:'이미 이용 중인 교재입니다. 목록을 새로고침해주세요.',book_selection_required:'구매한 교재를 선택해 등록해주세요.',invalid_request:'교재·구매일·처리 사유를 확인해주세요.'});
   async function api(action,body={}) {
     const response=await fetch('/api/criminal-law-ox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
     const result=await response.json();
@@ -168,7 +168,7 @@ function renderCriminalLawOxAdmin() {
     try {
       if(b.dataset.admin==='grants') {
         const version=++bookEditorVersion,panel=host.querySelector('[data-book-editor]');panel.replaceChildren();
-        const {mountGrants}=await import('./criminal-law-ox-grants-admin.js?v=20260922-ox-recipient-selection');
+        const {mountGrants}=await import('./criminal-law-ox-grants-admin.js?v=20261001-managed-grants');
         if(version!==bookEditorVersion)return;
         memberRequestId++;
         host.classList.add('ox-grant-focused');

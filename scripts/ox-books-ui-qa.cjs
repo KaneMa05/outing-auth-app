@@ -34,6 +34,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await db.exec(read('tests/fixtures/ox-exam-subjects.sql'));
   await db.exec(read('supabase/migrations/20260922060528_ox_grant_recipient_selection.sql'));
   await db.exec(read('supabase/migrations/20260922061015_ox_member_track_filter.sql'));
+  await db.exec(read('supabase/migrations/20261001082345_ox_managed_grants_and_fast_preview.sql'));
     await db.exec("update students set track='수사특채' where id='managed';update students set track=null where id='lecture';");
     await db.exec('set role service_role');
     const counts={};
@@ -319,6 +320,34 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await wait("document.querySelector('[data-book-editor]').textContent.includes('회수 사유: 지원 종료')");
     assert.equal((await evaluate("studentRequest('bootstrap')")).catalog.chapters.length,1,'Purchased scope survives batch revocation');
     await click('[data-grant-history]');await wait("document.querySelector('[data-grant-detail]')");
+    // Managed recipients use the same reviewed, explicit-selection flow.
+    await click('[data-grant-new]');await wait("document.querySelector('[data-grant-form]')");
+    await evaluate("document.querySelector('[data-grant-form] [name=cohort]').value='online_managed';document.querySelector('[data-grant-form] [name=cohort]').dispatchEvent(new Event('change'))");
+    await wait("document.querySelector('[data-grant-student=managed]')");
+    assert.equal(await evaluate("document.querySelectorAll('[data-grant-student]').length"),1,'Managed option excludes offline and lecture students');
+    assert.equal(await evaluate("document.querySelector('[name=period] [value=enrolled]').textContent"),'온라인 관리반 재원 기간');
+    assert.equal(await evaluate("document.querySelector('[data-grant-review]').disabled"),true);
+    await click('[data-grant-all]');
+    await evaluate("document.querySelector('[data-grant-form] [name=cohort]').value='18';document.querySelector('[data-grant-form] [name=cohort]').dispatchEvent(new Event('change'))");
+    await wait("document.querySelector('[data-grant-student=pick-1]')");
+    assert.equal(await evaluate("document.querySelector('[data-grant-review]').disabled"),true,'Cohort switching clears managed selection');
+    await evaluate("document.querySelector('[data-grant-form] [name=cohort]').value='online_managed';document.querySelector('[data-grant-form] [name=cohort]').dispatchEvent(new Event('change'))");
+    await wait("document.querySelector('[data-grant-student=managed]')");
+    await click('[data-grant-all]');
+    for(const width of [390,1100]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height:950,deviceScaleFactor:1,mobile:width<500});
+      assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Managed picker overflow');
+      const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(dir,'managed-grants-'+width+'.png'),Buffer.from(shot.data,'base64'));
+    }
+    await evaluate("document.querySelector('[data-grant-form] [name=reason]').value='관리반 학습 지원';document.querySelector('[data-grant-form]').requestSubmit()");
+    await wait("document.querySelector('[data-grant-issue]')?.textContent.includes('1명')");
+    assert.equal(await evaluate("document.querySelector('[data-book-editor]').textContent.includes('온라인 관리반 재원 기간')"),true);
+    await click('[data-grant-issue]');await wait("document.querySelector('[data-grant-revoke]')");
+    assert.equal((await invoke('bootstrap',{type:'student',id:'managed'},{})).catalog.chapters.length,3,'Managed student can use granted scopes');
+    await evaluate("document.querySelector('[data-grant-revoke] [name=reason]').value='관리반 지원 종료';document.querySelector('[data-grant-revoke]').requestSubmit()");
+    await wait("document.querySelector('[data-book-editor]').textContent.includes('회수 사유: 관리반 지원 종료')");
+    assert.equal((await invoke('bootstrap',{type:'student',id:'managed'},{})).catalog.chapters.length,1,'Managed purchase survives revocation');
+
     await evaluate("renderCriminalLawOxLocalPreview.view?.controller?.destroy();renderCriminalLawOxLocalPreview.view=null;window.learning=false;window.myPage=false;document.querySelector('#app').hidden=false;document.querySelector('#student').replaceChildren();canWrite=false;render()");await wait("document.querySelector('[data-admin=book-add]')?.disabled");
     assert.equal(await evaluate("Array.from(document.querySelectorAll('[data-admin=book-add],[data-admin=book-stop],[data-admin=member-set]')).every(b=>b.disabled)"),true);
     await click('[data-admin=grants]');await wait("document.querySelector('[data-grant-new]')?.disabled");
