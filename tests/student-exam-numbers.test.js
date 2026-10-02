@@ -75,8 +75,9 @@ const originalEnv = {
   global.fetch = async (url) => {
     if (url.includes("/students?")) {
       assert.match(url, /student_category=eq\.offline/);
-      assert.match(url, /is_active=eq\.true/);
-      return jsonResponse(200, [{ id: "18001", name: "김학생", cohort: 18, track: "공채" }]);
+      assert.match(url, /account_type=eq\.student/);
+      assert.doesNotMatch(url, /is_active=/);
+      return jsonResponse(200, [{ id: "18001", name: "김학생", cohort: 18, track: "공채", is_active: false }]);
     }
     if (url.includes("/student_exam_numbers?")) {
       return jsonResponse(200, [{ student_id: "18001", exam_number: "A-100", updated_at: "2026-09-01T00:00:00Z" }]);
@@ -95,7 +96,7 @@ const originalEnv = {
     requests.push({ url, options });
     if (url.includes("/students?")) {
       return jsonResponse(200, [
-        { id: "18001", name: "김학생", cohort: 18, track: "공채" },
+        { id: "18001", name: "김학생", cohort: 18, track: "공채", is_active: false },
         { id: "18002", name: "이학생", cohort: 18, track: "기관" },
       ]);
     }
@@ -143,7 +144,7 @@ const originalEnv = {
   assert.match(teacherHtml, /data-route="student-exam-numbers"/);
   assert.match(appSource, /"student-exam-numbers": renderStudentExamNumberAdmin/);
   assert.match(studentAdminSource, /student\.cohort === cohort/);
-  assert.match(studentAdminSource, /현재 재원 중인 오프라인 학생만 표시됩니다/);
+  assert.match(studentAdminSource, /삭제된 학생을 포함한 오프라인 학생 명단입니다/);
   assert.match(studentAdminSource, /downloadStudentExamNumberWorkbook\(cohort, students\)/);
   assert.match(studentAdminSource, /hasTeacherPermission\("exam_numbers\.export"\)/);
   assert.match(studentAdminSource, /saveStudentExamNumberChanges\(student\.id, rowSaveButton, examNumberInput\)/);

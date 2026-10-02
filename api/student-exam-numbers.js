@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const [students, examNumbers] = await Promise.all([
-        loadActiveOfflineStudents(),
+        loadOfflineExamNumberStudents(),
         requestSupabase(
           "GET",
           `${EXAM_NUMBER_TABLE}?select=student_id,exam_number,updated_at&order=student_id.asc`
@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const students = await loadActiveOfflineStudents();
+      const students = await loadOfflineExamNumberStudents();
       const eligibleIds = new Set((students || []).map((student) => String(student.id)));
       if (entries.some((entry) => !eligibleIds.has(entry.studentId))) {
         res.status(400).json({ ok: false, error: "ineligible_student" });
@@ -140,10 +140,10 @@ function normalizeExamNumber(value) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
-async function loadActiveOfflineStudents() {
+async function loadOfflineExamNumberStudents() {
   return requestSupabase(
     "GET",
-    `${STUDENT_TABLE}?student_category=eq.offline&account_type=eq.student&is_active=eq.true&select=id,name,cohort,track&order=cohort.desc,id.asc`
+    `${STUDENT_TABLE}?student_category=eq.offline&account_type=eq.student&select=id,name,cohort,track&order=cohort.desc,id.asc`
   );
 }
 

@@ -547,7 +547,7 @@ function readLocalActiveOfflineStudents() {
         const id = String(student?.id || "").trim();
         const category = String(student?.studentCategory || student?.student_category || "offline").trim();
         const accountType = String(student?.accountType || student?.account_type || "student").trim();
-        return id && category === "offline" && accountType !== "teacher" && student?.isActive !== false && student?.is_active !== false;
+        return id && category === "offline" && accountType === "student";
       })
       .map((student) => {
         const id = String(student.id || "").trim();

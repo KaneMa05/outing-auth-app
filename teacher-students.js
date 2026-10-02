@@ -60,7 +60,7 @@ function renderStudentExamNumberAdmin() {
   const cohorts = getStudentExamNumberCohorts();
   if (!cohorts.length) {
     return el("div", { className: "grid" }, [
-      panel("응시번호 입력", [el("div", { className: "empty" }, "현재 재원 중인 오프라인 학생이 없습니다.")]),
+      panel("응시번호 입력", [el("div", { className: "empty" }, "오프라인 학생 명단이 없습니다.")]),
     ]);
   }
   if (!cohorts.includes(studentExamNumberAdminState.cohort)) {
@@ -159,7 +159,7 @@ function renderStudentExamNumberAdmin() {
   ]);
   return el("div", { className: "grid student-exam-number-admin" }, [
     panel("응시번호 입력", [
-      el("p", { className: "subtle" }, "현재 재원 중인 오프라인 학생만 표시됩니다. 미등록 학생은 응시번호를 입력하면 저장 버튼이 활성화됩니다."),
+      el("p", { className: "subtle" }, "삭제된 학생을 포함한 오프라인 학생 명단입니다. 응시번호를 입력하거나 수정하면 저장 버튼이 활성화됩니다."),
       form,
     ]),
   ]);
