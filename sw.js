@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v468-exam-retention";
+const CACHE_NAME = "outing-auth-app-v469-final-score-scope";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -17,7 +17,7 @@ const APP_SHELL = [
   "/study-character.js?v=20260911-character-hair-fire",
   "/study-shop.js?v=20260929-shared-character",
   "/student-rewards.js?v=20260911-reward-break-celebration",
-  "/final-scope-data.js?v=20260908-final-scope-plan",
+  "/final-scope-data.js?v=20261002-final-scope-units",
   "/final-scope-model.js?v=20260921-final-scope-admin",
   "/final-scope-admin.js?v=20260921-final-scope-admin",
   "/final-scope-admin.css?v=20260921-final-scope-admin",
@@ -28,7 +28,7 @@ const APP_SHELL = [
   "/teacher.js?v=20260911-admin-dashboard-retry",
   "/study-character.js?v=20260911-character-hair",
   "/study-cafe-bot-admin.js?v=20260911-bot-admin",
-  "/teacher-grades.js?v=20260919-investigation-subject-management",
+  "/teacher-grades.js?v=20260929-final-score-delete",
   "/teacher-fitness.js?v=20261001-fitness-reason",
   "/teacher-students.js?v=20261002-exam-retention",
   "/teacher-settings.js?v=20260806-learner-board-copy",
@@ -50,7 +50,7 @@ const APP_SHELL = [
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20261001-pass-only",
   "/criminal-law-ox-device-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261001-pass-only",
+  "/app.js?v=20261002-final-scope-scroll",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",

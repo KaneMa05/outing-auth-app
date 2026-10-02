@@ -35,3 +35,13 @@
 - 검증용 지급 확인은 하위 트랜잭션에서 롤백했다. 지급 배치·대상 행은 각각 0건 유지, 교재 권한 15건 유지. 실제 이용권 지급은 실행하지 않았다.
 - 보안 점검 ERROR/WARN 없음. 기존 RLS/no-policy INFO 56건 유지.
 - 복구 기준 배포: `dpl_BZ1fjYWZLbpS8c3cNE7UD75Ex63L` / 커밋 `d2df8f53a9bffb5c05b0a560710ba4a6a5720a05`.
+
+## 운영 배포 완료
+
+- 반영 커밋: `0efdc74201a50285ab1267d6faa8e1c2834acbba`.
+- main 푸시에 연결된 운영 자동 배포 한 번으로 반영. 별도 수동 배포 없음.
+- 운영 배포: `dpl_2VqzN6mbsptgjWjXfcmpYVRogyNS` / `https://outing-auth-eg26ht15m-ronpark.vercel.app`, READY.
+- 서비스 도메인: https://app.ronparkpass.com — 새 배포 연결 확인.
+- 관리자/OX 지급 화면 파일과 기존 수강생 앱 파일이 검증 배포본과 일치. 캐시 자산 54개 HTTP 200, 내부 테스트·SQL·지침 파일 HTTP 404 확인.
+- 운영 API에서 온라인 관리반 값 허용 및 미인증 요청 401, 허용되지 않은 인터넷 수강생 값 400 확인. 실제 지급 실행 없음.
+- 작업 전부터 있던 성적·회독 미완료 변경은 배포에서 제외하고 해시로 보존 확인.

@@ -2410,6 +2410,16 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
   const rows = sortGradeSummariesForDisplay(summaries).map((summary) => {
     const previousRank = previousRankByStudent.get(String(summary.student.id)) || 0;
     const record = recordByStudent.get(String(summary.student.id)) || null;
+    const editButton = button("수정", "mini-btn", "button", () => openFinalScoreEditModal(round, summary.student, record));
+    const deleteButton = record?.id ? button("삭제", "mini-btn danger", "button", async () => {
+      if (deleteButton.disabled) return;
+      editButton.disabled = deleteButton.disabled = true;
+      try {
+        await deleteFinalScore(round, summary.student, record);
+      } finally {
+        editButton.disabled = deleteButton.disabled = false;
+      }
+    }) : null;
     return el("tr", {}, [
       el("td", {}, summary.student.isExternalFinalScore ? "-" : formatStudentNumber(summary.student.id)),
       el("td", {}, summary.student.name || "-"),
@@ -2421,7 +2431,7 @@ function renderFinalMockScoresPanel(cohort = selectedStudentCohort) {
       el("td", {}, summary.rank ? formatTopPercentLabel(summary.topPercent) : "-"),
       el("td", {}, previousRank ? `${previousRank}등` : "-"),
       el("td", {}, formatRankDelta(summary.rank, previousRank)),
-      el("td", {}, button("수정", "mini-btn", "button", () => openFinalScoreEditModal(round, summary.student, record))),
+      el("td", { className: "action-cell" }, el("div", { className: "teacher-action-stack" }, [editButton, deleteButton])),
     ]);
   });
   const bulkTextarea = el("textarea", {
@@ -2653,6 +2663,25 @@ function openFinalBulkStudentMatchModal(round, students, rawText, cohort, rows, 
     }
   });
   openInfoModal({ title: "동명이인 성적 구분", content: form, showConfirm: false });
+}
+
+async function deleteFinalScore(round, student, record) {
+  const recordId = record?.id;
+  if (!recordId || !(state.finalExamScores || []).some((item) => item.id === recordId)) {
+    return notify("삭제할 파이널 성적이 없습니다.");
+  }
+  const studentLabel = student?.name || record.studentName || record.studentId || "학생";
+  if (!confirm(`${studentLabel} 학생의 ${round}회차 파이널 성적을 삭제할까요?\n해당 회차의 성적만 삭제되며, 삭제한 성적은 복구할 수 없습니다.`)) return;
+  try {
+    await deleteFinalExamScoresFromRemote([recordId]);
+  } catch (error) {
+    console.error(error);
+    return notify("파이널 성적을 서버에서 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
+  state.finalExamScores = (state.finalExamScores || []).filter((item) => item.id !== recordId);
+  saveState({ skipRemote: true });
+  notify(`${studentLabel} 학생의 ${round}회차 파이널 성적을 삭제했습니다.`);
+  render();
 }
 
 async function deleteFinalBulkScores(round, participants = []) {
@@ -3847,6 +3876,7 @@ function getFinalMockScoreRecords(round) {
     const value = Number(record.round || record.roundNumber || record.session || record.sessionNumber || record.examRound || record.examNumber || 0);
     return value === Number(round);
   }).map((record) => ({
+    id: record.id || "",
     studentId: record.studentId || record.student_id || record.studentNumber || "",
     studentName: record.studentName || record.student_name || record.name || "",
     track: normalizeCoastGuardTrack(record.track || record.studentTrack || record.student_track || ""),

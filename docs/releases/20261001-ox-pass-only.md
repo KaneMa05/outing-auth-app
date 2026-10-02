@@ -41,3 +41,14 @@ OX JS 6개, API, app.js의 OX 안내·동적 로딩 버전, index.html/teacher.h
 - 풀이 718건, 진행 599건, 메모 29건 보존.
 - 제보된 학생의 형법·수사·증거 이용권은 active, 미지급 공판은 none 확인.
 - RLS 활성화, anon/authenticated의 신규 테이블 읽기 및 RPC 호출 차단 확인. 보안 advisor WARN/ERROR 없음. 서비스 전용 테이블의 [RLS 정책 없음 INFO](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)는 의도한 클라이언트 접근 차단이며 신규 테이블 포함 57건.
+
+## 배포 완료
+
+- 커밋: `1f6d53cd21e5f9c483683d53b632ea8abf172075` — main 푸시 완료.
+- Vercel: `dpl_4LtJPExMK8Hn9wWSCsVoqEgMchX4`, READY.
+- 운영: https://app.ronparkpass.com — 신규 배포 연결 확인.
+- 운영 파일 13개가 검증한 배포 후보와 일치하며, 캐시 자산 54개 모두 HTTP 200 확인.
+- 신규 이용권 API의 요청 검증·로그인 권한 확인. 내부 테스트·DB·지침 파일은 HTTP 404.
+- 운영 DB의 관리자 조회에서도 제보 학생의 두 지급 영역 active 및 allowed=true 확인.
+- 기존 미완료 작업 파일의 SHA-256이 배포 전후 동일함을 확인.
+- 상세 검증 결과: `.tmp/pass-production-result.json`.

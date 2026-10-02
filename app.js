@@ -5344,13 +5344,30 @@ function formatFinalScopeUnitCode(code) {
 }
 
 function selectFinalScopeRound(roundNumber) {
+  const strip = document.querySelector(".final-scope-round-strip");
+  const content = document.querySelector(".final-scope-plan-content");
   finalScopeSelectedRound = Number(roundNumber) || 1;
-  render();
+  const nextContent = renderFinalScopePlan().querySelector(".final-scope-plan-content");
+  if (!strip || !content || !nextContent) {
+    render();
+    return;
+  }
+  // Keep the existing buttons, focus and horizontal scroll while changing rounds.
+  content.replaceWith(nextContent);
+  strip.querySelectorAll("[data-final-scope-round]").forEach((control) => {
+    const selected = Number(control.dataset.finalScopeRound) === finalScopeSelectedRound;
+    control.classList.toggle("active", selected);
+    control.setAttribute("aria-pressed", String(selected));
+  });
   window.requestAnimationFrame(() => {
-    document.querySelector(`[data-final-scope-round="${finalScopeSelectedRound}"]`)?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
+    if (!strip.isConnected) return;
+    const selected = strip.querySelector(".final-scope-round-button.active");
+    if (!selected) return;
+    const stripBounds = strip.getBoundingClientRect();
+    const selectedBounds = selected.getBoundingClientRect();
+    strip.scrollTo({
+      left: strip.scrollLeft + selectedBounds.left - stripBounds.left + (selectedBounds.width - stripBounds.width) / 2,
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
   });
 }

@@ -123,6 +123,55 @@ async function main() {
     "a failed round 2 save must preserve both rounds on the server");
   failure = null;
 
+  vm.runInContext(extract(grades, "getFinalMockScoreRecords"), context);
+  vm.runInContext(extract(grades, "deleteFinalScore"), context);
+  context.normalizeFinalMockSubjectScores = (record) => record.subjectScores || {};
+  const deleteTarget = { id: "final-4-a", studentId: "a", studentName: "테스트 학생", round: 4, score: 80 };
+  const otherStudent = { ...deleteTarget, id: "final-4-b", studentId: "b" };
+  const otherRound = { ...deleteTarget, id: "final-3-a", round: 3 };
+  const external = { ...deleteTarget, id: "final-4-external", studentId: "external", isExternalFinalScore: true };
+  const originals = [deleteTarget, otherStudent, otherRound, external];
+  context.state.finalExamScores = [...originals];
+  originals.forEach((record) => database.set(record.id, record));
+  const normalizedTarget = context.getFinalMockScoreRecords(4).find((record) => record.studentId === "a");
+  assert.equal(normalizedTarget.id, deleteTarget.id, "displayed scores must retain their deletion ID");
+  let confirmation = "";
+  context.confirm = (message) => { confirmation = message; return false; };
+  const beforeCancelledDelete = calls.length;
+  await context.deleteFinalScore(4, { name: "테스트 학생" }, normalizedTarget);
+  assert.match(confirmation, /테스트 학생.*4회차/);
+  assert.equal(calls.length, beforeCancelledDelete, "cancelling must not delete, save, or render");
+  assert.equal(context.state.finalExamScores.length, 4);
+
+  context.confirm = () => true;
+  failure = new Error("single delete rejected");
+  const beforeRejectedDelete = calls.length;
+  await context.deleteFinalScore(4, { name: "테스트 학생" }, normalizedTarget);
+  assert.equal(context.state.finalExamScores[0], deleteTarget);
+  assert.equal(database.get(deleteTarget.id), deleteTarget);
+  assert.ok(!calls.slice(beforeRejectedDelete).some(([kind]) => kind === "local-save" || kind === "render"));
+
+  failure = null;
+  context.saveState = (options) => {
+    assert.equal(options.skipRemote, true, "deletion must not replay other local state to the server");
+    calls.push(["local-save"]);
+  };
+  const beforeSingleDelete = calls.length;
+  await context.deleteFinalScore(4, { name: "테스트 학생" }, normalizedTarget);
+  assert.equal(database.has(deleteTarget.id), false);
+  assert.deepEqual(Array.from(context.state.finalExamScores), [otherStudent, otherRound, external]);
+  for (const record of [otherStudent, otherRound, external]) assert.equal(database.get(record.id), record);
+  assert.deepEqual(Array.from(calls.slice(beforeSingleDelete).find(([kind]) => kind === "delete")[1]), [deleteTarget.id]);
+  assert.ok(calls.slice(beforeSingleDelete).some(([kind]) => kind === "render"), "refresh rankings after deletion");
+
+  const beforeMissingDelete = calls.filter(([kind]) => kind === "delete").length;
+  await context.deleteFinalScore(4, { name: "테스트 학생" }, normalizedTarget);
+  await context.deleteFinalScore(4, { name: "테스트 학생" }, null);
+  assert.equal(calls.filter(([kind]) => kind === "delete").length, beforeMissingDelete);
+  await context.deleteFinalScore(4, { name: "외부 응시자" }, external);
+  assert.equal(database.has(external.id), false, "external participant scores can also be deleted individually");
+  assert.deepEqual(Array.from(context.state.finalExamScores), [otherStudent, otherRound]);
+
   context.remoteStore = null;
   await assert.rejects(context.saveFinalExamScoresToRemote([changed]), /remote_store_unavailable/);
   console.log("final score persistence tests passed");
