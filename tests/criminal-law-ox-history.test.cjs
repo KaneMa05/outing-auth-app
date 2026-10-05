@@ -26,7 +26,7 @@ function fixture() {
   }
   const context = vm.createContext({
     data, bootstrap: { progress, attemptCounts:Object.fromEntries(progress.map(p=>[p.question_id,{attempts:p.wrong_count+Number(p.correct),correct:Number(p.correct),wrong:p.wrong_count}])), notes: [{ question_id:'a-0', mastered_version:1, memo:'보존할 메모', bookmark:true }], statistics:{}, todayCount:0 },
-    main:{innerHTML:''}, byId:new Map(data.questions.map(q=>[q.id,q])), chapters:new Map(data.chapters.map(c=>[c.id,c])), collections:new Map(data.collections.map(c=>[c.id,c])),
+    main:{innerHTML:'',querySelectorAll:()=>[]}, byId:new Map(data.questions.map(q=>[q.id,q])), chapters:new Map(data.chapters.map(c=>[c.id,c])), collections:new Map(data.collections.map(c=>[c.id,c])),
     esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
     button:(label,action,extra='',classes='')=>`<button data-action="${action}" class="${classes}" ${extra}>${label}</button>`,
     questionPresentation:q=>({prompt:q.prompt}), safeHtml:s=>s||'', questionStatsMarkup:()=>'', render:()=>{}
@@ -105,10 +105,10 @@ test('chapter replay includes completed history and uses the right return route'
   assert.deepEqual(f.json('session.ids'),['a-0']);
   assert.equal(f.run('origin'),'review');
   f.run("route=origin");
-  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),'a');
   assert.equal(f.run('reviewRepeated'),true);
   f.run("openReview('history','missing')");
-  assert.equal(f.run('reviewChapterId'),'a','unknown/unauthorized chapter does not replace scope');
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),'a','unknown/unauthorized chapter does not replace scope');
 });
 
 test('reload reconstructs historical weakness from bootstrap without any old attempts',()=>{
@@ -142,28 +142,29 @@ test('notebook filters chapters in both modes and sorts by actual last answer ti
   f.run("setReviewFilter('sort','wrong')");
   assert.deepEqual(f.json('reviewItemsForFilter().slice(0,3).map(s=>s.q.id)'),['a-0','a-1','a-2']);
   f.run("action('review-mode',null,{mode:'pending'})");
-  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),'a');
   assert.equal(f.run('reviewSort'),'wrong');
   assert.equal(f.run("reviewItemsForFilter().some(s=>s.q.id==='a-0')"),false);
   assert.ok(f.run("reviewItemsForFilter().every(s=>s.q.chapter_id==='a')"));
   f.run("start(reviewItemsForFilter().map(s=>s.q.id),'오답 모아 풀기')");
   assert.deepEqual(f.json('session.ids.slice(0,2)'),['a-1','a-2']);
   f.run("setReviewFilter('chapter','missing');setReviewFilter('sort','invalid')");
-  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),'a');
   assert.equal(f.run('reviewSort'),'wrong');
 });
 
 test('chapter choices include completed history, group subjects, and escape chapter labels',()=>{
   const f=fixture();
   f.run("data.chapters[0].display_name='<단원>';openReview();review()");
-  assert.match(f.html(), /value="collection:law"[^>]*>형법 전체/);
+  assert.match(f.html(), /data-review-filter="collection-toggle" value="law"/);
   assert.match(f.html(), /&lt;단원&gt;/);
   assert.match(f.html(), /최신순/);
   assert.match(f.html(), /누적 오답 횟수순/);
-  assert.ok(!f.html().includes('option value="empty"'));
+  assert.match(f.html(), /value="empty"/);
+  assert.match(f.html(), /value="clean"/);
   f.run("openReview('history','a',true);action('review-mode',null,{mode:'pending'});review()");
   assert.match(f.html(), /취약단원으로/);
-  assert.match(f.html(), /value="a" selected/);
+  assert.match(f.html(), /value="a" checked/);
 });
 
 test('selecting a subject includes its chapters and preserves scope for tabs, counts and replay',()=>{
@@ -171,22 +172,21 @@ test('selecting a subject includes its chapters and preserves scope for tabs, co
   f.run("data.collections.push({id:'procedure',name:'수사·증거'});collections.set('procedure',data.collections[1]);data.chapters[1].collection_id='procedure';openReview('history');setReviewFilter('chapter','collection:law');review()");
   assert.ok(f.run("reviewItemsForFilter().every(s=>s.q.chapter_id!=='b')"));
   assert.equal(f.run('reviewItemsForFilter().length'),10);
-  assert.match(f.html(), /형법 오답노트/);
+  assert.match(f.html(), /형법 전체 · 오답노트/);
   assert.match(f.html(), /전체 이력 10/);
   f.run("action('review-mode',null,{mode:'pending'});setReviewFilter('sort','wrong');start(reviewItemsForFilter().map(s=>s.q.id),'모아 풀기')");
-  assert.equal(f.run('reviewCollectionId'),'law');
+  assert.equal(f.run('reviewScopeLabel()'),'형법 전체');
   assert.equal(f.run('session.ids.length'),9);
   assert.ok(f.run("session.ids.every(id=>byId.get(id).chapter_id!=='b')"));
   f.run("setReviewFilter('chapter','collection:procedure');review()");
   assert.equal(f.run('reviewItemsForFilter().length'),5);
-  assert.match(f.html(), /수사·증거 오답노트/);
+  assert.match(f.html(), /구성요건 · 오답노트/);
   f.run("setReviewFilter('chapter','collection:missing')");
-  assert.equal(f.run('reviewCollectionId'),'procedure');
+  assert.deepEqual(f.json('Array.from(reviewChapterIds)'),['b']);
   f.run("setReviewFilter('chapter','a')");
-  assert.equal(f.run('reviewCollectionId'),null);
-  assert.equal(f.run('reviewChapterId'),'a');
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),'a');
   f.run("setReviewFilter('chapter','')");
-  assert.equal(f.run('reviewChapterId'),null);
+  assert.equal(f.run('Array.from(reviewChapterIds || [])[0] || null'),null);
   assert.equal(f.run('reviewItemsForFilter().length'),14);
 });
 
@@ -207,4 +207,43 @@ test('compact filters start collapsed, preserve selection when closed, and reset
   assert.equal(f.run('reviewFiltersOpen'),true);
   assert.equal(f.run('reviewMode'),'history');
   assert.equal(f.run('reviewItemsForFilter().length'),15);
+});
+
+test('multiple chapters across subjects retain their union for modes, counts and replay',()=>{
+  const f=fixture();
+  f.run("data.collections.push({id:'procedure',name:'수사·증거'});collections.set('procedure',data.collections[1]);data.chapters[1].collection_id='procedure';openReview('history');setReviewFilter('chapter-toggle','a',true);setReviewFilter('chapter-toggle','b',true);review()");
+  assert.equal(f.run('reviewItemsForFilter().length'),13);
+  assert.match(f.html(), /2개 단원 선택/);
+  assert.match(f.html(), /전체 이력 13/);
+  assert.match(f.html(), /value="a" checked/);
+  assert.match(f.html(), /value="b" checked/);
+  assert.match(f.html(), /value="law"[^>]*data-review-mixed/);
+  f.run("action('review-mode',null,{mode:'pending'});setReviewFilter('sort','wrong');start(reviewItemsForFilter().map(s=>s.q.id),'모아 풀기')");
+  assert.equal(f.run('session.ids.length'),12);
+  assert.deepEqual(f.json('Array.from(new Set(session.ids.map(id=>byId.get(id).chapter_id))).sort()'),['a','b']);
+  f.run("route=origin;action('review-mode',null,{mode:'history'});setReviewFilter('chapter-toggle','a',false)");
+  assert.equal(f.run('reviewItemsForFilter().length'),5);
+  f.run("setReviewFilter('chapter-toggle','b',false);review()");
+  assert.equal(f.run('reviewItemsForFilter().length'),0);
+  assert.match(f.html(), /단원 선택 없음/);
+  assert.ok(!f.html().includes('data-action="review-all"'));
+  f.run("setReviewFilter('all-chapters','all',true)");
+  assert.equal(f.run('reviewItemsForFilter().length'),15);
+});
+
+test('subject checkboxes add/remove groups without losing other subjects and include zero-history chapters',()=>{
+  const f=fixture();
+  f.run("data.collections.push({id:'procedure',name:'수사·증거'});collections.set('procedure',data.collections[1]);data.chapters[1].collection_id='procedure';openReview('history');setReviewFilter('chapter-toggle','b',true);setReviewFilter('collection-toggle','law',true)");
+  assert.equal(f.run('reviewChapterIds.size'),6);
+  assert.equal(f.run('reviewItemsForFilter().length'),15);
+  f.run("setReviewFilter('collection-toggle','law',false)");
+  assert.deepEqual(f.json('Array.from(reviewChapterIds)'),['b']);
+  f.run("setReviewFilter('chapter-toggle','missing',true);setReviewFilter('collection-toggle','missing',true)");
+  assert.deepEqual(f.json('Array.from(reviewChapterIds)'),['b']);
+  f.run("setReviewFilter('all-chapters','all',false);setReviewFilter('chapter-toggle','empty',true);setReviewFilter('chapter-toggle','clean',true);review()");
+  assert.equal(f.run('reviewItemsForFilter().length'),0);
+  assert.match(f.html(), /value="empty" checked/);
+  assert.match(f.html(), /value="clean" checked/);
+  f.run("action('review-filters-reset')");
+  assert.equal(f.run('reviewChapterIds'),null);
 });

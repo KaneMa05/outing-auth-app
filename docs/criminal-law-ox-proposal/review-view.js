@@ -1,14 +1,15 @@
 // Inserted into the local preview module by build-local-preview.py.
-let reviewMode = 'pending', reviewChapterId = null, reviewStatus = 'all', reviewRepeated = false;
-let reviewSort = 'recent', reviewFromWeak = false, reviewCollectionId = null;
+let reviewMode = 'pending', reviewChapterIds = null, reviewStatus = 'all', reviewRepeated = false;
+let reviewSort = 'recent', reviewFromWeak = false;
 let reviewFiltersOpen = false;
+let reviewControlRestore = null;
 
 function openReview(mode = 'pending', chapterId = null, fromWeak = false, collectionId = null) {
   if (chapterId && !chapters.has(chapterId)) return;
   if (collectionId && !collections.has(collectionId)) return;
   reviewMode = mode === 'history' ? 'history' : 'pending';
-  reviewChapterId = chapterId;
-  reviewCollectionId = chapterId ? null : collectionId;
+  reviewChapterIds = chapterId ? new Set([chapterId]) : collectionId
+    ? new Set(data.chapters.filter(c => c.collection_id === collectionId).map(c => c.id)) : null;
   reviewFromWeak = fromWeak;
   reviewStatus = 'all';
   reviewRepeated = false;
@@ -21,8 +22,7 @@ function pendingReviewItems() {
 }
 
 function matchesReviewScope(s) {
-  return (!reviewChapterId || s.q.chapter_id === reviewChapterId)
-    && (!reviewCollectionId || chapters.get(s.q.chapter_id)?.collection_id === reviewCollectionId);
+  return reviewChapterIds === null || reviewChapterIds.has(s.q.chapter_id);
 }
 
 function reviewItemsForFilter() {
@@ -38,35 +38,58 @@ function reviewItemsForFilter() {
   });
 }
 
-function setReviewFilter(name, value) {
+function setReviewFilter(name, value, checked) {
   if (name === 'chapter') {
     if (value.startsWith('collection:')) {
       const id = value.slice('collection:'.length);
       if (!collections.has(id)) return;
-      reviewCollectionId = id;
-      reviewChapterId = null;
+      reviewChapterIds = new Set(data.chapters.filter(c => c.collection_id === id).map(c => c.id));
     } else {
       if (value && !chapters.has(value)) return;
-      reviewChapterId = value || null;
-      reviewCollectionId = null;
+      reviewChapterIds = value ? new Set([value]) : null;
     }
+  } else if (name === 'chapter-toggle' || name === 'collection-toggle') {
+    const ids = name === 'chapter-toggle' ? (chapters.has(value) ? [value] : [])
+      : data.chapters.filter(c => c.collection_id === value).map(c => c.id);
+    if (!ids.length) return;
+    if (reviewChapterIds === null) reviewChapterIds = new Set();
+    ids.forEach(id => checked ? reviewChapterIds.add(id) : reviewChapterIds.delete(id));
+  } else if (name === 'all-chapters') {
+    reviewChapterIds = checked ? null : new Set();
   } else if (name === 'sort' && ['recent', 'wrong'].includes(value)) reviewSort = value;
 }
 
+function reviewScopeLabel() {
+  if (reviewChapterIds === null) return '전체 단원';
+  const selected = data.chapters.filter(c => reviewChapterIds.has(c.id));
+  if (!selected.length) return '단원 선택 없음';
+  if (selected.length === 1) return selected[0].display_name;
+  const collection = collections.get(selected[0].collection_id);
+  if (collection && selected.every(c => c.collection_id === collection.id)
+    && selected.length === data.chapters.filter(c => c.collection_id === collection.id).length) return collection.name + ' 전체';
+  return `${selected.length}개 단원 선택`;
+}
+
 function reviewControls() {
-  const available = new Set(reviews().map(s => s.q.chapter_id));
   return `<div class="ox-review-controls">
-    <label>과목 · 단원<select data-review-filter="chapter"><option value="">전체 단원</option>${data.collections.map(collection => {
-      const options = data.chapters.filter(c => c.collection_id === collection.id && (available.has(c.id) || c.id === reviewChapterId));
-      return options.length ? `<option value="collection:${esc(collection.id)}" ${reviewCollectionId === collection.id ? 'selected' : ''}>${esc(collection.name)} 전체</option>${options.map(c => `<option value="${esc(c.id)}" ${reviewChapterId === c.id ? 'selected' : ''}>　${esc(c.display_name)}</option>`).join('')}` : '';
-    }).join('')}</select></label>
+    <fieldset class="ox-review-chapter-picker"><legend>과목 · 단원 <span>여러 개 선택 가능</span></legend>
+      <p class="ox-sub ox-review-selection">${esc(reviewScopeLabel())}</p>
+      <label class="ox-review-choice"><input type="checkbox" data-review-filter="all-chapters" value="all" ${reviewChapterIds === null ? 'checked' : ''}><span>전체 단원</span></label>
+      <div class="ox-review-chapter-list">${data.collections.map(collection => {
+        const options = data.chapters.filter(c => c.collection_id === collection.id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        const selected = options.filter(c => reviewChapterIds?.has(c.id)).length;
+        return options.length ? `<fieldset class="ox-review-chapter-group"><legend>${esc(collection.name)}</legend>
+          <label class="ox-review-choice ox-review-collection"><input type="checkbox" data-review-filter="collection-toggle" value="${esc(collection.id)}" ${selected === options.length ? 'checked' : ''} ${selected > 0 && selected < options.length ? 'data-review-mixed' : ''}><span>${esc(collection.name)} 전체</span></label>
+          ${options.map(c => `<label class="ox-review-choice"><input type="checkbox" data-review-filter="chapter-toggle" value="${esc(c.id)}" ${reviewChapterIds?.has(c.id) ? 'checked' : ''}><span>${esc(c.display_name)}</span></label>`).join('')}
+        </fieldset>` : '';
+      }).join('')}</div>
+    </fieldset>
     <label>정렬<select data-review-filter="sort"><option value="recent" ${reviewSort === 'recent' ? 'selected' : ''}>최신순</option><option value="wrong" ${reviewSort === 'wrong' ? 'selected' : ''}>누적 오답 횟수순</option></select></label>
   </div>`;
 }
 
 function reviewFilterSummary() {
-  const scope = reviewChapterId ? chapters.get(reviewChapterId).display_name
-    : reviewCollectionId ? collections.get(reviewCollectionId).name + ' 전체' : '전체 단원';
+  const scope = reviewScopeLabel();
   const values = [scope, reviewSort === 'recent' ? '최신순' : '누적 오답 횟수순'];
   if (reviewMode === 'history' && reviewStatus !== 'all') values.push(reviewStatus === 'wrong' ? '아직 틀림' : '다시 맞힘');
   if (reviewMode === 'history' && reviewRepeated) values.push('반복 오답만');
@@ -107,7 +130,7 @@ function review() {
   const statusOptions = [['all', '전체 이력', all.length], ['wrong', '아직 틀림', all.filter(s => !s.last?.correct).length], ['regained', '다시 맞힘', all.filter(s => s.last?.correct).length]];
   main.innerHTML = `
     ${reviewFromWeak ? button('취약단원으로', 'nav', 'data-ox-route="weak"') : ''}
-    <h2>${reviewChapterId ? esc(chapters.get(reviewChapterId).display_name) : reviewCollectionId ? esc(collections.get(reviewCollectionId).name) + ' 오답노트' : '오답노트'}</h2>
+    <h2>${reviewChapterIds === null ? '오답노트' : esc(reviewScopeLabel()) + ' · 오답노트'}</h2>
     <div class="ox-review-toolbar">
       <div class="ox-history-tabs" role="group" aria-label="오답노트 보기"><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="pending" aria-pressed="${!history}">복습 목록</button><button type="button" class="mini-btn ox-filter" data-action="review-mode" data-mode="history" aria-pressed="${history}">전체 이력</button></div>
       <button type="button" class="mini-btn ox-review-filter-toggle" data-action="review-filters-toggle" aria-expanded="${reviewFiltersOpen}" aria-controls="ox-review-filter-panel" title="${esc(filterSummary)}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14M7 3v4M13 8v4M8 13v4" /></svg>필터</button>
@@ -129,4 +152,12 @@ function review() {
         ${button('단원 골라 풀기', 'nav', 'data-ox-route="chapters"', 'ox-wide')}
       </div>`}
     </section>`;
+  main.querySelectorAll('[data-review-mixed]').forEach(input => { input.indeterminate = true; });
+  if (reviewControlRestore) {
+    const { name, value, scrollTop } = reviewControlRestore;
+    const list = main.querySelector('.ox-review-chapter-list');
+    if (list) list.scrollTop = scrollTop;
+    Array.from(main.querySelectorAll('[data-review-filter]')).find(input => input.dataset.reviewFilter === name && input.value === value)?.focus({preventScroll:true});
+    reviewControlRestore = null;
+  }
 }

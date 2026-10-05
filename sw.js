@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v469-final-score-scope";
+const CACHE_NAME = "outing-auth-app-v470-ox-review-chapters";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -40,17 +40,16 @@ const APP_SHELL = [
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
   "/shared.js?v=20261001-analytics",
-  "/app.js?v=20261001-analytics",
+  "/app.js?v=20261005-ox-review-chapters",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",
-  "/criminal-law-ox.js?v=20261001-pass-only",
-  "/criminal-law-ox.css?v=20260928-ox-compact-filters",
-  "/criminal-law-ox-access.js?v=20261001-pass-only",
+  "/criminal-law-ox.js?v=20261005-ox-review-chapters",
+  "/criminal-law-ox.css?v=20261005-ox-review-chapters",
+  "/criminal-law-ox-access.js?v=20261005-ox-review-chapters",
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20261001-pass-only",
   "/criminal-law-ox-device-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261002-final-scope-scroll",
   "/fonts/GongGothicLight.woff",
   "/manifest.webmanifest",
   "/icon-192.png",

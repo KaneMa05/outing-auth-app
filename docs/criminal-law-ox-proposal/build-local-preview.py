@@ -80,10 +80,11 @@ history_actions = (root / 'history-actions.js').read_text(encoding='utf-8')
 runtime = runtime.replace("      else if(action==='filter')", history_actions + "\n      else if(action==='filter')", 1)
 runtime = runtime.replace("    root.addEventListener('click'", """    root.addEventListener('change',event=>{
       const control=event.target;
-      if(route!=='review' || !control.matches('select[data-review-filter]'))return;
+      if(route!=='review' || !control.matches('select[data-review-filter], input[data-review-filter]'))return;
+      reviewControlRestore={name:control.dataset.reviewFilter,value:control.value,scrollTop:main.querySelector('.ox-review-chapter-list')?.scrollTop || 0};
       // Dismiss the native picker before replacing its control, especially on mobile.
       control.blur();
-      setReviewFilter(control.dataset.reviewFilter,control.value);
+      setReviewFilter(control.dataset.reviewFilter,control.value,control.checked);
       render();
     });
     root.addEventListener('click'""", 1)

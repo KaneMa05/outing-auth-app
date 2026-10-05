@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 
 // Exercise the shipped mount and click handler, not a copied stats calculation.
 function fixture() {
-  const main = { innerHTML: '' };
+  const main = { innerHTML: '', querySelectorAll: () => [] };
   const nodes = new Map(['nav', '.ox-header', '.ox-app-nav'].map(key => [key, { style: {} }]));
   nodes.set('main', main);
   const listeners = new Map();
