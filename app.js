@@ -3149,7 +3149,7 @@ function renderCriminalLawOxLocalEntry() {
   // The home shortcut stays visible. Only the server's current access status opens learning.
   requestCriminalLawOx('status').then(data=>{
     if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      for(const href of ['./criminal-law-ox-access.js?v=20261005-ox-review-chapters','./criminal-law-ox.js?v=20261005-ox-review-chapters'])
+      for(const href of ['./criminal-law-ox-access.js?v=20261006-ox-rounds','./criminal-law-ox.js?v=20261006-ox-rounds'])
         document.head.appendChild(el('link',{rel:'modulepreload',href,'data-ox-module-preload':'true'}));
     }
   }).catch(()=>{});
@@ -3230,7 +3230,7 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  import("./criminal-law-ox-access.js?v=20261005-ox-review-chapters").then(({ mountAccess }) => {
+  import("./criminal-law-ox-access.js?v=20261006-ox-rounds").then(({ mountAccess }) => {
     if (renderCriminalLawOxLocalPreview.view?.key===key) {
       previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
       if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;

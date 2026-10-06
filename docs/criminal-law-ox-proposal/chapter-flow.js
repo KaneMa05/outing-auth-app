@@ -40,7 +40,8 @@ function showChapterSizePicker() {
 }
 
 function chapterQuestions(id) {
-  return data.questions.filter(q => q.chapter_id === id).sort((a, b) =>
+  const chapterId = chapters.get(id)?.id || id;
+  return data.questions.filter(q => (chapters.get(q.chapter_id)?.id || q.chapter_id) === chapterId).sort((a, b) =>
     Number(a.source_question_number) - Number(b.source_question_number)
     || String(a.source_option_label || '').localeCompare(String(b.source_option_label || ''), 'ko'));
 }
@@ -55,6 +56,11 @@ function shuffleQuestionIds(ids) {
   return shuffled;
 }
 
+function chapterQuestionAttempts(q) {
+  // The progress fallback preserves the first pass for older bootstrap payloads.
+  return Math.max(stats(q.id).last ? 1 : 0, Math.floor(Number(questionAttemptCounts(q.id).attempts) || 0));
+}
+
 function chapterCompletion(c) {
   const s = chapterStat(c);
   const questions = chapterQuestions(c.id);
@@ -62,7 +68,11 @@ function chapterCompletion(c) {
     const last = stats(q.id).last;
     return last && !last.correct;
   });
-  return { ...s, questions, wrong, complete: c.question_count > 0 && questions.length === c.question_count && s.solved === c.question_count };
+  const complete = c.question_count > 0 && questions.length === c.question_count && s.solved === c.question_count;
+  // Every current published question must have N answers to complete N passes.
+  const rounds = complete ? Math.min(...questions.map(chapterQuestionAttempts)) : 0;
+  const roundSolved = questions.filter(q => chapterQuestionAttempts(q) > rounds).length;
+  return { ...s, questions, wrong, complete, rounds, roundSolved };
 }
 
 function nextChapter(c) {
@@ -78,7 +88,7 @@ function selectChapterScope(c) {
 function startChapter(id, mode = 'learn') {
   const c = chapters.get(id);
   if (!c) return;
-  activeChapterId = id;
+  activeChapterId = c.id;
   selectChapterScope(c);
   const s = chapterCompletion(c);
   if (mode === 'learn' && s.complete) {
@@ -86,7 +96,9 @@ function startChapter(id, mode = 'learn') {
     render();
     return;
   }
-  const questions = mode === 'wrong' ? s.wrong : mode === 'all' ? s.questions : s.questions.filter(q => !stats(q.id).last);
+  const questions = mode === 'wrong' ? s.wrong : mode === 'all'
+    ? s.questions.filter(q => chapterQuestionAttempts(q) === s.rounds)
+    : s.questions.filter(q => !stats(q.id).last);
   // A sampled chapter may have no unseen items; it is still not fully completed.
   const selected = questions.length || mode === 'wrong' ? questions : s.questions;
   startChapterSet(c, shuffleQuestionIds(selected.map(q => q.id)), mode);
@@ -145,14 +157,16 @@ function chapterCompletionView() {
     : button('다른 단원 선택하기', 'nav', 'data-ox-route="chapters"', `${primary ? 'ox-primary ' : ''}ox-wide`);
   main.innerHTML = `<section class="ox-completion">
     <p class="ox-sub">${esc(c.display_name)}</p>
-    <h2>1회독 완료</h2>
+    <h2>${s.rounds}회독 완료</h2>
     <p class="ox-sub">${s.solved} / ${c.question_count}문항 학습</p>
+    ${s.roundSolved ? `<p class="ox-sub">${s.rounds + 1}회독 진행 중 · ${s.roundSolved} / ${c.question_count}문항</p>` : ''}
+    <p class="ox-sub">모든 문항을 한 번씩 풀 때마다 1회독으로 계산해요.</p>
     <div class="ox-completion-score"><span>정답률</span><strong>${Math.round(s.accuracy)}<small>%</small></strong></div>
     <div class="ox-completion-wrong"><span>남은 오답</span><strong>${s.wrong.length}문항</strong></div>
     <div class="ox-completion-actions">
       ${s.wrong.length ? button('오답만 다시 풀기', 'chapter-wrong', `data-id="${c.id}"`, 'ox-primary ox-wide') : ''}
       ${nextButton(!s.wrong.length)}
-      ${button(`${chapterSetSize}문항씩 다시 풀기`, 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
+      ${button(`${s.rounds + 1}회독 ${s.roundSolved ? '이어 풀기' : '시작하기'} · ${chapterSetSize}문항씩`, 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
     </div>
     ${next ? `<p class="ox-completion-next">다음 · ${esc(next.display_name)}</p>` : ''}
   </section>

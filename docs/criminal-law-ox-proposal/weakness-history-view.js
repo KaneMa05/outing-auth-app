@@ -2,8 +2,9 @@ function weaknessStats() {
   const history = new Map();
   for (const q of data.questions) {
     const s = stats(q.id);
-    if (!history.has(q.chapter_id)) history.set(q.chapter_id, { past: 0, regained: 0, repeated: 0, totalAttempts: 0, totalCorrect: 0, totalWrong: 0 });
-    const item = history.get(q.chapter_id);
+    const chapterId = chapters.get(q.chapter_id)?.id || q.chapter_id;
+    if (!history.has(chapterId)) history.set(chapterId, { past: 0, regained: 0, repeated: 0, totalAttempts: 0, totalCorrect: 0, totalWrong: 0 });
+    const item = history.get(chapterId);
     const counts = questionAttemptCounts(q.id);
     item.totalAttempts += counts.attempts;
     item.totalCorrect += counts.correct;

@@ -1,7 +1,7 @@
       else if(action==='history-chapter'){openReview('history',id,true);}
       else if(action==='history-chapter-start'){
         if(!chapters.has(id))return;
-        start(reviews().filter(s=>s.q.chapter_id===id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
+        start(reviews().filter(s=>chapters.get(s.q.chapter_id)?.id===chapters.get(id).id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
       }
       else if(action==='review-mode'){reviewMode=b.dataset.mode==='history'?'history':'pending';reviewStatus='all';reviewRepeated=false;reviewFiltersOpen=false;}
       else if(action==='history-status'){if(['all','wrong','regained'].includes(b.dataset.status))reviewStatus=b.dataset.status;}

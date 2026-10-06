@@ -8,7 +8,7 @@ function openReview(mode = 'pending', chapterId = null, fromWeak = false, collec
   if (chapterId && !chapters.has(chapterId)) return;
   if (collectionId && !collections.has(collectionId)) return;
   reviewMode = mode === 'history' ? 'history' : 'pending';
-  reviewChapterIds = chapterId ? new Set([chapterId]) : collectionId
+  reviewChapterIds = chapterId ? new Set([chapters.get(chapterId).id]) : collectionId
     ? new Set(data.chapters.filter(c => c.collection_id === collectionId).map(c => c.id)) : null;
   reviewFromWeak = fromWeak;
   reviewStatus = 'all';
@@ -22,7 +22,7 @@ function pendingReviewItems() {
 }
 
 function matchesReviewScope(s) {
-  return reviewChapterIds === null || reviewChapterIds.has(s.q.chapter_id);
+  return reviewChapterIds === null || reviewChapterIds.has(chapters.get(s.q.chapter_id)?.id || s.q.chapter_id);
 }
 
 function reviewItemsForFilter() {
@@ -46,10 +46,10 @@ function setReviewFilter(name, value, checked) {
       reviewChapterIds = new Set(data.chapters.filter(c => c.collection_id === id).map(c => c.id));
     } else {
       if (value && !chapters.has(value)) return;
-      reviewChapterIds = value ? new Set([value]) : null;
+      reviewChapterIds = value ? new Set([chapters.get(value).id]) : null;
     }
   } else if (name === 'chapter-toggle' || name === 'collection-toggle') {
-    const ids = name === 'chapter-toggle' ? (chapters.has(value) ? [value] : [])
+    const ids = name === 'chapter-toggle' ? (chapters.has(value) ? [chapters.get(value).id] : [])
       : data.chapters.filter(c => c.collection_id === value).map(c => c.id);
     if (!ids.length) return;
     if (reviewChapterIds === null) reviewChapterIds = new Set();

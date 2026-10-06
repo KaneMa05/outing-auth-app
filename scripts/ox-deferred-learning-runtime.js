@@ -1,5 +1,5 @@
 // Home is an authoritative server summary. Load the catalog only when navigating
-// into learning, and cumulative counts only when opening the weakness view.
+// into learning, and cumulative counts for weakness and chapter pass counts.
 let learningDataLoaded = bootstrap.homeOnly !== true;
 let attemptCountsLoaded = bootstrap.statisticsDeferred !== true;
 let learningDataPending = null, attemptCountsPending = null, learningWriteVersion = 0;
@@ -9,9 +9,9 @@ async function ensureLearningData() {
   if (!learningDataPending) learningDataPending = (async () => {
     const saved = await request('bootstrap', {summaryOnly:true,deferStatistics:true});
     if (!root.isConnected || bookAccessBlocked) return;
-    Object.assign(data, saved.catalog);
+    Object.assign(data, learningCatalog(saved.catalog));
     byId.clear();data.questions.forEach(q => byId.set(q.id,q));
-    chapters.clear();data.chapters.forEach(c => chapters.set(c.id,c));
+    chapters.clear();learningChapterEntries(data.chapters).forEach(([id,c]) => chapters.set(id,c));
     collections.clear();data.collections.forEach(c => collections.set(c.id,c));
     collection = data.collections.find(c => c.accessible !== false)?.id || 'criminal-law';
     progress.clear();saved.progress.forEach(p => progress.set(p.question_id,p));
@@ -39,14 +39,15 @@ async function ensureAttemptCounts() {
 }
 
 function renderDeferredLearning(version) {
+  const needsCounts = () => ['weak','chapters','chapter-complete'].includes(route) || (route === 'result' && session?.chapterId);
   if (bookAccessBlocked || ['home','entry'].includes(route)
-    || (learningDataLoaded && (route !== 'weak' || attemptCountsLoaded))) return false;
+    || (learningDataLoaded && (!needsCounts() || attemptCountsLoaded))) return false;
   renderNav();
   main.innerHTML = `<p class="ox-sub" role="status">${learningDataLoaded ? '학습 통계를 확인하고 있습니다.' : '학습 목록을 불러오는 중입니다.'}</p>${button('오늘 화면으로','nav','data-ox-route="home"','ox-wide')}`;
   (async () => {
     await ensureLearningData();
     if (version !== questionRenderVersion || !root.isConnected || bookAccessBlocked) return;
-    if (route === 'weak') await ensureAttemptCounts();
+    if (needsCounts()) await ensureAttemptCounts();
     if (version === questionRenderVersion && root.isConnected && !bookAccessBlocked) render();
   })().catch(error => {
     if (version !== questionRenderVersion || !root.isConnected) return;

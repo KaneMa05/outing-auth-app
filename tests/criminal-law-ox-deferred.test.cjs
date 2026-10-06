@@ -19,12 +19,15 @@ function fixture(initial){
     flush:()=>new Promise(resolve=>setImmediate(resolve))};
 }
 
-test('home renders authoritative counters without fetching a catalog; chapters load once without statistics',async()=>{
+test('home stays lightweight; chapters fetch saved pass counts once before showing completion',async()=>{
   const f=fixture();assert.equal(f.requests.length,0);assert.match(f.main.innerHTML,/오늘 7문항/);assert.match(f.main.innerHTML,/<strong>1<\/strong> 문항/);
   await f.click('daily');assert.equal(f.requests[0].action,'bootstrap');assert.equal(f.requests[0].body.deferStatistics,true);
   await f.click('nav',{oxRoute:'chapters'});assert.equal(f.requests.length,1);
-  f.respond(0);await f.flush();assert.match(f.main.innerHTML,/테스트 단원/);assert.equal(f.requests.length,1);
-  await f.click('nav',{oxRoute:'home'});await f.click('daily');assert.equal(f.requests.length,1);
+  f.respond(0);await f.flush();assert.equal(f.requests[1].action,'attempt_counts');
+  assert.doesNotMatch(f.main.innerHTML,/1회독 완료/);
+  f.respond(1,{ok:true,attemptCounts:{q:{attempts:2,correct:0,wrong:2}}});await f.flush();
+  assert.match(f.main.innerHTML,/테스트 단원/);assert.match(f.main.innerHTML,/2회독 완료/);
+  await f.click('nav',{oxRoute:'home'});await f.click('daily');assert.equal(f.requests.length,2);
 });
 
 test('weakness loads cumulative counts on demand and retries without showing invented zero rates',async()=>{
@@ -42,7 +45,30 @@ test('home navigation cancels pending rendering and unnecessary statistics; fail
   const f=fixture();await f.click('nav',{oxRoute:'weak'});await f.click('nav',{oxRoute:'home'});
   f.respond(0);await f.flush();assert.equal(f.requests.length,1);assert.match(f.main.innerHTML,/오늘 학습/);
   const retry=fixture();await retry.click('daily');retry.reject(0);await retry.flush();assert.match(retry.main.innerHTML,/다시 시도/);
-  await retry.click('retry-questions');retry.respond(1);await retry.flush();assert.match(retry.main.innerHTML,/테스트 단원/);
+  await retry.click('retry-questions');retry.respond(1);await retry.flush();
+  retry.respond(2,{ok:true,attemptCounts:{q:{attempts:2,correct:0,wrong:2}}});await retry.flush();assert.match(retry.main.innerHTML,/테스트 단원/);
+});
+
+test('chapter count failure can retry and does not show a fabricated first pass',async()=>{
+  const f=fixture();await f.click('daily');f.respond(0);await f.flush();f.reject(1);await f.flush();
+  assert.match(f.main.innerHTML,/다시 시도/);assert.doesNotMatch(f.main.innerHTML,/1회독 완료/);
+  await f.click('retry-questions');await f.flush();
+  f.respond(2,{ok:true,attemptCounts:{q:{attempts:3,correct:1,wrong:2}}});await f.flush();
+  assert.match(f.main.innerHTML,/3회독 완료/);
+});
+
+test('deferred catalogs also merge punishment chapters and load their combined saved passes',async()=>{
+  const f=fixture();await f.click('daily');
+  const ids=['criminal-law-10-punishment-types','criminal-law-11-sentencing'];
+  const data={...f.data,catalog:{collections:[{id:'criminal-law',name:'형법',accessible:true}],
+    chapters:ids.map((id,i)=>({id,collection_id:'criminal-law',part_title:'형법총론',sort_order:10+i,display_name:'원래 단원 '+i,question_count:1})),
+    questions:ids.map((id,i)=>({id:'q'+i,chapter_id:id,version:1,prompt:'문항 '+i,context:''}))},
+    progress:ids.map((_,i)=>({question_id:'q'+i,content_version:1,correct:true,wrong_count:0}))};
+  f.respond(0,data);await f.flush();
+  f.respond(1,{ok:true,attemptCounts:{q0:{attempts:2,correct:2,wrong:0},q1:{attempts:3,correct:3,wrong:0}}});await f.flush();
+  assert.match(f.main.innerHTML,/1단원 · 2문항/);assert.match(f.main.innerHTML,/형별론/);
+  assert.match(f.main.innerHTML,/2회독 완료/);assert.match(f.main.innerHTML,/3회독 진행 중 · 1 \/ 2문항/);
+  await f.click('chapter',{id:ids[0]});assert.match(f.main.innerHTML,/<h2>2회독 완료<\/h2>/);
 });
 
 test('bookmarks and review load records without cumulative or cohort aggregates; detail opts into statistics',async()=>{

@@ -6,7 +6,7 @@ import re
 root=Path(__file__).resolve().parents[1]
 source=(root/'docs/criminal-law-ox-proposal/local-app-preview.js').read_text(encoding='utf-8')
 runtime=source[source.index('  return (() => {'):]
-runtime=runtime.replace("const data = JSON.parse(root.querySelector('#criminal-ox-data').textContent);",'const data = bootstrap.catalog;')
+runtime=runtime.replace("const data = learningCatalog(JSON.parse(root.querySelector('#criminal-ox-data').textContent));",'const data = learningCatalog(bootstrap.catalog);')
 runtime=re.sub(r'^    const source = q => .*?; };\n', '', runtime, flags=re.M)
 begin=runtime.index('    const attempts = [];')
 end=runtime.index("    let route='home'",begin)
@@ -101,7 +101,7 @@ runtime=runtime.replace("else if(action==='master')note(id).mastered=!note(id).m
 runtime='      render();\n      } catch(error){showError(error);}\n    });'.join(runtime.rsplit('      render();\n    });',1))
 runtime=runtime.replace("return { openBookmarks() { route='bookmarks'; render(); } };", "return { openBookmarks() { if(pending || route==='quiz')return; route='bookmarks'; render(); } };")
 # Do not keep an unanswered session as a client-side source of truth after reload.
-# Chapters resume from persisted unique progress; all records are server-owned.
+# Chapters resume from persisted progress and per-question pass counts.
 assert 'function render(){' in runtime
 runtime=runtime.replace('function render(){','function renderLoadedView(){',1)
 runtime=runtime.replace('    function renderLoadedView(){',(root/'scripts/ox-question-loading-runtime.js').read_text(encoding='utf-8')+'\n    function renderLoadedView(){',1)

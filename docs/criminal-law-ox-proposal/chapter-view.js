@@ -34,7 +34,8 @@ function chapterView() {
             <span class="ox-chapter-index">${String(c.sort_order).padStart(2, '0')}</span>
             <span class="ox-chapter-body">
               <strong>${esc(c.display_name)}</strong>
-              <span class="ox-chapter-meta"><span>${c.question_count}문항</span><span class="${s.solved ? 'ox-chapter-started' : ''}">${s.complete ? `1회독 완료 · 정답률 ${Math.round(s.accuracy)}%` : s.solved ? `${s.solved}문항 학습` : '미학습'}</span></span>
+              <span class="ox-chapter-meta"><span>${c.question_count}문항</span><span class="${s.solved ? 'ox-chapter-started' : ''}">${s.complete ? `${s.rounds}회독 완료 · 정답률 ${Math.round(s.accuracy)}%` : s.solved ? `${s.solved}문항 학습` : '미학습'}</span></span>
+              ${s.complete && s.roundSolved ? `<span class="ox-sub">${s.rounds + 1}회독 진행 중 · ${s.roundSolved} / ${c.question_count}문항</span>` : ''}
               ${meter(s.progress, '단원 학습률')}
             </span>
             <span class="ox-chapter-chevron" aria-hidden="true">›</span>

@@ -3,11 +3,37 @@ export function mount(host) {
 
   return (() => {
     const root = host.querySelector('#criminal-ox-preview');
-    const data = JSON.parse(root.querySelector('#criminal-ox-data').textContent);
+    const data = learningCatalog(JSON.parse(root.querySelector('#criminal-ox-data').textContent));
+// Learner-only grouping. Keep original question IDs/chapter IDs for all server writes.
+function learningCatalog(catalog) {
+  const memberIds = [
+    'criminal-law-10-punishment-types',
+    'criminal-law-11-sentencing',
+    'criminal-law-12-recidivism',
+    'criminal-law-13-suspension',
+    'criminal-law-14-limitation-extinction',
+  ];
+  const members = catalog.chapters.filter(c => c.collection_id === 'criminal-law' && memberIds.includes(c.id));
+  if (!members.length) return { ...catalog, chapters: [...catalog.chapters] };
+  members.sort((a, b) => memberIds.indexOf(a.id) - memberIds.indexOf(b.id));
+  const combined = {
+    ...members[0], display_name: '형별론', chapter_title: '형별론', sort_order: 10,
+    source_chapter_ids: members.flatMap(c => c.source_chapter_ids || [c.id]),
+    question_count: members.reduce((sum, c) => sum + c.question_count, 0),
+    end_page: members.at(-1).end_page,
+  };
+  return { ...catalog, chapters: catalog.chapters.flatMap(c =>
+    c.id === members[0].id ? [combined] : members.includes(c) ? [] : [c]) };
+}
+
+function learningChapterEntries(list) {
+  return list.flatMap(c => (c.source_chapter_ids || [c.id]).map(id => [id, c]));
+}
+
     const main = root.querySelector('main');
     const nav = root.querySelector('nav');
     const byId = new Map(data.questions.map(q => [q.id,q]));
-    const chapters = new Map(data.chapters.map(c => [c.id,c]));
+    const chapters = new Map(learningChapterEntries(data.chapters));
     const collections = new Map(data.collections.map(c => [c.id,c]));
     const esc = s => String(s ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const safeHtml = html => { const doc = new DOMParser().parseFromString(html,'text/html'); const walk = n => n.nodeType===3 ? esc(n.textContent) : (n.nodeType===1 && n.tagName==='U' ? '<u>'+Array.from(n.childNodes).map(walk).join('')+'</u>' : Array.from(n.childNodes).map(walk).join('')); return Array.from(doc.body.childNodes).map(walk).join(''); };
@@ -24,7 +50,7 @@ export function mount(host) {
     const effective = () => design.newUser ? attempts.filter(a=>!a.seed) : attempts;
     const stats = id => { const a=effective().filter(a=>a.id===id); const last=a[a.length-1]; const wrong=a.filter(a=>!a.correct).length; let label=wrong ? (last.correct?'다시 맞힘':wrong>=3?'반복 오답':'복습 필요') : ''; if(wrong&&note(id).mastered)label='복습 완료'; return {last,wrong,label,priority:({'반복 오답':1,'복습 필요':2,'다시 맞힘':3,'복습 완료':4}[label]||5)}; };
     const reviews = () => data.questions.map(q=>({q,...stats(q.id)})).filter(s=>s.wrong).sort((a,b)=>a.priority-b.priority||b.wrong-a.wrong);
-    const chapterStat = c => { const latest=new Map(); effective().filter(a=>byId.get(a.id).chapter_id===c.id).forEach(a=>latest.set(a.id,a)); const solved=latest.size, right=Array.from(latest.values()).filter(a=>a.correct).length; const accuracy=solved ? right/solved*100:null; const progress=solved/c.question_count*100; const enough=solved>=Math.min(5,c.question_count); const label=!enough?'데이터 부족':accuracy<50?'매우 취약':accuracy<70?'취약':accuracy<85?'주의':'양호'; return {c,solved,accuracy,progress,wrong:solved-right,label,rank:({'매우 취약':1,'취약':2,'주의':3,'양호':4,'데이터 부족':5}[label]),score:enough?(100-accuracy)*.7+(100-progress)*.3:0}; };
+    const chapterStat = c => { const latest=new Map(); effective().filter(a=>chapters.get(byId.get(a.id).chapter_id)?.id===c.id).forEach(a=>latest.set(a.id,a)); const solved=latest.size, right=Array.from(latest.values()).filter(a=>a.correct).length; const accuracy=solved ? right/solved*100:null; const progress=solved/c.question_count*100; const enough=solved>=Math.min(5,c.question_count); const label=!enough?'데이터 부족':accuracy<50?'매우 취약':accuracy<70?'취약':accuracy<85?'주의':'양호'; return {c,solved,accuracy,progress,wrong:solved-right,label,rank:({'매우 취약':1,'취약':2,'주의':3,'양호':4,'데이터 부족':5}[label]),score:enough?(100-accuracy)*.7+(100-progress)*.3:0}; };
     const meter = (v,label,color='') => `<div class="ox-meter" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(v)}"><span style="width:${v}%;${color?'background:'+color:''}"></span></div>`;
     const button = (label,action,extra='',classes='') => `<button type="button" class="btn secondary ox-button ${classes}" data-action="${action}" ${extra}>${label}</button>`;
     const source = q => { const c=chapters.get(q.chapter_id), book=collections.get(c.collection_id); return `<div class="ox-source">${q.origin_type==='derived_mcq'?'객관식 파생':'원문 OX'} · ${esc(q.source_question_number)}${esc(q.source_option_label)}<br>${esc(book.source_filename)} · PDF ${q.source_page}쪽</div>`; };
@@ -96,7 +122,8 @@ function chapterView() {
             <span class="ox-chapter-index">${String(c.sort_order).padStart(2, '0')}</span>
             <span class="ox-chapter-body">
               <strong>${esc(c.display_name)}</strong>
-              <span class="ox-chapter-meta"><span>${c.question_count}문항</span><span class="${s.solved ? 'ox-chapter-started' : ''}">${s.complete ? `1회독 완료 · 정답률 ${Math.round(s.accuracy)}%` : s.solved ? `${s.solved}문항 학습` : '미학습'}</span></span>
+              <span class="ox-chapter-meta"><span>${c.question_count}문항</span><span class="${s.solved ? 'ox-chapter-started' : ''}">${s.complete ? `${s.rounds}회독 완료 · 정답률 ${Math.round(s.accuracy)}%` : s.solved ? `${s.solved}문항 학습` : '미학습'}</span></span>
+              ${s.complete && s.roundSolved ? `<span class="ox-sub">${s.rounds + 1}회독 진행 중 · ${s.roundSolved} / ${c.question_count}문항</span>` : ''}
               ${meter(s.progress, '단원 학습률')}
             </span>
             <span class="ox-chapter-chevron" aria-hidden="true">›</span>
@@ -160,7 +187,8 @@ function showChapterSizePicker() {
 }
 
 function chapterQuestions(id) {
-  return data.questions.filter(q => q.chapter_id === id).sort((a, b) =>
+  const chapterId = chapters.get(id)?.id || id;
+  return data.questions.filter(q => (chapters.get(q.chapter_id)?.id || q.chapter_id) === chapterId).sort((a, b) =>
     Number(a.source_question_number) - Number(b.source_question_number)
     || String(a.source_option_label || '').localeCompare(String(b.source_option_label || ''), 'ko'));
 }
@@ -175,6 +203,11 @@ function shuffleQuestionIds(ids) {
   return shuffled;
 }
 
+function chapterQuestionAttempts(q) {
+  // The progress fallback preserves the first pass for older bootstrap payloads.
+  return Math.max(stats(q.id).last ? 1 : 0, Math.floor(Number(questionAttemptCounts(q.id).attempts) || 0));
+}
+
 function chapterCompletion(c) {
   const s = chapterStat(c);
   const questions = chapterQuestions(c.id);
@@ -182,7 +215,11 @@ function chapterCompletion(c) {
     const last = stats(q.id).last;
     return last && !last.correct;
   });
-  return { ...s, questions, wrong, complete: c.question_count > 0 && questions.length === c.question_count && s.solved === c.question_count };
+  const complete = c.question_count > 0 && questions.length === c.question_count && s.solved === c.question_count;
+  // Every current published question must have N answers to complete N passes.
+  const rounds = complete ? Math.min(...questions.map(chapterQuestionAttempts)) : 0;
+  const roundSolved = questions.filter(q => chapterQuestionAttempts(q) > rounds).length;
+  return { ...s, questions, wrong, complete, rounds, roundSolved };
 }
 
 function nextChapter(c) {
@@ -198,7 +235,7 @@ function selectChapterScope(c) {
 function startChapter(id, mode = 'learn') {
   const c = chapters.get(id);
   if (!c) return;
-  activeChapterId = id;
+  activeChapterId = c.id;
   selectChapterScope(c);
   const s = chapterCompletion(c);
   if (mode === 'learn' && s.complete) {
@@ -206,7 +243,9 @@ function startChapter(id, mode = 'learn') {
     render();
     return;
   }
-  const questions = mode === 'wrong' ? s.wrong : mode === 'all' ? s.questions : s.questions.filter(q => !stats(q.id).last);
+  const questions = mode === 'wrong' ? s.wrong : mode === 'all'
+    ? s.questions.filter(q => chapterQuestionAttempts(q) === s.rounds)
+    : s.questions.filter(q => !stats(q.id).last);
   // A sampled chapter may have no unseen items; it is still not fully completed.
   const selected = questions.length || mode === 'wrong' ? questions : s.questions;
   startChapterSet(c, shuffleQuestionIds(selected.map(q => q.id)), mode);
@@ -265,14 +304,16 @@ function chapterCompletionView() {
     : button('다른 단원 선택하기', 'nav', 'data-ox-route="chapters"', `${primary ? 'ox-primary ' : ''}ox-wide`);
   main.innerHTML = `<section class="ox-completion">
     <p class="ox-sub">${esc(c.display_name)}</p>
-    <h2>1회독 완료</h2>
+    <h2>${s.rounds}회독 완료</h2>
     <p class="ox-sub">${s.solved} / ${c.question_count}문항 학습</p>
+    ${s.roundSolved ? `<p class="ox-sub">${s.rounds + 1}회독 진행 중 · ${s.roundSolved} / ${c.question_count}문항</p>` : ''}
+    <p class="ox-sub">모든 문항을 한 번씩 풀 때마다 1회독으로 계산해요.</p>
     <div class="ox-completion-score"><span>정답률</span><strong>${Math.round(s.accuracy)}<small>%</small></strong></div>
     <div class="ox-completion-wrong"><span>남은 오답</span><strong>${s.wrong.length}문항</strong></div>
     <div class="ox-completion-actions">
       ${s.wrong.length ? button('오답만 다시 풀기', 'chapter-wrong', `data-id="${c.id}"`, 'ox-primary ox-wide') : ''}
       ${nextButton(!s.wrong.length)}
-      ${button(`${chapterSetSize}문항씩 다시 풀기`, 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
+      ${button(`${s.rounds + 1}회독 ${s.roundSolved ? '이어 풀기' : '시작하기'} · ${chapterSetSize}문항씩`, 'chapter-restart', `data-id="${c.id}"`, 'ox-wide')}
     </div>
     ${next ? `<p class="ox-completion-next">다음 · ${esc(next.display_name)}</p>` : ''}
   </section>
@@ -427,7 +468,7 @@ function openReview(mode = 'pending', chapterId = null, fromWeak = false, collec
   if (chapterId && !chapters.has(chapterId)) return;
   if (collectionId && !collections.has(collectionId)) return;
   reviewMode = mode === 'history' ? 'history' : 'pending';
-  reviewChapterIds = chapterId ? new Set([chapterId]) : collectionId
+  reviewChapterIds = chapterId ? new Set([chapters.get(chapterId).id]) : collectionId
     ? new Set(data.chapters.filter(c => c.collection_id === collectionId).map(c => c.id)) : null;
   reviewFromWeak = fromWeak;
   reviewStatus = 'all';
@@ -441,7 +482,7 @@ function pendingReviewItems() {
 }
 
 function matchesReviewScope(s) {
-  return reviewChapterIds === null || reviewChapterIds.has(s.q.chapter_id);
+  return reviewChapterIds === null || reviewChapterIds.has(chapters.get(s.q.chapter_id)?.id || s.q.chapter_id);
 }
 
 function reviewItemsForFilter() {
@@ -465,10 +506,10 @@ function setReviewFilter(name, value, checked) {
       reviewChapterIds = new Set(data.chapters.filter(c => c.collection_id === id).map(c => c.id));
     } else {
       if (value && !chapters.has(value)) return;
-      reviewChapterIds = value ? new Set([value]) : null;
+      reviewChapterIds = value ? new Set([chapters.get(value).id]) : null;
     }
   } else if (name === 'chapter-toggle' || name === 'collection-toggle') {
-    const ids = name === 'chapter-toggle' ? (chapters.has(value) ? [value] : [])
+    const ids = name === 'chapter-toggle' ? (chapters.has(value) ? [chapters.get(value).id] : [])
       : data.chapters.filter(c => c.collection_id === value).map(c => c.id);
     if (!ids.length) return;
     if (reviewChapterIds === null) reviewChapterIds = new Set();
@@ -585,8 +626,9 @@ function weaknessStats() {
   const history = new Map();
   for (const q of data.questions) {
     const s = stats(q.id);
-    if (!history.has(q.chapter_id)) history.set(q.chapter_id, { past: 0, regained: 0, repeated: 0, totalAttempts: 0, totalCorrect: 0, totalWrong: 0 });
-    const item = history.get(q.chapter_id);
+    const chapterId = chapters.get(q.chapter_id)?.id || q.chapter_id;
+    if (!history.has(chapterId)) history.set(chapterId, { past: 0, regained: 0, repeated: 0, totalAttempts: 0, totalCorrect: 0, totalWrong: 0 });
+    const item = history.get(chapterId);
     const counts = questionAttemptCounts(q.id);
     item.totalAttempts += counts.attempts;
     item.totalCorrect += counts.correct;
@@ -714,7 +756,7 @@ function weakness() {
       else if(action==='history-chapter'){openReview('history',id,true);}
       else if(action==='history-chapter-start'){
         if(!chapters.has(id))return;
-        start(reviews().filter(s=>s.q.chapter_id===id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
+        start(reviews().filter(s=>chapters.get(s.q.chapter_id)?.id===chapters.get(id).id).map(s=>s.q.id),chapters.get(id).display_name+' · 이전 오답');return;
       }
       else if(action==='review-mode'){reviewMode=b.dataset.mode==='history'?'history':'pending';reviewStatus='all';reviewRepeated=false;reviewFiltersOpen=false;}
       else if(action==='history-status'){if(['all','wrong','regained'].includes(b.dataset.status))reviewStatus=b.dataset.status;}
