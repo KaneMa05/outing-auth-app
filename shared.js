@@ -1178,7 +1178,7 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
     const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
     let [outingResult, photoResult] = await Promise.all([
       remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
-      remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true }),
+      loadTeacherOutingPhotosFromRemote(photoColumns),
     ]);
 
     if (
@@ -1197,7 +1197,7 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
       isMissingColumnError(photoResult.error, "thumbnail_path") ||
       isMissingColumnError(photoResult.error, "thumbnail_url")
     ) {
-      photoResult = await remoteStore.from("outing_photos").select("id,outing_id,photo_type,data_url,original_name,uploaded_at").order("uploaded_at", { ascending: true });
+      photoResult = await loadTeacherOutingPhotosFromRemote("id,outing_id,photo_type,data_url,original_name,uploaded_at");
     }
     if (photoResult.error) throw photoResult.error;
 
@@ -2120,6 +2120,26 @@ async function loadStudentGradesRefreshSnapshot(scopedStudentId) {
   };
 }
 
+async function loadTeacherOutingPhotosFromRemote(columns) {
+  if (!remoteStore) return { data: [], error: null };
+  const rows = [];
+  // A single select stops at the API row limit, hiding newer photos once
+  // the archive grows past 1,000. Use a stable order across every page.
+  for (let from = 0; ; from += 1000) {
+    const result = await remoteStore
+      .from("outing_photos")
+      .select(columns)
+      .order("uploaded_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + 999);
+    if (result.error) return result;
+    const data = result.data || [];
+    rows.push(...data);
+    if (data.length < 1000) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function loadStateFromRemote(options = {}) {
   const holidayRevisionAtLoad = attendanceHolidayRevision;
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
@@ -2226,7 +2246,7 @@ async function loadStateFromRemote(options = {}) {
   }
   const photoRequest =
     APP_MODE === "teacher"
-      ? remoteStore.from("outing_photos").select(photoColumns).order("uploaded_at", { ascending: true })
+      ? loadTeacherOutingPhotosFromRemote(photoColumns)
       : Promise.resolve({ data: [], error: null });
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
@@ -2375,7 +2395,7 @@ async function loadStateFromRemote(options = {}) {
   ) {
     const fallbackPhotoColumns = "id,outing_id,photo_type,data_url,original_name,uploaded_at";
     photoResult = APP_MODE === "teacher"
-      ? await remoteStore.from("outing_photos").select(fallbackPhotoColumns).order("uploaded_at", { ascending: true })
+      ? await loadTeacherOutingPhotosFromRemote(fallbackPhotoColumns)
       : { data: [], error: null };
     outingPhotos = photoResult.data || [];
   }

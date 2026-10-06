@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v471-ox-rounds";
+const CACHE_NAME = "outing-auth-app-v472-outing-photos";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -40,6 +40,7 @@ const APP_SHELL = [
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
   "/shared.js?v=20261001-analytics",
+  "/shared.js?v=20261006-outing-photos",
   "/app.js?v=20261006-ox-rounds",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
