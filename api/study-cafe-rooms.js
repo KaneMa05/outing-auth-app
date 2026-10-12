@@ -1,6 +1,7 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
-const { createRpcRetryState } = require("../supabase-rpc-retry");
+const { createRpcRetryState, isStoreConnectionFailure } = require("../supabase-rpc-retry");
+const { withSupabaseDeadline } = require("../supabase-request-timeout");
 
 const ACTIONS = new Set([
   "list",
@@ -283,6 +284,10 @@ async function loadOwnRoom(student) {
       studyRoomSnapshotRpc.failed();
       console.warn("Study room snapshot RPC returned an invalid payload; using legacy reads.");
     } catch (error) {
+      if (isStoreConnectionFailure(error)) {
+        studyRoomSnapshotRpc.succeeded();
+        throw error;
+      }
       studyRoomSnapshotRpc.failed();
       console.warn("Study room snapshot RPC failed; using legacy reads.", {
         status: error?.storeStatus || error?.status || null,
@@ -646,20 +651,23 @@ async function requestStore(method, path, body, extraHeaders = {}) {
     error.status = 503;
     throw error;
   }
-  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
-    method,
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...extraHeaders },
-    body: body === undefined ? undefined : JSON.stringify(body),
+  return withSupabaseDeadline(async (signal) => {
+    const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
+      method,
+      signal,
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...extraHeaders },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const error = new Error("study_room_store_unavailable");
+      error.status = response.status === 404 ? 503 : 502;
+      error.storeStatus = response.status;
+      error.detail = await response.text().catch(() => "");
+      throw error;
+    }
+    if (response.status === 204) return null;
+    return response.json().catch(() => null);
   });
-  if (!response.ok) {
-    const error = new Error("study_room_store_unavailable");
-    error.status = response.status === 404 ? 503 : 502;
-    error.storeStatus = response.status;
-    error.detail = await response.text().catch(() => "");
-    throw error;
-  }
-  if (response.status === 204) return null;
-  return response.json().catch(() => null);
 }
 
 async function broadcastRoomChange(roomId, change) {
@@ -669,6 +677,7 @@ async function broadcastRoomChange(roomId, change) {
   try {
     await fetch(`${url.replace(/\/$/, "")}/realtime/v1/api/broadcast/study-cafe-room-public/events/room-changed`, {
       method: "POST",
+      signal: AbortSignal.timeout(5000),
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ roomId, change, changedAt: new Date().toISOString() }),
     });

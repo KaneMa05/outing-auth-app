@@ -90,6 +90,27 @@ Date.now = () => clock;
   assert.deepEqual(await loadOwnRoom(student), { room: null });
   assert.equal(normalCalls, 2, "both APIs return to one snapshot request after recovery");
 
+  for (const failure of [
+    jsonResponse({}, 522), jsonResponse({}, 503),
+    jsonResponse({ code: "PGRST003" }, 504), jsonResponse({ code: "57014" }, 500),
+    Object.assign(new Error("deadline"), { name: "TimeoutError" }), new TypeError("fetch failed"),
+  ]) {
+    let calls = 0;
+    global.fetch = async () => {
+      calls++;
+      if (failure instanceof Error) throw failure;
+      return failure;
+    };
+    await assert.rejects(loadStudyCafeSnapshotRows("20001", now));
+    await assert.rejects(loadOwnRoom(student));
+    assert.equal(calls, 2, "outages must not fan out into legacy reads, even on the next request");
+  }
+  global.fetch = async url => url.endsWith("/rpc/get_study_cafe_snapshot_data")
+    ? jsonResponse(validCafe)
+    : jsonResponse({ membership: null, room: null, members: [], profiles: [], students: [], messages: [], sessions: [] });
+  assert.deepEqual((await loadStudyCafeSnapshotRows("20001", now)).subjects, []);
+  assert.deepEqual(await loadOwnRoom(student), { room: null }, "efficient RPC resumes after connectivity recovers");
+
   const { createRpcRetryState } = require("../supabase-rpc-retry");
   const retry = createRpcRetryState();
   for (const delay of [60000, 120000, 240000, 300000, 300000]) {

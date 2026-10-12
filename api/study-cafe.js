@@ -1,6 +1,7 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
-const { createRpcRetryState } = require("../supabase-rpc-retry");
+const { createRpcRetryState, isStoreConnectionFailure } = require("../supabase-rpc-retry");
+const { withSupabaseDeadline } = require("../supabase-request-timeout");
 const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
 const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
 
@@ -668,6 +669,7 @@ async function broadcastStudyCafeStateChange(change, payload = {}) {
       `${supabaseUrl.replace(/\/$/, "")}/realtime/v1/api/broadcast/study-cafe-room-public/events/state-changed`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(5000),
         headers: {
           apikey: serviceRoleKey,
           Authorization: `Bearer ${serviceRoleKey}`,
@@ -828,6 +830,12 @@ async function loadStudyCafeSnapshotRows(studentId, now) {
       studyCafeSnapshotRpc.failed();
       console.warn("Study cafe snapshot RPC returned an invalid payload; using legacy reads.");
     } catch (error) {
+      if (isStoreConnectionFailure(error)) {
+        // A database outage is not a missing optional RPC. Do not fan out to
+        // nine legacy reads or disable the efficient RPC on the next request.
+        studyCafeSnapshotRpc.succeeded();
+        throw error;
+      }
       studyCafeSnapshotRpc.failed();
       console.warn("Study cafe snapshot RPC failed; using legacy reads.", {
         status: error?.storeStatus || error?.status || null,
@@ -1281,26 +1289,29 @@ async function requestSupabase(method, path, body, extraHeaders = {}, requestOpt
     error.status = 503;
     throw error;
   }
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
-    method,
-    ...requestOptions,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-      ...extraHeaders,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const error = new Error("study_cafe_store_unavailable");
-    error.status = response.status === 404 ? 503 : 502;
-    error.storeStatus = response.status;
-    error.detail = await response.text().catch(() => "");
-    throw error;
-  }
-  if (response.status === 204) return null;
-  return response.json().catch(() => null);
+  return withSupabaseDeadline(async (signal) => {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
+      method,
+      ...requestOptions,
+      signal,
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const error = new Error("study_cafe_store_unavailable");
+      error.status = response.status === 404 ? 503 : 502;
+      error.storeStatus = response.status;
+      error.detail = await response.text().catch(() => "");
+      throw error;
+    }
+    if (response.status === 204) return null;
+    return response.json().catch(() => null);
+  }, { signal: requestOptions.signal });
 }
 
 async function readJson(req) {

@@ -3,6 +3,7 @@ const studentRewardsState = {
   completed: false, notifications: [], pending: false, lastChecked: 0, timer: null,
   scheduled: false, modal: null, modalCleanup: null, acknowledged: new Set(), welcomeChecked: false,
   toastShown: new Set(), presentationTimer: null, scheduledForce: false, resync: false,
+  failures: 0, retryAt: 0,
 };
 
 function getRewardStudent() {
@@ -68,9 +69,16 @@ async function syncStudentRewards(options = {}) {
     if (rewards.modal?.isConnected) rewards.modal.remove();
     Object.assign(rewards, { studentId: student.id, eligible: null, completed: false, notifications: [],
       balance: 0, welcomePoints: 100, challengePoints: null, pending: false, lastChecked: 0, modal: null, modalCleanup: null,
-      acknowledged: new Set(), toastShown: new Set(), welcomeChecked: false, resync: false });
+      acknowledged: new Set(), toastShown: new Set(), welcomeChecked: false, resync: false,
+      failures: 0, retryAt: 0 });
   }
   const welcome = currentRoute === "home";
+  // Visibility changes and first-home/forced syncs must respect an outage
+  // cooldown too. Keep the last confirmed balance and notifications intact.
+  if (Date.now() < rewards.retryAt) {
+    showPendingStudentReward();
+    return;
+  }
   if (rewards.pending) {
     rewards.resync ||= options.force === true;
     showPendingStudentReward();
@@ -86,11 +94,18 @@ async function syncStudentRewards(options = {}) {
   const result = await requestStudentRewards("sync", { welcome });
   if (getRewardStudent()?.id !== student.id || rewards.studentId !== student.id) return;
   rewards.pending = false;
+  if (!result.ok) {
+    rewards.failures = Math.min(rewards.failures + 1, 4);
+    rewards.retryAt = Date.now() + Math.min(60000 * (2 ** (rewards.failures - 1)), 300000);
+    rewards.resync = false;
+    return;
+  }
+  rewards.failures = 0;
+  rewards.retryAt = 0;
   if (rewards.resync) {
     rewards.resync = false;
     scheduleStudentRewardsSync({ force: true });
   }
-  if (!result.ok) return;
   if (welcome) rewards.welcomeChecked = true;
   const needsRender = rewards.eligible !== result.eligible;
   const previousBalance = rewards.balance;

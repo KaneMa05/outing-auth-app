@@ -66,6 +66,7 @@ async function apiTests() {
 }
 
 async function uiTests() {
+  let clock = Date.now();
   let student = { id: "21001", className: "테스트반" }, modalOpen = false, shown = [], requests = [], failed = false;
   const toasts = [];
   const saved = new Map();
@@ -73,6 +74,7 @@ async function uiTests() {
   let payload = { ok: true, eligible: true, balance: 100, welcomePoints: 100, challengePoints: 300, notifications: [reward] };
   const context = vm.createContext({
     APP_MODE: "student", currentRoute: "home", AbortController, console,
+    Date: class extends Date { static now() { return clock; } },
     getAuthedStudent: () => student, isTeacherAppAccount: (s) => s.accountType === "teacher",
     getStudentProfile: () => ({ deviceToken: "test-token" }), isStudyCafeLocalPreview: () => false,
     isStandaloneStudentApp: () => false, navigator: { userAgent: "test" },
@@ -139,6 +141,28 @@ async function uiTests() {
   failed = true;
   await vm.runInContext("syncStudentRewards({force:true})", context);
   assert.equal(shown.length, 2, "failed grant must not show success");
+  for (const delay of [60000, 120000, 240000, 300000]) {
+    const before = requests.length;
+    await vm.runInContext("syncStudentRewards({force:true})", context);
+    assert.equal(requests.length, before, "forced/home sync must respect outage backoff");
+    clock += delay - 1;
+    await vm.runInContext("syncStudentRewards()", context);
+    assert.equal(requests.length, before);
+    clock++;
+    await vm.runInContext("syncStudentRewards({force:true})", context);
+    assert.equal(requests.length, before + 1);
+  }
+  failed = false;
+  clock += 300000;
+  await vm.runInContext("syncStudentRewards({force:true})", context);
+  assert.equal(vm.runInContext("studentRewardsState.failures", context), 0);
+  assert.equal(vm.runInContext("studentRewardsState.retryAt", context), 0);
+  failed = true;
+  await vm.runInContext("syncStudentRewards({force:true})", context);
+  student = { id: "21003", className: "테스트반" };
+  const beforeSwitch = requests.length;
+  await vm.runInContext("syncStudentRewards()", context);
+  assert.equal(requests.length, beforeSwitch + 1, "another student does not inherit the cooldown");
   const count = requests.length;
   student = { ...student, accountType: "teacher" };
   await vm.runInContext("syncStudentRewards({force:true})", context);

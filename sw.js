@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v472-outing-photos";
+const CACHE_NAME = "outing-auth-app-v473-outage-backoff";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -16,7 +16,7 @@ const APP_SHELL = [
   "/inquiry-board.js?v=20260902-inquiry-prefetch",
   "/study-character.js?v=20260911-character-hair-fire",
   "/study-shop.js?v=20260929-shared-character",
-  "/student-rewards.js?v=20260911-reward-break-celebration",
+  "/student-rewards.js?v=20261012-outage-backoff",
   "/final-scope-data.js?v=20261002-final-scope-units",
   "/final-scope-model.js?v=20260921-final-scope-admin",
   "/final-scope-admin.js?v=20260921-final-scope-admin",

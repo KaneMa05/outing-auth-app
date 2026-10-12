@@ -6,6 +6,7 @@ const {
   readSessionToken,
 } = require("./teacher-auth-utils");
 
+const { withSupabaseDeadline } = require("../supabase-request-timeout");
 const APP_SETTINGS_NOTICE_ID = "__app_settings__";
 
 module.exports = async function handler(req, res) {
@@ -256,24 +257,27 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   const supabaseUrl = process.env.SUPABASE_URL || "";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceRoleKey) throw httpError("service_role_not_configured", 503);
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
-    method,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-      ...extraHeaders,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
+  return withSupabaseDeadline(async (signal) => {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
+      method,
+      signal,
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      const error = httpError(detail.message || "curriculum_store_unavailable", response.status === 404 ? 503 : 502);
+      error.storeStatus = response.status;
+      throw error;
+    }
+    if (response.status === 204) return null;
+    return response.json().catch(() => null);
   });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    const error = httpError(detail.message || "curriculum_store_unavailable", response.status === 404 ? 503 : 502);
-    error.storeStatus = response.status;
-    throw error;
-  }
-  if (response.status === 204) return null;
-  return response.json().catch(() => null);
 }
 
 function encodeInFilter(values) {
