@@ -42,6 +42,23 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     assert.deepEqual((await db.query('select * from ox_progress order by student_id,question_id')).rows,records);
     await db.exec('set role service_role');
     const after=await learn('bootstrap',{sessionId,summaryOnly:true});
+    // The compact-sort migration must preserve every bootstrap mode and actor.
+    const compactMigration='20261013112204_ox_compact_summary_sort.sql';
+    const compactCases=[];
+    for(const [id,session] of [['a',sessionId],['b',bs],['teacher',ts]]){
+      for(const options of [{summaryOnly:true},{summaryOnly:true,deferStatistics:true},{homeOnly:true,summaryOnly:true}]){
+        const body={sessionId:session,...options};
+        compactCases.push({id,body,before:await rpc('bootstrap',actor(id),body)});
+      }
+    }
+    await db.exec('reset role');
+    const aclBefore=(await db.query("select proacl::text,prosecdef,proconfig from pg_proc where oid='ox_learning_data(text,jsonb,jsonb)'::regprocedure")).rows;
+    await db.exec(read(compactMigration).replace(/\r?\n/g,'\r\n'));
+    assert.deepEqual((await db.query("select proacl::text,prosecdef,proconfig from pg_proc where oid='ox_learning_data(text,jsonb,jsonb)'::regprocedure")).rows,aclBefore);
+    assert.deepEqual((await db.query('select * from ox_progress order by student_id,question_id')).rows,records);
+    await assert.rejects(db.exec(read(compactMigration)),/ox_learning_data_changed_since_review/,'Do not overwrite a changed function');
+    await db.exec('set role service_role');
+    for(const sample of compactCases)assert.deepEqual(await rpc('bootstrap',actor(sample.id),sample.body),sample.before);
     const {statisticsDeferred,...legacy}=after;
     assert.equal(statisticsDeferred,false);assert.deepEqual(legacy,before,'Old bootstrap content remains identical');
     const entry=await learn('device_start',{includeBootstrap:true,homeOnly:true});
@@ -85,6 +102,21 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
 
     // A representative question count proves the initial response no longer grows with the catalog.
     await db.exec("insert into ox_questions(id,chapter_id,entry,status,reviewed) select 'scale-'||n,'c0',jsonb_build_object('id','scale-'||n,'chapter_id','c0','prompt','fixture','correct_answer','O','source_question_number',n::text),'published',true from generate_series(1,2500)n;");
+    // Wide production-like entries expose a presort spill. Compare the actual
+    // old/new query blocks at the production work_mem, without widening it.
+    await db.exec("update ox_questions q set entry=entry||jsonb_build_object('explanation_html',(select string_agg(md5(q.id||n::text),'') from generate_series(1,35)n),'source_option_label',case when id like 'scale-%' then '①' else null end);set work_mem='2184kB';");
+    const compactSql=read(compactMigration);
+    const summaryQuery=tag=>compactSql.split('$'+tag+'$')[1].replace('into v_questions','').replaceAll('v_student',"'a'").replaceAll('v_books',"array['criminal-law']::text[]");
+    const oldSummary=await db.query(summaryQuery('old'));
+    const newSummary=await db.query(summaryQuery('new'));
+    assert.deepEqual(Object.values(newSummary.rows[0])[0],Object.values(oldSummary.rows[0])[0],'Large catalog order and solved-answer visibility stay identical');
+    const sortPlans={};
+    for(const tag of ['old','new'])sortPlans[tag]=(await db.query('explain(analyze,buffers,format json) '+summaryQuery(tag))).rows[0]['QUERY PLAN'][0];
+    assert.ok(sortPlans.old.Plan['Temp Written Blocks']>0,'Fixture must reproduce the old disk spill');
+    assert.equal(sortPlans.new.Plan['Temp Written Blocks'],0,'Compact summary must not spill at the current production work_mem');
+    fs.mkdirSync('.tmp/ox-compact-summary-performance',{recursive:true});
+    fs.writeFileSync('.tmp/ox-compact-summary-performance/plans.json',JSON.stringify(sortPlans,null,2));
+    console.log('Compact summary temp blocks:',JSON.stringify(Object.fromEntries(Object.entries(sortPlans).map(([key,value])=>[key,value.Plan['Temp Written Blocks']]))));
     const full=await learn('bootstrap',{sessionId,summaryOnly:true});
     const tiny=(await learn('device_start',{includeBootstrap:true,homeOnly:true})).bootstrap;
     assert.ok(Buffer.byteLength(JSON.stringify(tiny))*50<Buffer.byteLength(JSON.stringify(full)));

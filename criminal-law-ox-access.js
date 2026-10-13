@@ -3,6 +3,7 @@ import {mount as mountLearning} from './criminal-law-ox.js?v=20261013-ox-pencil'
 
 export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
   let controller=null,sessionId=null,epoch=0,destroyed=false,busy=false,timer=null,checking=false,resumeRequested=false;
+  let requestTail=Promise.resolve();
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=value=>value?new Date(value).toLocaleString('ko-KR'):'—';
   const messages={device_session_changed:'다른 기기로 학습이 전환되었거나 연결이 만료되었습니다. 저장된 기록을 다시 불러와 이어서 학습할 수 있습니다.',
@@ -12,6 +13,16 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     ox_disabled:'형사법 OX 학습을 준비하고 있습니다.',ox_not_registered:'OX 이용 등록을 확인해주세요.',ox_book_required:'현재 이용 가능한 이용권이 없습니다. 이용권 지급 또는 이용 재개는 학원에 문의해주세요. 기존 풀이 기록과 메모는 보존됩니다.',
     unauthorized:'현재 앱 기기 등록이 해제되었습니다. 홈에서 다시 로그인해주세요.'};
   const connected=()=>!destroyed&&host.isConnected;
+  // The gateway holds one student lock for the entire transaction. Queue this
+  // view's calls before they reach Postgres, including entry after a resume.
+  function enqueue(action,body={},version=epoch){
+    const pending=requestTail.then(()=>{
+      if(version!==epoch || !connected())throw Object.assign(Error('device_session_changed'),{code:'device_session_changed'});
+      return request(action,body);
+    });
+    requestTail=pending.catch(()=>{});
+    return pending;
+  }
   function stop(){epoch++;sessionId=null;controller=null;clearTimeout(timer);timer=null;onReady(false);}
   function shell(title,description,body=''){
     host.innerHTML=`<section class="card ox-device-panel"><h3>${esc(title)}</h3><p role="status">${esc(description)}</p>${body}</section>`;
@@ -25,8 +36,10 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     const version=epoch,token=sessionId;
     if(!token || !connected())throw Object.assign(Error('device_session_changed'),{code:'device_session_changed'});
     try{
-      const result=await request(action,{...body,sessionId:token});
+      const result=await enqueue(action,{...body,sessionId:token},version);
       if(version!==epoch || !connected())throw Object.assign(Error('device_session_changed'),{code:'device_session_changed'});
+      // Every successful learning call renews the server lease too.
+      schedule();
       return result;
     }catch(error){
       if(version===epoch && connected() && (['device_session_changed','device_not_registered','unauthorized','ox_disabled','ox_not_registered','ox_book_required'].includes(error.code) || !error.code))failed(error);
@@ -44,7 +57,7 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     busy=true;stop();const version=epoch;let inspectState=false;
     shell('OX 학습 준비','저장된 학습 기록을 불러오는 중입니다.');
     try{
-      const started=await request('device_start',{includeBootstrap:true,homeOnly:true,...(takeover?{takeover:true,expectedSessionId:state.activeSessionId}:{})});
+      const started=await enqueue('device_start',{includeBootstrap:true,homeOnly:true,...(takeover?{takeover:true,expectedSessionId:state.activeSessionId}:{})},version);
       if(version!==epoch || !connected())return;
       sessionId=started.sessionId;
       // Older API deployments ignore includeBootstrap; keep their learning path working.
@@ -71,7 +84,7 @@ export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
     stop();const version=epoch;
     shell('OX 이용 확인','기기 이용 상태를 확인하고 있습니다.');
     try{
-      const state=await request('device_state');
+      const state=await enqueue('device_state',{},version);
       if(version!==epoch || !connected())return;
       if(state.learningError)failed({code:state.learningError});
       else if(!state.registered){

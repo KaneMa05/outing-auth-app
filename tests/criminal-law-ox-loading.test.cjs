@@ -264,35 +264,36 @@ function accessFixture(){
 
 test('normal entry needs one browser request and resume always loads fresh records',async()=>{
   const f=accessFixture(),bootstrap={ok:true,progress:[{question_id:'latest'}]};
+  await f.flush();
   assert.equal(f.requests.length,1);assert.equal(f.requests[0].action,'device_start');assert.equal(f.requests[0].body.includeBootstrap,true);
   f.respond(0,{ok:true,sessionId:'first',bootstrap});await f.flush();
   assert.equal(f.requests.length,1);assert.equal(f.mounts[0].bootstrap,bootstrap);assert.equal(f.ready.at(-1),true);
-  const detail=f.mounts[0].request('detail',{questionId:'q'});assert.equal(f.requests[1].body.sessionId,'first');
+  const detail=f.mounts[0].request('detail',{questionId:'q'});await f.flush();assert.equal(f.requests[1].body.sessionId,'first');
   f.respond(1,{ok:true});await detail;
-  f.visible(false);f.visible(true);
+  f.visible(false);f.visible(true);await f.flush();
   f.respond(2,{ok:true,sessionId:'second',bootstrap:{ok:true,progress:[]}});await f.flush();
   assert.equal(f.mounts.length,2);assert.equal(f.mounts[1].bootstrap.progress.length,0);assert.equal(f.requests.length,3);
 });
 
 test('older APIs without bundled records fall back to a guarded summary request',async()=>{
-  const f=accessFixture();f.respond(0,{ok:true,sessionId:'old-server'});await f.flush();
+  const f=accessFixture();await f.flush();f.respond(0,{ok:true,sessionId:'old-server'});await f.flush();
   assert.equal(f.requests[1].action,'bootstrap');assert.equal(f.requests[1].body.sessionId,'old-server');assert.equal(f.requests[1].body.summaryOnly,true);
   f.respond(1,{ok:true,progress:[]});await f.flush();assert.equal(f.mounts.length,1);
 });
 
 test('another active device still requires explicit takeover with the observed session',async()=>{
-  const f=accessFixture();f.reject(0,'device_in_use');await f.flush();
+  const f=accessFixture();await f.flush();f.reject(0,'device_in_use');await f.flush();
   assert.equal(f.requests[1].action,'device_state');
   f.respond(1,{ok:true,registered:true,activeSessionId:'other',activeHere:false});await f.flush();
   assert.equal(f.mounts.length,0);assert.equal(f.requests.length,2);
-  const click=f.nodes.get('[data-device-enter]').onclick();
+  const click=f.nodes.get('[data-device-enter]').onclick();await f.flush();
   assert.equal(f.requests[2].body.takeover,true);assert.equal(f.requests[2].body.expectedSessionId,'other');
   f.respond(2,{ok:true,sessionId:'here',bootstrap:{ok:true}});await click;assert.equal(f.mounts.length,1);
 });
 
 test('late entry responses cannot mount a hidden, disconnected or destroyed screen',async()=>{
   for(const kind of ['hidden','disconnected','destroyed']){
-    const f=accessFixture();
+    const f=accessFixture();await f.flush();
     if(kind==='hidden'){f.visible(false);f.visible(true);}
     if(kind==='disconnected'){f.connected(false);f.connected(true);}
     if(kind==='destroyed')f.context.controller.destroy();
@@ -305,9 +306,9 @@ test('late entry responses cannot mount a hidden, disconnected or destroyed scre
 
 test('failed entry can retry and revoked access does not load device state or learning',async()=>{
   for(const code of ['ox_unavailable','unauthorized','ox_book_required']){
-    const f=accessFixture();f.reject(0,code);await f.flush();
+    const f=accessFixture();await f.flush();f.reject(0,code);await f.flush();
     assert.equal(f.mounts.length,0);assert.equal(f.requests.length,1);assert.equal(f.ready.at(-1),false);
-    const retry=f.nodes.get('[data-device-retry]').onclick();
+    const retry=f.nodes.get('[data-device-retry]').onclick();await f.flush();
     f.respond(1,{ok:true,sessionId:'retry',bootstrap:{ok:true}});await retry;assert.equal(f.mounts.length,1);
   }
 });
