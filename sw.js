@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v473-outage-backoff";
+const CACHE_NAME = "outing-auth-app-v474-realtime-refresh";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -41,7 +41,7 @@ const APP_SHELL = [
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
   "/shared.js?v=20261001-analytics",
   "/shared.js?v=20261006-outing-photos",
-  "/app.js?v=20261006-ox-rounds",
+  "/app.js?v=20261013-realtime-refresh",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",

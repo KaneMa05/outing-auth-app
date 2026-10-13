@@ -250,6 +250,7 @@ const STUDY_CAFE_RANKING_ROOM_INDEX = 0;
 const STUDY_CAFE_RANKING_REFRESH_INTERVAL_MS = 15 * 1000;
 const STUDY_CAFE_SAFETY_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 const STUDY_CAFE_ACTION_REFRESH_DELAY_MS = 120;
+const STUDY_CAFE_REALTIME_MIN_REFRESH_INTERVAL_MS = 1000;
 const STUDY_CAFE_USED_STORAGE_KEY = "ronpark-study-cafe-used";
 const STUDY_CAFE_RANKING_USED_STORAGE_KEY = "ronpark-study-cafe-ranking-used";
 const STUDY_CAFE_TIMER_PAUSE_GUIDE_STORAGE_KEY = "ronpark-study-cafe-timer-pause-guide-v2";
@@ -453,7 +454,6 @@ let studyCafeCountdownInterval = null;
 let studyCafeCountdownCleanupTimer = null;
 let studyCafeRealtimeChannel = null;
 let studyCafeRealtimeConnected = false;
-let studyCafeRealtimeRefreshTimer = null;
 let studyCafeRankingRoomRefreshTimer = null;
 let studyCafeCountdownId = 0;
 let studentFooterTapGuardTimer = null;
@@ -2298,6 +2298,7 @@ async function ensureStudyRoomLoaded(options = {}) {
     return true;
   }
   studyRoomState.loading = true;
+  const realtimeRevisionAtRequest = studyRoomState.realtimeRevision || 0;
   const sessionRevisionAtRequest = studyCafeSessionRevision;
   try {
     const result = await requestStudyRoomAction("load");
@@ -2331,6 +2332,7 @@ async function ensureStudyRoomLoaded(options = {}) {
     }
     studyRoomState.loaded = true;
     studyRoomState.lastLoadedAt = Date.now();
+    studyRoomState.realtimeLoadedRevision = realtimeRevisionAtRequest;
     studyRoomState.error = "";
     ensureStudyRoomRefresh();
     if (options.render === true && currentRoute === "study-cafe") renderStudyCafeStateUpdate();
@@ -2463,6 +2465,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     return studyCafeRemoteState.loaded;
   }
   studyCafeRemoteState.loading = true;
+  const realtimeRevisionAtRequest = studyCafeRemoteState.realtimeRevision || 0;
   studyCafeRemoteState.lastAttemptAt = Date.now();
   const sessionRevisionAtRequest = studyCafeSessionRevision;
   const todoRevisionAtRequest = studyTodoMutationRevision;
@@ -2511,6 +2514,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
         studyTodoDeletePendingKeys.size > 0 ||
         todoRevisionAtRequest !== studyTodoMutationRevision,
     });
+    studyCafeRemoteState.realtimeLoadedRevision = realtimeRevisionAtRequest;
     if (currentRoute === "home") {
       updateStudyCafeHomeLiveCount();
       updateLectureHomeSummary();
@@ -2991,27 +2995,68 @@ function scheduleStudyRoomRealtimeRefresh(message) {
   if (currentRoute !== "study-cafe" || document.visibilityState === "hidden") return;
   const changedRoomId = message?.payload?.roomId || message?.roomId || "";
   if (studyRoomState.room && changedRoomId && changedRoomId !== studyRoomState.room.id) return;
-  window.setTimeout(async () => {
-    if (isStudyCafeTimerRecoveryRequired()) return;
-    const before = JSON.stringify(studyRoomState.room || null);
-    await ensureStudyRoomLoaded({ force: true });
-    if (currentRoute === "study-cafe" && before !== JSON.stringify(studyRoomState.room || null)) {
-      renderStudyCafeStateUpdate();
-    }
-  }, 250);
+  queueStudyCafeRealtimeRefresh("room", 250);
 }
 
 function scheduleStudyCafeRealtimeRefresh() {
+  queueStudyCafeRealtimeRefresh("cafe", 350);
+}
+
+function getStudyCafeRealtimeRefreshScope(kind) {
   const student = getAuthedStudent();
-  const shouldRefresh =
-    isStudyCafeRoute() ||
-    (currentRoute === "home" && isOnlineStudentExperience(student));
-  if (!shouldRefresh || document.visibilityState === "hidden") return;
-  window.clearTimeout(studyCafeRealtimeRefreshTimer);
-  studyCafeRealtimeRefreshTimer = window.setTimeout(() => {
-    studyCafeRealtimeRefreshTimer = null;
-    requestStudyCafeRemoteRefresh(0, { retryWhenLoading: true });
-  }, 350);
+  if (APP_MODE !== "student" || !isOnlineStudentExperience(student)
+    || document.visibilityState === "hidden" || isStudyCafeLocalPreview()) return "";
+  if (kind === "room") {
+    return currentRoute === "study-cafe" ? `${student.id}:room:${studyRoomState.room?.id || ""}` : "";
+  }
+  return isStudyCafeRoute() || currentRoute === "home" ? `${student.id}:cafe` : "";
+}
+
+function queueStudyCafeRealtimeRefresh(kind, initialDelay) {
+  const scope = getStudyCafeRealtimeRefreshScope(kind);
+  if (!scope) return;
+  const studentId = String(getAuthedStudent().id);
+  const state = kind === "room" ? studyRoomState : studyCafeRemoteState;
+  if (state.realtimeScope !== scope) {
+    window.clearTimeout(state.realtimeRefreshTimer);
+    state.realtimeRefreshTimer = null;
+    state.realtimeLastStartedAt = 0;
+    state.realtimeScope = scope;
+  }
+  state.realtimeRevision = (state.realtimeRevision || 0) + 1;
+  // Keep the first deadline: continuous events must not postpone updates forever.
+  if (state.realtimeRefreshTimer != null) return;
+  const run = async () => {
+    state.realtimeRefreshTimer = null;
+    if (getStudyCafeRealtimeRefreshScope(kind) !== scope || isStudyCafeTimerRecoveryRequired()) return;
+    // A successful action/safety refresh started after these events already covers them.
+    if (state.realtimeLoadedRevision >= state.realtimeRevision) return;
+    if (state.loading || studyCafeTimerActionPending || (kind === "room" && state.actionPending)) {
+      state.realtimeRefreshTimer = window.setTimeout(run, 100);
+      return;
+    }
+    const remaining = STUDY_CAFE_REALTIME_MIN_REFRESH_INTERVAL_MS - (Date.now() - (state.realtimeLastStartedAt || 0));
+    if (remaining > 0) {
+      state.realtimeRefreshTimer = window.setTimeout(run, remaining);
+      return;
+    }
+    state.realtimeLastStartedAt = Date.now();
+    if (kind === "room") {
+      const before = JSON.stringify(studyRoomState.room || null);
+      const loaded = await ensureStudyRoomLoaded({ force: true });
+      if (loaded && currentRoute === "study-cafe" && document.visibilityState !== "hidden"
+        && String(getAuthedStudent()?.id) === studentId && before !== JSON.stringify(studyRoomState.room || null)) {
+        renderStudyCafeStateUpdate();
+      }
+    } else {
+      await ensureStudyCafeRemoteLoaded({ force: true });
+    }
+    // Events received during the request keep one trailing timer. Failures alone
+    // do not enqueue retries; the existing safety/focus refresh handles recovery.
+  };
+  const delay = Math.max(initialDelay,
+    STUDY_CAFE_REALTIME_MIN_REFRESH_INTERVAL_MS - (Date.now() - (state.realtimeLastStartedAt || 0)));
+  state.realtimeRefreshTimer = window.setTimeout(run, delay);
 }
 
 function getStudentDeviceLabel() {

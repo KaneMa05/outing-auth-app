@@ -310,7 +310,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function scheduleStudyCafeRealtimeRefresh\(\)[\s\S]*?window\.setTimeout\([\s\S]*?requestStudyCafeRemoteRefresh\(0, \{ retryWhenLoading: true \}\)[\s\S]*?\}, 350\)/
+  /function scheduleStudyCafeRealtimeRefresh\(\)[\s\S]*?queueStudyCafeRealtimeRefresh\("cafe", 350\)/
 );
 assert.match(
   appSource,
