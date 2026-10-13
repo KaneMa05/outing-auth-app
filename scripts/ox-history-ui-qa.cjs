@@ -36,7 +36,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     server=http.createServer((req,res)=>{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);}
-      const files={'/styles.css':'text/css','/criminal-law-ox.css':'text/css','/criminal-law-ox.js':'text/javascript','/fonts/NanumGothic-Regular.woff':'font/woff','/fonts/NanumGothic-Bold.woff':'font/woff','/fonts/GongGothicLight.woff':'font/woff'};
+      const files={'/ox-grade-circle.png':'image/png','/ox-grade-slash.png':'image/png','/styles.css':'text/css','/criminal-law-ox.css':'text/css','/criminal-law-ox.js':'text/javascript','/fonts/NanumGothic-Regular.woff':'font/woff','/fonts/NanumGothic-Bold.woff':'font/woff','/fonts/GongGothicLight.woff':'font/woff'};
       if(files[url.pathname]){res.setHeader('Content-Type',files[url.pathname]);return res.end(fs.readFileSync(path.join(root,url.pathname.slice(1))));}
       res.statusCode=404;res.end();
     });
@@ -77,9 +77,9 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     await click('[data-action="review-all"]');await wait("document.querySelector('.ox-quiz-count')");
     assert.equal(await evaluate("document.querySelector('.ox-quiz-count').textContent.replace(/\\s/g,'')"),'1/1');
     assert.equal(await evaluate("document.querySelector('.ox-explanation')===null"),true,'answers remain hidden during replay');
-    await click('[data-action="answer"][data-answer="O"]');await wait("document.querySelector('.ox-correct')");
+    await click('[data-action="answer"][data-answer="O"]');await wait("document.querySelector('.ox-correct')");await wait("document.querySelector('.ox-grade-mark')?.naturalWidth===108");
     await click('[data-action="next"]');await click('[data-ox-route="review"]');await wait("document.querySelectorAll('[data-review-question]').length===1");
-    assert.equal(await evaluate("document.querySelector('.ox-content h2').textContent"),'형법의 적용범위','return preserves chapter and filter');
+    assert.equal(await evaluate("document.querySelector('.ox-content h2').textContent"),'형법의 적용범위 · 오답노트','return preserves chapter and filter');
     await click('[data-action="master"]');await wait("document.querySelector('[data-action=master]').textContent==='복습 완료'");
     await click('[data-action="master"]');await wait("document.querySelector('[data-action=master]').textContent==='완료 취소'");
     await click('[data-ox-route="weak"]');
@@ -93,7 +93,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
     assert.equal(await evaluate("document.querySelectorAll('[data-review-question]').length"),0,'normal review still hides completed items');
     await click('[data-action="review-mode"][data-mode="history"]');await wait("document.querySelectorAll('[data-review-question]').length===8");
     await click('[data-action="history-repeat"]');await click('[data-action="review-all"]');await wait("document.querySelector('.ox-quiz-count')");
-    await click('[data-action="answer"][data-answer="X"]');await wait("document.querySelector('.ox-incorrect')");
+    await click('[data-action="answer"][data-answer="X"]');await wait("document.querySelector('.ox-incorrect')");await wait("document.querySelector('.ox-grade-mark')?.naturalWidth===108");
     await click('[data-action="leave"]');await wait("document.querySelector('[data-review-question]')");
     assert.equal(await evaluate("document.querySelector('[data-action=master]').textContent"),'복습 완료','new wrong clears completion');
     await click('[data-ox-route="weak"]');

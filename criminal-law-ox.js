@@ -381,10 +381,6 @@ function quiz() {
   const q = byId.get(session.ids[session.index]);
   const display = questionPresentation(q);
   const c = chapters.get(q.chapter_id), a = session.answers[session.index], n = note(q.id);
-  const pencilPath = a?.correct
-    ? 'M53 13 C37 5 19 14 13 31 C6 49 17 66 34 69 C52 73 67 59 69 42 C71 26 61 13 47 11 C35 8 23 15 18 24'
-    : 'M19 65 C29 52 41 41 49 30 C54 23 58 19 62 15';
-  const pencilFilter = `ox-pencil-${a?.correct ? 'circle' : 'slash'}`;
   main.innerHTML = `<div class="ox-quiz">
     <div class="ox-quiz-toolbar">
       <button type="button" class="ox-quiz-tool" data-action="leave">← 나가기</button>
@@ -399,20 +395,7 @@ function quiz() {
       ${display.context ? `<div class="ox-context"><p>${esc(display.context)}</p></div>` : ''}
       <div class="ox-question">
       ${esc(display.prompt)}
-      ${a ? `<svg class="ox-grade-mark" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
-        <defs>
-          <filter id="${pencilFilter}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" seed="12" result="grain" />
-            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.8 -.35" result="pencil-grain" />
-            <feComposite in="SourceGraphic" in2="pencil-grain" operator="in" />
-          </filter>
-        </defs>
-        <g filter="url(#${pencilFilter})">
-          <path d="${pencilPath}" stroke-width="5.4" opacity=".85" />
-          <path d="${pencilPath}" transform="translate(-1 .8)" stroke-width="2" opacity=".7" />
-          <path d="${pencilPath}" transform="translate(1.2 -.6)" stroke-width="1.2" opacity=".65" />
-        </g>
-      </svg>` : ''}
+      ${a ? `<img class="ox-grade-mark" src="/ox-grade-${a.correct ? 'circle' : 'slash'}.png?v=20261013-pencil" width="108" height="108" alt="" aria-hidden="true" decoding="async" draggable="false">` : ''}
       </div>
       <div class="ox-answer-grid">
         ${['O', 'X'].map(v => `<button type="button" class="btn secondary ox-answer ${a && a.answer === v ? 'ox-selected' : ''}" data-action="answer" data-answer="${v}" ${a ? 'disabled' : ''} aria-label="${v}: ${v === 'O' ? '옳다' : '틀리다'}"><span class="ox-answer-symbol ox-symbol-${v.toLowerCase()}" aria-hidden="true"></span></button>`).join('')}

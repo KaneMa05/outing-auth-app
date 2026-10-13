@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v474-realtime-refresh";
+const CACHE_NAME = "outing-auth-app-v475-ox-pencil";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -41,13 +41,15 @@ const APP_SHELL = [
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
   "/shared.js?v=20261001-analytics",
   "/shared.js?v=20261006-outing-photos",
-  "/app.js?v=20261013-realtime-refresh",
+  "/app.js?v=20261013-ox-pencil",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",
-  "/criminal-law-ox.js?v=20261006-ox-rounds",
+  "/criminal-law-ox.js?v=20261013-ox-pencil",
+  "/ox-grade-circle.png?v=20261013-pencil",
+  "/ox-grade-slash.png?v=20261013-pencil",
   "/criminal-law-ox.css?v=20261005-ox-review-chapters",
-  "/criminal-law-ox-access.js?v=20261006-ox-rounds",
+  "/criminal-law-ox-access.js?v=20261013-ox-pencil",
   "/student-device-manager.js?v=20260922-ox-device-policy",
   "/criminal-law-ox-grants-admin.js?v=20261001-pass-only",
   "/criminal-law-ox-device-admin.js?v=20261001-pass-only",

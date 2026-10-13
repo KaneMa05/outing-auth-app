@@ -44,6 +44,7 @@ function createWakeLockHarness(request) {
   const notices = [];
   const context = {
     APP_MODE: "student",
+    currentRoute: "home",
     studyCafePreviewState: { timerFullscreen: false },
     document: { visibilityState: "visible" },
     navigator: { wakeLock: { request } },
@@ -67,6 +68,9 @@ function createWakeLockHarness(request) {
       setEnabled: setStudentScreenWakeLockEnabled,
       sync: syncStudentScreenWakeLock,
       getSentinel: () => studentScreenWakeLock,
+      setRoute: (route) => { currentRoute = route; },
+      setAuthenticated: (authenticated) => { getAuthedStudent = () => authenticated ? { id: "20001" } : null; },
+      setMode: (mode) => { APP_MODE = mode; },
     };
   `, context);
   return { ...context, values, notices, api: context.wakeLockApi };
@@ -115,6 +119,36 @@ async function runWakeLockLifecycleTests() {
   await harness.api.sync();
   assert.equal(sentinels[2].released, true, "closing fullscreen must release its wake lock when the setting is off");
 
+  harness.api.setRoute("criminal-law-ox");
+  await harness.api.sync();
+  assert.equal(requestCount, 4, "OX must prevent automatic screen sleep while the global setting is off");
+  assert.equal(harness.api.isEnabled(), false, "OX must not overwrite the user's global preference");
+  await harness.api.sync();
+  assert.equal(requestCount, 4, "OX rerenders must reuse the active wake lock");
+  harness.document.visibilityState = "hidden";
+  await harness.api.sync();
+  assert.equal(sentinels[3].released, true);
+  harness.document.visibilityState = "visible";
+  await harness.api.sync();
+  assert.equal(requestCount, 5, "returning to OX must reacquire the wake lock");
+  harness.api.setRoute("home");
+  await harness.api.sync();
+  assert.equal(sentinels[4].released, true, "leaving OX must restore the default screen sleep behavior");
+  harness.api.setRoute("criminal-law-ox");
+  harness.api.setAuthenticated(false);
+  await harness.api.sync();
+  assert.equal(requestCount, 5, "unauthenticated OX must not request a wake lock");
+  harness.api.setAuthenticated(true);
+  harness.api.setMode("teacher");
+  await harness.api.sync();
+  assert.equal(requestCount, 5, "teacher screens must retain their existing wake lock behavior");
+
+  const deniedHarness = createWakeLockHarness(async () => { throw new Error("NotAllowedError"); });
+  deniedHarness.api.setRoute("criminal-law-ox");
+  await deniedHarness.api.sync();
+  assert.equal(deniedHarness.api.getSentinel(), null, "a rejected wake lock must not crash the OX screen");
+  assert.equal(deniedHarness.notices.length, 0);
+
   let resolvePendingRequest;
   const pendingSentinel = createWakeLockSentinel();
   const raceHarness = createWakeLockHarness(() => new Promise((resolve) => {
@@ -127,6 +161,19 @@ async function runWakeLockLifecycleTests() {
   await enableRequest;
   assert.equal(pendingSentinel.released, true, "a late request must not survive after the toggle is turned off");
   assert.equal(raceHarness.api.getSentinel(), null);
+
+  for (const leave of [api => api.setRoute("home"), api => api.setAuthenticated(false)]) {
+    let resolveRequest;
+    const lateSentinel = createWakeLockSentinel();
+    const lateHarness = createWakeLockHarness(() => new Promise(resolve => { resolveRequest = resolve; }));
+    lateHarness.api.setRoute("criminal-law-ox");
+    const pending = lateHarness.api.sync();
+    leave(lateHarness.api);
+    await lateHarness.api.sync();
+    resolveRequest(lateSentinel);
+    await pending;
+    assert.equal(lateSentinel.released, true, "a late OX wake lock must be released after leaving or logout");
+  }
 }
 
 runWakeLockLifecycleTests()

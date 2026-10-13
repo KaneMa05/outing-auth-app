@@ -81,6 +81,16 @@ test("service worker installs every current page asset and never caches API requ
     assert.match(asset, /\?v=.+/, "Lazy OX assets must bypass older cached URLs");
     assert.ok(stored.has("/" + asset), `${asset} missing from precache`);
   }
+  // Grading textures must be available offline without evaluating SVG filters.
+  for (const name of ['circle', 'slash']) {
+    const filename = `ox-grade-${name}.png`;
+    const png = fs.readFileSync(filename);
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(png.readUInt32BE(16), 108);
+    assert.equal(png.readUInt32BE(20), 108);
+    assert.equal(png[25], 6, 'Grading textures must preserve their transparent background');
+    assert.ok(stored.has(`/${filename}?v=20261013-pencil`), `${filename} missing from precache`);
+  }
   for (const [url, method] of [["/api/study-cafe", "POST"], ["/api/app-settings", "GET"]]) {
     handlers.fetch({ request: { url: `https://app.test${url}`, method }, respondWith: () => assert.fail("API must bypass cache") });
   }

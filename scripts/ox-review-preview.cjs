@@ -50,7 +50,7 @@ http.createServer((req,res)=>{
   const pathname=new URL(req.url,'http://127.0.0.1').pathname;
   res.setHeader('Cache-Control','no-store');
   if(pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);}
-  const assets={'/styles.css':'text/css','/criminal-law-ox.css':'text/css','/criminal-law-ox.js':'text/javascript',
+  const assets={'/ox-grade-circle.png':'image/png','/ox-grade-slash.png':'image/png','/styles.css':'text/css','/criminal-law-ox.css':'text/css','/criminal-law-ox.js':'text/javascript',
     '/fonts/NanumGothic-Regular.woff':'font/woff','/fonts/NanumGothic-Bold.woff':'font/woff','/fonts/GongGothicLight.woff':'font/woff'};
   if(!assets[pathname]){res.statusCode=404;return res.end();}
   res.setHeader('Content-Type',assets[pathname]);res.end(fs.readFileSync(path.join(root,pathname.slice(1))));

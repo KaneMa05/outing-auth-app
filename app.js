@@ -725,7 +725,10 @@ function render() {
   const requestedRoute = location.hash.replace("#", "") || defaultRoute();
   const normalizedRoute = normalizeRoute(requestedRoute);
   if (normalizedRoute !== currentRoute) currentRoute = normalizedRoute;
-  if (currentRoute !== 'criminal-law-ox' || !getAuthedStudent()) renderCriminalLawOxLocalPreview.view = null;
+  if (currentRoute !== 'criminal-law-ox' || !getAuthedStudent()) {
+    renderCriminalLawOxLocalPreview.view?.controller?.destroy();
+    renderCriminalLawOxLocalPreview.view = null;
+  }
   if (window.StudyRecordShare && (currentRoute !== "study-timer" || !getAuthedStudent() || !isOnlineStudentExperience(getAuthedStudent()))) {
     window.StudyRecordShare?.close();
   }
@@ -3194,7 +3197,7 @@ function renderCriminalLawOxLocalEntry() {
   // The home shortcut stays visible. Only the server's current access status opens learning.
   requestCriminalLawOx('status').then(data=>{
     if(stillCurrent() && data.enabled && !document.querySelector('link[data-ox-module-preload]')) {
-      for(const href of ['./criminal-law-ox-access.js?v=20261006-ox-rounds','./criminal-law-ox.js?v=20261006-ox-rounds'])
+      for(const href of ['./criminal-law-ox-access.js?v=20261013-ox-pencil','./criminal-law-ox.js?v=20261013-ox-pencil'])
         document.head.appendChild(el('link',{rel:'modulepreload',href,'data-ox-module-preload':'true'}));
     }
   }).catch(()=>{});
@@ -3275,7 +3278,7 @@ function renderCriminalLawOxLocalPreview() {
   bookmarksButton.setAttribute("aria-label", "북마크한 문제");
   bookmarksButton.setAttribute("title", "북마크한 문제");
   bookmarksButton.disabled = true;
-  import("./criminal-law-ox-access.js?v=20261006-ox-rounds").then(({ mountAccess }) => {
+  import("./criminal-law-ox-access.js?v=20261013-ox-pencil").then(({ mountAccess }) => {
     if (renderCriminalLawOxLocalPreview.view?.key===key) {
       previewController = mountAccess(content,{request:requestCriminalLawOx,onReady:ready=>{bookmarksButton.disabled=!ready;},onManage:()=>navigate("mypage")});
       if(renderCriminalLawOxLocalPreview.view?.key===key)renderCriminalLawOxLocalPreview.view.controller=previewController;
@@ -4561,6 +4564,7 @@ function isStudentScreenWakeLockEnabled() {
 
 function shouldKeepStudentScreenAwake() {
   return isStudentScreenWakeLockEnabled()
+    || currentRoute === "criminal-law-ox"
     || (typeof studyCafePreviewState !== "undefined" && studyCafePreviewState.timerFullscreen === true);
 }
 
@@ -4577,7 +4581,7 @@ async function requestStudentScreenWakeLock() {
 
   studentScreenWakeLockRequest = navigator.wakeLock.request("screen")
     .then(async (wakeLock) => {
-      if (!shouldKeepStudentScreenAwake() || document.visibilityState !== "visible") {
+      if (APP_MODE !== "student" || !getAuthedStudent() || !shouldKeepStudentScreenAwake() || document.visibilityState !== "visible") {
         await wakeLock.release();
         return false;
       }

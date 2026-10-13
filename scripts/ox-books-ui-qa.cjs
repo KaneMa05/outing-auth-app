@@ -86,6 +86,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
         res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);
       }
       if(assets.has(url.pathname.slice(1))){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':'text/css');return res.end(read(url.pathname.slice(1)));}
+      if(['/ox-grade-circle.png','/ox-grade-slash.png'].includes(url.pathname)){res.setHeader('Content-Type','image/png');return res.end(fs.readFileSync(path.join(root,url.pathname.slice(1))));}
       if(['/fonts/NanumGothic-Regular.woff','/fonts/NanumGothic-Bold.woff'].includes(url.pathname)){res.setHeader('Content-Type','font/woff');return res.end(fs.readFileSync(path.join(root,url.pathname.slice(1))));}
       res.statusCode=404;res.end();
     });

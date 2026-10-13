@@ -1,5 +1,5 @@
 // OX-only device policy. Learning records always come from the server on entry/resume.
-import {mount as mountLearning} from './criminal-law-ox.js?v=20261006-ox-rounds';
+import {mount as mountLearning} from './criminal-law-ox.js?v=20261013-ox-pencil';
 
 export function mountAccess(host,{request,onReady=()=>{},onManage=()=>{}}) {
   let controller=null,sessionId=null,epoch=0,destroyed=false,busy=false,timer=null,checking=false,resumeRequested=false;
