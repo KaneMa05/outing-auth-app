@@ -38,7 +38,7 @@ test('heavy OX reads do not block device validation; concurrent revocation disca
     await core('admin_enabled',{enabled:true});
     await db.query("insert into ox_members(student_id,allowed,updated_by) values('a',true,'fixture');insert into ox_individual_passes(student_id,collection_id,active,origin,updated_by) select 'a',id,true,'manual','fixture' from ox_collections;");
     for(const device of ['phone','tablet'])await db.query('select register_student_device($1,$2,$3)',['a','fixture-password',hash(device)]);
-    await db.query(read('20261014063658_ox_narrow_catalog_and_short_read_locks.sql'));
+    await db.query(read('20261014074212_ox_narrow_catalog_and_short_read_locks.sql'));
     // Pause after producing real data so the other connection can revoke access.
     await db.query("alter function ox_learning_data(text,jsonb,jsonb) rename to ox_learning_data_fixture_original");
     await db.query(`create function ox_learning_data(p_action text,p_actor jsonb,p_body jsonb default '{}'::jsonb) returns jsonb language plpgsql security invoker set search_path='' as $$declare result jsonb;begin result:=public.ox_learning_data_fixture_original(p_action,p_actor,p_body);perform pg_sleep(2);return result;end$$;revoke all on function ox_learning_data(text,jsonb,jsonb) from public,anon,authenticated;grant execute on function ox_learning_data(text,jsonb,jsonb) to service_role;`);

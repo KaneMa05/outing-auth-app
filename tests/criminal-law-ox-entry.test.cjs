@@ -68,7 +68,7 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     ];
     const readBefore=await Promise.all(readCases.map(([action,body])=>learn(action,body)));
     await db.exec('reset role');
-    await db.exec(read('20261014063658_ox_narrow_catalog_and_short_read_locks.sql'));
+    await db.exec(read('20261014074212_ox_narrow_catalog_and_short_read_locks.sql'));
     assert.deepEqual((await db.query("select proacl::text,prosecdef,proconfig from pg_proc where oid='ox_learning_data(text,jsonb,jsonb)'::regprocedure")).rows,aclBefore);
     assert.deepEqual((await db.query('select * from ox_progress order by student_id,question_id')).rows,records);
     await db.exec('set role service_role');
@@ -132,7 +132,7 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     fs.mkdirSync('.tmp/ox-compact-summary-performance',{recursive:true});
     fs.writeFileSync('.tmp/ox-compact-summary-performance/plans.json',JSON.stringify(sortPlans,null,2));
     console.log('Compact summary temp blocks:',JSON.stringify(Object.fromEntries(Object.entries(sortPlans).map(([key,value])=>[key,value.Plan['Temp Written Blocks']]))));
-    const narrowSql=read('20261014063658_ox_narrow_catalog_and_short_read_locks.sql');
+    const narrowSql=read('20261014074212_ox_narrow_catalog_and_short_read_locks.sql');
     const narrowStart=narrowSql.indexOf('  with question_summaries as materialized');
     const narrowQuery=narrowSql.slice(narrowStart,narrowSql.indexOf('from question_summaries;',narrowStart)+'from question_summaries;'.length)
       .replace('into v_questions','').replaceAll('v_student',"'a'").replaceAll('v_books',"array['criminal-law']::text[]");

@@ -14,7 +14,7 @@ test('committed revision visibility and concurrent saves preserve every change',
     const fixture=fs.readFileSync('tests/menu-read-optimization-db.test.cjs','utf8').match(/await db.exec\(`([\s\S]*?)`\);/)[1].replace(/create role [^;]+;/g,'');
     await db.query(fixture);
     for(const name of ['notices','track_options','exams','exam_sections','exam_answers','exam_files','exam_subject_settings','outings','outing_photos'])await db.query('create table public.'+name+'(id text primary key)');
-    await db.query(fs.readFileSync('supabase/migrations/20261014070938_menu_read_revisions_and_cafe_summary.sql','utf8'));
+    await db.query(fs.readFileSync('supabase/migrations/20261014074256_menu_read_revisions_and_cafe_summary.sql','utf8'));
     const revision=async client=>Number((await client.query("select revision from app_read_revisions where name='exams'")).rows[0].revision);
     await reader.query("set statement_timeout='500ms'");
     await writer.query("begin; insert into exams values('uncommitted')");

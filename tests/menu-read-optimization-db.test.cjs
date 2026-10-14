@@ -28,7 +28,7 @@ const db=new PGlite();const q=(sql,args=[])=>db.query(sql,args);
   for(const name of ['notices','track_options','exams','exam_sections','exam_answers','exam_files','exam_subject_settings','outings','outing_photos'])await db.exec('create table public.'+name+'(id text)');
   const core=fs.readFileSync('supabase/migrations/20260911052853_add_study_character_hair.sql','utf8').replace(/\r\n/g,'\n').match(/create or replace function public\.get_study_cafe_snapshot_data\([\s\S]*?\n\$\$;/)[0];
   await db.exec(core);
-  await db.exec(fs.readFileSync('supabase/migrations/20261014070938_menu_read_revisions_and_cafe_summary.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261014074256_menu_read_revisions_and_cafe_summary.sql','utf8'));
   await db.exec("insert into study_cafe_sessions values('other','20002','Other','completed',60,'2026-10-13T20:00:00Z',null,'2026-10-13T20:01:00Z')");
   const args=['20001','2026-10-14','2026-10-13T19:00:00Z','2026-10-14T19:00:00Z'];
   const original=(await q('select get_study_cafe_snapshot_data($1,$2,$3,$4) result',args)).rows[0].result;
