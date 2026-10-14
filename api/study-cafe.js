@@ -46,6 +46,7 @@ const MAX_SEAT_NUMBER = 96;
 const MAX_TODOS_PER_DAY = 60;
 const studyCafeSnapshotRpc = createRpcRetryState();
 const studyCafeHeartbeatRpc = createRpcRetryState();
+const studyCafeSnapshotBundleRpc = createRpcRetryState();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -692,13 +693,23 @@ async function broadcastStudyCafeStateChange(change, payload = {}) {
 
 async function buildStudyCafeSnapshot(student, now) {
   const studentId = student.id;
+  // Read-only bundling is opt-in until its additive DB function is installed.
+  // Never combine device validation or point settlement in this transaction:
+  // their existing lock order and exactly-once write behavior must be retained.
+  const [bundled, settledWallet] = await Promise.all([
+    loadStudyCafeSnapshotBundle(studentId, now),
+    process.env.STUDY_CAFE_SNAPSHOT_BUNDLE_ENABLED === "true" && hasStudyCafeShopAccess(student)
+      ? awardStudyCafeTimePoints(studentId, now).catch(() => null)
+      : Promise.resolve(undefined),
+  ]);
   const shopSummaryPromise = hasStudyCafeShopAccess(student)
-    ? loadStudyCafeShopSummary(studentId, now)
+    ? settledWallet === null ? Promise.resolve(null) : loadStudyCafeShopSummary(studentId, now, bundled?.equipment, settledWallet)
     : Promise.resolve(null);
   const [snapshotRows, shop, botAppearances] = await Promise.all([
-    loadStudyCafeSnapshotRows(studentId, now),
+    bundled ? Promise.resolve(bundled.snapshot) : loadStudyCafeSnapshotRows(studentId, now),
     shopSummaryPromise,
-    requestSupabase("POST", "rpc/study_cafe_bot_appearance", {}, {}, { signal: AbortSignal.timeout(2000) }).catch(() => []),
+    Array.isArray(bundled?.botAppearances) ? Promise.resolve(bundled.botAppearances)
+      : requestSupabase("POST", "rpc/study_cafe_bot_appearance", {}, {}, { signal: AbortSignal.timeout(2000) }).catch(() => []),
   ]);
   const {
     subjects,
@@ -789,6 +800,35 @@ async function buildStudyCafeSnapshot(student, now) {
     },
     shop,
   };
+}
+
+async function loadStudyCafeSnapshotBundle(studentId, now) {
+  if (process.env.STUDY_CAFE_SNAPSHOT_BUNDLE_ENABLED !== "true" || !studyCafeSnapshotBundleRpc.begin()) return null;
+  const bounds = getKstDayBounds(now);
+  try {
+    const result = await requestSupabase("POST", "rpc/get_study_cafe_snapshot_bundle", {
+      p_student_id: studentId, p_study_date: getKstDateKey(now),
+      p_day_start: bounds.start, p_day_end: bounds.end,
+    });
+    const keys = ["subjects", "todos", "subjectGoals", "profiles", "ownPresence", "activeSessions", "sessions", "presence", "onlineStudents"];
+    if (!result || !keys.every(key => Array.isArray(result.snapshot?.[key]))) {
+      const error = new Error("study_cafe_snapshot_bundle_invalid_response");
+      error.status = 502;
+      throw error;
+    }
+    studyCafeSnapshotBundleRpc.succeeded();
+    return result;
+  } catch (error) {
+    let detail;
+    try { detail = JSON.parse(error.detail); } catch (_) { /* No structured error. */ }
+    if (error.storeStatus === 404 && detail?.code === "PGRST202") {
+      studyCafeSnapshotBundleRpc.failed();
+      return null;
+    }
+    // A timeout must not multiply load through the legacy path.
+    studyCafeSnapshotBundleRpc.succeeded();
+    throw error;
+  }
 }
 
 async function loadStudyCafeSnapshotRows(studentId, now) {
@@ -887,11 +927,11 @@ async function loadStudyCafeSnapshotRowsLegacy(studentId, now) {
   return { subjects, todos, subjectGoals, profiles, ownPresence, activeSessions, sessions, presence, onlineStudents };
 }
 
-async function loadStudyCafeShopSummary(studentId, now) {
+async function loadStudyCafeShopSummary(studentId, now, equipment, settledWallet) {
   try {
     const [wallet, equipmentRows] = await Promise.all([
-      awardStudyCafeTimePoints(studentId, now),
-      requestSupabase(
+      settledWallet === undefined ? awardStudyCafeTimePoints(studentId, now) : Promise.resolve(settledWallet),
+      Array.isArray(equipment) ? Promise.resolve(equipment) : requestSupabase(
         "GET",
         `study_cafe_equipment?student_id=eq.${encodeURIComponent(studentId)}&select=slot,item_id,equipped_at&order=equipped_at.asc`
       ),

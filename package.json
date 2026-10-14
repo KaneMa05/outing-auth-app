@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "test:data-analytics": "node tests/data-analytics.test.cjs",
+    "test:read-optimization": "node tests/study-cafe-snapshot-bundle.test.cjs && node tests/grade-refresh-scope.test.cjs",
+    "test:read-optimization:db": "node tests/study-cafe-snapshot-bundle-db.test.cjs",
     "build": "node build-config.js",
-    "posttest": "node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-realtime-refresh.test.js",
+    "posttest": "node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-realtime-refresh.test.js && npm run test:read-optimization",
     "test:cost-logs": "node tests/supabase-request-timeout.test.js && node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-rpc-fallback.test.js",
     "test:cost-logs:db": "node tests/study-cafe-fast-rpc-db.test.js",
     "test:final-scope-admin": "node tests/final-scope-admin.test.cjs",

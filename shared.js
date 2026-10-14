@@ -1288,7 +1288,7 @@ async function refreshStateFromRemote(options = {}) {
 
 function shouldUseStudentGradesScopedRefresh(force = false) {
   if (force || !STUDENT_SCOPED_REFRESH_ENABLED || APP_MODE !== "student" || currentRoute !== "grades") return false;
-  if (!studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS) return false;
+  if (!studentExamDataLastLoadedAt) return false;
   return Boolean(String(state.settings.studentAuthId || "").trim());
 }
 
@@ -1306,8 +1306,21 @@ async function refreshStudentGradesStateFromRemote() {
   if (!scopedStudentId) return false;
   isRemoteLoading = true;
   try {
+    // The 30s metadata deadline used to send every scheduled grade refresh
+    // through the full app loader. Keep metadata fresh without reloading outings.
+    if (Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS) {
+      await loadStateFromRemote({ gradesOnly: true, forceExamData: true });
+      if (hasActiveStudentExamDraft()) return false;
+      if (String(state.settings.studentAuthId || "").trim() !== scopedStudentId) return false;
+      const registrationChanged = reconcileStudentRegistrationFromRemote();
+      if (registrationChanged) saveStateToLocalStorage();
+      else scheduleStudentLocalSnapshotSave();
+      if (currentRoute === "grades" || registrationChanged) render();
+      return true;
+    }
     const snapshot = await loadStudentGradesRefreshSnapshot(scopedStudentId);
     if (hasActiveStudentExamDraft()) return false;
+    if (String(state.settings.studentAuthId || "").trim() !== scopedStudentId) return false;
     if (!applyStudentGradesRefreshSnapshot(snapshot)) {
       studentExamDataLastLoadedAt = 0;
       return false;
@@ -2018,21 +2031,70 @@ function requestTeacherFitnessData(cohort, months) {
     });
 }
 
-async function loadExamAnswersFromRemote(columns) {
+function getStudentGradeAnswerSectionIds(studentRows, studentId, exams, sections) {
+  const student = studentRows.find(row => String(row.id) === String(studentId));
+  if (!student) return null; // Unknown scope must not hide history.
+  const cohort = getStudentCohort({ ...student, studentCategory: student.student_category });
+  if (!cohort) return null;
+  // Keep every track, inactive section and past/future exam in the cohort.
+  // Rank calculation can depend on peers and historical sections not on screen.
+  const examIds = new Set(exams.filter(exam => !exam.cohort || String(exam.cohort) === cohort).map(exam => exam.id));
+  return sections.filter(section => examIds.has(section.exam_id)).map(section => section.id);
+}
+
+async function loadStudentFinalScoresFromRemote(columns, studentRows, studentId) {
+  const student = studentRows.find(row => String(row.id) === String(studentId));
+  const cohort = student && getStudentCohort({ ...student, studentCategory: student.student_category });
+  const peerIds = cohort ? getStudentRemotePeerIds(studentRows, studentId) : [];
+  const ids = [...new Set([studentId, ...peerIds])];
+  // Do not repeat the same cohort/external rows once per ID chunk. A large or
+  // unknown scope uses one paginated full query instead of multiplying reads.
+  const groups = cohort && ids.length <= 80 ? [ids] : [null];
+  const byId = new Map();
+  for (const ids of groups) {
+    for (let from = 0; ; from += 1000) {
+      let request = remoteStore.from("final_exam_scores").select(columns)
+        .order("round", { ascending: false }).order("updated_at", { ascending: false }).order("id", { ascending: true });
+      if (ids) {
+        // Include legacy/external records with no cohort and registered peers
+        // whose historical record has an outdated cohort. Never filter by the
+        // external flag: old records can predate it.
+        request = request.or(`cohort.is.null,cohort.eq."",cohort.eq.${JSON.stringify(cohort)},student_id.in.(${ids.map(id => JSON.stringify(String(id))).join(",")})`);
+      }
+      const result = await request.range(from, from + 999);
+      if (result.error) return result;
+      for (const row of result.data || []) byId.set(row.id, row);
+      if ((result.data || []).length < 1000) break;
+    }
+  }
+  const data = [...byId.values()].sort((a, b) => Number(b.round) - Number(a.round)
+    || (a.updated_at === b.updated_at ? 0 : a.updated_at == null ? -1 : b.updated_at == null ? 1 : String(b.updated_at).localeCompare(String(a.updated_at)))
+    || String(a.id).localeCompare(String(b.id)));
+  return { data, error: null };
+}
+
+async function loadExamAnswersFromRemote(columns, sectionIds = null) {
   if (!remoteStore) return { data: [], error: null };
   const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const result = await remoteStore
-      .from("exam_answers")
-      .select(columns)
-      .order("question_number", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, from + 999);
-    if (result.error) return result;
-    const data = result.data || [];
-    rows.push(...data);
-    if (data.length < 1000) break;
+  const uniqueSectionIds = sectionIds === null ? null : [...new Set(sectionIds)];
+  const groups = uniqueSectionIds === null ? [null] : Array.from(
+    { length: Math.ceil(uniqueSectionIds.length / 80) }, (_, index) => uniqueSectionIds.slice(index * 80, (index + 1) * 80));
+  for (const ids of groups) {
+    for (let from = 0; ; from += 1000) {
+      let request = remoteStore
+        .from("exam_answers")
+        .select(columns)
+        .order("question_number", { ascending: true })
+        .order("id", { ascending: true });
+      if (ids) request = request.in("exam_section_id", ids);
+      const result = await request.range(from, from + 999);
+      if (result.error) return result;
+      const data = result.data || [];
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
   }
+  if (sectionIds !== null) rows.sort((a, b) => Number(a.question_number) - Number(b.question_number) || String(a.id).localeCompare(String(b.id)));
   return { data: rows, error: null };
 }
 
@@ -2090,7 +2152,7 @@ async function loadStudentGradesRefreshSnapshot(scopedStudentId) {
       { column: "created_at", ascending: false },
       { column: "id", ascending: true },
     ]),
-    remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false }),
+    loadStudentFinalScoresFromRemote(finalExamScoreColumns, state.students || [], scopedStudentId),
     loadStudentScopedRows("fitness_scores", cohortStudentIds, fitnessScoreColumns, [
       { column: "assessment_month", ascending: false },
       { column: "updated_at", ascending: false },
@@ -2143,6 +2205,7 @@ async function loadTeacherOutingPhotosFromRemote(columns) {
 async function loadStateFromRemote(options = {}) {
   const holidayRevisionAtLoad = attendanceHolidayRevision;
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
+  const gradesOnly = options.gradesOnly === true && APP_MODE === "student" && Boolean(scopedStudentId);
   const shouldLoadExamData = APP_MODE !== "student" || options.forceExamData || !studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
   const skippedRemoteResult = () => Promise.resolve({ data: null, error: null, skipped: true });
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
@@ -2230,6 +2293,7 @@ async function loadStateFromRemote(options = {}) {
       : Promise.resolve({ data: [], error: null });
   let outingRequest = remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false });
   const createAttendanceRemoteRequest = (columns) => {
+    if (gradesOnly) return skippedRemoteResult();
     let request = remoteStore.from("attendance_checks").select(columns).order("created_at", { ascending: false });
     if (scopedStudentId) request = request.eq("student_id", scopedStudentId).limit(30);
     else if (APP_MODE === "student") return Promise.resolve({ data: [], error: null });
@@ -2244,6 +2308,10 @@ async function loadStateFromRemote(options = {}) {
     outingRequest = Promise.resolve({ data: [], error: null });
     penaltyRequest = Promise.resolve({ data: [], error: null });
   }
+  if (gradesOnly) {
+    outingRequest = skippedRemoteResult();
+    penaltyRequest = skippedRemoteResult();
+  }
   const photoRequest =
     APP_MODE === "teacher"
       ? loadTeacherOutingPhotosFromRemote(photoColumns)
@@ -2255,7 +2323,8 @@ async function loadStateFromRemote(options = {}) {
   const examSubmissionRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
     : Promise.resolve({ data: [], error: null });
-  const finalExamScoreRequest = remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false });
+  const finalExamScoreRequest = gradesOnly ? skippedRemoteResult()
+    : remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false });
   const fitnessScoreRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
@@ -2265,7 +2334,7 @@ async function loadStateFromRemote(options = {}) {
   const examSectionRequest = shouldLoadExamData
     ? remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true })
     : skippedRemoteResult();
-  const examAnswerRequest = shouldLoadExamData
+  const examAnswerRequest = shouldLoadExamData && !gradesOnly
     ? loadExamAnswersFromRemote(examAnswerColumns)
     : skippedRemoteResult();
   const examFileRequest = shouldLoadExamData
@@ -2283,7 +2352,7 @@ async function loadStateFromRemote(options = {}) {
     penaltyRequest,
     remoteStore.from("notices").select(noticeColumns).order("created_at", { ascending: false }),
     trackOptionRequest,
-    loadAttendanceHolidaysFromRemote(attendanceHolidayColumns),
+    gradesOnly ? skippedRemoteResult() : loadAttendanceHolidaysFromRemote(attendanceHolidayColumns),
     examRequest,
     examSectionRequest,
     examAnswerRequest,
@@ -2313,7 +2382,7 @@ async function loadStateFromRemote(options = {}) {
   let submissionAnswerResult = remoteResults[13];
   const examFileResult = remoteResults[14];
   const examSubjectSettingResult = remoteResults[15];
-  const finalExamScoreResult = remoteResults[16];
+  let finalExamScoreResult = remoteResults[16];
   let fitnessScoreResult = remoteResults[17];
   const studentRegistrationEventResult = remoteResults[18];
   let outingPhotos = photoResult.data || [];
@@ -2348,10 +2417,21 @@ async function loadStateFromRemote(options = {}) {
     studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
   }
   if (studentResult.error) throw studentResult.error;
+  let answerSectionIds = null;
+  if (gradesOnly) {
+    if (isMissingColumnError(examResult.error, "cohort")) {
+      examResult = await remoteStore.from("exams").select("id,name,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at").order("week_number", { ascending: false }).order("created_at", { ascending: false });
+    }
+    if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
+    if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
+    if (!examResult.error && !examSectionResult.error) {
+      answerSectionIds = getStudentGradeAnswerSectionIds(studentResult.data || [], scopedStudentId, examResult.data || [], examSectionResult.data || []);
+    }
+  }
   if (APP_MODE === "student" && scopedStudentId && STUDENT_SCOPED_REFRESH_ENABLED) {
     const examPeerStudentIds = getStudentRemotePeerIds(studentResult.data || [], scopedStudentId);
     const cohortStudentIds = getStudentRemotePeerIds(studentResult.data || [], scopedStudentId, { matchTrack: false });
-    [examSubmissionResult, fitnessScoreResult] = await Promise.all([
+    const gradeReads = await Promise.all([
       loadStudentScopedRows("exam_submissions", examPeerStudentIds, examSubmissionColumns, [
         { column: "created_at", ascending: false },
         { column: "id", ascending: true },
@@ -2361,7 +2441,10 @@ async function loadStateFromRemote(options = {}) {
         { column: "updated_at", ascending: false },
         { column: "id", ascending: true },
       ]),
+      gradesOnly ? loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds) : Promise.resolve(examAnswerResult),
+      gradesOnly ? loadStudentFinalScoresFromRemote(finalExamScoreColumns, studentResult.data || [], scopedStudentId) : Promise.resolve(finalExamScoreResult),
     ]);
+    [examSubmissionResult, fitnessScoreResult, examAnswerResult, finalExamScoreResult] = gradeReads;
   }
   if (isMissingColumnError(managerResult.error, "cohort")) {
     managerColumns = "id,name,role,memo,is_active,created_at";
@@ -2431,13 +2514,19 @@ async function loadStateFromRemote(options = {}) {
   }
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
+  if (gradesOnly && !STUDENT_SCOPED_REFRESH_ENABLED) {
+    [examAnswerResult, finalExamScoreResult] = await Promise.all([
+      loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds),
+      loadStudentFinalScoresFromRemote(finalExamScoreColumns, studentResult.data || [], scopedStudentId),
+    ]);
+  }
   if (isMissingColumnError(examAnswerResult.error, "correct_answers")) {
-    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points,target_tracks");
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points,target_tracks", answerSectionIds);
   } else if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,correct_answers,points");
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,correct_answers,points", answerSectionIds);
   }
   if (isMissingColumnError(examAnswerResult.error, "target_tracks")) {
-    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points");
+    examAnswerResult = await loadExamAnswersFromRemote("id,exam_section_id,question_number,correct_answer,points", answerSectionIds);
   }
   if (examAnswerResult.error && !isMissingRelationError(examAnswerResult.error, "exam_answers")) throw examAnswerResult.error;
   if (examSubmissionResult.error && !isMissingRelationError(examSubmissionResult.error, "exam_submissions")) throw examSubmissionResult.error;
@@ -2451,14 +2540,13 @@ async function loadStateFromRemote(options = {}) {
   if (submissionAnswerResult.error && !isMissingRelationError(submissionAnswerResult.error, "submission_answers")) throw submissionAnswerResult.error;
   if (examFileResult.error && !isMissingRelationError(examFileResult.error, "exam_files")) throw examFileResult.error;
   if (examSubjectSettingResult.error && !isMissingRelationError(examSubjectSettingResult.error, "exam_subject_settings")) throw examSubjectSettingResult.error;
-  if (shouldLoadExamData) studentExamDataLastLoadedAt = Date.now();
   if (finalExamScoreResult.error && !isMissingRelationError(finalExamScoreResult.error, "final_exam_scores")) throw finalExamScoreResult.error;
   if (isMissingColumnError(fitnessScoreResult.error, "assessment_month")) {
     fitnessScoreResult = { data: [], error: null };
   }
   if (fitnessScoreResult.error && !isMissingRelationError(fitnessScoreResult.error, "fitness_scores")) throw fitnessScoreResult.error;
   if (studentRegistrationEventResult.error && !isMissingRelationError(studentRegistrationEventResult.error, "student_registration_events")) throw studentRegistrationEventResult.error;
-  if (APP_MODE === "student" && loadedOutings.length) {
+  if (!gradesOnly && APP_MODE === "student" && loadedOutings.length) {
     const outingIds = loadedOutings.map((outing) => outing.id).filter(Boolean);
     const scopedPhotoResult = outingIds.length
       ? await remoteStore.from("outing_photos").select(photoColumns).in("outing_id", outingIds).order("uploaded_at", { ascending: true })
@@ -2481,6 +2569,7 @@ async function loadStateFromRemote(options = {}) {
     }
   }
 
+  if (gradesOnly && (String(state.settings.studentAuthId || "").trim() !== scopedStudentId || hasActiveStudentExamDraft())) return;
   state.students = (studentResult.data || []).map((student) => {
     const mappedStudent = {
       id: student.id,
@@ -2511,15 +2600,17 @@ async function loadStateFromRemote(options = {}) {
     if (apiManagers) state.managers = apiManagers;
   }
 
-  const mappedOutings = mapRemoteOutings(loadedOutings, outingPhotos);
-  if (APP_MODE === "teacher") lastTeacherOutingSignature = teacherOutingRowsSignature(loadedOutings, outingPhotos);
-  state.outings = mergePendingOutingPhotoDrafts(
-    mappedOutings.filter((outing) => !outing.deletedAt),
-    pendingPhotoDrafts
-  );
-  state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
-  state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
-  state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
+  if (!gradesOnly) {
+    const mappedOutings = mapRemoteOutings(loadedOutings, outingPhotos);
+    if (APP_MODE === "teacher") lastTeacherOutingSignature = teacherOutingRowsSignature(loadedOutings, outingPhotos);
+    state.outings = mergePendingOutingPhotoDrafts(
+      mappedOutings.filter((outing) => !outing.deletedAt),
+      pendingPhotoDrafts
+    );
+    state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
+    state.attendanceChecks = (attendanceResult.data || []).map(mapAttendanceCheckFromRemote);
+    state.penalties = (penaltyResult.data || []).map(mapPenaltyFromRemote);
+  }
   let loadedAppSettingsFromNotices = false;
   if (!noticeResult.error) {
     const remoteNotices = (noticeResult.data || []).map(mapNoticeFromRemote);
@@ -2529,7 +2620,7 @@ async function loadStateFromRemote(options = {}) {
   if (createLocalDevStoreUrl() || !loadedAppSettingsFromNotices) await loadAppSettingsFromApi();
   await migrateLocalSeatAssignmentsToRemoteIfNeeded(localSeatAssignments);
   state.notices = removeLegacySampleNotices(state.notices);
-  if (!attendanceHolidayResult.error) applyRemoteAttendanceHolidays(attendanceHolidayResult.data, holidayRevisionAtLoad);
+  if (!attendanceHolidayResult.error && !attendanceHolidayResult.skipped) applyRemoteAttendanceHolidays(attendanceHolidayResult.data, holidayRevisionAtLoad);
   if (!examResult.error && !examResult.skipped) state.exams = (examResult.data || []).map(mapExamFromRemote);
   if (!examSectionResult.error && !examSectionResult.skipped) state.examSections = (examSectionResult.data || []).map(mapExamSectionFromRemote);
   if (!examAnswerResult.error && !examAnswerResult.skipped) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
@@ -2555,6 +2646,7 @@ async function loadStateFromRemote(options = {}) {
   }
   if (APP_MODE === "teacher") await persistReconciledExamSubmissionGrades(reconciledExamGrades);
   if (APP_MODE === "teacher") await persistNormalizedWeeklySectionScores(normalizedWeeklySectionScores);
+  if (shouldLoadExamData) studentExamDataLastLoadedAt = Date.now();
 }
 
 async function saveStateToRemote() {

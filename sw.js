@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v476-db-pressure";
+const CACHE_NAME = "outing-auth-app-v477-grade-scope";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "/styles.css?v=20260917-study-share-fixes",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
-  "/shared.js?v=20260921-final-scope-admin",
+  "/shared.js?v=20261014-grade-scope",
   "/student.js?v=20260917-grade-lookup-performance",
   "/question-board.js?v=20260902-question-board-skeleton-ui",
   "/inquiry-board.js?v=20260902-inquiry-prefetch",
@@ -39,8 +39,6 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
-  "/shared.js?v=20261001-analytics",
-  "/shared.js?v=20261006-outing-photos",
   "/app.js?v=20261013-db-pressure",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
