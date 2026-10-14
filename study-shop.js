@@ -106,6 +106,7 @@ async function ensureStudyCafeShopLoaded(options = {}) {
   const student = getAuthedStudent();
   if (!["online_managed", "lecture"].includes(getStudentCategory(student)) || studyCafeShopState.loading) return false;
   if (studyCafeShopState.loaded && options.force !== true) return true;
+  if (studyCafeShopState.available === false && options.force !== true) return false;
   studyCafeShopState.loading = true;
   try {
     if (studyCafeRemoteState.available == null) await ensureStudyCafeRemoteLoaded({ render: false });
@@ -414,6 +415,7 @@ function renderStudyCafeShopStatus(loading) {
       el("span", { ariaHidden: "true" }, loading ? "⏳" : "🛠️"),
       el("strong", {}, loading ? "상점을 불러오고 있습니다" : "상점 준비가 아직 완료되지 않았습니다"),
       el("p", {}, loading ? "잠시만 기다려주세요." : "스터디카페와 타이머는 기존처럼 이용할 수 있습니다."),
+      !loading ? button("다시 불러오기", "btn secondary", "button", () => ensureStudyCafeShopLoaded({ force: true })) : null,
     ]),
   ]);
 }

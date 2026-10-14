@@ -85,7 +85,7 @@ assert.match(styleSource, /\.study-todo-goal-select\s*\{[^}]*min-height: 40px[^}
 assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*width: 42px[^}]*height: 42px/);
 assert.match(
   appSource,
-  /if \(studyCafeRemoteState\.loading\) \{\s*await waitForStudyCafeRemoteLoad\(\);\s*return studyCafeRemoteState\.loaded && studyCafeRemoteState\.available === true;/
+  /if \(studyCafeRemoteState\.loading\) \{\s*await waitForStudyCafeRemoteLoad\(\);\s*if \(scope === "full" && studyCafeRemoteState\.loadedScope === "personal"\) return ensureStudyCafeRemoteLoaded\(options\);\s*return studyCafeRemoteState\.loaded && studyCafeRemoteState\.available === true;/
 );
 assert.match(appSource, /function waitForStudyCafeRemoteLoad\(\)/);
 assert.match(
@@ -599,7 +599,7 @@ assert.match(appSource, /현재 자리와 전체 공부시간은 유지되고/);
 assert.match(appSource, /button\("과목 변경"/);
 assert.match(appSource, /function renderStudentStudyRanking\(\)/);
 assert.match(appSource, /requestStudyRankingPeriod\(studyRankingPreviewState\.period\)/);
-assert.match(appSource, /async function requestStudyRankingPeriod\(period\)/);
+assert.match(appSource, /async function requestStudyRankingPeriod\(period, options = \{\}\)/);
 assert.match(appSource, /requestStudyCafeAction\("ranking", \{ period \}\)/);
 assert.doesNotMatch(
   appSource,

@@ -14,7 +14,7 @@ assert.match(
 );
 assert.match(
   source,
-  /const examAnswerRequest = shouldLoadExamData && !gradesOnly\s*\? loadExamAnswersFromRemote\(examAnswerColumns\)/,
+  /const examAnswerRequest = shouldLoadExamData && !scopedGradeReads\s*\? loadExamAnswersFromRemote\(examAnswerColumns\)/,
   "the main refresh must use the paginated exam-answer loader"
 );
 assert.doesNotMatch(

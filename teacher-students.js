@@ -166,7 +166,7 @@ function renderStudentExamNumberAdmin() {
 }
 
 function ensureStudentExamNumberAdminLoaded() {
-  if (studentExamNumberAdminState.loaded || studentExamNumberAdminState.loading) return;
+  if (studentExamNumberAdminState.loaded || studentExamNumberAdminState.loading || studentExamNumberAdminState.error) return;
   loadStudentExamNumberAdminData();
 }
 
@@ -502,7 +502,7 @@ function renderLectureApplicationsAdminPanel() {
 }
 
 function ensureLectureApplicationsLoaded() {
-  if (lectureApplicationAdminState.loaded || lectureApplicationAdminState.loading) return;
+  if (lectureApplicationAdminState.loaded || lectureApplicationAdminState.loading || lectureApplicationAdminState.error) return;
   loadLectureApplications();
 }
 
@@ -916,7 +916,7 @@ function buildStudentPushAdminTarget(targetValue, selectedIds) {
 }
 
 function ensureStudentPushAdminLoaded() {
-  if (studentPushAdminState.loaded || studentPushAdminState.loading) return;
+  if (studentPushAdminState.loaded || studentPushAdminState.loading || studentPushAdminState.error) return;
   loadStudentPushAdminData();
 }
 

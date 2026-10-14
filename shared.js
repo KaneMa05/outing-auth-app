@@ -109,6 +109,10 @@ const teacherWeeklyGradeSummaryLoadPromises = new Map();
 const teacherFitnessLoadedScopeKeys = new Set();
 const teacherFitnessLoadPromises = new Map();
 let studentExamDataLastLoadedAt = 0;
+let studentExamDataStudentId = "";
+let studentGradeMetadataRevision = null;
+let teacherOutingReadRevisions = null;
+const STUDENT_GRADE_METADATA_TABLES = ["students", "notices", "track_options", "exams", "exam_sections", "exam_answers", "exam_files", "exam_subject_settings"];
 let studentDeviceValidationAttemptedAt = 0;
 let isStudentLocalSnapshotSavePending = false;
 let deferredInstallPrompt = null;
@@ -1045,6 +1049,7 @@ async function stopTeacherOutingRealtimeSync() {
   teacherOutingRenderPending = false;
   teacherOutingRealtimeConnected = false;
   lastTeacherOutingSignature = "";
+  teacherOutingReadRevisions = null;
   window.removeEventListener("focus", scheduleTeacherOutingResumeRefresh);
   document.removeEventListener("visibilitychange", handleTeacherVisibilityChange);
 
@@ -1174,11 +1179,16 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
 
   isTeacherOutingRefreshing = true;
   try {
+    const revisions = await loadRemoteReadRevisions(["outings", "outing_photos"]);
+    const outingChanged = !revisions || !teacherOutingReadRevisions || revisions.outings !== teacherOutingReadRevisions.outings;
+    const photosVisible = options.renderImmediately || ["home", "outing", "duplicates", "trash"].includes(currentRoute);
+    const photoChanged = photosVisible && (!revisions || !teacherOutingReadRevisions || revisions.outing_photos !== teacherOutingReadRevisions.outing_photos);
+    if (!outingChanged && !photoChanged) return false;
     const outingColumns = "id,student_id,student_name,class_name,reason,detail,expected_return,status,decision,approved_by,approved_at,approval_reason,receipt_note,early_leave_reason,created_at,verified_at,returned_at,deleted_at";
     const photoColumns = "id,outing_id,photo_type,photo_path,photo_url,thumbnail_path,thumbnail_url,original_name,uploaded_at";
     let [outingResult, photoResult] = await Promise.all([
       remoteStore.from("outings").select(outingColumns).order("created_at", { ascending: false }),
-      loadTeacherOutingPhotosFromRemote(photoColumns),
+      photoChanged ? loadTeacherOutingPhotosFromRemote(photoColumns) : Promise.resolve({ data: [], error: null, skipped: true }),
     ]);
 
     if (
@@ -1207,7 +1217,14 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
     const signature = teacherOutingRowsSignature(outings, photos);
     const changed = signature !== lastTeacherOutingSignature;
     if (changed) {
-      const mappedOutings = mapRemoteOutings(outings, photos);
+      const existingPhotos = new Map([...(state.outings || []), ...(state.deletedOutings || [])].map(row => [row.id, row.photos || []]));
+      const mappedOutings = mapRemoteOutings(outings, photos).map(row => {
+        if (!photoResult.skipped) return row;
+        const preservedPhotos = existingPhotos.get(row.id) || [];
+        return { ...row, photos: preservedPhotos,
+          returnedAt: row.returnedAt || (row.status === "returned" ? getReturnPhotoUploadedAt({ photos: preservedPhotos }) : ""),
+        };
+      });
       state.outings = mappedOutings.filter((outing) => !outing.deletedAt);
       state.deletedOutings = mappedOutings.filter((outing) => outing.deletedAt);
       lastTeacherOutingSignature = signature;
@@ -1215,6 +1232,10 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
       saveStateToLocalStorage();
     }
 
+    teacherOutingReadRevisions = revisions ? {
+      outings: revisions.outings,
+      outing_photos: photoResult.skipped ? teacherOutingReadRevisions?.outing_photos : revisions.outing_photos,
+    } : null;
     if ((changed || teacherOutingRenderPending) && (options.renderImmediately || canRenderTeacherOutingRefresh())) {
       render();
       teacherOutingRenderPending = false;
@@ -1301,15 +1322,28 @@ function applyStudentGradesRefreshSnapshot(snapshot) {
   return true;
 }
 
+async function loadRemoteReadRevisions(names) {
+  const result = await remoteStore.from("app_read_revisions").select("name,revision").in("name", names);
+  if (result.error) {
+    // Older deployments can still run without the additive migration. A real
+    // timeout must stop this refresh instead of fanning out to expensive reads.
+    if (isMissingRelationError(result.error, "app_read_revisions")) return null;
+    throw result.error;
+  }
+  const rows = result.data || [];
+  if (!names.every(name => rows.some(row => row.name === name))) return null;
+  return Object.fromEntries(names.map(name => [name, String(rows.find(row => row.name === name).revision)]));
+}
+
 async function refreshStudentGradesStateFromRemote() {
   const scopedStudentId = String(state.settings.studentAuthId || "").trim();
   if (!scopedStudentId) return false;
   isRemoteLoading = true;
   try {
-    // The 30s metadata deadline used to send every scheduled grade refresh
-    // through the full app loader. Keep metadata fresh without reloading outings.
-    if (Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS) {
-      await loadStateFromRemote({ gradesOnly: true, forceExamData: true });
+    const metadataDue = studentExamDataStudentId !== scopedStudentId || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
+    const revision = metadataDue ? await loadRemoteReadRevisions(STUDENT_GRADE_METADATA_TABLES) : null;
+    if (metadataDue && (!revision || studentExamDataStudentId !== scopedStudentId || JSON.stringify(revision) !== JSON.stringify(studentGradeMetadataRevision))) {
+      await loadStateFromRemote({ gradesOnly: true, forceExamData: true, metadataRevision: revision });
       if (hasActiveStudentExamDraft()) return false;
       if (String(state.settings.studentAuthId || "").trim() !== scopedStudentId) return false;
       const registrationChanged = reconcileStudentRegistrationFromRemote();
@@ -1325,6 +1359,7 @@ async function refreshStudentGradesStateFromRemote() {
       studentExamDataLastLoadedAt = 0;
       return false;
     }
+    if (metadataDue) studentExamDataLastLoadedAt = Date.now();
     scheduleStudentLocalSnapshotSave();
     if (currentRoute === "grades" && !hasActiveStudentExamDraft()) render();
     return true;
@@ -2206,7 +2241,10 @@ async function loadStateFromRemote(options = {}) {
   const holidayRevisionAtLoad = attendanceHolidayRevision;
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const gradesOnly = options.gradesOnly === true && APP_MODE === "student" && Boolean(scopedStudentId);
-  const shouldLoadExamData = APP_MODE !== "student" || options.forceExamData || !studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
+  // Initial entry and forced refresh need the same complete cohort history as
+  // periodic grades refresh. Scope only after reading the current roster.
+  const scopedGradeReads = APP_MODE === "student" && Boolean(scopedStudentId);
+  let shouldLoadExamData = APP_MODE !== "student" || options.forceExamData || studentExamDataStudentId !== scopedStudentId || !studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
   const skippedRemoteResult = () => Promise.resolve({ data: null, error: null, skipped: true });
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
@@ -2287,6 +2325,35 @@ async function loadStateFromRemote(options = {}) {
   const finalExamScoreColumns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
   const fitnessScoreColumns = "id,assessment_month,student_id,student_name,gender,cohort,sit_up_count,push_up_count,grip_strength,converted_scores,total_score,memo,measured_at,updated_at,created_at";
   const studentRegistrationEventColumns = "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at";
+  // Capture before any metadata read so a concurrent roster edit is detected next time.
+  let revisionBeforeRead = null;
+  let revisionReadError = null;
+  if (shouldLoadExamData && scopedGradeReads) {
+    try {
+      revisionBeforeRead = Object.prototype.hasOwnProperty.call(options, "metadataRevision")
+        ? options.metadataRevision : await loadRemoteReadRevisions(STUDENT_GRADE_METADATA_TABLES);
+    } catch (error) { revisionReadError = error; }
+  }
+  // Determine the account type from the current roster before scheduling grade reads.
+  let studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  if (isMissingColumnError(studentResult.error, "account_type") || isMissingColumnError(studentResult.error, "position")) {
+    studentColumns = "id,name,class_name,student_category,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
+  if (isMissingColumnError(studentResult.error, "student_category") || isMissingColumnError(studentResult.error, "cohort")) {
+    studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
+  if (isMissingColumnError(studentResult.error, "attendance_excluded") || isMissingColumnError(studentResult.error, "fitness_excluded")) {
+    studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
+    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  }
+  if (studentResult.error) throw studentResult.error;
+  const skipStudentGrades = APP_MODE === "student" && (!scopedStudentId || (studentResult.data || []).some(student => String(student.id) === scopedStudentId && student.student_category === "lecture"));
+  if (skipStudentGrades) shouldLoadExamData = false;
+  else if (revisionReadError) throw revisionReadError;
+  const metadataRevision = skipStudentGrades ? null : revisionBeforeRead;
+  const unusedGradeResult = () => skipStudentGrades ? Promise.resolve({ data: [], error: null }) : skippedRemoteResult();
   let managerRequest =
     APP_MODE === "student"
       ? Promise.resolve({ data: state.managers || [], error: null })
@@ -2319,32 +2386,32 @@ async function loadStateFromRemote(options = {}) {
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
-  const shouldLoadLegacyStudentGradeData = APP_MODE === "student" && scopedStudentId && !STUDENT_SCOPED_REFRESH_ENABLED;
+  const shouldLoadLegacyStudentGradeData = !skipStudentGrades && APP_MODE === "student" && scopedStudentId && !STUDENT_SCOPED_REFRESH_ENABLED;
   const examSubmissionRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
     : Promise.resolve({ data: [], error: null });
-  const finalExamScoreRequest = gradesOnly ? skippedRemoteResult()
-    : remoteStore.from("final_exam_scores").select(finalExamScoreColumns).order("round", { ascending: false }).order("updated_at", { ascending: false });
+  const finalExamScoreRequest = skipStudentGrades ? unusedGradeResult() : scopedGradeReads ? skippedRemoteResult()
+    : loadStudentFinalScoresFromRemote(finalExamScoreColumns, [], "");
   const fitnessScoreRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
   const examRequest = shouldLoadExamData
     ? remoteStore.from("exams").select(examColumns).order("week_number", { ascending: false }).order("created_at", { ascending: false })
-    : skippedRemoteResult();
+    : unusedGradeResult();
   const examSectionRequest = shouldLoadExamData
     ? remoteStore.from("exam_sections").select(examSectionColumns).order("created_at", { ascending: true })
-    : skippedRemoteResult();
-  const examAnswerRequest = shouldLoadExamData && !gradesOnly
+    : unusedGradeResult();
+  const examAnswerRequest = shouldLoadExamData && !scopedGradeReads
     ? loadExamAnswersFromRemote(examAnswerColumns)
-    : skippedRemoteResult();
+    : unusedGradeResult();
   const examFileRequest = shouldLoadExamData
     ? remoteStore.from("exam_files").select(examFileColumns).order("uploaded_at", { ascending: false })
-    : skippedRemoteResult();
+    : unusedGradeResult();
   const examSubjectSettingRequest = shouldLoadExamData
     ? remoteStore.from("exam_subject_settings").select(examSubjectSettingColumns).order("sort_order", { ascending: true }).order("created_at", { ascending: true })
-    : skippedRemoteResult();
+    : unusedGradeResult();
   let remoteResults = await Promise.all([
-    remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true }),
+    Promise.resolve(studentResult),
     managerRequest,
     outingRequest,
     photoRequest,
@@ -2366,7 +2433,6 @@ async function loadStateFromRemote(options = {}) {
       ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
       : Promise.resolve({ data: [], error: null }),
   ]);
-  let studentResult = remoteResults[0];
   let managerResult = remoteResults[1];
   const [{ data: outings, error: outingsError }] = [remoteResults[2]];
   let photoResult = remoteResults[3];
@@ -2404,21 +2470,17 @@ async function loadStateFromRemote(options = {}) {
     attendanceResult = await createAttendanceRemoteRequest(fallbackAttendanceColumns);
   }
 
-  if (isMissingColumnError(studentResult.error, "account_type") || isMissingColumnError(studentResult.error, "position")) {
-    studentColumns = "id,name,class_name,student_category,cohort,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
-    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
+  if (scopedGradeReads && !skipStudentGrades && !shouldLoadExamData) {
+    const previousStudent = (state.students || []).find(student => String(student.id) === scopedStudentId);
+    const freshStudent = (studentResult.data || []).find(student => String(student.id) === scopedStudentId);
+    // A roster edit can move the student to another cohort inside the metadata
+    // interval. Reload its answer scope before publishing any partial state.
+    if (getStudentCohort(previousStudent) !== getStudentCohort(freshStudent)) {
+      return loadStateFromRemote({ ...options, forceExamData: true });
+    }
   }
-  if (isMissingColumnError(studentResult.error, "student_category") || isMissingColumnError(studentResult.error, "cohort")) {
-    studentColumns = "id,name,class_name,track,gender,app_registered_at,attendance_excluded,fitness_excluded,is_active,created_at";
-    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
-  }
-  if (isMissingColumnError(studentResult.error, "attendance_excluded") || isMissingColumnError(studentResult.error, "fitness_excluded")) {
-    studentColumns = "id,name,class_name,track,gender,app_registered_at,is_active,created_at";
-    studentResult = await remoteStore.from("students").select(studentColumns).order("created_at", { ascending: true });
-  }
-  if (studentResult.error) throw studentResult.error;
   let answerSectionIds = null;
-  if (gradesOnly) {
+  if (scopedGradeReads && shouldLoadExamData) {
     if (isMissingColumnError(examResult.error, "cohort")) {
       examResult = await remoteStore.from("exams").select("id,name,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at").order("week_number", { ascending: false }).order("created_at", { ascending: false });
     }
@@ -2428,7 +2490,7 @@ async function loadStateFromRemote(options = {}) {
       answerSectionIds = getStudentGradeAnswerSectionIds(studentResult.data || [], scopedStudentId, examResult.data || [], examSectionResult.data || []);
     }
   }
-  if (APP_MODE === "student" && scopedStudentId && STUDENT_SCOPED_REFRESH_ENABLED) {
+  if (!skipStudentGrades && APP_MODE === "student" && scopedStudentId && STUDENT_SCOPED_REFRESH_ENABLED) {
     const examPeerStudentIds = getStudentRemotePeerIds(studentResult.data || [], scopedStudentId);
     const cohortStudentIds = getStudentRemotePeerIds(studentResult.data || [], scopedStudentId, { matchTrack: false });
     const gradeReads = await Promise.all([
@@ -2441,8 +2503,8 @@ async function loadStateFromRemote(options = {}) {
         { column: "updated_at", ascending: false },
         { column: "id", ascending: true },
       ]),
-      gradesOnly ? loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds) : Promise.resolve(examAnswerResult),
-      gradesOnly ? loadStudentFinalScoresFromRemote(finalExamScoreColumns, studentResult.data || [], scopedStudentId) : Promise.resolve(finalExamScoreResult),
+      shouldLoadExamData ? loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds) : Promise.resolve(examAnswerResult),
+      loadStudentFinalScoresFromRemote(finalExamScoreColumns, studentResult.data || [], scopedStudentId),
     ]);
     [examSubmissionResult, fitnessScoreResult, examAnswerResult, finalExamScoreResult] = gradeReads;
   }
@@ -2514,9 +2576,9 @@ async function loadStateFromRemote(options = {}) {
   }
   if (examResult.error && !isMissingRelationError(examResult.error, "exams")) throw examResult.error;
   if (examSectionResult.error && !isMissingRelationError(examSectionResult.error, "exam_sections")) throw examSectionResult.error;
-  if (gradesOnly && !STUDENT_SCOPED_REFRESH_ENABLED) {
+  if (scopedGradeReads && !skipStudentGrades && !STUDENT_SCOPED_REFRESH_ENABLED) {
     [examAnswerResult, finalExamScoreResult] = await Promise.all([
-      loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds),
+      shouldLoadExamData ? loadExamAnswersFromRemote(examAnswerColumns, answerSectionIds) : Promise.resolve(examAnswerResult),
       loadStudentFinalScoresFromRemote(finalExamScoreColumns, studentResult.data || [], scopedStudentId),
     ]);
   }
@@ -2569,7 +2631,8 @@ async function loadStateFromRemote(options = {}) {
     }
   }
 
-  if (gradesOnly && (String(state.settings.studentAuthId || "").trim() !== scopedStudentId || hasActiveStudentExamDraft())) return;
+  if (APP_MODE === "student" && String(state.settings.studentAuthId || "").trim() !== scopedStudentId) return;
+  if (gradesOnly && hasActiveStudentExamDraft()) return;
   state.students = (studentResult.data || []).map((student) => {
     const mappedStudent = {
       id: student.id,
@@ -2630,7 +2693,7 @@ async function loadStateFromRemote(options = {}) {
   if (!preserveActiveExamState) {
     if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
     if (!submissionAnswerResult.error && !submissionAnswerResult.skipped) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
-    mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
+    if (!skipStudentGrades) mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
     reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
   }
   if (!examFileResult.error && !examFileResult.skipped) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
@@ -2646,7 +2709,15 @@ async function loadStateFromRemote(options = {}) {
   }
   if (APP_MODE === "teacher") await persistReconciledExamSubmissionGrades(reconciledExamGrades);
   if (APP_MODE === "teacher") await persistNormalizedWeeklySectionScores(normalizedWeeklySectionScores);
-  if (shouldLoadExamData) studentExamDataLastLoadedAt = Date.now();
+  if (shouldLoadExamData) {
+    studentExamDataLastLoadedAt = Date.now();
+    studentExamDataStudentId = scopedStudentId;
+    studentGradeMetadataRevision = metadataRevision;
+  } else if (skipStudentGrades) {
+    studentExamDataLastLoadedAt = 0;
+    studentExamDataStudentId = "";
+    studentGradeMetadataRevision = null;
+  }
 }
 
 async function saveStateToRemote() {

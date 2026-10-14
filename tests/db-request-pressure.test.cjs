@@ -5,20 +5,22 @@ const vm = require('node:vm');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const shared = fs.readFileSync('shared.js', 'utf8');
 
-test('initial reads start together without an artificial queue and preserve result order', async () => {
+test('independent reads start together after roster classification and preserve result order', async () => {
   const start = shared.indexOf('async function loadStateFromRemote(options = {}) {');
-  const prefix = shared.slice(start, shared.indexOf('  let studentResult = remoteResults[0];', start));
+  const prefix = shared.slice(start, shared.indexOf('  let managerResult = remoteResults[1];', start));
   for (const mode of ['teacher', 'student']) {
     let active = 0, release;
     const pending = new Promise(resolve => { release = resolve; });
     const calls = [];
     async function read(table) {
-      calls.push(table); active++;
+      calls.push(table); if(table==='students')return {data:[table],error:null}; active++;
       await pending; active--;
       return { data: [table], error: null };
     }
     const context = {
-      APP_MODE: mode, attendanceHolidayRevision: 0, studentExamDataLastLoadedAt: 0,
+      loadRemoteReadRevisions:async()=>null, STUDENT_GRADE_METADATA_TABLES:[], isMissingColumnError:()=>false,
+      loadStudentFinalScoresFromRemote:()=>read('final_exam_scores'),
+      APP_MODE: mode, attendanceHolidayRevision: 0, studentExamDataLastLoadedAt: 0, studentExamDataStudentId:'',
       STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS: 60000, STUDENT_SCOPED_REFRESH_ENABLED: true,
       state: { settings: { studentAuthId: 'fixture' } },
       collectStudentPendingOutingPhotoDrafts: () => [],
@@ -36,18 +38,23 @@ test('initial reads start together without an artificial queue and preserve resu
     await tick();
     // No response has completed: independent tables must already be loading.
     const expected = ['students','outings','attendance_checks','penalties','notices','track_options',
-      'attendance_holidays','exams','exam_sections','exam_answers','exam_files','exam_subject_settings','final_exam_scores'];
-    if(mode === 'teacher')expected.push('outing_photos','student_registration_events');
+      'attendance_holidays','exams','exam_sections','exam_files','exam_subject_settings'];
+    if(mode === 'teacher')expected.push('outing_photos','student_registration_events','exam_answers','final_exam_scores');
     assert.deepEqual([...calls].sort(),expected.sort());
-    assert.equal(active,expected.length);
+    assert.equal(active,expected.length-1);
     release();
     const result = await loading;
     assert.equal(result.length, 19);
     assert.equal(result[0].data[0], 'students');
     assert.equal(result[8].data[0], 'attendance_holidays');
-    assert.equal(result[11].data[0], 'exam_answers');
-    assert.equal(result[16].data[0], 'final_exam_scores');
-    assert.equal(calls.filter(name => name === 'exam_answers').length, 1);
+    if(mode === 'teacher') {
+      assert.equal(result[11].data[0], 'exam_answers');
+      assert.equal(result[16].data[0], 'final_exam_scores');
+    } else {
+      assert.equal(result[11].skipped,true,'Student answer scope depends on fresh roster');
+      assert.equal(result[16].skipped,true);
+    }
+    assert.equal(calls.filter(name => name === 'exam_answers').length, mode==='teacher'?1:0);
     assert.equal(calls.includes('outing_photos'), mode === 'teacher');
     assert.equal(active, 0);
   }

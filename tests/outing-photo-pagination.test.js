@@ -16,6 +16,7 @@ function setup(count, { failPage = -1, legacy = false } = {}) {
   const calls = [];
   let page = 0;
   const context = {
+    loadRemoteReadRevisions: async () => null, teacherOutingReadRevisions: null, currentRoute: "outing",
     APP_MODE: "teacher", teacherAuth: { authenticated: true },
     isTeacherOutingRefreshing: false, isRemoteLoading: false,
     isRemoteSaving: false, hasPendingRemoteSave: false,
@@ -23,7 +24,7 @@ function setup(count, { failPage = -1, legacy = false } = {}) {
     state: { outings: [{ id: "cached", photos: [{ id: "saved" }] }] },
     console: { error() {} },
     isMissingColumnError: (error, column) => error?.column === column,
-    teacherOutingRowsSignature: JSON.stringify,
+    teacherOutingRowsSignature: (outings,photos)=>JSON.stringify([outings,photos]),
     mapRemoteOutings: (outings, photos) => outings.map(outing => ({ ...outing, photos })),
     saveStateToLocalStorage() {}, canRenderTeacherOutingRefresh: () => false,
     remoteStore: { from(table) {
@@ -96,4 +97,28 @@ test("initial administrator load uses pagination for normal and legacy photo sch
   assert.match(load, /APP_MODE === "teacher"\s*\? loadTeacherOutingPhotosFromRemote\(photoColumns\)/);
   assert.match(load, /APP_MODE === "teacher"\s*\? await loadTeacherOutingPhotosFromRemote\(fallbackPhotoColumns\)/);
   assert.match(load, /\.select\(photoColumns\)\.in\("outing_id", outingIds\)/, "student-scoped reads stay unchanged");
+});
+
+
+test('unchanged teacher polls skip all lists; photos wait for the relevant screen while outing status keeps updating',async()=>{
+  const {context:c,calls}=setup(1107);let revision={outings:'1',outing_photos:'1'};
+  c.loadRemoteReadRevisions=async()=>({...revision});
+  await c.refreshTeacherOutingsFromRemote();assert.equal(calls.length,2);
+  calls.length=0;await c.refreshTeacherOutingsFromRemote();assert.equal(calls.length,0);
+  c.currentRoute='students';revision={outings:'2',outing_photos:'2'};
+  await c.refreshTeacherOutingsFromRemote();assert.equal(calls.length,0);
+  assert.equal(c.teacherOutingReadRevisions.outings,'2');assert.equal(c.teacherOutingReadRevisions.outing_photos,'1');
+  assert.equal(c.state.outings[0].photos.length,1107,'deferred photos are preserved');
+  c.currentRoute='outing';await c.refreshTeacherOutingsFromRemote();assert.equal(calls.length,2);
+  assert.equal(c.teacherOutingReadRevisions.outing_photos,'2');
+});
+
+test('deferred photos retain the legacy return timestamp derived from the return photo',async()=>{
+  const {context:c}=setup(0);
+  c.state.outings=[{id:'outing',photos:[{id:'return',type:'return',uploadedAt:'2026-10-14T01:00:00Z'}]}];
+  c.currentRoute='students';
+  c.mapRemoteOutings=rows=>rows.map(row=>({...row,status:'returned',returnedAt:''}));
+  c.getReturnPhotoUploadedAt=outing=>outing.photos[0]?.uploadedAt||'';
+  await c.refreshTeacherOutingsFromRemote();
+  assert.equal(c.state.outings[0].returnedAt,'2026-10-14T01:00:00Z');
 });

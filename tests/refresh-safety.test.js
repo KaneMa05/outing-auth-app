@@ -29,12 +29,12 @@ assert.match(
 );
 assert.match(
   source,
-  /const shouldLoadLegacyStudentGradeData = APP_MODE === "student" && scopedStudentId && !STUDENT_SCOPED_REFRESH_ENABLED/,
+  /const shouldLoadLegacyStudentGradeData = !skipStudentGrades && APP_MODE === "student" && scopedStudentId && !STUDENT_SCOPED_REFRESH_ENABLED/,
   "the emergency switch must restore the legacy student grade queries"
 );
 assert.match(
   source,
-  /if \(APP_MODE === "student" && scopedStudentId && STUDENT_SCOPED_REFRESH_ENABLED\)/,
+  /if \(!skipStudentGrades && APP_MODE === "student" && scopedStudentId && STUDENT_SCOPED_REFRESH_ENABLED\)/,
   "student query scoping must be disabled by the emergency switch"
 );
 assert.match(

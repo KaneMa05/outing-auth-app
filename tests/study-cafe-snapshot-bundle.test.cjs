@@ -5,6 +5,48 @@ const response = (body, status = 200) => ({ ok: status < 400, status,
 const rows = { subjects: [], todos: [], subjectGoals: [], profiles: [], ownPresence: [], activeSessions: [], sessions: [], presence: [], onlineStudents: [] };
 const student = { id: '20001', name: 'Test', student_category: 'lecture', is_active: true };
 
+test('personal load returns own learning data with the same bookkeeping; missing RPC falls back but timeout does not',async()=>{
+  const saved=Object.fromEntries(['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','STUDY_CAFE_SNAPSHOT_BUNDLE_ENABLED'].map(k=>[k,process.env[k]]));
+  const oldFetch=global.fetch,calls=[];let failure='',valid=true;
+  process.env.SUPABASE_URL='https://personal-test.invalid';process.env.SUPABASE_SERVICE_ROLE_KEY='test';process.env.STUDY_CAFE_SNAPSHOT_BUNDLE_ENABLED='true';
+  const personal={...rows,focusedCount:7,subjects:[{name:'Law'}],profiles:[{student_id:'20001',nickname:'Mine',hair_style:'wave'}]};
+  global.fetch=async(url,options)=>{
+    const path=new URL(url).pathname.split('/').at(-1);calls.push(path);
+    if(path==='validate_student_device')return response({valid});
+    if(path==='students')return response([{...student,student_category:'lecture'}]);
+    if(path==='study_cafe_presence'||path==='study_cafe_sessions')return response([]);
+    if(path==='award_study_cafe_time_points')return response({ok:true,balance:10});
+    if(path==='get_study_cafe_personal_snapshot'){
+      if(failure==='missing')return response({code:'PGRST202'},404);
+      if(failure==='timeout')return response({code:'57014'},500);
+      return response(personal);
+    }
+    if(path==='get_study_cafe_snapshot_bundle')return response({snapshot:rows,equipment:[],botAppearances:[]});
+    throw Error('Unexpected request '+path);
+  };
+  const fresh=()=>{delete require.cache[require.resolve('../api/study-cafe')];return require('../api/study-cafe');};
+  async function invoke(handler){
+    calls.length=0;const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;}};
+    await handler({method:'POST',body:{action:'personal_load',studentId:'20001',deviceToken:'secret'}},res);return res;
+  }
+  try{
+    const result=await invoke(fresh());assert.equal(result.code,200);assert.equal(result.body.scope,'personal');
+    assert.equal(result.body.summary.focusedCount,7);assert.deepEqual(result.body.subjects,['Law']);assert.equal(result.body.profile.nickname,'Mine');
+    for(const key of ['room','ranking','shop'])assert.equal(key in result.body,false,key);
+    assert.equal(calls.length,6,'authentication, cleanup, rollover, personal read and settlement retained');
+    assert.equal(calls.filter(x=>x==='award_study_cafe_time_points').length,1);
+    assert.equal(calls.some(x=>/bundle|equipment|appearance/.test(x)),false);
+    valid=false;assert.equal((await invoke(fresh())).code,403);assert.deepEqual(calls,['validate_student_device']);valid=true;
+    failure='missing';const handler=fresh();assert.equal((await invoke(handler)).code,200);
+    assert.equal(calls.filter(x=>x==='award_study_cafe_time_points').length,1);
+    await invoke(handler);assert.equal(calls.includes('get_study_cafe_personal_snapshot'),false,'missing feature is backed off');
+    failure='timeout';assert.equal((await invoke(fresh())).code,502);
+    assert.equal(calls.includes('get_study_cafe_snapshot_bundle'),false,'timeout cannot amplify requests');
+  }finally{
+    global.fetch=oldFetch;for(const [key,value] of Object.entries(saved))value===undefined?delete process.env[key]:process.env[key]=value;
+  }
+});
+
 test('snapshot bundle preserves API output, settlements and authentication with two fewer DB calls', async () => {
   const oldFetch = global.fetch;
   const saved = Object.fromEntries(['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','STUDY_CAFE_SNAPSHOT_BUNDLE_ENABLED'].map(k => [k,process.env[k]]));

@@ -59,6 +59,21 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     await assert.rejects(db.exec(read(compactMigration)),/ox_learning_data_changed_since_review/,'Do not overwrite a changed function');
     await db.exec('set role service_role');
     for(const sample of compactCases)assert.deepEqual(await rpc('bootstrap',actor(sample.id),sample.body),sample.before);
+    // The next optimization changes storage and lock lifetime, not the API.
+    const readCases=[
+      ['attempt_counts',{sessionId}],
+      ['detail',{sessionId,questionId:'q0',version:1,includeStatistics:true}],
+      ['questions',{sessionId,questions:[{id:'q0',version:1}]}],
+      ['bootstrap',{sessionId}],
+    ];
+    const readBefore=await Promise.all(readCases.map(([action,body])=>learn(action,body)));
+    await db.exec('reset role');
+    await db.exec(read('20261014063658_ox_narrow_catalog_and_short_read_locks.sql'));
+    assert.deepEqual((await db.query("select proacl::text,prosecdef,proconfig from pg_proc where oid='ox_learning_data(text,jsonb,jsonb)'::regprocedure")).rows,aclBefore);
+    assert.deepEqual((await db.query('select * from ox_progress order by student_id,question_id')).rows,records);
+    await db.exec('set role service_role');
+    for(const sample of compactCases)assert.deepEqual(await rpc('bootstrap',actor(sample.id),sample.body),sample.before);
+    for(let i=0;i<readCases.length;i++)assert.deepEqual(await learn(...readCases[i]),readBefore[i]);
     const {statisticsDeferred,...legacy}=after;
     assert.equal(statisticsDeferred,false);assert.deepEqual(legacy,before,'Old bootstrap content remains identical');
     const entry=await learn('device_start',{includeBootstrap:true,homeOnly:true});
@@ -117,6 +132,17 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     fs.mkdirSync('.tmp/ox-compact-summary-performance',{recursive:true});
     fs.writeFileSync('.tmp/ox-compact-summary-performance/plans.json',JSON.stringify(sortPlans,null,2));
     console.log('Compact summary temp blocks:',JSON.stringify(Object.fromEntries(Object.entries(sortPlans).map(([key,value])=>[key,value.Plan['Temp Written Blocks']]))));
+    const narrowSql=read('20261014063658_ox_narrow_catalog_and_short_read_locks.sql');
+    const narrowStart=narrowSql.indexOf('  with question_summaries as materialized');
+    const narrowQuery=narrowSql.slice(narrowStart,narrowSql.indexOf('from question_summaries;',narrowStart)+'from question_summaries;'.length)
+      .replace('into v_questions','').replaceAll('v_student',"'a'").replaceAll('v_books',"array['criminal-law']::text[]");
+    assert.deepEqual(Object.values((await db.query(narrowQuery)).rows[0])[0],Object.values(newSummary.rows[0])[0]);
+    sortPlans.narrow=(await db.query('explain(analyze,buffers,format json) '+narrowQuery)).rows[0]['QUERY PLAN'][0];
+    assert.equal(sortPlans.narrow.Plan['Temp Written Blocks'],0);
+    const widths=(await db.query('select avg(pg_column_size(q)) question_bytes,(select avg(pg_column_size(s)) from ox_question_summaries s) summary_bytes from ox_questions q')).rows[0];
+    assert.ok(Number(widths.summary_bytes)*5<Number(widths.question_bytes));
+    console.log('Question / summary row bytes:',JSON.stringify(widths));
+    fs.writeFileSync('.tmp/ox-compact-summary-performance/plans.json',JSON.stringify(sortPlans,null,2));
     const full=await learn('bootstrap',{sessionId,summaryOnly:true});
     const tiny=(await learn('device_start',{includeBootstrap:true,homeOnly:true})).bootstrap;
     assert.ok(Buffer.byteLength(JSON.stringify(tiny))*50<Buffer.byteLength(JSON.stringify(full)));
@@ -133,14 +159,47 @@ test('atomic summary entry, deferred data/stats and legacy behavior preserve rec
     assert.equal((await learn('device_start',{includeBootstrap:true,homeOnly:true})).bootstrap.homeOnly,true);
     assert.equal((await learn('bootstrap',{sessionId,summaryOnly:true,deferStatistics:true})).statisticsDeferred,true);
     await assert.rejects(learn('attempt_counts',{sessionId}),/fixture_counts_failure/);await db.exec('rollback');
+    // Derived summaries track edits atomically, including status/version/order.
+    await db.exec('begin');
+    await db.exec("update ox_questions set content_version=9,status='draft',entry=entry||jsonb_build_object('source_question_number','draft-value','correct_answer','X') where id='q0'");
+    let summary=(await db.query("select * from ox_question_summaries where id='q0'")).rows[0];
+    assert.equal(summary.content_version,9);assert.equal(summary.status,'draft');assert.equal(summary.correct_answer,'X');
+    assert.ok(!(await learn('bootstrap',{sessionId,summaryOnly:true,deferStatistics:true})).catalog.questions.some(q=>q.id==='q0'));
+    await db.exec('rollback');
+    assert.equal((await db.query("select content_version from ox_question_summaries where id='q0'")).rows[0].content_version,1);
+    // A change during the expensive read must be caught by final validation.
+    // Fault injection complements the two-connection native PostgreSQL test.
+    for(const [change,error] of [
+      ["update public.student_devices set revoked_at=now() where student_id='a'",/unauthorized/],
+      ["update public.ox_device_sessions set session_id=gen_random_uuid() where student_id='a'",/device_session_changed/],
+      ["update public.ox_config set enabled=false where id",/ox_disabled/],
+      ["update public.ox_members set allowed=false where student_id='a'",/ox_not_registered/],
+    ]) {
+      await db.exec('begin');
+      await db.exec(`create or replace function public.ox_learning_data(p_action text,p_actor jsonb,p_body jsonb default '{}'::jsonb) returns jsonb language plpgsql security invoker set search_path='' as $$begin ${change}; return '{"ok":true,"private":"must-not-return"}'::jsonb;end$$`);
+      await assert.rejects(learn('bootstrap',{sessionId,summaryOnly:true}),error);
+      await db.exec('rollback');
+    }
+    await db.exec('begin isolation level repeatable read');
+    await assert.rejects(learn('bootstrap',{sessionId,summaryOnly:true}),/ox_read_requires_read_committed/);
+    await db.exec('rollback');
     for(const role of ['anon','authenticated']){
       await db.exec('set role '+role);await assert.rejects(learn('attempt_counts',{sessionId}),/permission denied/);
       await assert.rejects(db.query('select ox_attempt_counts($1)',['a']),/permission denied/);
+      await assert.rejects(db.query('select * from ox_question_summaries'),/permission denied/);
+      await assert.rejects(db.query('select sync_ox_question_summary()'),/permission denied/);
       await assert.rejects(db.query("select ox_learning_data('bootstrap',$1::jsonb,$2::jsonb)",[JSON.stringify(actor('a')),JSON.stringify({homeOnly:true})]),/permission denied/);
       await db.exec('reset role');
     }
     const security=(await db.query("select bool_and(not prosecdef and proconfig @> array['search_path=\"\"']) safe from pg_proc where oid in ('ox_device_gateway(text,jsonb,jsonb)'::regprocedure,'ox_learning_data(text,jsonb,jsonb)'::regprocedure,'ox_attempt_counts(text,text)'::regprocedure)")).rows[0];assert.equal(security.safe,true);
     await db.exec("update student_devices set revoked_at=now() where student_id='a'");
     await assert.rejects(learn('device_start',{includeBootstrap:true,homeOnly:true}),/unauthorized/);
+    await db.exec("update student_devices set revoked_at=null where student_id='a'");
+    const beforeRollback=await learn('bootstrap',{sessionId,summaryOnly:true,deferStatistics:true});
+    const progressBeforeRollback=(await db.query('select * from ox_progress order by student_id,question_id')).rows;
+    await db.exec(fs.readFileSync('supabase/rollback/20261014_ox_narrow_catalog_and_short_read_locks.sql','utf8'));
+    assert.deepEqual(await learn('bootstrap',{sessionId,summaryOnly:true,deferStatistics:true}),beforeRollback);
+    assert.deepEqual((await db.query('select * from ox_progress order by student_id,question_id')).rows,progressBeforeRollback);
+    assert.equal((await db.query("select to_regclass('public.ox_question_summaries') name")).rows[0].name,null);
   }finally{await db.close();}
 });

@@ -14,6 +14,7 @@ const ALLOWED_ACTIONS = new Set([
   "feedback_replies",
   "feedback_reply_create", "feedback_delete", "feedback_reply_delete",
   "load",
+  "personal_load",
   "ranking",
   "stats",
   "save_subjects",
@@ -47,6 +48,7 @@ const MAX_TODOS_PER_DAY = 60;
 const studyCafeSnapshotRpc = createRpcRetryState();
 const studyCafeHeartbeatRpc = createRpcRetryState();
 const studyCafeSnapshotBundleRpc = createRpcRetryState();
+const studyCafePersonalSnapshotRpc = createRpcRetryState();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -181,8 +183,8 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    if (action === "load") {
-      res.status(200).json({ ok: true, ...(await buildStudyCafeSnapshot(student, now)) });
+    if (action === "load" || action === "personal_load") {
+      res.status(200).json({ ok: true, ...(action === "personal_load" ? await buildStudyCafePersonalSnapshot(student, now) : await buildStudyCafeSnapshot(student, now)) });
       return;
     }
 
@@ -689,6 +691,47 @@ async function broadcastStudyCafeStateChange(change, payload = {}) {
   } catch (error) {
     console.warn("Study cafe realtime broadcast failed.", error);
   }
+}
+
+async function buildStudyCafePersonalSnapshot(student, now) {
+  if (!studyCafePersonalSnapshotRpc.begin()) return buildStudyCafeSnapshot(student, now);
+  const bounds = getKstDayBounds(now);
+  let rows;
+  try {
+    rows = await requestSupabase("POST", "rpc/get_study_cafe_personal_snapshot", {
+      p_student_id: student.id, p_study_date: getKstDateKey(now),
+      p_day_start: bounds.start, p_day_end: bounds.end,
+    });
+    if (!rows || !["subjects", "todos", "subjectGoals", "profiles", "ownPresence", "activeSessions", "sessions"].every(key => Array.isArray(rows[key]))) {
+      const error = new Error("study_cafe_personal_snapshot_invalid_response");
+      error.status = 502;
+      throw error;
+    }
+    studyCafePersonalSnapshotRpc.succeeded();
+  } catch (error) {
+    let detail;
+    try { detail = JSON.parse(error.detail); } catch (_) { /* Unstructured error. */ }
+    if (error.storeStatus === 404 && detail?.code === "PGRST202") {
+      studyCafePersonalSnapshotRpc.failed();
+      return buildStudyCafeSnapshot(student, now);
+    }
+    studyCafePersonalSnapshotRpc.succeeded();
+    throw error;
+  }
+  // Preserve settlement timing without loading equipment or other students.
+  if (hasStudyCafeShopAccess(student)) await awardStudyCafeTimePoints(student.id, now).catch(() => null);
+  const profile = rows.profiles[0];
+  return {
+    scope: "personal", serverNow: now.toISOString(), studyDate: getKstDateKey(now),
+    subjects: rows.subjects.map(row => row.name), todos: rows.todos.map(serializeTodo),
+    subjectGoals: rows.subjectGoals.map(serializeSubjectGoal),
+    profile: { avatarTone: normalizeAvatarTone(profile?.avatar_tone), hairStyle: characterHair.normalize(profile?.hair_style),
+      nickname: normalizeStoredNickname(profile?.nickname), statusMessage: normalizeStoredStatusMessage(profile?.status_message) },
+    presence: rows.ownPresence[0] ? serializeOwnPresence(rows.ownPresence[0]) : null,
+    activeSession: rows.activeSessions[0] ? serializeSession(rows.activeSessions[0], now) : null,
+    subjectTotals: Object.fromEntries(aggregateSessionSeconds(rows.sessions, now, row => row.subject_name)),
+    summary: { focusedCount: Math.max(0, Number(rows.focusedCount) || 0) },
+  };
 }
 
 async function buildStudyCafeSnapshot(student, now) {

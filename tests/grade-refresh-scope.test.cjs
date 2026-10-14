@@ -18,7 +18,7 @@ function harness() {
     exam_answers:[{id:'a',exam_section_id:'s18',question_number:1},{id:'b',exam_section_id:'s19',question_number:1},{id:'c',exam_section_id:'sc',question_number:1}],
     exam_submissions:[], fitness_scores:[], final_exam_scores:[{id:'f',student_id:'18001',round:1,cohort:'18'}] };
   const c={ console, Date, APP_MODE:'student', currentRoute:'grades', attendanceHolidayRevision:0,
-    studentExamDataLastLoadedAt:1, STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS:30000, STUDENT_SCOPED_REFRESH_ENABLED:true,
+    studentExamDataLastLoadedAt:1, studentExamDataStudentId:'18001', studentGradeMetadataRevision:null, STUDENT_GRADE_METADATA_TABLES:['students','notices','track_options','exams','exam_sections','exam_answers','exam_files','exam_subject_settings'], STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS:30000, STUDENT_SCOPED_REFRESH_ENABLED:true,
     isRemoteLoading:false, state:{ settings:{studentAuthId:'18001',trackOptions:[]},
       students:plain(tables.students), outings:[{id:'keep-outing'}],deletedOutings:[{id:'keep-deleted'}],
       attendanceChecks:[{id:'keep-attendance'}], penalties:[{id:'keep-penalty'}],notices:[],
@@ -58,7 +58,7 @@ function harness() {
     return query;
   }};
   vm.createContext(c);
-  for(const name of ['getStudentGradeAnswerSectionIds','loadStudentFinalScoresFromRemote','loadExamAnswersFromRemote','loadStudentScopedRows','getStudentRemotePeerIds','loadStateFromRemote','shouldUseStudentGradesScopedRefresh','refreshStudentGradesStateFromRemote'])vm.runInContext(extract(name),c);
+  for(const name of ['applyStudentGradesRefreshSnapshot','loadStudentGradesRefreshSnapshot','loadRemoteReadRevisions','getStudentGradeAnswerSectionIds','loadStudentFinalScoresFromRemote','loadExamAnswersFromRemote','loadStudentScopedRows','getStudentRemotePeerIds','loadStateFromRemote','shouldUseStudentGradesScopedRefresh','refreshStudentGradesStateFromRemote'])vm.runInContext(extract(name),c);
   return {c,calls,control,tables};
 }
 
@@ -96,6 +96,62 @@ test('failure, logout and answer entry during refresh never replace existing gra
     assert.deepEqual(plain(h.c.state.examAnswers),before.examAnswers);
     assert.deepEqual(plain(h.c.state.finalExamScores),before.finalExamScores);
     assert.equal(h.c.studentExamDataLastLoadedAt,1);
+  }
+});
+
+test('initial entry and forced full refresh scope grades without skipping other student tabs',async()=>{
+  for(const category of ['offline','online_managed','lecture']) {
+    for(const scoped of [true,false]) {
+      const h=harness();h.c.STUDENT_SCOPED_REFRESH_ENABLED=scoped;
+      h.tables.students[0].student_category=category;
+      if(category==='lecture')h.tables.students[0].cohort='';
+      h.tables.final_exam_scores.push({id:'unrelated',student_id:'19001',cohort:'19',round:1});
+      h.c.studentExamDataLastLoadedAt=0;
+      await h.c.loadStateFromRemote({forceExamData:true});
+      for(const table of ['outings','attendance_checks','penalties','attendance_holidays'])assert.ok(h.calls.some(x=>x.table===table),table);
+      const answers=h.calls.filter(x=>x.table==='exam_answers');
+      const finals=h.calls.filter(x=>x.table==='final_exam_scores');
+      assert.equal(answers.length,category==='lecture'?0:1);assert.equal(finals.length,category==='lecture'?0:1);
+      if(category!=='lecture') {
+        assert.deepEqual(answers[0].ids,['s18','sc']);assert.ok(finals[0].or);
+        assert.deepEqual(plain(h.c.state.examAnswers).map(x=>x.id),['a','c']);
+      } else {
+        for(const table of ['exams','exam_sections','exam_answers','exam_files','exam_subject_settings','exam_submissions','fitness_scores','final_exam_scores'])assert.equal(h.calls.some(x=>x.table===table),false,table);
+        assert.equal(h.c.state.examAnswers.length,0);
+        assert.equal(h.c.state.finalExamScores.length,0);
+      }
+    }
+  }
+});
+
+test('full refresh inside metadata interval retains answer keys and still refreshes scoped scores',async()=>{
+  const h=harness();h.c.Date={now:()=>2};
+  await h.c.loadStateFromRemote();
+  assert.equal(h.calls.some(x=>x.table==='exam_answers'),false);
+  assert.deepEqual(plain(h.c.state.examAnswers),[{id:'previous-answer'}]);
+  assert.ok(h.calls.find(x=>x.table==='final_exam_scores').or);
+});
+
+test('initial scoped read failures and an account switch never publish partial grades',async()=>{
+  for(const failure of ['students','exam_answers','final_exam_scores','exam_submissions']) {
+    const h=harness(),before=plain(h.c.state);h.control.fail=failure;
+    await assert.rejects(h.c.loadStateFromRemote({forceExamData:true}));
+    assert.deepEqual(plain(h.c.state),before);
+  }
+  const h=harness(),before=plain(h.c.state);h.control.logout=true;
+  await h.c.loadStateFromRemote({forceExamData:true});
+  for(const key of ['students','examAnswers','finalExamScores','outings'])assert.deepEqual(plain(h.c.state[key]),before[key]);
+});
+
+test('switching students or changing cohort inside the interval reloads the answer scope',async()=>{
+  for(const change of ['student','cohort']) {
+    const h=harness();h.c.Date={now:()=>2};
+    if(change==='student')h.c.studentExamDataStudentId='previous-student';
+    else h.tables.students[0].cohort='19';
+    await h.c.loadStateFromRemote();
+    assert.ok(h.calls.some(x=>x.table==='exams'));
+    assert.deepEqual(plain(h.c.state.examAnswers).map(x=>x.id),change==='student'?['a','c']:['b','c']);
+    assert.equal(h.c.studentExamDataStudentId,'18001');
   }
 });
 
@@ -162,4 +218,49 @@ test('actual final-grade totals, ranks and previous rounds match the full query'
   h.c.state.finalExamScores=(await h.c.loadStudentFinalScoresFromRemote('*',h.tables.students,'18001')).data;
   assert.equal(h.c.state.finalExamScores.length,10);
   assert.deepEqual(plain(h.c.getStudentFinalGradeSummary(h.c.state.students[0],2)),before);
+});
+
+
+test('unchanged metadata uses one revision read; corrections and new publications refresh at the next 30s check',async()=>{
+  const h=harness();h.tables.app_read_revisions=h.c.STUDENT_GRADE_METADATA_TABLES.map(name=>({name,revision:1}));
+  await h.c.loadStateFromRemote({forceExamData:true});
+  h.calls.length=0;h.c.Date={now:()=>h.c.studentExamDataLastLoadedAt+30000};
+  assert.equal(await h.c.refreshStudentGradesStateFromRemote(),true);
+  assert.deepEqual(h.calls.map(x=>x.table).sort(),['app_read_revisions','exam_submissions','final_exam_scores','fitness_scores'].sort());
+  h.tables.exam_answers[0].correct_answer=4;
+  h.tables.app_read_revisions.find(x=>x.name==='exam_answers').revision++;
+  h.calls.length=0;
+  assert.equal(await h.c.refreshStudentGradesStateFromRemote(),true);
+  assert.ok(h.calls.some(x=>x.table==='exams'));assert.equal(h.c.state.examAnswers[0].correct_answer,4);
+  assert.equal(h.calls.filter(x=>x.table==='app_read_revisions').length,1);
+});
+
+test('a revision timeout preserves state without starting bulk reads',async()=>{
+  const h=harness(),before=plain(h.c.state);h.control.fail='app_read_revisions';
+  assert.equal(await h.c.refreshStudentGradesStateFromRemote(),false);
+  assert.deepEqual(plain(h.c.state),before);
+  assert.deepEqual(h.calls.map(x=>x.table),['app_read_revisions']);
+});
+
+test('the teacher initial load retains final scores beyond the first 1000 records',async()=>{
+  const h=harness();h.c.APP_MODE='teacher';
+  Object.assign(h.c,{loadTeacherOutingPhotosFromRemote:async()=>({data:[],error:null}),loadManagersFromTeacherApi:async()=>null,
+    teacherOutingRowsSignature:()=>'',persistReconciledExamSubmissionGrades:async()=>{},persistNormalizedWeeklySectionScores:async()=>{}});
+  h.tables.final_exam_scores=Array.from({length:1023},(_,i)=>({id:String(i),student_id:'18001',round:1}));
+  await h.c.loadStateFromRemote();
+  assert.equal(h.c.state.finalExamScores.length,1023);
+  assert.equal(h.calls.filter(x=>x.table==='final_exam_scores').length,2);
+});
+
+
+test('lecture entry ignores grade revision failures; unauthenticated entry defers grades until login',async()=>{
+  const h=harness();h.tables.students[0].student_category='lecture';h.control.fail='app_read_revisions';
+  await h.c.loadStateFromRemote();assert.equal(h.c.state.examAnswers.length,0);assert.equal(h.c.studentExamDataLastLoadedAt,0);
+  assert.equal(h.calls.some(x=>x.table==='exam_answers'),false);
+  const unauth=harness();unauth.c.state.settings.studentAuthId='';
+  await unauth.c.loadStateFromRemote();
+  for(const table of ['exams','exam_answers','final_exam_scores','fitness_scores'])assert.equal(unauth.calls.some(x=>x.table===table),false,table);
+  assert.equal(unauth.c.state.students.length,2,'registration retains the roster');
+  unauth.c.state.settings.studentAuthId='18001';await unauth.c.loadStateFromRemote();
+  assert.deepEqual(plain(unauth.c.state.examAnswers).map(x=>x.id),['a','c']);
 });

@@ -361,6 +361,7 @@ const studyCafeRemoteState = {
   rankingPeriods: {},
   rankingLoadingPeriod: "",
   rankingError: "",
+  rankingErrors: {},
   refreshTimer: null,
   requestedRefreshTimer: null,
   heartbeatTimer: null,
@@ -2438,9 +2439,14 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeLocalFallback = false;
     studyCafeRemoteState.available = null;
     studyCafeRemoteState.loaded = false;
+    studyCafeRemoteState.loadedScope = "";
     studyCafePreviewState.customSubjects = null;
     studyCafeRemoteState.room = null;
     studyCafeRemoteState.ranking = null;
+    studyCafeRemoteState.rankingPeriods = {};
+    studyCafeRemoteState.rankingErrors = {};
+    studyCafeRemoteState.rankingLoadingPeriods = {};
+    studyCafeRemoteState.rankingLoadingPeriod = "";
     studyCafeRemoteState.todos = [];
     studyCafeRemoteState.todosByDate = {};
     studyCafeRemoteState.subjectGoalsByDate = {};
@@ -2458,13 +2464,15 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   }
   studyCafeRemoteState.studentId = String(student.id);
   ensureStudyCafeRemoteTimers();
+  const scope = ["home", "study-todo"].includes(currentRoute) ? "personal" : "full";
   const force = options.force === true;
   if (studyCafeRemoteState.loading) {
     await waitForStudyCafeRemoteLoad();
+    if (scope === "full" && studyCafeRemoteState.loadedScope === "personal") return ensureStudyCafeRemoteLoaded(options);
     return studyCafeRemoteState.loaded && studyCafeRemoteState.available === true;
   }
   const retryDue = Date.now() - studyCafeRemoteState.lastAttemptAt >= 15000;
-  if (!force && (studyCafeRemoteState.loaded || (studyCafeRemoteState.available === false && !retryDue))) {
+  if (!force && ((studyCafeRemoteState.loaded && (scope === "personal" || studyCafeRemoteState.loadedScope !== "personal")) || (studyCafeRemoteState.available === false && !retryDue))) {
     return studyCafeRemoteState.loaded;
   }
   studyCafeRemoteState.loading = true;
@@ -2474,7 +2482,9 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   const todoRevisionAtRequest = studyTodoMutationRevision;
   const subjectRevisionAtRequest = studySubjectMutationRevision;
   try {
-    const result = await requestStudyCafeAction("load");
+    const requestedStudentId = String(student.id);
+    const result = await requestStudyCafeAction(scope === "personal" ? "personal_load" : "load");
+    if (String(getAuthedStudent()?.id || "") !== requestedStudentId) return false;
     if (!result.ok) {
       studyCafeRemoteState.error = result.error || "load_failed";
       if ([404, 501, 503].includes(result.httpStatus) || result.error === "service_role_not_configured") {
@@ -2507,6 +2517,7 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     studyCafeRemoteState.loaded = true;
     studyCafeRemoteState.error = "";
     studyCafeRemoteState.lastLoadedAt = Date.now();
+    studyCafeRemoteState.loadedScope = result.scope === "personal" ? "personal" : "full";
     hydrateStudyCafeSnapshot(result, {
       preserveLocalSubjects: subjectRevisionAtRequest !== studySubjectMutationRevision,
       preserveLocalSession:
@@ -2580,12 +2591,13 @@ function hydrateStudyCafeSnapshot(snapshot, options = {}) {
   if (snapshot.profile?.avatarTone) studyCafePreviewState.avatarTone = snapshot.profile.avatarTone;
   studyCafePreviewState.nickname = String(snapshot.profile?.nickname || "").trim();
   studyCafePreviewState.statusMessage = String(snapshot.profile?.statusMessage || "").trim();
-  studyCafeRemoteState.room = Array.isArray(snapshot.room) ? snapshot.room : [];
-  studyCafeRemoteState.ranking = Array.isArray(snapshot.ranking) ? snapshot.ranking : [];
-  studyCafeRemoteState.rankingPeriods.daily = {
-    ranking: studyCafeRemoteState.ranking,
-    summary: snapshot.summary || null,
-  };
+  if (snapshot.scope !== "personal") {
+    studyCafeRemoteState.room = Array.isArray(snapshot.room) ? snapshot.room : [];
+    studyCafeRemoteState.ranking = Array.isArray(snapshot.ranking) ? snapshot.ranking : [];
+    studyCafeRemoteState.rankingPeriods.daily = {
+      ranking: studyCafeRemoteState.ranking, summary: snapshot.summary || null,
+    };
+  }
   if (!options.preserveLocalTodos) {
     studyCafeRemoteState.todos = Array.isArray(snapshot.todos) ? snapshot.todos : [];
     studyCafeRemoteState.todosByDate[nextStudyDateKey] = studyCafeRemoteState.todos;
@@ -4737,7 +4749,7 @@ function updateStudentNotificationBadge(student = getAuthedStudent()) {
   });
 }
 
-function ensureStudentNotificationInboxLoaded(student = getAuthedStudent()) {
+function ensureStudentNotificationInboxLoaded(student = getAuthedStudent(), options = {}) {
   if (!student?.id || !isOnlineStudentExperience(student)) return;
   const studentId = String(student.id);
   if (studentNotificationInboxState.studentId !== studentId) {
@@ -4747,7 +4759,7 @@ function ensureStudentNotificationInboxLoaded(student = getAuthedStudent()) {
     studentNotificationInboxState.messages = [];
     studentNotificationInboxState.error = "";
   }
-  if (studentNotificationInboxState.loaded || studentNotificationInboxState.loading) {
+  if (studentNotificationInboxState.loading || (!options.force && (studentNotificationInboxState.loaded || studentNotificationInboxState.error))) {
     updateStudentNotificationBadge(student);
     return;
   }
@@ -4758,6 +4770,7 @@ function ensureStudentNotificationInboxLoaded(student = getAuthedStudent()) {
     return;
   }
   studentNotificationInboxState.loading = true;
+  studentNotificationInboxState.error = "";
   fetch("/api/student-push", {
     method: "POST",
     credentials: "same-origin",
@@ -4771,15 +4784,18 @@ function ensureStudentNotificationInboxLoaded(student = getAuthedStudent()) {
     .then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "student_notification_inbox_failed");
+      if (studentNotificationInboxState.studentId !== studentId) return;
       studentNotificationInboxState.messages = Array.isArray(data.messages) ? data.messages : [];
       studentNotificationInboxState.loaded = true;
       studentNotificationInboxState.error = "";
     })
     .catch((error) => {
+      if (studentNotificationInboxState.studentId !== studentId) return;
       console.error(error);
       studentNotificationInboxState.error = error.message || "student_notification_inbox_failed";
     })
     .finally(() => {
+      if (studentNotificationInboxState.studentId !== studentId) return;
       studentNotificationInboxState.loading = false;
       updateStudentNotificationBadge(student);
       if (currentRoute === "notifications") render();
@@ -4803,7 +4819,10 @@ function renderStudentNotifications() {
   return el("div", { className: "grid student-view student-notification-page" }, [
     renderStudentNotificationPageHead(),
     studentNotificationInboxState.error
-      ? el("div", { className: "student-notification-empty error" }, "알림 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
+      ? el("div", { className: "student-notification-empty error" }, [
+          el("p", {}, "알림 목록을 불러오지 못했습니다."),
+          button("다시 불러오기", "btn secondary", "button", () => ensureStudentNotificationInboxLoaded(student, { force: true })),
+        ])
       : messages.length
         ? el("section", { className: "student-notification-list" }, messages.map(renderStudentNotificationItem))
         : el("div", { className: "student-notification-empty" }, [
@@ -9225,10 +9244,12 @@ function renderStudentStudyRanking() {
         ? "오늘 기록은 매일 오전 4시에 새로 시작되며, 다른 학생의 이름은 일부 가려서 표시합니다."
         : isPreview
           ? "로컬 미리보기 데이터입니다. 운영 화면에는 실제 서버 기록만 표시됩니다."
-          : studyCafeRemoteState.rankingError
-            ? studyCafeRemoteState.rankingError
+          : studyCafeRemoteState.rankingErrors?.[studyRankingPreviewState.period]
+            ? studyCafeRemoteState.rankingErrors[studyRankingPreviewState.period]
             : "주간·월간은 현재 기간의 누적 순공시간이며, 다른 학생의 이름은 일부 가려서 표시합니다."
     ),
+    studyCafeRemoteState.rankingErrors?.[studyRankingPreviewState.period]
+      ? button("다시 불러오기", "btn secondary", "button", () => requestStudyRankingPeriod(studyRankingPreviewState.period, { force: true })) : null,
   ]);
 }
 
@@ -9246,19 +9267,28 @@ function renderStudyRankingPeriodButton(period, label) {
   return periodButton;
 }
 
-async function requestStudyRankingPeriod(period) {
+async function requestStudyRankingPeriod(period, options = {}) {
   if (
     isStudyCafeLocalPreview() ||
     period === "daily" ||
     studyCafeRemoteState.available !== true ||
     studyCafeRemoteState.rankingPeriods[period] ||
-    studyCafeRemoteState.rankingLoadingPeriod === period
+    studyCafeRemoteState.rankingLoadingPeriods?.[period]
   ) {
     return;
   }
+  studyCafeRemoteState.rankingErrors ||= {};
+  if (studyCafeRemoteState.rankingErrors[period] && !options.force) return;
+  const studentId = String(getAuthedStudent()?.id || "");
+  studyCafeRemoteState.rankingLoadingPeriods ||= {};
+  studyCafeRemoteState.rankingLoadingPeriods[period] = true;
   studyCafeRemoteState.rankingLoadingPeriod = period;
   studyCafeRemoteState.rankingError = "";
-  const result = await requestStudyCafeAction("ranking", { period });
+  delete studyCafeRemoteState.rankingErrors[period];
+  let result;
+  try { result = await requestStudyCafeAction("ranking", { period }); }
+  catch { result = { ok: false }; }
+  if (String(getAuthedStudent()?.id || "") !== studentId) return;
   if (result.ok) {
     studyCafeRemoteState.rankingPeriods[period] = {
       ranking: Array.isArray(result.ranking) ? result.ranking : [],
@@ -9268,7 +9298,9 @@ async function requestStudyRankingPeriod(period) {
     };
   } else {
     studyCafeRemoteState.rankingError = "랭킹을 불러오지 못했습니다. 잠시 후 다시 눌러주세요.";
+    studyCafeRemoteState.rankingErrors[period] = studyCafeRemoteState.rankingError;
   }
+  delete studyCafeRemoteState.rankingLoadingPeriods[period];
   if (studyCafeRemoteState.rankingLoadingPeriod === period) {
     studyCafeRemoteState.rankingLoadingPeriod = "";
   }
