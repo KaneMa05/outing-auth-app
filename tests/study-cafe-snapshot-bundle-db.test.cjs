@@ -6,7 +6,7 @@ const db=new PGlite();
 const read=p=>fs.readFileSync(p,'utf8');
 const core=read('supabase/migrations/20260911052853_add_study_character_hair.sql').match(/create or replace function public\.get_study_cafe_snapshot_data\([\s\S]*?\n\$\$;/)[0];
 const bots=read('supabase/migrations/20260911080239_add_study_cafe_bot_admin.sql').match(/create or replace function public\.study_cafe_bot_appearance\([\s\S]*?\n\$\$;/)[0];
-const migration=read('supabase/migrations/20261014023329_study_cafe_snapshot_bundle.sql');
+const migration=read('supabase/migrations/20261014025654_study_cafe_snapshot_bundle.sql');
 const q=(sql,args=[])=>db.query(sql,args);
 (async()=>{
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
