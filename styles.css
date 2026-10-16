@@ -14572,6 +14572,83 @@ body.study-cafe-power-saving .study-cafe-desk-cup::after { display: none; }
   animation: study-cafe-room-change 180ms ease-out;
 }
 
+.study-cafe-seat-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 28px 16px 36px;
+  border: 1px solid color-mix(in srgb, var(--room-accent) 16%, transparent);
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 50% 30%, #fff 0%, rgba(255, 255, 255, 0.62) 70%);
+  color: var(--room-ink);
+  text-align: center;
+}
+
+.study-cafe-loading-scene {
+  position: relative;
+  width: 160px;
+  height: 154px;
+  margin-bottom: 20px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--room-accent-soft) 0%, transparent 70%);
+}
+
+.study-cafe-loading-scene > .study-cafe-seat-visual {
+  inset: 0;
+  width: 160px;
+  height: 130px;
+  transform: scale(1.2);
+  transform-origin: center top;
+}
+
+.study-cafe-seat-loading > strong {
+  max-width: 270px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.study-cafe-seat-loading > p {
+  margin: 8px 0 0;
+  color: var(--room-ink);
+  opacity: 0.75;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.study-cafe-loading-dots {
+  display: flex;
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.study-cafe-loading-dots > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--room-accent);
+  animation: study-cafe-loading-dot 1.4s ease-in-out infinite;
+}
+
+.study-cafe-loading-dots > i:nth-child(2) { animation-delay: 0.16s; }
+.study-cafe-loading-dots > i:nth-child(3) { animation-delay: 0.32s; }
+.study-cafe-seat-loading > button { margin-top: 20px; }
+
+@keyframes study-cafe-loading-dot {
+  0%, 70%, 100% { opacity: 0.35; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-4px); }
+}
+
+body.study-cafe-power-saving .study-cafe-loading-dots > i { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .study-cafe-loading-dots > i { animation: none; }
+}
+
 .study-cafe-seat-grid.ranking-updated {
   animation: study-cafe-ranking-update 220ms ease-out;
 }

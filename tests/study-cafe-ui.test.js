@@ -83,10 +83,8 @@ assert.match(appSource, /fetch\("\/api\/study-cafe"/);
 assert.match(appSource, /function ensureStudyCafeRemoteLoaded\(options = \{\}\)/);
 assert.match(styleSource, /\.study-todo-goal-select\s*\{[^}]*min-height: 40px[^}]*font-size: 0\.8rem/);
 assert.match(styleSource, /\.study-todo-add-button\s*\{[^}]*width: 42px[^}]*height: 42px/);
-assert.match(
-  appSource,
-  /if \(studyCafeRemoteState\.loading\) \{\s*await waitForStudyCafeRemoteLoad\(\);\s*if \(scope === "full" && studyCafeRemoteState\.loadedScope === "personal"\) return ensureStudyCafeRemoteLoaded\(options\);\s*return studyCafeRemoteState\.loaded && studyCafeRemoteState\.available === true;/
-);
+assert.match(appSource, /if \(studyCafeRemoteState\.loading\) \{\s*await waitForStudyCafeRemoteLoad\(\);/);
+assert.match(appSource, /scope === "full" && studyCafeRemoteState\.loadedScope === "personal" && !studyCafeRemoteState\.error/);
 assert.match(appSource, /function waitForStudyCafeRemoteLoad\(\)/);
 assert.match(
   appSource,

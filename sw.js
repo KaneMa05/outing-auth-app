@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v478-menu-pressure";
+const CACHE_NAME = "outing-auth-app-v480-cafe-loading";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -7,7 +7,7 @@ const APP_SHELL = [
   "/manifest.webmanifest?v=20260512-weekly-detail-flow",
   "/app-icon.png",
   "/apple-touch-icon.png",
-  "/styles.css?v=20260917-study-share-fixes",
+  "/styles.css?v=20261016-cafe-loading",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
   "/shared.js?v=20261014-menu-pressure",
@@ -39,7 +39,7 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261014-menu-pressure",
+  "/app.js?v=20261016-cafe-loading",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",

@@ -2468,7 +2468,13 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
   const force = options.force === true;
   if (studyCafeRemoteState.loading) {
     await waitForStudyCafeRemoteLoad();
-    if (scope === "full" && studyCafeRemoteState.loadedScope === "personal") return ensureStudyCafeRemoteLoaded(options);
+    // A slow home summary must finish before the first full cafe read starts.
+    if (scope === "full" && currentRoute === "study-cafe" && studyCafeRemoteState.loading) {
+      return ensureStudyCafeRemoteLoaded(options);
+    }
+    if (scope === "full" && studyCafeRemoteState.loadedScope === "personal" && !studyCafeRemoteState.error) {
+      return ensureStudyCafeRemoteLoaded(options);
+    }
     return studyCafeRemoteState.loaded && studyCafeRemoteState.available === true;
   }
   const retryDue = Date.now() - studyCafeRemoteState.lastAttemptAt >= 15000;
@@ -2542,6 +2548,10 @@ async function ensureStudyCafeRemoteLoaded(options = {}) {
     return false;
   } finally {
     studyCafeRemoteState.loading = false;
+    if (currentRoute === "study-cafe" && studyCafeRemoteState.error &&
+        !Array.isArray(studyCafeRemoteState.room)) {
+      renderStudyCafeStateUpdate();
+    }
   }
 }
 
@@ -6425,7 +6435,10 @@ function renderStudentStudyCafe() {
   }
 
   ensureStudyCafeTemporaryNickname();
-  ensureStudyCafeRemoteLoaded();
+  if (!studyCafeRemoteState.error || Array.isArray(studyCafeRemoteState.room) ||
+      studyCafeRemoteState.studentId !== String(student.id)) {
+    ensureStudyCafeRemoteLoaded();
+  }
   ensureStudyCafeShopLoaded();
   ensureStudyRoomLoaded({ render: true });
   ensureStudyCafePreviewClock();
@@ -7840,7 +7853,40 @@ function formatStudyCafeSeatLabel(seatNumber, student = getAuthedStudent()) {
   return rank ? `랭킹룸 ${rank}` : "랭킹룸";
 }
 
+function renderStudyCafeSeatLoading() {
+  const failed = Boolean(studyCafeRemoteState.error) && !studyCafeRemoteState.loading;
+  return el("div", {
+    className: `study-cafe-seat-loading${failed ? " has-error" : ""}`,
+    role: "status",
+    "aria-live": "polite",
+    "aria-atomic": "true",
+    "data-study-cafe-seat-loading": "true",
+  }, [
+    el("div", { className: "study-cafe-loading-scene", ariaHidden: "true" }, [
+      renderStudyCafeSeatedVisual(studyCafePreviewState.avatarTone || "navy", false, {
+        hairStyle: studyCafePreviewState.hairStyle,
+        studying: !failed,
+      }),
+    ]),
+    el("strong", {}, failed ? "좌석 정보를 불러오지 못했어요" : "함께 공부하는 친구들을 불러오는 중이에요"),
+    el("p", {}, failed ? "잠시 후 다시 시도해 주세요." : "잠깐만 기다려 주세요. 곧 만나요!"),
+    failed
+      ? button("다시 불러오기", "btn secondary", "button", () => {
+          studyCafeRemoteState.error = "";
+          ensureStudyCafeRemoteLoaded({ force: true });
+          renderStudyCafeStateUpdate();
+        })
+      : el("span", { className: "study-cafe-loading-dots", ariaHidden: "true" }, [
+          el("i"), el("i"), el("i"),
+        ]),
+  ]);
+}
+
 function renderStudyCafeRoomSeatNodes(roomIndex, student, options = {}) {
+  // An unknown room is not an empty room. Keep cached seats during refreshes.
+  if (!isStudyCafeLocalPreview() && !Array.isArray(studyCafeRemoteState.room)) {
+    return [renderStudyCafeSeatLoading()];
+  }
   const room = STUDY_CAFE_ROOMS[roomIndex];
   if (roomIndex === STUDY_CAFE_RANKING_ROOM_INDEX) {
     return getStudyCafeRankingRoomEntries(student, options).map((entry) =>
