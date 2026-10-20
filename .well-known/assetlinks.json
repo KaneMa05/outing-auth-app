@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.ronpark.study",
+      "sha256_cert_fingerprints": [
+        "CA:CA:14:C2:9D:3F:A5:04:27:68:8E:2A:DB:F5:62:A5:85:27:D0:28:EA:3E:FF:36:8A:9E:E5:35:34:21:F6:F2"
+      ]
+    }
+  }
+]

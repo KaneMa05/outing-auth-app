@@ -31,3 +31,7 @@ public/
 # Keep every temporary build/browser profile and agent setting private
 .tmp/
 .codex/
+
+# Local Play registration evidence and private signing material
+artifacts/
+.play-signing/

@@ -4430,6 +4430,11 @@ function renderStudentMypage() {
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
     renderStudentDeviceRegistrationCard(),
     renderHomeScreenInstallCard(),
+    el("nav", { className: "student-policy-links", ariaLabel: "개인정보 및 계정 안내" }, [
+      el("a", { href: "./app-privacy.html" }, "개인정보처리방침"),
+      el("span", { ariaHidden: "true" }, "·"),
+      el("a", { href: "./account-deletion.html" }, "계정 및 데이터 삭제"),
+    ]),
   ]);
 }
 

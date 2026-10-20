@@ -24,3 +24,6 @@ config.js
 # Generated build, browser QA, and Supabase CLI state
 /.tmp/
 /supabase/.temp/
+
+# Private Google Play signing material
+/.play-signing/
