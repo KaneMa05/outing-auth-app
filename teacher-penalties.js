@@ -19,8 +19,8 @@ function renderPenaltyManagement() {
       el("div", { className: "penalty-toolbar" }, [
         penaltyPeriodControls(),
         el("div", { className: "penalty-toolbar-right" }, [
-          summaries.some((summary) => summary.count)
-            ? button("엑셀 다운로드", "btn secondary", "button", () => downloadPenaltySummaryCsv(summaries))
+          summaries.length
+            ? button("엑셀 다운로드", "btn secondary", "button", () => downloadPenaltySummaryWorkbook(summaries))
             : null,
           penaltySortControls(),
         ]),
@@ -102,9 +102,9 @@ function getPenaltySummaries(penalties = state.penalties || [], cohort = selecte
     });
 }
 
-function downloadPenaltySummaryCsv(summaries) {
+function downloadPenaltySummaryWorkbook(summaries) {
+  if (!summaries.length) return notify("다운로드할 학생이 없습니다.");
   const sortedSummaries = [...summaries]
-    .filter((summary) => summary.count)
     .sort((a, b) => {
       const pointCompare = b.total - a.total;
       if (pointCompare) return pointCompare;
@@ -122,8 +122,14 @@ function downloadPenaltySummaryCsv(summaries) {
       String(summary.count),
     ]),
   ];
-  downloadCsv(`벌점 내역_${getPenaltyExportDateLabel()}.xls`, rows);
-  notify("상/벌점 누적 내역 파일을 다운로드했습니다.");
+  const blob = createStudentCohortWorkbookBlob("상벌점 내역", rows);
+  const url = URL.createObjectURL(blob);
+  const link = el("a", { href: url, download: `벌점 내역_${getPenaltyExportDateLabel()}.xlsx`, style: "display:none" });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify(`상/벌점 누적 내역 ${sortedSummaries.length}명을 다운로드했습니다.`);
 }
 
 function getPenaltyExportDateLabel() {
@@ -131,22 +137,6 @@ function getPenaltyExportDateLabel() {
     return `${penaltyPeriodFilter.start || "시작"}~${penaltyPeriodFilter.end || "종료"}`;
   }
   return getTodayDateKey();
-}
-
-function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
-  const blob = new Blob(["\ufeff", csv], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = el("a", { href: url, download: filename, style: "display:none" });
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function escapeCsvCell(value) {
-  const text = String(value ?? "");
-  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function penaltyPeriodControls() {

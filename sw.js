@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v480-cafe-loading";
+const CACHE_NAME = "outing-auth-app-v486-penalty-export";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -32,7 +32,7 @@ const APP_SHELL = [
   "/teacher-fitness.js?v=20261001-fitness-reason",
   "/teacher-students.js?v=20261014-menu-pressure",
   "/teacher-settings.js?v=20260806-learner-board-copy",
-  "/teacher-penalties.js?v=20260716-penalty-reason-edit",
+  "/teacher-penalties.js?v=20261020-penalty-export",
   "/teacher-seats.js?v=20260826-add-seats-117-118",
   "/question-board.js?v=20260819-attendance-board-review",
   "/inquiry-board.js?v=20260828-independent-inquiries",
