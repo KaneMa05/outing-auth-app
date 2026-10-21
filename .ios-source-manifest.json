@@ -1,0 +1,78 @@
+{
+  "kind": "ronpark-ios-cloud-source",
+  "branch": "codex/ios-native-build-20261021",
+  "files": [
+    {
+      "path": ".github/workflows/ios-native-build.yml",
+      "sha256": "3c54f44f873bab87eafa3b92a7d1866216aac938a2345f2c6174210048c49873"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "5287e36893889bbb0918224df0f879e6dff4c498b221d4f9a60e929e898251f1"
+    },
+    {
+      "path": "native/ios/App/Info.plist",
+      "sha256": "39021a0cde7dd3b3a08fbf2121a08713d09cabb46c5c515397f9cf62225ecbbc"
+    },
+    {
+      "path": "native/ios/App/Sources/RonparkStudyApp.swift",
+      "sha256": "1f79c296f32757fa64e3324fd3e691ff9fbd078adc97d2549cbeeb09e5ae513b"
+    },
+    {
+      "path": "native/ios/App/Tests/Policy/InterviewLaunchPolicyTests.swift",
+      "sha256": "9bc2460aab5f4a1d5f4201286579945661efc80bb3ab3ddabc988ac398db89d1"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
+      "sha256": "dcc0929f86e07544ebfe1252644961f598dcfb443bfd50cd87017daccd45837f"
+    },
+    {
+      "path": "native/ios/App/project.yml",
+      "sha256": "9de4397c59b19b9c69ad7ef28dc12d76166ffb7f312be7ba415bb6a2bea93d4e"
+    },
+    {
+      "path": "native/ios/InterviewNative/Package.swift",
+      "sha256": "cd90cb0a94be9a7dcbdb260ea4d3a11cda5dd5b474bd7cc962e9d50a33b4d908"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewAPI.swift",
+      "sha256": "85805e5485dadd6e17bc12c7297330c497904516dcd0807a5df4e2ddc40d7f40"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewCall.swift",
+      "sha256": "846c8f4f01e90008c4c029771f7a3cc9bf9e4dbfaf2d196564a29ac0686e5dc8"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewLaunchPolicy.swift",
+      "sha256": "6c0ff2e08c5f5c948a6b22ada2c1d6bab61664251c0a0227013813fdeaa57c5a"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewMedia.swift",
+      "sha256": "829c2e255414924b405d97a9922e0c1fc84a3f4a7a414fbd0ac20d629c6ef113"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewModel.swift",
+      "sha256": "21945ef5cea1190884adecf9bf97d2d20727125d6da4535e49e97a881120f5a4"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewView.swift",
+      "sha256": "1c2b9c4492460e7bf59c01621c681b6f1ff9cba1a5bdf7d2b0936e3d9220c9aa"
+    },
+    {
+      "path": "scripts/ios/build-cloud.sh",
+      "sha256": "eea7d840dad75bfa05ec80e2c1b2ea3c9c3a943fe120dd7f09437ce5b2090c7c"
+    },
+    {
+      "path": "scripts/ios/install-tools.sh",
+      "sha256": "62ca08a9d32df1299ca7db8bd6236e6430c660cfbe421632d6d77b973e285899"
+    },
+    {
+      "path": "scripts/ios/select-simulator.py",
+      "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
+    }
+  ],
+  "sourceCount": 17,
+  "deploymentEnabled": false,
+  "remotePushPerformed": false,
+  "cloudBuildPerformed": false
+}
