@@ -7932,6 +7932,15 @@ body:not([data-app-mode="teacher"]) .student-home {
   box-shadow: 0 1px 4px rgba(24, 55, 83, 0.1);
 }
 
+.pass-prediction-home-entry {
+  text-decoration: none;
+}
+
+.pass-prediction-home-entry:focus-visible {
+  outline: 3px solid #287eb9;
+  outline-offset: 3px;
+}
+
 .lecture-home-shortcut-icon {
   width: 34px;
   height: 34px;

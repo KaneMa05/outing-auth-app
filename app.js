@@ -3097,7 +3097,6 @@ function renderStudentHome() {
   const student = getAuthedStudent();
   if (getStudentCategory(student) === "lecture") return renderLectureStudentHome(student);
   const onlineMode = isOnlineStudentExperience(student);
-  const finalScopeAvailable = canUseFinalScopePlan(student);
   const activeOuting = !onlineMode && student ? getActiveOuting(student.id) : null;
   const todayAttendance = !onlineMode && student ? getStudentAttendanceForDate(student.id) : null;
   const holiday = onlineMode ? null : getAttendanceHoliday();
@@ -3115,7 +3114,7 @@ function renderStudentHome() {
           el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
         ]),
     onlineMode ? renderStudyCafeHomeCard(student) : null,
-    finalScopeAvailable ? renderFinalScopeHomeEntry() : null,
+    renderPassPredictionHomeEntry(),
     onlineMode ? null : renderStudentImportantNoticeCard(),
     !onlineMode && holiday && !todayAttendance
       ? el("section", { className: "student-summary-card" }, [
@@ -3334,7 +3333,7 @@ function renderLectureStudentHome(student) {
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     renderStudyCafeHomeCard(student),
     renderQuestionBoardHomePreview(student),
-    renderFinalScopeHomeEntry(),
+    renderPassPredictionHomeEntry(),
     renderCriminalLawOxLocalEntry(),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
@@ -3984,14 +3983,20 @@ function openFinalScopePlanGuide() {
   });
 }
 
-function renderFinalScopeHomeEntry() {
-  return button("", "lecture-home-shortcut final-scope-home-entry", "button", openFinalScopePlanGuide, [
+function renderPassPredictionHomeEntry() {
+  return el("a", {
+    className: "lecture-home-shortcut pass-prediction-home-entry",
+    href: "https://www.ronparkpass.com/",
+    target: "_blank",
+    rel: "noopener noreferrer",
+    ariaLabel: "26년 3차 합격 예측 서비스 바로가기 (새 창)",
+  }, [
     el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
-      el("span", { className: "footer-icon footer-icon-study-todo" }),
+      el("span", { className: "footer-icon footer-icon-study-ranking" }),
     ]),
     el("span", { className: "lecture-home-shortcut-copy" }, [
-      el("strong", {}, "회독 플랜"),
-      el("span", {}, "파이널 모의고사 회차별 시험 범위를 확인해요"),
+      el("strong", {}, "26년 3차 합격 예측 서비스"),
+      el("span", {}, "바로가기"),
     ]),
     el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
   ]);
