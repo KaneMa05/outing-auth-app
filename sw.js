@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v488-home-pass";
+const CACHE_NAME = "outing-auth-app-v489-home-pass-highlight";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -27,7 +27,7 @@ const APP_SHELL = [
   "/feedback-hub.js?v=20260911-feedback-free-only",
   "/study-record-share.js?v=20260917-study-share-fixes",
   "/manifest.webmanifest?v=20260513-student-attendance-exclude",
-  "/styles.css?v=20261023-home-pass",
+  "/styles.css?v=20261023-home-pass-highlight",
   "/teacher.js?v=20260911-admin-dashboard-retry",
   "/study-character.js?v=20260911-character-hair",
   "/study-cafe-bot-admin.js?v=20260911-bot-admin",
@@ -42,7 +42,7 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261023-home-pass",
+  "/app.js?v=20261023-home-pass-highlight",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",

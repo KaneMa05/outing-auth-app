@@ -3332,8 +3332,8 @@ function renderLectureStudentHome(student) {
   const notices = getStudentImportantNotices();
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     renderStudyCafeHomeCard(student),
-    renderQuestionBoardHomePreview(student),
     renderPassPredictionHomeEntry(),
+    renderQuestionBoardHomePreview(student),
     renderCriminalLawOxLocalEntry(),
     el("section", { className: "lecture-home-shortcuts-card" }, [
       el("div", { className: "lecture-home-section-head" }, [
