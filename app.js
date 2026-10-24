@@ -21,6 +21,8 @@ const routeTitles = {
   "curriculum-admin": "커리큘럼 관리",
   "final-scope-admin": "회독 플랜 관리",
   "criminal-law-ox-admin": "형사법 OX 관리",
+  "interview-prep-admin": "면접 준비 관리",
+  "interview-prep": "면접 준비 노트",
   "data-analytics": "데이터 분석",
   mypage: "마이페이지",
   faq: "자주 묻는 질문",
@@ -599,10 +601,18 @@ if (resetButton) {
 function handleRouteHistoryChange() {
   const requestedRoute = location.hash.replace("#", "") || defaultRoute();
   const nextRoute = normalizeRoute(requestedRoute);
+  if (APP_MODE==="teacher"&&currentRoute==="interview-prep-admin"&&typeof renderInterviewPrepModule==="function") {
+    const view=renderInterviewPrepModule.view;
+    if(view?.controller?.canLeave&&(nextRoute!==currentRoute||view.section!==getInterviewAdminSection())&&!view.controller.canLeave()){
+      history.replaceState(null,"",`${location.href.split("#")[0]}#interview-prep-admin?section=${view.section||"home"}`);
+      return;
+    }
+  }
   if (nextRoute === currentRoute) {
     if (String(requestedRoute).split("?")[0] !== nextRoute) {
       history.replaceState(null, "", `${location.href.split("#")[0]}#${nextRoute}`);
     }
+    if(APP_MODE==="teacher"&&nextRoute==="interview-prep-admin"){render();scrollAppToTop();}
     return;
   }
   if (nextRoute === "study-cafe" && currentRoute !== "study-cafe") {
@@ -667,10 +677,13 @@ function normalizeRoute(route) {
   };
   const normalized = legacy[routeName] || routeName;
   if (APP_MODE === "teacher") {
-    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "data-analytics", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
+    const teacherRoutes = ["home", "outing", "weekly-exams", "weekly-absences", "grades", "fitness", "penalties", "seats", "attendance", "study-cafe-admin", "study-cafe-history", "question-board-admin", "inquiry-board-admin", "curriculum-admin", "final-scope-admin", "criminal-law-ox-admin", "interview-prep-admin", "data-analytics", "notices", "teacher-accounts", "managers", "students", "student-exam-numbers", "student-push", "device-history", "student-preview", "track-options", "track-subjects", "duplicates", "trash"];
     if (!teacherRoutes.includes(normalized)) return "home";
     return teacherAuth.checked && teacherAuth.authenticated && !canUseRoute(normalized) ? firstAllowedTeacherRoute() : normalized;
   }
+  if (document.body.dataset.interviewPortal === "true") return "interview-prep";
+  if (typeof isInterviewStudentMode==='function' && isInterviewStudentMode()) return 'interview-prep';
+  if (normalized === "interview-prep") return normalized;
   if (normalized === "criminal-law-ox") return normalized;
   if (normalized === "curriculum" && !isCurriculumQuestEnabled()) return "home";
   const studentRoutes = ["home", "student", "student-verify", "student-return", "student-done", "attendance", "grades", "mypage", "faq", "push-settings", "other-settings", "notifications", "curriculum", "study-todo", "study-cafe", "feedback", "question-board", "inquiry-board", "study-timer", "study-ranking", "study-character", "study-shop", "notices"];
@@ -690,6 +703,7 @@ function defaultRoute() {
 }
 
 function navigate(route) {
+  if (["interview-prep","interview-prep-admin"].includes(currentRoute) && route !== currentRoute && typeof renderInterviewPrepModule === "function" && renderInterviewPrepModule.view?.controller?.canLeave && !renderInterviewPrepModule.view.controller.canLeave()) return;
   const nextRoute = normalizeRoute(route || defaultRoute());
   if (nextRoute === 'home' && currentRoute !== 'home' && requestCriminalLawOx.statusCache) requestCriminalLawOx.statusCache.expires = 0;
   const studyRoutes = ["curriculum", "study-todo", "study-cafe", "feedback", "question-board", "study-ranking", "study-timer", "study-character", "study-shop"];
@@ -709,8 +723,10 @@ function navigate(route) {
     studyCafePreviewState.temporaryNicknameAwaitingEntry = false;
   }
   if (APP_MODE !== "teacher" && nextRoute === "grades" && typeof resetStudentGradesView === "function") resetStudentGradesView();
-  const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextRoute}`;
-  location.hash = nextRoute;
+  const interviewSection=nextRoute==="interview-prep-admin"?new URLSearchParams(String(route||"").split("?")[1]||"").get("section"):null;
+  const nextHash=interviewSection&&typeof interviewAdminSections!=="undefined"&&Object.hasOwn(interviewAdminSections,interviewSection)?`${nextRoute}?section=${interviewSection}`:nextRoute;
+  const shouldScrollOnly = nextRoute === currentRoute && location.hash === `#${nextHash}`;
+  location.hash = nextHash;
   if (shouldScrollOnly) scrollAppToTop();
 }
 
@@ -723,13 +739,33 @@ function scrollAppToTop() {
 }
 
 function render() {
-  const requestedRoute = location.hash.replace("#", "") || defaultRoute();
+  if (typeof syncInterviewPortalHeader === "function") syncInterviewPortalHeader();
+  if (typeof renderInterviewPrepModule === 'function' && renderInterviewPrepModule.view) {
+    const view = renderInterviewPrepModule.view;
+    const accountKey = APP_MODE === 'teacher' ? 'admin:' + teacherAuth.user?.username :
+      getAuthedStudent()?.id + ':' + getStudentProfile(getAuthedStudent()?.id)?.deviceToken;
+    if (view.key !== accountKey || (APP_MODE === 'teacher' && !teacherAuth.authenticated)) {
+      view.controller?.destroy();
+      view.element.replaceChildren();
+      renderInterviewPrepModule.view = null;
+    }
+  }
+  if(typeof prepareInterviewAppEntry==='function'){
+    const gate=prepareInterviewAppEntry();
+    if(gate){app.replaceChildren(gate);app.removeAttribute('data-loading-shell');window.__studentAppReady?.();return;}
+  }
+  let requestedRoute = location.hash.replace("#", "") || defaultRoute();
+  if (typeof restoreInterviewAdminRoute === "function") {
+    const restored=restoreInterviewAdminRoute(requestedRoute);
+    if(restored!==requestedRoute){requestedRoute=restored;history.replaceState(null,"",`${location.href.split("#")[0]}#${restored}`);}
+  }
   const normalizedRoute = normalizeRoute(requestedRoute);
   if (normalizedRoute !== currentRoute) currentRoute = normalizedRoute;
   if (currentRoute !== 'criminal-law-ox' || !getAuthedStudent()) {
     renderCriminalLawOxLocalPreview.view?.controller?.destroy();
     renderCriminalLawOxLocalPreview.view = null;
   }
+  document.body.classList.toggle('student-interview-app-mode',APP_MODE!=='teacher'&&isStandaloneStudentApp()&&currentRoute==='interview-prep'&&!!getAuthedStudent());
   if (window.StudyRecordShare && (currentRoute !== "study-timer" || !getAuthedStudent() || !isOnlineStudentExperience(getAuthedStudent()))) {
     window.StudyRecordShare?.close();
   }
@@ -749,7 +785,7 @@ function render() {
   document.body.classList.toggle("study-timer-fullscreen-mode", studyTimerFullscreenMode);
   syncStudyCafePowerSavingMode();
   document.body.classList.toggle("student-home-route", APP_MODE !== "teacher" && currentRoute === "home");
-  const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp();
+  const studentBrowserInstallOnly = APP_MODE !== "teacher" && !isStandaloneStudentApp() && document.body.dataset.interviewPortal !== "true";
   document.body.classList.toggle("student-browser-install-only", studentBrowserInstallOnly);
 
   document.querySelectorAll("[data-route]").forEach((button) => {
@@ -777,9 +813,14 @@ function render() {
       updateStudentFooterIndicator(footer);
     });
   }
-  if (APP_MODE === "teacher") updateTeacherNavSections();
+  if (APP_MODE === "teacher") {
+    if(typeof syncInterviewAdminMode==="function")syncInterviewAdminMode();
+    updateTeacherNavSections();
+  }
 
   title.textContent = getRouteTitle(currentRoute);
+  if(APP_MODE==="teacher"&&currentRoute==="interview-prep-admin"&&typeof getInterviewAdminSection==="function")
+    title.textContent=interviewAdminSections[getInterviewAdminSection()];
   if (topActions) {
     topActions.innerHTML = "";
     if (APP_MODE === "teacher" && teacherAuth.authenticated) {
@@ -828,6 +869,7 @@ function render() {
           "curriculum-admin": renderCurriculumAdmin,
           "final-scope-admin": renderFinalScopeAdmin,
           "criminal-law-ox-admin": renderCriminalLawOxAdmin,
+          "interview-prep-admin": () => typeof renderInterviewPrepAdmin === "function" ? renderInterviewPrepAdmin() : renderForbidden(),
           "data-analytics": () => renderDataAnalyticsAdmin(),
           notices: renderNoticesAdmin,
           "teacher-accounts": renderTeacherAccountsAdmin,
@@ -857,6 +899,7 @@ function render() {
           notifications: () => requireStudentAuth(renderStudentNotifications),
           curriculum: () => isCurriculumQuestEnabled() ? requireStudentAuth(renderCurriculumQuest) : requireStudentAuth(renderStudentHome),
           "criminal-law-ox": () => requireStudentAuth(renderCriminalLawOxLocalPreview),
+          "interview-prep": () => typeof renderInterviewPrep === "function" ? requireStudentAuth(renderInterviewPrep) : renderForbidden(),
           "feedback": () => requireStudentAuth(renderStudentFeedbackHub),
           "study-todo": () => requireStudentAuth(renderStudentPlannerHub),
           "study-cafe": () => requireStudentAuth(renderStudentStudyCafe),
@@ -874,7 +917,7 @@ function render() {
     (APP_MODE !== "teacher" && currentRoute.startsWith("notice-") ? () => requireStudentAuth(renderStudentNoticeDetail) : routes[defaultRoute()]);
   const nextView =
     APP_MODE === "teacher"
-      ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderRoute() : renderForbidden()))
+      ? requireTeacherAuth(() => (canUseRoute(currentRoute) ? renderTeacherDataRoute(renderRoute) : renderForbidden()))
       : renderRoute();
   if (APP_MODE !== "teacher" && studentStudyRouteTransitionDirection && nextView instanceof HTMLElement) {
     nextView.classList.add("student-study-route-enter");
@@ -1151,7 +1194,7 @@ function renderStudentAuth() {
     if (!selectedStudent) {
       return notify("먼저 관리자가 등록한 고유번호를 조회해주세요.");
     }
-    if (!isStandaloneStudentApp()) {
+    if (!isStandaloneStudentApp() && document.body.dataset.interviewPortal !== "true") {
       openInstallGuideModal();
       return notify("홈화면에 추가한 뒤 홈화면 아이콘으로 다시 열어 등록해주세요.");
     }
@@ -1232,7 +1275,12 @@ function renderStudentAuth() {
       : `${selectedStudent.name}님 인증되었습니다.`);
   });
 
-  return el("div", { className: "grid student-view" }, [form, renderLectureApplicationEntryCard(), renderStudentAuthInstallCard()].filter(Boolean));
+  if (document.body.dataset.interviewPortal === "true") {
+    return el("div", { className: "grid student-view" }, [
+      form, el("p", {}, "등록번호가 없거나 면접반 이용 등록이 필요하면 관리자에게 문의해주세요."),
+    ]);
+  }
+  return el("div", { className: "grid student-view" }, [form, button('면접반 로그인','btn secondary','button',()=>location.assign('/interview?app=1')), renderLectureApplicationEntryCard(), renderStudentAuthInstallCard()].filter(Boolean));
 }
 
 function renderLectureApplicationEntryCard() {
@@ -4432,6 +4480,7 @@ function renderStudentMypage() {
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentOtherSettingsCard(),
+    typeof renderInterviewPrepEntry === "function" ? renderInterviewPrepEntry() : null,
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
     renderStudentDeviceRegistrationCard(),
     renderHomeScreenInstallCard(),

@@ -1,0 +1,63 @@
+{
+  "files": 6,
+  "occurrences": 5434,
+  "unique_exact_questions": 5083,
+  "by_track": {
+    "공채": 965,
+    "항해": 1694,
+    "기관": 1569,
+    "방제": 343,
+    "관제": 470,
+    "기타": 393
+  },
+  "topic_suggestions": {
+    "leadership": 22,
+    "failure": 237,
+    "communication": 146,
+    "stress": 193,
+    "integrity": 110,
+    "teamwork": 40,
+    "achievement": 58,
+    "responsibility": 45,
+    "service": 72,
+    "self": 318,
+    "motivation": 125,
+    "unclassified": 1577,
+    "public": 101,
+    "judgement": 196
+  },
+  "questions_by_category": {
+    "personality": 2952,
+    "job": 2131
+  },
+  "occurrences_by_category": {
+    "personality": 3239,
+    "job": 2195
+  },
+  "without_year": 0,
+  "classification": "keyword-rule suggestions, awaiting admin review",
+  "headings": {
+    "사전질문지(2026년)": 2,
+    "직무 질문(2026년)": 6,
+    "인성 질문(2026년)": 6,
+    "직무 질문(2025년)": 12,
+    "인성 질문(2025년)": 12,
+    "직무 질문(2024년)": 10,
+    "인성 질문(2024년)": 10,
+    "직무 질문(2023년)": 9,
+    "인성 질문(2023년)": 9,
+    "직무 질문(2022년)": 9,
+    "인성 질문(2022년)": 9,
+    "직무 질문(2021년)": 10,
+    "인성 질문(2021년)": 10,
+    "직무 질문(2020년)": 9,
+    "인성 질문(2020년)": 9,
+    "직무 질문(2019년)": 4,
+    "인성 질문(2019년)": 4,
+    "직무 질문(2017년)": 5,
+    "인성 질문(2017년)": 5,
+    "사전질문지(2025년)": 2,
+    "직무 질문(2018년)": 5,
+    "인성 질문(2018년)": 5
+  }
+}

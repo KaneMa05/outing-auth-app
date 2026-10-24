@@ -1,0 +1,9 @@
+{
+  "engine": "local PGlite (single DB connection; not production concurrency proof)",
+  "clients": 50,
+  "statusRequests": 300,
+  "ordinarySaves": 6,
+  "unchangedReplies": 295,
+  "statusP95Ms": 31,
+  "saveP95Ms": 18
+}

@@ -4,6 +4,8 @@ const { createRpcRetryState, isStoreConnectionFailure } = require("../supabase-r
 const { withSupabaseDeadline } = require("../supabase-request-timeout");
 const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
 const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
+const { createCafeReadModels, readCafePages } = require("./study-cafe-read-model");
+const readCafeModel = createCafeReadModels(requestSupabase);
 
 const ALLOWED_ACTIONS = new Set([
   "feature_list",
@@ -992,7 +994,10 @@ async function loadStudyCafeShopSummary(studentId, now, equipment, settledWallet
 
 async function loadStudyCafeShop(studentId, now) {
   const wallet = await awardStudyCafeTimePoints(studentId, now);
-  const [items, inventory, equipment, history] = await Promise.all([
+  const model = await readCafeModel("get_study_cafe_shop_read_model", { p_student_id: studentId }, ["items", "inventory", "equipment", "history"]);
+  const [items, inventory, equipment, history] = model
+    ? [model.items, model.inventory, model.equipment, model.history]
+    : await Promise.all([
     requestSupabase(
       "GET",
       "study_cafe_shop_items?is_active=eq.true&select=id,name,description,slot,icon,price,sort_order&order=sort_order.asc,id.asc"
@@ -1071,10 +1076,11 @@ function serializeShopItem(row) {
 }
 
 async function loadStudyStats(studentId, range, now) {
-  const sessions = await requestSupabase(
-    "GET",
-    `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at,updated_at&order=started_at.asc`
-  );
+  const model = await readCafeModel("get_study_cafe_student_stats", {
+    p_student_id: studentId, p_start: range.start, p_end: range.end, p_now: now.toISOString(),
+  }, ["groups"]);
+  const sessions = model ? [] : await readCafePages(requestSupabase,
+    `study_cafe_sessions?student_id=eq.${encodeURIComponent(studentId)}&started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,subject_name,status,elapsed_seconds,started_at,active_started_at,ended_at,updated_at&order=started_at.asc,id.asc`);
   const rows = Array.isArray(sessions) ? sessions : [];
   const dayMap = new Map(range.dateKeys.map((date) => [date, {
     date,
@@ -1106,6 +1112,20 @@ async function loadStudyStats(studentId, range, now) {
     subjectTotals[subject] = (subjectTotals[subject] || 0) + seconds;
   });
 
+  if (model) model.groups.forEach(group => {
+    const day = dayMap.get(group.study_date);
+    if (!day) return;
+    const subject = normalizeText(group.subject, 20) || "기타";
+    const seconds = Number(group.total_seconds) || 0;
+    day.totalSeconds += seconds;
+    day.longestSeconds = Math.max(day.longestSeconds, Number(group.longest_seconds) || 0);
+    day.sessionCount += Number(group.session_count) || 0;
+    day.firstStartedAt = earlierIso(day.firstStartedAt, new Date(group.first_started_at).toISOString());
+    day.lastEndedAt = laterIso(day.lastEndedAt, new Date(group.last_ended_at).toISOString());
+    day.subjects[subject] = (day.subjects[subject] || 0) + seconds;
+    subjectTotals[subject] = (subjectTotals[subject] || 0) + seconds;
+  });
+
   const days = [...dayMap.values()];
   const totalSeconds = days.reduce((sum, day) => sum + day.totalSeconds, 0);
   const studiedDays = days.filter((day) => day.totalSeconds > 0).length;
@@ -1119,27 +1139,33 @@ async function loadStudyStats(studentId, range, now) {
       studiedDays,
       dailyAverageSeconds: studiedDays ? Math.floor(totalSeconds / studiedDays) : 0,
       maxDailySeconds: days.reduce((max, day) => Math.max(max, day.totalSeconds), 0),
-      sessionCount: rows.length,
+      sessionCount: days.reduce((sum, day) => sum + day.sessionCount, 0),
     },
   };
 }
 
 async function loadStudyRanking(studentId, period, now) {
   const range = getCurrentRankingRange(period, now);
-  const [sessions, profiles, presence, onlineStudents] = await Promise.all([
-    requestSupabase(
-      "GET",
-      `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,student_id,status,elapsed_seconds,started_at,active_started_at,ended_at`
+  const model = await readCafeModel("get_study_cafe_period_totals", {
+    p_start: range.start, p_end: range.end, p_now: now.toISOString(),
+  }, ["totals", "profiles", "presence", "onlineStudents"]);
+  const [sessions, profiles, presence, onlineStudents] = model
+    ? [model.totals, model.profiles, model.presence, model.onlineStudents]
+    : await Promise.all([
+    readCafePages(requestSupabase,
+      `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}&started_at=lt.${encodeURIComponent(range.end)}&select=id,student_id,status,elapsed_seconds,started_at,active_started_at,ended_at&order=started_at.asc,id.asc`
     ),
-    requestSupabase("GET", "study_cafe_profiles?select=*"),
-    requestSupabase("GET", "study_cafe_presence?select=student_id,display_name"),
-    requestSupabase("GET", "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name"),
+    readCafePages(requestSupabase, "study_cafe_profiles?select=student_id,nickname,avatar_tone,hair_style&order=student_id.asc"),
+    readCafePages(requestSupabase, "study_cafe_presence?select=student_id,display_name&order=student_id.asc"),
+    readCafePages(requestSupabase, "students?student_category=in.(online_managed,lecture)&is_active=eq.true&select=id,name&order=id.asc"),
   ]);
   const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((row) => [row.student_id, row]));
   const presenceMap = new Map((Array.isArray(presence) ? presence : []).map((row) => [row.student_id, row]));
   const studentMap = new Map((Array.isArray(onlineStudents) ? onlineStudents : []).map((row) => [row.id, row]));
   const totals = aggregateSessionSeconds(Array.isArray(sessions) ? sessions : [], now, (row) => row.student_id);
-  const ranking = [...totals.entries()]
+  // Equal totals have a deterministic order across the aggregate and paged paths.
+  const ranking = [...totals.entries()].sort(([leftId, left], [rightId, right]) =>
+    right - left || String(leftId).localeCompare(String(rightId), "en"))
     .map(([id, totalSeconds]) => ({
       studentId: id === studentId ? id : undefined,
       name: id === studentId
@@ -1393,7 +1419,10 @@ async function requestSupabase(method, path, body, extraHeaders = {}, requestOpt
       throw error;
     }
     if (response.status === 204) return null;
-    return response.json().catch(() => null);
+    const data = await response.json().catch(() => null);
+    const range = response.headers?.get?.("content-range")?.match(/^(\d+)-(\d+)\//);
+    if (Array.isArray(data) && range) Object.defineProperty(data, "nextPageOffset", { value: Number(range[2]) + 1 });
+    return data;
   }, { signal: requestOptions.signal });
 }
 
@@ -1806,6 +1835,9 @@ function avatarToneForId(studentId) {
 }
 
 module.exports._private = {
+  loadStudyStats,
+  loadStudyRanking,
+  loadStudyCafeShop,
   aggregateSessionSeconds,
   clearStalePresence,
   getCurrentRankingRange,

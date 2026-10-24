@@ -1,0 +1,6224 @@
+{
+  "source_sha256": "d603cf9646c2378fe71d345d12ac0c31d29ef0a1c242a70acc74f4d13c82a08e",
+  "method": "analyst-semantic-v1",
+  "records": [
+    {
+      "question_id": "q-a5a82cdbee1adfada90346d8",
+      "source_prompt": "본인이 평가하는 모습과 타인이 평가하는 모습이 달랐던 경험을 작성하세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ],
+      "rationale": "자기평가와 타인의 평가가 어긋난 경험을 묻습니다. 자신의 행동을 어떻게 확인했고 평가 차이를 통해 무엇을 수정했는지 수집합니다. 인기나 평판 자체를 점수화하지 않습니다."
+    },
+    {
+      "question_id": "q-80c83ca91d274c1c67693603",
+      "source_prompt": "나를 표현하는 단어 3가지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-849f45fd3cfbc7ec668f9c04",
+      "source_prompt": "자기를 나타내는 3가지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-6f1604bf04912461c09ccdae",
+      "source_prompt": "자신을 나타내는 세 가지 단어와 그 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-11d273f00e5ee16b9c34169a",
+      "source_prompt": "본인은 학창시절 어떤 학생이었는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-967a5ab2625f16f9cfb387d4",
+      "source_prompt": "취미가 무엇인가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-9358eea8b6afdd8216087a76",
+      "source_prompt": "나를 보장할 수 있는 사람이 누가 있냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5066f17c280f6df2f35d9077",
+      "source_prompt": "인성 검사 결과에서 주변 사람들의 말을 잘 안 듣는다는데 어떻게 생각하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-266abbc2b2cda1be13ae4b78",
+      "source_prompt": "자신은 10점 만점에 몇 점인가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-054b0b175f5c7d4899e0c8a5",
+      "source_prompt": "인성 검사 결과와 지원자의 말 중에 어떤 걸 믿어야 하나",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-3ee59d88dc190258c1275bbb",
+      "source_prompt": "가장 기뻤던 경험은?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c38126e30fc7daa73fbda69a",
+      "source_prompt": "하고 싶은 말",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-877c14986e90eaf4d1921cff",
+      "source_prompt": "본인의 안 좋은 점",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-9324aa5d3ded9b8aa948de05",
+      "source_prompt": "본인은 내성적인가요? 네. 라고 답하니까",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5adb6b87b43ff13348e0ae51",
+      "source_prompt": "본인은 어떤 인재인지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ed0324d787c0015ea0c58792",
+      "source_prompt": "학창시절 가졌던 좋은 습관",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-071238e65f4f2faea641a57c",
+      "source_prompt": "PR할수있는 시간 드릴게요. 본인의 자랑을 해보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-219d09ff1cfba7773eadf351",
+      "source_prompt": "자신을 한번 설명해보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-2383311c29242cbdab211c6b",
+      "source_prompt": "어떤 자리에서 본인의 본 모습이 나오나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-e75a34475afb9690c7fc5724",
+      "source_prompt": "본인의 면접점수는 100점 중 몇 점?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-0eeebb55636da947853cc8f3",
+      "source_prompt": "지금 면접을 면접관이면 몇 점을 줄 것인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5541a12534d36315912e75c1",
+      "source_prompt": "본인은 주변사람에게 어떤 평가를 받았는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-76d2f99e30e1b86fb34c4084",
+      "source_prompt": "본인을 친구들은 뭐라고 말하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-dbdd98d3f064bc631ac504d8",
+      "source_prompt": "내 자랑 해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-20e5fc4dcda2bd56b261a85b",
+      "source_prompt": "당신의 어떤 점을 좋아하고, 싫어하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-70ce56c9d8a111b8571f2fbd",
+      "source_prompt": "가진 습관 그리고 계속 꼬리질문",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5d544801223f193048ad6e73",
+      "source_prompt": "지금 나(면접자 본인)에게 해주고 싶은 말",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ee0f48b11534b4f4051a5eb4",
+      "source_prompt": "거절 잘 하는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-4828586a66404a7fdf405ca1",
+      "source_prompt": "자신한테 해주고 싶은 말은?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c6444e9096e7b4b35a0c22e1",
+      "source_prompt": "나 자신에게 하고 싶은 말",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c7a2955df23e90bdc6a140c6",
+      "source_prompt": "주변에서 날 어떻게 보는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-7aec2d21b650a84bf2048489",
+      "source_prompt": "자신에게 해주고 싶은 말",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-f1c4496a1c3e089b77686d6a",
+      "source_prompt": "나는 _____다 자기를 알려 보아라. 영어로 해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5e45bd9cbda0cbaf9eee1e15",
+      "source_prompt": "긍정적인 것 같은데 자신의 긍정적인 점수는 100점 만점에 몇 점?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-2aa51e49b03826b36bc6e983",
+      "source_prompt": "내향적이에요? 외향적이에요?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ca080c94fabd5d58b1a2f212",
+      "source_prompt": "본인소개 영어로",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-a05508b5f22bfa760e025a1c",
+      "source_prompt": "지금 나에게 해주고 싶은말은??",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-f4840309c0e0f3331724fca3",
+      "source_prompt": "취미는 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-795a425f1fb70909047516cf",
+      "source_prompt": "어떤 악기를 다룰 줄 아는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-7915fc7d7825cc233e9028a2",
+      "source_prompt": "좋아하는 운동과 그 이유는?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-45076f04154b46dc1485786a",
+      "source_prompt": "본인 면접점수는 몇점정도 될 거같냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-96c4a15500a48d410149b9fa",
+      "source_prompt": "지금까지 대답한 거 만족하냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-726f7f45c9c137ae43fe556f",
+      "source_prompt": "다른 사람들은 자신만의 마음을 다 보여준다고 생각하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-2dbb5acbcdcfdf906f354061",
+      "source_prompt": "친구들에게 어떤 평가를 받았는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-61cc82f8fc3538283b351a70",
+      "source_prompt": "본인이 남들에게 숨기고 싶은 모습이 있냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-bb266999b98f8ad4b571bc8c",
+      "source_prompt": "면접잘본거같냐 못본거같냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-4c8fec907a6d6f719976fd09",
+      "source_prompt": "주변인들이 본인에 대해 어떻게 생각하는 거 같냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-65c9afa98d9b0c24d397944e",
+      "source_prompt": "( 자신감이라고 답하니 ) 겸손이 뭐라고 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-db74cddea7c4e38ba57d6e27",
+      "source_prompt": "2 면접에서 잘 대답한 것 했나",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-da56a0f39c159cf8769e0bfc",
+      "source_prompt": "만약 고등학교 선생님이 자기한테 지원자에 긍정적인 말 하나 부정적인 말 한가지 한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-56d157f6ab899ecc866cb812",
+      "source_prompt": "2대2에서 별로 대답을 못하셨나봐요?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c708aac45047dc4581a4098c",
+      "source_prompt": "지금 본인 시험 합격률은 %로 보는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-750ce8b137ee3bda35f144eb",
+      "source_prompt": "본인의 합격 가능성은 몇 퍼센트인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c0745ca6199dd80448698c71",
+      "source_prompt": "100점 만점에 몇 점?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-3d2061cb131bfb5d01514361",
+      "source_prompt": "몇점정도 예상하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-bdc0df8efcbda823588934e8",
+      "source_prompt": "내숭이 뭔지 아시죠? 본인이 생각하는 내숭이란 무엇인가요?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-060ccef4775cd4d61a0dd868",
+      "source_prompt": "나의 고등학교시절 질문 (합격함)",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-0a6e4eab04973422ee91ade7",
+      "source_prompt": "주위에서 예의바르고 착하다는 평가를 하는 이유가 뭐라고 생각하죠?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-50ae12a1bb7e4ed21b8bf159",
+      "source_prompt": "지금 계속 웃고 있는데 여유인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-a18a5b3a83d69bea8eb0e312",
+      "source_prompt": "자기이름을 한자로 써보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c7af5d548f484a4a7ea99283",
+      "source_prompt": "자신한테 하고 싶은 말은?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-cafd2edda07f222dacfcc789",
+      "source_prompt": "자신 자랑 한번 해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ce2e29202774e8b38a4e5056",
+      "source_prompt": "본인은 남들에게 어떤 평가를 받는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-de5bd564755ce18dc8ca607f",
+      "source_prompt": "개인자랑?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-a84fc737f83bdbf12ec24411",
+      "source_prompt": "친구들이 본인을 어떻게 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ec73cd490d0757aff9ce17d7",
+      "source_prompt": "자기 자랑(3개)",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-28e9e859fa326e33107023d7",
+      "source_prompt": "친구가 제 3자에게 나에 대해 설명한다 어떻게 설명할까요?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-cd982969ff4cef5fa91532e8",
+      "source_prompt": "친구가 내 욕을 한다면 어떤 욕을 할까 상황극 해보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-3500056caf726ccb279e879a",
+      "source_prompt": "본인이 생각한 본인의 면접 점수는?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-6bcdf0c05a4d386a176a4dd0",
+      "source_prompt": "혹시 다른 사람들이 본인을 뭐라고 하는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-72e480e817f1909fe65d4bbb",
+      "source_prompt": "지금까지 가장 기분이 좋았던 일은 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-ff57bdec5fce4378c7f3c190",
+      "source_prompt": "(타인에게 편안함을 주는 초록색이라고 대답하자) 왜 본인을 편안해 한다고 생각하는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c0e8bd8c076ad9b42479e60f",
+      "source_prompt": "면접관님 질문중에 정정하고 싶거나 할 말 있냐",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-2ef0219d02267a5421eff2eb",
+      "source_prompt": "마지막 한마디",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-401d392ec4806b89f0e6c56c",
+      "source_prompt": "다른 면접자들보다 잘한 거 못한 거",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-4e6d374fa09d49f5d548b1a6",
+      "source_prompt": "친구나 동료는 본인을 어떻게 평가합니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-192bd18a29f315060077d9c2",
+      "source_prompt": "본인 면접 점수로 매긴다면 몇 점 주고 싶은지? 그 이유는?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c41ff9355ebe2bfcee7961a2",
+      "source_prompt": "평소에 주변인들로부터 어떤 평가를 받는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-681fc84de8cbab180f571181",
+      "source_prompt": "본인 면접 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-8711c8f37c9eecd95b39ed0a",
+      "source_prompt": "본인 면접 상중하 중에 어느 정도라고 생각하는지 그 이유?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-1b15bf86a442c8f28e869aec",
+      "source_prompt": "오만한 자신감과 소심한 겸손",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-4cad4e5e1dfa13d632f796ca",
+      "source_prompt": "추가적 하고 싶은 말 있는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-d51d12b9880b416bb46157f8",
+      "source_prompt": "학창시절에 본인은 몇 점이었는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-6c440aeafd02e337782c9dfb",
+      "source_prompt": "학생 때 사람들이 나를 어떻게 평가했는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-bbc18b69832e09a3be474a98",
+      "source_prompt": "20초 동안 하고 싶은 말?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-19d52d4299beaee752d7e970",
+      "source_prompt": "다른 사람이 나를 평가하는 말 5개",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-cdd583ebb67ec95f2a874a69",
+      "source_prompt": "남들이 평가하는 자신을 5가지 단어로 말해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-5391473700a0fee1413a01af",
+      "source_prompt": "본인이 면접관이면 몇점? 8점 -> 2점은 왜 부족?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-49a6761d5407d0516c54c395",
+      "source_prompt": "본인과 다른 면접자 중 누가 합격해야 한다고 생각합니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-3bcfcacd07cab97e0ed98edf",
+      "source_prompt": "스터디원과 비교해 본인이 뛰어난 점은 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-836bcd56649585594535948e",
+      "source_prompt": "자기가 다른 지원자들보다 뛰어나다고 생각하는 점",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-182d81a2141b87890b7eed63",
+      "source_prompt": "자신이 뽑혀야 하는 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-fc9b281a2ac39a2a703ad4d4",
+      "source_prompt": "내가 자부할 수 있는 해경에 도움 되는 능력",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-0ab623a96338c245adcd780a",
+      "source_prompt": "국어랑 수학 중 어떤 능력이 우수한 것 같은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-91b122e5300de8495bac9911",
+      "source_prompt": "자신만의 자랑거리 매력이 뭔지 한 가지만.",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-81b619b9958558fb38b3b7cf",
+      "source_prompt": "항해 외에 해양경찰 집단에 도움을 줄 수 있는 역량에 대하여, 어떻게 할 수 있을지 설명하시오.",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-64d5b5e7f37f005d44d3b107",
+      "source_prompt": "본인은 무엇이 가장 뛰어나다고 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-1f2e317c7a5a768024040251",
+      "source_prompt": "본인과 그 사람 중에 누가 합격해야는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-72d97cba754ca31118898d42",
+      "source_prompt": "자신은 인성 적성 중 어떤 부분이 해경과 더 적합하다 생각하는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-4162733a76ab7302b47a6985",
+      "source_prompt": "똑같은 경험으로 보는데 순경 보는 사람도 있다 경장으로 우대해줘야 하는 이유?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-1cec36bcda2a8792bb2b2299",
+      "source_prompt": "본인이 전문지식이 남들보다 나은 점이 무엇인가",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-0f37fb2d024ab34cd1fc40e0",
+      "source_prompt": "자신의 어떤 역량으로 무엇을 할 수 있는지",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-bd15d97234899525f6c2788a",
+      "source_prompt": "서류작업 잘하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-612f59ffafd90626edfdebff",
+      "source_prompt": "본인이 뽑혀야 하는 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-2fc2929e85557b0e1886cffa",
+      "source_prompt": "잘하는 게 뭔지",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-b256644af7dfe289e0dd1b53",
+      "source_prompt": "기관이 본인에게 맞냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-a2a5cc5a7a647df600ee72d3",
+      "source_prompt": "자신이 부족한 거 하나를 가질 수 있다면 무엇? 그 이유는?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-f9f969e71b47cd5a6bfe5f12",
+      "source_prompt": "이 업무가 방제과에서 도움이 되겠는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-d5b9b53a09812d663d4cd818",
+      "source_prompt": "방제국에 특화된 사람이냐 너는?",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-d42a50dd1642537d1c1cd5b2",
+      "source_prompt": "본인이 관제사로 뽑혀야 되는 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "strength-evidence"
+      ]
+    },
+    {
+      "question_id": "q-fa21fb0bda622642d10acfbf",
+      "source_prompt": "고치고 싶은 습관이 있습니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-c6ff805d8a6c719749a71ea3",
+      "source_prompt": "신에게 받지 못한 것 또는 부족한 점 세 가지는 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-0117fc2985231c8cda5d4b32",
+      "source_prompt": "본인 부족한 걸 어떻게 아는지",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-f5ae2572857efc8301331e39",
+      "source_prompt": "오늘 면접에서 다른 지원자보다 잘 되어있는 점 부족한 점",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-5e7d199caf4e816d21df060a",
+      "source_prompt": "자신의 고칠 점",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-1589aaa3abd100eef80473f6",
+      "source_prompt": "본인이 가진 습관 중 고치기 어려운 습관, 어떻게 고쳤고, 얼마나 걸렸는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-919d1613ded8dfc77dc77391",
+      "source_prompt": "본인에게 가장 악영향을 끼쳤던 습관은?",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-fe9fa0319d5c5ce1cfdc4407",
+      "source_prompt": "친구들이 나에게 불편해 하는 점이 뭐냐",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-965ef49cc3a889214921b9f8",
+      "source_prompt": "자신에게 좀 부족하다고 생각하는 부분(저는 융통성이 부족하다고 함)",
+      "disposition": "personal",
+      "element_ids": [
+        "weakness-change"
+      ]
+    },
+    {
+      "question_id": "q-ece805eac7b719467e39f7cb",
+      "source_prompt": "다시 태어난다면 나는 어떠한 가치로 살 것인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-15d4f56d8d7026379841f5a1",
+      "source_prompt": "선을 넘는 행동은 어떤 것이고 본인의 기준은 무엇인가",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-d344dbf8a2b2d7ab94bc1f8c",
+      "source_prompt": "다시 태어난다면 중요하게 생각할 가치는?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-2a4c376030b36e21269fed70",
+      "source_prompt": "본인의 선넘는 기준이 뭔지",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-4884c23b0eac0c2235f7f4a4",
+      "source_prompt": "최근에 본 영화, 드라마, 책?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-0bd3986718a12d8c7267bc34",
+      "source_prompt": "초능력을 가진다면 무엇 가지고 싶나",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-39a24ed06baeabf25e5f8f8e",
+      "source_prompt": "단어 10가지 정도 불러주고 여기서 끌리는 단어 두 가지 선택하고 그 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-93b7c1c34d3cc76a67306e58",
+      "source_prompt": "로또 1등 당첨되면 뭐할꺼냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-31b92b004dff9a2608a239be",
+      "source_prompt": "장기적으로 계획 했었던거 뭐있냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-6ca6c083ab6cca319b82f793",
+      "source_prompt": "선을 넘는 행동이란?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-ca4fce3c9efd925b32a544b5",
+      "source_prompt": "타임머신 타고가면 어디로",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-1629c682fdedcfc40c647da9",
+      "source_prompt": "초능력이 생기면 뭘 갖고싶냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-d3aa87a4de44e874c8ff5517",
+      "source_prompt": "초능력을 가진다면 무슨 능력",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-b3204fdef5e02c248ccec13b",
+      "source_prompt": "초능력 하나 가진다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-170d147df5c75e34c5613d2b",
+      "source_prompt": "초능력을 가진다면 어떤 거",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-5124f19f693c62d5cd10964b",
+      "source_prompt": "여행 다녀온 경험이 있는지",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-a3b15a8e27cf795ab1f26699",
+      "source_prompt": "여행지 중 가장 좋았던 곳과 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-bbe44e1c14ae793dfdcd6472",
+      "source_prompt": "가지고 싶은 초능력과 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-4c85b632f6ae7eb1e7825e58",
+      "source_prompt": "최근 본 영화나 책?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-ed33159659e6cff90a25ef05",
+      "source_prompt": "자식에게 도덕적인 가치 하나만 강요하고 싶다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-75c128ce624b20318231a6b0",
+      "source_prompt": "자신이 가장 중요하게 생각하는 일은?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-fa7856570cd264695a775164",
+      "source_prompt": "삶이란 무엇이냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-b699889b7f89a9c1b0ebd2b6",
+      "source_prompt": "어떤 삶을 살고 싶은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-ad4f17b8afecaaabf31f6fd2",
+      "source_prompt": "본인기준 신뢰 할 수 있는 사람",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-dce75119aaf74de063b4dfc8",
+      "source_prompt": "신뢰를 갖는 기준",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-f49df2f8a5bc4d9c1c63c9e0",
+      "source_prompt": "마음의 문이 있다고 생각해봐라. – 무슨 재질이냐, 문고리는 무엇이냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-cded88d00f62b4792f76b732",
+      "source_prompt": "본인이 생각하는 영웅이란?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-72536fe481e3c37ea1643e5e",
+      "source_prompt": "해경채널 말고 어떤 유튜브 채널 보세요?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-c7da91005563cf3ef6b1ab1c",
+      "source_prompt": "겸직이 된다면 어떤 유튜브 채널 개설하고 싶은가",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-b24398868f14ad969412af9f",
+      "source_prompt": "최근에 봤던 기억남은 유튜브",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-e5b63c465b7f7c872bbf03ca",
+      "source_prompt": "5살로 돌아간다면 어떨거 같냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-0dd72f4471e5ddba5c7004d3",
+      "source_prompt": "초능력 가질 수 있다면 뭐할거냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-1d65a59daa378971663055b6",
+      "source_prompt": "자식이 생긴다면 가장 중요하게 가르치고 싶은 것",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-94a8cb6d8a38e38b694bb9fe",
+      "source_prompt": "타임머신 타고 과거 가면 무엇을 하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-8ef466e1018856943150ea95",
+      "source_prompt": "(말하니까)다시 타임머신 타고 그 과거로 가서 무얼하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-f644071aa760970e87b4cfba",
+      "source_prompt": "갖고 싶은 초능력",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-5c535fc3f4b02590595ab12b",
+      "source_prompt": "초능력을 가진다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-1709a483642020a069947970",
+      "source_prompt": "버리고 싶은 3가지",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-c3a89fed7a6016963deea24c",
+      "source_prompt": "가장 중요한 물건은 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-f567c358a1d3aedcab9b637f",
+      "source_prompt": "살아야 하는데 필요한 것?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-a276149607253fe124bcf6cd",
+      "source_prompt": "자신이 중요하다고 생각하는것 3가지?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-d73d511b116653020fc6b69a",
+      "source_prompt": "자기가 생각하는 버려야 할 것?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-854b5b42d4d46b2cf901e783",
+      "source_prompt": "3가지를 제외한 가장 중요한 것?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-d14563cf47d2de1671867515",
+      "source_prompt": "살아오면서 가장 잘했던 거",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-dfae155c1534f1e25d89096f",
+      "source_prompt": "심리학에 관한 도서 중 기억에 남는 것 있습니까? 있다면 느낀 점을 말해보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-cad6d2cf59bd92b08ab721f5",
+      "source_prompt": "좋아하는 색깔이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-c9ff56c023c4ad01a215ae90",
+      "source_prompt": "나에게 가장 감사한 것은 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-a2e8f1ec963fd9e6c24c569d",
+      "source_prompt": "이런 사람만큼은 되지 말아야겠다 하는 사람? 그 이유는?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-e6115a7f5eb62dad5cdbf348",
+      "source_prompt": "지금 가장 고마운 사람과 미안한 사람은 누구입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-3083d69ef47934f202a5b568",
+      "source_prompt": "살면서 가장 기억에 남는 일",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-b2497ac6f824f15e0bf3c939",
+      "source_prompt": "가장 생각나는 선생님",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-3a770f6bd2978063e14dbf38",
+      "source_prompt": "열가지 단어 주고 무엇이 제일 와닿는지 2가지 고르라 함",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-3d06367f2f047e046734fcef",
+      "source_prompt": "돈 1000만원이 생기면 뭐하겠습니까? (꼬리질문o)",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-a7905440dd363be19a7d2229",
+      "source_prompt": "해양경찰이 본인에게 매력적인 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-9ab33cc47933b439866ff949",
+      "source_prompt": "해경을 어떻게 알게 됐나",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-97f61337e392110410fe6ff1",
+      "source_prompt": "배 왜 내리셨나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-416681695f6a76b27d25921e",
+      "source_prompt": "해군 전역 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-0264e8a73d0534521d23aaba",
+      "source_prompt": "해군 왜 전역",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-d07ce41bfbbeaf1bdb4b88ca",
+      "source_prompt": "해양경찰은 본인에게 어떤 의미인가",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-2bed35ad893f61a7c83bf498",
+      "source_prompt": "동해지방청에 지원한 동기",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-29a4b5d902abad43499edcc2",
+      "source_prompt": "어떻게 해양경찰에 대해서 알게 되었나?(이후 꼬리질문)",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-0ec9259112d78bed8bb341db",
+      "source_prompt": "의경으로 지원하게 된 동기?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-638a7d156331891ae6559392",
+      "source_prompt": "의경 입대한 이유?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-d2d54e60b302a470cf959bac",
+      "source_prompt": "마지막으로 해양경찰이 되고싶은 마음을 마음껏 펼쳐보아라",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-473cb054934efad4b65e77d6",
+      "source_prompt": "해경 어떻게 알게 되었는지",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-59a34e03523ab0f411afd12f",
+      "source_prompt": "해경말고 다른 직업을 한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-782d532a0c34021d22db106e",
+      "source_prompt": "해경을 안한다면 자신에게 가장 맞는 직업은?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-09b999307a4354c47a959be9",
+      "source_prompt": "해양경찰이 안된다면 어디에 지원하고 싶은지",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-0bdc399b796080a891d6de79",
+      "source_prompt": "공적인 이유 제외하고 해경이 되고 싶은 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-c251d637024e135dad3adfdb",
+      "source_prompt": "부사관 출신이라던데 왜 장기 안 하고 넘어 오려하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-2360ec24f78be6ce40cb4ee9",
+      "source_prompt": "해경을 하고 싶은 이유 말해 달라",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-677ebc5f36252ad6d7cf7895",
+      "source_prompt": "경험을 살려 기관직렬에 지원한 동기를 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-0cff1563cfe278ce9b0ff5e5",
+      "source_prompt": "세월호 사건도 있고 이미지가 좋지 않은데 오고 싶은 생각이 들었는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-525f402bdb0987f6f6833e1f",
+      "source_prompt": "공단에서 왜 오려는지",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-322f9cf1095e4b1b6affc235",
+      "source_prompt": "굳이 왜 방제직이였는지",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-9b23f10a933d2188c17c8d19",
+      "source_prompt": "왜 일반직을 왔는가",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-8fdd7198131b62a4dbcd65ba",
+      "source_prompt": "방제과에는 왜 왔느냐 (환경 때문이 아니고 방제 자체에 대해서 궁금해함)",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-4279f7ab0f52a9fcd1c3eecf",
+      "source_prompt": "절실함을 보여달라",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-3ffc17ddda46db4e6b185870",
+      "source_prompt": "해양경찰청에서 일하고 싶은 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-d2bdb1e69324208d305b5ebd",
+      "source_prompt": "다른 직업 많은데 관제사에 어떠한 이유로 지원했는지",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-1daa069051221139c923f984",
+      "source_prompt": "일반직에서 경찰직으로 바꾼 이유.",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-b912bfd7123056b557539b26",
+      "source_prompt": "수중 활동을 하는 여러 기관 중 해양경찰을 선택한 이유는 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "motivation-origin"
+      ]
+    },
+    {
+      "question_id": "q-1eba3ed8ae36e8995a367c67",
+      "source_prompt": "해양경찰의 어떤 업무가 본인에게 적합하다고 생각합니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-4bc49347f42dd2bd6bc588ba",
+      "source_prompt": "함정, 파출소, 경찰서, 상황실 중 자신과 잘 어울리는 업무랑 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-d86cf619c329ee7f4357920f",
+      "source_prompt": "자신이 해양경찰에 적합한지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-264822e7fc7a34654a2c2a0a",
+      "source_prompt": "함정, 파출소, 상황실 중 자기랑 맞는 근무지는? 이유",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-9ed48342019a79a47290604b",
+      "source_prompt": "해양경찰에 들어오면 하고 싶은 업무는?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-915b9e6b6411a81bc5c01614",
+      "source_prompt": "해양경찰이 하고 있는 일 중 가장 인상 깊었던 일",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-7b9376bb921d16e66f4157ed",
+      "source_prompt": "해경에 들어와서 본인이 할 수 있는 것",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-72a620861aa6b21e0f43dcc6",
+      "source_prompt": "근무하고 싶은 부서",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-ce367ceb6390188a6e6af6c2",
+      "source_prompt": "경비함정 제외하고 어떤 경과 지원하고 싶은지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-c2437128b74461fbceca1daa",
+      "source_prompt": "유튜브로 해양경찰 본 내용",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-bf01815834ffe9d4488e5679",
+      "source_prompt": "나랑 잘 맞는 업무",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-1161afbc87daf7200b56a01d",
+      "source_prompt": "해경조직에서 가장 필요한 자세 3가지/ 필요없는 자세 3가지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-262a1c750b533966b0cf2102",
+      "source_prompt": "해경에 들어와서 어디 부서에서 일하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-0573f298d6a77cb436bc006b",
+      "source_prompt": "불의의 사고로 해양경찰을 그만둬야 한다면 무엇을 하시겠어요?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-9b365cb7f598b6bf836809eb",
+      "source_prompt": "해양경찰만의 매력",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-fdc6360b7f1a2f6828a94c99",
+      "source_prompt": "해경을 언제부터 알았는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-28fedd2de5b24077111e6aa2",
+      "source_prompt": "함정근무에 대해 주변에서 들은 것",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-88f9332412b126388b399533",
+      "source_prompt": "해경와서 자신이 하고 싶은 일",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-adce85a27362b19daf28f1e1",
+      "source_prompt": "진급을 어디까지 하고 싶은지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-1a10a41d5065b18a66ec9879",
+      "source_prompt": "해경하면 무엇이 떠오르는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-76682cf9f75a6d3c6580d06d",
+      "source_prompt": "해경 많은 부서 중 어떤 곳에서 근무하고 싶은지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-212d9439e6b4f9955aae76c0",
+      "source_prompt": "해경업무 보고 느낀 점",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-4c04887fb91dc96fd90d641a",
+      "source_prompt": "경찰서 파출소 함정 중 어디에 근무 하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-d7e978aa10726a61b7c6cd24",
+      "source_prompt": "파출소 경찰서 함정 어디서 근무하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-5e493d56e959ab578fad67bc",
+      "source_prompt": "해양경찰 하면 떠오르는 것(이미지)?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-2f5af22b2c893b35cce20624",
+      "source_prompt": "해양경찰 업무를 하는데 이런 사람이랑 일을 하면 싫겠다는 사람은?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-2ee95861e2531f512810cd5e",
+      "source_prompt": "앞으로 너의 미래를 말해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-3fc5cf28a87094c09f0aec05",
+      "source_prompt": "본인이 생각하는 해양경찰이란?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-c39fd528be47a7589c6777bb",
+      "source_prompt": "해경에 대해서 어떻게 생각하나(이미지)",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-b34fabf31e3197e28baa41d6",
+      "source_prompt": "해양경찰로써 어떤 걸 갖추고 일을 해야 하나? (구체적인 사례를 들어 설명)",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-705b4d1ee53291558c63bd46",
+      "source_prompt": "실제로 해경의 이미지는 뭐라고 들었나?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-aaf9f721df8dd70f3912dbde",
+      "source_prompt": "직무수행서 질문",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-b71b9f5732f753487323ecde",
+      "source_prompt": "무슨 직무할꺼냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-693a94bb73230114e4954776",
+      "source_prompt": "그 직무가 본인에게 어떻게 맞냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-b5dbee51167352fee11dac6c",
+      "source_prompt": "해양경찰 업무를 하면서 뭐가 어려울거 같냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-9a635fb528bdbc27636bc6a3",
+      "source_prompt": "해양경찰 되어서 걱정스러운 부분",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-8b1c039b82f5e2957c05279a",
+      "source_prompt": "해경조직에서 힘 든일이 뭐라고 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-9fe40d41e8eacbda6a249a98",
+      "source_prompt": "해양경찰이 필요한 역량이 무엇이라고 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-2668da866e1a02f1761fc6ec",
+      "source_prompt": "지원하고 싶은 부서",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-0f2a71938fb70cf07eb6de94",
+      "source_prompt": "어떤 과에서 일하고 싶냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-374a98f2161b7705bd142d23",
+      "source_prompt": "해경을 하면서 허망함을 느낄 것들(해경이 된다면 어떤거에서 느낄거 같은지)",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-09c07eed316033f3e7f45283",
+      "source_prompt": "해양경찰의 좋은 점이 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-f19486e3e2c241b2575eb574",
+      "source_prompt": "해양경찰에서의 애로사항",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-7c1b53d6363de98bf3908af6",
+      "source_prompt": "5002함 때문에 썼다는 식으로 말하자 그럼 5002함이 서해로 재배치되면 어떻게 하냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-1a3af6579a6aec4a76913836",
+      "source_prompt": "해기사 출신이면 바로 투입 되겠냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-70fb32c3c0585d60362c3e05",
+      "source_prompt": "해양경찰은 어떠한 이미지인지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-4277e97a3a0b91d771d8871f",
+      "source_prompt": "해경하면 떠오르는 이미지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-ab16da9c6af5883ebb436e6d",
+      "source_prompt": "그 하는 일을 위해 해양경찰이 가져야 할 자세는?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-0252d98e8ce85a1b45c90436",
+      "source_prompt": "본인이 해양경찰에 들어가서 할 수 있는 부서?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-94776a08b3238132bffa1a00",
+      "source_prompt": "해양경찰이 된다면 어떤 마인드?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-5ff6928054b670534cd057f5",
+      "source_prompt": "해양경찰이 되면 가장 먼저 하고 싶은 것",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-241f0a1f3bfb98cb4aa39790",
+      "source_prompt": "어느 서에서 근무하고 싶은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-3a2ebb82e21c70c067988831",
+      "source_prompt": "어떤 마음가짐으로 임할 것인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-f3d9a60ae5f932829aa50be7",
+      "source_prompt": "본인은 어떠한 해양경찰이 되고 싶은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-899e5fcc19451a105ddcddef",
+      "source_prompt": "함정, 경찰서, 파출소 중 어디 근무하고 싶냐 그 이유는?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-dbed72e75a280cbdf05d365c",
+      "source_prompt": "국민들이 해양경찰에 대한 인식이 어떤거 같냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-7cee880847d791ad97517fb8",
+      "source_prompt": "본인이 생각하기에 방제는 어떤 곳인지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-f38608168d966a7f08ea38d2",
+      "source_prompt": "방제정, 사무실 중 어떤 곳을 선택하고 싶은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-6b95131708d9237312bbb523",
+      "source_prompt": "타지에서 근무할 수 있는데, 괜찮겠냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-15b657f8718454081df5ca07",
+      "source_prompt": "오지로 발령 받으면 어떻게 할래?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-cde4cb5a250eac5d2eeb385f",
+      "source_prompt": "해양경찰을 생물로 비유한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-abb5804201306ff515b60706",
+      "source_prompt": "해경의 자세",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-42fe813461a3b97b93773b18",
+      "source_prompt": "관제 업무 외에 관제사가 된 후 키우고 싶은 역량은 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-bf7f45849eac7a57a3092f2b",
+      "source_prompt": "업무가 적성에 맞지 않는다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-0352ef7e21db464a6ce31d22",
+      "source_prompt": "관제사 말고 다른 직업을 선택했다면 뭘 선택했을건지?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-518aea26564f197d438626d5",
+      "source_prompt": "관제사 가장필요한역량 뭐냐",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-4fe496b26d6cd05e77a090d4",
+      "source_prompt": "관제사가 되면 하고 싶은 일",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-ee6a3b7c3b83607ed8ea6066",
+      "source_prompt": "관제사로서 필요한 것 두가지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-06bd4899a8afd7c4cb52f0ac",
+      "source_prompt": "해양경찰을 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-26c0c4ba06a5669675b9defb",
+      "source_prompt": "원하는 직렬이 아니라면 어떻게 하실래요?",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-9013bb208cd11d0ad0a50530",
+      "source_prompt": "본인은 어떠한 상사가 되고 싶은가",
+      "disposition": "personal",
+      "element_ids": [
+        "career-fit"
+      ]
+    },
+    {
+      "question_id": "q-4e9401322f4f7cdd7f966a78",
+      "source_prompt": "무슨 학과를 나왔길래 안심귀가서비스를 할 수 있었는가",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-df737f3c6fa42a65df99f47b",
+      "source_prompt": "해경이 되기 위해서 어떠한 전문적인 노력을 했는지",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-a1b0230bf1ebfabc9a19e193",
+      "source_prompt": "내가 여기까지 오기에 노력",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-1d81de74203c5239989ae09b",
+      "source_prompt": "행정법을 접한 경험이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-c735da9ddc18c2d3f9a65259",
+      "source_prompt": "학원이나 스터디한 적 있나",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-1957cb081bacd3f4c78862a8",
+      "source_prompt": "해기사 어떻게 취득했나",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-b1320af01a9c63ae5119391c",
+      "source_prompt": "학원 다니셨나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-8559ad30f2b3cda7a5666174",
+      "source_prompt": "수험기간이 길었는데 스터디나 학원 다녔는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-dffa8399c9d17e59c86e5a52",
+      "source_prompt": "경찰은 법을 집행하는데 법을 배워 본 적이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-10a8dbfd006032d38e89681f",
+      "source_prompt": "판례 찾아본 적이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-c24825b63bb61e58e23ba2dd",
+      "source_prompt": "법에 대해 많이 알고 있나? 접할 기회가 있었나?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-29bef09a64dbfc8325bbb1ab",
+      "source_prompt": "해기사 어떻게 땄는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-655f5f387c2475e89a5d7725",
+      "source_prompt": "해경과에 들어가서 관심 있는 과목은 무엇이고, 실무에 잘 쓰일 거 같은 과목은?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-50c6db1d754607b252561713",
+      "source_prompt": "학원이나 스터디했냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-78eb18ed4cafda1847dcf826",
+      "source_prompt": "의경시절 선임분들이 직무를 가르쳐 준 것에 대해 얻은것",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-25d70879559e120487b315f8",
+      "source_prompt": "학원 다닌 여부",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-c6ff2ddc0a3796e342a92304",
+      "source_prompt": "제가 법 관련 물어봐도 다 말하실 수 있는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-31b67a29634577e5b892458a",
+      "source_prompt": "지원자는 AI, 유튜브, 릴스 등의 정보를 어떤 방식으로 받아들입니까",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ],
+      "rationale": "AI·유튜브·릴스 정보를 어떤 기준으로 수용하는지 묻습니다. 출처와 사실 확인, 반대 근거 비교, 실제 적용 전 검증 경험을 준비합니다. 도구 사용 횟수보다 판단 과정을 봅니다."
+    },
+    {
+      "question_id": "q-3f43881a8a7f3ce7466916a4",
+      "source_prompt": "ai 경험여부, ai를 이용해서 해경에서 내가 할수 있는 일",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-9964fdba15556eca5117bec0",
+      "source_prompt": "배 타면서 무얼 배웠느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-35093fd7cab9db70101ff473",
+      "source_prompt": "오염방제에서 본인이 노력한 게 무엇이 있느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-6704376e825083a606b542a0",
+      "source_prompt": "대학교 석유관련 수업",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-f8f68278e475180e5707c022",
+      "source_prompt": "산업기사는 왜 취득하지 않았는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-adc8cc1a95a3d3f37f1b36ee",
+      "source_prompt": "화공 기사는 왜 취득하지 않았나?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-2055d9a8bbb751de6e55cc80",
+      "source_prompt": "몇번째 시험봤나요? 처음 봤다고 대답하니, 그 비법은?",
+      "disposition": "personal",
+      "element_ids": [
+        "preparation-learning"
+      ]
+    },
+    {
+      "question_id": "q-ce07ede2c3901cd0808f2cec",
+      "source_prompt": "본인의 사람들과의 화합? 어울림?(정확하게 어떤 용어를 사용하셨는지는 기억나지 않습니다)",
+      "disposition": "personal",
+      "element_ids": [
+        "shared-goal"
+      ]
+    },
+    {
+      "question_id": "q-1aa33928910c01633fbbd97e",
+      "source_prompt": "주변에서 가벼운 업무를 자꾸 나에게 떠맏긴다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "mutual-support"
+      ]
+    },
+    {
+      "question_id": "q-042380a3d7211fa165cfc4c3",
+      "source_prompt": "동료가 자신의 일을 계속 도와달라고 한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "mutual-support"
+      ]
+    },
+    {
+      "question_id": "q-41b84bfc04ad30671067f544",
+      "source_prompt": "본인이 다른 동료에게 일을 떠넘기려야 하는 상황이 온다고 가정할 때 그 상황은 어떤 상황일 거 같은지",
+      "disposition": "personal",
+      "element_ids": [
+        "mutual-support"
+      ]
+    },
+    {
+      "question_id": "q-8fdfd4b78a083d47003176ff",
+      "source_prompt": "만약 동료가 그 상황이 됐을 때 본인에게 일을 넘기지 않는다면 어떨 것 같은지",
+      "disposition": "personal",
+      "element_ids": [
+        "mutual-support"
+      ]
+    },
+    {
+      "question_id": "q-ada5df7add5615860ea495b4",
+      "source_prompt": "동료가 내가 너무 일을 못해서 과중된다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "mutual-support"
+      ]
+    },
+    {
+      "question_id": "q-2a5a2d1e5216ccd7733c1685",
+      "source_prompt": "친구와 교감을 느껴본 적이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "listening-empathy"
+      ]
+    },
+    {
+      "question_id": "q-5be4aa31119b343acad37963",
+      "source_prompt": "친구들이 많은지?",
+      "disposition": "personal",
+      "element_ids": [
+        "listening-empathy"
+      ]
+    },
+    {
+      "question_id": "q-a6d066e636e28ef4919bbfb5",
+      "source_prompt": "가장 친한 친구",
+      "disposition": "personal",
+      "element_ids": [
+        "listening-empathy"
+      ]
+    },
+    {
+      "question_id": "q-cb62141d5efa014fe0c19068",
+      "source_prompt": "친구가 많나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "listening-empathy"
+      ]
+    },
+    {
+      "question_id": "q-89c13b7e8f5a64505e914f8b",
+      "source_prompt": "친한 친구는 몇 명입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "listening-empathy"
+      ]
+    },
+    {
+      "question_id": "q-a6119331190a0f1a64988e9b",
+      "source_prompt": "군대생활실 상관이랑 마찰 있었던 일.",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-f31bf6d7e993bd00565e6d8d",
+      "source_prompt": "기피하는 사람 있느냐 경험 말해봐라, 그때 그 사람에게 얘기했냐",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-bb07a25c41ffad69cbf7280c",
+      "source_prompt": "싫어하는 유형은?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-d5e04f6534c1f2a4b0a10b91",
+      "source_prompt": "살면서 따돌림 당한 경험?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-7566a758512aa30b28ba9e3f",
+      "source_prompt": "어떠한 상사랑 일하기 싫은지",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-d58660fc5979479e135e866a",
+      "source_prompt": "내가 가기 싫은 모임은 어떤 모임인가",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-b7480f5dbbcd142bf760c992",
+      "source_prompt": "싫어하는 상관유형",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-00bfa1a91fc3f5bb08a97e3c",
+      "source_prompt": "내가 싫어하는 사람 유형은?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-236b2ae4ed2c5a94ac5224fb",
+      "source_prompt": "그런 사람과 같이 근무를 해야한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-5201f10ce266f6d735bbf9ad",
+      "source_prompt": "좋아하는 사람 / 싫어하는 사람 유형",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-15968e26a274dbf516999075",
+      "source_prompt": "싫어하는 사람 유형은?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-165ec834736d2d2f5375c32d",
+      "source_prompt": "나이가 어린데 무시하는 부하나 동료를 어떻게 하실건가요?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-8a2a155be7b3b08de41dd9a8",
+      "source_prompt": "뒷담화해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-3ba0598264b6d9bb3cf25b89",
+      "source_prompt": "자신이 상대하기 어려운 유형",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-44d00ed14516627f3a0cba5f",
+      "source_prompt": "두번째 질문에서 그럼 나이가 많으시니 나이 어린 상급자가 본인과 전혀 상관 없는 업무를 하라고 합니다 해결점은?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-7b10348b6ea51db9330d5b82",
+      "source_prompt": "본인이 제일 싫어하는 유형은?",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-678d6a9dbb90f57c82530667",
+      "source_prompt": "최근에 싸운 적",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-bbc4ce0cb78692e8821cbf5e",
+      "source_prompt": "이 사람과 일하기 싫은 사람",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-e9af87ad3498036bec7aa13f",
+      "source_prompt": "반대로 상사와 일하기 싫은 사람",
+      "disposition": "personal",
+      "element_ids": [
+        "conflict-mediation"
+      ]
+    },
+    {
+      "question_id": "q-baa4adbb4e956995ae429b8e",
+      "source_prompt": "부학생회장을 했다고 했는데, 통제가 잘 안되는 학생회 임원이 있다면 어ᄄᅠᇂ게 할건지",
+      "disposition": "personal",
+      "element_ids": [
+        "leadership-action"
+      ]
+    },
+    {
+      "question_id": "q-d576857ccfcc710fbcedcd8e",
+      "source_prompt": "총학생회 예산 쓰는 방법은?",
+      "disposition": "personal",
+      "element_ids": [
+        "leadership-action"
+      ]
+    },
+    {
+      "question_id": "q-6182ed16675b7d69852349ff",
+      "source_prompt": "정해진 출퇴근시간에 대해서(내가 과장이면)",
+      "disposition": "personal",
+      "element_ids": [
+        "leadership-action"
+      ]
+    },
+    {
+      "question_id": "q-a868cee8892ad49ac5413924",
+      "source_prompt": "선임과 후임 집단 중에 평생 한 집단만 있다면 어느 집단과 있을건지",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-ca150165d66fc663cac5e235",
+      "source_prompt": "막내로 일할래? 고참으로 일할래?",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-8dfda213cbccd962552ea342",
+      "source_prompt": "해경 들어갔는데 너 학교 후배가 너보다 위에 있는데 잔심부름 많이 시킨다. 어쩔꺼냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-ffa1adf21be69721cd56263e",
+      "source_prompt": "상사가 불명확한 지시를 한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-8140d9778de6ccb410eabcd4",
+      "source_prompt": "일반직으로 옮겨도 괜찮겠나(신분, 선후배역전문제)",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-1fa7e2db76ab2c7913ccf80a",
+      "source_prompt": "7급 중간 관리자랑 연관해서 압박 한 3번....",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-04513a38f4b47997734d5723",
+      "source_prompt": "순경부터 시작하는데 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "followership"
+      ]
+    },
+    {
+      "question_id": "q-681e0724da4ee715f8332b9c",
+      "source_prompt": "자기가 이루고 싶은 꿈을 여건이 안되서 못 이루었던 경험이 있냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "goal-persistence"
+      ]
+    },
+    {
+      "question_id": "q-b3e86e73d5847905762caf43",
+      "source_prompt": "나이제한이 곧 되어 가는데 계속 응시할 생각인지?",
+      "disposition": "personal",
+      "element_ids": [
+        "goal-persistence"
+      ]
+    },
+    {
+      "question_id": "q-643bef7452f040c6de722191",
+      "source_prompt": "하다가 계속 안되서 나이를 넘기면 무엇을 할 것인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "goal-persistence"
+      ]
+    },
+    {
+      "question_id": "q-8829dd88231000956b7a893d",
+      "source_prompt": "수석으로 입학하셨다했는데 고등학교때 성적이 수직상승하셨나요? 굴곡선도 탔었나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "goal-persistence"
+      ]
+    },
+    {
+      "question_id": "q-752d46a4ce15b6703e7b50db",
+      "source_prompt": "직무에서 아이디어 낸 경험",
+      "disposition": "personal",
+      "element_ids": [
+        "initiative"
+      ]
+    },
+    {
+      "question_id": "q-ddf8308f9bbe1fcd866bbf0b",
+      "source_prompt": "군생활중 관행을 개선한 적있나",
+      "disposition": "personal",
+      "element_ids": [
+        "initiative"
+      ]
+    },
+    {
+      "question_id": "q-b6d4c34c41f8650aba3eea93",
+      "source_prompt": "상급자가 시키지 않는 업무 했던 적은?",
+      "disposition": "personal",
+      "element_ids": [
+        "initiative"
+      ]
+    },
+    {
+      "question_id": "q-03b12d56732643e8ffbdb2e9",
+      "source_prompt": "인재상 중에 용기에 대한 경험",
+      "disposition": "personal",
+      "element_ids": [
+        "initiative"
+      ]
+    },
+    {
+      "question_id": "q-6d47de73766c56410ceaaa9e",
+      "source_prompt": "호의를 베푼 적 있는지 (솔선수범한 적 있는지)",
+      "disposition": "personal",
+      "element_ids": [
+        "initiative"
+      ]
+    },
+    {
+      "question_id": "q-1bea00a32b05fc4ce661c58d",
+      "source_prompt": "그 경험을 통해 개선된 점이 있는지",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-86ee1bab9cf16e1600acf814",
+      "source_prompt": "만약에 면접 때문에 탈락했다면 무슨 문제 때문에 탈락했을 거 같은지",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-03f0255ebb75d08abb69436d",
+      "source_prompt": "살면서 잘한 것, 못한 것",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-04df8832a0d5706c90199a14",
+      "source_prompt": "살면서 타인에게 미안했던 적이 있나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-cd6ac74da114cc0848dfa93d",
+      "source_prompt": "남에게 피해를 준 사례를 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-7964ea14bebb732af759e25d",
+      "source_prompt": "해결 안 된 경험은?",
+      "disposition": "personal",
+      "element_ids": [
+        "failure-learning"
+      ]
+    },
+    {
+      "question_id": "q-a7769db0211f86c40b9eb96b",
+      "source_prompt": "비난 받아본 경험이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-39af85ecfe84147122ed5630",
+      "source_prompt": "혼났던 경험이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-178d33048b935c49b3e4ceb1",
+      "source_prompt": "지금까지 한 일 중 가장 잘한 일과, 못해서 질책받은 일은?",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-7b3d418fcd04d690937ef7f5",
+      "source_prompt": "부정적인 평가 받은 경험",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-541475b63e420f29f7b59617",
+      "source_prompt": "비난받았던 사례",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-467596009503f4bad3073d59",
+      "source_prompt": "일항사나 선장한테 혼난 적?",
+      "disposition": "personal",
+      "element_ids": [
+        "feedback-change"
+      ]
+    },
+    {
+      "question_id": "q-334e715f998cdc19a5d01bc4",
+      "source_prompt": "출결(1개 무단) 어떤 이유인지 설명해 주세요",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-e148afcff3f96987733772f6",
+      "source_prompt": "반복적인 일이 계속된다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-7c91e64c7af2b0ba27c20aeb",
+      "source_prompt": "상사가 설명도 없이 재미없는 직무를 계속 시킨다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-163d24f7ac88ef1aa0457a47",
+      "source_prompt": "하기 싫었지만 수행했던 일의 경험을 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-287f288b3e75b4cf1071f849",
+      "source_prompt": "하기 싫었던 일을 한 경험",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-2eb5b083667709d61c93b65e",
+      "source_prompt": "하기 싫은 일을 했을 때 어땠는지",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-741de295d6ac0d27cf4d3ff9",
+      "source_prompt": "하기 싫은 일을 했던 적이 있나요?",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-52882f682d2e553c4fe57415",
+      "source_prompt": "선생님 말 안 들었던 사례",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-89e2637b431da76daf588168",
+      "source_prompt": "카카오톡을 업무시간에 하는 것?",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-933968116b89979780cc8a42",
+      "source_prompt": "복사하는 일을 계속 시킨다면",
+      "disposition": "personal",
+      "element_ids": [
+        "duty-reliability"
+      ]
+    },
+    {
+      "question_id": "q-b663ca84c11b93c63b9c9092",
+      "source_prompt": "본인이 정말 아픈 상황인데 일을 해야한다 어떻게?",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-76621e4803c263e38859787e",
+      "source_prompt": "업무 & 가정 선택",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-9b0d2c969ece64b0a5e56f61",
+      "source_prompt": "가정과 일의 밸런스 맞추기위해 어떻게 해야하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-f2aedc4158f913cae991db79",
+      "source_prompt": "월급은 얼마 받았고, 박봉인데 괜찮느냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-61f6bf1c7ee0220d3bb09e86",
+      "source_prompt": "전에 연봉 얼마 받았냐? 박봉인데 괜찮은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-d76d96566e90f3f087534ce5",
+      "source_prompt": "선임이 휴일에도 업무 시킨다면? 이미 2~3번 시켰다",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-4ad7d5161b06f7789c4eba21",
+      "source_prompt": "상사가 담배 심부름을 시킨다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-66e7d9a346102a931cafa2d0",
+      "source_prompt": "1항사후에 박봉인데 괜찮겠느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "commitment-boundary"
+      ]
+    },
+    {
+      "question_id": "q-f030ad79a5a01cebe15f71f1",
+      "source_prompt": "본인과 맞지 않거나 불편했던 집단은 무엇이며, 그 이유와 경험은 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "organization-adaptation"
+      ]
+    },
+    {
+      "question_id": "q-e1b78ce0c05557196c96e4f0",
+      "source_prompt": "군대에서 악폐습 어떤게 있었나",
+      "disposition": "personal",
+      "element_ids": [
+        "organization-adaptation"
+      ]
+    },
+    {
+      "question_id": "q-893f78657d4d88036b7a0644",
+      "source_prompt": "함정 잘 탈 수 있겠어요?",
+      "disposition": "personal",
+      "element_ids": [
+        "organization-adaptation"
+      ]
+    },
+    {
+      "question_id": "q-9f0eb43757c00b402aebfe16",
+      "source_prompt": "조직 내 술자리가 많을 경우 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "organization-adaptation"
+      ]
+    },
+    {
+      "question_id": "q-1e10b19a79eff56c08605a86",
+      "source_prompt": "3교대와 4교대 중 어떤 것을 더 선호하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "organization-adaptation"
+      ]
+    },
+    {
+      "question_id": "q-6ed1ff2515b0aafd20bfab53",
+      "source_prompt": "업무능력이 부족해 따돌림을 당하는 사람을 본 경험이 있습니까? 당시 어떻게 행동했습니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-f063c78fbae66b903e8df865",
+      "source_prompt": "해경 돼서 주민들을 위해 뭘 할 수 있는가",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-bb35c252364ebd1989be97b6",
+      "source_prompt": "여가시간에 주민 분들(어민분들?)을 위해 무엇을 해줄 수 있을지 2개 말해 보아라",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-bc5db4299abb0e7a4c6f7111",
+      "source_prompt": "네명의 친구 10만원 모아서 독거노인 방문해서 무엇을 할건가",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-b96df4038b2e7ef525f66db4",
+      "source_prompt": "해양오염을 막기 위한 본인이 한 사례",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-a944c7fc5defc2d5dd14d92c",
+      "source_prompt": "국가를 위해 한 일",
+      "disposition": "personal",
+      "element_ids": [
+        "service-action"
+      ]
+    },
+    {
+      "question_id": "q-2e75193c6a7529578a8fa154",
+      "source_prompt": "부부가 모두 해양경찰이고 한 명이 육아휴직을 사용해야 한다면 누가 사용해야 합니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-813473d56687e9b4ac40210f",
+      "source_prompt": "산후조리를 모두 마친 상황이라면 육아휴직을 누가 사용해야 합니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-69a9b2d365b47e5066d73823",
+      "source_prompt": "휴가나간 군인이 성전환 수술하여 여군으로 들어오고 싶다는데 본인이라면 받아 줄건가요? or 본인 생각은?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-792d987fb1dfcc3be30318d3",
+      "source_prompt": "해양경찰에는 남녀 경찰이 있는데 누가 더 적합한지",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-939b29a167998470bf2d0d7e",
+      "source_prompt": "동성연애에 대해서 어떻게 생각하나?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-51c99b2cc70faa07d34881aa",
+      "source_prompt": "남자화장실 기저귀 가는 곳 어떻게 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-ff688245488d8efe445881f9",
+      "source_prompt": "여자는 출산 해야 하는데 체력을 강화시킬 수가 있나?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-2a11d9a8708a1e33c448dc0e",
+      "source_prompt": "육아 휴직에 대해서 어떻게 생각하는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-1162994f07aba79c0ca4bd6a",
+      "source_prompt": "육아휴직을 악용하는 사례가 있는데 본인의 생각은?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-703ef4de15fcf9dced14cb1c",
+      "source_prompt": "수험자가 가진 이성에 대한 편견",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-1b807101059abdb0f4b305ce",
+      "source_prompt": "가지고 있는 남여 고정관념 있는가",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-e1895b8ddf71d53f9b1479bb",
+      "source_prompt": "외모품평, 신체품평 어떻게 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-1736892ee243344ce0b129c4",
+      "source_prompt": "동성애자 어떻게 생각함?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-35181ea112b35797fef462d7",
+      "source_prompt": "동료가 같은 동료에게 옷차림에 대해서 지적하는 상황이다. 당신은 어떤 생각이 드는가?+꼬리질문",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-000904ef15f257bdb69e0def",
+      "source_prompt": "둘째 낳게 된다면 육아휴직 하실겁니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-b3474d65b636bd2b81aa51f3",
+      "source_prompt": "남자란?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-ffba841b4b61792bf6833f5f",
+      "source_prompt": "(여자니까) 육체적으로 괜찮겠냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-56f092c67e495807a4309291",
+      "source_prompt": "남자화장실 기저귀교환대 설치 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-d304a6a3fb77c62086fcd42b",
+      "source_prompt": "육아휴직에 대한 생각",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-2b2a9200e52b2e890bd9ce2d",
+      "source_prompt": "성소수자 찬성반대, 동료가 동성애자라면?",
+      "disposition": "personal",
+      "element_ids": [
+        "respect-inclusion"
+      ]
+    },
+    {
+      "question_id": "q-37937bf69fbdd4ef6921fee7",
+      "source_prompt": "위법 저지른 적",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-33bc0fd1ae04799bf5da7355",
+      "source_prompt": "최근에 한 범법행위",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-d2a658044d911a18e07b1b45",
+      "source_prompt": "학창시절 친구들과 어울리는걸 즐겼다는데 어울리면서 비행행위를 한 적은 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-41cd4d22f196c447a7a7f133",
+      "source_prompt": "본인의 도덕성 점수에 10점만점 몇점인지",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-e079cf2bddd0d7dc99ec6024",
+      "source_prompt": "본인이 살면서 규칙을 어겨본 적이 있는지",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-c1687f4a804efabb751b05ea",
+      "source_prompt": "방황을 한 적이 있는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-47f77e77e5ff36204651516c",
+      "source_prompt": "불법적인 일 한 적있냐",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-4bf280b5c6efa604b187188b",
+      "source_prompt": "학생 당시 위법한 행동?(없었다하니 3년개근이였는지 물어봄)",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-d38944ed125a9a065f6179c1",
+      "source_prompt": "방황했던적이나 나쁜짓을한적있느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-7215f631aa69f6edff3515b0",
+      "source_prompt": "질문내용 다른 사람들에게 유출 하실 거에요?",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ],
+      "rationale": "면접 질문의 외부 공유에 대한 판단을 묻습니다. 안내된 비밀유지 범위의 확인과 정직한 대응을 분석하며 원문에 없는 규칙 위반을 단정하지 않습니다."
+    },
+    {
+      "question_id": "q-fa98c6c42d0d1ae75c8e4ed5",
+      "source_prompt": "어릴 적 태권도 선수 시절 경험했다고 했는데 비행을 저지른 적이 있는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty"
+      ]
+    },
+    {
+      "question_id": "q-857688e89a4138b4c6e1dfd5",
+      "source_prompt": "본인이 그 상황이라도 탕비실 물품을 가져가지 않겠습니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-7c832b49d29956f4d0004ff6",
+      "source_prompt": "국가기관의 기물과 공동구매한 탕비실 물품의 차이는 무엇입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-0f71fbd6959650e17c969597",
+      "source_prompt": "원칙과 융통성, 어떻게 생각하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-186b3ce53333cf44acc6f2a3",
+      "source_prompt": "탕비실에서 직원이 일주일 굶었다 이 직원이 탕비실에 물건을 집에 가져가려는데 다른 직원과 마주쳐서 싸운다. 지원자는 중재를 어떻게?",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity",
+        "conflict-mediation",
+        "service-action"
+      ],
+      "rationale": "탕비실 물품의 소유·사용 기준과 경제적 어려움에 대한 배려가 충돌합니다. 권한과 사실 확인, 당사자 의견 청취, 기준에 맞는 대안 마련을 분석해야 하며 단순 절도 여부를 단정하지 않습니다."
+    },
+    {
+      "question_id": "q-1d22060796788d1f3f985cf3",
+      "source_prompt": "음주운전한 동료를 변호해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "honesty",
+        "fairness-integrity"
+      ],
+      "rationale": "음주운전을 변호하라는 압박형 질문입니다. 행위의 책임과 사실에 근거한 설명을 구분하고, 동료 보호를 위해 사실을 왜곡하지 않는 판단 기준을 확인합니다. 개인의 음주·범죄 경험을 필수 수집하지 않습니다."
+    },
+    {
+      "question_id": "q-cc771659888fff6045a29bdf",
+      "source_prompt": "친구가 20만원 수산품을 준다면 받느냐 안받느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-318e05f369b604c79d56244c",
+      "source_prompt": "음주운전한 경찰관 어떻게 생각함",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-9897e6c0ac3f58a814d5be8e",
+      "source_prompt": "음주운전 경찰관 변호할 것인가",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-ce3d8dad0fe234ed98cc84f7",
+      "source_prompt": "학원을 다녔는데 스터디원 중에 정말 뽑혔으면 좋겠다고 생각한 사람이 있었는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-415288defa440bec7e79a149",
+      "source_prompt": "학원이나 스터디를 다니면서 합격했으면 하는 사람이 있었는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-4a68b584f7d95a988a3dbe0f",
+      "source_prompt": "면접 기출문제를 친구가 알려주라고 하면 알려줄거냐",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-ff0935997cd4836f350a91b9",
+      "source_prompt": "동료가 음주운전을 했다 어떻게 해야하나",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-ebe54c7687d7901193d60fce",
+      "source_prompt": "어제 본 사람들한테 어떤 질문정보 얻었냐",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-de683e10048d3682aa0fa706",
+      "source_prompt": "친한동료가 있는데 그 동료가 불법성매매함 어떻게 할래 -자수를 권함",
+      "disposition": "personal",
+      "element_ids": [
+        "fairness-integrity"
+      ]
+    },
+    {
+      "question_id": "q-cbc9a1dddc4a2b3ae4b475d6",
+      "source_prompt": "상사가 스토킹을 한다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "unjust-direction"
+      ]
+    },
+    {
+      "question_id": "q-c803d298bc34b9985668e0f2",
+      "source_prompt": "들어와서 어떤 자세로 임할건지",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-d39b11a745725ae92998e0d8",
+      "source_prompt": "인재상에 맞는 행동을 해본 경험",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-e464aecb83fafa42d2089c2a",
+      "source_prompt": "자신이 면접관이라면 뭐 물어볼래",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-f7999c5732d129b148970bb9",
+      "source_prompt": "당신이 면접관이라면 하고 싶은 질문은?",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-5c40435bd80cff4d902f43ab",
+      "source_prompt": "해양경찰에게 필요한 자질",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-f477acbeaed8252b608051c9",
+      "source_prompt": "해양경찰로서 가장 필요한 역량이 뭐라고 생각하는지.",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-4ea5b118b811edef54d3c1b6",
+      "source_prompt": "해양경찰 자랑하고 싶은 점",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-6f4089691e0f30e99c3974e9",
+      "source_prompt": "너가 면접관이면 무슨 질문 할래?",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-7c8cfc5bba270c376cea71db",
+      "source_prompt": "면접관이라면 어떤걸 질문할지 ,그리고 그 질문에 대한 답",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-7dac9adff14c913e3986324c",
+      "source_prompt": "면접관이면 봐야 할 5가지",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-33457bc8970752fa5bf963a3",
+      "source_prompt": "본인이 면접관이라면 무슨 질문할 것인가? 5개 질문과 그 이유도 말해봐라.",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-58c22554de4b10f426cd3749",
+      "source_prompt": "너가 면접관이면 뭘 보겠냐, 지원자에 대해서 5가지",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-21f1a336c37f4a75ffbb7b32",
+      "source_prompt": "본인이 면접관이라면 면접자의 어떤 면을 보겠는가",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-ea77a36034707994850c88f2",
+      "source_prompt": "해양경찰 채용과정에서 비판할 것이 있나?",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-40ca684eab1fdf9b0e80bf5a",
+      "source_prompt": "본인이 면접관이라면 무슨 질문을 할것인가",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-20f7233526d5d51b89e7a637",
+      "source_prompt": "본인이 면접관이라면 어떤 면을 본 건지 5가지",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-6675f95bda7425d272c08f57",
+      "source_prompt": "면접관이라면 무슨 질문을 할 거 같나요? 추가. 그 질문을 통해 어떤 것을 알 수 있나",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-16c7fa94847801058c469fd1",
+      "source_prompt": "해경의 신뢰 회복방법 - 홍보 제외(개인적으로 할수있는 방법)",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-407ca12ced8ab483957b3226",
+      "source_prompt": "AI 윤리에 대한 본인의 생각을 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-30140af0ce02b7719958da87",
+      "source_prompt": "지원자가 생각하는 애국이란?",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-389c70678268408051ef83ea",
+      "source_prompt": "면접관이라면 할 질문",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-f5c926bec110fa3705077c1f",
+      "source_prompt": "스토킹은 물리적 폭력입니까, 정신적 폭력입니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-bd3cd272e7b7aaeb1b2a5690",
+      "source_prompt": "몰카, 야동, 상업적 야동, 성매매에 대해서 본인 생각을 말해보세요",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-c0d55fe696e68df9e1b04bbb",
+      "source_prompt": "최근 성관련 이슈?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-4209f23d62cda6085f59524d",
+      "source_prompt": "데이트 폭행 목격 사례 있음?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-36c97ce9788a0598bf188beb",
+      "source_prompt": "성비위에 대해 어떻게 생각하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-8d74fd497389a261dc569e63",
+      "source_prompt": "최근 아동학대에 대해 어떻게 생각하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-2d9d67f3d174d6663916686b",
+      "source_prompt": "미성년자와 합의하에 성행위에 대해서",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-57861e603a98d4055211a962",
+      "source_prompt": "야동과 성착취물이 따로 불리는 건 알고 있나? 이거에 대한 너의 생각은 어떤가?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-628892ede8c515dde234d6ce",
+      "source_prompt": "낙태에 대해 어떻게 생각하느냐",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-82ff05dc30441ae3e55b6b16",
+      "source_prompt": "낙태에 대한 생각",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-4c4d07cd43ef3c09381e14c0",
+      "source_prompt": "제 사진이 단체 톡방에 돌아다니면 어떨 것 같은가?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-48b59ea4acefd18023d34d96",
+      "source_prompt": "성관련 뒷담화 대해 어떻게 생각",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-3a2dd2e9a0c70bfc16a54810",
+      "source_prompt": "해경에서 성관련 문제가 어떤게 있을지",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-6d0ef27ced56edabce3e8b3e",
+      "source_prompt": "해경이 되서 겪을수있는 성문제 뭐가있을지 예시 대봐라. 구체적으로 말해봐라.",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-ea91097f345977a438751e0b",
+      "source_prompt": "낙태에 대해서 어떤 견해를 가지고 계십니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-b80b7ecef05aadfc7aee5e69",
+      "source_prompt": "학교폭력 문제 되고 있는데 그걸 SNS에 올리고 대학에서도 이거 검토해서 취소하고 있는데 어떻게 생각하는지",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-f20557f1aa842b6546b1de0a",
+      "source_prompt": "흑인 과잉진압",
+      "disposition": "personal",
+      "element_ids": [
+        "rights-protection"
+      ]
+    },
+    {
+      "question_id": "q-9eda4b8cf7ab332678cbc7b8",
+      "source_prompt": "마음관리 평소에 하는 법",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-5e4b98faf43adce2b6e57ca5",
+      "source_prompt": "최근에 화난 적, 해결방법",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-3ce822027abae5ef59122646",
+      "source_prompt": "본인의 자존감을 높이는 방법",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-1890bd61b497edbd7ca30b7a",
+      "source_prompt": "최근에 가장 울컥했던 적?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-1e56db6c2d42feaad79fa25d",
+      "source_prompt": "화냈던 기억",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-eec919fd0bf69c70ccc2dc88",
+      "source_prompt": "상사나 후배가 술 마시고 음주운전 하려고 할 때 어떻게? / 딱 한잔만 하고 음주운전 한다면 어떻게?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-a46ec0327d37075d5aea5843",
+      "source_prompt": "화는 잘 참으시는 편이신가요?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-93c9578aa9da31347bb78044",
+      "source_prompt": "자신이 통제가 안될때가 언제인지?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-ee64e2f0bef21b864e4b654e",
+      "source_prompt": "화는 내는 편인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-8046ef593664fd4d397abd2e",
+      "source_prompt": "나를 화나게 하는 사람의 유형?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-2b4b8238b03ed719447210bb",
+      "source_prompt": "언제 화남",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-b090e0f16e162941831ce789",
+      "source_prompt": "가장 화 났을 때가 언제냐",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-4495d532aa3e5ac66bcde7fc",
+      "source_prompt": "화낼 때 푸는 방법은?",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-22595e2c7b47858b7d3846c9",
+      "source_prompt": "동료가 음주운전 시도할 때 대처",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-099f0bc0052e157ed0aec0fc",
+      "source_prompt": "화날 때 어쩌냐",
+      "disposition": "personal",
+      "element_ids": [
+        "emotion-regulation"
+      ]
+    },
+    {
+      "question_id": "q-d61e3f6dda21adfe29c53c99",
+      "source_prompt": "가장 우울했던 경험을 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-0fc810a526344922eb2d995f",
+      "source_prompt": "살면서 박탈감, 상실감 등을 느꼈거나 의기소침 했던 일이 있었는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-ef9eadb75b14500cb12af598",
+      "source_prompt": "우울감이 올 때는 어떻게 해소하는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-4d1edf9615875abb568a0359",
+      "source_prompt": "본인이 대처하기 어려웠던 상황과 그걸로 인한 교훈",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-89ecd5bd6c230b4cbe6fffb2",
+      "source_prompt": "학창시절 자신의 고난 있었냐",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-1c0708138ea3890edda6676c",
+      "source_prompt": "우울했던 적이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-1d21c56f2615fb619b24b172",
+      "source_prompt": "가장 기뻤던 일과 슬펐던 일 두 가지씩 말해보라",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-d7b897d3fd53eabd05ae4758",
+      "source_prompt": "가장 곤란했던 기억은 무엇인가?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-4929dc174f9e74b587c63f3a",
+      "source_prompt": "번아웃을 겪었던 경험을 말해보세요.",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-52924bd816c01d2d1247f928",
+      "source_prompt": "살면서 모욕 받았던 적",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-440e282e8422a91d96304537",
+      "source_prompt": "우울할 때 뭘하는가",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-158f00793c56124807cc42e0",
+      "source_prompt": "들었던 말 중 가장 모욕적인 말",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-d97956e91ebea86a8d152aba",
+      "source_prompt": "시련이 있었던 적 있나",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-bb7c7809db8a43d229339497",
+      "source_prompt": "가장 억울했던 기억은?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-57cb2e550c0c7d9b550e38e5",
+      "source_prompt": "그것으로 인해 열등감 느껴 본 적 있습니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-3392b776d1f53ab9542e82b9",
+      "source_prompt": "의경 때 기억에 남은 일과 기억에서 지우고 싶은 일이 무엇이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-8ad6acfbab8dcf293d7090d3",
+      "source_prompt": "상상을 해보라고 하면서 어떤 상상을 했을 때 내가 괴로운지 떠올리고 그거 3가지를 말해봐라",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-097c4a7623947e0ed756b0cf",
+      "source_prompt": "우울했을 때 따로 하는 거 있나",
+      "disposition": "personal",
+      "element_ids": [
+        "resilience"
+      ]
+    },
+    {
+      "question_id": "q-56836dd58a7dc54a5ec48c29",
+      "source_prompt": "하고 싶은 일과 하기 싫은 일 중에 어떤 일은 먼저 하고 싶은가",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority"
+      ]
+    },
+    {
+      "question_id": "q-521b849480e8ffb62ae2fd83",
+      "source_prompt": "충(忠)과 효(孝) 중에 어떤 것이 더 중요한가?",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority"
+      ]
+    },
+    {
+      "question_id": "q-88886c449cd4c079ebe40c4d",
+      "source_prompt": "부와 명예 중에 어떤 것을 선택할 것 이냐?",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority"
+      ]
+    },
+    {
+      "question_id": "q-2551a0f22c0d7c652dab642a",
+      "source_prompt": "모니터를 보여주며 10종류의 사람이 있는데(축구선수, 노인, 시인, 지적인 여배우 등) 3차대선 발발해서 미래로 가는 캡슐에 누구를 태우고 누구를 버릴것인가 - 꼬리질문 계속",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority",
+        "rights-protection",
+        "fairness-integrity"
+      ],
+      "rationale": "직업·나이 등으로 생명의 가치를 서열화하는 답변을 유도할 수 있는 딜레마입니다. 주어진 조건의 한계, 공정한 기준과 생명 존중을 함께 검토해야 합니다. 특정 집단을 배제하는 답을 정답으로 만들지 않습니다."
+    },
+    {
+      "question_id": "q-e2784ff5fc9b28dac8cc5fa4",
+      "source_prompt": "자신이 좋아하는 일과 싫어하는 일 중 무엇을 먼저 하겠습니까? (둘다 마감기한 똑같음)",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority"
+      ]
+    },
+    {
+      "question_id": "q-bd208a49282e5fde8b548ba7",
+      "source_prompt": "하고싶은 일과 하기싫은 일 중 먼저 할 것은?",
+      "disposition": "personal",
+      "element_ids": [
+        "judgement-priority"
+      ]
+    },
+    {
+      "question_id": "q-90f581b3383b19823a0cfb02",
+      "source_prompt": "친구가 물에 빠져있다. 구조 어떻게 해야 하냐",
+      "disposition": "personal",
+      "element_ids": [
+        "problem-response"
+      ]
+    },
+    {
+      "question_id": "q-4bb99231b4704040b36b442c",
+      "source_prompt": "면접 보러 오는데 노숙자가 죽어간다?",
+      "disposition": "personal",
+      "element_ids": [
+        "problem-response"
+      ]
+    },
+    {
+      "question_id": "q-84a9f4c249169762b96b278b",
+      "source_prompt": "문제 발생 시 해결했던 경험이 있는가?",
+      "disposition": "personal",
+      "element_ids": [
+        "problem-response"
+      ]
+    },
+    {
+      "question_id": "q-41f057d5208a33fcc016e207",
+      "source_prompt": "개인정보 보호법을 설명해보세요.",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cff6b285c7a915cff7eb20b6",
+      "source_prompt": "해상에서의 음주 규정",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4bf7ac1b9bb527f38a608130",
+      "source_prompt": "2차 가해란",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5f0b2e7cfd9f027b0265ddfc",
+      "source_prompt": "최근 관심있는 기사",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-fd1e1f12ce959cfadb24b8ce",
+      "source_prompt": "길고양이 중성화수술에 대해서 어떻게 생각하냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a8a081def038131e0a514769",
+      "source_prompt": "검언유착과 관련된 본인의 생각을 말해보시오.",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cccc6d7920ef3c0c5c1a50b9",
+      "source_prompt": "검경수사권에 대해서 본인 생각",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3595312b5257090b99a3f504",
+      "source_prompt": "복수승조원제에 대한 본인의 생각을 말해보시오.",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-99c58cc0bf5249e0f789d680",
+      "source_prompt": "윤리적 소비란",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a54d569c5bba65460b5f9ea6",
+      "source_prompt": "대한민국이 50년 뒤엔 어떤 나라가 되어 있을지",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8db15d84df6c99de5074a3d9",
+      "source_prompt": "29 사태 (이태원 이걸 물어보네) 에 대해 어떻게 생각함",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-daa86ed55a6e762f5dfb334c",
+      "source_prompt": "해양경찰이 하는 업무",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3dd2fbf9c9690a26a8076426",
+      "source_prompt": "우리나라가 선진국 선열에 올라갔는데 그 이유가 뭐라고 생각하십니까?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-838c4f820fe0f954a62c7bb2",
+      "source_prompt": "통일에 대해 생각해 본 적 있냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3c10b9b7c799f10aa1023e2f",
+      "source_prompt": "자차수정 해 본적있냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-93c156f5967471736cfff0f1",
+      "source_prompt": "윤리적소비가 무엇인지",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2a6b7049e7ec616ce59f4909",
+      "source_prompt": "이 사건에서 국민들이 청원중이다 그거에 대해선 어떻게 생각하나요?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ecb5e00f56d6ba274338ab44",
+      "source_prompt": "해양수산부와 해양경찰이 어떤 방향으로 나아가야 하는지 본인의 생각",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6a0d11b9449be072d6608a22",
+      "source_prompt": "윤리적 소비란?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e103b002836491465ba70cef",
+      "source_prompt": "현재 한국은 자신이 느끼기에 불편하면 어느 것이 불편한지?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-81213cd258e5acbf38f1d2d7",
+      "source_prompt": "법에 대해 잘 아는가?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b158d86da56947cff6a41ab8",
+      "source_prompt": "사회적 문제 본인이 아는 것(예: 청년실업, 저출산 등)",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3da262c7b3870568112baac6",
+      "source_prompt": "음주운전이 왜 생기는가",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-027e18581bff4dbb79f40fa2",
+      "source_prompt": "사회적기업이 뭐라고 생각하느냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-56f0b40019eef221af42d580",
+      "source_prompt": "저출산 문제 해결방법",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8e630b0f552b055236d00be7",
+      "source_prompt": "맥주 한잔 정도도 음주운전인지",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5d4e42fa41a05a15c4bdf88b",
+      "source_prompt": "국가유공자 전형에 대해 아는가",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ce890b804c727540f7fdf34e",
+      "source_prompt": "해경이 하는 업무에 대해 알고 계십니까?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ba81258c7f4aa0acf43a1b1b",
+      "source_prompt": "비정규직 정규직 전환 어떻게 생각하는지?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-fe055a0104392da2f38555fe",
+      "source_prompt": "실습한 선박 엔진타입",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d39f3315777ee4040259d603",
+      "source_prompt": "육자운동이 머냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-548e8d74383c3d3234153cb3",
+      "source_prompt": "5.18민주화운동?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f796e3190f841a98b41c9ea2",
+      "source_prompt": "항일운동이 머냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-74c0abedff7df99f6e0aa6c2",
+      "source_prompt": "5.18 민주화운동?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f7424c87369d48db88140c4c",
+      "source_prompt": "STX 화재 폭발 사고에 대해 원인이 뭐라고 생각하는지 본인의 생각은?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9020caa11e721219a0d885c5",
+      "source_prompt": "과도한 경쟁사회가 되고 있는데 이것이 바람직하다고 생각하는가?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-625066ce49dd968143e3235e",
+      "source_prompt": "방제과는 무슨 일을 하느냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-91227d008b6c20b6779632a4",
+      "source_prompt": "방제를 막기 위한 예방책이 무엇이냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c1c95110875a17ba70f23c89",
+      "source_prompt": "상선타는 거랑 방제정 타는거랑 무슨 차이가 있다고 생각하느냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-989debb0a0db5f846b4dff1c",
+      "source_prompt": "연료유 이송 작업 시 체크리스트가 뭐냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-686af3ce260186d6be0c679c",
+      "source_prompt": "현재 면접관들이 외국인이라 생각해보고 한국을 소개해봐라",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bdb1e2fce6e7d8ac1d94e7ba",
+      "source_prompt": "상선과 방제선의 차이가 무엇인가",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a0d78224b01e1cbabbe5cb58",
+      "source_prompt": "해양오염방지설비에 대해 아는대로 설명하시오",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-61dde4ab0c765b04b3a83e82",
+      "source_prompt": "메인엔진 작업해 본적 있는지?(꼬리질문)",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d020962628e0116c0ab9a422",
+      "source_prompt": "기관정비는 가장 최근에 무엇을 했느냐",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-040fa0b372fae3c90f7de093",
+      "source_prompt": "회사 내 진급 규정이 어떻게 되느냐?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-11af3af713f17b6b7fbae2ed",
+      "source_prompt": "음주로 인한 범죄 감형에 대해 본인 생각",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7b0d69eb346ddb99cb0836f9",
+      "source_prompt": "음주운전 관련 질문, 얘기해봐라",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-291a21a6eff8e6f8a19d46be",
+      "source_prompt": "기기분석(GCMS) 해본 적 있는지?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1246c901373d6c23752f8669",
+      "source_prompt": "방파제 주변 항법",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-20a8a05721964a10871422a3",
+      "source_prompt": "방파제 내 항법?, 추월방법",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8e59dc04d0257b742773b326",
+      "source_prompt": "김00씨가 대우조선 스크러버 만들엇는지?",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-32f025df59c4a0715da98c02",
+      "source_prompt": "기관에 문제가 생긴 적있는지",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4aa81b03d631a1fa06cc06cd",
+      "source_prompt": "셧다운 될때까지 몰랏나요? 알람이랑 다 올텐데 모를수가 없는데 100도까 안올라가요(의심)",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-dc4109002378edbc951c9998",
+      "source_prompt": "음주 운전 줄일 방법 3가지",
+      "disposition": "knowledge_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4141d9523350bd93461a3feb",
+      "source_prompt": "면접에 이르기까지의 심정과 현재의 소감을 말해보세요.",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-341f7811b07bdc12c42ddcb2",
+      "source_prompt": "앞 면접은 잘 보고 왔는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a7a0ace23c13fe8dd96eee19",
+      "source_prompt": "뭐 타고왔어요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4f74256769a6c9cfc2af7146",
+      "source_prompt": "숙박했으먼 잠 잘 못잤겠네요. 몇시에 잤어요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d7d7b690cbd6c7cef6535d6e",
+      "source_prompt": "어떻게 면접장까지 왔나요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-adc1689470dcacab007ea47f",
+      "source_prompt": "면접까지 왔는데 기분이 어떠세요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c02f130857c72df2af1806e1",
+      "source_prompt": "앞 면접 잘보고 왔는지, 지금 기분 어떤지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-abf5d00f5666c3ebfe43bf0b",
+      "source_prompt": "아침 먹고 왔는지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7c8c7e52a8a73dc4278a7b77",
+      "source_prompt": "지금 상태?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8476983165b759e795dac30c",
+      "source_prompt": "아침에 몇시에 왔냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1a7a924253fed9e1a9b0dd80",
+      "source_prompt": "끝나고 뭐 하실지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d3b089f213e0f828d9571b22",
+      "source_prompt": "식사는 하고 왔는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6ce5f8787eb692f43d8aa9db",
+      "source_prompt": "대기 시간 무슨 생각했나요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-959454df5544a1710cd849c2",
+      "source_prompt": "앞에 면접 잘 보신 것 같나요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-03c212aba8964a369622a9a5",
+      "source_prompt": "마치면 뭐 하냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-10befa10254efe557792bf8c",
+      "source_prompt": "컨디션 좋나",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-29268ccb0e63a646f3c4b470",
+      "source_prompt": "많이 떨리시죠?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-fd75a31fa447db2c8892571a",
+      "source_prompt": "밖에 비 많이오죠?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c59eb52b528b0f5a1bf4d835",
+      "source_prompt": "점심은 먹고 왔는지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a4c27c56670c65e174fe3806",
+      "source_prompt": "아침은 먹고 왔는지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8f39c7c8ec111c4ac5ddaf0d",
+      "source_prompt": "지금 가장 생각나는 사람?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-39fb3b16e5cccb42bedb65d1",
+      "source_prompt": "오늘 컨디션 좋은가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2f2968c0e68123f27a15d345",
+      "source_prompt": "방금 면접은 잘 봤는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-45b31fe226e8a07620f1547e",
+      "source_prompt": "핸드폰 어디다 두고 왔어요? (당황시키는 질문?)",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a36b53edafa8d6ccf44f652c",
+      "source_prompt": "잠시 대기하면서 무슨 생각 했나?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1e5221a471d1e18744ab40c3",
+      "source_prompt": "가장 생각나는 사람",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2dfb4e44cf5a1a336165a89b",
+      "source_prompt": "보고 싶은 사람",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7d45b0bd6e1bbfe74d87e3a3",
+      "source_prompt": "끝나면 누구한테 연락할건지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f94df60e676ba0ceae280385",
+      "source_prompt": "끝나고 뭐하러 갈건지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5192fb58a42ab221d7616566",
+      "source_prompt": "현재 상태가 어떠냐? (땀을 많이 흘리고 있었음)",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-27e980f7c46cf09591932604",
+      "source_prompt": "지금 기분은 어때요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-11b7b7dc59ea3e09c6406c18",
+      "source_prompt": "지금 기억에 남는 사람은?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-adde03f725af517db5063c97",
+      "source_prompt": "오늘 면접 감상이 어땠는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b9bf0960fef2cfb45f0ddfd2",
+      "source_prompt": "옆에서 면접 잘봤냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-492e97cec76ec6177e8d7709",
+      "source_prompt": "지금 심정이 어떠냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-151962ee06dec6905899f81d",
+      "source_prompt": "면접끝나고 나간 인원들 보며드는 생각",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c9915b01c8a40911e41a395d",
+      "source_prompt": "앞에 면접 잘 보신거 같아요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6c164c77297178cb4688c6ca",
+      "source_prompt": "대기 시간동안 무슨 생각을 했는가",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-19de95ae672702734c4d943f",
+      "source_prompt": "지금 가장 생각나는 사람? 선생님이라 말함",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-15087646260e5a19fd213615",
+      "source_prompt": "마지막 소감",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a807b5d0dab0e52eadf8e25c",
+      "source_prompt": "점심 뭐먹었냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1225059b538fb3f66ddec185",
+      "source_prompt": "1차면접 잘 봤는지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-26c573eff3b215aa2b77154a",
+      "source_prompt": "2대2면접 때 잘봤나",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b2a46525ae7ebd7ea46e3202",
+      "source_prompt": "기다리는데 지루하지 않았는지?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e1149b607f014a955750aa2e",
+      "source_prompt": "피곤하시죠? 컨디션 어때요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3438b74a59e1a7dc71e1d48d",
+      "source_prompt": "앞에 면접 잘 봤어요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-33e5af85c9430c7e1b32e6c1",
+      "source_prompt": "현재의 기분은?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b6e57c53f2796c593b838248",
+      "source_prompt": "지금 가장 생각나는사람?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6416f57ef9df95a7ddf251f4",
+      "source_prompt": "기다리는 시간이 몇분 정도 되었는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ad19110c1cf8a1b16f845a5b",
+      "source_prompt": "입사 해서 첫 회식 건배사",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-dbc29b6262ae5cad48e3ffe8",
+      "source_prompt": "대기 중에 무슨 생각 하였는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ed0b964c565434d80a6308e7",
+      "source_prompt": "끝나고 뭐하고 싶은가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f203f220264faacc46883e71",
+      "source_prompt": "기다리면서 무슨 생각을 하였는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a18e4821b99fbc86405e0896",
+      "source_prompt": "아침은 먹고 왔는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-74ad610c09f7884b3ee0c5fb",
+      "source_prompt": "지금 가장 생각나는 사람이 누구인가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-dadf2860901d62b92104dac7",
+      "source_prompt": "합격하면 누가 가장 좋아하겠는가?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f570178bb481a0f7dc020e9d",
+      "source_prompt": "앉자마자 지원분야랑 이름 말해보세요",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-40ed5c7804859417ec7c1328",
+      "source_prompt": "너무 오래 기다리셨죠",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-742b6652665e397b7dc05041",
+      "source_prompt": "제주 오는데 덥지는 않았는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3e72900edf94fe7cc09e843f",
+      "source_prompt": "배고프지 않냐고 물어봄",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-601136c82709bcce99bfb6e6",
+      "source_prompt": "오래 기다리셨나요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-62425938045bd9de9e66c72c",
+      "source_prompt": "점심은 먹었어요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1e735af2e60aa9dc844fd7d1",
+      "source_prompt": "무슨 음식인지 물어봐도 돼요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-568547e9ad4a357581736a10",
+      "source_prompt": "많이 기다렸는데 괜찮은지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-234d79c4e51eaf91ca2d69a6",
+      "source_prompt": "이름이랑 지원분야 말해주세요",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-254f7f4a213012c25da35d05",
+      "source_prompt": "점심은 잘 먹었는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c8eb2b3564dfb8404dec8ee1",
+      "source_prompt": "앞서 진행한 직무면접은 어땠으며 지금 기분은 어떻습니까?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c1d3a677868c74b8ad8f1aa3",
+      "source_prompt": "식사는 하시고 왔는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-52b86bea72fd7eb5d810efe3",
+      "source_prompt": "2 면접은 잘 봤는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b3b239eede9256a3364db297",
+      "source_prompt": "마지막 면접인데 느낌이 어떤지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ae8861c698a119acd790a782",
+      "source_prompt": "마지막 면접자인데 대기하면서 앞에 면접자들을 보며 무슨 생각을 했는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ce54cddb86c6b40203ac9b9a",
+      "source_prompt": "어디서 왔나요?",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-38c4bb3f31e5bb363ae072db",
+      "source_prompt": "지금 누가 가장 생각나는지",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-669be2eeb8ec3343543b94b6",
+      "source_prompt": "끝나고 뭐할건가",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a665b1f22f3b2f5ee5caece8",
+      "source_prompt": "직무 면접 때 어땠냐",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e70f62d3789b2adf4bf7ce51",
+      "source_prompt": "오늘 기분이 어떠냐? - 설렌다. 잘 답변하고 있는 거 같고 그래서 내 점수를 지금 기대하고 있다 라고 하니 면접관 3명 다 빵터짐.",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d16d7484455918ed2654f80a",
+      "source_prompt": "본인의 신체에서 가장 마음에 드는 부분 세 가지는 무엇입니까?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6668ea111b58e0323097bf44",
+      "source_prompt": "술을 잘 먹는가(그리고 얼마나 먹는가)",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-572400524be507a58f832d23",
+      "source_prompt": "술 좋아하냐",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e31a8b129236592dbd922690",
+      "source_prompt": "멀미는 안하는지",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-077aeb27f124afcbe76a5640",
+      "source_prompt": "노래방 가면 18번이 있는지?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness"
+      ]
+    },
+    {
+      "question_id": "q-c116355e902fbabc40d3b3ae",
+      "source_prompt": "긍정적인 사람과 부정적인 사람 차이는?",
+      "disposition": "personal",
+      "element_ids": [
+        "values-origin"
+      ]
+    },
+    {
+      "question_id": "q-522077030b9302e019b8d8d5",
+      "source_prompt": "최근에 해외 여행 간 적?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4e243afd91a1877f8f402e8e",
+      "source_prompt": "배를 타본 경험이 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a7c9e4efd22a34e6fc8a0d7d",
+      "source_prompt": "술을 취할때까지 마셔본 적이 있으신가요? - 상사가 술을 권한다면?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cdd1d7577a25ab4e4a57acca",
+      "source_prompt": "배우자에게 바라는 것 3가지",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9f6c356a157b994c5bdf3346",
+      "source_prompt": "키는 몇이죠?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-aaeab59386ec59fce13fb85a",
+      "source_prompt": "무슨 출신인가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bba510db189bdf1494d24cfb",
+      "source_prompt": "집이 어디냐? 왜 서해 안쓰고 제주 썼냐?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-21119b7ccca38cf758ef613b",
+      "source_prompt": "우울함이 그나마 높게 나오는데 어떠한 상황에서 우울한지?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-be87cdbadd1f67b9a3c890d9",
+      "source_prompt": "아빠랑 엄마랑 관계 비교해서 말하라",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b2e1c8ee5c5891881e2a6e42",
+      "source_prompt": "월급은 얼마나 받았는가?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-87e0c950cbf108d413c446e6",
+      "source_prompt": "집이 어딥니까? 학교가 어딥니까?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-be0c24c2d432df7828b91e6e",
+      "source_prompt": "학점이 얼마냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-83bd244dedab3b87bbdcee71",
+      "source_prompt": "출신이 어디냐",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-41608a869b278c2cf4453739",
+      "source_prompt": "학군 군번이 몇 번이냐?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-dab4df3a77edf3057df23495",
+      "source_prompt": "외국에 거주한 적 있나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4915ba6e96bce2f41fa1abf4",
+      "source_prompt": "친구들이 나를 욕한다면 어떤 내용, 친구들에게 술을 자주 사는 편인가?",
+      "disposition": "sensitive_review",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0c060a52da076f9fb27412e5",
+      "source_prompt": "시험에 몇 번 응시했습니까?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9c4e063155b01b4a7b39e893",
+      "source_prompt": "신조 함정의 이름을 정한다면 어떤 이름을 붙이겠습니까?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bc71090b8dd0323c7efe321a",
+      "source_prompt": "선택형 상황 골라서 경험과 타인의 반응 얘기해보세요",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2db5eb48f2ecca1ddedfa898",
+      "source_prompt": "상사가 본인이 이기주의라고 하는데 어떻게 생각?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a69686b500a51341eb6a01d4",
+      "source_prompt": "유튜브 보다 잠들지는 않았는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d9c4bed7e7e5650767e8c4fa",
+      "source_prompt": "그걸 보면서 뭘 얻을 수 있는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d582d337be454ed43af288ce",
+      "source_prompt": "분명 말리는 사람이 있었을텐데 어떻게 했는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b359795d59490258129aa983",
+      "source_prompt": "요즘 어떤 생각하면서 사는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-172ae1d92eff69b7e7cccaea",
+      "source_prompt": "몇번째 시험인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7cd3b24a075af435bd9c941a",
+      "source_prompt": "그 사건이 국민들에게 미치는 파장이 어떠한 것 같은가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1d3545c6a1e857381028e174",
+      "source_prompt": "타임머신",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1f78d1e2e4f4ae6aebdcc8eb",
+      "source_prompt": "해양경찰 몇 번째 시험인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8040b77fc9c6e078dbc2df09",
+      "source_prompt": "면접 본 적 있나요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-04356677037ee9fadc082230",
+      "source_prompt": "몇 번째 면접 인가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f8a454943501b84d839b34ba",
+      "source_prompt": "해양경찰시험이 처음인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6574864a0d08c5dc5f2eaf58",
+      "source_prompt": "해경 지원하기 전에 무슨 일 했는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ea33fffed301a3cf1ec9ab53",
+      "source_prompt": "사회생활 경험",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-30b3aa0abbd32734c03bb4c3",
+      "source_prompt": "인성 결과지 보고 질문",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c23fa956f4074ec8bcf4ac7b",
+      "source_prompt": "일처리 어떻게 하는 편?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5dd5c92132852b3ff9409c4e",
+      "source_prompt": "이전에 했었던 직업에 대해 설명해봐라",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cd017b1af3f6c4fd6e8116ef",
+      "source_prompt": "아무도 나를 이해 해주지 못하는 경우에는?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-97a39fe848a11e471c16dd0d",
+      "source_prompt": "자신의 멘토가 누구인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-de9a0de5b802fe051120f461",
+      "source_prompt": "의경생활얘기",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-56469186684fb54279ad38ee",
+      "source_prompt": "그것을 해경에 들어와서 어떻게 적용시키냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-160b7c5b5396d1f6d2fc28e1",
+      "source_prompt": "어떤 운동을 좋아하는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-377b0daf4101423041c749b0",
+      "source_prompt": "본인이 생각하는 바다는 무엇인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cb296e961740f65d83b7f506",
+      "source_prompt": "수험기간이 몇 년 정도 되는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3d3f1d0084977554cb75664e",
+      "source_prompt": "바다를 보면 무슨 생각이 드는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-84ef4f19433cd25167bc85b1",
+      "source_prompt": "배를 타본 적 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-10ad7dbc46c1dcb359647ec3",
+      "source_prompt": "자존감? 자신에 대한 애정? 사랑?을 지키기 위한 본인만의 방법이 있는지. (인성검사 시트 기반 질문으로 추정됨. 아마 자기확신이나 자존감이 높게 나와서 그런 것 같음)",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f589bbf68e6e71d0557b0cab",
+      "source_prompt": "다른 사람과 비교하는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6a8debf5fc71c706cecb6b02",
+      "source_prompt": "시험 두 번 시험 쳤다고 하니 왜 두 번인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5745d746009a676aad5600e6",
+      "source_prompt": "해양경찰 관련 경험은",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9e2f1ded143b418d27905b9e",
+      "source_prompt": "사용해 본 적 있는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6c08e1389f8f0269b6b83918",
+      "source_prompt": "음주운전에 대해 내적요인, 외적요인이 어떤 것이냐? 거기에 본인은 어디쪽에 속하는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6deba6bc93c886f25aa6d1f2",
+      "source_prompt": "실제로 배에서 사용해 본 적 있나,",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-909ab4086079b3169d6d6bad",
+      "source_prompt": "최근에 본 유튜브영상",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3042a4d232f8d4eafa312c21",
+      "source_prompt": "동기가 계속 조금씩 늦는다 어떤식으로 대처할 것이냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-76bb44a89c180b77ef0cb5fc",
+      "source_prompt": "몇번째 시험이냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3ce98c97617e75c99b1e4f4b",
+      "source_prompt": "상대방을 평가하는 것에 대해서 어떻게 생각하는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-35706c9429c6b882a46a12ab",
+      "source_prompt": "좋게 평가한다면?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9bbbdc4f0d6a0a2c2d9b74ba",
+      "source_prompt": "의경때 기억에 남는 것",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c93c07c1b888f1dbffc9bede",
+      "source_prompt": "첫 질문이 뭐라고 생각하는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1f082c06d967f23196de5f71",
+      "source_prompt": "몇 번째 지원인가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-615903afc946c4cfa4dcce71",
+      "source_prompt": "사회생활 해봤는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0b36be8bf1ba2ff809af89fc",
+      "source_prompt": "본인이 더 덧붙이고 싶은 거 이야기 해 보세요",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e2706630ae99c77a8a7ec1ea",
+      "source_prompt": "얼마만에 진급했어요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cbcbf340f4fdad77b6095afa",
+      "source_prompt": "2항사 얼마나 했어요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6bb585d72520357971233c2b",
+      "source_prompt": "배 몇 년 탔어요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0f8c48c8ec7f1c301ae9b335",
+      "source_prompt": "시험 몇 번째인가요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8579a41d285a9c24c75e544b",
+      "source_prompt": "몇번 지원했나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7a73974688bcbd2dcb23426f",
+      "source_prompt": "군대 어디 나왔나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3bfdc035f35e57b4ccb665d1",
+      "source_prompt": "음주운전에 대해 어떻게 생각하는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4450dc0f40fdf744616f5ad4",
+      "source_prompt": "뭐든지 다 잘하게 생겼네요(네 이렇게 대답하니까)",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-685dd45ec6c8dc96e3199d25",
+      "source_prompt": "군대에서 어떤 평가를 받았나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-88e856dae4e93c7b9324591d",
+      "source_prompt": "고등학교 시절은 어땠나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7338df573d966cf6e33b44f5",
+      "source_prompt": "몇 번 지원 했는가 / 여기서 꼬리질문 들어 왔습니다",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e3ac85b35151db37dc1c3c79",
+      "source_prompt": "능력을 사전이 있는데 어떤 능력을 가지고 싶나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cffb34a670968d9c4d4f62a3",
+      "source_prompt": "해경시험 몇 번 봤는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1e49a3ffdd397ce268be22c9",
+      "source_prompt": "3년 중 면접은 몇 번인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a4137e4d3a88ff9ce0fafc74",
+      "source_prompt": "첫시험인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-842a8f18ab77b165963de2b6",
+      "source_prompt": "몇 번째 시험?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4766e2b83ec8af91cc7d31fb",
+      "source_prompt": "어떠한 노력을 하셨어요? 이후 꼬리질문 계속 들어옴",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9518dc428c75b613d0198e8d",
+      "source_prompt": "의경시절 무슨 배 탔는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-31766be96694a59c1ae2f220",
+      "source_prompt": "의경을 별로 안좋아하는데 무엇을 했는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-16310c324638e3fabd3e8aa7",
+      "source_prompt": "그 때의 심정",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-35e6c168ba2987bede528440",
+      "source_prompt": "체력 좋다고 하니까 체력좋아서 겪었던 에피소드 말해봐라",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f148ef0055d63f7f5a098080",
+      "source_prompt": "해양경찰에 들어가서 필요한 정서가 무엇인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-53ac07b5e393296a647b42ef",
+      "source_prompt": "사회 생활 경험은?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cc946c8df1324fe7851c7dd3",
+      "source_prompt": "음주 문제에 대해서 어떻게 생각하는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-66dbc9ab6ee4649d8bb02d6b",
+      "source_prompt": "군대에서 보직이 무엇이었는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-12fbc32b88dffefe97c55319",
+      "source_prompt": "사회생활경험있나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5257153e97c01e931b1d2499",
+      "source_prompt": "음주운전에 대해 어떻게 생각하는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-682ac8a099bf59edcfaf31a4",
+      "source_prompt": "그걸 해경에서 어떻게 쓸꺼냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0d95b9dacd91c8900b23e3ad",
+      "source_prompt": "나를 색깔로 표현한다면?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2d3413209320294bf5dfaa18",
+      "source_prompt": "좋아하는 팝송 있나요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6a741e95ac49d5281a29835f",
+      "source_prompt": "어디서 근무하고 싶은지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-104871d822a0a3d9bbc7370d",
+      "source_prompt": "사회 활동 하고 있는게 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-98706b4d6021431f503662cf",
+      "source_prompt": "없다면 뭘 하고 싶은가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2e9fd4ec257697682371dd89",
+      "source_prompt": "사람을 볼 때 무엇을 먼저 볼 것인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e4aef9240d41eea2f004b768",
+      "source_prompt": "자신이 군 복무시절 선/후임들이 자신을 어떻게 생각했나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-61193d17fa34b538c05a5d7e",
+      "source_prompt": "옆 사람에게 본인의 지역자랑 시킴",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-aff435cb782f89a22bb28b89",
+      "source_prompt": "수험기간 얼마나 됐어요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8771e82b46259328bda38edf",
+      "source_prompt": "어디서 근무하고 싶은가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-455dfbe1c4f95bd82fb39fe5",
+      "source_prompt": "가장 기억에 남는 일",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1017b89e116fbe0aed8c28a7",
+      "source_prompt": "휴일에 무슨 일을 주로 하는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-adfc6ec6b3ff62d77ffa2ecf",
+      "source_prompt": "사회생활 경험이 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0409edd9cf9c935e00fc057a",
+      "source_prompt": "영어 잘하나봐요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-35d04866170e926a8f46b6fe",
+      "source_prompt": "어떻게 푸나요? 혼자서만 푸나요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f212d403918bc20d7b97c0a6",
+      "source_prompt": "의경시절 어디에서 근무했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-385a54c4be1f490a8ee9c583",
+      "source_prompt": "본인 때문에 피해를 준 적이 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a9e3a486f64575eb8ac161e8",
+      "source_prompt": "용기 있는 대답을 할 수 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-957db2a6c040ce8319dce321",
+      "source_prompt": "어떤 함정에서 근무하였는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5d707d264098a7d9670182fc",
+      "source_prompt": "해군에서 근무한 직별은?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-36299e7723ae93b0c131e845",
+      "source_prompt": "해외 임무를 수행해 본 적이 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7378f49dcd34ed022cc48623",
+      "source_prompt": "엄마가 좋아요? 아빠가 좋아요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e0766d16909f4e8357ea5429",
+      "source_prompt": "습관이 뭐가 있나? 다리 떠는 거라고 하니 그걸로 계속 꼬리질문",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9e5c4309ed8d951af46f5f06",
+      "source_prompt": "양아치란 뭐라 생각하나(면접자 중에 양아치가 있나)",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d68046f2ce824567642aecfc",
+      "source_prompt": "양아치나 건달이 무엇이라 생각하나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cee27b070306d587c5d3b872",
+      "source_prompt": "이 세상에 본인만 존재하면 양아치란 무엇인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8e626e00fe5b5fb3ef81ccb3",
+      "source_prompt": "본인은 그런 양아치가 되어본적있나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5afd22afd225119abe81f29b",
+      "source_prompt": "군대는 어디 다녀왔는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-619b1da7f478ecb59a4fe7dd",
+      "source_prompt": "그거에 대해 본인이 어떻게 생각하는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2364aaed6306460893e2d5ba",
+      "source_prompt": "축구,야구,농구,배구 선택",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-31418f4eb3549f42c85ee690",
+      "source_prompt": "축구 선택하니 포지션 어디냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-09915472a2dc971578eb0ee5",
+      "source_prompt": "축구 야구 농구 중 프로팀하면 뭐할꺼냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3fc3e00688d54cb54901d6f2",
+      "source_prompt": "방지대책",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3d28c81a02470ce3fa0b4b12",
+      "source_prompt": "이번 몇번째 면접이냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5c7e2b93f30569235f8a17a7",
+      "source_prompt": "현재는 붙이고 하지만 다음 시험부터는 떼고 한다고 하니까 그거에 대해서 어떻게 생각하냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-448370cfa6f2dd7029a336ad",
+      "source_prompt": "시험 처음 지원했냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f9fee8edaac391a7d500e8e9",
+      "source_prompt": "남 도움말고 혼자 푸는 방법은?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8e42dd9561664ad0cbeca8d4",
+      "source_prompt": "선박에서 어떻게 풀 것인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6fbef03bbdd9c9765efc2404",
+      "source_prompt": "의경 때 어떤 일했냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ab391016ccf8d5412bd23ac2",
+      "source_prompt": "휴가때는 주로 뭘 할 것인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0cf65b51d3f9cc5ef90988ca",
+      "source_prompt": "실무경험(어느 배, 몇 년 탔는지 구체적으로 말하라 함)",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c889af5d383eea3dff86559c",
+      "source_prompt": "지금까지 뭐하고 있었는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-2309b8a0a95f61f86578aa9b",
+      "source_prompt": "군복무어디서?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7ef6e6822e1e7c66686987a8",
+      "source_prompt": "시험 몇 번째?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bdaecd54268111b24f743908",
+      "source_prompt": "몇 번째 시험이냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1caa80525e5addafcf9058e6",
+      "source_prompt": "어떤 식으로 재밌게 해줬는지?(개그 프로그램 같은거 보면서 해줬다함 말짜름)",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b8f0facd50c41eb4c808fa9c",
+      "source_prompt": "생각할정도로 없는것이냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a1561987551eb4352a200e7e",
+      "source_prompt": "면접은 몇 번째인가요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f0ae86abfe105a3c9ac64e64",
+      "source_prompt": "몇번째 시험인가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bd47675d6e728c8a7d584dd7",
+      "source_prompt": "상선 내리고 공백기간이 있는데 뭐했냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c76d674c576a6f867d76cbc5",
+      "source_prompt": "해경 관련 경험은?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0225d99abd3fe65b069afb14",
+      "source_prompt": "몇 번째 지원인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c7815e2deedbfeb401aaafcf",
+      "source_prompt": "지원 몇 번했냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-78cfe344a5e8765cd8cc5630",
+      "source_prompt": "방황을 했다 하셨는데 어떤 방황이요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5f4697a4764eb1ca53376640",
+      "source_prompt": "정확히 언제 방황타셨나요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-04db223b1b8dc93ff8fdcd75",
+      "source_prompt": "정말 그렇게만 하고 다른건 안해보겠는가.",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e68c45b8b64b513a1df37800",
+      "source_prompt": "면접 몇 번째?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4118ec73e2c98482a69d02d0",
+      "source_prompt": "해양경찰 말고 다른 직업",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b10d00994498e9b2cfe68d65",
+      "source_prompt": "사례를 들어서 설명해주세요",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bb9397c32c1813a07e806f70",
+      "source_prompt": "함정경험 있냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-35f2c4c1505f4d45a21bf7ab",
+      "source_prompt": "직별 뭐냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6427dc0ba785eab936c12894",
+      "source_prompt": "몇 번째 시험인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-c2d8440add731145454bfe47",
+      "source_prompt": "면접 몇 번째인가요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-40d79fcd0d6e838a7190a12e",
+      "source_prompt": "면접은 처음인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b50959ca5434a9c4db2f1332",
+      "source_prompt": "선박회사 어디였냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cf1b156917c9504fa7fd58a7",
+      "source_prompt": "무슨 종류 배 탔냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-04487c63d001ddc78b6ce6c8",
+      "source_prompt": "무슨 배를 탔었는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-956157532186cfbdd2448ac5",
+      "source_prompt": "앞에 일 뭐하다 왔는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4355e6d84c4c1a5633e80f40",
+      "source_prompt": "상선근무 잘했는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5e1dde9b1d57d32d249f9002",
+      "source_prompt": "사회생활에서 무엇을 해봤는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-9ac138969fdcaf8ed8326c04",
+      "source_prompt": "사회 생활 경험과 느낀 점",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-64b535b44d14fb9291fad30c",
+      "source_prompt": "인성검사 결과 보고 개인 질문 하는거 같아요",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-fcc6e889bcc8e38da13f455b",
+      "source_prompt": "선박을 타면서 기관에 관련된 경험?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6676343d1eae46405b16d8d7",
+      "source_prompt": "나잠어업을 하고 있는데 상사라면?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6402a472b909a2ae2a289101",
+      "source_prompt": "배를 얼마나 탔는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-92f7cc801d08d06e5ebf3b69",
+      "source_prompt": "3가지의 의미가 자신에게 무엇인지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e2e91fc5d36284d216d35e08",
+      "source_prompt": "군복무는 어디서 했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bed8d33f1298b1afe4f74780",
+      "source_prompt": "가장 인상 깊었던 사건",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8d4cfa0b3c954fd20b46931e",
+      "source_prompt": "전역 언제했나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-bc7beeab8bdaf87dc7fdf6fc",
+      "source_prompt": "전역 언제 했는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e3d4ab0d858b3330b9fbc809",
+      "source_prompt": "상선 탄 적있나",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-73a634b58f6e07c0215827ee",
+      "source_prompt": "전역 언제했나 - 근무는 어디서?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-6ba3a3f9f535e2b84b00ae5d",
+      "source_prompt": "이전에 어디에서 근무 했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ecee39b353f287f29e8edf04",
+      "source_prompt": "의경 때 어떤 함정에서 근무했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-16af895ac6d27f76f2b05354",
+      "source_prompt": "함정근무를 몇 개월 했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-63d9bb8428043df356e314ee",
+      "source_prompt": "사회생활 해본 적이 있는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-dc425a1d5c95a64721111225",
+      "source_prompt": "의경출신인데 나이가 어리다, 시험이 몇 번째인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-0783c3395697d99cecbc1a31",
+      "source_prompt": "이유가 무엇인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-14582abfe18602b993725f5d",
+      "source_prompt": "배를 탈 때 무슨 이야기를 많이 들었는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-08c7f489233c37d10d713222",
+      "source_prompt": "육상직은 어디에서 근무했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-1a2a362ad80be6f4fb7d0d1b",
+      "source_prompt": "실습했는가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a9ea861466b2b3d70bc9a01e",
+      "source_prompt": "어떤 종류의 선박 타셨는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-587e3fbfb844da2110eab916",
+      "source_prompt": "방제 말고 다른 데 지원한 적 있는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-b56e06f5f6324766fbb2aa98",
+      "source_prompt": "배를 타봤는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a65eba00383539efefc6eab7",
+      "source_prompt": "공단에서 무슨 일 했는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-7d80f6a08dd6423d63a8b2b5",
+      "source_prompt": "외국선박에 영어를 해야 할 일이 많은데, 영어 할 줄 아냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-120954a67723d7b4993435fa",
+      "source_prompt": "회사에서는 어떤 업무를 했냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-68d44ac8950f7cf8441f20ec",
+      "source_prompt": "어느 선종 탔냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-cd6608150ee5881f45a59e5f",
+      "source_prompt": "배 내리고 무엇을 하며 지냈는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-31708d5d8e699ff648853b7f",
+      "source_prompt": "2기사 진급은 했느냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ea51208df583da3541afe88e",
+      "source_prompt": "1기사로 무슨 일을 했느냐",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8f3785a22527fbf00b008172",
+      "source_prompt": "다른 시험에 응시한 적이 있습니까?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a2dbb1d1557d6304fa6cf261",
+      "source_prompt": "이유는요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-8e464165164b3f53255dcbae",
+      "source_prompt": "배 몇년 탔는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-83aab12929b68f2d13df69d9",
+      "source_prompt": "탔던 선종",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-32aa3909555b51422e8c5f63",
+      "source_prompt": "표정관리 뿐이냐 이런식으로 부정적으로 말함",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-155838f59555209ec7d8d74d",
+      "source_prompt": "질문을 할 때 상사가 짜증내지 않았는가",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5ca786ec7465a3882c4785ff",
+      "source_prompt": "몇번째 지원이고 몇번째 면접인가?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-fc12ed958a471fe2d3a33d27",
+      "source_prompt": "항해사 근무 이전에 사회생활한 적있나?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-3c2e70bb2f8a7b44174023fb",
+      "source_prompt": "보이는 능력과 보이지 않는 능력이 있다면 무엇을 택할 것인지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-e42e5084a073337465291b0a",
+      "source_prompt": "기억에 남은 환자",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-59857c49688c779a7f31358a",
+      "source_prompt": "일을 하면서 가장 기억에 남는 환자",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-d984318049abc1f6d7706f3e",
+      "source_prompt": "가장 기억에 남는 환자가 있나요?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-03e1f1c77445180eac84fdcf",
+      "source_prompt": "본적 있나요? 권위주의 글을 보았다 그러면서 풀었어요",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-50b91e052d43f3fb50ba1e3c",
+      "source_prompt": "어디에서 군 복무를 했습니까?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-f17cfcd5900281b852bf04ca",
+      "source_prompt": "그 과정에서 무엇을 배웠는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-ff6a1b898a1ec4fd31e8574a",
+      "source_prompt": "필기, 체력 잘 봤는지?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-5f03b38016134937dde440e3",
+      "source_prompt": "일 해본 경험이 없는데 괜찮겠냐?",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-38924be7b7398fa4d8150413",
+      "source_prompt": "어떻게 이겨냈는지",
+      "disposition": "context_needed",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-a0a6a95137282df7bf704dbd",
+      "source_prompt": "식사여부",
+      "disposition": "rapport",
+      "element_ids": []
+    },
+    {
+      "question_id": "q-4ceeb974beb94f3da346107d",
+      "source_prompt": "부사관의 책무에서 본인이 좋아하는 구절과 해경에 적합하다고 생각하는 구절이 있다면?",
+      "disposition": "personal",
+      "element_ids": [
+        "public-mission"
+      ]
+    },
+    {
+      "question_id": "q-199afa7a7933d47a94ef3035",
+      "source_prompt": "본인은 업무능력이 좋은 쪽과 동료들과 잘 지내는 쪽 중 어디에 더 가깝습니까?",
+      "disposition": "personal",
+      "element_ids": [
+        "self-awareness",
+        "mutual-support"
+      ]
+    }
+  ]
+}

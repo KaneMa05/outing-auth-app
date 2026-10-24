@@ -4,9 +4,19 @@
   "private": true,
   "scripts": {
     "test:penalty-export": "node tests/penalty-export.test.cjs",
+    "test:interview-prep": "node tests/interview-prep.test.cjs",
+    "test:interview-exam": "node tests/interview-exam.test.cjs && node tests/interview-exam-metrics.test.cjs",
+    "test:interview-live": "node tests/interview-live.test.cjs && node tests/interview-live-client.test.cjs && node tests/interview-live-connection.test.cjs && node tests/interview-live-vercel.test.cjs && node tests/interview-live-ui.test.cjs",
+    "check:interview-live": "node scripts/check-interview-live.cjs",
+    "test:interview-native": "node tests/interview-native.test.cjs && node tests/interview-native-launcher.test.cjs",
+    "start:interview-live-worker": "node --env-file-if-exists=.env --env-file-if-exists=.env.local tools/interview-live-worker/server.cjs",
+    "test:interview-ai": "node tests/interview-ai-api.test.cjs && node tests/interview-ai-client.test.cjs && node tests/interview-ai-db.test.cjs && node tests/interview-ai-readiness.test.cjs && node tests/interview-local-demo.test.cjs",
+    "preview:interview-prep": "node scripts/interview-prep-ui-qa.cjs --serve",
+    "preview:interview-ai": "node scripts/interview-prep-ui-qa.cjs --serve --local-ai",
+    "test:interview": "node tests/interview-preview-access.test.cjs && node tests/interview-prep.test.cjs && node tests/interview-analysis.test.cjs && node tests/interview-core30.test.cjs && node tests/interview-life.test.cjs && node tests/interview-diagnosis.test.cjs && node tests/interview-auth.test.cjs && node tests/interview-writing.test.cjs && node tests/interview-writing-rounds.test.cjs && node tests/interview-review.test.cjs && node tests/interview-rubrics.test.cjs",
     "test:data-analytics": "node tests/data-analytics.test.cjs",
-    "test:read-optimization": "node tests/study-cafe-snapshot-bundle.test.cjs && node tests/grade-refresh-scope.test.cjs && node tests/menu-request-recovery.test.cjs",
-    "test:read-optimization:db": "node tests/study-cafe-snapshot-bundle-db.test.cjs && node tests/menu-read-optimization-db.test.cjs",
+    "test:read-optimization": "node tests/study-cafe-snapshot-bundle.test.cjs && node tests/grade-refresh-scope.test.cjs && node tests/menu-request-recovery.test.cjs && node tests/teacher-menu-deferred.test.cjs",
+    "test:read-optimization:db": "node tests/study-cafe-snapshot-bundle-db.test.cjs && node tests/menu-read-optimization-db.test.cjs && node tests/cafe-read-models.test.cjs",
     "build": "node build-config.js",
     "posttest": "node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-realtime-refresh.test.js && npm run test:read-optimization && node tests/study-cafe-loading.test.cjs",
     "test:cost-logs": "node tests/supabase-request-timeout.test.js && node tests/study-cafe-fast-rpc.test.js && node tests/study-cafe-rpc-fallback.test.js",
@@ -28,9 +38,13 @@
     "dev:local": "node local-dev-server.js",
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
-    "test:study-cafe-bots": "node tests/study-cafe-bot-admin.test.js && node tests/study-cafe-bot-admin-ui.test.js && node tests/study-cafe-bot-admin-db.test.js"
+    "test:study-cafe-bots": "node tests/study-cafe-bot-admin.test.js && node tests/study-cafe-bot-admin-ui.test.js && node tests/study-cafe-bot-admin-db.test.js",
+    "test:preassignments": "node tests/interview-preassignments.test.cjs && node tests/interview-preassignments-api.test.cjs && node tests/interview-preassignment-guidance.test.cjs && node tests/interview-preassignment-diagnosis.test.cjs",
+    "test:release-db": "node tests/interview-release-migrations.test.cjs"
   },
   "dependencies": {
-    "web-push": "3.6.7"
+    "@vercel/functions": "3.10.2",
+    "web-push": "3.6.7",
+    "ws": "8.22.0"
   }
 }

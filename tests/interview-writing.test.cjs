@@ -1,0 +1,133 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {createDb}=require('./helpers/interview-db.cjs');
+const {createHandler}=require('../api/interview-prep'),auth=require('../api/teacher-auth-utils');
+(async()=>{
+ const {db,invoke}=await createDb(),admin={type:'admin',id:'qa'},a={type:'student',id:'ip-a'},b={type:'student',id:'ip-b'};
+ try{
+  for(const id of ['ip-a','ip-b'])await invoke('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:id,enabled:true});
+  await assert.rejects(invoke('writing_list',a),/not_enrolled/);
+  await invoke('admin_enabled',admin,{enabled:true});
+  let payload={kind:'introduction',itemId:'',revision:0,text:'나의 경험으로 작성한 자기소개입니다.',status:'draft',targetStudentId:'ip-b'};
+  let r=await invoke('writing_save',a,payload);assert.equal(r.writing.student_id,'ip-a');
+  assert.equal((await invoke('writing_list',b,{targetStudentId:'ip-a'})).writings.length,0);
+  await assert.rejects(invoke('writing_save',a,payload),/revision_conflict/);
+  await assert.rejects(invoke('admin_writing_feedback',admin,{targetStudentId:'ip-a',kind:'introduction',itemId:'',revision:1,status:'approved',feedback:'확인'}),/not_submitted/);
+  r=await invoke('writing_save',a,{...payload,revision:1,status:'submitted'});
+  r=await invoke('admin_writing_feedback',admin,{targetStudentId:'ip-a',kind:'introduction',itemId:'',revision:2,status:'needs_revision',feedback:'본인의 행동을 구체적으로 작성해주세요.'});
+  await assert.rejects(invoke('writing_save',a,{...payload,revision:2,status:'saved'}),/revision_conflict/);
+  r=await invoke('writing_save',a,{...payload,revision:3,status:'saved',text:'피드백을 반영한 자기소개입니다.'});
+  assert.equal(r.writing.revision,4);assert(r.writing.feedback.includes('구체적'));
+  await invoke('writing_save',a,{kind:'motivation',itemId:'',revision:0,text:'지원동기는 자기소개와 별도입니다.',status:'saved'});
+  assert.equal((await invoke('writing_list',a)).writings.length,2);
+  const publicDraft={kind:'public_service',itemId:'',revision:0,text:'공익을 우선하는 공직관입니다.',status:'submitted'};
+  let publicResult=await invoke('writing_save',a,publicDraft);
+  assert.equal(publicResult.writing.prompt_snapshot,'공직관');
+  await invoke('admin_writing_feedback',admin,{targetStudentId:'ip-a',kind:'public_service',itemId:'',revision:1,status:'approved',feedback:'실천 사례를 확인했습니다.'});
+  publicResult=await invoke('writing_save',a,{...publicDraft,revision:2,text:'본인 경험을 보완한 공직관입니다.'});
+  assert(publicResult.writing.feedback.includes('실천 사례'));
+  assert.equal((await invoke('writing_list',b)).writings.length,0);
+  // Saving is not submitting. A teacher reviews a stable snapshot, even when
+  // the student subsequently saves or AI-adopts another working copy.
+  const motivation={kind:'motivation',itemId:'',targetStudentId:'ip-a'};
+  await assert.rejects(invoke('admin_writing_feedback',admin,{...motivation,revision:1,status:'approved',feedback:'확인'}),/not_submitted/);
+  assert.equal((await invoke('admin_review_students',admin,{status:'pending'})).students[0].pending_count,1,'Only explicit submission (public service) is pending');
+  let submission=await invoke('writing_save',a,{...motivation,revision:1,status:'submitted',text:'교사에게 제출한 지원동기입니다.'});
+  assert.equal(submission.writing.submission_status,'submitted');
+  assert.equal(submission.writing.submitted_revision,2);
+  const repeated=await invoke('writing_save',a,{...motivation,revision:2,status:'submitted',text:submission.writing.body});
+  assert.equal(repeated.writing.revision,2,'Repeated pending submission is idempotent');
+  const edit=await invoke('writing_save',a,{...motivation,revision:2,status:'draft',text:'아직 교사에게 제출하지 않은 수정본입니다.'});
+  assert.equal(edit.writing.submitted_body,submission.writing.body);
+  assert.equal(edit.writing.submission_status,'submitted');
+  await assert.rejects(invoke('admin_writing_feedback',admin,{...motivation,revision:2,status:'approved',feedback:'오래된 화면'}),/revision_conflict/);
+  const reviewed=await invoke('admin_writing_feedback',admin,{...motivation,revision:3,status:'needs_revision',feedback:'제출한 답변에 대한 피드백입니다.'});
+  assert.equal(reviewed.writing.body,edit.writing.body);
+  assert.equal(reviewed.writing.feedback_revision,2);
+  submission=await invoke('writing_save',a,{...motivation,revision:4,status:'submitted',text:edit.writing.body});
+  assert.equal(submission.writing.submitted_revision,5);
+  assert.equal(submission.writing.submitted_body,edit.writing.body);
+  assert.equal(submission.writing.feedback,reviewed.writing.feedback,'Resubmission preserves prior feedback');
+  assert.notEqual(submission.writing.feedback_revision,submission.writing.submitted_revision);
+  assert.equal(submission.writing.submission_round,2);
+  assert.equal(submission.writing.feedback_round,1);
+  let history=await invoke('writing_history',a,{...motivation,targetStudentId:'ip-b'});
+  assert.equal(history.total,2);assert.equal(history.rounds[0].round,2);
+  assert.equal(history.rounds[0].feedback,'','Previous feedback must not appear on the new round');
+  assert.equal(history.rounds[1].feedback,reviewed.writing.feedback);
+  assert.equal(history.rounds[1].submitted_body,'교사에게 제출한 지원동기입니다.');
+  assert(history.rounds[1].feedback_at);
+  assert.equal((await invoke('writing_history',b,motivation)).total,0,'Student target override ignored');
+  await assert.rejects(invoke('admin_writing_history',a,motivation),/forbidden/);
+  await assert.rejects(invoke('writing_history',admin,motivation),/forbidden/);
+  const firstRound=history.rounds[1];
+  await db.exec('set role service_role');
+  const secondFeedback=await invoke('admin_writing_feedback',admin,{...motivation,revision:5,status:'needs_revision',feedback:'두 번째 제출에 대한 피드백'});
+  const editedFeedback=await invoke('admin_writing_feedback',admin,{...motivation,revision:6,status:'approved',feedback:'두 번째 피드백 수정 완료'});
+  await db.exec('reset role');
+  assert.equal(secondFeedback.writing.submission_round,2);
+  assert.equal(editedFeedback.writing.submission_round,2,'Teacher editing does not create a round');
+  assert.equal(editedFeedback.writing.feedback_round,2);
+  history=await invoke('admin_writing_history',admin,motivation);
+  assert.equal(history.total,2);assert.deepEqual(history.rounds[1],firstRound,'Earlier submission/feedback preserved');
+  assert.equal(history.rounds[0].feedback,'두 번째 피드백 수정 완료');
+  assert.equal(history.rounds[0].status,'approved');
+  assert.equal((await invoke('writing_history',a,{...motivation,page:1})).rounds.length,0);
+  // Refresh test revisions after two feedback edits.
+  await assert.rejects(invoke('writing_save',a,{...motivation,revision:5,status:'submitted',text:'stale'}),/revision_conflict/);
+  await assert.rejects(invoke('admin_writing_feedback',admin,{...motivation,revision:4,status:'approved',feedback:'이전 제출 검토'}),/revision_conflict/);
+  await assert.rejects(invoke('admin_writing_feedback',b,{...motivation,revision:5,status:'approved',feedback:'타인 접근'}),/forbidden/);
+  await assert.rejects(invoke('writing_save',a,{...motivation,revision:7,status:'submitted',text:'  '}),/invalid_request/);
+  for(const change of [{kind:'job'},{text:[]},{text:'a'.repeat(10001)},{status:'approved'},{status:'saved',text:'  '},{itemId:'wrong'}])
+   await assert.rejects(invoke('writing_save',a,{...payload,revision:4,...change}),/invalid_request/);
+  await db.exec(fs.readFileSync('supabase/seeds/interview-corpus.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/seeds/interview-personality-analysis.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/seeds/interview-core30.sql','utf8'));
+  const q=(await invoke('admin_core_questions',admin,{coreKind:'main'})).questions[0];
+  const core={kind:'core',itemId:q.id,revision:0,text:'실제 경험에 근거한 핵심인성 답변입니다.',status:'submitted'};
+  await assert.rejects(invoke('writing_save',a,core),/question_unavailable/);
+  await invoke('admin_question_publish',admin,{items:[{id:q.id,revision:q.revision}]});
+  const before=await invoke('bootstrap',a);
+  r=await invoke('writing_save',a,core);assert.equal(r.writing.prompt_snapshot,q.prompt);
+  assert.equal(r.writing.submitted_body,core.text);assert.equal(r.writing.submission_status,'submitted');
+  assert.deepEqual((await invoke('bootstrap',a)).notes,before.notes,'Answers do not overwrite source notes');
+  await db.query("update ip_questions set status='archived' where id=$1",[q.id]);
+  assert.equal((await invoke('writing_list',a)).writings.find(w=>w.kind==='core').body,core.text);
+  await assert.rejects(invoke('writing_save',a,{...core,revision:1}),/question_unavailable/);
+  await assert.rejects(invoke('admin_writing_list',a,{targetStudentId:'ip-b'}),/forbidden/);
+  process.env.TEACHER_SESSION_SECRET='writing-test-secret';
+  const handler=createHandler({invoke,authenticateWeb:async()=>({id:'ip-a'})});
+  async function call(body,cookie=''){
+   let code,data;
+   await handler({method:'POST',headers:{host:'localhost',origin:'http://localhost',cookie},body},
+    {setHeader(){},status(n){code=n;return this;},json(v){data=v;}});
+   return{code,data};
+  }
+  assert.equal((await call({action:'writing_list',studentId:'ip-b',actor:admin})).data.writings.length,4);
+  assert.equal((await call({action:'admin_writing_list',targetStudentId:'ip-a'})).code,401);
+  const cookie=auth.COOKIE_NAME+'='+auth.createSessionToken(process.env.TEACHER_SESSION_SECRET,{username:'read',role:'admin',permissions:['interview.read']});
+  assert.equal((await call({action:'admin_writing_list',targetStudentId:'ip-a'},cookie)).code,200);
+  assert.equal((await call({action:'admin_writing_history',...motivation},cookie)).data.total,2);
+  assert.equal((await call({action:'writing_history',...motivation,targetStudentId:'ip-b'})).data.total,2);
+  assert.equal((await call({action:'writing_history',kind:'motivation'})).code,400);
+  assert.equal((await call({action:'admin_writing_history',...motivation})).code,401);
+  assert.equal((await call({action:'admin_writing_feedback',targetStudentId:'ip-a',kind:'introduction',itemId:'',revision:4,status:'approved',feedback:'확인'},cookie)).code,403);
+  for(const role of ['anon','authenticated']){
+   await db.exec('set role '+role);
+   await assert.rejects(db.query('select * from ip_writings'),/permission denied/);
+   await assert.rejects(db.query('select * from ip_writing_rounds'),/permission denied/);
+   await assert.rejects(invoke('writing_history',a,motivation),/permission denied/);
+   await assert.rejects(invoke('writing_list',a),/permission denied/);
+   await db.exec('reset role');
+  }
+  await db.exec('set role service_role');assert.equal((await invoke('writing_list',a)).writings.length,4);await db.exec('reset role');
+  await invoke('admin_member_save',admin,{targetStudentId:'ip-a',track:'공채',examNumber:'A',enabled:false});
+  await assert.rejects(invoke('writing_list',a),/not_enrolled/);
+  await assert.rejects(invoke('writing_history',a,motivation),/not_enrolled/);
+  assert.equal((await invoke('admin_writing_history',admin,motivation)).total,2);
+  assert.equal((await invoke('admin_writing_list',admin,{targetStudentId:'ip-a'})).writings.length,4);
+  await db.query("delete from students where id='ip-a'");
+  assert.equal(Number((await db.query('select count(*) n from ip_writings')).rows[0].n),0);
+  assert.equal(Number((await db.query('select count(*) n from ip_writing_rounds')).rows[0].n),0);
+  console.log('PASS writing: ownership, independent drafts, save/feedback/resave, revision conflicts, published core scope, archived answer retention, API permissions, RLS, revocation and deletion cascade.');
+ }finally{await db.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,56 @@
+[
+  {
+    "question_ids": ["q-d513cdda519491af54afd4ee", "q-2d1eccd7255df2e2bf769ac5", "q-d8176a678d2dee5d82919a05"],
+    "criteria": [
+      {"label":"전파의 반사 원리","terms":["반사"],"context":"보낸 전파가 물표에서 반사되어 수신된다는 관계를 설명한다.","reject_context":"반사를 부정하거나 음파 반사만을 레이더 원리로 설명한다.","source_quote":"전파를 보내고 물표에서 반사되어 돌아오는 신호"}
+    ],
+    "critical_errors": ["전파가 아니라 음파만으로 물표를 탐지한다고 설명한다.", "물표 반사 없이 모든 물표의 위치를 알 수 있다고 단정한다."]
+  },
+  {
+    "question_ids": ["q-d43fd0064dd656c5a8a8983b", "q-0ff210d5701ca9bc07fc7937"],
+    "criteria": [
+      {"label":"정보 교환 방식","terms":["VHF"],"context":"VHF 데이터 통신으로 선박 정보를 자동 교환한다고 설명한다.","reject_context":"VHF를 단순 나열하거나 레이더 반사로 정보를 자동 교환한다고 설명한다.","source_quote":"VHF 데이터 통신으로 자동 교환"},
+      {"label":"교환 정보","terms":["식별","위치","침로","속력"],"context":"선박 식별·위치·침로·속력 중 하나 이상을 교환 정보의 예로 설명한다.","reject_context":"해당 정보를 교환하지 않는다고 설명하거나 개인의 정보와 혼동한다.","source_quote":"선박의 식별·위치·침로·속력 등 정보"}
+    ],
+    "critical_errors": ["AIS에 모든 선박이 항상 표시되므로 다른 경계가 필요 없다고 단정한다."]
+  },
+  {
+    "question_ids": ["q-f74a7c9a761ef8ba3bcafbbf"],
+    "criteria": [
+      {"label":"시간에 따른 관측","terms":["시간 간격"],"context":"일정 시간 간격으로 물표 위치를 기록한다고 설명한다.","reject_context":"한 번의 관측만으로 운동을 확정할 수 있다고 설명한다.","source_quote":"일정 시간 간격으로 물표의 위치를 기록"},
+      {"label":"상대운동과 목적","terms":["상대운동"],"context":"관측 기록으로 상대운동을 구해 충돌 위험을 평가한다고 설명한다.","reject_context":"상대운동과 자선의 절대운동을 혼동하거나 충돌 위험 평가와 무관하다고 설명한다.","source_quote":"상대운동을 구하고 충돌 위험을 평가"}
+    ],
+    "critical_errors": ["상대선이 변침해도 기존 플로팅 결과가 항상 그대로 유효하다고 단정한다."]
+  },
+  {
+    "question_ids": ["q-e8331fafe8659d8f6d453501"],
+    "criteria": [
+      {"label":"그늘 발생 원인","terms":["구조물","굴뚝","마스트"],"context":"구조물 뒤에서 물표가 약해지거나 보이지 않는 구역이 생긴다고 설명한다.","reject_context":"기상 현상만으로 발생하거나 물표가 실제로 사라진 것으로 설명한다.","source_quote":"굴뚝·마스트 같은 구조물 뒤에는 그늘·차영 구역이 생겨 물표가 약해지거나 보이지 않을 수도 있습니다."}
+    ],
+    "critical_errors": ["레이더에 물표가 안 보이면 그 구역에 물표가 없다고 확정한다."]
+  },
+  {
+    "question_ids": ["q-99b31838168fecf41257a535"],
+    "criteria": [
+      {"label":"X밴드","terms":["X밴드"],"context":"해상용 레이더에서 사용되는 밴드로 X밴드를 제시한다.","reject_context":"X밴드는 해상용 레이더에서 사용되지 않는다고 설명한다.","source_quote":"X밴드 약 9GHz"},
+      {"label":"S밴드","terms":["S밴드"],"context":"해상용 레이더에서 사용되는 밴드로 S밴드를 제시한다.","reject_context":"S밴드는 해상용 레이더에서 사용되지 않는다고 설명한다.","source_quote":"S밴드 약 3GHz"}
+    ],
+    "critical_errors": ["해상 레이더는 전파가 아니라 음파를 사용한다고 설명한다."]
+  },
+  {
+    "question_ids": ["q-be1d7f33b3f4cec8ee7b6082"],
+    "criteria": [
+      {"label":"관측 기준","terms":["거리","방위"],"context":"해도에서 식별한 물표의 레이더 거리 또는 방위로 위치선을 구한다고 설명한다.","reject_context":"식별하지 못한 물표의 관측값 하나만으로 정확한 위치가 보장된다고 설명한다.","source_quote":"레이더 거리 또는 방위로 위치선을 구하고 교점으로 선위를 결정"},
+      {"label":"선위 결정","terms":["교점","교차"],"context":"위치선 또는 거리원의 교점으로 선위를 결정한다고 설명한다.","reject_context":"위치선의 교점과 관계없이 레이더 전원만 켜면 정확한 선위가 자동 보장된다고 설명한다.","source_quote":"교점으로 선위를 결정"}
+    ],
+    "critical_errors": ["단일 관측값만으로 정확한 선위가 항상 보장된다고 단정한다."]
+  },
+  {
+    "question_ids": ["q-04e7044954d0783c1dbd4a34"],
+    "criteria": [
+      {"label":"자동 추적","terms":["추적"],"context":"ARPA가 탐지 물표를 추적해 정보를 계산한다고 설명한다.","reject_context":"관측·추적 없이 상대선의 미래 행동을 확정적으로 예측한다고 설명한다.","source_quote":"ARPA는 탐지 물표를 추적"},
+      {"label":"계산 정보","terms":["CPA","TCPA","침로","속력"],"context":"ARPA가 계산하는 정보로 CPA·TCPA·침로·속력 중 하나 이상을 설명한다.","reject_context":"정보를 단순 나열하거나 항상 오차 없는 값이라고 단정한다.","source_quote":"침로·속력과 CPA·TCPA 등 정보를 계산"}
+    ],
+    "critical_errors": ["추적 오차나 상대선 변침을 고려할 필요가 없다고 단정한다."]
+  }
+]

@@ -14,11 +14,12 @@ test('leaving OX disposes its observers and listeners; rerenders keep the active
   let authed = true;
   const context = {
     location: { hash: '#criminal-law-ox' }, currentRoute: 'home',
+    APP_MODE: 'student', isStandaloneStudentApp: () => true,
     defaultRoute: () => 'home', normalizeRoute: route => route,
     getAuthedStudent: () => authed ? { id: 'fixture' } : null,
     renderCriminalLawOxLocalPreview: () => {},
     document: {
-      body: {}, hidden: false,
+      body: { classList: { toggle() {} } }, hidden: false,
       addEventListener: (type, handler) => { assert.equal(type, 'visibilitychange'); listeners.add(handler); },
       removeEventListener: (type, handler) => listeners.delete(handler),
     },

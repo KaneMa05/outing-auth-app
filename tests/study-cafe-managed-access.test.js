@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+process.env.STUDY_CAFE_READ_MODELS_ENABLED = 'false';
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { test } = require('node:test');

@@ -1,0 +1,65 @@
+# Cloud build: .github/workflows/ios-native-build.yml (no local Mac required).
+# Local macOS alternative: xcodegen generate && open RonparkStudy.xcodeproj.
+name: RonparkStudy
+options:
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  InterviewNative:
+    path: ../InterviewNative
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: targeted
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0.0
+targets:
+  RonparkStudy:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    dependencies:
+      - package: InterviewNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronpark.study
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+  InterviewPolicyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests/Policy
+    dependencies:
+      - package: InterviewNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronpark.study.policytests
+        GENERATE_INFOPLIST_FILE: YES
+  InterviewUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - Tests/UI
+    dependencies:
+      - target: RonparkStudy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronpark.study.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: RonparkStudy
+schemes:
+  RonparkStudy:
+    build:
+      targets:
+        RonparkStudy: all
+        InterviewPolicyTests: [test]
+        InterviewUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - InterviewPolicyTests
+        - InterviewUITests
+      gatherCoverageData: false

@@ -8,6 +8,8 @@ const {
 
 const { handleStudyCafeFeedback, createRemoteFeedbackStore } = require("./study-cafe-feedback");
 const { BOT_ACTIONS, handleBotRequest } = require("./study-cafe-bots");
+const { createCafeReadModels } = require("./study-cafe-read-model");
+const readCafeModel = createCafeReadModels(requestSupabase);
 const ALLOWED_ACTIONS = new Set(["dashboard", "history", "history_detail", "stop_session", "release_seat", "feature_list", "feature_detail", "feature_save", "feature_highlight", "feedback_list", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"]);
 const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const STUDY_DAY_START_HOUR_KST = 4;
@@ -281,6 +283,9 @@ async function loadDashboard(now) {
 }
 
 async function loadStudyHistory(range, now) {
+  const model = await readCafeModel("get_study_cafe_period_totals", {
+    p_start: range.start, p_end: range.end, p_now: now.toISOString(),
+  }, ["totals", "profiles", "presence", "onlineStudents"]);
   const sessionPath = [
     `study_cafe_sessions?started_at=gte.${encodeURIComponent(range.start)}`,
     `started_at=lt.${encodeURIComponent(range.end)}`,
@@ -291,7 +296,7 @@ async function loadStudyHistory(range, now) {
     requestAllSupabase(
       "students?student_category=in.(online_managed,lecture)&account_type=eq.student&select=id,name,phone,class_name,account_type,is_active&order=name.asc,id.asc"
     ),
-    requestAllSupabase(sessionPath),
+    model ? Promise.resolve(model.totals) : requestAllSupabase(sessionPath),
     requestAllSupabase(
       "lecture_applications?status=eq.approved&approved_student_id=not.is.null&select=approved_student_id,phone&order=created_at.desc,id.desc"
     ),
@@ -478,6 +483,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
     const error = new Error("study_cafe_admin_store_unavailable");
     error.status = response.status === 404 ? 503 : 502;
     error.storeStatus = response.status;
+    error.detail = await response.text().catch(() => "");
     throw error;
   }
   if (response.status === 204) return null;
@@ -687,6 +693,7 @@ function normalizeDateKey(value) {
 }
 
 module.exports._private = {
+  loadStudyHistory,
   aggregateSessionSeconds,
   buildStudyHistoryDetail,
   buildStudyHistorySummary,

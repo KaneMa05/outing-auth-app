@@ -108,9 +108,14 @@ test('home summaries, deferred catalogs and full bootstraps never share incompat
   f.respond(0,{ok:true,kind:'full'});f.respond(1,{ok:true,kind:'deferred'});f.respond(2,{ok:true,kind:'home'});
   assert.deepEqual((await Promise.all([full,deferred,summary])).map(data=>data.kind),['full','deferred','home']);
 });
-test('only the OX function overrides the default deployment region',()=>{
+test('OX keeps its deployment region while unrelated functions retain their defaults',()=>{
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
-  assert.deepEqual(config.functions,{'api/criminal-law-ox.js':{regions:['syd1']}});assert.equal(config.regions,undefined);
+  assert.deepEqual(config.functions['api/criminal-law-ox.js'],{regions:['syd1']});
+  assert.equal(config.regions,undefined);
+  for(const [name,options] of Object.entries(config.functions)){
+    if(['api/criminal-law-ox.js','api/interview-live-socket.js','api/interview-live-cleanup.js'].includes(name))continue;
+    assert.equal(options.regions,undefined,name+' must use the default region');
+  }
 });
 
 function sessionFixture(secret='ox-session-test-secret') {

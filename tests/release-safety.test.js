@@ -8,21 +8,21 @@ test("deployment with missing configuration fails before replacing the existing 
   for (const env of [{ VERCEL: "1" }, { VERCEL_ENV: "production", SUPABASE_URL: "https://example.supabase.co" }, { VERCEL_ENV: "preview", SUPABASE_ANON_KEY: "public-key" }]) {
     let writes = 0;
     assert.throws(() => vm.runInNewContext(source, {
-      require: () => ({ existsSync: () => true, writeFileSync: () => writes++ }),
+      require: name => name === './lib/interview-preview-access' ? require('../lib/interview-preview-access') : ({ existsSync: () => true, writeFileSync: () => writes++ }),
       process: { env }, console, URL,
     }), /required for deployment/);
     assert.equal(writes, 0);
   }
   for (const supabaseUrl of ["[SENSITIVE]", "http://example.supabase.co", "https://user:password@example.supabase.co"]) {
     assert.throws(() => vm.runInNewContext(source, {
-      require: () => ({ existsSync: () => true, writeFileSync: () => assert.fail("Invalid URL must not replace config") }),
+      require: name => name === './lib/interview-preview-access' ? require('../lib/interview-preview-access') : ({ existsSync: () => true, writeFileSync: () => assert.fail("Invalid URL must not replace config") }),
       process: { env: { VERCEL: "1", SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: "public-key" } },
       console, URL,
     }), /valid HTTPS URL/);
   }
   let config = "";
   vm.runInNewContext(source, {
-    require: () => ({ existsSync: () => true, writeFileSync: (_, value) => { config = value; } }),
+    require: name => name === './lib/interview-preview-access' ? require('../lib/interview-preview-access') : ({ existsSync: () => true, writeFileSync: (_, value) => { config = value; } }),
     process: { env: { VERCEL: "1", SUPABASE_URL: "https://example.supabase.co", SUPABASE_ANON_KEY: "public-key", SUPABASE_SERVICE_ROLE_KEY: "private-secret" } },
     console: { log() {} }, URL,
   });
@@ -37,6 +37,7 @@ test("service worker installs every current page asset and never caches API requ
   let claimed = 0, waitingSkipped = 0;
   const cache = {
     async addAll(urls) {
+      assert.equal(new Set(urls).size, urls.length, "Duplicate precache URLs prevent service worker installation");
       for (const url of urls) {
         const pathname = new URL(url, "https://app.test").pathname;
         const filename = pathname === "/" ? "index.html" : pathname === "/teacher" ? "teacher.html" : pathname.slice(1);

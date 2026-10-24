@@ -1,0 +1,222 @@
+body.ip-portal{margin:0;background:#f5f7fa;color:#223347;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif}
+.ip-portal-header{max-width:1180px;margin:auto;padding:20px 24px 12px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-sizing:border-box}
+.ip-portal-title{margin:0;color:#234e83;font-size:22px;font-weight:800;line-height:1.4;letter-spacing:-.04em}
+.ip-portal-title span{font-weight:600;white-space:nowrap}
+#portal-actions{flex-shrink:0}
+.ip-portal-header button{border:1px solid #dde5ee;border-radius:9px;background:#fff;color:#607184;font:inherit;font-size:13px;min-height:38px;padding:8px 16px;cursor:pointer}
+.ip-portal-header button:hover{border-color:#b9cadb;color:#234e83}
+.ip-portal-header button:focus-visible{outline:3px solid #7da4d1;outline-offset:3px}
+#interview-portal{padding:0 24px 60px;box-sizing:border-box}
+.ip-login-page .ip-portal-header{display:none}
+.ip-login-page #interview-portal{display:grid;place-items:center;min-height:100vh;min-height:100svh;padding:32px 24px}
+.ip-entry{width:100%;max-width:420px}
+.ip-root .ip-login-card{padding:30px}
+.ip-root .ip-login-card .ip-login-brand{margin:0 0 8px;text-align:center;color:#234e83;font-size:18px;font-weight:800;letter-spacing:-.03em}
+.ip-root .ip-login-card h2{text-align:center}
+.ip-root .ip-login-card form>.ip-btn{width:100%}
+.ip-root .ip-login-card .ip-auth-message:empty{display:none}
+.ip-root .ip-kakao{display:block;width:100%;background:#fee500;color:#191919;border:0;border-radius:10px;padding:14px;font-weight:700;margin:22px 0 12px;min-height:48px}
+.ip-root .ip-login-card details{margin:0;border:0;padding:0}
+.ip-root .ip-login-card .ip-signup-toggle{display:block;box-sizing:border-box;width:100%;min-height:48px;padding:14px;text-align:center;list-style:none;border-radius:10px;font-weight:700;cursor:pointer}
+.ip-root .ip-login-card .ip-signup-toggle::-webkit-details-marker{display:none}
+.ip-root .ip-login-card .ip-signup-toggle:focus-visible{outline:3px solid #7da4d1;outline-offset:3px}
+.ip-root .ip-login-card .ip-signup-guide{margin-top:20px;color:#607184;font-size:14px;line-height:1.7}
+.ip-root .ip-login-card .ip-signup-guide .ip-kakao{margin-bottom:0}
+.ip-root .ip-login-card form{margin-top:20px}
+.ip-root .ip-portal-status{max-width:720px;margin:24px auto}
+.ip-root .ip-auth-message{white-space:pre-wrap;overflow-wrap:anywhere;min-height:24px}
+.ip-root .ip-auth-message:empty{display:none}
+.ip-root .ip-auth-message[data-error=true]{color:#a12b30}
+.ip-root .ip-application-status{display:inline-block;padding:5px 12px;border-radius:20px;background:#e7eef8;color:#234e83;margin-bottom:14px}
+@media(max-width:700px){.ip-root .ip-login-card{padding:22px}#interview-portal{padding:0 16px 40px}.ip-portal-header{padding:20px 16px}.ip-portal-title{font-size:18px}.ip-login-page #interview-portal{padding:24px 16px}}
+
+/* Scope the workspace styling to the dedicated student portal. */
+.ip-portal [data-portal-content]{padding-top:4px}
+.ip-portal .ip-root .ip-message:empty{display:none}
+.ip-portal .ip-life-combined>[data-life-section]+[data-life-section]{margin-top:28px;padding-top:24px;border-top:1px solid #dce5ee}
+.ip-portal .ip-life-combined>[data-life-section]>.ip-row{margin-bottom:12px}
+.ip-portal .ip-root .ip-tabs{gap:6px;margin-bottom:20px}
+.ip-portal .ip-root .ip-category-tabs{display:flex;width:fit-content;padding:4px;border:1px solid #e0e7ef;border-radius:12px;background:#eaf0f6;margin-bottom:16px}
+.ip-portal .ip-root .ip-category-tabs .ip-btn{min-width:88px;border:0;background:transparent;color:#607184;font-weight:600}
+.ip-portal .ip-root .ip-category-tabs .ip-btn[aria-current]{background:#fff;color:#234e83;box-shadow:0 1px 4px #18355412}
+.ip-portal .ip-root .ip-tabs[aria-label="인성 준비"]{gap:20px;border-bottom:1px solid #dce5ee}
+.ip-portal .ip-root .ip-tabs[aria-label="인성 준비"] .ip-btn{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 2px 12px;color:#607184;font-weight:600}
+.ip-portal .ip-root .ip-tabs[aria-label="인성 준비"] .ip-btn[aria-current]{color:#234e83;border-bottom-color:#234e83}
+.ip-portal .ip-root .ip-hero{padding:24px 28px;background:#fff;color:#223347;border:1px solid #e0e7ef;border-radius:16px;margin-bottom:24px}
+.ip-portal .ip-root .ip-hero h2{font-size:24px;letter-spacing:-.035em;margin-bottom:6px}
+.ip-portal .ip-root .ip-hero p{color:#607184;font-size:14px;margin-bottom:0}
+.ip-portal .ip-root .ip-hero .ip-eyebrow{display:none}
+.ip-portal .ip-root .ip-hero:has(progress){display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:24px;align-items:center}
+.ip-portal .ip-root .ip-hero:has(progress) h2{grid-column:1;grid-row:1}
+.ip-portal .ip-root .ip-hero:has(progress) p{grid-column:1;grid-row:2}
+.ip-portal .ip-root .ip-hero progress{grid-column:1/-1;grid-row:3;display:block;margin-top:20px;height:6px;border:0;border-radius:8px;overflow:hidden;background:#e9eff6;appearance:none}
+.ip-portal .ip-root progress::-webkit-progress-bar{background:#e9eff6;border-radius:8px}
+.ip-portal .ip-root progress::-webkit-progress-value{background:#427ab4;border-radius:8px}
+.ip-portal .ip-root progress::-moz-progress-bar{background:#427ab4;border-radius:8px}
+.ip-portal .ip-root .ip-summary{grid-column:2;grid-row:1/3;margin:0;gap:8px}
+.ip-portal .ip-root .ip-summary span{background:#f3f6fa;padding:9px 14px;border-radius:10px;color:#607184;font-size:12px}
+.ip-portal .ip-root .ip-summary strong{display:block;font-size:22px;line-height:1.35;color:#234e83;margin:0 0 2px}
+.ip-portal .ip-root .ip-layout{grid-template-columns:260px minmax(0,1fr);gap:24px}
+.ip-portal .ip-root .ip-topic-picker>summary{font-size:13px;color:#607184;padding:12px 14px}
+.ip-portal .ip-root .ip-topics{gap:6px}
+.ip-portal .ip-root .ip-topic{padding:13px 14px;font-size:14px;border-color:transparent;background:transparent}
+.ip-portal .ip-root .ip-topic:hover{background:#edf2f8}
+.ip-portal .ip-root .ip-topic[aria-current]{background:#eaf2fc;border-color:#c4d8ee;box-shadow:inset 3px 0 #427ab4}
+.ip-portal .ip-root .ip-topic small{font-size:12px;margin-top:3px}
+.ip-portal .ip-root .ip-badge{font-size:11px;padding:3px 8px}
+.ip-portal .ip-root [data-note-panel]{padding:28px}
+.ip-portal .ip-root [data-note-panel] h3{font-size:20px;margin:0;letter-spacing:-.025em}
+.ip-portal .ip-root [data-note-panel]>.ip-row{margin-bottom:10px}
+.ip-portal .ip-root [data-note-panel]>p:not(.ip-help){color:#607184;font-size:14px}
+.ip-portal .ip-root .ip-element-prompts{background:#f5f8fc;border:1px solid #e6edf5;border-radius:10px;padding:12px 16px}
+.ip-portal .ip-root .ip-element-prompts summary{font-size:14px;color:#426389}
+.ip-portal .ip-root [data-note-form]>label{margin:24px 0;font-size:14px;line-height:1.7}
+.ip-portal .ip-root [data-portal-content] textarea{min-height:128px;padding:14px 16px;line-height:1.8;border-color:#d5dfea;margin-top:8px}
+.ip-portal .ip-root [data-portal-content] input:not([type=checkbox]),.ip-portal .ip-root [data-portal-content] select{border-color:#d5dfea}
+.ip-portal .ip-root [data-note-form]>.ip-toolbar{padding-top:20px;border-top:1px solid #e6edf5;gap:8px}
+.ip-portal .ip-root [data-note-panel]>details:last-of-type:not(.ip-element-prompts){margin-top:24px;border-top:1px solid #e6edf5;padding-top:20px}
+.ip-portal .ip-root .ip-life-toolbar{padding:12px 0;gap:10px}
+@media(min-width:901px){.ip-portal .ip-root .ip-topic-picker{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;scrollbar-width:thin}}
+@media(max-width:900px){
+ .ip-portal .ip-root .ip-hero:has(progress){grid-template-columns:1fr}
+ .ip-portal .ip-root .ip-summary{grid-column:1;grid-row:3;margin-top:16px}
+ .ip-portal .ip-root .ip-hero progress{grid-row:4;margin-top:16px}
+ .ip-portal .ip-root .ip-layout{grid-template-columns:220px minmax(0,1fr);gap:16px}
+ .ip-portal .ip-root [data-note-panel]{padding:22px}
+}
+.ip-portal .ip-root .ip-workspace-tabs{gap:20px;border-bottom:1px solid #dce5ee;flex-wrap:nowrap;overflow-x:auto}
+.ip-portal .ip-root .ip-workspace-tabs .ip-btn{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 2px 12px;color:#607184;font-weight:600;white-space:nowrap}
+.ip-portal .ip-root .ip-workspace-tabs .ip-btn[aria-current]{color:#234e83;border-bottom-color:#234e83}
+.ip-portal .ip-db-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start}
+.ip-portal .ip-db-sidebar{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;scrollbar-width:thin;padding-right:6px}
+.ip-portal .ip-root .ip-db-group{font-size:12px;font-weight:700;color:#78889a;letter-spacing:.03em;margin:16px 10px 8px}
+.ip-portal .ip-root .ip-db-group:first-child{margin-top:4px}
+.ip-portal .ip-db-item{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:9px;padding:11px 14px;margin-bottom:3px;color:#526477;font-size:14px}
+.ip-portal .ip-db-item:hover{background:#edf2f8}
+.ip-portal .ip-db-item[aria-current]{background:#e7f0fb;color:#234e83;font-weight:700;box-shadow:inset 3px 0 #427ab4}
+.ip-portal .ip-db-mobile{display:none}
+.ip-portal .ip-embedded-note>.ip-hero,.ip-portal .ip-embedded-note .ip-topic-picker{display:none}
+.ip-portal .ip-root .ip-embedded-note .ip-layout{display:block}
+.ip-portal .ip-root .ip-writing-editor{padding:28px}
+.ip-portal .ip-root .ip-writing-editor h3{font-size:20px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ip-portal .ip-root .ip-writing-editor [data-writing-text]{min-height:360px;line-height:1.9}
+.ip-portal .ip-writing-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.ip-portal .ip-root .ip-writing-actions{margin:24px 0 0;padding-top:20px;border-top:1px solid #e6edf5}
+.ip-portal .ip-root .ip-writing-picker{max-width:100%}
+.ip-portal .ip-root [data-life-body] .ip-panel{margin-bottom:18px}
+.ip-portal .ip-root [data-db-editor]>.ip-life-toolbar [data-life-action=submit]{background:#234e83;border-color:#234e83;color:#fff}
+.ip-portal .ip-root [data-db-editor]>[data-life-guide]{margin-top:18px}
+@media(max-width:720px){
+ .ip-portal .ip-root .ip-workspace-tabs{gap:18px}
+ .ip-portal .ip-root .ip-workspace-tabs .ip-btn{font-size:13px}
+ .ip-portal .ip-db-layout{display:block}
+ .ip-portal .ip-db-sidebar{display:none}
+ .ip-portal .ip-db-mobile{display:block;margin-bottom:18px}
+ .ip-portal .ip-root .ip-writing-editor{padding:20px}
+ .ip-portal .ip-root .ip-writing-editor h3{font-size:18px}
+ .ip-portal .ip-root .ip-writing-editor [data-writing-text]{min-height:300px}
+}
+@media(max-width:720px){
+ .ip-portal-header{padding:12px 16px 8px}
+ .ip-portal .ip-root .ip-category-tabs{margin-bottom:12px}
+ .ip-portal .ip-root .ip-tabs[aria-label="인성 준비"]{gap:14px;flex-wrap:nowrap;overflow-x:auto}
+ .ip-portal .ip-root .ip-tabs[aria-label="인성 준비"] .ip-btn{white-space:nowrap;font-size:13px}
+ .ip-portal .ip-root .ip-hero{padding:20px;margin-bottom:18px}
+ .ip-portal .ip-root .ip-hero h2{font-size:21px}
+ .ip-portal .ip-root .ip-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .ip-portal .ip-root .ip-summary span{padding:9px 10px;font-size:11px}
+ .ip-portal .ip-root .ip-summary strong{font-size:20px}
+ .ip-portal .ip-root .ip-layout{grid-template-columns:1fr}
+ .ip-portal .ip-root [data-note-panel]{padding:20px}
+ .ip-portal .ip-root .ip-topic{padding:10px;border-color:#e0e7ef;background:#fff}
+ .ip-portal .ip-root [data-note-panel] h3{font-size:18px}
+ .ip-portal .ip-root [data-note-form]>.ip-toolbar .ip-primary{order:-1;width:100%}
+}
+.ip-portal .ip-ai-panel{margin:24px 0}
+.ip-portal .ip-ai-buttons{display:flex;gap:8px;margin-top:16px}
+.ip-portal .ip-ai-buttons .ip-btn{white-space:normal;word-break:keep-all;min-height:48px}
+.ip-portal .ip-ai-results{margin-top:20px}
+.ip-portal .ip-ai-item{border-top:1px solid #e0e7ef;padding:20px 0;overflow-wrap:anywhere}
+.ip-portal .ip-ai-item h4{margin:0;flex:1;min-width:0}
+.ip-portal .ip-ai-answer{white-space:pre-wrap;line-height:1.8;background:#f4f7fb;padding:18px;border-radius:12px;overflow-wrap:anywhere}
+.ip-portal .ip-ai-retry-check{display:flex;align-items:center;gap:8px}
+.ip-portal .ip-ai-retry-check input{width:auto}
+@media(max-width:680px){
+ .ip-portal .ip-ai-buttons .ip-btn{width:100%}
+ .ip-portal .ip-ai-answer{padding:12px}
+}
+
+/* Interview workspace visual system. Ordinary student/admin screens stay scoped out. */
+body.ip-portal:not(.ip-login-page){background:#f2f5f7}
+.ip-portal-header{padding-top:28px;padding-bottom:24px}
+.ip-portal-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.ip-brand-mark{display:grid;place-items:center;flex-shrink:0;width:40px;height:44px;border-radius:13px 13px 13px 3px;background:#173b51;color:#fff;font-size:25px;font-weight:800;box-shadow:0 5px 12px #173b5118}
+.ip-portal-title{color:#183749;font-size:21px;letter-spacing:-.055em}
+.ip-portal-title span{margin-left:8px;padding-left:12px;border-left:1px solid #cbd6df;font-size:15px;font-weight:500;color:#647786}
+.ip-portal-header button{border-color:#dce4e9;background:#ffffffb8;color:#526775}
+.ip-workspace .ip-workspace-tabs{padding:6px;gap:4px!important;border:1px solid #dfe6eb!important;border-radius:14px;background:#fff;box-shadow:0 3px 12px #1b3c5004;margin-bottom:24px!important}
+.ip-portal .ip-workspace .ip-workspace-tabs .ip-btn{padding:12px 17px;border:0;border-radius:9px;font-size:14px;color:#637583;transition:background .15s,color .15s}
+.ip-portal .ip-workspace .ip-workspace-tabs .ip-btn:hover{background:#f1f5f7;color:#183749}
+.ip-portal .ip-workspace .ip-workspace-tabs .ip-btn[aria-current]{background:#173b51;color:#fff;box-shadow:0 3px 7px #173b511c}
+.ip-portal .ip-workspace .ip-workspace-hero{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:28px;overflow:hidden;min-height:174px;box-sizing:border-box;padding:32px 36px;margin-bottom:28px;border:1px solid #244c60;border-radius:20px;background:linear-gradient(115deg,#15394f,#245b68);color:#fff;box-shadow:0 12px 26px #15394f0d}
+.ip-workspace-hero-copy{position:relative;z-index:1;max-width:780px}
+.ip-workspace-kicker{display:block;margin-bottom:10px;color:#a9d4d8;font-size:12px;font-weight:600;letter-spacing:.04em}
+.ip-portal .ip-workspace .ip-workspace-hero h2{margin:0 0 10px;font-size:30px;font-weight:750;line-height:1.3;letter-spacing:-.05em;color:#fff}
+.ip-portal .ip-workspace .ip-workspace-hero p{margin:0;color:#d4e3e9;font-size:14px;line-height:1.8;word-break:keep-all}
+.ip-workspace-hero-art{position:relative;flex:0 0 134px;height:106px;transform:rotate(-9deg)}
+.ip-workspace-hero-art::before,.ip-workspace-hero-art::after{content:"";position:absolute;width:76px;height:98px;border:1px solid #a7d3da48;border-radius:12px;top:0;left:30px;background:#d9f4f608}
+.ip-workspace-hero-art::before{transform:rotate(18deg);left:45px}
+.ip-workspace-hero-art span{position:absolute;z-index:1;height:4px;border-radius:4px;background:#abd6d99c;left:46px;width:44px;top:28px}
+.ip-workspace-hero-art span:nth-child(2){top:44px;width:32px}
+.ip-workspace-hero-art span:nth-child(3){top:60px;width:38px}
+.ip-workspace .ip-db-layout{grid-template-columns:228px minmax(0,1fr);gap:24px}
+.ip-workspace .ip-db-sidebar{padding:10px;border:1px solid #e0e7ec;border-radius:16px;background:#fff;box-shadow:0 4px 16px #173b5103}
+.ip-workspace .ip-db-item{font-family:inherit;font-size:13px;padding:12px;margin-bottom:2px;border-radius:8px;line-height:1.5;cursor:pointer;transition:background .15s}
+.ip-workspace .ip-db-item[aria-current]{background:#eaf3f4;color:#1c5a61;box-shadow:inset 3px 0 #367b82}
+.ip-workspace .ip-db-item:focus-visible{outline:2px solid #367b82;outline-offset:1px}
+.ip-portal .ip-workspace .ip-db-group{font-size:11px;margin:20px 12px 9px;color:#8a99a4}
+.ip-workspace .ip-life-combined>[data-life-section]{padding:26px;background:#fff;border:1px solid #dfe7ed;border-radius:16px;box-shadow:0 4px 18px #173b5103}
+.ip-portal .ip-workspace .ip-life-combined>[data-life-section]+[data-life-section]{margin-top:20px;padding-top:26px}
+.ip-workspace .ip-life-combined>[data-life-section=basic]>.ip-panel{padding:0;margin:0;border:0;border-radius:0;box-shadow:none}
+.ip-workspace .ip-life-combined>[data-life-section]>.ip-row h3{font-size:18px;letter-spacing:-.025em}
+.ip-workspace .ip-life-combined article.ip-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px;padding:22px;margin:16px 0 0!important;background:#f8fafb;border-color:#e6ecf0;border-radius:12px;box-shadow:none}
+.ip-workspace .ip-life-combined article.ip-panel>.ip-row,.ip-workspace .ip-life-combined article.ip-panel>details,.ip-workspace .ip-life-combined article.ip-panel>label:has(textarea){grid-column:1/-1}
+.ip-workspace .ip-life-combined article.ip-panel>label{margin:0;min-width:0;font-size:13px;color:#526574;font-weight:500}
+.ip-workspace .ip-life-combined article.ip-panel>.ip-row{padding-bottom:14px;border-bottom:1px solid #e4ebef}
+.ip-workspace .ip-life-combined article.ip-panel h4{font-size:15px;color:#223e4e}
+.ip-workspace .ip-life-combined>[data-life-section]>label{font-size:13px;color:#71818d}
+.ip-workspace .ip-life-combined>.ip-panel{margin-top:20px}
+.ip-workspace input:not([type=checkbox]),.ip-workspace textarea,.ip-workspace select{box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+.ip-workspace input:focus-visible,.ip-workspace textarea:focus-visible,.ip-workspace select:focus-visible{outline:0;border-color:#47818b!important;box-shadow:0 0 0 3px #47818b18}
+.ip-portal .ip-workspace .ip-btn{font-family:inherit}
+.ip-workspace [data-life-action=add]{background:#edf5f5!important;border-color:#d0e2e3!important;color:#235e66!important;font-size:13px}
+.ip-workspace [data-life-action=up],.ip-workspace [data-life-action=remove]{padding:6px 10px;font-size:12px}
+.ip-portal .ip-workspace .ip-ai-panel,.ip-portal .ip-workspace .ip-writing-editor,.ip-portal .ip-workspace [data-note-panel]{border-color:#dfe7ed;border-radius:16px;box-shadow:0 4px 18px #173b5103}
+.ip-workspace .ip-ai-answer{border:1px solid #e2ebee;background:#f5f9fa;padding:24px;line-height:1.95}
+.ip-workspace [data-ai-generate]{background:#173b51!important;color:#fff!important;border-color:#173b51!important}
+.ip-workspace [data-ai-generate]:disabled{opacity:.45}
+@media(max-width:900px){
+ .ip-portal .ip-workspace .ip-workspace-tabs .ip-btn{padding:11px 14px;font-size:13px}
+ .ip-workspace-hero-art{flex-basis:100px;transform:scale(.85) rotate(-9deg)}
+}
+@media(max-width:720px){
+ .ip-portal-header{padding:20px 16px}
+ .ip-brand-mark{width:34px;height:38px;font-size:22px;border-radius:11px 11px 11px 3px}
+ .ip-portal-brand{gap:9px}
+ .ip-portal-title{font-size:18px}
+ .ip-portal-title span{margin-left:5px;padding-left:7px;font-size:12px}
+ .ip-portal-header button{padding:7px 11px;font-size:12px}
+ .ip-workspace .ip-workspace-tabs{margin-bottom:18px!important;border-radius:12px}
+ .ip-portal .ip-workspace .ip-workspace-hero{min-height:0;padding:25px 22px;border-radius:16px;margin-bottom:22px}
+ .ip-portal .ip-workspace .ip-workspace-hero h2{font-size:25px}
+ .ip-portal .ip-workspace .ip-workspace-hero p{font-size:13px}
+ .ip-workspace-kicker{font-size:11px}
+ .ip-workspace-hero-art{display:none}
+ .ip-workspace .ip-db-mobile{padding:16px;background:#fff;border:1px solid #dfe7ed;border-radius:12px;font-size:12px;color:#657a87}
+ .ip-workspace .ip-life-combined>[data-life-section]{padding:20px}
+ .ip-portal .ip-workspace .ip-life-combined>[data-life-section]+[data-life-section]{padding-top:20px}
+ .ip-workspace .ip-life-combined article.ip-panel{grid-template-columns:minmax(0,1fr);padding:16px;gap:16px}
+ .ip-workspace .ip-life-combined article.ip-panel>.ip-row{align-items:flex-start;gap:10px;flex-wrap:wrap}
+ .ip-workspace .ip-ai-answer{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){.ip-workspace *{transition:none!important;scroll-behavior:auto!important}}

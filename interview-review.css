@@ -1,0 +1,38 @@
+.ip-review .ip-review-summary{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
+.ip-review-summary>span{flex:1;min-width:140px;border:1px solid #dce5ee;border-radius:12px;padding:16px;background:white;color:#607184}
+.ip-review-summary strong{display:block;font-size:28px;color:#234e83}
+.ip-review .ip-review-table{min-width:720px}
+.ip-review-table td:first-child{min-width:170px;max-width:230px;overflow-wrap:anywhere}
+.ip-review-table td:nth-child(2),.ip-review-table td:nth-child(3){white-space:nowrap}
+.ip-review-table td:nth-child(4){min-width:100px;font-size:13px}
+.ip-review-table td:last-child .ip-btn{white-space:nowrap;min-width:88px}
+.ip-review-table small{display:block;line-height:1.8;color:#607184}
+.ip-review-table .is-selected{background:#eaf2fc}
+.ip-review [data-review-detail]{scroll-margin-top:30px}
+.ip-review .ip-review-reader{margin-top:24px;outline:none}
+.ip-review-reader:focus-visible{outline:3px solid #7da4d1}
+.ip-review .ip-review-tabs{display:flex;flex-wrap:wrap;margin:20px 0 12px}
+.ip-review .ip-review-record{margin:12px 0;border:1px solid #dce5ee;border-radius:12px;background:#fff;overflow:hidden}
+.ip-review .ip-review-record>summary{display:flex;align-items:center;gap:12px;padding:16px;cursor:pointer;background:#f5f8fc;list-style:none}
+.ip-review-record>summary::before{content:'▸';color:#234e83}
+.ip-review-record[open]>summary::before{content:'▾'}
+.ip-review-record>summary>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere}
+.ip-review-record>summary small{display:block;font-size:12px;color:#607184}
+.ip-review-record>summary::-webkit-details-marker{display:none}
+.ip-review-record>summary:focus-visible{outline:3px solid #7da4d1;outline-offset:-3px}
+.ip-review-record-body{padding:20px}
+.ip-review-text,.ip-review-fields dd{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
+.ip-review-fields{margin:0}
+.ip-review-fields dt{font-size:13px;font-weight:700;color:#607184;margin:20px 0 6px}
+.ip-review-fields dt:first-child{margin-top:0}
+.ip-review-fields dd{margin:0;color:#223347}
+.ip-review-experience+.ip-review-experience{border-top:1px solid #e0e7ef;margin-top:24px;padding-top:24px}
+.ip-review-group{margin-top:28px}
+@media(max-width:760px){
+ .ip-review [data-review-detail]{scroll-margin-top:175px}
+ .ip-review-record>summary{flex-wrap:wrap}
+ .ip-review-record>summary>small{width:100%;padding-left:22px}
+ .ip-review .ip-review-record-body{padding:16px}
+ .ip-review [data-review-filter]>label{width:100%}
+ .ip-review [data-review-filter] input,.ip-review [data-review-filter] select{width:100%}
+}

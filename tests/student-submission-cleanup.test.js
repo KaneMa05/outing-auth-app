@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const source = fs.readFileSync("student.js", "utf8");
+const source = fs.readFileSync("student.js", "utf8").replace(/\r\n/g, '\n');
 const saveSource = source.match(
   /async function saveStudentExamSubmissionToRemote\([\s\S]*?\n}\n\nasync function saveStudentSubmissionAnswersToRemote/
 )?.[0].replace(/\n\nasync function saveStudentSubmissionAnswersToRemote$/, "");

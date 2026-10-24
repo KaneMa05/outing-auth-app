@@ -1,0 +1,32 @@
+const fs=require('node:fs');
+async function createDb({beforePortal,beforeWritingRounds}={}){
+  const {PGlite}=require(process.env.PGLITE_MODULE||'C:/Users/Public/Documents/ESTsoft/CreatorTemp/ox-db-tools/node_modules/@electric-sql/pglite');
+  const db=new PGlite();
+  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+    create table students(id text primary key,name text,is_active boolean default true,account_type text default 'student',password_hash text);
+    grant select on students to service_role;
+    insert into students(id,name) values('ip-a','면접학생 A'),('ip-b','면접학생 B'),('ip-c','미등록 학생');`);
+  await db.exec(fs.readFileSync('supabase/migrations/20261020050641_interview_preparation.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020053550_interview_personality_elements.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020055234_interview_core_personality_collection.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020061132_interview_life_database.sql','utf8'));
+  if(beforePortal)await beforePortal(db);
+  await db.exec(fs.readFileSync('supabase/migrations/20261020062512_interview_portal_auth.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020070932_interview_writing.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020074639_interview_public_service_writing.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261020074815_interview_student_review.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021051139_interview_writing_submission.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021052648_interview_question_rubrics.sql','utf8'));
+  if(beforeWritingRounds)await beforeWritingRounds(db);
+  await db.exec(fs.readFileSync('supabase/migrations/20261021053835_interview_writing_rounds.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021063447_interview_experience_year_age.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021065038_interview_life_satisfaction.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021071011_interview_experience_age_only.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021082149_interview_basic_fields_followup.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021085056_interview_life_followup_entry_state.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021084708_interview_diagnosis_answers.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261023052344_interview_applicant_identity.sql','utf8'));
+  const invoke=async(action,actor,body={})=>(await db.query(`select ${action.startsWith('diagnosis_')?'ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'ip_writing_history_service':action.startsWith('admin_rubric_')?'ip_rubric_service':action.startsWith('admin_review_')?'ip_review_service':/^(admin_)?writing_/.test(action)?'ip_writing_service':actor.type==='server'||action.startsWith('admin_application')?'ip_portal_service':/^(admin_)?life_/.test(action)?'ip_life_service':action.startsWith('admin_analysis_')?'ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'ip_core_service':'ip_service'}($1,$2::jsonb,$3::jsonb) result`,[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
+  return {db,invoke};
+}
+module.exports={createDb};

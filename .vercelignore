@@ -32,6 +32,15 @@ public/
 .tmp/
 .codex/
 
-# Local Play registration evidence and private signing material
+# PC worker configuration and local processing tools
+tools/interview-worker/
+tools/interview-live-worker/
+
+# Play Console registration evidence and local store assets
 artifacts/
 .play-signing/
+native/
+.github/
+
+# Lecture source documents and internal server-only diagnosis code
+output/

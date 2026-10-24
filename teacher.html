@@ -19,8 +19,10 @@
     <link rel="manifest" href="./manifest.webmanifest?v=20260513-student-attendance-exclude" />
     <link rel="icon" href="./app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20261023-home-pass-highlight" />
+    <link rel="stylesheet" href="./styles.css?v=20261024-reviewed-release" />
     <link rel="stylesheet" href="./final-scope-admin.css?v=20260921-final-scope-admin">
+    <link rel="stylesheet" href="./interview-admin-shell.css?v=20261020-mode">
+    <link rel="stylesheet" href="./interview-review.css?v=20261020-review">
   </head>
   <body data-app-mode="teacher">
     <div class="app-frame">
@@ -32,7 +34,11 @@
             <span>오프라인 통합 관리</span>
           </div>
         </div>
-        <nav class="nav-list" aria-label="주요 메뉴">
+        <div class="teacher-mode-switch" data-teacher-mode-switch hidden aria-label="관리 모드">
+          <button type="button" data-teacher-mode="standard">통합 관리</button>
+          <button type="button" data-teacher-mode="interview">면접반</button>
+        </div>
+        <nav class="nav-list" data-teacher-standard-nav aria-label="주요 메뉴">
           <p class="nav-section">통합 관리</p>
           <button data-route="home">홈</button>
           <button data-route="outing">외출 관리</button>
@@ -50,6 +56,7 @@
           <button data-route="curriculum-admin">커리큘럼 관리</button>
           <button data-route="final-scope-admin">회독 플랜 관리</button>
           <button data-route="criminal-law-ox-admin">형사법 OX 관리</button>
+          <button data-route="interview-prep-admin">면접 준비 관리</button>
           <button data-route="notices">공지 관리</button>
           <p class="nav-section">운영 도구</p>
           <button data-route="data-analytics">데이터 분석</button>
@@ -63,6 +70,21 @@
           <button data-route="track-subjects">직렬별 응시과목 관리</button>
           <button data-route="duplicates">중복 사진</button>
           <button data-route="trash">삭제 내역</button>
+        </nav>
+        <nav class="nav-list" data-teacher-interview-nav hidden aria-label="면접반 메뉴">
+          <p class="nav-section">면접반 관리</p>
+          <button type="button" data-interview-section="home">면접반 홈</button>
+          <button type="button" data-interview-section="applications">수강 신청·승인</button>
+          <button type="button" data-interview-section="preassignments">핵심 25제 과제 관리</button>
+          <button type="button" data-interview-section="review">수강생 작성 내용</button>
+          <button type="button" data-interview-section="members">학생 등록·첨삭</button>
+          <button type="button" data-interview-section="topics">인성 준비 항목</button>
+          <button type="button" data-interview-section="core">핵심인성 30제</button>
+          <button type="button" data-interview-section="questions">인성 기출 관리</button>
+          <button type="button" data-interview-section="analysis">질문 요소 분석</button>
+          <button type="button" data-interview-section="job">직무 기출 관리</button>
+          <button type="button" data-interview-section="rubrics">분류·채점 기준</button>
+          <button type="button" data-interview-section="live">음성 모의면접 기록</button>
         </nav>
       </aside>
 
@@ -81,8 +103,8 @@
     <div id="toast" class="toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./config.js?v=20260514-return-photo-time"></script>
-    <script src="./shared.js?v=20261014-menu-pressure" defer></script>
-    <script src="./teacher.js?v=20260911-admin-dashboard-retry" defer></script>
+    <script src="./shared.js?v=20261020-interview-prep" defer></script>
+    <script src="./teacher.js?v=20261014-period-read-models" defer></script>
     <script src="./study-character.js?v=20260911-character-hair" defer></script>
     <script src="./study-cafe-bot-admin.js?v=20260911-bot-admin" defer></script>
     <script src="./teacher-grades.js?v=20260929-final-score-delete" defer></script>
@@ -101,6 +123,7 @@
     <script src="./criminal-law-ox-admin.js?v=20261001-pass-only" defer></script>
     <script src="./data-analytics-admin.js?v=20261001-analytics" defer></script>
     <script src="./feedback-hub.js?v=20260911-feedback-free-only" defer></script>
-    <script src="./app.js?v=20261023-home-pass-highlight" defer></script>
+    <script src="./interview-prep.js?v=20261023-pa8" defer></script>
+    <script src="./app.js?v=20261024-reviewed-release" defer></script>
   </body>
 </html>

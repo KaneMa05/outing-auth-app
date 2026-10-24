@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+// Preserve legacy compatibility coverage; new SQL/API equivalence is tested separately.
+process.env.STUDY_CAFE_READ_MODELS_ENABLED = "false";
 const fs = require("node:fs");
 const vm = require("node:vm");
 
@@ -136,7 +138,9 @@ assert.match(shop, /item-\$\{getStudyCafeShopItemCssClass\(item\.id\)\}/);
 assert.match(shop, /shop-\$\{getStudyCafeShopItemCssClass\(itemId\)\}/);
 assert.match(shop, /\["study-shop", "study-cafe", "study-character"\]\.includes\(currentRoute\)/);
 assert.match(shop, /\["outfit_coast_guard_uniform", "해경 정복", "해양경찰 정복입니다\.", "outfit", "👮", 4000\]/);
-assert.match(index, /styles\.css\?v=20261016-cafe-loading/);
+const cssVersion = index.match(/styles\.css\?v=([\w-]+)/)?.[1];
+assert.ok(cssVersion, 'student styles must be versioned');
+assert.ok(fs.readFileSync('sw.js', 'utf8').includes('/styles.css?v=' + cssVersion), 'service worker must cache the stylesheet version loaded by students');
 assert.match(index, /study-shop\.js\?v=20261014-menu-pressure/);
 assert.match(index, /app\.js\?v=[^"\s]+/);
 assert.doesNotMatch(shop, /head_classic_hat|head_graduation_cap|desk_coast_helicopter|desk_coast_rescue_buoy|desk_coast_lighthouse|head_coast_vessel_cap|head_coast_rescue_helmet|chair_coast_captain/);

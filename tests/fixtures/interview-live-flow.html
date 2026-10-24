@@ -1,0 +1,10 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>모의면접 흐름 검증 · 무료 시뮬레이션</title><link rel="stylesheet" href="/interview-prep.css"><style>body{margin:0;background:#f2f5f7;color:#152c43;font-family:system-ui,sans-serif}main,aside{max-width:620px;margin:auto;padding:18px}aside{position:sticky;top:0;z-index:10;background:#fff5d9;font-size:13px}</style><aside>무료 흐름 검증 · 가짜 질문·답변입니다. AI API와 실제 마이크를 사용하지 않습니다. 카메라는 직접 켠 경우에만 미리보기로 사용합니다.</aside><main id="flow"></main><script type="module">
+import {mountLive} from '/interview-live-ui.js?v=20261021-flow';
+document.querySelector('aside').textContent='무료 흐름 검증 · 가짜 질문·답변입니다. 면접 진행은 AI API·마이크를 사용하지 않습니다. 마이크 확인과 카메라 켜기는 실제 기기를 사용합니다.';
+let turns=[],number=0,active=false;
+const questions=['협업 중 의견 차이를 해결한 경험을 말씀해주세요.','그 과정에서 본인이 직접 맡은 역할은 무엇이었나요?','그 경험에서 배운 점을 말씀해주세요.'];
+const run=()=>({id:'local-demo',state:active?'active':'completed',turns,current_question:questions[number],retain_until:'2026-11-20T14:59:59Z'});
+const request=async(action)=>{if(action==='ready')return {ready:true};if(action==='list')return {runs:[],hasMore:false};if(action==='get')return {run:run()};throw Error('unsupported_demo_action');};
+const connect=async({onEvent})=>{turns=[];number=0;active=true;let muted=false;return {runId:'local-demo',question:questions[0],setMuted(value){muted=value;},release(){active=false;},async stop(){active=false;},async request(action){if(action==='heartbeat')return {run:run()};if(action==='answer_done'){if(muted)return {waiting:true};turns.push({kind:number===1?'followup':'initial',question:questions[number],answer:'화면 검증용 가상 답변입니다. 팀원들의 의견을 듣고 역할을 조정했습니다.',complete:true});number++;if(number===questions.length){active=false;onEvent({type:'session.closed'});}else{onEvent({type:'interview.question',question:questions[number]});onEvent({type:'session.output_transcript.delta',delta:questions[number]});}return {ok:true};}}};};
+await mountLive(document.querySelector('#flow'),{request,connect});
+</script></html>

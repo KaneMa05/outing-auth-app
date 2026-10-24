@@ -190,7 +190,21 @@ assert.doesNotMatch(appSource, /선생님 번호 1~10/);
 const browserInstallOnlySource = appSource.match(/function renderStudentBrowserInstallOnly\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
 assert.match(browserInstallOnlySource, /button\("앱으로 이용하기"/);
 assert.doesNotMatch(browserInstallOnlySource, /renderLectureApplicationEntryCard\(\)/);
-assert.match(appSource, /return el\("div", \{ className: "grid student-view" \}, \[form, renderLectureApplicationEntryCard\(\)/);
+// Verify the actual auth-card result for both shells, independent of formatting.
+const authSource = appSource.slice(appSource.indexOf('function renderStudentAuth()'), appSource.indexOf('function renderLectureApplicationEntryCard()'));
+const authReturn = authSource.slice(authSource.lastIndexOf('  });') + '  });'.length).trim().replace(/\}\s*$/, '');
+for (const interviewPortal of ['false', 'true']) {
+  const result = require('node:vm').runInNewContext(`(function(){${authReturn}})()`, {
+    document: { body: { dataset: { interviewPortal } } },
+    form: 'auth-form', el: (tag, props, children) => ({ tag, children }),
+    button: (label) => ({ tag: 'button', label }),
+    renderLectureApplicationEntryCard: () => 'application-card',
+    renderStudentAuthInstallCard: () => 'install-card',
+  });
+  assert.equal(result.children[0], 'auth-form');
+  assert.equal(result.children.includes('application-card'), interviewPortal !== 'true');
+  assert.equal(result.children.includes('install-card'), interviewPortal !== 'true');
+}
 assert.match(appSource, /function enableLectureApplicationPush\(application\)/);
 assert.match(appSource, /action: "subscribe"/);
 assert.match(appSource, /Notification\.requestPermission\(\)/);

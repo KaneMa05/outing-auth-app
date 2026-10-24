@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { getPreviewHashes } = require("./lib/interview-preview-access");
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
@@ -15,7 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.log("SUPABASE_URL or SUPABASE_ANON_KEY is empty. Writing empty config.js.");
   fs.writeFileSync(
     "config.js",
-    'window.OUTING_APP_CONFIG = { supabaseUrl: "", supabaseAnonKey: "" };\n'
+    `window.OUTING_APP_CONFIG = { supabaseUrl: "", supabaseAnonKey: "", interviewPreviewStudentHashes: ${JSON.stringify(getPreviewHashes())} };\n`
   );
   process.exit(0);
 }
@@ -33,6 +34,7 @@ fs.writeFileSync(
   `window.OUTING_APP_CONFIG = {
   supabaseUrl: ${JSON.stringify(supabaseUrl)},
   supabaseAnonKey: ${JSON.stringify(supabaseAnonKey)},
+  interviewPreviewStudentHashes: ${JSON.stringify(getPreviewHashes())},
 };\n`
 );
 

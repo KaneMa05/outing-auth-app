@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+(async()=>{
+ const {diagnoseExperiences,renderDiagnosisChart,diagnosisQuestions}=await import('../interview-diagnosis.js');
+ const empty=diagnoseExperiences();assert.equal(empty.length,13);assert(empty.every(x=>x.level===0));
+ const experience={id:'one',title:'협업 경험',content:'팀원들과 공동 목표를 정하고 역할을 나누어 함께 완수했습니다.',appeal:'의견을 조율하고 협력하는 방법을 배웠습니다.',satisfaction:'-25'};
+ const find=items=>items.find(x=>x.id==='teamwork');
+ assert.equal(find(diagnoseExperiences([experience])).level,4,'All four evidence checks come from the life graph');
+ assert.equal(find(diagnoseExperiences([{...experience,content:'팀원들과 함께했던 일이 있습니다.',appeal:''}])).level,1);
+ assert.equal(find(diagnoseExperiences([{...experience,content:'팀원들의 의견을 경청하며 역할을 분담했습니다.'}])).level,3,'Missing result stays below four');
+ assert.deepEqual(diagnoseExperiences([experience]).map(x=>x.level),diagnoseExperiences([{...experience,satisfaction:'25',age:'90'}]).map(x=>x.level));
+ assert.equal(find(diagnoseExperiences([{title:'협업',content:''}])).level,0,'Title alone is not an experience');
+ const notes=empty.map(item=>({topic_id:item.id,fields:{situation:'전부 작성한 별도 답변입니다.',action:'팀원과 협력하여 역할을 분담했습니다.',result:'목표를 완수했습니다.',learning:'많은 것을 배웠습니다.'}}));
+ assert.deepEqual(diagnoseExperiences([],notes),empty,'Separate notes never contribute, even if passed accidentally');
+ const legacy={title:'예전 경험',situation:'팀원들과 공동 목표를 준비했습니다.',action:'역할을 나누어 조율했습니다.',learning:'협력하는 방법을 이해하고 배웠습니다.'};
+ assert.equal(find(diagnoseExperiences([legacy])).level,3);
+ assert.equal(find(diagnoseExperiences([{content:'기억에 남는 활동입니다.',competencyIds:['life-test']}],[{id:'life-test',element_ids:['shared-goal']}])).level,1);
+ const two=[{...experience,content:'팀원들의 의견을 경청했습니다.',appeal:''},{...experience,id:'two',content:'팀원들과 완수한 경험입니다.'}];
+ assert.equal(find(diagnoseExperiences(two)).level,3,'Do not combine unrelated evidence across separate experiences');
+ assert.equal(find(diagnoseExperiences([{...experience,content:'팀원들과 함께한 기억입니다.',appeal:'',action:'역할을 나누고 제안했습니다.',result:'완수했습니다.'}])).level,1,'Current content takes priority over obsolete legacy fields');
+ for(const id of ['motivation','integrity','public','judgement'])assert(diagnosisQuestions(id)[0].includes('실제 경험'));
+ const html=renderDiagnosisChart(empty);assert(!html.includes('NaN'));assert.equal((html.match(/<circle /g)||[]).length,13);assert.equal((html.match(/<line /g)||[]).length,13);
+ assert(!renderDiagnosisChart(empty.map(x=>({...x,title:'<script>·&'}))).includes('<script>'));
+ console.log('PASS life-only diagnosis: 13 axes, no note influence, legacy/current evidence, independent experiences, satisfaction independence and escaping.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

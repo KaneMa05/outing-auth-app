@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const source = fs.readFileSync("teacher-grades.js", "utf8");
+const source = fs.readFileSync("teacher-grades.js", "utf8").replace(/\r\n/g, '\n');
 const targetSource = source.match(
   /function getWeeklyExamAnswerResetTarget\([\s\S]*?\n}\n\nfunction openWeeklyExamAnswerResetModal/
 )?.[0].replace(/\n\nfunction openWeeklyExamAnswerResetModal$/, "");

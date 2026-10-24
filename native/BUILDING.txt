@@ -1,0 +1,114 @@
+모의면접 부분 네이티브 구현 — 2026-10-21
+
+현재 상태
+- Android: 기존 TWA 앱에 별도의 Android Activity를 추가. 네이티브 화면,
+  WebRTC 음성, Camera2 미리보기, 결과·기록 화면 소스와 디버그 APK 빌드 완료.
+- iOS: SwiftUI 모의면접 모듈 + 기존 웹 화면을 유지하는 WKWebView 앱 소스 준비.
+  로컬 Mac 없이 GitHub의 macOS에서 컴파일·화면 테스트하는 경로가 추가되었다.
+  클라우드 최초 실행은 전용 브랜치 푸시 승인 대기 중이며, 아직 Xcode 빌드 성공을 확인하지 않았다.
+- 두 플랫폼 모두 실제 기기에서의 AI 음성·이어폰·통화 중단 검증은 미실시.
+- 홈 화면에 추가한 기존 iPhone 웹앱은 자동으로 네이티브가 되지 않는다.
+  이 iOS 설치형 앱의 첫 로그인은 Safari/PWA와 별도로 필요하다.
+- 운영 서버·DB·스토어에 배포하지 않았으며 유료 OpenAI 호출을 하지 않았다.
+
+범위
+- 기존 모의면접 진입 메뉴에서 AI 모드만 네이티브 모듈로 연결한다.
+- 전공/인성 시험 메뉴의 기존 준비 상태는 유지한다. 네이티브 AI 모드는
+  실제 기록을 보여주며 공식 O/△/X 채점 결과나 생성되지 않은 피드백을 표시하지 않는다.
+- 카메라는 기기 내 미리보기 전용. 영상 녹화·업로드 없음.
+- 질문, 면접관 발화, 답변 근거 꼬리 질문과 음성 기록은 기존 Live 서버 담당.
+
+Android 무료 화면 테스트
+1. artifacts/native-interview/ronpark-interview-native-debug-20261021.apk를
+   테스트 Android 기기에 설치한다. 운영 앱과 다른 패키지로 함께 설치된다.
+2. 앱 목록의 '모의면접 네이티브 테스트'를 실행한다.
+3. 준비 → 가상 면접 → 종료 → 기록 화면을 확인한다.
+   이 모드에는 AI 음성·실제 답변 인식이 없고 과금 API를 호출하지 않는다.
+   마이크 확인·카메라 미리보기 버튼은 기기의 실제 권한을 사용한다.
+4. 진짜 AI 연결 테스트에는 아래 서버 준비와 본 앱 패키지의 설치가 필요하다.
+
+Android 빌드 (프로젝트 루트, PowerShell)
+기존 scripts/play-store/generate-android.cjs가 준비한 .tmp/play-android를 입력으로 쓴다.
+node scripts/play-store/prepare-native-interview.cjs
+$env:JAVA_HOME=(Resolve-Path '.tmp/play-tools/jdk/jdk-17.0.20.1+1').Path
+$env:ANDROID_HOME=(Resolve-Path '.tmp/play-tools/android-sdk').Path
+$env:GRADLE_USER_HOME=(Resolve-Path '.tmp/play-tools/gradle-cache').Path
+& "$env:JAVA_HOME/bin/java.exe" -classpath .tmp/play-android-native/gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain -p .tmp/play-android-native :app:assembleDebug :interview:lintDebug --no-daemon --console=plain
+
+빌드는 .tmp/play-android-native에 격리된다. 운영 서명키는 사용하지 않는다.
+실제 배포본은 패키지 com.ronpark.study로 앱 업데이트를 빌드하고 별도로 최종 승인한다.
+디버그 패키지 com.ronpark.study.nativepreview에는 무료 테스트 진입점이 있으며,
+웹에서 사용하는 package-bound intent는 운영 패키지 com.ronpark.study를 대상으로 한다.
+
+iOS 클라우드 빌드 (사용자 Mac 불필요)
+구성: .github/workflows/ios-native-build.yml
+macos-15 러너 / Xcode 26.3 / XcodeGen 2.46.0 / 작업 제한 30분 / 결과 보관 3일.
+일반 main 브랜치 푸시에는 실행되지 않는다. codex/ios-native-build-* 전용 브랜치에
+승인된 소스를 푸시하면 실행된다. workflow_dispatch는 워크플로가 기본 브랜치에도
+등록된 뒤 사용할 수 있으므로, 최초 검증은 전용 브랜치 push 트리거를 사용한다.
+
+로컬 준비 명령 (푸시·클라우드 실행 없음):
+node scripts/ios/prepare-cloud.cjs
+
+.tmp/ios-cloud-build-20261021에 iOS 소스·테스트·빌드 스크립트만 복사한다.
+이 스냅샷의 vercel.json은 git.deploymentEnabled=false이므로 해당 브랜치의
+웹사이트 자동 배포를 차단한다. 이 설정을 운영 main 브랜치에 병합하지 않는다.
+운영 웹 코드, API, DB 마이그레이션, .env 파일, 서명 인증서는 업로드 목록에 없다.
+원격 푸시와 클라우드 실행은 AGENTS.md의 최종 확인을 받은 뒤 별도로 수행한다.
+비공개 저장소의 무료 사용량을 초과하면 GitHub Actions 요금이 발생할 수 있다.
+
+클라우드 실행 내용:
+1. 고정 버전·체크섬의 XcodeGen과 WebRTC를 준비한다.
+2. 학생 로그인 정보를 공급하지 않고 iPhone 시뮬레이터에서 실제 SwiftUI 화면을 테스트한다.
+   테스트 전용 실행 인수는 Debug에서만 동작하며 운영 웹 페이지를 열지 않는다.
+3. 질문·꼬리 질문·결과 흐름, 종료 취소, 백그라운드 종료를 검증하고 스크린샷을 남긴다.
+4. 시뮬레이터 .app과 서명 없는 Release .xcarchive, 로그·테스트 결과를 보관한다.
+
+현재 사용자는 Apple Developer Program 미가입 상태다. 위 산출물은 아이폰에
+바로 설치하는 서명된 IPA가 아니다. 가입과 서명 설정 이후 설치/배포 단계를 연결한다.
+이 워크플로는 Apple 인증서, App Store 업로드, TestFlight 배포, 유료 AI 호출을 수행하지 않는다.
+
+iOS 로컬 macOS 빌드 (대안)
+cd native/ios/App
+xcodegen generate
+open RonparkStudy.xcodeproj
+
+프로젝트에서 Apple 개발 팀/서명을 지정하고 iPhone 또는 시뮬레이터를 선택한다.
+Debug 빌드에는 '무료 모의면접 시연' 버튼이 있다. Release에서는 제거된다.
+Swift Package는 ../InterviewNative를 참조하며 WebRTC 바이너리 버전·체크섬이 고정되어 있다.
+클라우드 최초 검증 전까지는 Xcode 빌드 성공을 보장하지 않는다. 스토어 배포 전 앱 아이콘,
+개인정보·스토어 설정, 기존 웹 화면의 파일 선택/로그인/외부 링크 등을 확인해야 한다.
+홈 화면 웹앱의 웹 푸시는 WKWebView 앱에서 자동 승계되지 않는다. 기존 PWA 사용은 유지되며,
+iOS 설치형 앱 전체 전환에는 별도 푸시/APNs 연동 검토가 필요하다.
+
+서버 준비 (배포·DB 적용은 최종 승인 후)
+- 기존 interview Live 마이그레이션, 비공개 음성 Storage, Live 서버 설정 필요.
+- 추가 마이그레이션: 20261021085929_interview_native_launch.sql
+- 추가 환경 변수: INTERVIEW_NATIVE_ENABLED=true
+  현재 기본값은 false이며 이 작업에서 운영 값을 변경하지 않았다.
+- INTERVIEW_LIVE_TRANSPORT=vercel 경로를 네이티브 클라이언트가 사용한다.
+  기존 API 키, 워커 서명 비밀, 학생 접근 제한, 수강 종료 후 30일 보관 정책을 재사용한다.
+- 앱에는 OpenAI 키를 넣지 않는다. 웹 인증 후 60초 일회용 코드를 발급하고,
+  네이티브에서 학생 Live 동작만 허용하는 30분 토큰으로 교환한다. 토큰은 메모리에만 보관한다.
+- Android intent는 대상 패키지를 고정하고, iOS 브리지는 HTTPS 앱 도메인의 최상위 프레임만 허용한다.
+
+검증
+npm.cmd run test:interview-native
+npm.cmd run test:interview-live
+node tests/interview-preview-access.test.cjs
+node tests/release-safety.test.js
+node scripts/verify-interview-build.cjs
+node tests/ios-cloud-source.test.cjs
+python tests/test_ios_simulator.py
+
+참고 문서
+https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled
+https://developer.apple.com/programs/whats-included/
+
+실기기에서 남은 검증
+- 마이크/카메라 허용·거부, 첫 질문 발화, 이어폰/블루투스, 한국어 자막, 답변 완료와 꼬리 질문
+- 잠금/백그라운드/전화 수신/네트워크 끊김에서 캡처 종료와 기록 보존
+- 학생 본인 기록과 관리자 기록의 접근, 재생, 만료 삭제
+- iOS 컴파일·네이티브 화면 렌더링·기기 오디오 연결

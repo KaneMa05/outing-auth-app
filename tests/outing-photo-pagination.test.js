@@ -92,9 +92,9 @@ test("a later-page error leaves the existing administrator state intact", async 
   assert.equal(calls.length, 2);
 });
 
-test("initial administrator load uses pagination for normal and legacy photo schemas", () => {
+test("full administrator load uses pagination; deferred startup reuses the initial outing refresh", () => {
   const load = source.match(/async function loadStateFromRemote\(options = \{\}\) \{[\s\S]*?\n}/)[0];
-  assert.match(load, /APP_MODE === "teacher"\s*\? loadTeacherOutingPhotosFromRemote\(photoColumns\)/);
+  assert.match(load, /APP_MODE === "teacher" && !deferTeacherMenuData\s*\? loadTeacherOutingPhotosFromRemote\(photoColumns\)/);
   assert.match(load, /APP_MODE === "teacher"\s*\? await loadTeacherOutingPhotosFromRemote\(fallbackPhotoColumns\)/);
   assert.match(load, /\.select\(photoColumns\)\.in\("outing_id", outingIds\)/, "student-scoped reads stay unchanged");
 });

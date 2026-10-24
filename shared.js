@@ -102,6 +102,107 @@ let isTeacherOutingRefreshing = false;
 let teacherOutingRenderPending = false;
 let lastTeacherOutingSignature = "";
 let teacherBaseDataLoaded = false;
+let teacherMenuDataEpoch = 0;
+let teacherMenuDataLoads = new Map();
+
+function resetTeacherMenuDataLoads() {
+  teacherBaseDataLoaded = false;
+  teacherMenuDataEpoch += 1;
+  teacherMenuDataLoads = new Map();
+}
+
+function teacherDataGroupsForRoute(route) {
+  if (["weekly-exams", "weekly-absences", "track-subjects"].includes(route)) return ["exams"];
+  if (["grades", "student-preview", "students"].includes(route)) return ["exams", "finals"];
+  if (route === "device-history") return ["devices"];
+  return [];
+}
+
+async function loadTeacherMenuRows(table, columns, order, optionalColumns = [], limit = null) {
+  let selected = columns;
+  for (;;) {
+    const rows = [];
+    let failure = null;
+    for (let from = 0; ; from += 500) {
+      let query = remoteStore.from(table).select(selected);
+      for (const [column, ascending] of order) query = query.order(column, { ascending });
+      const result = await query.range(from, Math.min(from + 499, limit == null ? Infinity : limit - 1));
+      if (result.error) { failure = result.error; break; }
+      rows.push(...(result.data || []));
+      if ((result.data || []).length < 500 || (limit != null && rows.length >= limit)) break;
+    }
+    if (!failure) return rows;
+    if (isMissingRelationError(failure, table)) return [];
+    const missing = optionalColumns.find(column => selected.split(",").includes(column) && isMissingColumnError(failure, column));
+    if (!missing) throw failure;
+    selected = selected.split(",").filter(column => column !== missing).join(",");
+  }
+}
+
+async function loadTeacherMenuDataGroup(group) {
+  const epoch = teacherMenuDataEpoch;
+  const entry = teacherMenuDataLoads.get(group) || { loaded: false, error: null, promise: null };
+  teacherMenuDataLoads.set(group, entry);
+  if (entry.loaded) return true;
+  if (entry.promise) return entry.promise;
+  entry.error = null;
+  entry.promise = (async () => {
+    let updates;
+    if (group === "exams") {
+      const specs = [
+        ["exams", "id,name,cohort,week_number,start_at,end_at,target_tracks,is_published,score_release_mode,explanation_release_mode,created_at,updated_at", [["week_number", false], ["created_at", false], ["id", true]], ["cohort"], "exams", mapExamFromRemote],
+        ["exam_sections", "id,exam_id,track,subject,question_count,total_score,is_active,created_at", [["created_at", true], ["id", true]], [], "examSections", mapExamSectionFromRemote],
+        ["exam_answers", "id,exam_section_id,question_number,correct_answer,correct_answers,points,target_tracks", [["exam_section_id", true], ["question_number", true], ["id", true]], ["correct_answers", "target_tracks"], "examAnswers", mapExamAnswerFromRemote],
+        ["exam_files", "id,exam_section_id,file_type,file_path,file_url,original_name,uploaded_at", [["uploaded_at", false], ["id", true]], [], "examFiles", mapExamFileFromRemote],
+        ["exam_subject_settings", "id,track,subject,question_count,total_score,is_active,sort_order,created_at,updated_at", [["sort_order", true], ["created_at", true], ["id", true]], [], "examSubjectSettings", mapExamSubjectSettingFromRemote],
+      ];
+      updates = Object.fromEntries(await Promise.all(specs.map(async ([table, columns, order, optional, key, mapper]) =>
+        [key, (await loadTeacherMenuRows(table, columns, order, optional)).map(mapper)])));
+    } else if (group === "finals") {
+      const columns = "id,round,student_id,student_name,track,cohort,is_external_final_score,score,max_score,wrong_count,subject_scores,status,updated_at,created_at";
+      const result = await loadStudentFinalScoresFromRemote(columns, [], "");
+      if (result.error && !isMissingRelationError(result.error, "final_exam_scores")) throw result.error;
+      updates = { finalExamScores: (result.data || []).map(mapFinalExamScoreFromRemote) };
+    } else if (group === "devices") {
+      const rows = await loadTeacherMenuRows("student_registration_events", "id,student_id,student_name,event_type,device_token,reason,actor,client_display_mode,client_user_agent,created_at", [["created_at", false], ["id", true]], [], 1000);
+      updates = { studentRegistrationEvents: rows.map(mapStudentRegistrationEventFromRemote) };
+    } else throw new Error("unknown_teacher_data_group");
+    if (epoch !== teacherMenuDataEpoch || !teacherAuth.authenticated) return false;
+    Object.assign(state, updates);
+    if (group === "exams") {
+      const normalized = normalizeLoadedWeeklySectionScores();
+      await persistNormalizedWeeklySectionScores(normalized);
+    }
+    entry.loaded = true;
+    return true;
+  })().catch(error => {
+    if (epoch === teacherMenuDataEpoch) entry.error = error;
+    return false;
+  }).finally(() => {
+    entry.promise = null;
+    if (epoch === teacherMenuDataEpoch && teacherAuth.authenticated) renderAppIfReady();
+  });
+  return entry.promise;
+}
+
+function renderTeacherDataRoute(renderFn) {
+  if (!remoteStore) return renderFn();
+  const groups = teacherDataGroupsForRoute(currentRoute);
+  if (!groups.length) return renderFn();
+  if (!teacherBaseDataLoaded || isRemoteLoading) return renderDataLoadingState();
+  const pending = groups.filter(group => !teacherMenuDataLoads.get(group)?.loaded);
+  if (!pending.length) return renderFn();
+  const failed = pending.filter(group => teacherMenuDataLoads.get(group)?.error);
+  if (failed.length) return el("div", { className: "empty" }, [
+    el("p", {}, "자료를 불러오지 못했습니다. 다시 시도해주세요."),
+    button("다시 불러오기", "btn secondary", "button", () => {
+      failed.forEach(group => loadTeacherMenuDataGroup(group));
+      renderAppIfReady();
+    }),
+  ]);
+  pending.forEach(group => loadTeacherMenuDataGroup(group));
+  return renderDataLoadingState();
+}
 const teacherWeeklyGradeLoadedExamIds = new Set();
 const teacherWeeklyGradeLoadPromises = new Map();
 const teacherWeeklyGradeSummaryLoadedExamIds = new Set();
@@ -151,6 +252,7 @@ const routePermissions = {
   "curriculum-admin": "curriculum.read",
   "final-scope-admin": "curriculum.read",
   "criminal-law-ox-admin": "criminal_ox.read",
+  "interview-prep-admin": "interview.read",
   "data-analytics": "analytics.read",
   notices: "notices.read",
   "teacher-accounts": "accounts.write",
@@ -808,6 +910,7 @@ async function initRemoteStore() {
   try {
     if (APP_MODE === "teacher") {
       teacherBaseDataLoaded = false;
+      resetTeacherMenuDataLoads();
       teacherWeeklyGradeLoadedExamIds.clear();
       teacherWeeklyGradeSummaryLoadedExamIds.clear();
       teacherWeeklyGradeSummaryLoadPromises.clear();
@@ -816,7 +919,7 @@ async function initRemoteStore() {
       // Keep the lightweight outing refresh alive even if an unrelated admin dataset fails below.
       startRemoteRefresh();
     }
-    await loadStateFromRemote({ forceExamData: true });
+    await loadStateFromRemote({ forceExamData: true, deferTeacherMenuData: APP_MODE === "teacher" });
     if (APP_MODE === "teacher") teacherBaseDataLoaded = true;
     const registrationChanged = reconcileStudentRegistrationFromRemote();
     const deviceValidationChanged = registrationChanged
@@ -1181,7 +1284,7 @@ async function refreshTeacherOutingsFromRemote(options = {}) {
   try {
     const revisions = await loadRemoteReadRevisions(["outings", "outing_photos"]);
     const outingChanged = !revisions || !teacherOutingReadRevisions || revisions.outings !== teacherOutingReadRevisions.outings;
-    const photosVisible = options.renderImmediately || ["home", "outing", "duplicates", "trash"].includes(currentRoute);
+    const photosVisible = ["home", "outing", "duplicates", "trash"].includes(currentRoute);
     const photoChanged = photosVisible && (!revisions || !teacherOutingReadRevisions || revisions.outing_photos !== teacherOutingReadRevisions.outing_photos);
     if (!outingChanged && !photoChanged) return false;
     const outingColumns = "id,student_id,student_name,class_name,reason,detail,expected_return,status,decision,approved_by,approved_at,approval_reason,receipt_note,early_leave_reason,created_at,verified_at,returned_at,deleted_at";
@@ -2238,6 +2341,7 @@ async function loadTeacherOutingPhotosFromRemote(columns) {
 }
 
 async function loadStateFromRemote(options = {}) {
+  const deferTeacherMenuData = APP_MODE === "teacher" && options.deferTeacherMenuData === true;
   const holidayRevisionAtLoad = attendanceHolidayRevision;
   const scopedStudentId = APP_MODE === "student" ? String(state.settings.studentAuthId || "").trim() : "";
   const gradesOnly = options.gradesOnly === true && APP_MODE === "student" && Boolean(scopedStudentId);
@@ -2245,6 +2349,7 @@ async function loadStateFromRemote(options = {}) {
   // periodic grades refresh. Scope only after reading the current roster.
   const scopedGradeReads = APP_MODE === "student" && Boolean(scopedStudentId);
   let shouldLoadExamData = APP_MODE !== "student" || options.forceExamData || studentExamDataStudentId !== scopedStudentId || !studentExamDataLastLoadedAt || Date.now() - studentExamDataLastLoadedAt >= STUDENT_EXAM_DATA_REFRESH_INTERVAL_MS;
+  if (deferTeacherMenuData) shouldLoadExamData = false;
   const skippedRemoteResult = () => Promise.resolve({ data: null, error: null, skipped: true });
   const pendingPhotoDrafts = collectStudentPendingOutingPhotoDrafts(scopedStudentId);
   const localExamSubmissions = Array.isArray(state.examSubmissions) ? state.examSubmissions.map((submission) => ({ ...submission })) : [];
@@ -2380,9 +2485,9 @@ async function loadStateFromRemote(options = {}) {
     penaltyRequest = skippedRemoteResult();
   }
   const photoRequest =
-    APP_MODE === "teacher"
+    APP_MODE === "teacher" && !deferTeacherMenuData
       ? loadTeacherOutingPhotosFromRemote(photoColumns)
-      : Promise.resolve({ data: [], error: null });
+      : Promise.resolve({ data: [], error: null, skipped: deferTeacherMenuData });
   const createTrackOptionRemoteRequest = (columns) =>
     remoteStore.from("track_options").select(columns).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
   let trackOptionRequest = createTrackOptionRemoteRequest(trackOptionColumns);
@@ -2390,7 +2495,7 @@ async function loadStateFromRemote(options = {}) {
   const examSubmissionRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("exam_submissions").select(examSubmissionColumns).order("created_at", { ascending: false }).limit(10000)
     : Promise.resolve({ data: [], error: null });
-  const finalExamScoreRequest = skipStudentGrades ? unusedGradeResult() : scopedGradeReads ? skippedRemoteResult()
+  const finalExamScoreRequest = deferTeacherMenuData ? skippedRemoteResult() : skipStudentGrades ? unusedGradeResult() : scopedGradeReads ? skippedRemoteResult()
     : loadStudentFinalScoresFromRemote(finalExamScoreColumns, [], "");
   const fitnessScoreRequest = shouldLoadLegacyStudentGradeData
     ? remoteStore.from("fitness_scores").select(fitnessScoreColumns).order("assessment_month", { ascending: false }).order("updated_at", { ascending: false })
@@ -2429,9 +2534,9 @@ async function loadStateFromRemote(options = {}) {
     examSubjectSettingRequest,
     finalExamScoreRequest,
     fitnessScoreRequest,
-    APP_MODE === "teacher"
+    APP_MODE === "teacher" && !deferTeacherMenuData
       ? remoteStore.from("student_registration_events").select(studentRegistrationEventColumns).order("created_at", { ascending: false }).limit(1000)
-      : Promise.resolve({ data: [], error: null }),
+      : Promise.resolve({ data: [], error: null, skipped: deferTeacherMenuData }),
   ]);
   let managerResult = remoteResults[1];
   const [{ data: outings, error: outingsError }] = [remoteResults[2]];
@@ -2664,8 +2769,13 @@ async function loadStateFromRemote(options = {}) {
   }
 
   if (!gradesOnly) {
-    const mappedOutings = mapRemoteOutings(loadedOutings, outingPhotos);
-    if (APP_MODE === "teacher") lastTeacherOutingSignature = teacherOutingRowsSignature(loadedOutings, outingPhotos);
+    const existingPhotos = new Map([...(state.outings || []), ...(state.deletedOutings || [])].map(row => [row.id, row.photos || []]));
+    const mappedOutings = mapRemoteOutings(loadedOutings, outingPhotos).map(row => {
+      if (!photoResult.skipped) return row;
+      const photos = existingPhotos.get(row.id) || [];
+      return { ...row, photos, returnedAt: row.returnedAt || (row.status === "returned" ? getReturnPhotoUploadedAt({ photos }) : "") };
+    });
+    if (APP_MODE === "teacher" && !photoResult.skipped) lastTeacherOutingSignature = teacherOutingRowsSignature(loadedOutings, outingPhotos);
     state.outings = mergePendingOutingPhotoDrafts(
       mappedOutings.filter((outing) => !outing.deletedAt),
       pendingPhotoDrafts
@@ -2687,20 +2797,20 @@ async function loadStateFromRemote(options = {}) {
   if (!examResult.error && !examResult.skipped) state.exams = (examResult.data || []).map(mapExamFromRemote);
   if (!examSectionResult.error && !examSectionResult.skipped) state.examSections = (examSectionResult.data || []).map(mapExamSectionFromRemote);
   if (!examAnswerResult.error && !examAnswerResult.skipped) state.examAnswers = (examAnswerResult.data || []).map(mapExamAnswerFromRemote);
-  const normalizedWeeklySectionScores = normalizeLoadedWeeklySectionScores();
+  const normalizedWeeklySectionScores = deferTeacherMenuData ? null : normalizeLoadedWeeklySectionScores();
   const preserveActiveExamState = hasActiveStudentExamDraft();
   let reconciledExamGrades = { submissions: [], answers: [] };
   if (!preserveActiveExamState) {
     if (!examSubmissionResult.error) state.examSubmissions = (examSubmissionResult.data || []).map(mapExamSubmissionFromRemote);
     if (!submissionAnswerResult.error && !submissionAnswerResult.skipped) state.submissionAnswers = (submissionAnswerResult.data || []).map(mapSubmissionAnswerFromRemote);
     if (!skipStudentGrades) mergeLocalSubmissionAnswersAfterRemoteLoad(localExamSubmissions, localSubmissionAnswers);
-    reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
+    if (!deferTeacherMenuData) reconciledExamGrades = reconcileLoadedExamSubmissionGrades();
   }
   if (!examFileResult.error && !examFileResult.skipped) state.examFiles = (examFileResult.data || []).map(mapExamFileFromRemote);
   if (!examSubjectSettingResult.error && !examSubjectSettingResult.skipped) state.examSubjectSettings = (examSubjectSettingResult.data || []).map(mapExamSubjectSettingFromRemote);
-  if (!finalExamScoreResult.error) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
+  if (!finalExamScoreResult.error && !finalExamScoreResult.skipped) state.finalExamScores = (finalExamScoreResult.data || []).map(mapFinalExamScoreFromRemote);
   if (!fitnessScoreResult.error) state.fitnessScores = (fitnessScoreResult.data || []).map(mapFitnessScoreFromRemote);
-  if (!studentRegistrationEventResult.error) state.studentRegistrationEvents = (studentRegistrationEventResult.data || []).map(mapStudentRegistrationEventFromRemote);
+  if (!studentRegistrationEventResult.error && !studentRegistrationEventResult.skipped) state.studentRegistrationEvents = (studentRegistrationEventResult.data || []).map(mapStudentRegistrationEventFromRemote);
   if (!trackOptionResult.error) {
     const remoteTrackOptions = normalizeTrackOptionList((trackOptionResult.data || []).map((option) => option.label));
     if (remoteTrackOptions.length || !normalizeTrackOptionList(state.settings.trackOptions).length) {

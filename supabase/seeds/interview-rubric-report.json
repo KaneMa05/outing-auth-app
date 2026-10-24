@@ -1,0 +1,41 @@
+{
+  "source_sha256": "d603cf9646c2378fe71d345d12ac0c31d29ef0a1c242a70acc74f4d13c82a08e",
+  "analysis_sha256": "2c9ad2323793a8f8ee442889bce6238d9716ba7de46697fdd6bb1be36dcffbaa",
+  "records": 2519,
+  "original_job": 2131,
+  "classification_review": {
+    "context_needed": 320,
+    "knowledge_review": 68
+  },
+  "proposed_kinds": {
+    "job_knowledge": 2092,
+    "personality_opinion": 91,
+    "profile": 187,
+    "hold": 28,
+    "followup": 85,
+    "personality_experience": 23,
+    "practical": 13
+  },
+  "knowledge_review_kinds": {
+    "job_knowledge": 25,
+    "personality_opinion": 21,
+    "profile": 10,
+    "followup": 4,
+    "hold": 2,
+    "practical": 5,
+    "personality_experience": 1
+  },
+  "context_review_kinds": {
+    "profile": 177,
+    "personality_opinion": 22,
+    "hold": 26,
+    "followup": 73,
+    "personality_experience": 22
+  },
+  "original_job_with_answer": 2106,
+  "original_job_without_answer": 25,
+  "with_term_candidates": 1113,
+  "with_authored_criteria": 10,
+  "approved": 0,
+  "auto_scoring_ready": 0
+}

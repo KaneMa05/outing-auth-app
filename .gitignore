@@ -25,5 +25,24 @@ config.js
 /.tmp/
 /supabase/.temp/
 
-# Private Google Play signing material
+# Private Google Play upload signing key (back up separately)
 /.play-signing/
+
+# iOS generated projects, build output and private signing material
+/native/ios/**/.build/
+/native/ios/**/DerivedData/
+/native/ios/**/*.xcodeproj/
+/native/ios/**/*.xcworkspace/
+/native/ios/**/*.p12
+/native/ios/**/*.p8
+/native/ios/**/*.mobileprovision
+/artifacts/ios-cloud/
+/scripts/ios/__pycache__/
+
+# Generated release evidence and private local configuration
+/artifacts/
+/output/
+.env.*
+!.env.example
+__pycache__/
+*.pyc

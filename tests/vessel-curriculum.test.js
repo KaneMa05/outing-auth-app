@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8").replace(/\r\n/g, "\n");
 const sql = read("supabase/seed-curriculum-vessel-crew-patrol.sql");
 const publicSql = read("supabase/seed-curriculum-public-recruitment.sql");
 const generator = read("scripts/generate-curriculum-vessel-crew-seed.js");

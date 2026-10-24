@@ -252,6 +252,20 @@ test('the teacher initial load retains final scores beyond the first 1000 record
   assert.equal(h.calls.filter(x=>x.table==='final_exam_scores').length,2);
 });
 
+test('teacher startup defers exam/final/device reads and preserves outing photos and return time',async()=>{
+  const h=harness();h.c.APP_MODE='teacher';
+  Object.assign(h.c,{loadTeacherOutingPhotosFromRemote:async()=>{throw Error('unexpected photo reload');},loadManagersFromTeacherApi:async()=>null,
+    teacherOutingRowsSignature:()=>'',persistReconciledExamSubmissionGrades:async()=>{},persistNormalizedWeeklySectionScores:async()=>{},
+    getReturnPhotoUploadedAt:()=> '2026-10-14T01:00:00Z'});
+  h.tables.outings=[{id:'o',status:'returned'}];h.c.state.outings=[{id:'o',photos:[{id:'photo'}]}];
+  await h.c.loadStateFromRemote({forceExamData:true,deferTeacherMenuData:true});
+  for(const table of ['exams','exam_sections','exam_answers','exam_files','exam_subject_settings','final_exam_scores','student_registration_events','outing_photos'])
+    assert.equal(h.calls.some(x=>x.table===table),false,table);
+  assert.equal(h.c.state.finalExamScores[0].id,'previous-final');
+  assert.equal(h.c.state.outings[0].photos[0].id,'photo');
+  assert.equal(h.c.state.outings[0].returnedAt,'2026-10-14T01:00:00Z');
+});
+
 
 test('lecture entry ignores grade revision failures; unauthenticated entry defers grades until login',async()=>{
   const h=harness();h.tables.students[0].student_category='lecture';h.control.fail='app_read_revisions';

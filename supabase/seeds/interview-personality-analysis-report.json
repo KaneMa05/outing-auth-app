@@ -1,0 +1,60 @@
+{
+  "source_sha256": "d603cf9646c2378fe71d345d12ac0c31d29ef0a1c242a70acc74f4d13c82a08e",
+  "questions": 2952,
+  "occurrences": 3239,
+  "elements": 31,
+  "dispositions": {
+    "personal": 2377,
+    "context_needed": 320,
+    "knowledge_review": 68,
+    "rapport": 105,
+    "sensitive_review": 82
+  },
+  "element_candidates": {
+    "leadership-action": 28,
+    "followership": 18,
+    "resilience": 183,
+    "problem-response": 277,
+    "listening-empathy": 47,
+    "emotion-regulation": 155,
+    "fairness-integrity": 57,
+    "shared-goal": 24,
+    "goal-persistence": 73,
+    "commitment-boundary": 38,
+    "service-action": 74,
+    "self-awareness": 300,
+    "conflict-mediation": 142,
+    "values-origin": 127,
+    "public-mission": 127,
+    "career-fit": 130,
+    "weakness-change": 109,
+    "strength-evidence": 209,
+    "feedback-change": 12,
+    "duty-reliability": 43,
+    "judgement-priority": 74,
+    "mutual-support": 26,
+    "respect-inclusion": 78,
+    "unjust-direction": 66,
+    "failure-learning": 118,
+    "rights-protection": 100,
+    "motivation-origin": 152,
+    "organization-adaptation": 57,
+    "preparation-learning": 130,
+    "initiative": 18,
+    "honesty": 51
+  },
+  "reviewed_questions": 0,
+  "method": "analyst-designed elements; wording-rule suggestions + exact-question semantic drafts; all await admin review",
+  "methods": {
+    "wording-rules-v1": 2090,
+    "analyst-semantic-v1": 862
+  },
+  "answer_forms": {
+    "experience": 290,
+    "mixed": 47,
+    "context": 467,
+    "value": 407,
+    "situation": 280,
+    "profile": 1461
+  }
+}

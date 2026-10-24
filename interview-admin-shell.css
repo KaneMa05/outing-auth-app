@@ -1,0 +1,15 @@
+/* Teacher-only mode controls; unrelated student screens never load this file. */
+body[data-app-mode=teacher] [data-teacher-mode-switch][hidden],
+body[data-app-mode=teacher] [data-teacher-interview-nav][hidden],
+body[data-app-mode=teacher] [data-teacher-standard-nav][hidden]{display:none!important}
+.teacher-mode-switch{display:flex;gap:6px;padding:8px 0 18px}
+.teacher-mode-switch button{flex:1;border:1px solid #c5d3e2;background:#fff;color:#234e83;border-radius:9px;padding:10px 8px;font:inherit;cursor:pointer}
+.teacher-mode-switch button[aria-pressed=true]{background:#234e83;color:white;border-color:#234e83}
+body.teacher-interview-mode .brand-mark{background:#234e83}
+body.teacher-interview-mode .main-shell{min-width:0}
+body.teacher-interview-mode .ip-root>.ip-category-tabs,
+body.teacher-interview-mode .ip-root>.ip-tabs{display:none}
+@media(max-width:760px){
+  .teacher-mode-switch{padding:6px 12px}
+  body.teacher-interview-mode [data-editor]{scroll-margin-top:175px}
+}

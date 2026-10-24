@@ -1,0 +1,9 @@
+{
+  "web_origin": "https://YOUR-APP-DOMAIN",
+  "runtime_dir": "%LOCALAPPDATA%/InterviewDraftWorker",
+  "codex_executable": "codex",
+  "engine": "cli",
+  "poll_seconds": 2,
+  "hours": [0, 24],
+  "allow_local_http": false
+}

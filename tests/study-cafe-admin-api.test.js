@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+process.env.STUDY_CAFE_READ_MODELS_ENABLED = "false";
 
 const handler = require("../api/study-cafe-admin");
 const { COOKIE_NAME, createSessionToken } = require("../api/teacher-auth-utils");

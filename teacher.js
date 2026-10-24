@@ -193,6 +193,7 @@ async function logoutTeacher() {
   }
 
   teacherAuth.authenticated = false;
+  resetTeacherMenuDataLoads();
   teacherAuth.checked = true;
   teacherAuth.user = null;
   await stopTeacherOutingRealtimeSync();

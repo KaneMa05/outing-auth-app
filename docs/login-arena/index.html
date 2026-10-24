@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090a0b">
+  <meta name="robots" content="noindex,nofollow">
+  <title>THE ARENA · 론박스터디 로그인 시안</title>
+  <link rel="preload" as="image" href="assets/arena.png">
+  <link rel="stylesheet" href="arena.css">
+  <script src="arena.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#student-id">로그인으로 바로 가기</a>
+  <div class="scene" aria-hidden="true">
+    <div class="scene-image"></div><div class="scene-shade"></div>
+    <canvas id="embers"></canvas>
+  </div>
+  <div class="page">
+    <header class="masthead">
+      <a class="brand" href="./" aria-label="론박스터디 시안 처음으로"><span class="brand-symbol">R<span></span></span><span>RONPARK<small>STUDY</small></span></a>
+      <div class="header-right"><span class="concept">DESIGN CONCEPT <b>01</b></span><button class="motion" type="button" aria-pressed="false"><span aria-hidden="true">Ⅱ</span><span class="motion-label">모션 끄기</span></button></div>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="chapter"><span></span> THE ARENA OF YOUR POTENTIAL</div>
+        <div class="hero-copy">
+          <p class="overline">한계를 넘어, 합격으로.</p>
+          <h1 id="hero-title">증명할 시간.</h1>
+          <p class="hero-description">어제의 나를 넘어서는 곳.<br>당신의 가장 치열한 도전이 시작됩니다.</p>
+          <div class="hero-signature"><span>DISCIPLINE</span><i></i><span>FOCUS</span><i></i><span>BREAKTHROUGH</span></div>
+        </div>
+      </section>
+      <section class="entry" aria-labelledby="entry-title">
+        <div class="entry-topline"><span class="live-dot"></span> YOUR NEXT CHAPTER <span class="index">01 / ENTER</span></div>
+        <p class="entry-kicker">WELCOME TO RONPARK</p>
+        <h2 id="entry-title">도전을 이어가세요.</h2>
+        <p class="entry-description">오늘의 몰입이, 내일의 차이를 만듭니다.</p>
+        <form id="login-form">
+          <label for="student-id">수강생 고유번호 <span>STUDENT ID</span></label>
+          <div class="input-wrap"><span class="input-icon" aria-hidden="true">#</span><input id="student-id" name="student-id" type="text" inputmode="numeric" autocomplete="off" placeholder="고유번호를 입력하세요" maxlength="12" required pattern="[0-9]{1,12}" aria-describedby="id-hint form-status"></div>
+          <p id="id-hint" class="hint">학원에서 안내받은 번호로 시작할 수 있어요.</p>
+          <button class="enter-button" type="submit"><span>로그인</span><span class="arrow" aria-hidden="true">↗</span></button>
+          <p id="form-status" class="form-status" role="status"></p>
+        </form>
+        <div class="entry-help"><span>처음 오셨나요?</span><button type="button" data-dialog="join">수강 신청 안내 <span aria-hidden="true">↗</span></button></div>
+        <div class="divider"></div>
+        <button class="interview" type="button" data-dialog="interview"><span><small>THE NEXT STAGE</small><strong>면접반으로 입장</strong></span><span class="thin-arrow" aria-hidden="true">→</span></button>
+        <button class="support" type="button" data-dialog="help">고유번호를 잊으셨나요?</button>
+        <p class="preview-note"><span></span> 디자인 미리보기 · 실제 로그인은 연결되지 않습니다.</p>
+      </section>
+    </main>
+    <footer><span>© RONPARK STUDY</span><span class="footer-manifesto">THE ONLY WAY IS THROUGH.</span><span class="footer-right">몰입의 시작, 론박스터디 <span aria-hidden="true">↗</span></span></footer>
+  </div>
+  <dialog id="info-dialog" aria-labelledby="dialog-title"><div class="dialog-content"><p class="entry-kicker">RONPARK STUDY / PREVIEW</p><h2 id="dialog-title"></h2><p id="dialog-copy"></p><button class="enter-button" type="button" id="dialog-close">확인 <span aria-hidden="true">↗</span></button></div></dialog>
+</body>
+</html>

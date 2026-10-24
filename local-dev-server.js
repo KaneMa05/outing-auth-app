@@ -38,6 +38,14 @@ loadEnv(path.join(ROOT, ".env"));
 loadEnv(path.join(ROOT, ".env.local"));
 
 const apiHandlers = {
+  "/api/interview-auth": require("./api/interview-auth"),
+  "/api/interview-prep": require("./api/interview-prep"),
+  "/api/interview-preassignments": require("./api/interview-preassignments"),
+  "/api/interview-ai": require("./api/interview-ai"),
+  "/api/interview-life-followup": require("./api/interview-life-followup"),
+  "/api/interview-ai-worker": require("./api/interview-ai-worker"),
+  "/api/interview-exam": require("./api/interview-exam"),
+  "/api/interview-live": require("./api/interview-live"),
   "/api/teacher-login": require("./api/teacher-login"),
   "/api/teacher-session": require("./api/teacher-session"),
   "/api/teacher-logout": require("./api/teacher-logout"),
@@ -68,7 +76,7 @@ const mimeTypes = {
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
-http
+const localHttpServer = http
   .createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     if (url.pathname === "/api/criminal-law-ox") {
@@ -175,6 +183,7 @@ http
   .listen(PORT, () => {
     console.log(`Local dev server running at http://localhost:${PORT}/`);
   });
+require('./lib/interview-live-socket').attach(localHttpServer);
 
 function handleLocalAdminPreview(req, res) {
   if (req.method !== "GET") {
@@ -862,7 +871,7 @@ async function runApiHandler(handler, req, res) {
 }
 
 function serveStatic(pathname, res) {
-  const safePath = pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
+  const safePath = pathname === "/" ? "/index.html" : pathname === "/interview" ? "/interview.html" : decodeURIComponent(pathname);
   const absolutePath = path.resolve(ROOT, "." + safePath);
   if (!absolutePath.startsWith(ROOT + path.sep) || safePath.split(/[\\/]/).some(part => part.startsWith('.')) || path.basename(absolutePath).toLowerCase().startsWith(".local-study-cafe-feedback")) {
     res.writeHead(403);

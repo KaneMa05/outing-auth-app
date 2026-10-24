@@ -1,0 +1,44 @@
+body.student-interview-app-mode .student-footer-menu,body.student-interview-app-mode>.app-frame>.sidebar,body.student-interview-app-mode .student-topbar{display:none!important}
+body.student-interview-app-mode::after{display:none!important}
+body.student-interview-app-mode .main-shell{margin:0!important;padding:0!important}
+body.student-interview-app-mode #app{padding:0!important;max-width:none!important}
+body.ip-portal-app .ip-portal-header{display:none}
+body.ip-portal-app #interview-portal{padding:0;max-width:none}
+.ip-app-shell{box-sizing:border-box;max-width:720px!important;margin:auto!important;padding:0 18px calc(100px + env(safe-area-inset-bottom,0px))!important;background:#f2f5f7;min-height:100svh;color:#223347}
+.ip-app-header{display:flex;justify-content:space-between;align-items:center;padding:calc(22px + env(safe-area-inset-top,0px)) 2px 22px}
+.ip-app-header small{font-size:12px;color:#617889}
+.ip-app-header h1{margin:5px 0 0;font-size:25px;font-weight:800;letter-spacing:-.04em}
+.ip-app-mark{display:grid;place-items:center;width:40px;height:44px;border-radius:12px 12px 12px 3px;background:#173b51;color:white;font-size:24px;font-weight:800}
+.ip-app-shell .ip-panel{margin-bottom:18px;border-color:#dfe7ed;border-radius:16px;padding:22px;background:white}
+.ip-app-shell .ip-panel h2{font-size:18px;margin:0 0 14px}
+.ip-app-welcome{padding:26px 24px;background:linear-gradient(120deg,#173b51,#265f6c);border-radius:20px;color:white;margin-bottom:18px}
+.ip-app-welcome small{color:#b7dadd;font-size:12px}.ip-app-welcome h2{font-size:26px;line-height:1.45;margin:12px 0;letter-spacing:-.04em}.ip-app-welcome p{font-size:13px;color:#d8e6ec;line-height:1.7}
+.ip-app-link{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;background:transparent;border:0;border-bottom:1px solid #edf1f4;padding:16px 0;text-align:left;font:inherit;font-size:14px;color:#2b4759;cursor:pointer;line-height:1.5}
+.ip-app-link:last-child{border-bottom:0}.ip-app-link>span{font-size:24px;color:#8ba0ae}.ip-app-link:focus-visible,.ip-app-footer button:focus-visible{outline:3px solid #367b82;outline-offset:2px}
+.ip-app-welcome .ip-app-link{background:#fff;color:#173b51;border-radius:10px;padding:13px 16px;margin-top:20px;font-weight:700}
+.ip-app-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:white;border:1px solid #dfe7ed;border-radius:14px;margin-bottom:20px;padding:20px 4px;text-align:center}
+.ip-app-stats>div+div{border-left:1px solid #e7edf0}.ip-app-stats strong{display:block;font-size:25px;color:#235363}.ip-app-stats strong small{font-size:12px;color:#8295a1}.ip-app-stats span{display:block;font-size:11px;color:#6b808d;margin-top:6px}
+.ip-app-profile h2{margin-top:16px!important}.ip-app-profile dl{display:grid;grid-template-columns:90px 1fr;gap:14px;font-size:14px}.ip-app-profile dt{color:#7b8d99}.ip-app-profile dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.ip-app-feedback p{font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#607484;margin:0 0 16px}
+.ip-app-footer{position:fixed;z-index:1000;bottom:0;left:50%;transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:100%;max-width:720px;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:#fffffff5;border-top:1px solid #dfe7ed;box-shadow:0 -5px 20px #18374908;backdrop-filter:blur(12px)}
+.ip-app-footer button{display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:0;border-radius:10px;color:#788c99;min-height:52px;padding:6px;font:inherit;font-size:11px;cursor:pointer}.ip-app-footer button[aria-current]{background:#eaf3f4;color:#1c5a61;font-weight:700}.ip-app-icon{font-family:system-ui;font-size:25px;line-height:1.1}
+.ip-app-shell.ip-keyboard-open .ip-app-footer{display:none}
+.ip-app-shell .ip-app-mock button{touch-action:manipulation;min-height:46px}
+.ip-app-shell .ip-app-mock .ip-mock-button{transition:background-color .12s,transform .12s}
+.ip-app-shell .ip-app-mock .ip-mock-button:active{background:#eaf3f4;transform:scale(.99)}
+@media(prefers-reduced-motion:reduce){.ip-app-shell .ip-app-mock .ip-mock-button{transition:none}}
+.ip-app-shell:has(input:focus,textarea:focus,select:focus) .ip-app-footer{display:none}
+.ip-app-shell .ip-workspace-hero,.ip-app-db .ip-workspace-tabs{display:none!important}
+.ip-app-writing .ip-workspace-tabs [data-workspace-page=db]{display:none}
+.ip-app-shell .ip-workspace{padding:0!important;max-width:none!important}
+.ip-app-shell .ip-workspace-tabs{margin-bottom:16px!important}
+.ip-app-shell .ip-db-layout{display:block}.ip-app-shell .ip-db-sidebar{display:none}.ip-app-shell .ip-db-mobile{display:block;margin-bottom:16px}
+.ip-app-shell .ip-life-combined article.ip-panel{grid-template-columns:minmax(0,1fr);padding:16px;gap:16px}
+.ip-app-shell .ip-life-combined>[data-life-section]{padding:20px}
+.ip-app-shell [data-writing-text]{min-height:300px!important}
+.ip-app-shell .ip-workspace-tabs .ip-btn{padding:10px 12px!important;font-size:13px!important}
+.ip-app-shell .ip-ai-panel{margin-top:0}.ip-app-shell textarea,.ip-app-shell input,.ip-app-shell select{scroll-margin-bottom:100px}
+.ip-app-shell .ip-life-toolbar,.ip-app-shell .ip-writing-actions{flex-wrap:wrap}
+.ip-app-shell .ip-life-toolbar [data-life-save-state]{width:100%;font-size:12px}
+
+.ip-app-shell .ip-mock-menu{display:grid;gap:12px}.ip-app-shell .ip-mock-button{margin:0;padding:20px;border:1px solid #dfe7ed;border-radius:12px;background:white;font-size:16px;font-weight:700;color:#235363}.ip-app-shell .ip-mock-button:hover{background:#f7fafb}.ip-app-shell .ip-mock-detail p{font-size:14px;line-height:1.7;color:#607484}.ip-app-shell .ip-mock-grades{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ip-app-shell .ip-mock-grades>span{display:grid;place-items:center;min-width:34px;height:34px;border:1px solid #cddfe4;background:white;border-radius:9px;color:#235b63;font-weight:700}.ip-app-shell .ip-mock-grades>strong{font-size:12px;color:#607484;margin-left:4px}.ip-app-shell .ip-mock-back{margin-bottom:16px}.ip-app-shell .ip-mock-detail h2{margin-top:14px}.ip-app-shell .ip-mock-detail h3{font-size:15px;margin-top:24px}.ip-app-shell .ip-mock-elements{list-style:none;padding:0;counter-reset:elements}.ip-app-shell .ip-mock-elements li{counter-increment:elements;display:grid;grid-template-columns:24px 1fr;gap:5px 8px;padding:12px 0;border-bottom:1px solid #edf1f4;font-size:14px}.ip-app-shell .ip-mock-elements li::before{content:counter(elements);grid-row:span 2;color:#397780;font-weight:700}.ip-app-shell .ip-mock-elements li>span{font-size:13px;color:#607484;line-height:1.6}.ip-app-shell .ip-mock-steps{padding-left:20px;font-size:14px;line-height:2;color:#486171}

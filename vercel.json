@@ -5,6 +5,22 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
+    "api/interview-preassignments.js": {"maxDuration": 240},
+    "api/interview-live-socket.js": {
+      "maxDuration": 800,
+      "memory": 1024,
+      "regions": ["syd1"]
+    },
+    "api/interview-live-cleanup.js": {
+      "maxDuration": 300,
+      "regions": ["syd1"]
+    },
+    "api/interview-live.js": {
+      "maxDuration": 60
+    },
+    "api/interview-native.js": {
+      "maxDuration": 60
+    },
     "api/criminal-law-ox.js": {
       "regions": ["syd1"]
     }
