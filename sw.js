@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v517-interview-onboarding";
+const CACHE_NAME = "outing-auth-app-v518-header-cleanup";
 const APP_SHELL = [
   "/interview-prep.js?v=20261023-pa8",
   "/interview-app.css?v=20261023-pa8",
