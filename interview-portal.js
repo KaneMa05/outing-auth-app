@@ -1,7 +1,7 @@
 import {mountInterviewLogin} from './interview-login.js?v=20261024-coast-login';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state,controller=null,busy=false,choice='',version=0,disposeLogin=null;
+let state,controller=null,busy=false,version=0,disposeLogin=null;
 const appDisplay=()=>{let returning=false;try{returning=sessionStorage.getItem('interview-app-return')==='1';}catch{}return Boolean(new URLSearchParams(location.search).get('app')==='1'||window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone||document.referrer.startsWith('android-app://')||returning);};
 const appMode=appDisplay();
 if(appMode)try{sessionStorage.setItem('interview-app-return','1');}catch{}
@@ -23,7 +23,7 @@ async function api(action,payload={}){
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
 const legacyForm=link=>`<form data-legacy-form data-intent="${link?'link':'login'}"><label>기존 수강생 등록번호<input name="studentId" autocomplete="username" maxlength="120" required></label><label>기존 비밀번호<input name="password" type="password" autocomplete="current-password" maxlength="200" required></label><button class="ip-btn ip-primary">${link?'기존 계정 확인·카카오 연결':'기존 계정으로 로그인'}</button>${link?'<p class="ip-help">이미 앱에 등록한 비밀번호를 사용합니다. 아직 계정 등록을 하지 않았다면 관리자에게 문의해주세요.</p>':''}</form>`;
-const applyForm=()=>`<form data-application-form><label>이름<input name="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>지원 직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">수강 과정: 면접반. 이름·직렬·수험번호는 수강 확인과 면접 지도에 사용합니다. 승인은 관리자가 수강 등록을 확인한 후 진행합니다.</p><button class="ip-btn ip-primary">${state.application?'신청 정보 수정·다시 제출':'면접반 수강 신청'}</button></form>`;
+const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
  disposeLogin?.();disposeLogin=null;
@@ -54,13 +54,13 @@ function render(){
    if(current!==version)view.destroy();else controller=view;
   }).catch(()=>{if(current===version)box.innerHTML='<p role="alert">화면을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-refresh>다시 시도</button>';});
  }else if(!state.account.ownerId){
-  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>처음 한 번, 계정을 확인해주세요.</h2><p>기존 수강생이라면 원래 계정에 연결해야 작성 자료를 이어서 사용할 수 있습니다.</p><div class="ip-toolbar"><button type="button" class="ip-btn" data-choice="existing">기존 수강생입니다</button><button type="button" class="ip-btn" data-choice="new">신규 면접반 학생입니다</button></div>
-   ${choice==='existing'?legacyForm(true):choice==='new'?applyForm():''}</section>`;
+  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>면접반 등록</h2>${applyForm()}
+   <details class="ip-existing-account"><summary>기존 수강생 계정 연결</summary><p class="ip-help">이미 작성한 자료가 있다면 기존 계정에 연결해 이어서 이용할 수 있습니다.</p>${legacyForm(true)}</details></section>`;
  }else{
   const app=state.application;
   const registered=state.member?.enabled&&(!state.member.expires_on||state.member.expires_on>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}));
   box.innerHTML=`<section class="ip-panel ip-portal-status"><span class="ip-application-status">${registered?'이용 등록 완료':app?({pending:'관리자 승인 대기',rejected:'신청 보완 필요',approved:'이용 기간·등록 확인 필요'})[app.status]:'면접반 신청'}</span>
-   <h2>${registered?'면접반 운영 준비 중입니다.':app?.status==='pending'?'수강 신청을 확인하고 있습니다.':'면접반 수강 정보를 확인해주세요.'}</h2>
+   <h2>${registered?'면접반 운영 준비 중입니다.':app?.status==='pending'?'수강 신청을 확인하고 있습니다.':'면접반 등록'}</h2>
    ${registered?'<p>수강 등록은 확인되었습니다. 관리자가 학습 공간을 개방하면 이용할 수 있습니다.</p>':app?.status==='pending'?'<p>관리자가 수강 등록을 확인하면 이용할 수 있습니다. ‘등록 상태 확인’으로 승인 결과를 확인해주세요.</p>':''}
    ${app?.review_note?`<div class="ip-feedback"><strong>관리자 안내</strong><br>${esc(app.review_note)}</div>`:''}
    ${!registered?(app?.status==='pending'?`<p>${esc(app.name)} · ${esc(app.track)} · 수험번호 ${esc(app.exam_number)}</p><details><summary>신청 정보 수정</summary>${applyForm()}</details>`:applyForm()):''}
@@ -81,12 +81,11 @@ async function run(task){
  finally{busy=false;controls.forEach(([n,disabled])=>{if(n.isConnected)n.disabled=disabled;});}
 }
 document.addEventListener('click',e=>{
- const n=e.target.closest('[data-kakao],[data-choice],[data-refresh],[data-logout]');if(!n||n.disabled)return;
- if(n.hasAttribute('data-choice')){choice=n.dataset.choice;render();return;}
+ const n=e.target.closest('[data-kakao],[data-refresh],[data-logout]');if(!n||n.disabled)return;
  run(async()=>{
   if(controller?.canLeave&&!controller.canLeave())return;
   if(n.hasAttribute('data-kakao')){const d=await api('kakao_start',{intent:n.dataset.kakao});location.assign(d.url);}
-  else if(n.hasAttribute('data-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();choice='';await refresh();}
+  else if(n.hasAttribute('data-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
   else await refresh();
  });
 });

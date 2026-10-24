@@ -203,7 +203,21 @@ let db,server,browser,ws,localWorker;
  const tabs=await(await fetch('http://'+new URL(debug).host+'/json')).json();ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));
  let id=0;const pending=new Map(),exceptions=[];
  ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Page.javascriptDialogOpening')send('Page.handleJavaScriptDialog',{accept:true});else if(m.method==='Runtime.exceptionThrown')exceptions.push(m.params.exceptionDetails);});
- const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
+ const sendRaw=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
+ const send=async(method,params={})=>{
+   if(method!=='Page.reload')return sendRaw(method,params);
+   // Page.reload can resolve while the old document still matches the next assertion.
+   await sendRaw('Runtime.evaluate',{expression:'window.__qaReloadPending=true'});
+   const result=await sendRaw(method,params);
+   for(let attempt=0;attempt<160;attempt++){
+     try{
+       const current=await sendRaw('Runtime.evaluate',{expression:"window.__qaReloadPending!==true && document.readyState!=='loading'",returnByValue:true});
+       if(current.result?.value===true)return result;
+     }catch(error){if(!/context.*destroyed|context.*not.*found|target navigated/i.test(error.message||''))throw error;}
+     await new Promise(resolve=>setTimeout(resolve,50));
+   }
+   throw Error('Timed out waiting for the new document after reload');
+ };
  const ev=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
  const wait=async exp=>{for(let i=0;i<160;i++){try{if(await ev(exp))return;}catch(e){if(!/context.*destroyed|context.*not.*found|target navigated/i.test(e.message||''))throw e;}await new Promise(r=>setTimeout(r,50));}throw Error('Timeout '+exp+' | exceptions: '+JSON.stringify(exceptions)+' | '+await ev("JSON.stringify({url:location.href,text:document.body.innerText.slice(0,1600)})"));};
  const click=s=>ev(`document.querySelector(${JSON.stringify(s)}).click()`);
@@ -330,8 +344,8 @@ let db,server,browser,ws,localWorker;
  assert.equal(await ev("document.querySelectorAll('[data-legacy-form]').length"),0);
  await screenshot('actual-pc-portal-login',1200);
  await screenshot('portal-login-mobile',390);
- kakaoCode='qa-existing';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-choice=existing]')");
- await click('[data-choice=existing]');
+ kakaoCode='qa-existing';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-application-form]')");
+ await click('.ip-existing-account summary');
  await fill('studentId','18120');await fill('password','demo2026!!');await submit('[data-legacy-form]');
  await wait("!!document.querySelector('[data-basic-field=school]')");
  assert.equal(await ev("document.cookie.includes('ip_web_session')"),false);
@@ -347,8 +361,14 @@ let db,server,browser,ws,localWorker;
  await click('[data-logout]');await wait("!!document.querySelector('[data-kakao=login]')");
  await screenshot('portal-signup-desktop',1200);
  await screenshot('portal-signup-mobile',390);
- kakaoCode='qa-new';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-choice=new]')");
- await click('[data-choice=new]');await fill('name','신규 면접 QA');await fill('examNumber','NEW-2026');
+ kakaoCode='qa-new';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-application-form]')");
+ assert.equal(await ev("document.querySelector('.ip-portal-status h2').textContent"),'면접반 등록');
+ assert.equal(await ev("document.querySelectorAll('[data-choice]').length"),0);
+ assert.equal(await ev("document.querySelector('.ip-existing-account').open"),false);
+ assert.deepEqual(await ev("[...document.querySelectorAll('[data-application-form] input,[data-application-form] select')].map(n=>n.name)"),['name','track','examNumber']);
+ await screenshot('portal-registration-direct-desktop',1200);
+ await screenshot('portal-registration-direct-mobile',390);
+ await fill('name','신규 면접 QA');await fill('examNumber','NEW-2026');
  await submit('[data-application-form]');await wait("document.body.textContent.includes('관리자 승인 대기')");
  await screenshot('portal-pending-mobile',390);
  assert.equal(await ev("document.querySelectorAll('[data-note-form]').length"),0);
