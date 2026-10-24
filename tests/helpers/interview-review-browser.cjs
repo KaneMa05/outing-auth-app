@@ -11,6 +11,8 @@ module.exports=async({db,invoke,admin,newStudentId,ev,wait,click,fill,submit,scr
   await db.query("insert into ip_members(student_id,track,exam_number) values($1,'공채',$1)",[id]);
  }
  await click('[data-interview-section=review]');
+ await wait("!!document.querySelector('[data-review-view=students]')");
+ await click('[data-review-view=students]');
  await wait("document.querySelectorAll('[data-review-student]').length===30");
  assert.equal(await ev("document.querySelector('#app h2').textContent"),'수강생 작성 내용');
  await screenshot('admin-review-list-desktop',1200);
@@ -31,9 +33,9 @@ module.exports=async({db,invoke,admin,newStudentId,ev,wait,click,fill,submit,scr
  await screenshot('admin-review-answer-mobile',390);
  assert((await ev("document.querySelector('[data-review-records]').textContent")).includes('제출 후 수정한 내용'));
  const current=(await invoke('writing_list',{type:'student',id:'18120'})).writings.find(w=>w.kind==='public_service');
- await click('[data-review-action=feedback]');await wait("!!document.querySelector('[data-writing-feedback]')");
- assert.equal(await ev("document.querySelector('[data-review-writing] .ip-writing-text').textContent"),current.submitted_body,'Teacher reads submitted snapshot, not later edits');
- await ev("document.querySelector('[data-writing-feedback]').value='제출 답변의 실천 방법을 조금 더 구체적으로 작성해주세요.';document.querySelector('[data-writing-feedback]').dispatchEvent(new Event('input',{bubbles:true}))");
+ await click('[data-review-action=feedback]');await wait("!!document.querySelector('[data-review-writing] [data-inline-legacy]')");
+ assert.equal(await ev("[...document.querySelectorAll('[data-review-writing] [data-original-start]')].map(n=>n.textContent).join('')"),current.submitted_body,'Teacher reads submitted snapshot, not later edits');
+ await ev("document.querySelector('[data-review-writing] [data-inline-legacy]').textContent='제출 답변의 실천 방법을 조금 더 구체적으로 작성해주세요.';document.querySelector('[data-review-writing] [data-inline-legacy]').dispatchEvent(new Event('input',{bubbles:true}))");
  await ev("document.querySelector('[data-writing-review]').value='needs_revision';document.querySelector('[data-writing-review]').dispatchEvent(new Event('change',{bubbles:true}))");
  await click('[data-writing-save=feedback]');await wait("document.querySelector('[data-writing-message]').textContent==='피드백을 저장했습니다.'");
  const reviewed=(await invoke('writing_list',{type:'student',id:'18120'})).writings.find(w=>w.kind==='public_service');
@@ -42,7 +44,7 @@ module.exports=async({db,invoke,admin,newStudentId,ev,wait,click,fill,submit,scr
  assert.equal(reviewed.submission_round,current.submission_round,'Editing feedback stays in the same round');
  await click('[data-review-writing] .ip-writing-history>summary');
  await wait("!!document.querySelector('[data-review-writing] .ip-writing-round')");
- assert((await ev("document.querySelector('[data-review-writing] .ip-writing-round').textContent")).includes('1차 교사 피드백'));
+ assert((await ev("document.querySelector('[data-review-writing] .ip-writing-round').textContent")).includes('1차 제출'));
  await screenshot('admin-submission-feedback-mobile',390);
  await click('[data-review-action=close-feedback]');await click('[data-review-action=expand]');
  assert((await ev("document.querySelector('[data-review-records]').textContent")).includes('실천 방법'));

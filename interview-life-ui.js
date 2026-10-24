@@ -1,5 +1,5 @@
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
-import {basicFields,identityFields,identityGenders,emptyBasic} from './client/interview-basic-fields.js';
+import {basicFields,identityFields,identityGenders,emptyBasic} from './client/interview-basic-fields.js?v=20261024-basic-save';
 import {mountLifeFollowup} from './interview-life-followup-ui.js?v=20261021-followup-entry';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={basic:'기본 정보',qualifications:'자격·어학',affiliations:'소속 이력',awards:'수상·성과',experiences:'핵심 경험'};
@@ -12,6 +12,7 @@ const schema={
 const statusLabels={draft:'작성 중',submitted:'첨삭 대기',needs_revision:'보완 필요',approved:'강사 확인'};
 const blank=()=>({background:'',qualifications:[],affiliations:[],awards:[],experiences:[],none:[]});
 const button=(text,action,extra='')=>`<button type="button" class="ip-btn" data-life-action="${action}" ${extra}>${text}</button>`;
+const isLanguage=row=>/어학|외국어|언어/.test(row.type||'');
 const sameData=(a,b)=>{
   const stable=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
   return stable(a)===stable(b);
@@ -33,7 +34,7 @@ const errorMessage=e=>({
 export function mountLife(host,{request,followupRequest,admin=false,studentId='',canWrite=true,embedded=false,initialSection='basic',simpleEditor=false,combined=false}){
   combined=combined&&embedded&&!admin;
   const experienceOnly=combined&&initialSection==='experiences';
-  const combinedSections=experienceOnly?['experiences']:['basic','qualifications','affiliations','awards'];
+  const combinedSections=experienceOnly?['experiences']:['basic','qualifications','awards'];
   let data,content=blank(),profile=null,section=Object.hasOwn(titles,initialSection)?initialSection:'basic',dirty=false,busy=false,destroyed=false,blocked=false,experienceDialog=null;
   const editingExperiences=new Set();
   let followup=null,followupEnabled=false,followupProgress={};
@@ -60,7 +61,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     const readonly=id==='experiences'&&!editingExperiences.has(row.id);
     return `<article class="ip-panel" data-life-row="${esc(row.id)}"><div class="ip-row"><h4>${index+1}. ${esc(row.title||row.name||titles[id])}</h4>${!admin?`<div>${button('위로','up',`data-row="${esc(row.id)}" ${index===0?'disabled':''}`)} ${button('삭제','remove',`data-row="${esc(row.id)}"`)}</div>`:''}</div>
       ${schema[id].map(([key,label])=>admin?`<h4>${esc(label)}</h4><p class="ip-life-text">${esc(row[key]||'미작성')}</p>`:
-        `<label>${esc(label)}${key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>`).join('')}
+        `<label ${id==='qualifications'&&key==='issuer'?`data-qualification-issuer ${isLanguage(row)?'hidden':''}`:''}>${esc(label)}${key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>`).join('')}
       ${id==='experiences'&&!admin?`<div class="ip-life-toolbar">${button('내용 수정','edit-experience',`data-row="${esc(row.id)}" ${readonly?'':'disabled'}`)}${followupButton(row.id)}${button('저장','save-experience',`data-row="${esc(row.id)}" ${readonly?'disabled':''}`)}<span data-experience-state="${esc(row.id)}" role="status">${rowState(row.id)}</span>${followupEnabled&&followupProgress[row.id]?`<span class="ip-help">답변 ${followupProgress[row.id].answered}개 저장됨</span>`:''}</div><p class="ip-help">수정한 내용은 저장 버튼을 눌러야 반영됩니다.${followupEnabled?' 추가 질문에서는 이 경험의 상황·선택 이유·행동을 더 자세히 적을 수 있습니다.':''}</p>`:''}
       </article>`;
   }
@@ -117,7 +118,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
       ${profile?.feedback?`<div class="ip-feedback"><strong>강사 피드백</strong><br>${esc(profile.feedback)}</div>`:''}
       ${embedded?'':`<nav class="ip-tabs" aria-label="인생그래프 입력 영역">${Object.entries(titles).map(([id,title])=>button(title,'section',`data-section="${id}" ${section===id?'aria-current="page"':''}`)).join('')}</nav>`}
       <div data-life-body ${combined?'class="ip-life-combined"':''}>${combined?(experienceOnly?timeline():'')+combinedSections.map(sectionView).join(''):(section==='experiences'?timeline():'')+sectionView(section)}</div>
-      ${!admin&&(embedded||section!=='basic')?`<div class="ip-life-toolbar">${button('임시저장','save')}${button(simpleEditor?'저장':'작성 완료·첨삭 요청','submit')}<span data-life-save-state>${dirty?'저장하지 않은 변경 내용':profile?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>`:''}
+      ${!admin&&(embedded||section!=='basic')?`<div class="ip-life-toolbar">${simpleEditor?button('저장','save'):`${button('임시저장','save')}${button('작성 완료·첨삭 요청','submit')}`}<span data-life-save-state>${dirty?'저장하지 않은 변경 내용':profile?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>`:''}
 
       ${admin?`<section class="ip-panel"><h3>인생그래프 첨삭</h3><label>피드백<textarea data-life-feedback maxlength="8000" ${!canWrite?'disabled':''}>${esc(profile?.feedback||'')}</textarea></label><label>처리<select data-life-feedback-status ${!canWrite?'disabled':''}><option value="needs_revision">보완 요청</option><option value="approved" ${profile?.status==='approved'?'selected':''}>강사 확인 완료</option></select></label>${button('피드백 공개','feedback',!canWrite||!profile||profile.status==='draft'?'disabled':'')}<p class="ip-help">학생이 작성 완료로 제출한 뒤 피드백을 남길 수 있습니다.</p></section>`:''}`;
   }
@@ -215,7 +216,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     selectEventSection(e.target);
     if(e.target.matches('[data-basic-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField;content.basicInfo[key]??={text:'',none:false};content.basicInfo[key].text=e.target.value;mark();}
     if(e.target.matches('[data-life-field]')){
-      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='experiences')updateGraph();}
+      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='qualifications'&&e.target.dataset.lifeField==='type'){const issuer=e.target.closest('[data-life-row]').querySelector('[data-qualification-issuer]');if(issuer)issuer.hidden=isLanguage(row);}if(section==='experiences')updateGraph();}
     }
     if(e.target.matches('[data-life-feedback]'))mark();
   };

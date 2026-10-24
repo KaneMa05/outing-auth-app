@@ -36,3 +36,22 @@
  .ip-review [data-review-filter]>label{width:100%}
  .ip-review [data-review-filter] input,.ip-review [data-review-filter] select{width:100%}
 }
+.ip-board-filter{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.ip-board-filter label:first-child{flex:1;min-width:220px}
+.ip-board-filter label{display:grid;gap:8px;font-size:13px;font-weight:600}
+.ip-board-filter input,.ip-board-filter select{padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-height:42px}
+.ip-board-table{width:100%;min-width:800px;border-collapse:collapse}
+.ip-board-table th,.ip-board-table td{text-align:left;padding:15px 12px;border-bottom:1px solid #e2e8f0}
+.ip-board-table th{background:#f3f6fa;font-size:13px;color:#52657a}
+.ip-board-table small{display:block;color:#64748b;font-size:12px;margin-top:5px}
+.ip-board-table .is-selected{background:#edf5ff}
+.ip-board-table caption{text-align:left;padding:0 0 12px}
+.ip-board-title{border:0;background:none;color:#234e83;text-align:left;cursor:pointer;font:inherit;padding:0;text-decoration:underline;text-underline-offset:4px}
+.ip-board-table .ip-badge.submitted{background:#fff1dd;color:#8b4800}
+.ip-board-table .ip-badge.needs_revision{background:#fee8e7;color:#b42318}
+.ip-board-table .ip-badge.approved{background:#e5f4ee;color:#08634a}
+.ip-board-detail{margin-top:24px;scroll-margin-top:24px}
+.ip-board-detail h3{outline:none}
+.ip-board-detail h3:focus-visible{outline:2px solid #234e83}
+.ip-review [data-review-view][aria-current]{background:#234e83;color:#fff}
+@media(max-width:600px){.ip-board-filter label{width:100%}.ip-board-filter .ip-btn{flex:1}.ip-review .ip-review-summary{gap:8px}.ip-review-summary>span{min-width:70px;padding:12px;font-size:12px}.ip-annotated-text{padding:14px}}

@@ -24,7 +24,7 @@ async function kakaoUser(code,cfg,fetcher=fetch){
 }
 function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=kakaoUser,random=webAuth.random}={}){
  return async(req,res)=>{
-  const cfg=getConfig();
+  const cfg=webAuth.requestConfig(req,getConfig());
   const url=new URL(req.url||'/api/interview-auth','http://localhost');
   const callback=req.method==='GET'&&url.searchParams.get('action')==='callback';
   res.setHeader('Cache-Control','no-store, max-age=0');res.setHeader('Vary','Cookie');

@@ -74,7 +74,7 @@ function prepareInterviewAppEntry(){
       }).catch(()=>{cache.state='error';render();});
     }
     document.body.classList.add('student-interview-app-mode');
-    return el('section',{className:'ip-app-shell'},[el('p',{role:'status'},cache.state==='error'?'로그인 상태를 확인하지 못했습니다. 연결을 확인해주세요.':'면접반 로그인 상태를 확인하는 중…'),...(cache.state==='error'?[button('다시 시도','btn','button',()=>{prepareInterviewAppEntry.web=null;render();})]:[])]);
+    return el('section',{className:'ip-app-shell','data-startup-pending':String(cache.state==='loading')},[el('p',{role:'status'},cache.state==='error'?'로그인 상태를 확인하지 못했습니다. 연결을 확인해주세요.':'면접반 로그인 상태를 확인하는 중…'),...(cache.state==='error'?[button('다시 시도','btn','button',()=>{prepareInterviewAppEntry.web=null;render();})]:[])]);
   }
   const student=getAuthedStudent(),token=getStudentProfile(student?.id)?.deviceToken;
   let saved=false;try{saved=localStorage.getItem('outing-student-mode:'+student?.id)==='interview';}catch{}
@@ -92,7 +92,7 @@ function prepareInterviewAppEntry(){
   }
   if(cache.state==='ready')return null;
   document.body.classList.add('student-interview-app-mode');
-  return el('section',{className:'ip-app-shell'},[el('p',{role:'status'},cache.state==='error'?'면접반 등록 상태를 확인하지 못했습니다. 연결을 확인해주세요.':'면접반 등록 상태를 확인하는 중…'),...(cache.state==='error'?[button('다시 시도','btn','button',()=>{prepareInterviewAppEntry.cache=null;render();}),button('기존 반으로 돌아가기','btn secondary','button',()=>{localStorage.setItem('outing-student-mode:'+student.id,'standard');render();})]:[])]);
+  return el('section',{className:'ip-app-shell','data-startup-pending':String(cache.state==='loading')},[el('p',{role:'status'},cache.state==='error'?'면접반 등록 상태를 확인하지 못했습니다. 연결을 확인해주세요.':'면접반 등록 상태를 확인하는 중…'),...(cache.state==='error'?[button('다시 시도','btn','button',()=>{prepareInterviewAppEntry.cache=null;render();}),button('기존 반으로 돌아가기','btn secondary','button',()=>{localStorage.setItem('outing-student-mode:'+student.id,'standard');render();})]:[])]);
 }
 
 async function logoutInterviewStudent(student,token){
@@ -109,7 +109,7 @@ async function logoutInterviewStudent(student,token){
 
 function renderInterviewPrep() { return renderInterviewPrepModule(false); }
 function renderInterviewPrepAdmin() { return renderInterviewPrepModule(true); }
-const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'핵심 25제 과제 관리',review:'수강생 작성 내용',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
+const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'핵심 25제 과제 관리',review:'피드백 관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
 function getInterviewAdminSection(){
   const section=new URLSearchParams((location.hash.split('?')[1]||'')).get('section');
   return Object.hasOwn(interviewAdminSections,section)?section:'home';
@@ -196,7 +196,7 @@ function renderInterviewPrepModule(admin) {
     return old.element;
   }
   old?.controller?.destroy();
-  const host=el('div',{},[el('p',{role:'status'},'이용 권한을 확인하는 중…')]);
+  const host=el('div',{'data-startup-pending':'true'},[el('p',{role:'status'},'이용 권한을 확인하는 중…')]);
   const view={key,element:host,controller:null,section};renderInterviewPrepModule.view=view;
   (async()=>{
     if(!admin) {
@@ -207,11 +207,11 @@ function renderInterviewPrepModule(admin) {
     }
     if(renderInterviewPrepModule.view!==view)return;
     if(!document.querySelector('link[data-interview-style]'))
-      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261021-life-diagnosis','data-interview-style':'true'}));
+      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261024-basic-save','data-interview-style':'true'}));
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261023-pa8'):appShell?import('./interview-app-ui.js?v=20261024-navigation-speed'):import('./interview-workspace.js?v=20261024-navigation-speed'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261024-basic-save'):appShell?import('./interview-app-ui.js?v=20261024-mock-coming-soon'):import('./interview-workspace.js?v=20261024-basic-save'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{
@@ -240,6 +240,10 @@ function renderInterviewPrepModule(admin) {
   })().catch(()=>{
     if(renderInterviewPrepModule.view===view)
       host.replaceChildren(el('p',{role:'alert'},'면접반 이용 상태를 확인하지 못했습니다.'),...(!admin?[button('다시 시도','btn','button',()=>{renderInterviewPrepModule.view=null;render();}),button('기존 반으로 돌아가기','btn secondary','button',()=>{try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}renderInterviewPrepModule.view=null;history.replaceState(null,'','#home');render();})]:[]));
+  }).finally(()=>{
+    if(renderInterviewPrepModule.view!==view)return;
+    host.removeAttribute('data-startup-pending');
+    window.__studentAppReady?.();
   });
   return host;
 }

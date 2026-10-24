@@ -1,6 +1,6 @@
 import {mountInterviewAI} from './interview-ai-ui.js?v=20261024-navigation-speed';
-import {mountLife} from './interview-life-ui.js?v=20261021-compact-basic-followup-entry';
-import {mountWriting} from './interview-writing-ui.js?v=20261021-rounds';
+import {mountLife} from './interview-life-ui.js?v=20261024-basic-save';
+import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261021-direct-answers';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const areas=[['basic','기본 이력'],['experiences','인생그래프']];

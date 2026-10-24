@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 module.exports=async({db,invoke,ev,wait,click,lifeFill,send,screenshot})=>{
  const student={type:'student',id:'18120'},before=(await invoke('life_get',student)).profile;
- assert.equal(await ev("document.querySelectorAll('[data-basic-field]').length"),11);
+ assert.equal(await ev("document.querySelectorAll('[data-basic-field]').length"),10);
  assert.equal(await ev("document.querySelectorAll('[data-workspace-page=mock]').length"),0,'Web mock interview tab is hidden');
  await lifeFill('[data-basic-field=name]','가상 학생');
  await lifeFill('[data-basic-field=birthDate]','2000-02-29');
@@ -66,5 +66,5 @@ module.exports=async({db,invoke,ev,wait,click,lifeFill,send,screenshot})=>{
  await invoke('life_save',student,{revision:latest.revision,content:before.content,status:'draft'});
  await db.exec('delete from ip_life_followup_sessions');
  await send('Page.reload');await wait("!!document.querySelector('[data-basic-field=school]')");
- console.log('PASS follow-up browser: eight fields, explicit none, save-before-start, duplicate prevention, answers/skip restoration, evidence, compare/apply/restore and mobile layout.');
+ console.log('PASS follow-up browser: seven history fields, explicit none, save-before-start, duplicate prevention, answers/skip restoration, evidence, compare/apply/restore and mobile layout.');
 };

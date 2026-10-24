@@ -92,7 +92,7 @@ function browserContext(id, hashes = getPreviewHashes(), response = { ok: true, 
   const nodes = [], calls = [],storage=new Map(),classes=new Set();
   let student = { id }, token = 'device';
   const node = (tag, props = {}, children = []) => {
-    const value = { tag, ...props, children, style: {}, replaceChildren(...items) { this.children = items; } };
+    const value = { tag, ...props, children, style: {}, removeAttribute(name) { delete this[name]; }, replaceChildren(...items) { this.children = items; } };
     nodes.push(value); return value;
   };
   const context = vm.createContext({

@@ -1,15 +1,17 @@
-const CACHE_NAME = "outing-auth-app-v520-navigation-speed";
+const CACHE_NAME = "outing-auth-app-v530-mock-coming-soon";
 const APP_SHELL = [
-  "/interview-prep.js?v=20261024-navigation-speed",
-  "/interview-app.css?v=20261023-pa8",
+  "/app-startup.css?v=20261024-startup",
+  "/app-startup.js?v=20261024-startup",
+  "/interview-prep.js?v=20261024-mock-coming-soon",
+  "/app.js?v=20261024-startup",
+  "/interview-prep.js?v=20261024-basic-save",
+  "/interview-app.css?v=20261024-mock-coming-soon",
   "/interview-preassignments.js?v=20261023-pa8",
   "/interview-core25-summaries.js?v=20261023-pa8",
   "/interview-preassignments.css?v=20261023-pa8",
-  "/interview-prep.js?v=20261021-life-save-fix",
   "/interview-app.css?v=20261021-mock-menu",
   "/interview-admin-shell.css?v=20261020-mode",
-  "/interview-review.css?v=20261020-review",
-  "/interview-prep.js?v=20261021-life-diagnosis",
+  "/interview-review.css?v=20261024-colors",
   "/",
   "/index.html",
   "/account-deletion.html",

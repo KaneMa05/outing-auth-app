@@ -16,7 +16,7 @@ module.exports=async({db,invoke,admin,aiInvoke,aiWorker,aiCalls,ev,wait,click,li
  assert.equal(await ev("document.body.textContent.includes('내 자료로 초안 만들기')"),false);
  await selectTab('introduction');
  assert.equal(await ev("document.querySelector('[data-ai-generate]').disabled"),true);
- assert((await ev("document.querySelector('[data-ai-message]').textContent")).includes('준비 중'));
+ assert.equal(await ev("document.querySelector('[data-ai-message]') === null"),true,'Disabled draft feature has no explanatory notice');
  await aiInvoke('admin_configure',admin,{enabled:true,bundleHash:'b'.repeat(64),dailyCallLimit:100,requestsPerMinute:60});
  for(const page of Object.keys(tabs)){
   await selectTab(page);

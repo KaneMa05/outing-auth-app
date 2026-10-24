@@ -4,7 +4,7 @@ body.student-interview-app-mode .main-shell{margin:0!important;padding:0!importa
 body.student-interview-app-mode #app{padding:0!important;max-width:none!important}
 body.ip-portal-app .ip-portal-header{display:none}
 body.ip-portal-app #interview-portal{padding:0;max-width:none}
-.ip-app-shell{box-sizing:border-box;max-width:720px!important;margin:auto!important;padding:0 18px calc(100px + env(safe-area-inset-bottom,0px))!important;background:#f2f5f7;min-height:100svh;color:#223347}
+.ip-app-shell{box-sizing:border-box;max-width:720px!important;margin:auto!important;padding:0 18px calc(104px + env(safe-area-inset-bottom,0px))!important;background:#f2f5f7;min-height:100svh;color:#223347}
 .ip-app-header{display:flex;justify-content:space-between;align-items:center;padding:calc(22px + env(safe-area-inset-top,0px)) 2px 22px}
 .ip-app-header small{font-size:12px;color:#617889}
 .ip-app-header h1{margin:5px 0 0;font-size:25px;font-weight:800;letter-spacing:-.04em}
@@ -20,8 +20,26 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-stats>div+div{border-left:1px solid #e7edf0}.ip-app-stats strong{display:block;font-size:25px;color:#235363}.ip-app-stats strong small{font-size:12px;color:#8295a1}.ip-app-stats span{display:block;font-size:11px;color:#6b808d;margin-top:6px}
 .ip-app-profile h2{margin-top:16px!important}.ip-app-profile dl{display:grid;grid-template-columns:90px 1fr;gap:14px;font-size:14px}.ip-app-profile dt{color:#7b8d99}.ip-app-profile dd{margin:0;text-align:right;overflow-wrap:anywhere}
 .ip-app-feedback p{font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#607484;margin:0 0 16px}
-.ip-app-footer{position:fixed;z-index:1000;bottom:0;left:50%;transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:100%;max-width:720px;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:#fffffff5;border-top:1px solid #dfe7ed;box-shadow:0 -5px 20px #18374908;backdrop-filter:blur(12px)}
-.ip-app-footer button{display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:0;border-radius:10px;color:#788c99;min-height:52px;padding:6px;font:inherit;font-size:11px;cursor:pointer}.ip-app-footer button[aria-current]{background:#eaf3f4;color:#1c5a61;font-weight:700}.ip-app-icon{font-family:system-ui;font-size:25px;line-height:1.1}
+/* Match the existing student app's floating footer without changing its menus. */
+@font-face{font-family:"Gong Gothic Light";src:url("./fonts/GongGothicLight.woff") format("woff");font-style:normal;font-weight:300;font-display:swap}
+.ip-app-footer{position:fixed;z-index:1000;bottom:var(--student-footer-bottom,max(18px,calc(env(safe-area-inset-bottom,0px) + 12px)));left:50%;transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:min(420px,calc(100% - 28px));box-sizing:border-box;padding:7px;border:1px solid var(--line,#d9e5f2);border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 14px 36px rgba(10,41,78,.16);backface-visibility:hidden;isolation:isolate;touch-action:manipulation;font-family:"Gong Gothic Light","Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:normal}
+.ip-app-footer button{min-width:0;min-height:56px;display:grid;grid-template-rows:24px auto;justify-items:center;align-content:center;gap:4px;border:0;border-radius:10px;background:transparent;color:var(--muted,#64748b);font:inherit;font-size:.7rem;font-weight:800;text-decoration:none;cursor:pointer;transition:background-color 100ms linear,color 100ms linear}
+.ip-app-footer button[aria-current],.ip-app-footer button:active{background:var(--accent-soft,#dcecff);color:var(--accent-strong,#06386f)}
+.ip-app-footer button:disabled{cursor:not-allowed;opacity:.46}
+@media(hover:hover) and (pointer:fine){.ip-app-footer button:hover{background:var(--accent-soft,#dcecff);color:var(--accent-strong,#06386f)}}
+@media(min-width:768px){.ip-app-footer{width:min(720px,calc(100% - 48px))}}
+.ip-app-icon{position:relative;width:24px;height:24px;display:block;color:currentColor;transition:transform 160ms ease}
+.ip-app-icon::before,.ip-app-icon::after{box-sizing:border-box}
+.ip-app-icon-home::before{content:"";position:absolute;left:5px;top:4px;width:14px;height:14px;border-top:2px solid currentColor;border-left:2px solid currentColor;transform:rotate(45deg)}
+.ip-app-icon-home::after{content:"";position:absolute;left:6px;top:11px;width:12px;height:9px;border:2px solid currentColor;border-top:0;border-radius:2px}
+.ip-app-icon-question-board::before{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border:2px solid currentColor;border-radius:3px}
+.ip-app-icon-question-board::after{content:"";position:absolute;left:7px;top:8px;width:10px;height:2px;border-radius:999px;background:currentColor;box-shadow:0 4px 0 currentColor,0 8px 0 currentColor}
+.ip-app-icon-study-todo::before{content:"";position:absolute;left:4px;top:3px;width:16px;height:18px;border:2px solid currentColor;border-radius:3px}
+.ip-app-icon-study-todo::after{content:"";position:absolute;left:8px;top:7px;width:8px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+.ip-app-icon-study-cafe::before{content:"";position:absolute;left:2px;top:15px;width:20px;height:7px;border-top:2px solid currentColor;border-right:2px solid currentColor;border-left:2px solid currentColor;border-radius:2px 2px 1px 1px}
+.ip-app-icon-study-cafe::after{content:"";position:absolute;left:5px;top:4px;width:14px;height:11px;border:2px solid currentColor;border-radius:2px 2px 4px 4px;background:linear-gradient(90deg,transparent calc(50% - 1px),currentColor calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px))}
+.ip-app-icon-mypage::before{content:"";position:absolute;left:8px;top:4px;width:8px;height:8px;border:2px solid currentColor;border-radius:50%}
+.ip-app-icon-mypage::after{content:"";position:absolute;left:4px;bottom:3px;width:16px;height:9px;border:2px solid currentColor;border-radius:10px 10px 4px 4px}
 .ip-app-shell.ip-keyboard-open .ip-app-footer{display:none}
 .ip-app-shell .ip-app-mock button{touch-action:manipulation;min-height:46px}
 .ip-app-shell .ip-app-mock .ip-mock-button{transition:background-color .12s,transform .12s}
@@ -42,3 +60,5 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-shell .ip-life-toolbar [data-life-save-state]{width:100%;font-size:12px}
 
 .ip-app-shell .ip-mock-menu{display:grid;gap:12px}.ip-app-shell .ip-mock-button{margin:0;padding:20px;border:1px solid #dfe7ed;border-radius:12px;background:white;font-size:16px;font-weight:700;color:#235363}.ip-app-shell .ip-mock-button:hover{background:#f7fafb}.ip-app-shell .ip-mock-detail p{font-size:14px;line-height:1.7;color:#607484}.ip-app-shell .ip-mock-grades{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ip-app-shell .ip-mock-grades>span{display:grid;place-items:center;min-width:34px;height:34px;border:1px solid #cddfe4;background:white;border-radius:9px;color:#235b63;font-weight:700}.ip-app-shell .ip-mock-grades>strong{font-size:12px;color:#607484;margin-left:4px}.ip-app-shell .ip-mock-back{margin-bottom:16px}.ip-app-shell .ip-mock-detail h2{margin-top:14px}.ip-app-shell .ip-mock-detail h3{font-size:15px;margin-top:24px}.ip-app-shell .ip-mock-elements{list-style:none;padding:0;counter-reset:elements}.ip-app-shell .ip-mock-elements li{counter-increment:elements;display:grid;grid-template-columns:24px 1fr;gap:5px 8px;padding:12px 0;border-bottom:1px solid #edf1f4;font-size:14px}.ip-app-shell .ip-mock-elements li::before{content:counter(elements);grid-row:span 2;color:#397780;font-weight:700}.ip-app-shell .ip-mock-elements li>span{font-size:13px;color:#607484;line-height:1.6}.ip-app-shell .ip-mock-steps{padding-left:20px;font-size:14px;line-height:2;color:#486171}
+
+.ip-app-shell .ip-mock-coming-soon{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center}.ip-app-shell .ip-mock-coming-soon h2{margin:24px 0 12px;font-size:24px;color:#235363}.ip-app-shell .ip-mock-coming-soon p{margin:0;color:#607484;font-size:14px;line-height:1.8}

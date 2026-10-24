@@ -75,7 +75,7 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
    <div class="ip-ai-buttons"><button type="button" class="ip-btn" data-ai-generate="${kind}" ${busy||enabled!==true||!dbReady||kind==='core30'&&!questionId||kind==='self_intro'&&experienceCount<3||running()?'disabled':''}>${kind==='core30'?'이 질문 초안 만들기':kinds[kind]+' 초안 만들기'}</button></div>
    ${missing.length?`<details class="ip-ai-missing"><summary>보완할 입력 항목 ${missing.length}개</summary><ul>${missing.map(text=>`<li>${esc(text)}</li>`).join('')}</ul></details>`:''}
    ${kind==='self_intro'&&dbReady&&experienceCount<3?`<p class="ip-help">자기소개는 상황·행동·결과가 있는 서로 다른 경험 3개가 필요합니다. 현재 ${experienceCount}개입니다. 경험·인생그래프를 보완해주세요.</p>`:''}
-   <p class="ip-message" data-ai-message role="status" ${failed?'data-error="true"':''}>${esc(notice)}</p>
+   ${notice!==messages.automation_disabled?`<p class="ip-message" data-ai-message role="status" ${failed?'data-error="true"':''}>${esc(notice)}</p>`:''}
    ${current?`<details class="ip-ai-results" open><summary>${esc(kinds[current.kind])} 초안 · ${items.filter(i=>i.status==='COMPLETED').length}/${items.length} 완료</summary>
     ${current.stale?'<p class="ip-help">DB 자료가 변경되었습니다. 아래 초안은 이전 자료를 포함할 수 있습니다.</p>':''}
     <div class="ip-ai-items">${items.map((i,index)=>`<article class="ip-ai-item"><div class="ip-row"><h4>${i.position}. ${esc(i.question)}</h4><span class="ip-badge">${esc(labels[i.status]||'상태 확인 필요')}</span></div>

@@ -656,11 +656,15 @@ window.__enforceCurriculumQuestVisibility = () => {
   history.replaceState(null, "", `${location.pathname}${location.search}#home`);
   render();
 };
+window.__studentStartupDataPending = APP_MODE !== "teacher";
 render();
 if (APP_MODE === "teacher") {
   initTeacherAuth();
 } else {
-  initRemoteStore();
+  initRemoteStore().finally(() => {
+    window.__studentStartupDataPending = false;
+    window.__studentAppReady?.();
+  });
 }
 
 function normalizeRoute(route) {

@@ -6,6 +6,7 @@ async function setup({withDiagnosis=true}={}){
  const {db,invoke}=await createDb();await db.exec(fs.readFileSync(migration,'utf8'));await db.exec(fs.readFileSync('supabase/migrations/20261023073656_interview_preassignment_guidance.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261023074848_interview_preassignment_core25_only.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261023130354_interview_preassignment_deadline_nov9.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261024125918_core25_question_one_wording.sql','utf8'));
  if(withDiagnosis)await db.exec(fs.readFileSync('supabase/migrations/20261023124834_interview_preassignment_diagnosis.sql','utf8'));
  const admin={type:'admin',id:'qa'},a={type:'student',id:'ip-a'},b={type:'student',id:'ip-b'};
  for(const id of ['ip-a','ip-b'])await invoke('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:id,enabled:true});

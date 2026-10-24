@@ -25,9 +25,14 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="stylesheet" href="./styles.css?v=20261024-interview-onboarding" />
     <link rel="stylesheet" href="./study-character-fire.css?v=20260911-study-fire-guide-icon" />
-    <link rel="stylesheet" href="./interview-app.css?v=20261023-pa8" />
-  </head>
+    <link rel="stylesheet" href="./interview-app.css?v=20261024-mock-coming-soon" />
+    <link rel="stylesheet" href="/app-startup.css?v=20261024-startup">
+  <script src="/app-startup.js?v=20261024-startup" data-startup-page="student"></script>
+</head>
   <body>
+  <div id="app-startup" role="status" aria-live="polite" aria-label="앱 로딩">
+    <div class="app-startup-card"><span class="app-startup-mark" aria-hidden="true">R</span><strong>론박스터디</strong><span class="app-startup-spinner" aria-hidden="true"></span><p data-startup-message>학습 화면을 준비하고 있어요</p><button type="button" data-startup-retry hidden>다시 시도</button></div>
+  </div>
     <noscript>
       <div class="no-script-warning">
         이 앱은 JavaScript가 켜져 있어야 사용할 수 있습니다. iPhone 설정에서 Safari/Chrome의 JavaScript 차단 또는 콘텐츠 차단을 해제해주세요.
@@ -242,6 +247,7 @@
           var app = qs("#app");
           fallbackMode = false;
           if (app) app.removeAttribute("data-loading-shell");
+          if (!window.__studentStartupDataPending && app?.children.length && !app.querySelector('[data-startup-pending="true"]')) window.__appStartup?.finish();
         };
         document.addEventListener("click", function (event) {
           var node = event.target;
@@ -289,7 +295,7 @@
     <script src="./final-scope-model.js?v=20260921-final-scope-admin" defer></script>
     <script src="./feedback-hub.js?v=20260911-feedback-free-only" defer></script>
     <script src="./study-record-share.js?v=20260917-study-share-fixes" defer></script>
-    <script src="./interview-prep.js?v=20261024-navigation-speed" defer></script>
-    <script src="./app.js?v=20261024-simple-registration" defer></script>
+    <script src="./interview-prep.js?v=20261024-mock-coming-soon" defer></script>
+    <script src="./app.js?v=20261024-startup" defer></script>
   </body>
 </html>

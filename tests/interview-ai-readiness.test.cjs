@@ -15,6 +15,8 @@ const {createDb}=require(path.join(app,'tests/helpers/interview-db.cjs'));
   await db.exec(fs.readFileSync(path.join(root,'supabase/migrations/20261020074446_interview_ai_load_protection.sql'),'utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20261021071011_interview_experience_age_only.sql','utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20261021082149_interview_basic_fields_followup.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261023052344_interview_applicant_identity.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261024130513_simplify_basic_history_save.sql','utf8'));
   await base('admin_enabled',admin,{enabled:true});
   for(const id of ['ip-a','ip-b'])await base('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:id,enabled:true});
   await invoke('admin_configure',admin,{enabled:true,bundleHash:'b'.repeat(64)});
@@ -47,7 +49,7 @@ const {createDb}=require(path.join(app,'tests/helpers/interview-db.cjs'));
    assert.equal(rejected.state,'NEEDS_INPUT');assert(!rejected.requestId);
    await db.query("update ip_notes set fields=$1 where student_id='ip-a' and topic_id=$2",[n.fields,topic.id]);
   }
-  for(const area of ['qualifications','affiliations','awards']){
+  for(const area of ['qualifications','awards']){
    const content=structuredClone(profile.content);content.none=content.none.filter(x=>x!==area);
    await base('life_save',student,{revision:profile.revision,status:'draft',content});
    assert.equal((await prepare()).dbReady,false);
@@ -65,6 +67,16 @@ const {createDb}=require(path.join(app,'tests/helpers/interview-db.cjs'));
   content.qualifications=[{id:'q1',type:'자격',date:'2026',name:'검증 자격',issuer:'',effort:'직접 공부한 기록'}];
   await db.query("update ip_life_profiles set content=$1 where student_id='ip-a'",[content]);
   assert((await prepare()).missing.some(x=>x.includes('발급·수여 기관')));
+  const simplified=structuredClone(content);
+  simplified.basicInfo=Object.fromEntries(['school','major','clubs','volunteering','internships','company','role'].map(k=>[k,{text:'',none:true}]));
+  simplified.none=simplified.none.filter(x=>x!=='affiliations');
+  simplified.qualifications[0].type='어학';
+  const simplifiedSaved=await base('life_save',student,{revision:profile.revision,status:'submitted',content:simplified});
+  assert.deepEqual(simplifiedSaved.profile.content,simplified,'No achievement or affiliation requirement; language issuer may be blank');
+  assert.equal((await prepare()).dbReady,true,'Removed fields must not leave AI readiness blocked');
+  simplified.basicInfo.achievements={text:'기존 성과 기록',none:false};
+  const legacySaved=await base('life_save',student,{revision:simplifiedSaved.profile.revision,status:'draft',content:simplified});
+  assert.equal(legacySaved.profile.content.basicInfo.achievements.text,'기존 성과 기록','Legacy data stays accepted and preserved');
   content.qualifications[0].issuer='검증 기관';
   await db.query("update ip_life_profiles set content=$1 where student_id='ip-a'",[content]);
   assert.equal((await prepare()).dbReady,true);

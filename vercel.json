@@ -5,32 +5,77 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/interview-auth.js": {"regions": ["syd1"]},
-    "api/interview-prep.js": {"regions": ["syd1"]},
-    "api/interview-ai.js": {"regions": ["syd1"]},
-    "api/interview-ai-worker.js": {"regions": ["syd1"]},
-    "api/interview-life-followup.js": {"regions": ["syd1"]},
-    "api/interview-exam.js": {"regions": ["syd1"]},
-    "api/interview-preassignments.js": {"maxDuration": 240, "regions": ["syd1"]},
+    "api/interview-auth.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-prep.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-ai.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-ai-worker.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-life-followup.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-exam.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-preassignments.js": {
+      "maxDuration": 240,
+      "regions": [
+        "syd1"
+      ]
+    },
     "api/interview-live-socket.js": {
       "maxDuration": 800,
       "memory": 1024,
-      "regions": ["syd1"]
+      "regions": [
+        "syd1"
+      ]
     },
     "api/interview-live-cleanup.js": {
       "maxDuration": 300,
-      "regions": ["syd1"]
+      "regions": [
+        "syd1"
+      ]
     },
     "api/interview-live.js": {
       "maxDuration": 60,
-      "regions": ["syd1"]
+      "regions": [
+        "syd1"
+      ]
     },
     "api/interview-native.js": {
       "maxDuration": 60,
-      "regions": ["syd1"]
+      "regions": [
+        "syd1"
+      ]
     },
     "api/criminal-law-ox.js": {
-      "regions": ["syd1"]
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-core25-worker.js": {
+      "maxDuration": 30,
+      "regions": [
+        "syd1"
+      ]
     }
   },
   "headers": [

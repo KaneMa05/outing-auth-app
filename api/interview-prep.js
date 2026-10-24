@@ -8,9 +8,9 @@ const actions = new Set(['status','bootstrap','questions','question_detail','not
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
   'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide',
-  'writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
+  'admin_writing_board','writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
   'admin_rubric_list','admin_rubric_detail','admin_rubric_save']);
-const reads = new Set(['admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
+const reads = new Set(['admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_core_questions','admin_life_get','admin_applications','admin_writing_list','admin_review_students','admin_review_detail','admin_rubric_list','admin_rubric_detail']);
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
@@ -46,6 +46,7 @@ function validate(body) {
     admin_analysis_detail:['id'],
   };
   if((required[body.action]||[]).some(key=>body[key]===undefined||body[key]===null))fail('invalid_request');
+  if(body.annotations!==undefined&&(!Array.isArray(body.annotations)||body.annotations.length>100||body.annotations.some(m=>!m||!['underline','strike','bracket','comment','color'].includes(m.type)||!Number.isInteger(m.start)||!Number.isInteger(m.end)||m.start<0||(m.type==='comment'?m.start>m.end:m.start>=m.end)||m.end>10000||typeof m.note!=='string'||m.note.length>1000||(m.type==='comment'&&!m.note.trim())||((m.color!==undefined||m.type==='color')&&(typeof m.color!=='string'||!/^#[0-9a-f]{6}$/i.test(m.color))))))fail('invalid_request');
   if(body.action==='note_save' && (!body.fields || typeof body.fields!=='object'||Array.isArray(body.fields)))fail('invalid_request');
   if(body.action==='life_save' && (!body.content || typeof body.content!=='object'||Array.isArray(body.content)))fail('invalid_request');
   if(body.action==='diagnosis_save'&&(!Array.isArray(body.answers)||body.answers.length!==5||body.answers.some(v=>typeof v!=='string'||[...v].length>2000)||!Array.isArray(body.prompts)||body.prompts.length!==5||body.prompts.some(v=>typeof v!=='string'||!v.trim()||[...v].length>600)))fail('invalid_request');
@@ -70,16 +71,16 @@ function validate(body) {
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
 function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,
-  invoke=(action,actor,body)=>requestSupabase('POST',action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
+  invoke=(action,actor,body)=>requestSupabase('POST',action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
     try {
       if(req.method!=='POST'){res.setHeader('Allow','POST');fail('method_not_allowed',405);}
       if(req.headers.origin && new URL(req.headers.origin).host!==req.headers.host) fail('forbidden',403);
       let body=req.body;
-      if(!body){let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>180000)fail('request_too_large',413);}body=JSON.parse(raw||'{}');}
+      if(!body){let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>400000)fail('request_too_large',413);}body=JSON.parse(raw||'{}');}
       if(typeof body==='string')body=JSON.parse(body);
-      if(Buffer.byteLength(JSON.stringify(body))>(body?.action==='life_save'?180000:40000))fail('request_too_large',413);
+      if(Buffer.byteLength(JSON.stringify(body))>(body?.action==='admin_writing_feedback'?400000:body?.action==='life_save'?180000:40000))fail('request_too_large',413);
       validate(body);
       let actor;
       if(body.action.startsWith('admin_')) {

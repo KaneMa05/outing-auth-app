@@ -1,15 +1,38 @@
 // Separate history/experience menus sharing the same authenticated life profile.
 const assert=require('node:assert/strict');
-module.exports=async({invoke,ev,wait,click,lifeFill,send,screenshot})=>{
+module.exports=async({invoke,ev,wait,click,lifeFill,send,screenshot,failSave})=>{
  const student={type:'student',id:'18120'},before=(await invoke('life_get',student)).profile;
  const save=async()=>{await click('[data-life-action=save]');await wait("document.querySelector('[data-life-message]').textContent==='서버에 저장했습니다.'");};
  const area=async id=>{await click(`[data-db-area="life:${id}"]`);await wait(id==='basic'?"!!document.querySelector('[data-basic-field=school]')":"!!document.querySelector('[data-life-section=experiences]')");};
  assert.deepEqual(await ev("[...document.querySelectorAll('[data-db-area^=\"life:\"]')].map(n=>n.textContent)"),['기본 이력','인생그래프']);
  assert.equal(await ev("document.querySelectorAll('[data-db-select] option[value^=\"life:\"]').length"),2);
- assert.equal(await ev("document.querySelectorAll('[data-life-section]').length"),4);
+ assert.equal(await ev("document.querySelectorAll('[data-life-section]').length"),3);
+ assert.equal(await ev("document.querySelectorAll('[data-basic-field=achievements],[data-life-section=affiliations]').length"),0);
+ assert.equal(await ev("document.querySelector('[data-life-action=save]').textContent"),'저장');
+ assert.equal(await ev("document.querySelectorAll('[data-life-action=submit]').length"),0);
+ const partial={background:'',basicInfo:Object.fromEntries(['school','major','clubs','volunteering','internships','company','role'].map(k=>[k,{text:'',none:false}])),qualifications:[],affiliations:before.content.affiliations,awards:[],experiences:[],none:[]};
+ await invoke('life_save',student,{revision:before.revision,content:partial,status:'draft'});
+ await send('Page.reload');await wait("!!document.querySelector('[data-basic-field=school]')");
+ await ev("const n=document.querySelector('[data-basic-field=school]');n.value='일부 항목만 작성';n.dispatchEvent(new Event('input',{bubbles:true}));");
+ failSave();await click('[data-life-action=save]');await wait("document.querySelector('[data-life-message]').textContent.includes('입력 내용은 유지')");
+ assert.equal(await ev("document.querySelector('[data-basic-field=school]').value"),'일부 항목만 작성');
+ await save();
+ let partialSaved=(await invoke('life_get',student)).profile;
+ assert.equal(partialSaved.status,'draft');assert.equal(partialSaved.content.basicInfo.school.text,'일부 항목만 작성');
+ assert.equal(partialSaved.content.basicInfo.major.text,'');assert.deepEqual(partialSaved.content.experiences,[]);
+ assert.deepEqual(partialSaved.content.affiliations,before.content.affiliations);
+ await send('Page.reload');await wait("document.querySelector('[data-basic-field=school]')?.value==='일부 항목만 작성'");
+ await click('[data-life-section=qualifications] [data-life-action=add]');
+ await lifeFill('[data-life-field=type]','어학');await lifeFill('[data-life-field=name]','TOEIC');
+ assert.equal(await ev("getComputedStyle(document.querySelector('[data-qualification-issuer]')).display"),'none');
+ await save();partialSaved=(await invoke('life_get',student)).profile;
+ assert.equal(partialSaved.content.qualifications[0].issuer,'');
+ await screenshot('basic-history-save-mobile',390);await screenshot('basic-history-save-desktop',1200);
+ await invoke('life_save',student,{revision:partialSaved.revision,content:before.content,status:'draft'});
+ await send('Page.reload');await wait("!!document.querySelector('[data-basic-field=school]')");
  assert.equal(await ev("document.querySelectorAll('[data-life-section=experiences],.ip-life-timeline,[data-life-guide]').length"),0);
  const added={};
- for(const id of ['qualifications','affiliations','awards']){
+ for(const id of ['qualifications','awards']){
   const group=`[data-life-section=${id}]`;
   if(await ev(`!!document.querySelector('${group} [data-life-none]:checked')`))await click(`${group} [data-life-none]`);
   await click(`${group} [data-life-action=add]`);
@@ -73,7 +96,7 @@ module.exports=async({invoke,ev,wait,click,lifeFill,send,screenshot})=>{
  for(const [id,row] of Object.entries(added)){
   await click(`[data-life-row="${row}"] [data-life-action=up]`);await click(`[data-life-row="${row}"] [data-life-action=remove]`);
  }
- for(const id of before.content.none)await click(`[data-life-section=${id}] [data-life-none]`);
+ for(const id of before.content.none.filter(id=>id!=='affiliations'))await click(`[data-life-section=${id}] [data-life-none]`);
  await save();saved=(await invoke('life_get',student)).profile;
  for(const id of ['qualifications','affiliations','awards','experiences'])assert.deepEqual(saved.content[id],before.content[id]);
  await invoke('life_save',student,{revision:saved.revision,content:before.content,status:'draft'});

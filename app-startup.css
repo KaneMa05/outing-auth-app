@@ -1,0 +1,15 @@
+#app-startup{display:none}
+html.app-starting,html.app-starting body{background:#f3f7fb!important}
+html.app-starting body{overflow:hidden!important}
+html.app-starting:not(.app-startup-leaving) body>:not(#app-startup):not(noscript){visibility:hidden!important}
+html.app-starting #app-startup{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;box-sizing:border-box;padding:28px;background:#f3f7fb;color:#123654;opacity:1;transition:opacity .22s ease;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center}
+#app-startup .app-startup-card{display:flex;align-items:center;flex-direction:column;max-width:300px;gap:16px}
+#app-startup .app-startup-mark{display:grid;place-items:center;width:64px;height:64px;border-radius:20px;background:#234e83;color:#fff;font-size:32px;font-weight:800;box-shadow:0 8px 24px #234e8318}
+#app-startup strong{font-size:22px;letter-spacing:-.5px}
+#app-startup p{margin:0;font-size:14px;line-height:1.7;color:#63788e;word-break:keep-all}
+#app-startup .app-startup-spinner{width:22px;height:22px;margin-top:12px;border:2px solid #dbe5f0;border-top-color:#234e83;border-radius:50%;animation:app-startup-spin .9s linear infinite}
+#app-startup button{border:1px solid #c7d7e8;border-radius:12px;padding:12px 22px;background:#fff;color:#234e83;font:600 14px system-ui;cursor:pointer}
+#app-startup button[hidden]{display:none}
+html.app-starting.app-startup-leaving #app-startup{opacity:0;pointer-events:none}
+@keyframes app-startup-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){html.app-starting #app-startup{transition:none}#app-startup .app-startup-spinner{animation:none}}

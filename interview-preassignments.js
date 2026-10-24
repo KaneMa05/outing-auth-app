@@ -1,12 +1,30 @@
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={empty:'미작성',draft:'작성 중',submitted:'제출 완료',needs_revision:'제출 완료',approved:'제출 완료'};
-const errors={diagnosis_not_configured:'진단 기준은 등록되어 있습니다. 진단 실행 연결을 확인해주세요.',diagnosis_busy:'다른 진단이 진행 중입니다. 잠시 후 다시 눌러주세요.',diagnosis_limit:'오늘 진단 요청 한도에 도달했습니다. 내일 다시 이용해주세요.',criteria_not_ready:'이 문항의 진단 기준을 확인해주세요.',disabled:'사전과제 제출을 준비하고 있습니다.',revision_conflict:'다른 화면에서 변경되었습니다. 입력 내용을 복사해 보관한 뒤 최신 내용 불러오기를 눌러주세요.',idempotency_conflict:'제출 요청이 변경되었습니다. 최신 내용을 불러온 뒤 다시 시도해주세요.',incomplete:'내 답변을 작성해주세요.',deadline_passed:'제출 기한이 지났습니다. 담당 선생님께 문의해주세요.',not_enrolled:'면접반 등록과 이용 기간을 확인해주세요.',forbidden:'이 자료에 접근할 권한이 없습니다.',unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.'};
+const errors={diagnosis_worker_offline:'진단 실행기가 연결되어 있지 않습니다. 답변은 저장되어 있으니 잠시 후 다시 요청해주세요.',diagnosis_not_configured:'진단 기준은 등록되어 있습니다. 진단 실행 연결을 확인해주세요.',diagnosis_busy:'다른 진단이 진행 중입니다. 잠시 후 다시 눌러주세요.',diagnosis_limit:'오늘 진단 요청 한도에 도달했습니다. 내일 다시 이용해주세요.',criteria_not_ready:'이 문항의 진단 기준을 확인해주세요.',disabled:'사전과제 제출을 준비하고 있습니다.',revision_conflict:'다른 화면에서 변경되었습니다. 입력 내용을 복사해 보관한 뒤 최신 내용 불러오기를 눌러주세요.',idempotency_conflict:'제출 요청이 변경되었습니다. 최신 내용을 불러온 뒤 다시 시도해주세요.',incomplete:'내 답변을 작성해주세요.',deadline_passed:'제출 기한이 지났습니다. 담당 선생님께 문의해주세요.',not_enrolled:'면접반 등록과 이용 기간을 확인해주세요.',forbidden:'이 자료에 접근할 권한이 없습니다.',unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.'};
 const date=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'—';
 const deadlineText=v=>new Date(Date.parse(v)-1).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
 const badge=s=>`<span class="pa-badge ${esc(s)}">${labels[s]||'미작성'}</span>`;
 const button=(label,action,extra='',primary=false)=>`<button type="button" class="ip-btn ${primary?'ip-primary':''}" data-pa="${action}" ${extra}>${label}</button>`;
 async function defaultRequest(action,payload={}){const r=await fetch('/api/interview-preassignments',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;}
 export async function mountPreassignments(host,{request=defaultRequest,admin=false,canWrite=true}={}){
+ let diagnosisTimer;
+ function scheduleDiagnosis(remaining=55){
+  clearTimeout(diagnosisTimer);
+  if(admin||destroyed||detail?.diagnosis?.status!=='running'||remaining<=0)return;
+  const unitId=selected,ticket=version;
+  diagnosisTimer=setTimeout(async()=>{
+   if(destroyed||ticket!==version||unitId!==selected)return;
+   if(busy||document.hidden){scheduleDiagnosis(remaining-1);return;}
+   try{const result=await request('diagnosis_status',{unitId});
+    if(destroyed||ticket!==version||unitId!==selected)return;
+    detail.diagnosis=result.diagnosis;
+    const panel=host.querySelector('[data-diagnosis]');if(panel)panel.innerHTML=diagnosisHtml(result.diagnosis,dirty);
+    if(result.diagnosis?.status==='completed')tell('답변 진단 결과를 저장했습니다.');
+    else if(result.diagnosis?.status==='failed')tell('진단을 완료하지 못했습니다. 답변은 저장되어 있습니다.',true);
+    scheduleDiagnosis(remaining-1);
+   }catch{if(!destroyed&&ticket===version)tell('진단 상태를 확인하지 못했습니다. 결과 확인 버튼으로 다시 확인해주세요.',true);}
+  },5000);
+ }
  if(!document.querySelector('link[data-pa-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href=new URL('./interview-preassignments.css?v=20261023-pa8',import.meta.url);link.dataset.paStyle='';document.head.append(link);}
  host.classList.add('pa-root');let data,selected='',student='',detail,dirty=false,busy=false,destroyed=false,version=0,page=0,filter={search:'',status:''},historyPage=0,lastMutation=null,guidanceMode=false,guidelines=[],guidance=null;
  const tell=(s,error=false)=>{const n=host.querySelector('[data-pa-message]');if(n){n.textContent=s;n.dataset.error=String(error);}};
@@ -14,7 +32,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  const before=e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}};
  const unit=()=>data.catalog.find(u=>u.id===selected);
  const status=u=>data.units?.find(s=>s.id===u.id)||{};
- function shell(body){host.innerHTML=`<p class="pa-message" data-pa-message role="status" aria-live="polite"></p><fieldset data-pa-controls>${body}</fieldset>`;}
+ function shell(body){clearTimeout(diagnosisTimer);host.innerHTML=`<p class="pa-message" data-pa-message role="status" aria-live="polite"></p><fieldset data-pa-controls>${body}</fieldset>`;}
  function lock(value){busy=value;const form=host.querySelector('[data-pa-controls]');if(form)form.disabled=value;}
  function fieldsHtml(u,values={}){return `<div class="pa-fields"><label>내 답변<textarea data-field="f1" maxlength="4000" rows="10" placeholder="질문에 대한 나의 생각과 경험을 작성해주세요.">${esc(values.f1||'')}</textarea></label><small class="pa-muted">최대 4,000자 · 임시저장 후 이어서 작성할 수 있습니다.</small></div>`;}
  function readFields(){return Object.fromEntries([...host.querySelectorAll('[data-field]')].map(n=>[n.dataset.field,n.value]));}
@@ -63,6 +81,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
    ${s?`<details><summary>현재 제출한 답변</summary>${record(s)}</details>`:''}`}
 
    <section class="pa-card"><h3>제출 이력</h3>${button('이력 불러오기','history')}<div data-history></div></section>`);
+  scheduleDiagnosis();
  }
  async function toggleSummary(){
   const panel=host.querySelector('[data-summary]'),toggle=host.querySelector('[data-pa="summary"]');
@@ -87,7 +106,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  }
  function diagnosisHtml(d,edited=false){
   if(!d)return '<h3>내 답변 진단</h3><p>강의 기반 기준별로 충분·보완·미확인과 답변 근거, 보완 질문을 확인할 수 있습니다.</p>';
-  if(d.status==='running')return '<h3>답변 진단 중</h3><p>저장된 답변을 문항별 기준과 비교하고 있습니다.</p>'+button('진단 결과 확인','diagnosisRefresh');
+  if(d.status==='running')return '<h3>답변 진단 중</h3><p>진단 요청이 접수되었습니다. 완료되면 결과가 자동으로 표시됩니다. 다른 화면으로 이동해도 저장된 답변은 유지됩니다.</p>'+button('진단 결과 확인','diagnosisRefresh');
   if(d.status==='failed')return '<h3>진단을 완료하지 못했습니다</h3><p>답변은 저장되어 있습니다. 잠시 후 내 답변 진단하기를 다시 눌러주세요.</p>';
   const r=d.report;if(!r)return '';
   return `<h3>내 답변 진단 결과</h3><p class="pa-muted">답변 코칭 · ${date(d.createdAt)} · 기준 ${esc(r.criteriaVersion)}</p>${d.stale||edited?'<p class="pa-notice">답변 또는 진단 지침이 변경되었습니다. 아래는 이전 내용에 대한 결과입니다. 현재 답변으로 다시 진단해주세요.</p>':''}<p class="pa-body">${esc(r.summary)}</p>${r.criteria.map(c=>`<article class="pa-card"><h4>${esc(c.label)} <span class="pa-badge">${esc(c.state)}</span></h4>${c.quote?`<blockquote class="pa-body">${esc(c.quote)}</blockquote>`:'<p class="pa-muted">답변에서 확인한 근거가 없습니다.</p>'}<p class="pa-body">${esc(c.reason)}</p>${c.nextQuestion?`<p><strong>보완 질문</strong></p><p class="pa-body">${esc(c.nextQuestion)}</p>`:''}</article>`).join('')}<p><strong>답변 구성 순서</strong></p><p class="pa-body">${esc(r.frame)}</p><p class="pa-muted">강의 근거: ${r.sources.map(x=>`${esc(x[0])}강 ${esc(x[1])}`).join(' · ')}</p>`;
@@ -99,7 +118,8 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
   try{
    const result=await request('diagnose',{unitId:selected,revision:detail.draft.revision});if(destroyed)return;
    detail.diagnosis=result.diagnosis;host.querySelector('[data-diagnosis]').innerHTML=diagnosisHtml(result.diagnosis);
-   tell(result.diagnosis?.status==='completed'?'답변 진단 결과를 저장했습니다.':result.diagnosis?.status==='running'?'진단이 진행 중입니다. 결과 확인 버튼으로 확인해주세요.':'진단을 완료하지 못했습니다. 답변은 저장되어 있습니다.');
+   scheduleDiagnosis();
+   tell(result.diagnosis?.status==='completed'?'답변 진단 결과를 저장했습니다.':result.diagnosis?.status==='running'?'진단이 진행 중입니다. 완료되면 결과가 자동으로 표시됩니다.':'진단을 완료하지 못했습니다. 답변은 저장되어 있습니다.');
   }catch(e){if(!destroyed)host.querySelector('[data-diagnosis]').innerHTML=diagnosisHtml(detail.diagnosis)+'<p>진단 요청을 확인하지 못했습니다. '+button('진단 결과 확인','diagnosisRefresh')+'</p>';throw e;}
  }
  async function run(fn){if(busy||destroyed)return;lock(true);try{await fn();}catch(e){if(!destroyed){if(!data){shell('<section class="pa-card"><h2>핵심 25제 작성하기</h2><p>과제를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>'+button('다시 시도','reload')+'</section>');}else tell(errors[e.code||e.message]||'처리하지 못했습니다. 입력 내용은 유지됩니다. 연결을 확인한 뒤 다시 시도해주세요.',true);}}finally{if(!destroyed)lock(false);}}
@@ -132,5 +152,5 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  async function filterSubmit(e){if(!e.target.matches('[data-pa-filter]'))return;e.preventDefault();if(!canLeave())return;const f=new FormData(e.target);filter={search:f.get('search'),status:f.get('status')};page=0;await run(overview);}
  host.addEventListener('click',click);host.addEventListener('input',input);host.addEventListener('change',change);host.addEventListener('submit',filterSubmit);window.addEventListener('beforeunload',before);
  shell('<p>사전과제를 불러오는 중…</p>'+button('다시 시도','reload'));await run(overview);
- return {canLeave,destroy(){destroyed=true;++version;host.removeEventListener('click',click);host.removeEventListener('input',input);host.removeEventListener('change',change);host.removeEventListener('submit',filterSubmit);window.removeEventListener('beforeunload',before);host.replaceChildren();}};
+ return {canLeave,destroy(){clearTimeout(diagnosisTimer);destroyed=true;++version;host.removeEventListener('click',click);host.removeEventListener('input',input);host.removeEventListener('change',change);host.removeEventListener('submit',filterSubmit);window.removeEventListener('beforeunload',before);host.replaceChildren();}};
 }

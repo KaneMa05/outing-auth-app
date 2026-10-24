@@ -1,7 +1,9 @@
+import {mountWritingBoard} from './interview-writing-board.js?v=20261024-colors';
+import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
 import {getTopicQuestions} from './interview-prep-prompts.js';
-import {basicFields} from './client/interview-basic-fields.js';
+import {basicFields} from './client/interview-basic-fields.js?v=20261024-basic-save';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
-import {mountWriting,mountWritingHistory,writingFeedbackTitle} from './interview-writing-ui.js?v=20261021-rounds';
+import {mountWriting,mountWritingHistory,writingFeedbackTitle} from './interview-writing-ui.js?v=20261024-colors';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={draft:'임시저장',submitted:'확인 대기',saved:'저장 완료 · 미제출',needs_revision:'보완 필요',approved:'확인 완료',no_experience:'도움 요청'};
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
@@ -21,7 +23,17 @@ const textFields=(pairs,values)=>`<dl class="ip-review-fields">${pairs.map(([key
 const feedback=row=>row?.feedback?`<aside class="ip-feedback"><strong>${row.submitted_revision?writingFeedbackTitle(row):'교사 피드백'}</strong><p class="ip-review-text">${esc(row.feedback)}</p>${row.feedback_at?`<small>피드백 수정일 ${esc(date(row.feedback_at))}</small>`:''}</aside>`:'';
 const failure=e=>({'unauthorized':'로그인이 만료되었습니다. 다시 로그인해주세요.','forbidden':'수강생 작성 내용을 조회할 권한이 없습니다.','student_unavailable':'해당 수강생을 찾을 수 없습니다.'}[e.code||e.message]||'작성 내용을 불러오지 못했습니다. 다시 시도해주세요.');
 
-export function mountReview(host,{request,templates,canWrite=false}){
+export function mountReview(host,options){
+ let view='board',current=null;
+ host.classList.add('ip-review');
+ host.innerHTML='<nav class="ip-toolbar" aria-label="첨삭 관리 보기"><button type="button" class="ip-btn" data-review-view="board" aria-current="page">제출물 게시판</button><button type="button" class="ip-btn" data-review-view="students">학생별 전체 기록</button></nav><div data-review-view-content></div>';
+ const content=host.querySelector('[data-review-view-content]');
+ const mount=()=>{current?.destroy();current=view==='board'?mountWritingBoard(content,options):mountStudentReview(content,options);};
+ host.onclick=e=>{const b=e.target.closest('[data-review-view]');if(!b||b.dataset.reviewView===view||!current.canLeave())return;e.stopPropagation();view=b.dataset.reviewView;host.querySelectorAll('[data-review-view]').forEach(n=>{if(n===b)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});mount();};
+ mount();return {ready:current.ready,canLeave:()=>current.canLeave(),destroy(){current.destroy();host.onclick=null;}};
+}
+
+function mountStudentReview(host,{request,templates,canWrite=false}){
  let destroyed=false,version=0,page=0,filter={search:'',track:'',status:''},roster=null,detail=null,selected='',area='all';
  let editor=null;
  const histories=new Map();
@@ -64,7 +76,7 @@ export function mountReview(host,{request,templates,canWrite=false}){
     <div class="ip-toolbar">${button('이전','prev',page===0?'disabled':'')}<span>${page+1} / ${Math.max(1,Math.ceil(data.total/data.pageSize))} 페이지</span>${button('다음','next',(page+1)*data.pageSize>=data.total?'disabled':'')}${button('목록 새로고침','reload-list')}</div>`;
  }
  function record(title,row,body,extra=''){
-  return `<details class="ip-review-record"><summary><span><strong>${esc(title)}</strong>${extra?`<small>${esc(extra)}</small>`:''}</span>${badge(row.status)}<small>${esc(date(row.updated_at))}</small></summary><div class="ip-review-record-body">${body}${feedback(row)}</div></details>`;
+  return `<details class="ip-review-record"><summary><span><strong>${esc(title)}</strong>${extra?`<small>${esc(extra)}</small>`:''}</span>${badge(row.status)}<small>${esc(date(row.updated_at))}</small></summary><div class="ip-review-record-body">${body}${writingCorrections(row)}${row.submitted_revision?'':feedback(row)}</div></details>`;
  }
  function dbRecords(){
   const profile=detail.profile,content=profile?.content;

@@ -1,5 +1,5 @@
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
-import {mountLife} from './interview-life-ui.js?v=20261021-life-followup';
+import {mountLife} from './interview-life-ui.js?v=20261024-basic-save';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
 const kinds={experience:'경험형',value:'가치관형',situation:'인성 상황형'};
@@ -175,7 +175,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     host.innerHTML=`<nav class="ip-tabs ip-category-tabs" aria-label="면접 상위 카테고리">${[['personality','인성'],['job','직무']].map(([key,label])=>btn(label,'category',`data-category="${key}" ${key===category?'aria-current="page"':''}`)).join('')}</nav>
     <div class="ip-hero"><div class="ip-eyebrow">INTERVIEW MANAGEMENT</div><h2>${tab==='dashboard'?'면접반 홈':category==='personality'?'인성 준비 관리':'직무 기출 관리'}</h2><p>${category==='personality'?'인성 기출과 학생 개인 경험·가치관을 관리합니다.':'직무 기출을 별도로 관리합니다. 학생 개인 준비 노트와 작성률에는 포함하지 않습니다.'}</p><div class="ip-summary"><span><strong>${counts.total}</strong>질문</span><span><strong>${counts.draft}</strong>검토 대기</span><span><strong>${counts.published}</strong>공개</span></div></div>
     <div class="ip-row"><p>학생 이용: <strong>${catalog.enabled?'등록 학생에게 개방':'준비 중'}</strong></p>${btn(catalog.enabled?'이용 중지':'등록 학생에게 개방','enabled',canWrite?'':'disabled')}</div>
-    <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','수강생 작성 내용'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
+    <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('핵심 25제 과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
     if(tab==='preassignments'){
@@ -187,7 +187,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('분류·채점 기준','tab',`data-tab="rubrics" ${tab==='rubrics'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('음성 모의면접 기록','tab',`data-tab="live" ${tab==='live'?'aria-current="page"':''}`));
     if(tab==='review'){
-      host.querySelector('.ip-hero h2').textContent='수강생 작성 내용';
+      host.querySelector('.ip-hero h2').textContent='피드백 관리';
       host.querySelector('.ip-hero>p').textContent='모든 면접반 수강생의 저장된 자료를 학생별로 확인합니다.';
       host.querySelector('.ip-hero .ip-summary').remove();
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
@@ -223,7 +223,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261021-life-followup');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261024-basic-save');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;
@@ -231,7 +231,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     }
     if(tab==='dashboard'){
       box.innerHTML=`<section class="ip-panel"><h3>면접반 운영 순서</h3><p>학생에게 직렬·수험번호·이용 기간을 등록하고, 공개할 질문을 검토한 뒤 작성 내용을 첨삭하세요.</p><div class="ip-toolbar">${btn('수강 신청·승인','section','data-section="applications"',true)}${btn('학생 등록·첨삭','section','data-section="members"')}${btn('핵심인성 30제 검토','section','data-section="core"')}${btn('질문 요소 분석','section','data-section="analysis"')}</div></section>
-      <section class="ip-panel"><h3>수강생 작성 내용 모아보기</h3><p>수강생의 나의 DB, 자기소개, 지원동기, 공직관, 핵심 30제 답변을 한곳에서 확인하세요. 임시저장·확인 대기·보완 요청 상태로 학생을 찾을 수 있습니다.</p>${btn('수강생 작성 내용 보기','section','data-section="review"',true)}</section>
+      <section class="ip-panel"><h3>피드백 관리</h3><p>수강생의 나의 DB, 자기소개, 지원동기, 공직관, 핵심 30제 답변을 한곳에서 확인하세요. 임시저장·확인 대기·보완 요청 상태로 학생을 찾을 수 있습니다.</p>${btn('피드백 관리 열기','section','data-section="review"',true)}</section>
       <section class="ip-panel"><h3>질문 관리</h3><div class="ip-toolbar">${btn('인성 기출 관리','section','data-section="questions"')}${btn('직무 기출 관리','section','data-section="job"')}</div><p class="ip-help">직무 질문은 학생 개인 데이터 작성률에 포함하지 않습니다.</p></section>`;
       return;
     }
@@ -395,7 +395,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         life=mountLife(host.querySelector('[data-life-host]'),{request,admin:true,studentId:target.dataset.id,canWrite});
       }
       else if(a==='writing'){
-        const {mountWriting}=await import('./interview-writing-ui.js?v=20261021-rounds');
+        const {mountWriting}=await import('./interview-writing-ui.js?v=20261024-colors');
         if(destroyed)return;
         editor(`${btn('닫기','close')}<h3>학생 작성 답변</h3><div data-writing-host></div>`);
         life=mountWriting(host.querySelector('[data-writing-host]'),{request,admin:true,studentId:target.dataset.id,canWrite});

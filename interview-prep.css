@@ -108,3 +108,25 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-fu-evidence{margin:10px 0 24px;color:#587181}
 .ip-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @media(max-width:640px){.ip-fu-compare{grid-template-columns:1fr}.ip-fu-header{align-items:flex-start}.ip-fu .ip-life-toolbar{gap:8px}.ip-basic-field .ip-row{align-items:center}}
+.ip-annotated-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:2.1;padding:20px;background:#fff;color:#20354d;border:1px solid #dce5ee;border-radius:10px;margin:12px 0;font-size:16px}
+.ip-annotation-source{min-height:180px;user-select:text;cursor:text}
+.ip-mark-underline{text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:5px}
+.ip-mark-strike{color:#c62828;text-decoration-line:line-through;text-decoration-color:#d32f2f;text-decoration-thickness:2px}
+.ip-mark-strike.ip-mark-underline{text-decoration-line:line-through underline}
+.ip-bracket-start::before{content:'(';color:#c62828;font-weight:800}
+.ip-bracket-end::after{content:')';color:#c62828;font-weight:800}
+.ip-mark-bracket{background:#fff4e9}
+.ip-annotation-editor [data-mark-message]{font-size:13px;color:#45617f;white-space:pre-wrap;overflow-wrap:anywhere;max-height:100px;overflow:auto}
+.ip-corrections{margin:20px 0}
+
+.ip-inline-comment{color:#b42318;background:#fff2ef;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:2px 3px;margin:0 3px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ip-comment-label{font-size:.85em;user-select:none}
+.ip-inline-comment [contenteditable]{outline:none;min-width:1em;cursor:text}
+.ip-inline-comment [contenteditable=plaintext-only]:empty::before{content:attr(data-placeholder);color:#bd7168;font-weight:400}
+.ip-inline-comment [contenteditable=plaintext-only]:focus{background:#ffe1da;outline:1px dashed #b42318;outline-offset:2px}
+.ip-root .ip-comment-remove{display:inline;border:0;background:transparent;color:#9d211a;font:inherit;font-size:17px;line-height:1;padding:4px;margin:0 1px;vertical-align:baseline}
+.ip-comment-remove:focus-visible{outline:2px solid #b42318}
+
+.ip-root .ip-annotation-editor .ip-color-control{display:flex;flex:0 0 auto;align-items:center;gap:8px;min-width:0;margin:0;font-size:13px}
+.ip-root .ip-color-control input[type=color]{display:block;width:44px;height:42px;min-height:0;padding:4px;margin:0;cursor:pointer;border:1px solid #b9cadb;background:#fff;border-radius:8px}
+.ip-root [data-qualification-issuer][hidden]{display:none}
