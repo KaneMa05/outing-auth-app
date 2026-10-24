@@ -32,6 +32,8 @@ const { PGlite } = require(process.env.PGLITE_MODULE || 'C:/Users/Public/Documen
     assert.ok(tables.every(table => table.relrowsecurity), 'Every interview table must enable RLS');
     const exposed = (await db.query("select routine_name,grantee from information_schema.routine_privileges where specific_schema='public' and routine_name like 'ip\\_%' escape '\\' and grantee in ('PUBLIC','anon','authenticated')")).rows;
     assert.deepEqual(exposed, [], 'Browser roles must not execute interview service RPCs');
+    const mutablePaths = (await db.query("select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'ip\\_%' escape '\\' and not exists(select 1 from unnest(p.proconfig) c where c like 'search_path=%')")).rows;
+    assert.deepEqual(mutablePaths, [], 'Interview functions must pin their search path');
     assert.equal((await db.query('select enabled from ip_settings')).rows[0].enabled, false);
     assert.equal((await db.query('select enabled from ip_pa_settings')).rows[0].enabled, false);
     const bucket = (await db.query("select * from storage.buckets where id='interview-live'")).rows[0];

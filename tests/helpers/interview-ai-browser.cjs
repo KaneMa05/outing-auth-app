@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),crypto=require('node:crypto');
 module.exports=async({db,invoke,admin,aiInvoke,aiWorker,aiCalls,ev,wait,click,lifeFill,send,screenshot,failSave})=>{
  const student={type:'student',id:'18120'};
- const tabs={introduction:'self_intro',motivation:'motivation',public_service:'public_service',core:'core30'};
+ const tabs={introduction:'self_intro',motivation:'motivation',public_service:'public_service'};
  const selectTab=async page=>{
   await click(`[data-workspace-page=${page}]`);
   if(page==='db')return wait("!!document.querySelector('[data-basic-field=school]') && !document.querySelector('[data-ai-generate]')");
@@ -31,9 +31,9 @@ module.exports=async({db,invoke,admin,aiInvoke,aiWorker,aiCalls,ev,wait,click,li
  await send('Page.reload');await wait("!!document.querySelector('[data-basic-field=school]')");
  await selectTab('introduction');
  assert.equal(await ev("document.querySelector('[data-ai-generate=self_intro]').disabled"),true,'Intro additionally requires three experiences');
- await selectTab('core');
- await wait("document.querySelector('[data-ai-message]').textContent.includes('30문항 목록')");
- assert.equal(await ev("document.querySelector('[data-ai-generate=core30]').disabled"),true);
+ await click('[data-workspace-page=core]');
+ await wait("document.querySelectorAll('[data-unit^=core-]').length===25");
+ assert.equal(await ev("document.querySelectorAll('[data-ai-generate]').length"),0,'Core25 assignments replace the legacy core30 generator');
  assert.equal((await db.query('select count(*) n from ip_ai_jobs')).rows[0].n,0);
  await selectTab('motivation');
  const original='생성 전에 저장할 본인의 지원동기입니다.';
@@ -107,42 +107,8 @@ module.exports=async({db,invoke,admin,aiInvoke,aiWorker,aiCalls,ev,wait,click,li
  assert(publicWriting.body.includes('공익'));
  await invoke('admin_writing_feedback',admin,{targetStudentId:'18120',kind:'public_service',itemId:'',revision:publicWriting.revision,status:'approved',feedback:'공직관 피드백'});
  await screenshot('public-service-writing-desktop',1200);await screenshot('public-service-writing-mobile',390);
- // Explicit test-only 30-question configuration, never runtime automatic selection.
- const ids=(await db.query("select question_id from ip_collection_items where collection_id='core-personality-30' order by position,question_id limit 30")).rows.map(r=>r.question_id);
- for(const id of ids)await db.query("update ip_questions set status='published',category='personality',tracks='{}' where id=$1",[id]);
- await aiInvoke('admin_configure',admin,{coreQuestionIds:ids});
- await selectTab('core');
- const firstQuestion=await ev("document.querySelector('[data-ai-question]').value");
- const secondQuestion=await ev("document.querySelector('[data-ai-question]').options[1].value");
- const selectQuestion=async id=>{
-  await ev(`document.querySelector('[data-ai-question]').value=${JSON.stringify(id)};document.querySelector('[data-ai-question]').dispatchEvent(new Event('change',{bubbles:true}))`);
-  await wait("document.querySelector('.ip-ai-panel').getAttribute('aria-busy')==='false'");
- };
- await click('[data-ai-generate=core30]');await wait("document.querySelectorAll('.ip-ai-item').length===1");
- const coreId=(await aiInvoke('requests',student)).requests.find(r=>r.questionId===firstQuestion).id;
- assert.equal((await aiInvoke('status',student,{requestId:coreId})).items.length,1);
- await aiWorker('complete',{...await lease(),result:{schema_version:'1.0',status:'needs_input',answer:'',source_refs:[],experience_coverage:[],missing:['갈등 당시 상대방의 의견과 본인이 제안한 해결 방법을 적어주세요.']}});
- await wait("document.querySelector('.ip-ai-items').textContent.includes('갈등 당시')");
- assert.equal(await ev("document.querySelectorAll('[data-ai-item]').length"),1);
- await selectQuestion(secondQuestion);
- assert.equal(await ev("document.querySelectorAll('.ip-ai-item').length"),0,'Other question does not show previous draft');
- await click('[data-ai-generate=core30]');await wait("document.querySelectorAll('.ip-ai-item').length===1");
- const secondId=(await aiInvoke('requests',student)).requests.find(r=>r.questionId===secondQuestion).id;
- await aiWorker('complete',{...await lease(),result:readyResult('전공 기록을 바탕으로 답변했습니다.')});
- await wait("!!document.querySelector('[data-ai-answer]')");
- await selectQuestion(firstQuestion);
- await wait("document.querySelector('.ip-ai-items').textContent.includes('갈등 당시')");
- await selectTab('db');
- await lifeFill('[data-basic-field=school]','전공 기록과 보완한 갈등 해결 방법');
- await click('[data-life-action=save]');await wait("document.querySelector('[data-life-message]').textContent==='서버에 저장했습니다.'");
- await selectTab('core');
- await click('[data-ai-item]');await click('[data-ai-retry]');await wait("document.querySelectorAll('[data-ai-item]').length===0");
- const after=await aiInvoke('status',student,{requestId:coreId});
- assert.equal(after.items[0].status,'QUEUED');assert.equal(after.items.length,1);
- assert.equal((await aiInvoke('status',student,{requestId:secondId})).items[0].status,'COMPLETED');
- assert.equal((await invoke('writing_list',student)).writings.find(w=>w.kind==='motivation').feedback,'교사 피드백 보존 검증');
  await ev("document.querySelector('[data-workspace-ai]').scrollIntoView({block:'start'})");
  await screenshot('ai-drafts-desktop',1200);await screenshot('ai-drafts-mobile',390);
  await selectTab('db');
- console.log('PASS AI browser: five tabs, generator first, single core question, separate question histories, public-service save/adopt/feedback, readiness, save ordering/failure, duplicate prevention, worker states, XSS, one-question retry preserving other answers.');
+ console.log('PASS AI browser: three draft generators and Core25 assignment route, generator first, public-service save/adopt/feedback, readiness, save ordering/failure, duplicate prevention, worker states, XSS.');
 };
