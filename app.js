@@ -1587,6 +1587,7 @@ function openLectureApplicationModal() {
     el("option", { value: "offline" }, "오프라인반"),
     el("option", { value: "online_managed" }, "온라인 관리반"),
     el("option", { value: "lecture" }, "인강생"),
+    el("option", { value: "interview" }, "면접반"),
   ]);
   const trackSelect = select("track", ["", ...getCoastGuardTrackOptions()]);
   trackSelect.querySelector("option[value='']").textContent = "직렬을 선택하세요";
@@ -1670,9 +1671,7 @@ function openLectureApplicationModal() {
   ]);
   const result = el("div", { className: "student-auth-result", ariaLive: "polite" });
   const submitButton = button("신청하기", "btn");
-  const form = el("form", { className: "form-grid lecture-application-form" }, [
-    el("p", { className: "subtle field full" }, "입력한 정보는 수강 정보 확인과 등록번호 발급에만 사용됩니다."),
-    field("수강 구분", courseTypeSelect, "full"),
+  const applicationDetails = el("fieldset", { className: "form-grid field full lecture-application-details" }, [
     field("이름", input("name", "text", "이름")),
     phoneVerificationEnabled ? phoneVerificationField : field("휴대전화 번호", phoneInput),
     field("생년월일", birthDateInput),
@@ -1717,6 +1716,31 @@ function openLectureApplicationModal() {
       submitButton,
     ]),
   ]);
+
+  const applicationIntro = el("p", { className: "subtle field full" }, "입력한 정보는 수강 정보 확인과 등록번호 발급에만 사용됩니다.");
+  const interviewApplicationEntry = el("section", { className: "field full interview-application-entry", hidden: true }, [
+    el("h3", {}, "면접반 수강 신청"),
+    el("p", {}, "등록번호 없이 카카오 로그인으로 신청할 수 있습니다. 로그인 후 ‘신규 면접반 학생입니다’를 선택하고 수강 정보를 입력해주세요."),
+    el("p", {}, "기존 수강생은 ‘기존 수강생입니다’를 선택해 원래 계정에 연결해주세요. 신청 후 관리자가 수강 등록을 확인하면 이용할 수 있습니다."),
+    el("a", {
+      className: "btn interview-application-link",
+      href: isStandaloneStudentApp() ? "/interview?app=1" : "/interview",
+    }, "면접반 신청으로 이동"),
+    button("취소", "btn secondary", "button", closeInfoModal),
+  ]);
+  const form = el("form", { className: "form-grid lecture-application-form" }, [
+    applicationIntro,
+    field("수강 구분", courseTypeSelect, "full"),
+    interviewApplicationEntry,
+    applicationDetails,
+  ]);
+  courseTypeSelect.addEventListener("change", () => {
+    const isInterview = courseTypeSelect.value === "interview";
+    applicationIntro.hidden = isInterview;
+    applicationDetails.hidden = isInterview;
+    applicationDetails.disabled = isInterview;
+    interviewApplicationEntry.hidden = !isInterview;
+  });
 
   const normalizeVerificationPhone = (value) => String(value || "").replace(/\D/g, "");
   const stopVerificationTimer = () => {
@@ -1874,6 +1898,7 @@ function openLectureApplicationModal() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (courseTypeSelect.value === "interview") return;
     const data = formData(form);
     const track = resolveStudentTrack(data.track, data.customTrack);
     result.className = "student-auth-result";

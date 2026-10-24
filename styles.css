@@ -18866,6 +18866,38 @@ body.student-study-mode .main-shell {
   overflow-y: auto;
 }
 
+.lecture-application-details {
+  min-width: 0;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.interview-application-entry {
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #238c7b;
+  border-radius: 14px;
+  background: #e1f5f0;
+  color: #125c50;
+}
+
+.interview-application-entry h3,
+.interview-application-entry p {
+  margin: 0;
+}
+
+.interview-application-entry p {
+  line-height: 1.6;
+}
+
+.interview-application-entry .interview-application-link {
+  background: #125c50;
+  color: #fff;
+  text-decoration: none;
+}
+
 .lecture-application-form,
 .lecture-application-form .field,
 .lecture-application-form input,

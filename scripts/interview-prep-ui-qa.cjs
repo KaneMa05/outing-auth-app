@@ -410,6 +410,33 @@ let db,server,browser,ws,localWorker;
  // Ordinary application entry remains unchanged.
  await send('Page.navigate',{url:base+'/index.html'});await wait("typeof isLocalStudentPreview==='function'");
  await ev("isLocalStudentPreview=()=>false;render()");await wait("document.body.classList.contains('student-browser-install-only')");
+ // A newly installed app can select interview registration without a student number.
+ await ev("isStandaloneStudentApp=()=>true;isStudyCafeLocalPreview=()=>false;state.settings.studentAuthId='';render()");
+ await wait("!!document.querySelector('.lecture-application-entry-card button')");
+ await click('.lecture-application-entry-card button');
+ await wait("!!document.querySelector('.lecture-application-form')");
+ await fill('name','신규 신청자');
+ await ev("document.querySelector('[name=courseType]').value='interview';document.querySelector('[name=courseType]').dispatchEvent(new Event('change',{bubbles:true}))");
+ assert.equal(await ev("document.querySelector('.lecture-application-details').disabled"),true);
+ assert.equal(await ev("document.querySelector('.lecture-application-details').hidden"),true);
+ assert.equal(await ev("document.querySelector('.interview-application-entry').hidden"),false);
+ assert.equal(await ev("new FormData(document.querySelector('.lecture-application-form')).has('name')"),false);
+ await screenshot('new-app-interview-registration-mobile',390);
+ await screenshot('new-app-interview-registration-desktop',1200);
+ for(const category of ['offline','online_managed','lecture']){
+   await ev(`document.querySelector('[name=courseType]').value=${JSON.stringify(category)};document.querySelector('[name=courseType]').dispatchEvent(new Event('change',{bubbles:true}))`);
+   assert.equal(await ev("document.querySelector('.lecture-application-details').disabled"),false);
+   assert.equal(await ev("document.querySelector('.lecture-application-details').hidden"),false);
+   assert.equal(await ev("document.querySelector('.interview-application-entry').hidden"),true);
+   assert.equal(await ev("new FormData(document.querySelector('.lecture-application-form')).get('name')"),'신규 신청자');
+   assert.equal(await ev("document.querySelector('[name=lectureId]').required"),category!=='offline');
+ }
+ await screenshot('new-app-standard-registration-mobile',390);
+ await ev("document.querySelector('[name=courseType]').value='interview';document.querySelector('[name=courseType]').dispatchEvent(new Event('change',{bubbles:true}))");
+ await click('.interview-application-link');await wait("!!document.querySelector('.ip-coast-kakao')");
+ assert.equal(await ev("location.pathname+location.search"),'/interview?app=1');
+ await send('Page.navigate',{url:base+'/index.html'});await wait("typeof isLocalStudentPreview==='function'");
+ await ev("isLocalStudentPreview=()=>false");
  // Actual app/PWA shell: all three ordinary categories keep their screens and
  // generate zero interview API requests; only 18120 receives the entry.
  const ordinaryRequestCount=interviewRequests;

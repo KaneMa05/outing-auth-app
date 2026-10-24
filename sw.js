@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v516-interview-highlight";
+const CACHE_NAME = "outing-auth-app-v517-interview-onboarding";
 const APP_SHELL = [
   "/interview-prep.js?v=20261023-pa8",
   "/interview-app.css?v=20261023-pa8",
@@ -20,7 +20,7 @@ const APP_SHELL = [
   "/manifest.webmanifest?v=20260512-weekly-detail-flow",
   "/app-icon.png",
   "/apple-touch-icon.png",
-  "/styles.css?v=20261024-interview-highlight",
+  "/styles.css?v=20261024-interview-onboarding",
   "/study-character-fire.css?v=20260911-study-fire-guide-icon",
   "/supabase.js?v=20260514-return-photo-time",
   "/shared.js?v=20261020-interview-prep",
@@ -51,7 +51,7 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261024-interview-highlight",
+  "/app.js?v=20261024-interview-onboarding",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",
