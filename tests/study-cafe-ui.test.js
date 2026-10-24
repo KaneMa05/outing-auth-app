@@ -392,7 +392,7 @@ assert.match(styleSource, /html\.student-online-mode\s*\{[^}]*background: #0b274
 assert.match(appSource, /function openStudentDdayModal\(\)/);
 assert.match(appSource, /function openAdminStudentDdayModal\(\)/);
 assert.match(appSource, /mode: "custom"[\s\S]*?mode: "admin"/);
-assert.doesNotMatch(indexSource, /data-online-student-dday/);
+assert.match(indexSource, /<button[^>]*data-online-student-dday[^>]*\bhidden[^>]*>/);
 assert.match(indexSource, /class="online-student-logo-icon" src="app-icon\.png"/);
 assert.match(indexSource, /class="online-student-logo-copy"><strong>RONPARK<\/strong><span>STUDY<\/span>/);
 assert.match(styleSource, /\.online-student-logo-icon\s*\{[^}]*width: 30px[^}]*height: 30px[^}]*border-radius: 7px/);

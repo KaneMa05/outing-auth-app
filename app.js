@@ -5213,6 +5213,7 @@ function getSelectedStudentDday(student = getAuthedStudent()) {
 function updateStudentDdayHeader() {
   const selected = getSelectedStudentDday();
   document.querySelectorAll("[data-online-student-dday]").forEach((item) => {
+    item.hidden = state.settings.studentDdayVisible !== true;
     item.textContent = formatDday(selected.date);
     item.title = `${selected.label} · ${formatExamDate(selected.date)} · 눌러서 변경`;
     item.setAttribute("aria-label", `${selected.label} ${formatDday(selected.date)}, D-day 설정 열기`);
@@ -5293,9 +5294,12 @@ function openAdminStudentDdayModal() {
   const current = getAdminStudentDday();
   const labelInput = input("adminStudentDdayLabel", "text", "예: 해양경찰 필기시험", current.label);
   const dateInput = input("adminStudentDdayDate", "date", "", current.date);
+  const visibilitySelect = select("adminStudentDdayVisibility", ["숨김", "표시"]);
+  visibilitySelect.value = state.settings.studentDdayVisible === true ? "표시" : "숨김";
   labelInput.maxLength = 40;
   const content = el("div", { className: "admin-student-dday-settings" }, [
     el("p", {}, "여기에서 지정한 일정은 온라인 수강생이 D-day 설정에서 선택할 수 있습니다."),
+    field("학생 앱 우측 상단 D-day", visibilitySelect, "", "숨겨도 일정과 학생의 개인 설정은 유지됩니다."),
     field("일정 이름", labelInput),
     field("날짜", dateInput),
   ]);
@@ -5322,6 +5326,7 @@ function openAdminStudentDdayModal() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             settings: {
+              studentDdayVisible: visibilitySelect.value === "표시",
               studentDday: {
                 label: String(labelInput.value || "등록된 일정").trim().slice(0, 40) || "등록된 일정",
                 date,

@@ -655,6 +655,7 @@ function defaultState() {
       curriculumQuestEnabled: false,
       phoneVerificationEnabled: false,
       studentDday: null,
+      studentDdayVisible: false,
       finalScopePlan: null,
       attendanceHolidayOverrides: [],
       attendanceHolidaySavedAt: "",
@@ -4745,6 +4746,8 @@ function applyRemoteAppSettings(settings) {
   state.settings.studentDday = settings.studentDday && typeof settings.studentDday === "object"
     ? settings.studentDday
     : null;
+  state.settings.studentDdayVisible = settings.studentDdayVisible === true;
+  if (typeof updateStudentDdayHeader === "function") updateStudentDdayHeader();
   curriculumQuestReleaseVerified = true;
   if (typeof window.__enforceCurriculumQuestVisibility === "function") {
     window.__enforceCurriculumQuestVisibility();

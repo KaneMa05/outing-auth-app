@@ -76,6 +76,7 @@ const originalEnv = {
   assert.equal(defaultVisibilityResponse.statusCode, 200);
   assert.equal(defaultVisibilityResponse.payload.settings.studyRoomListEnabled, false);
   assert.equal(defaultVisibilityResponse.payload.settings.studyCafeRoomTabsEnabled, false);
+  assert.equal(defaultVisibilityResponse.payload.settings.studentDdayVisible, false);
 
   const managerToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
     username: "manager",
@@ -125,6 +126,10 @@ const originalEnv = {
     ddayForbiddenResponse
   );
   assert.equal(ddayForbiddenResponse.statusCode, 403);
+  assert.equal(fetchCalled, false);
+  const ddayVisibilityForbiddenResponse = createResponse();
+  await handler(createRequest("POST", { settings: { studentDdayVisible: true } }, managerToken), ddayVisibilityForbiddenResponse);
+  assert.equal(ddayVisibilityForbiddenResponse.statusCode, 403);
   assert.equal(fetchCalled, false);
 
   const adminToken = createSessionToken(process.env.TEACHER_SESSION_SECRET, {
@@ -198,6 +203,38 @@ const originalEnv = {
     label: "해양경찰 시험",
     date: "2026-10-24",
   });
+
+  let persisted = {
+    studentDday: { label: "기존 일정", date: "2026-11-01" },
+    onlineManagedStudyCafeEnabled: true,
+    seatAssignments: { A1: { studentId: "12345" } },
+  };
+  global.fetch = async (url, options) => {
+    if (options.method === "GET") return jsonResponse([{ body: JSON.stringify(persisted) }]);
+    persisted = JSON.parse(JSON.parse(options.body).body);
+    return jsonResponse(null, 204);
+  };
+  const unauthenticated = createResponse();
+  await handler(createRequest("POST", { settings: { studentDdayVisible: true } }), unauthenticated);
+  assert.equal(unauthenticated.statusCode, 401);
+  for (const visible of [true, false]) {
+    const saved = createResponse();
+    await handler(createRequest("POST", { settings: { studentDdayVisible: visible } }, adminToken), saved);
+    assert.equal(saved.statusCode, 200);
+    assert.equal(persisted.studentDdayVisible, visible);
+    assert.deepEqual(persisted.studentDday, { label: "기존 일정", date: "2026-11-01" });
+    assert.equal(persisted.onlineManagedStudyCafeEnabled, true);
+    assert.deepEqual(persisted.seatAssignments, { A1: { studentId: "12345" } });
+    const reloaded = createResponse();
+    await handler(createRequest(), reloaded);
+    assert.equal(reloaded.payload.settings.studentDdayVisible, visible);
+  }
+  const showAgain = createResponse();
+  await handler(createRequest("POST", { settings: { studentDdayVisible: true } }, adminToken), showAgain);
+  const unrelatedSave = createResponse();
+  await handler(createRequest("POST", { settings: { phoneVerificationEnabled: true } }, adminToken), unrelatedSave);
+  assert.equal(unrelatedSave.statusCode, 200);
+  assert.equal(persisted.studentDdayVisible, true, "Unrelated settings saves must preserve visibility");
 
   console.log("app settings toggle tests passed");
 })()

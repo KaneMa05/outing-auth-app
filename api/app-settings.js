@@ -48,7 +48,8 @@ module.exports = async function handler(req, res) {
         rawSettings,
         "phoneVerificationEnabled"
       );
-      const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday");
+      const writesStudentDday = Object.prototype.hasOwnProperty.call(rawSettings, "studentDday") ||
+        Object.prototype.hasOwnProperty.call(rawSettings, "studentDdayVisible");
       const writesFinalScopePlan = Object.prototype.hasOwnProperty.call(rawSettings, "finalScopePlan");
       if (writesFinalScopePlan) {
         if (!hasPermission(session, "curriculum.write")) {
@@ -172,6 +173,7 @@ function normalizeSettings(settings) {
     curriculumQuestEnabled: settings.curriculumQuestEnabled === true,
     phoneVerificationEnabled: settings.phoneVerificationEnabled === true,
     studentDday: normalizeStudentDday(settings.studentDday),
+    studentDdayVisible: settings.studentDdayVisible === true,
     finalScopePlan: finalScopeModel.normalizeOrNull(settings.finalScopePlan),
   };
   if (Object.prototype.hasOwnProperty.call(settings || {}, "seatAssignments")) {
