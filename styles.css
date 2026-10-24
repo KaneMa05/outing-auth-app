@@ -20941,6 +20941,46 @@ body.student-online-mode .student-mypage .student-settings-chevron {
   color: #2a7770;
 }
 
+.student-home .student-interview-registration {
+  border: 2px solid #238c7b;
+  background: #e1f5f0;
+  padding: 16px;
+  box-shadow: 0 3px 10px rgba(18, 92, 80, 0.12);
+  text-decoration: none;
+}
+
+.student-home .student-interview-registration .lecture-home-shortcut-icon {
+  background: #c2e9df;
+  color: #125c50;
+}
+
+.student-home .student-interview-registration .lecture-home-shortcut-copy strong {
+  color: #125c50;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.student-home .student-interview-registration .lecture-home-shortcut-copy > span {
+  color: #27675b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.student-home .student-interview-registration .lecture-home-shortcut-chevron {
+  color: #125c50;
+  font-weight: 700;
+}
+
+.student-home .student-interview-registration:hover,
+.student-home .student-interview-registration:active {
+  background: #c2e9df;
+}
+
+.student-home .student-interview-registration:focus-visible {
+  outline: 3px solid #125c50;
+  outline-offset: 3px;
+}
+
 /* Curriculum tab follows Planner's bright surfaces and clear item boundaries. */
 body.student-online-mode .student-planner-hub.curriculum .curriculum-subject-tabs {
   gap: 5px;

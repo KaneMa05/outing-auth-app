@@ -3163,6 +3163,7 @@ function renderStudentHome() {
         ]),
     onlineMode ? renderStudyCafeHomeCard(student) : null,
     renderPassPredictionHomeEntry(),
+    renderInterviewRegistrationHomeEntry(),
     onlineMode ? null : renderStudentImportantNoticeCard(),
     !onlineMode && holiday && !todayAttendance
       ? el("section", { className: "student-summary-card" }, [
@@ -3381,6 +3382,7 @@ function renderLectureStudentHome(student) {
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     renderStudyCafeHomeCard(student),
     renderPassPredictionHomeEntry(),
+    renderInterviewRegistrationHomeEntry(),
     renderQuestionBoardHomePreview(student),
     renderCriminalLawOxLocalEntry(),
     el("section", { className: "lecture-home-shortcuts-card" }, [
@@ -4050,6 +4052,22 @@ function renderPassPredictionHomeEntry() {
   ]);
 }
 
+function renderInterviewRegistrationHomeEntry() {
+  return el("a", {
+    className: "lecture-home-shortcut student-interview-registration",
+    href: isStandaloneStudentApp() ? "/interview?app=1" : "/interview",
+  }, [
+    el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
+      el("span", { className: "footer-icon footer-icon-mypage" }),
+    ]),
+    el("span", { className: "lecture-home-shortcut-copy" }, [
+      el("strong", {}, "면접반 등록"),
+      el("span", {}, "수강 신청 및 등록 상태 확인"),
+    ]),
+    el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
+  ]);
+}
+
 function getLectureHomeSummary() {
   const studyDateKey = studyCafeRemoteState.studyDateKey || formatStudyBusinessDateKey(new Date());
   const todos = getStudyTodosForDate(studyDateKey).filter((todo) => todo.pending !== true);
@@ -4480,15 +4498,6 @@ function renderStudentMypage() {
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentOtherSettingsCard(),
-    button("", "student-history-button-card student-settings-link student-interview-registration", "button", () => {
-      window.location.assign(isStandaloneStudentApp() ? "/interview?app=1" : "/interview");
-    }, [
-      el("div", { className: "student-history-head" }, [
-        el("h2", {}, "면접반 등록"),
-        el("span", {}, "수강 신청 및 등록 상태 확인"),
-      ]),
-      el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
-    ]),
     typeof renderInterviewPrepEntry === "function" ? renderInterviewPrepEntry() : null,
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
     renderStudentDeviceRegistrationCard(),
