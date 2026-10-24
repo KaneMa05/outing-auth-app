@@ -1721,7 +1721,6 @@ function openLectureApplicationModal() {
   const interviewApplicationEntry = el("section", { className: "field full interview-application-entry", hidden: true }, [
     el("h3", {}, "면접반 등록"),
     el("p", {}, "카카오 로그인 후 이름·직렬·수험번호를 입력하면 등록을 신청할 수 있습니다. 신청 후 관리자가 수강 정보를 확인합니다."),
-    el("p", {}, "기존에 작성한 자료가 있다면 등록 화면 하단의 ‘기존 수강생 계정 연결’을 이용해주세요."),
     el("a", {
       className: "btn interview-application-link",
       href: isStandaloneStudentApp() ? "/interview?app=1" : "/interview",

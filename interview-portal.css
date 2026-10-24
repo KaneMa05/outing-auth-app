@@ -24,8 +24,6 @@ body.ip-portal{margin:0;background:#f5f7fa;color:#223347;font-family:system-ui,-
 .ip-root .ip-login-card .ip-signup-guide .ip-kakao{margin-bottom:0}
 .ip-root .ip-login-card form{margin-top:20px}
 .ip-root .ip-portal-status{max-width:720px;margin:24px auto}
-.ip-root .ip-existing-account{margin-top:24px;padding-top:16px;border-top:1px solid #dde5ee}
-.ip-root .ip-existing-account summary{color:#526775;font-size:14px;cursor:pointer;min-height:32px}
 .ip-root .ip-auth-message{white-space:pre-wrap;overflow-wrap:anywhere;min-height:24px}
 .ip-root .ip-auth-message:empty{display:none}
 .ip-root .ip-auth-message[data-error=true]{color:#a12b30}

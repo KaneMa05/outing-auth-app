@@ -338,15 +338,17 @@ let db,server,browser,ws,localWorker;
  await click('[data-life-action=save]');await wait("document.querySelector('[data-life-message]').textContent.includes('다른 기기')");
  assert((await ev("document.querySelector('[data-life-field=appeal]').value")).includes('보존해야'));
  await click('[data-life-action=reload]');await wait("document.querySelector('[data-life-save-state]').textContent==='서버에 저장됨'");
- // Actual /interview entry: browser-bound mock OAuth, existing account linking, new
- // application, existing admin approval, protected notes, and legacy linking.
+ // Actual /interview entry: browser-bound mock OAuth, already-linked account data,
+ // direct registration, existing admin approval, and protected notes.
  await send('Page.navigate',{url:base+'/interview'});await wait("!!document.querySelector('.ip-coast-kakao')");
  assert.equal(await ev("document.querySelectorAll('[data-legacy-form]').length"),0);
  await screenshot('actual-pc-portal-login',1200);
  await screenshot('portal-login-mobile',390);
  kakaoCode='qa-existing';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-application-form]')");
- await click('.ip-existing-account summary');
- await fill('studentId','18120');await fill('password','demo2026!!');await submit('[data-legacy-form]');
+ assert.equal(await ev("document.querySelectorAll('[data-legacy-form],.ip-existing-account,[data-choice]').length"),0);
+ // Prepare the previously linked account fixture without adding a user-facing linking step.
+ assert.equal(await ev("fetch('/api/interview-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'legacy_login',studentId:'18120',password:'demo2026!!',intent:'link'})}).then(r=>r.json()).then(d=>d.ok)"),true);
+ await send('Page.reload');
  await wait("!!document.querySelector('[data-basic-field=school]')");
  assert.equal(await ev("document.cookie.includes('ip_web_session')"),false);
  assert.equal(await ev("document.querySelectorAll('[data-category=job]').length"),0);
@@ -364,7 +366,7 @@ let db,server,browser,ws,localWorker;
  kakaoCode='qa-new';await click('[data-kakao=login]');await wait("!!document.querySelector('[data-application-form]')");
  assert.equal(await ev("document.querySelector('.ip-portal-status h2').textContent"),'면접반 등록');
  assert.equal(await ev("document.querySelectorAll('[data-choice]').length"),0);
- assert.equal(await ev("document.querySelector('.ip-existing-account').open"),false);
+ assert.equal(await ev("document.querySelectorAll('[data-legacy-form],.ip-existing-account').length"),0);
  assert.deepEqual(await ev("[...document.querySelectorAll('[data-application-form] input,[data-application-form] select')].map(n=>n.name)"),['name','track','examNumber']);
  await screenshot('portal-registration-direct-desktop',1200);
  await screenshot('portal-registration-direct-mobile',390);

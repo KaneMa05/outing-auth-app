@@ -22,7 +22,6 @@ async function api(action,payload={}){
  const response=await fetch('/api/interview-auth',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
-const legacyForm=link=>`<form data-legacy-form data-intent="${link?'link':'login'}"><label>기존 수강생 등록번호<input name="studentId" autocomplete="username" maxlength="120" required></label><label>기존 비밀번호<input name="password" type="password" autocomplete="current-password" maxlength="200" required></label><button class="ip-btn ip-primary">${link?'기존 계정 확인·카카오 연결':'기존 계정으로 로그인'}</button>${link?'<p class="ip-help">이미 앱에 등록한 비밀번호를 사용합니다. 아직 계정 등록을 하지 않았다면 관리자에게 문의해주세요.</p>':''}</form>`;
 const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
@@ -54,8 +53,7 @@ function render(){
    if(current!==version)view.destroy();else controller=view;
   }).catch(()=>{if(current===version)box.innerHTML='<p role="alert">화면을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-refresh>다시 시도</button>';});
  }else if(!state.account.ownerId){
-  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>면접반 등록</h2>${applyForm()}
-   <details class="ip-existing-account"><summary>기존 수강생 계정 연결</summary><p class="ip-help">이미 작성한 자료가 있다면 기존 계정에 연결해 이어서 이용할 수 있습니다.</p>${legacyForm(true)}</details></section>`;
+  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>면접반 등록</h2>${applyForm()}</section>`;
  }else{
   const app=state.application;
   const registered=state.member?.enabled&&(!state.member.expires_on||state.member.expires_on>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}));
@@ -90,13 +88,10 @@ document.addEventListener('click',e=>{
  });
 });
 host.addEventListener('submit',e=>{
- if(!e.target.matches('[data-legacy-form],[data-application-form]'))return;
- e.preventDefault();const form=e.target,f=new FormData(form);
+ if(!e.target.matches('[data-application-form]'))return;
+ e.preventDefault();const f=new FormData(e.target);
  run(async()=>{
-  if(form.matches('[data-legacy-form]')){
-   try{await api('legacy_login',{studentId:f.get('studentId'),password:f.get('password'),intent:form.dataset.intent});}
-   finally{form.querySelector('[name=password]').value='';}
-  }else await api('apply',{name:f.get('name'),track:f.get('track'),examNumber:f.get('examNumber'),revision:state.application?.revision||0});
+  await api('apply',{name:f.get('name'),track:f.get('track'),examNumber:f.get('examNumber'),revision:state.application?.revision||0});
   await refresh();
  });
 });
