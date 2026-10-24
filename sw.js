@@ -1,6 +1,6 @@
-const CACHE_NAME = "outing-auth-app-v519-simple-registration";
+const CACHE_NAME = "outing-auth-app-v520-navigation-speed";
 const APP_SHELL = [
-  "/interview-prep.js?v=20261023-pa8",
+  "/interview-prep.js?v=20261024-navigation-speed",
   "/interview-app.css?v=20261023-pa8",
   "/interview-preassignments.js?v=20261023-pa8",
   "/interview-core25-summaries.js?v=20261023-pa8",

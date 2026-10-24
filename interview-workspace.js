@@ -1,4 +1,4 @@
-import {mountInterviewAI} from './interview-ai-ui.js?v=20261021-app';
+import {mountInterviewAI} from './interview-ai-ui.js?v=20261024-navigation-speed';
 import {mountLife} from './interview-life-ui.js?v=20261021-compact-basic-followup-entry';
 import {mountWriting} from './interview-writing-ui.js?v=20261021-rounds';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261021-direct-answers';
@@ -12,7 +12,7 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
  host.className='ip-root ip-portal ip-workspace';
  host.innerHTML='<div data-workspace-content></div>';
  const contentHost=host.querySelector('[data-workspace-content]');
- let data,page=menus.some(m=>m[0]===initialPage)?initialPage:'db',area=initialArea,child=null,destroyed=false,busy=false,generation=0,ai=null,aiBusy=false;
+ let page=menus.some(m=>m[0]===initialPage)?initialPage:'db',area=initialArea,child=null,destroyed=false,busy=false,generation=0,ai=null,aiBusy=false;
  const editorRequest=async(action,payload)=>{
   const result=await request(action,payload);
   if(['life_save','note_save'].includes(action)&&!destroyed)await ai?.refreshAvailability();
@@ -93,7 +93,8 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
   area=e.target.value;onPageChange(page,area);await render();
  }
  try{
-  data=await request('bootstrap');if(!areas.some(([id])=>area==='life:'+id))area='diagnosis';await render();
+  // Each editor loads and authorizes its own data; the workspace needs no bootstrap.
+  if(!areas.some(([id])=>area==='life:'+id))area='diagnosis';await render();
  }
  catch{host.innerHTML='<p role="alert">나의 DB를 불러오지 못했습니다. 페이지를 새로고침해주세요.</p>';}
  return {canLeave,destroy(){destroyed=true;++generation;ai?.destroy();child?.destroy();host.removeEventListener('click',onClick);host.removeEventListener('change',onChange);host.removeEventListener('input',invalidate,true);host.removeEventListener('change',invalidate,true);host.removeEventListener('click',invalidate,true);}};

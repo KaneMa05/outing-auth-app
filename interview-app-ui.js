@@ -1,4 +1,4 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261023-pa8';
+import {mountWorkspace} from './interview-workspace.js?v=20261024-navigation-speed';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'⌂',db:'▤',writing:'✎',mock:'◎',my:'○'};
@@ -47,7 +47,8 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
     if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else{
     // Mock navigation needs no bootstrap data. Live access is checked by its own API.
-    const data=route.tab==='mock'?null:await request('bootstrap');
+    const [data,life,writing]=route.tab==='mock'?[]:await Promise.all(
+     route.tab==='home'?[request('bootstrap'),request('life_get'),request('writing_list')]:[request('bootstrap')]);
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
      box.innerHTML=mockScreen();
@@ -69,8 +70,6 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      const m=data.member||{};
      box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><section class="ip-panel">${onExit?'<button class="ip-app-link" type="button" data-app-exit>기존 반으로 전환<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
     }else{
-     const [life,writing]=await Promise.all([request('life_get'),request('writing_list')]);
-     if(destroyed||ticket!==generation)return;
      const notes=data.notes||[],writings=writing.writings||[],topics=data.topics||[];
      const filled=topics.filter(t=>notes.some(n=>n.topic_id===t.id&&Object.values(n.fields||{}).some(v=>String(v).trim()))).length;
      const feedback=[...(life.profile?.feedback?[{label:'기본 이력',tab:'db',area:'life:basic',text:life.profile.feedback}]:[]),...notes.filter(n=>n.feedback&&topics.some(t=>t.id===n.topic_id)).map(n=>({label:topics.find(t=>t.id===n.topic_id).title,tab:'db',area:'note:'+n.topic_id,text:n.feedback})),...writings.filter(w=>w.feedback).map(w=>({label:pages[w.kind]||'작성 답변',tab:'writing',page:w.kind,text:w.feedback}))];

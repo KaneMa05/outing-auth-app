@@ -92,18 +92,18 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
    </details>`:''}</section>`;
   host.querySelectorAll('[data-ai-answer]').forEach(n=>{n.textContent=items[Number(n.dataset.aiAnswer)].result.answer;});
  }
- async function run(task){
+ async function run(task,{lockEditor=true}={}){
   if(busy||destroyed)return;
-  busy=true;onBusy(true);render();
+  busy=true;if(lockEditor)onBusy(true);render();
   try{await task();}
   catch(e){if(!destroyed){notice=messages[e.code||e.message]||'요청을 처리하지 못했습니다. 작성 내용은 유지됩니다. 상태를 확인한 뒤 다시 시도해주세요.';failed=true;}}
-  finally{busy=false;if(!destroyed){onBusy(false);render();}}
+  finally{busy=false;if(!destroyed){if(lockEditor)onBusy(false);render();}}
  }
  async function refresh(){
-  const prep=await ai.prepare(kind);if(destroyed)return;
+  const [prep,previous]=await Promise.all([ai.prepare(kind),ai.requests()]);if(destroyed)return;
   availability(prep);
   if(kind==='core30'&&questionId)await onQuestionChange(questionId);
-  allHistory=(await ai.requests()).requests;
+  allHistory=previous.requests;
   history=allHistory.filter(r=>r.kind===kind&&(kind!=='core30'||r.questionId===questionId));
   if(destroyed)return;
   if(current||history.length)await ai.resume(current?.requestId||history[0].id);
@@ -144,7 +144,9 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
    if(history.length)await ai.resume(history[0].id);else {notice='선택한 질문의 초안을 만들어보세요.';failed=false;}
   });}
  };
- render();const ready=run(refresh);
+ // Reading AI status must not block typing or navigation. The legacy core30
+ // picker still locks because refresh may select a different writing question.
+ render();const ready=run(refresh,{lockEditor:kind==='core30'});
  return {ready,invalidate(){
    ++availabilityVersion;dbReady=false;pendingDB=true;render();
   },async refreshAvailability(){
