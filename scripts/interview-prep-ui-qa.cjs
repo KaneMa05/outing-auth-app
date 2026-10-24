@@ -425,6 +425,11 @@ let db,server,browser,ws,localWorker;
    await wait("currentRoute==='mypage'");
    await ev("renderInterviewPrepEntry.cache?.promise");
    assert.equal(await ev("document.querySelector('#app').textContent.includes('면접 준비')"),false);
+   assert.equal(await ev("document.querySelectorAll('.student-interview-registration').length"),1);
+   assert.equal(await ev("document.querySelector('.student-interview-registration h2').textContent"),'면접반 등록');
+   await ev("document.querySelector('.student-interview-registration').scrollIntoView({block:'center'})");
+   await screenshot('registration-'+category+'-mobile',390);
+   await screenshot('registration-'+category+'-desktop',1200);
  }
  assert.equal(interviewRequests,ordinaryRequestCount,'Ordinary students must not call interview API');
  await screenshot('ordinary-student-mypage',390);

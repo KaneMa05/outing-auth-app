@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v514-reviewed-release";
+const CACHE_NAME = "outing-auth-app-v515-interview-registration";
 const APP_SHELL = [
   "/interview-prep.js?v=20261023-pa8",
   "/interview-app.css?v=20261023-pa8",
@@ -51,7 +51,7 @@ const APP_SHELL = [
   "/curriculum-data.js?v=20260812-admin-builder",
   "/curriculum-admin.js?v=20260828-editable-stage-title",
   "/criminal-law-ox-admin.js?v=20261001-pass-only",
-  "/app.js?v=20261024-reviewed-release",
+  "/app.js?v=20261024-interview-registration",
   "/data-analytics-admin.js?v=20261001-analytics",
   "/data-analytics-admin.css?v=20261001-analytics",
   "/criminal-law-ox-admin.css?v=20260922-ox-recipient-selection",

@@ -4480,6 +4480,15 @@ function renderStudentMypage() {
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentOtherSettingsCard(),
+    button("", "student-history-button-card student-settings-link student-interview-registration", "button", () => {
+      window.location.assign(isStandaloneStudentApp() ? "/interview?app=1" : "/interview");
+    }, [
+      el("div", { className: "student-history-head" }, [
+        el("h2", {}, "면접반 등록"),
+        el("span", {}, "수강 신청 및 등록 상태 확인"),
+      ]),
+      el("span", { className: "student-settings-chevron", ariaHidden: "true" }, "›"),
+    ]),
     typeof renderInterviewPrepEntry === "function" ? renderInterviewPrepEntry() : null,
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
     renderStudentDeviceRegistrationCard(),
