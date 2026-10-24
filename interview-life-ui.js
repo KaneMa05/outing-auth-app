@@ -1,10 +1,10 @@
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
-import {basicFields,identityFields,identityGenders,emptyBasic} from './client/interview-basic-fields.js?v=20261024-basic-save';
+import {basicFields,identityFields,identityGenders,emptyBasic,schoolStatuses,basicFieldText,normalizeBirthDate,validBirthDate} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {mountLifeFollowup} from './interview-life-followup-ui.js?v=20261021-followup-entry';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={basic:'기본 정보',qualifications:'자격·어학',affiliations:'소속 이력',awards:'수상·성과',experiences:'핵심 경험'};
 const schema={
-  qualifications:[['type','구분 (자격·어학·기타)'],['date','취득·예정 시기'],['name','자격·면허·어학명'],['issuer','발급기관'],['effort','어떤 노력을 통해 취득했나요?']],
+  qualifications:[['type','구분'],['date','취득·예정 시기'],['name','자격·면허·어학명'],['effort','어떤 노력을 통해 취득했나요?']],
   affiliations:[['type','소속 구분'],['name','소속명'],['period','기간 (시작~종료 또는 현재)'],['role','직책·역할'],['activities','주요 담당 업무·활동']],
   awards:[['date','수상·성과 시기'],['name','대회·프로젝트·성과명'],['issuer','수여 기관'],['rank','수상 등급'],['contribution','본인 기여도 % (선택, 0~100)'],['action','본인이 직접 한 일']],
   experiences:[['age','당시 나이 (세, 필수)'],['satisfaction','만족도 (−25~+25점)'],['title','키워드'],['content','내용'],['appeal','면접관에게 어필할 점']],
@@ -56,28 +56,38 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
   function satisfactionInput(row,readonly=false){
     return `<input type="number" min="-25" max="25" step="1" ${readonly?'readonly':''} data-life-field="satisfaction" data-row="${esc(row.id)}" placeholder="−25~+25" value="${esc(row.satisfaction)}">`;
   }
+  function qualificationTypeInput(row){
+    const types=['자격·면허','어학','기타'],value=row.type||'';
+    return `<select data-life-field="type" data-row="${esc(row.id)}"><option value="">선택해주세요</option>${value&&!types.includes(value)?`<option value="${esc(value)}" selected>${esc(value)} (기존 입력)</option>`:''}${types.map(type=>`<option value="${type}" ${value===type?'selected':''}>${type}</option>`).join('')}</select>`;
+  }
+  function qualificationLabel(row,key,fallback){
+    const labels=isLanguage(row)?{date:'응시·예정 시기',name:'시험명',effort:'어떻게 준비했나요?'}:row.type==='자격·면허'?{name:'자격·면허명'}:row.type==='기타'?{date:'취득·참여 시기',name:'활동·성과명',effort:'어떤 준비와 노력을 했나요?'}:{};
+    return labels[key]||fallback;
+  }
   function rowView(row,index,id=section){
     if(id==='experiences')row=experienceText(row);
     const readonly=id==='experiences'&&!editingExperiences.has(row.id);
     return `<article class="ip-panel" data-life-row="${esc(row.id)}"><div class="ip-row"><h4>${index+1}. ${esc(row.title||row.name||titles[id])}</h4>${!admin?`<div>${button('위로','up',`data-row="${esc(row.id)}" ${index===0?'disabled':''}`)} ${button('삭제','remove',`data-row="${esc(row.id)}"`)}</div>`:''}</div>
-      ${schema[id].map(([key,label])=>admin?`<h4>${esc(label)}</h4><p class="ip-life-text">${esc(row[key]||'미작성')}</p>`:
-        `<label ${id==='qualifications'&&key==='issuer'?`data-qualification-issuer ${isLanguage(row)?'hidden':''}`:''}>${esc(label)}${key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>`).join('')}
+      ${schema[id].map(([key,label])=>[key,id==='qualifications'?qualificationLabel(row,key,label):label]).map(([key,label])=>admin?`<h4>${esc(label)}</h4><p class="ip-life-text">${esc(row[key]||'미작성')}</p>`:
+        `<label><span data-life-label="${key}">${esc(label)}</span>${id==='qualifications'&&key==='type'?qualificationTypeInput(row):key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>`).join('')}
       ${id==='experiences'&&!admin?`<div class="ip-life-toolbar">${button('내용 수정','edit-experience',`data-row="${esc(row.id)}" ${readonly?'':'disabled'}`)}${followupButton(row.id)}${button('저장','save-experience',`data-row="${esc(row.id)}" ${readonly?'disabled':''}`)}<span data-experience-state="${esc(row.id)}" role="status">${rowState(row.id)}</span>${followupEnabled&&followupProgress[row.id]?`<span class="ip-help">답변 ${followupProgress[row.id].answered}개 저장됨</span>`:''}</div><p class="ip-help">수정한 내용은 저장 버튼을 눌러야 반영됩니다.${followupEnabled?' 추가 질문에서는 이 경험의 상황·선택 이유·행동을 더 자세히 적을 수 있습니다.':''}</p>`:''}
       </article>`;
   }
   function identityView(){
-    const today=new Date(),maxDate=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
     return `<div class="ip-basic-grid ip-identity-fields">${identityFields.map(([key,label])=>{
       const value=content.basicInfo?.[key]?.text||'';
       if(admin)return `<div><h4>${label}</h4><p class="ip-life-text">${esc(key==='gender'?(identityGenders.find(([id])=>id===value)?.[1]||'미작성'):value||'미작성')}</p></div>`;
       const attrs=`id="ip-basic-${key}" data-basic-field="${key}" data-identity-field="${key}"`;
-      return `<div class="ip-basic-field"><label for="ip-basic-${key}">${label}</label>${key==='gender'?`<select ${attrs}><option value="">선택해주세요</option>${identityGenders.map(([id,title])=>`<option value="${id}" ${value===id?'selected':''}>${title}</option>`).join('')}</select>`:`<input ${attrs} type="${key==='birthDate'?'date':'text'}" ${key==='birthDate'?`min="0001-01-01" max="${maxDate}" autocomplete="bday"`:'maxlength="100" autocomplete="name" placeholder="이름 입력"'} value="${esc(value)}">`}</div>`;
+      return `<div class="ip-basic-field"><label for="ip-basic-${key}">${label}</label>${key==='gender'?`<select ${attrs}><option value="">선택해주세요</option>${identityGenders.map(([id,title])=>`<option value="${id}" ${value===id?'selected':''}>${title}</option>`).join('')}</select>`:`<input ${attrs} type="text" ${key==='birthDate'?`inputmode="numeric" maxlength="10" autocomplete="bday" placeholder="예: 20000315" aria-describedby="ip-birth-help"`:'maxlength="100" autocomplete="name" placeholder="이름 입력"'} value="${esc(key==='birthDate'?value.replaceAll('-',''):value)}">`}${key==='birthDate'?'<span id="ip-birth-help" class="ip-help">생년월일 8자리를 입력해주세요.</span>':''}</div>`;
     }).join('')}</div>`;
+  }
+  function schoolStatusView(value){
+    return `<fieldset class="ip-school-status"><legend>학적 상태</legend>${schoolStatuses.map(([id,label])=>`<label><input type="radio" name="ip-school-status" data-school-status value="${id}" ${value.status===id?'checked':''} ${value.none?'disabled':''}>${label}</label>`).join('')}</fieldset>`;
   }
   function sectionView(id){
     return `<div data-life-section="${id}">${id==='basic'?`<section class="ip-panel"><h3>지원자 기본 정보</h3><p>지원 직렬: <strong>${esc(data.member.track)}</strong> · 수험번호: ${esc(data.member.exam_number)}</p>
       ${identityView()}
-      ${admin?'':'<div class="ip-basic-grid">'}${basicFields.map(([key,label])=>{const value=content.basicInfo?.[key]||{text:'',none:false},short=['school','major','clubs','role'].includes(key);return admin?`<h4>${label}</h4><p class="ip-life-text">${esc(value.none?'해당 없음':value.text||'미작성')}</p>`:`<div class="ip-basic-field" ${short?'data-basic-short':''}><div class="ip-row"><label for="ip-basic-${key}">${label}</label><label class="ip-basic-none"><input type="checkbox" data-basic-none="${key}" ${value.none?'checked':''}> 해당 없음</label></div><textarea id="ip-basic-${key}" data-basic-field="${key}" rows="${short?1:3}" maxlength="2000" ${value.none?'disabled':''} placeholder="${label} 입력">${esc(value.text)}</textarea></div>`;}).join('')}${admin?'':'</div>'}
+      ${admin?'':'<div class="ip-basic-grid">'}${basicFields.map(([key,label])=>{const value=content.basicInfo?.[key]||{text:'',none:false},short=['school','major','clubs','role'].includes(key);return admin?`<h4>${label}</h4><p class="ip-life-text">${esc(basicFieldText(key,value)||'미작성')}</p>`:`<div class="ip-basic-field" ${short?'data-basic-short':''}><div class="ip-row"><label for="ip-basic-${key}">${label}</label><label class="ip-basic-none"><input type="checkbox" data-basic-none="${key}" ${value.none?'checked':''}> 해당 없음</label></div><textarea id="ip-basic-${key}" data-basic-field="${key}" rows="${short?1:3}" maxlength="2000" ${value.none?'disabled':''} placeholder="${key==='school'?'예: ○○고등학교, ○○대학교':label+' 입력'}">${esc(value.text)}</textarea>${key==='school'?schoolStatusView(value):''}</div>`;}).join('')}${admin?'':'</div>'}
       ${content.background?`<details class="ip-legacy-background"><summary>이전에 작성한 소개</summary><p class="ip-life-text">${esc(content.background)}</p><p class="ip-help">기존 내용은 보관됩니다. 위 항목별 입력을 저장하면 새 내용이 초안에 사용됩니다.</p></details>`:''}</section>
       ${combined?'':timeline()}`:
       `<div class="ip-row"><h3>${id==='experiences'&&combined?'경험·인생그래프':titles[id]} · ${currentRows(id).length}개</h3>${!admin?button('항목 추가','add',content.none.includes(id)?'disabled':''):''}</div>
@@ -155,6 +165,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
   function add(competencyId){
     if(currentRows().length>=40||Object.keys(schema).reduce((n,k)=>n+content[k].length,0)>=80){tell('영역별 40개, 전체 80개까지 추가할 수 있습니다.',true);return;}
     const row=Object.fromEntries(schema[section].map(([key])=>[key,'']));
+    if(section==='qualifications')row.issuer=''; // Preserve the existing storage contract without an input field.
     row.id=crypto.randomUUID();
     if(section==='experiences'){row.competencyIds=competencyId?[competencyId]:[];row.satisfaction='';editingExperiences.add(row.id);}
     content[section].push(row);mark();render();
@@ -164,7 +175,10 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     if(blocked){tell('입력 내용을 보관한 뒤 최신 내용을 불러와 충돌을 해결해주세요.',true);return false;}
     if(busy||destroyed)return false;
     if(!admin){
-      for(const input of host.querySelectorAll('[data-identity-field]'))if(!input.reportValidity())return false;
+      for(const input of host.querySelectorAll('[data-identity-field]')){
+        if(input.dataset.identityField==='birthDate')input.setCustomValidity(validBirthDate(input.value)?'':'생년월일 8자리를 확인해주세요. 실제 날짜이며 오늘 또는 그 이전이어야 합니다.');
+        if(!input.reportValidity())return false;
+      }
       for(const [i,r] of content.experiences.entries()){
         if(experienceId&&r.id!==experienceId)continue;
         const text=experienceText(r);
@@ -214,17 +228,19 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     e.stopPropagation();if(busy||destroyed)return;
     if(e.target.readOnly)return;
     selectEventSection(e.target);
-    if(e.target.matches('[data-basic-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField;content.basicInfo[key]??={text:'',none:false};content.basicInfo[key].text=e.target.value;mark();}
+    if(e.target.matches('[data-basic-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField;content.basicInfo[key]??={text:'',none:false};content.basicInfo[key].text=key==='birthDate'?normalizeBirthDate(e.target.value):e.target.value;if(key==='birthDate')e.target.setCustomValidity('');mark();}
     if(e.target.matches('[data-life-field]')){
-      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='qualifications'&&e.target.dataset.lifeField==='type'){const issuer=e.target.closest('[data-life-row]').querySelector('[data-qualification-issuer]');if(issuer)issuer.hidden=isLanguage(row);}if(section==='experiences')updateGraph();}
+      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='qualifications'&&e.target.dataset.lifeField==='type'){const article=e.target.closest('[data-life-row]');for(const [key,label]of schema.qualifications){const node=article.querySelector(`[data-life-label="${key}"]`);if(node)node.textContent=qualificationLabel(row,key,label);}}if(section==='experiences')updateGraph();}
     }
     if(e.target.matches('[data-life-feedback]'))mark();
   };
   host.onchange=e=>{
     e.stopPropagation();if(busy||destroyed)return;
     selectEventSection(e.target);
-    if(e.target.matches('[data-identity-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField;content.basicInfo[key]??={text:'',none:false};if(content.basicInfo[key].text!==e.target.value){content.basicInfo[key].text=e.target.value;mark();}}
-    if(e.target.matches('[data-basic-none]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicNone;content.basicInfo[key].none=e.target.checked;mark();const input=host.querySelector(`[data-basic-field="${key}"]`);if(input)input.disabled=e.target.checked;}
+    if(e.target.matches('select[data-life-field]'))host.oninput(e);
+    if(e.target.matches('[data-school-status]')&&e.target.checked){content.basicInfo??=emptyBasic();content.basicInfo.school??={text:'',none:false};if(!content.basicInfo.school.none&&schoolStatuses.some(([id])=>id===e.target.value)){content.basicInfo.school.status=e.target.value;mark();}}
+    if(e.target.matches('[data-identity-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField,value=key==='birthDate'?normalizeBirthDate(e.target.value):e.target.value;content.basicInfo[key]??={text:'',none:false};if(content.basicInfo[key].text!==value){content.basicInfo[key].text=value;mark();}if(key==='birthDate'){if(validBirthDate(value))e.target.value=value.replaceAll('-','');e.target.setCustomValidity(validBirthDate(value)?'':'생년월일 8자리를 확인해주세요. 실제 날짜이며 오늘 또는 그 이전이어야 합니다.');}}
+    if(e.target.matches('[data-basic-none]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicNone;content.basicInfo[key]??={text:'',none:false};content.basicInfo[key].none=e.target.checked;mark();const input=host.querySelector(`[data-basic-field="${key}"]`);if(input)input.disabled=e.target.checked;if(key==='school')host.querySelectorAll('[data-school-status]').forEach(n=>n.disabled=e.target.checked);}
     if(e.target.matches('[data-life-none]')){content.none=content.none.filter(k=>k!==section);if(e.target.checked)content.none.push(section);mark();render();}
     if(e.target.matches('[data-life-feedback-status]'))mark();
   };

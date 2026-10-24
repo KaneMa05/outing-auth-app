@@ -1,11 +1,10 @@
-const CACHE_NAME = "outing-auth-app-v530-mock-coming-soon";
+const CACHE_NAME = "outing-auth-app-v531-school-status";
 const APP_SHELL = [
   "/app-startup.css?v=20261024-startup",
   "/app-startup.js?v=20261024-startup",
-  "/interview-prep.js?v=20261024-mock-coming-soon",
+  "/interview-prep.js?v=20261024-school-status",
   "/app.js?v=20261024-startup",
-  "/interview-prep.js?v=20261024-basic-save",
-  "/interview-app.css?v=20261024-mock-coming-soon",
+  "/interview-app.css?v=20261024-school-status",
   "/interview-preassignments.js?v=20261023-pa8",
   "/interview-core25-summaries.js?v=20261023-pa8",
   "/interview-preassignments.css?v=20261023-pa8",

@@ -31,6 +31,7 @@ let db,server,browser,ws,localWorker;
   await db.exec(fs.readFileSync('supabase/migrations/20261021085056_interview_life_followup_entry_state.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261023052344_interview_applicant_identity.sql','utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20261024130513_simplify_basic_history_save.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261024133818_interview_school_status.sql','utf8'));
  await db.exec("insert into students(id,name) values('18120','테스트 학생')");
  await db.query("update students set password_hash=$1 where id='18120'",[webAuth.hash('demo2026!!')]);
  await db.exec(fs.readFileSync('supabase/seeds/interview-corpus.sql','utf8'));

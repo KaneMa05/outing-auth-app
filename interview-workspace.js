@@ -1,7 +1,7 @@
 import {mountInterviewAI} from './interview-ai-ui.js?v=20261024-navigation-speed';
-import {mountLife} from './interview-life-ui.js?v=20261024-basic-save';
+import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
-import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261021-direct-answers';
+import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const areas=[['basic','기본 이력'],['experiences','인생그래프']];
 const menus=[['db','나의 DB 정리하기'],['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기'],['core','핵심 25제 작성하기']];
@@ -77,7 +77,7 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
  host.addEventListener('click',onClick);
  host.addEventListener('change',onChange);
  const invalidate=e=>{
-  if(e.type!=='click'&&e.target.matches('[data-basic-field],[data-basic-none],[data-life-field],[data-life-none],[data-life-tag],[data-note-field],[data-copy]')||
+  if(e.type!=='click'&&e.target.matches('[data-basic-field],[data-school-status],[data-basic-none],[data-life-field],[data-life-none],[data-life-tag],[data-note-field],[data-copy]')||
    e.type==='click'&&e.target.closest('[data-life-action="add"],[data-life-action="remove"],[data-life-action="from-guide"],[data-life-action="up"]'))ai?.invalidate();
  };
  host.addEventListener('input',invalidate,true);host.addEventListener('change',invalidate,true);host.addEventListener('click',invalidate,true);

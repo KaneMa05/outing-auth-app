@@ -11,6 +11,12 @@ export function mountDiagnosis(host,{request,initialTopic='',onLife=()=>{}}){
  let savedAnswers={},answerDraft=[],answerDirty=false,answerBlocked=false,answerLoadFailed=false;
  host.className='ip-diagnosis';
  const rows=()=>life?.profile?.content?.experiences||[];
+ const writtenRows=()=>rows().filter(row=>experienceText(row).content?.trim());
+ function introduction(){
+  items=[];
+  const count=writtenRows().length;
+  host.innerHTML=`<section class="ip-panel"><h3>인생그래프 진단하기</h3><p>${count?`내용을 작성한 경험 ${count}개가 저장되어 있습니다.`:'인생그래프에 경험을 먼저 작성해주세요.'}</p><p class="ip-help">${count?'아래 버튼을 누르면 저장한 경험에서 13가지 인성 소재의 근거를 확인합니다.':'경험의 내용과 어필할 점을 작성하고 저장한 뒤 진단할 수 있습니다. 아직 작성하지 않은 내용은 보완 대상으로 표시하지 않습니다.'}</p><div class="ip-life-toolbar"><button type="button" class="ip-btn ip-primary" data-diagnosis-start ${count?'':'disabled'}>인생그래프 진단하기</button><button type="button" class="ip-btn" data-diagnosis-life>${count?'인생그래프 확인·수정':'인생그래프 작성하기'}</button></div></section>`;
+ }
  const tell=(text,error=false)=>{const node=host.querySelector('[data-diagnosis-message]');if(node){node.textContent=text;node.dataset.error=String(error);}};
  const canLeave=()=>!busy&&(!(dirty||answerDirty)||confirm('저장하지 않은 답변 또는 경험 수정이 있습니다. 버리고 이동할까요?'));
  const beforeUnload=e=>{if(dirty||answerDirty||busy){e.preventDefault();e.returnValue='';}};
@@ -89,15 +95,16 @@ export function mountDiagnosis(host,{request,initialTopic='',onLife=()=>{}}){
   }catch(error){if(!destroyed){blocked=['revision_conflict','unauthorized','not_enrolled'].includes(error.code||error.message);tell(errors[error.code||error.message]||'저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해주세요.',true);}return false;}
   finally{busy=false;controls.forEach(([node,disabled])=>node.disabled=disabled);}
  }
- async function load(){
-  busy=true;host.innerHTML='<p role="status">인생그래프 경험을 진단하는 중…</p>';
+ async function load(run=false){
+  busy=true;host.innerHTML=`<p role="status">${run?'저장한 인생그래프를 진단하는 중…':'저장한 인생그래프를 확인하는 중…'}</p>`;
   try{
-   const result=await Promise.allSettled([request('life_get'),request('diagnosis_get')]);if(destroyed)return;
+   const result=await Promise.allSettled([request('life_get'),run?request('diagnosis_get'):Promise.resolve({answers:[]})]);if(destroyed)return;
    if(result[0].status==='rejected')throw result[0].reason;
    if(result[1].status==='rejected'&&['unauthorized','not_enrolled'].includes(result[1].reason?.code||result[1].reason?.message))throw result[1].reason;
    life=result[0].value;answerLoadFailed=result[1].status==='rejected'||!Array.isArray(result[1].value?.answers);
    savedAnswers=answerLoadFailed?{}:Object.fromEntries(result[1].value.answers.map(row=>[row.topic_id,row]));answerDirty=false;answerBlocked=false;
    editing=null;dirty=false;blocked=false;
+   if(!run||!writtenRows().length){introduction();return;}
    host.innerHTML='<div data-diagnosis-summary></div><section class="ip-panel" data-diagnosis-items></section><div data-diagnosis-evidence></div><div data-diagnosis-editor></div>';
    refresh();busy=false;select(items.some(item=>item.id===selected)?selected:[...items].sort((a,b)=>a.level-b.level)[0].id);
   }catch(error){if(!destroyed)host.innerHTML=`<section class="ip-panel"><p role="alert">${esc(errors[error.code||error.message]||'진단 자료를 불러오지 못했습니다. 다시 시도해주세요.')}</p><button type="button" class="ip-btn" data-diagnosis-retry>다시 시도</button></section>`;}
@@ -108,6 +115,7 @@ export function mountDiagnosis(host,{request,initialTopic='',onLife=()=>{}}){
  host.onclick=async e=>{
   const target=e.target.closest('button');if(!target||target.disabled||destroyed||busy)return;
   if(target.hasAttribute('data-diagnosis-life'))onLife();
+  else if(target.hasAttribute('data-diagnosis-start')){if(canLeave())await load(true);}
   else if(target.hasAttribute('data-diagnosis-answer-save'))await saveAnswers(Number(target.dataset.diagnosisAnswerSave));
   else if(target.hasAttribute('data-diagnosis-answers-save'))await saveAnswers();
   else if(target.hasAttribute('data-diagnosis-answers-reload')){

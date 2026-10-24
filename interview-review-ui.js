@@ -1,7 +1,7 @@
 import {mountWritingBoard} from './interview-writing-board.js?v=20261024-colors';
 import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
 import {getTopicQuestions} from './interview-prep-prompts.js';
-import {basicFields} from './client/interview-basic-fields.js?v=20261024-basic-save';
+import {basicFields,basicFieldText} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
 import {mountWriting,mountWritingHistory,writingFeedbackTitle} from './interview-writing-ui.js?v=20261024-colors';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -80,7 +80,7 @@ function mountStudentReview(host,{request,templates,canWrite=false}){
  }
  function dbRecords(){
   const profile=detail.profile,content=profile?.content;
-  const basicValues=content?.basicInfo?Object.fromEntries(basicFields.map(([k])=>[k,content.basicInfo[k]?.none?'해당 없음':content.basicInfo[k]?.text||''])):null;
+  const basicValues=content?.basicInfo?Object.fromEntries(basicFields.map(([k])=>[k,basicFieldText(k,content.basicInfo[k])])):null;
   let html=profile?record('기본 정보·주요 이력',profile,basicValues?textFields(basicFields,basicValues):textFields([['background','주요 이력·전공']],content)):'<p class="ip-help">나의 DB에 저장한 이력이 없습니다.</p>';
   if(profile)for(const [key,title] of Object.entries(sections)){
    const rows=key==='experiences'?(content[key]||[]).map(experienceText):content[key]||[];
