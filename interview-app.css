@@ -11,11 +11,11 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-mark{display:grid;place-items:center;width:40px;height:44px;border-radius:12px 12px 12px 3px;background:#173b51;color:white;font-size:24px;font-weight:800}
 .ip-app-shell .ip-panel{margin-bottom:18px;border-color:#dfe7ed;border-radius:16px;padding:22px;background:white}
 .ip-app-shell .ip-panel h2{font-size:18px;margin:0 0 14px}
-.ip-app-welcome{padding:26px 24px;background:linear-gradient(120deg,#173b51,#265f6c);border-radius:20px;color:white;margin-bottom:18px}
-.ip-app-welcome small{color:#b7dadd;font-size:12px}.ip-app-welcome h2{font-size:26px;line-height:1.45;margin:12px 0;letter-spacing:-.04em}.ip-app-welcome p{font-size:13px;color:#d8e6ec;line-height:1.7}
+.ip-app-banner{display:block;width:100%;padding:0;margin:0 0 18px;border:0;background:transparent;cursor:pointer}
+.ip-app-banner:focus-visible{outline:3px solid #367b82;outline-offset:4px}
+.ip-app-banner img{display:block;width:100%;height:auto;border-radius:16px}
 .ip-app-link{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;background:transparent;border:0;border-bottom:1px solid #edf1f4;padding:16px 0;text-align:left;font:inherit;font-size:14px;color:#2b4759;cursor:pointer;line-height:1.5}
 .ip-app-link:last-child{border-bottom:0}.ip-app-link>span{font-size:24px;color:#8ba0ae}.ip-app-link:focus-visible,.ip-app-footer button:focus-visible{outline:3px solid #367b82;outline-offset:2px}
-.ip-app-welcome .ip-app-link{background:#fff;color:#173b51;border-radius:10px;padding:13px 16px;margin-top:20px;font-weight:700}
 .ip-app-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:white;border:1px solid #dfe7ed;border-radius:14px;margin-bottom:20px;padding:20px 4px;text-align:center}
 .ip-app-stats>div+div{border-left:1px solid #e7edf0}.ip-app-stats strong{display:block;font-size:25px;color:#235363}.ip-app-stats strong small{font-size:12px;color:#8295a1}.ip-app-stats span{display:block;font-size:11px;color:#6b808d;margin-top:6px}
 .ip-app-profile h2{margin-top:16px!important}.ip-app-profile dl{display:grid;grid-template-columns:90px 1fr;gap:14px;font-size:14px}.ip-app-profile dt{color:#7b8d99}.ip-app-profile dd{margin:0;text-align:right;overflow-wrap:anywhere}
@@ -63,3 +63,17 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 
 .ip-app-shell .ip-mock-coming-soon{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center}.ip-app-shell .ip-mock-coming-soon h2{margin:24px 0 12px;font-size:24px;color:#235363}.ip-app-shell .ip-mock-coming-soon p{margin:0;color:#607484;font-size:14px;line-height:1.8}
 
+
+.ip-notice-back{margin-bottom:18px}
+.ip-assignment-article{font-size:15px;line-height:1.85;overflow-wrap:anywhere}
+.ip-assignment-article header{padding-bottom:20px;border-bottom:1px solid #e2e9ef;margin-bottom:22px}
+.ip-app-shell .ip-assignment-article h2{margin:14px 0 8px;font-size:25px;line-height:1.4;color:#173b51}
+.ip-assignment-lead{color:#617889;margin:0}
+.ip-assignment-article section{margin-top:28px;padding-top:24px;border-top:1px solid #e2e9ef}
+.ip-assignment-article h3{font-size:18px;line-height:1.6;color:#173b51;margin:0 0 12px}
+.ip-assignment-article p{margin:0 0 14px}
+.ip-assignment-article ul{padding-left:22px;margin:12px 0}
+.ip-assignment-article li{margin-bottom:10px}
+.ip-assignment-article .ip-app-link{color:#235b63;font-weight:700}
+.ip-assignment-check{margin-top:28px;padding:20px;border-radius:12px;background:#edf4f8}
+.ip-assignment-check p:last-child{margin-bottom:0}

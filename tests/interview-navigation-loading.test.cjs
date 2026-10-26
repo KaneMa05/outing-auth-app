@@ -79,3 +79,29 @@ test('all interview functions use the database region without changing other app
  assert.equal(config.regions,undefined);assert.equal(config.functions['api/interview-preassignments.js'].maxDuration,240);
  assert.equal(config.functions['api/interview-live-socket.js'].maxDuration,800);
 });
+
+
+test('banner opens the assignment article without API reads and home returns to the dashboard',async()=>{
+ const calls=[],host=element(),c=load('interview-app-ui.js');
+ const view=await c.mountInterviewApp(host,{request:async action=>{calls.push(action);return {};}});
+ const box=host.querySelector('[data-app-content]');
+ assert.match(box.innerHTML,/data-app-notice="preassignments"/);
+ assert.doesNotMatch(box.innerHTML,/ip-app-welcome|이어서 작성하기/);
+ calls.length=0;
+ await host.listeners.get('click')({target:{closest:()=>({dataset:{appNotice:'preassignments'},hasAttribute:()=>false})}});
+ assert.deepEqual(calls,[]);
+ assert.match(box.innerHTML,/id="ip-assignment-title"/);
+ assert.match(box.innerHTML,/핵심 25제 인강 듣고 답변 작성 후 진단받기/);
+ await host.listeners.get('click')({target:{closest:()=>({dataset:{appTab:'home'},hasAttribute:()=>false})}});
+ assert.deepEqual(calls,['bootstrap','life_get','writing_list']);
+ assert.match(box.innerHTML,/data-app-notice="preassignments"/);
+ assert.doesNotMatch(box.innerHTML,/id="ip-assignment-title"/);
+ view.destroy();
+});
+
+test('assignment article can be reopened from its URL without loading student data',async()=>{
+ const host=element(),c=load('interview-app-ui.js',{location:{hash:'#interview-prep?tab=home&notice=preassignments'}});
+ const view=await c.mountInterviewApp(host,{request:async()=>{throw Error('article must not request student data');}});
+ assert.match(host.querySelector('[data-app-content]').innerHTML,/id="ip-assignment-title"/);
+ view.destroy();
+});
