@@ -169,12 +169,14 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const checks=(name,rows,values)=>`<div class="ip-checks">${rows.map(([id,label])=>`<label><input type="checkbox" name="${name}" value="${esc(id)}" ${values.includes(id)?'checked':''}> ${esc(label)}</label>`).join('')}</div>`;
   const topicChecks=values=>checks('topicIds',catalog.topics.filter(t=>t.active).map(t=>[t.id,t.title]),values);
   const trackChecks=values=>checks('tracks',tracks.map(t=>[t,t]),values);
+  const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','보완 요청']]
+    .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
   function shell(){
     life?.destroy();life=null;
     const counts=catalog.categoryCounts?.[category]||{total:0,draft:0,published:0};
     host.innerHTML=`<nav class="ip-tabs ip-category-tabs" aria-label="면접 상위 카테고리">${[['personality','인성'],['job','직무']].map(([key,label])=>btn(label,'category',`data-category="${key}" ${key===category?'aria-current="page"':''}`)).join('')}</nav>
-    <div class="ip-hero"><div class="ip-eyebrow">INTERVIEW MANAGEMENT</div><h2>${tab==='dashboard'?'면접반 홈':category==='personality'?'인성 준비 관리':'직무 기출 관리'}</h2><p>${category==='personality'?'인성 기출과 학생 개인 경험·가치관을 관리합니다.':'직무 기출을 별도로 관리합니다. 학생 개인 준비 노트와 작성률에는 포함하지 않습니다.'}</p><div class="ip-summary"><span><strong>${counts.total}</strong>질문</span><span><strong>${counts.draft}</strong>검토 대기</span><span><strong>${counts.published}</strong>공개</span></div></div>
-    <div class="ip-row"><p>학생 이용: <strong>${catalog.enabled?'등록 학생에게 개방':'준비 중'}</strong></p>${btn(catalog.enabled?'이용 중지':'등록 학생에게 개방','enabled',canWrite?'':'disabled')}</div>
+    ${tab==='applications'?`<div class="ip-hero"><div class="ip-eyebrow">ENROLLMENT MANAGEMENT</div><h2>수강 신청·승인 현황</h2><p>면접반 수강생과 신청 현황을 확인하고, 수강 신청을 검토·승인하세요.</p><div class="ip-summary" data-application-summary role="status" aria-label="전체 수강 신청 현황">${applicationSummary()}</div><p class="ip-help">수강생 수는 이용 중지·기간 만료를 제외한 현재 이용 가능한 등록 학생 수입니다.</p></div>`:`<div class="ip-hero"><div class="ip-eyebrow">INTERVIEW MANAGEMENT</div><h2>${tab==='dashboard'?'면접반 홈':category==='personality'?'인성 준비 관리':'직무 기출 관리'}</h2><p>${category==='personality'?'인성 기출과 학생 개인 경험·가치관을 관리합니다.':'직무 기출을 별도로 관리합니다. 학생 개인 준비 노트와 작성률에는 포함하지 않습니다.'}</p><div class="ip-summary"><span><strong>${counts.total}</strong>질문</span><span><strong>${counts.draft}</strong>검토 대기</span><span><strong>${counts.published}</strong>공개</span></div></div>
+    <div class="ip-row"><p>학생 이용: <strong>${catalog.enabled?'등록 학생에게 개방':'준비 중'}</strong></p>${btn(catalog.enabled?'이용 중지':'등록 학생에게 개방','enabled',canWrite?'':'disabled')}</div>`}
     <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('핵심 25제 과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
@@ -236,8 +238,12 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='applications'){
+      const summary=host.querySelector('[data-application-summary]');
+      summary.innerHTML=applicationSummary();
       const r=await request('admin_applications',{...filter,status:filter.status??'pending',page});
       if(destroyed||version!==loadVersion)return;
+      summary.innerHTML=applicationSummary(r.summary);
+      if(!r.summary)notify(host,'전체 현황을 불러오지 못했습니다. 신청 목록은 아래에서 확인할 수 있습니다.',true);
       list=r.applications;
       const labels={pending:'승인 대기',approved:'승인 완료',rejected:'보완 요청'};
       box.innerHTML=`<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
@@ -388,7 +394,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       else if(a==='application-edit'){
         selected=list.find(x=>x.id===target.dataset.id);
         editor(`<h3>면접반 신청 검토</h3><p>${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected">보완 요청</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>학생에게 전달할 안내 (보완 요청 시 필수)<textarea name="reviewNote" maxlength="2000"></textarea></label><button class="ip-btn ip-primary" data-write>검토 결과 저장</button>${btn('닫기','close')}</form>`);
+        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected">보완 요청</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>학생에게 전달할 안내 (보완 요청 시 필수)<textarea name="reviewNote" maxlength="2000"></textarea></label><button class="ip-btn ip-primary" data-write>승인</button>${btn('닫기','close')}</form>`);
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);
@@ -423,6 +429,9 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     }catch(e){notify(host,message(e),true);}finally{busy=false;submit.disabled=false;}
   };
   host.onchange=e=>{
+    if(e.target.matches('[data-application-review] [name=status]')){
+      e.target.closest('form').querySelector('[data-write]').textContent=e.target.value==='approved'?'승인':'보완 요청';
+    }
     if(e.target.closest('[data-editor]'))dirty=true;
     if(e.target.matches('[data-question-form] [name=category]'))host.querySelector('[data-topic-checks]').hidden=e.target.value==='job';
     if(e.target.matches('[data-analysis-form] [name=elementIds]')){

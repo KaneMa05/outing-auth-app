@@ -235,6 +235,33 @@ let db,server,browser,ws,localWorker;
  };
  const base='http://127.0.0.1:'+server.address().port;
  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
+ if(process.argv.includes('--applications-only')){
+  await db.exec("insert into ip_owners(id,name) values('application-qa','신청 확인 학생'); insert into ip_applications(owner_id,name,track,exam_number) values('application-qa','신청 확인 학생','공채','QA-001');");
+  await send('Page.navigate',{url:base+'/admin'});await wait('window.ready===true');
+  await send('Page.navigate',{url:base+'/teacher.html#interview-prep-admin?section=applications'});
+  await wait("!!document.querySelector('[data-ip=application-edit]')");
+  const counts=()=>ev("[...document.querySelectorAll('[data-application-summary] strong')].map(n=>Number(n.textContent))");
+  assert.deepEqual(await counts(),[1,1,0,0]);
+  assert.equal(await ev("!!document.querySelector('[data-ip=enabled]')"),false);
+  assert.equal(await ev("document.querySelector('.ip-hero').innerText.includes('검토 대기')"),false);
+  await screenshot('admin-applications-desktop',1440);
+  await screenshot('admin-applications-mobile',390);
+  await click('[data-ip=application-edit]');
+  assert.equal(await ev("document.querySelector('[data-application-review] [data-write]').textContent"),'승인');
+  await ev("(()=>{const s=document.querySelector('[data-application-review] [name=status]');s.value='rejected';s.dispatchEvent(new Event('change',{bubbles:true}));})()");
+  assert.equal(await ev("document.querySelector('[data-application-review] [data-write]').textContent"),'보완 요청');
+  await ev("(()=>{const s=document.querySelector('[data-application-review] [name=status]');s.value='approved';s.dispatchEvent(new Event('change',{bubbles:true}));})()");
+  await ev("document.querySelector('[data-application-review]').scrollIntoView({block:'center',behavior:'instant'})");
+  await screenshot('admin-application-approve-mobile',390);
+  await submit('[data-application-review]');
+  await wait("document.querySelector('[data-message]').textContent==='저장했습니다.'");
+  assert.deepEqual(await counts(),[2,0,1,0]);
+  await ev("document.querySelector('[data-filter] [name=status]').value='approved'");
+  await submit('[data-filter]');await wait("!!document.querySelector('[data-content] article')");
+  assert.deepEqual(await counts(),[2,0,1,0]);
+  assert.equal(exceptions.length,0,JSON.stringify(exceptions));
+  console.log('PASS application UI: desktop/mobile, approval labels and summary refresh after approval/filter');return;
+ }
  if(process.argv.includes('--writing-board-only')){
   for(const [kind,text] of [['motivation','국민의 생명과 안전을 지키는 일에 기여하고자 지원했습니다.'],['public_service','공정한 기준과 책임 있는 행동으로 신뢰를 쌓겠습니다.']])await invoke('writing_save',{type:'student',id:'18120'},{kind,itemId:'',revision:0,status:'submitted',text});
   await send('Page.navigate',{url:base+'/admin'});await wait('window.ready===true');
