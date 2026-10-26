@@ -11,9 +11,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await page.getByRole('heading',{name:'핵심 25제 작성하기',exact:true}).last().waitFor();await page.locator('[data-unit="core-25"]').waitFor();assert.equal(await page.locator('[data-unit^="core-"]').count(),25);assert.equal(await page.locator('[data-unit="other"]').count(),0);
   assert.equal(await page.locator('.ip-app-footer button').count(),5);assert.equal(await page.locator('[data-app-tab=preassignments],[data-workspace-page=preassignments]').count(),0);assert.equal(await page.getByRole('button',{name:/핵심 30제/}).count(),0);assert.doesNotMatch(await page.locator('.pa-root').innerText(),/교사 확인|보완 요청|확인 대기/);await shot('student-desktop');
   for(let i=1;i<=25;i++){
-   const id='core-'+String(i).padStart(2,'0');await page.locator(`[data-unit="${id}"]`).click();await page.getByRole('button',{name:'요약서 보기',exact:true}).waitFor();
-   assert.equal(await page.locator('[data-pa-controls] button').first().innerText(),'요약서 보기');
-   await page.getByRole('button',{name:'요약서 보기',exact:true}).click();await page.locator('[data-summary]:not([hidden])').waitFor();
+   const id='core-'+String(i).padStart(2,'0');await page.locator(`[data-unit="${id}"]`).click();await page.locator('[data-summary]:not([hidden])').waitFor();
+   assert.equal(await page.locator('[data-pa-controls] button').first().innerText(),'요약서 접기');
+   assert.equal(await page.locator('[data-pa=summary]').getAttribute('aria-expanded'),'true');
    assert.match(await page.locator('.pa-handout-kicker').innerText(),new RegExp('핵심인성 '+i+'번'));
    assert.equal(await page.locator('[data-summary] iframe').count(),0);assert.equal(await page.locator('.pa-handout-page img').count(),2);await page.waitForFunction(()=>[...document.querySelectorAll('.pa-handout-page img')].every(img=>img.complete&&img.naturalWidth>1000));assert.match(await page.locator('.pa-handout-page img').first().getAttribute('src'),new RegExp(id+'-'));assert.equal(await page.locator('.pa-handout-page').first().getAttribute('target'),'_blank');
    if(i===1)await shot('core25-summary-desktop');
@@ -21,11 +21,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
    await page.getByRole('button',{name:'과제 목록',exact:true}).click();
   }
   await page.locator('[data-unit="core-25"]').click();await page.locator('[data-field=f1]').fill('요약서를 열어도 유지할 답변');
+  await page.getByRole('button',{name:'요약서 접기',exact:true}).click();
   await page.getByRole('button',{name:'요약서 보기',exact:true}).click();await page.locator('[data-summary]:not([hidden])').waitFor();assert.equal(await page.locator('[data-field=f1]').inputValue(),'요약서를 열어도 유지할 답변');
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));await shot('core25-summary-mobile');
   await page.getByRole('button',{name:'요약서 닫기',exact:true}).click();assert.equal(await page.locator('[data-field=f1]').inputValue(),'요약서를 열어도 유지할 답변');await page.setViewportSize({width:1280,height:950});
   await page.locator('[data-field="f1"]').fill('팀원과 의견이 다르면 어떻게 하겠습니까?');
   await page.getByRole('button',{name:'임시저장',exact:true}).click();await page.getByText('임시저장했습니다.',{exact:false}).waitFor();
+  assert.equal(await page.locator('[data-summary]').isHidden(),true,'saving preserves manually collapsed summary');
   await page.request.post(server.origin+'/qa-fail-next',{data:{}});
   await page.locator('[data-field="f1"]').fill('실패 시에도 유지해야 할 학생 입력');await page.getByRole('button',{name:'임시저장',exact:true}).click();await page.getByText('처리하지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.locator('[data-field="f1"]').inputValue(),'실패 시에도 유지해야 할 학생 입력');
   await page.getByRole('button',{name:'임시저장',exact:true}).click();await page.getByText('임시저장했습니다.',{exact:false}).waitFor();

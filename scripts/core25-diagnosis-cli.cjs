@@ -3,13 +3,13 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{spawn}=require('node:child_process');
 const {INSTRUCTIONS,schema,VERSION}=require('../lib/preassignment-diagnosis.cjs');
 const {MODEL,EFFORT,ENGINE_VERSION}=require('../lib/core25-worker-config.cjs');
-function createProvider({executable=process.env.INTERVIEW_CODEX||'codex',runtimeDir=path.join(os.tmpdir(),'core25-diagnosis'),onEvent=()=>{},spawnProcess=spawn}={}){
+function createProvider({executable=process.env.INTERVIEW_CODEX||'codex',runtimeDir=path.join(os.tmpdir(),'core25-diagnosis'),onEvent=()=>{},spawnProcess=spawn,instructions=INSTRUCTIONS,outputSchema=schema,model=MODEL,effort=EFFORT}={}){
  fs.mkdirSync(runtimeDir,{recursive:true});
- const schemaPath=path.join(runtimeDir,'output.schema.json');fs.writeFileSync(schemaPath,JSON.stringify(schema));
+ const schemaPath=path.join(runtimeDir,'output.schema.json');fs.writeFileSync(schemaPath,JSON.stringify(outputSchema));
  const provider=(snapshot,{signal})=>new Promise((resolve,reject)=>{
   const cwd=fs.mkdtempSync(path.join(runtimeDir,'session-'));
   const env={};for(const key of ['PATH','Path','SystemRoot','WINDIR','COMSPEC','PATHEXT','USERPROFILE','HOME','APPDATA','LOCALAPPDATA','TEMP','TMP','CODEX_HOME','HTTPS_PROXY','HTTP_PROXY','NO_PROXY'])if(process.env[key])env[key]=process.env[key];
-  const args=['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--model',MODEL,'-c','model_reasoning_effort="'+EFFORT+'"','--json','--color','never','--cd',cwd,'--output-schema',schemaPath];
+  const args=['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--model',model,'-c','model_reasoning_effort="'+effort+'"','--json','--color','never','--cd',cwd,'--output-schema',schemaPath];
   for(const v of ['approval_policy="never"','web_search="disabled"','model_provider="openai"','forced_login_method="chatgpt"','apps._default.enabled=false','features.apps=false','features.plugins=false','features.hooks=false','features.browser_use=false','features.computer_use=false','features.image_generation=false','features.view_image=false','features.sleep_tool=false','features.shell_tool=false','features.apply_patch_freeform=false','features.code_mode=false','features.code_mode_only=false','features.code_mode_host=false','features.multi_agent=false','features.js_repl=false','memories.use_memories=false','memories.generate_memories=false'])args.push('-c',v);
   args.push('-');
   const child=spawnProcess(executable,args,{windowsHide:true,env,stdio:['pipe','pipe','pipe']});
@@ -39,7 +39,7 @@ function createProvider({executable=process.env.INTERVIEW_CODEX||'codex',runtime
   });
   child.on('close',code=>{if(code!==0||invalid||!completed||!answer)return finish(Object.assign(Error('diagnosis_unavailable'),{diagnostic}));try{finish(null,JSON.parse(answer));}catch{finish(Error('invalid_diagnosis'));}});
   if(signal?.aborted){abort();return;}
-  child.stdin.end(INSTRUCTIONS+'\n\n입력 자료(JSON 데이터):\n'+JSON.stringify(snapshot));
+  child.stdin.end(instructions+'\n\n입력 자료(JSON 데이터):\n'+JSON.stringify(snapshot));
  });
  provider.version=ENGINE_VERSION;return provider;
 }

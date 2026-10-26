@@ -1,4 +1,5 @@
-import {experiencePrompts,appendExperiencePrompt} from './client/interview-experience-prompts.js?v=20261026-inline-questions';
+import {createDraftQuestions} from './client/interview-draft-questions.js?v=20261026-content-questions';
+import {appendExperiencePrompt} from './client/interview-experience-prompts.js?v=20261026-inline-questions';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
 import {basicFields,identityFields,identityGenders,emptyBasic,schoolStatuses,basicFieldText,normalizeBirthDate,validBirthDate} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {mountLifeFollowup} from './interview-life-followup-ui.js?v=20261021-followup-entry';
@@ -65,17 +66,23 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     const labels=isLanguage(row)?{date:'응시·예정 시기',name:'시험명',effort:'어떻게 준비했나요?'}:row.type==='자격·면허'?{name:'자격·면허명'}:row.type==='기타'?{date:'취득·참여 시기',name:'활동·성과명',effort:'어떤 준비와 노력을 했나요?'}:{};
     return labels[key]||fallback;
   }
+  const draftQuestions=createDraftQuestions({request:followupRequest,show(id,questions,message,ready){
+    if(destroyed)return;
+    const panel=[...host.querySelectorAll('[data-writing-questions]')].find(n=>n.dataset.row===id);
+    if(!panel)return;
+    panel.hidden=!questions.length&&!message;
+    panel.querySelector('ol').innerHTML=questions.map(q=>`<li><span>${esc(q)}</span>${button('답변하기','insert-question',`data-row="${esc(id)}" data-question="${esc(q)}"`)}</li>`).join('');
+    panel.querySelector('[data-writing-question-message]').textContent=message;
+    const generate=panel.querySelector('[data-life-action=generate-questions]');generate.hidden=!ready;
+  }});
   function writingQuestions(row){
-    return `<aside class="ip-writing-questions" data-writing-questions data-row="${esc(row.id)}" aria-label="꼬리질문"><h4>꼬리질문</h4><ol>${experiencePrompts(experienceText(row)).map(q=>`<li><span>${esc(q)}</span>${button('답변하기','insert-question',`data-row="${esc(row.id)}" data-question="${esc(q)}"`)}</li>`).join('')}</ol><p class="ip-help" data-writing-question-message role="status">질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.</p></aside>`;
+    // Schedule after rendering so the panel exists without replacing the active input.
+    setTimeout(()=>{if(!destroyed)updateWritingQuestions(row);},0);
+    return `<aside class="ip-writing-questions" data-writing-questions data-row="${esc(row.id)}" hidden aria-label="꼬리질문"><h4>꼬리질문</h4>${button('꼬리질문 2개 받기','generate-questions',`data-row="${esc(row.id)}" hidden`)}<ol></ol><p class="ip-help" data-writing-question-message role="status"></p></aside>`;
   }
   function updateWritingQuestions(row){
-    const panel=[...host.querySelectorAll('[data-writing-questions]')].find(n=>n.dataset.row===row.id);
-    if(!panel)return;
-    panel.querySelector('[data-writing-question-message]').textContent='질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.';
-    const questions=experiencePrompts(experienceText(row)),buttons=[...panel.querySelectorAll('[data-question]')];
-    if(questions.every((q,i)=>buttons[i]?.dataset.question===q))return;
-    // Update only the guide: keep the active textarea, selection and IME untouched.
-    buttons.forEach((b,i)=>{b.dataset.question=questions[i];b.previousElementSibling.textContent=questions[i];});
+    const value=experienceText(row);
+    draftQuestions.update(row.id,{title:value.title||'',content:value.content||''});
   }
   function insertWritingQuestion(target){
     const row=content.experiences.find(r=>r.id===target.dataset.row);
@@ -280,6 +287,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
       if(admin)dirty=false;
       section=target.dataset.section;render();
     }else if(action==='add')add();
+    else if(action==='generate-questions'){draftQuestions.generate(target.dataset.row);return;}
     else if(action==='insert-question')insertWritingQuestion(target);
     else if(action==='edit-experience')editExperience(target.dataset.row);
     else if(action==='followup')await openFollowup(target.dataset.row);
@@ -304,5 +312,5 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
   return {ready,canLeave,async savePending(){
     if(busy||blocked||destroyed||!data)throw Error('save_failed');
     if(dirty&&!(await save('draft')))throw Error('save_failed');
-  },destroy(){destroyed=true;followup?.destroy();closeExperience();window.removeEventListener('beforeunload',beforeUnload);host.oninput=null;host.onchange=null;host.onclick=null;host.onkeydown=null;}};
+  },destroy(){destroyed=true;draftQuestions.destroy();followup?.destroy();closeExperience();window.removeEventListener('beforeunload',beforeUnload);host.oninput=null;host.onchange=null;host.onclick=null;host.onkeydown=null;}};
 }

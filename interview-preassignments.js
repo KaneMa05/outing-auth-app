@@ -69,6 +69,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  }
  const kstInput=v=>new Date(Date.parse(v)-60000+9*3600000).toISOString().slice(0,16);
  async function open(id){
+  const showSummary=selected!==id||!host.querySelector('[data-summary]')?.hidden;
   const ticket=++version;const next=await request(admin?'admin_detail':'detail',{unitId:id,...(admin?{targetStudentId:student}:{})});if(destroyed||ticket!==version)return;
   selected=id;detail=next;dirty=false;historyPage=0;
   const u=unit(),s=detail.latest;
@@ -82,14 +83,17 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
 
    <section class="pa-card"><h3>제출 이력</h3>${button('이력 불러오기','history')}<div data-history></div></section>`);
   scheduleDiagnosis();
+  if(!admin&&showSummary)await toggleSummary();
  }
  async function toggleSummary(){
   const panel=host.querySelector('[data-summary]'),toggle=host.querySelector('[data-pa="summary"]');
+  if(!panel||!toggle)return;
+  const unitId=selected,ticket=version;
   if(!panel.hidden){panel.hidden=true;toggle.textContent='요약서 보기';toggle.setAttribute('aria-expanded','false');return;}
   if(!panel.dataset.loaded){
-   const {summaries,summaryPages}=await import('./interview-core25-summaries.js?v=20261023-pa8');if(destroyed)return;
-   const q=summaries[selected];if(!q)throw Error('summary_unavailable');
-   const pages=summaryPages[selected];if(!pages?.length)throw Error('summary_unavailable');
+   const {summaries,summaryPages}=await import('./interview-core25-summaries.js?v=20261023-pa8');if(destroyed||ticket!==version||unitId!==selected||host.querySelector('[data-summary]')!==panel)return;
+   const q=summaries[unitId];if(!q)throw Error('summary_unavailable');
+   const pages=summaryPages[unitId];if(!pages?.length)throw Error('summary_unavailable');
    panel.innerHTML=`<div class="pa-handout-caption"><strong class="pa-handout-kicker">핵심인성 ${q.id}번 · 요약서</strong><span>이미지를 누르면 크게 볼 수 있습니다.</span></div><div class="pa-handout-pages">${pages.map((p,i)=>`<a class="pa-handout-page" href="${esc(new URL(p.src,import.meta.url).href)}" target="_blank" rel="noopener" aria-label="핵심인성 ${q.id}번 요약서 ${i+1}쪽 크게 보기 (새 탭)"><img src="${esc(new URL(p.src,import.meta.url).href)}" width="${p.width}" height="${p.height}" alt="핵심인성 ${q.id}번 · ${esc(q.title)} · 요약서 ${i+1}쪽" decoding="async"></a>`).join('')}</div><details class="pa-handout-text"><summary>요약서 텍스트로 읽기</summary><h3>${esc(q.title)}</h3><p>${esc(q.intent)}</p>${q.summary.map(t=>`<p>${esc(t)}</p>`).join('')}${q.criteria.map(c=>`<h4>${esc(c[0])}</h4><p>${esc(c[1])}</p><p>${esc(c[2])}</p>`).join('')}<ul>${q.extra.map(t=>`<li>${esc(t)}</li>`).join('')}</ul><p>${esc(q.weak)}</p><p>${esc(q.frame)}</p><p>강의 근거: ${q.sources.map(x=>`${esc(x[0])}강 ${esc(x[1])}`).join(' · ')}</p></details><div class="pa-toolbar pa-handout-actions">${button('요약서 닫기','summaryClose')}</div>`;
    panel.dataset.loaded='true';
   }
