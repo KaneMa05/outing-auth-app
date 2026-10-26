@@ -39,7 +39,7 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
    let next;
    if(page==='core'){
     host.querySelector('.ip-workspace-hero').style.display='none';
-    const {mountPreassignments}=await import('./interview-preassignments.js?v=20261023-pa8');
+    const {mountPreassignments}=await import('./interview-preassignments.js?v=20261026-no-video-reference');
     if(destroyed||ticket!==generation)return;
     next=await mountPreassignments(host.querySelector('[data-writing-host]'),{request:aiRequest?(action,payload={})=>aiRequest('/api/interview-preassignments',{...payload,action}):undefined});
    }else if(page==='mock'){

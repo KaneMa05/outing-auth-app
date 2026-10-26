@@ -1170,7 +1170,7 @@ export const summaries={
 export const summaryPages={
   "core-01": [
     {
-      "src": "assets/core25-summaries/core-01-d459003f78-1.png",
+      "src": "assets/core25-summaries/core-01-d39287afa8.png",
       "width": 1323,
       "height": 1871
     },
@@ -1182,7 +1182,7 @@ export const summaryPages={
   ],
   "core-02": [
     {
-      "src": "assets/core25-summaries/core-02-465bdd8b8c-1.png",
+      "src": "assets/core25-summaries/core-02-156ccfe95a.png",
       "width": 1323,
       "height": 1871
     },
@@ -1194,7 +1194,7 @@ export const summaryPages={
   ],
   "core-03": [
     {
-      "src": "assets/core25-summaries/core-03-35223ea75b-1.png",
+      "src": "assets/core25-summaries/core-03-a568ea3d55.png",
       "width": 1323,
       "height": 1871
     },
@@ -1206,7 +1206,7 @@ export const summaryPages={
   ],
   "core-04": [
     {
-      "src": "assets/core25-summaries/core-04-d8c8e3c871-1.png",
+      "src": "assets/core25-summaries/core-04-1e14175c17.png",
       "width": 1323,
       "height": 1871
     },
@@ -1218,7 +1218,7 @@ export const summaryPages={
   ],
   "core-05": [
     {
-      "src": "assets/core25-summaries/core-05-d39969aca5-1.png",
+      "src": "assets/core25-summaries/core-05-5cb310c8d7.png",
       "width": 1323,
       "height": 1871
     },
@@ -1230,7 +1230,7 @@ export const summaryPages={
   ],
   "core-06": [
     {
-      "src": "assets/core25-summaries/core-06-1bb04f0bb8-1.png",
+      "src": "assets/core25-summaries/core-06-7df9eeef0a.png",
       "width": 1323,
       "height": 1871
     },
@@ -1242,7 +1242,7 @@ export const summaryPages={
   ],
   "core-07": [
     {
-      "src": "assets/core25-summaries/core-07-910be39f56-1.png",
+      "src": "assets/core25-summaries/core-07-4e99db1a05.png",
       "width": 1323,
       "height": 1871
     },
@@ -1254,7 +1254,7 @@ export const summaryPages={
   ],
   "core-08": [
     {
-      "src": "assets/core25-summaries/core-08-598665abfc-1.png",
+      "src": "assets/core25-summaries/core-08-f352b1b47c.png",
       "width": 1323,
       "height": 1871
     },
@@ -1266,7 +1266,7 @@ export const summaryPages={
   ],
   "core-09": [
     {
-      "src": "assets/core25-summaries/core-09-a7fefba974-1.png",
+      "src": "assets/core25-summaries/core-09-ed46b32b14.png",
       "width": 1323,
       "height": 1871
     },
@@ -1278,7 +1278,7 @@ export const summaryPages={
   ],
   "core-10": [
     {
-      "src": "assets/core25-summaries/core-10-6d9339fb7b-1.png",
+      "src": "assets/core25-summaries/core-10-afc71b2e7b.png",
       "width": 1323,
       "height": 1871
     },
@@ -1290,7 +1290,7 @@ export const summaryPages={
   ],
   "core-11": [
     {
-      "src": "assets/core25-summaries/core-11-327fe69ab3-1.png",
+      "src": "assets/core25-summaries/core-11-69bf96e70a.png",
       "width": 1323,
       "height": 1871
     },
@@ -1302,7 +1302,7 @@ export const summaryPages={
   ],
   "core-12": [
     {
-      "src": "assets/core25-summaries/core-12-a31eaa3a84-1.png",
+      "src": "assets/core25-summaries/core-12-1bc0f91472.png",
       "width": 1323,
       "height": 1871
     },
@@ -1314,7 +1314,7 @@ export const summaryPages={
   ],
   "core-13": [
     {
-      "src": "assets/core25-summaries/core-13-540aae5031-1.png",
+      "src": "assets/core25-summaries/core-13-d7c82c6e40.png",
       "width": 1323,
       "height": 1871
     },
@@ -1326,7 +1326,7 @@ export const summaryPages={
   ],
   "core-14": [
     {
-      "src": "assets/core25-summaries/core-14-3667ff7d8c-1.png",
+      "src": "assets/core25-summaries/core-14-a9d160df96.png",
       "width": 1323,
       "height": 1871
     },
@@ -1338,7 +1338,7 @@ export const summaryPages={
   ],
   "core-15": [
     {
-      "src": "assets/core25-summaries/core-15-154218f96b-1.png",
+      "src": "assets/core25-summaries/core-15-2cb4d37feb.png",
       "width": 1323,
       "height": 1871
     },
@@ -1350,7 +1350,7 @@ export const summaryPages={
   ],
   "core-16": [
     {
-      "src": "assets/core25-summaries/core-16-f8645b5503-1.png",
+      "src": "assets/core25-summaries/core-16-ff6f15d69e.png",
       "width": 1323,
       "height": 1871
     },
@@ -1362,7 +1362,7 @@ export const summaryPages={
   ],
   "core-17": [
     {
-      "src": "assets/core25-summaries/core-17-25218dbb06-1.png",
+      "src": "assets/core25-summaries/core-17-fcea737b75.png",
       "width": 1323,
       "height": 1871
     },
@@ -1374,7 +1374,7 @@ export const summaryPages={
   ],
   "core-18": [
     {
-      "src": "assets/core25-summaries/core-18-594d2b07a5-1.png",
+      "src": "assets/core25-summaries/core-18-d5aff53c75.png",
       "width": 1323,
       "height": 1871
     },
@@ -1386,7 +1386,7 @@ export const summaryPages={
   ],
   "core-19": [
     {
-      "src": "assets/core25-summaries/core-19-8d4c1c7b14-1.png",
+      "src": "assets/core25-summaries/core-19-e837cc4941.png",
       "width": 1323,
       "height": 1871
     },
@@ -1398,7 +1398,7 @@ export const summaryPages={
   ],
   "core-20": [
     {
-      "src": "assets/core25-summaries/core-20-87b773ee90-1.png",
+      "src": "assets/core25-summaries/core-20-cb6ec4f44d.png",
       "width": 1323,
       "height": 1871
     },
@@ -1410,7 +1410,7 @@ export const summaryPages={
   ],
   "core-21": [
     {
-      "src": "assets/core25-summaries/core-21-2cee824a0e-1.png",
+      "src": "assets/core25-summaries/core-21-e51ea7de9f.png",
       "width": 1323,
       "height": 1871
     },
@@ -1422,7 +1422,7 @@ export const summaryPages={
   ],
   "core-22": [
     {
-      "src": "assets/core25-summaries/core-22-e0bb61ab41-1.png",
+      "src": "assets/core25-summaries/core-22-7883adc793.png",
       "width": 1323,
       "height": 1871
     },
@@ -1434,7 +1434,7 @@ export const summaryPages={
   ],
   "core-23": [
     {
-      "src": "assets/core25-summaries/core-23-42c2b2d255-1.png",
+      "src": "assets/core25-summaries/core-23-f1ee4e0d41.png",
       "width": 1323,
       "height": 1871
     },
@@ -1446,7 +1446,7 @@ export const summaryPages={
   ],
   "core-24": [
     {
-      "src": "assets/core25-summaries/core-24-7f72a93242-1.png",
+      "src": "assets/core25-summaries/core-24-8c12dc95fc.png",
       "width": 1323,
       "height": 1871
     },
@@ -1458,7 +1458,7 @@ export const summaryPages={
   ],
   "core-25": [
     {
-      "src": "assets/core25-summaries/core-25-ed815f0d05-1.png",
+      "src": "assets/core25-summaries/core-25-8419996ac1.png",
       "width": 1323,
       "height": 1871
     },

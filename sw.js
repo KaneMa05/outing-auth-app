@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v539-inline-review-integrated";
+const CACHE_NAME = "outing-auth-app-v540-no-video-reference";
 const APP_SHELL = [
   "/client/interview-draft-questions.js?v=20261026-content-questions",
   "/interview-life-ui.js?v=20261024-school-status",
@@ -10,8 +10,8 @@ const APP_SHELL = [
   "/interview-prep.js?v=20261026-application-summary",
   "/app.js?v=20261024-startup",
   "/interview-app.css?v=20261026-home-notice",
-  "/interview-preassignments.js?v=20261023-pa8",
-  "/interview-core25-summaries.js?v=20261023-pa8",
+  "/interview-preassignments.js?v=20261026-no-video-reference",
+  "/interview-core25-summaries.js?v=20261026-no-video-reference",
   "/interview-preassignments.css?v=20261023-pa8",
   "/interview-app.css?v=20261021-mock-menu",
   "/interview-admin-shell.css?v=20261020-mode",

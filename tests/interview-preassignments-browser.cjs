@@ -16,6 +16,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
    assert.equal(await page.locator('[data-pa=summary]').getAttribute('aria-expanded'),'true');
    assert.match(await page.locator('.pa-handout-kicker').innerText(),new RegExp('핵심인성 '+i+'번'));
    assert.equal(await page.locator('[data-summary] iframe').count(),0);assert.equal(await page.locator('.pa-handout-page img').count(),2);await page.waitForFunction(()=>[...document.querySelectorAll('.pa-handout-page img')].every(img=>img.complete&&img.naturalWidth>1000));assert.match(await page.locator('.pa-handout-page img').first().getAttribute('src'),new RegExp(id+'-'));assert.equal(await page.locator('.pa-handout-page').first().getAttribute('target'),'_blank');
+   assert.doesNotMatch(await page.locator('[data-summary]').textContent(),/(영상|강의)\s*근거/);
+   const cleanPages=JSON.parse(fs.readFileSync('interview-core25-summaries.js','utf8').split('export const summaryPages=')[1].trim().replace(/;$/,''));
+   assert((await page.locator('.pa-handout-page img').first().getAttribute('src')).endsWith(cleanPages[id][0].src));
    if(i===1)await shot('core25-summary-desktop');
    await page.getByRole('button',{name:'요약서 닫기',exact:true}).click();assert.equal(await page.locator('[data-pa=summary]').getAttribute('aria-expanded'),'false');
    await page.getByRole('button',{name:'과제 목록',exact:true}).click();

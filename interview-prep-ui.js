@@ -222,7 +222,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountPreassignments}=await import('./interview-preassignments.js?v=20261023-pa8');
+      const {mountPreassignments}=await import('./interview-preassignments.js?v=20261026-no-video-reference');
       if(destroyed||version!==loadVersion)return;
       const next=await mountPreassignments(box,{admin:true,canWrite});
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
