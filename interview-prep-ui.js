@@ -169,7 +169,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const checks=(name,rows,values)=>`<div class="ip-checks">${rows.map(([id,label])=>`<label><input type="checkbox" name="${name}" value="${esc(id)}" ${values.includes(id)?'checked':''}> ${esc(label)}</label>`).join('')}</div>`;
   const topicChecks=values=>checks('topicIds',catalog.topics.filter(t=>t.active).map(t=>[t.id,t.title]),values);
   const trackChecks=values=>checks('tracks',tracks.map(t=>[t,t]),values);
-  const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','보완 요청']]
+  const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
   function shell(){
     life?.destroy();life=null;
@@ -207,11 +207,20 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
     }
   }
-  const editor=html=>{life?.destroy();life=null;dirty=false;const n=host.querySelector('[data-editor]');n.hidden=false;n.innerHTML=html;n.scrollIntoView({block:'nearest',behavior:'smooth'});if(!canWrite)n.querySelectorAll('input,textarea,select,[data-write]').forEach(x=>x.disabled=true);};
+  const editor=(html,row=null)=>{
+    life?.destroy();life=null;dirty=false;
+    const n=host.querySelector('[data-editor]');
+    (row||host).append(n);n.hidden=false;n.innerHTML=html;
+    if(!row)n.scrollIntoView({block:'nearest',behavior:'smooth'});
+    if(!canWrite)n.querySelectorAll('input,textarea,select,[data-write]').forEach(x=>x.disabled=true);
+  };
   const formValue=(form,key)=>new FormData(form).get(key);
   async function load(){
     const version=++loadVersion;
-    const box=host.querySelector('[data-content]');box.textContent='불러오는 중…';
+    const box=host.querySelector('[data-content]');
+    const inlineEditor=box.querySelector('[data-editor]');
+    if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
+    box.textContent='불러오는 중…';
     if(tab==='preassignments'){
       const {mountPreassignments}=await import('./interview-preassignments.js?v=20261023-pa8');
       if(destroyed||version!==loadVersion)return;
@@ -245,10 +254,10 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       summary.innerHTML=applicationSummary(r.summary);
       if(!r.summary)notify(host,'전체 현황을 불러오지 못했습니다. 신청 목록은 아래에서 확인할 수 있습니다.',true);
       list=r.applications;
-      const labels={pending:'승인 대기',approved:'승인 완료',rejected:'보완 요청'};
+      const labels={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
       box.innerHTML=`<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
-      <form data-filter class="ip-toolbar"><label>이름·수험번호 검색<input name="search" maxlength="200" value="${esc(filter.search||'')}"></label><label>상태<select name="status">${options([['pending','승인 대기'],['approved','승인 완료'],['rejected','보완 요청'],['','전체']],filter.status??'pending')}</select></label><button class="ip-btn ip-primary">검색</button></form>
-      <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`):''}</article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
+      <form data-filter class="ip-toolbar"><label>이름·수험번호 검색<input name="search" maxlength="200" value="${esc(filter.search||'')}"></label><label>상태<select name="status">${options([['pending','승인 대기'],['approved','승인 완료'],['rejected','반려'],['','전체']],filter.status??'pending')}</select></label><button class="ip-btn ip-primary">검색</button></form>
+      <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`)+btn('반려','application-reject',`data-id="${esc(a.id)}" ${canWrite?'':'disabled'}`):''}</article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
       <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
       return;
     }
@@ -368,7 +377,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     busy=true;target.disabled=true;
     try{
       const a=target.dataset.ip;
-      if(['category','tab','section','prev','next','question-new','question-edit','analysis-edit','application-edit','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled','question-publish'].includes(a)&&!canLeave())return;
+      if(['category','tab','section','prev','next','question-new','question-edit','analysis-edit','application-reject','application-edit','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled','question-publish'].includes(a)&&!canLeave())return;
       if(['category','tab','section','close'].includes(a))dirty=false;
       if(a==='section'){if(onSection)onSection(target.dataset.section);else await openSection(target.dataset.section);}
       else if(a==='category'){category=target.dataset.category;tab='questions';page=0;filter={};shell();await load();}
@@ -391,10 +400,12 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       }
       else if(a==='topic-new'||a==='topic-edit')editTopic(target.dataset.id);
       else if(a==='member-edit')editMember(target.dataset.id);
-      else if(a==='application-edit'){
+      else if(a==='application-edit'||a==='application-reject'){
+        if(!canWrite)return;
+        const reject=a==='application-reject';
         selected=list.find(x=>x.id===target.dataset.id);
         editor(`<h3>면접반 신청 검토</h3><p>${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected">보완 요청</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>학생에게 전달할 안내 (보완 요청 시 필수)<textarea name="reviewNote" maxlength="2000"></textarea></label><button class="ip-btn ip-primary" data-write>승인</button>${btn('닫기','close')}</form>`);
+        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);
@@ -424,13 +435,18 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       else if(form.matches('[data-member-form]'))await request('admin_member_save',{targetStudentId:selected.id,track:f.get('track'),examNumber:f.get('examNumber'),expiresOn:f.get('expiresOn'),enabled:f.has('enabled')});
       else if(form.matches('[data-feedback-form]'))await request('admin_feedback',{targetStudentId:selected.student.id,topicId:selected.t.id,revision:selected.n.revision,status:f.get('status'),feedback:f.get('feedback')});
       else if(form.matches('[data-analysis-form]'))await request('admin_analysis_save',{id:selected.question.id,questionRevision:selected.question.revision,revision:selected.analysis?.revision||0,elementIds:f.getAll('elementIds'),disposition:f.get('disposition'),answerForm:f.get('answerForm'),rationale:f.get('rationale'),status:f.get('status')});
-      else if(form.matches('[data-application-review]'))await request('admin_application_decide',{id:selected.id,revision:selected.revision,status:f.get('status'),reviewNote:f.get('reviewNote'),expiresOn:f.get('expiresOn')});
+      else if(form.matches('[data-application-review]')){
+        const note=String(f.get('reviewNote')||'').trim();
+        if(f.get('status')==='rejected'&&!note){notify(host,'반려 사유를 입력해주세요.',true);form.querySelector('[name=reviewNote]').focus();return;}
+        await request('admin_application_decide',{id:selected.id,revision:selected.revision,status:f.get('status'),reviewNote:note,expiresOn:f.get('expiresOn')});
+      }
       dirty=false;await refresh();notify(host,'저장했습니다.');
     }catch(e){notify(host,message(e),true);}finally{busy=false;submit.disabled=false;}
   };
   host.onchange=e=>{
     if(e.target.matches('[data-application-review] [name=status]')){
-      e.target.closest('form').querySelector('[data-write]').textContent=e.target.value==='approved'?'승인':'보완 요청';
+      e.target.closest('form').querySelector('[data-write]').textContent=e.target.value==='approved'?'승인':'반려';
+      e.target.closest('form').querySelector('[name=reviewNote]').required=e.target.value==='rejected';
     }
     if(e.target.closest('[data-editor]'))dirty=true;
     if(e.target.matches('[data-question-form] [name=category]'))host.querySelector('[data-topic-checks]').hidden=e.target.value==='job';

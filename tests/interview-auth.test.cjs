@@ -54,8 +54,18 @@ const hash=webAuth.hash,server={type:'server'},admin={type:'admin',id:'qa'};
   await assert.rejects(invoke('admin_application_decide',admin,{id:application.id,revision:0,status:'approved',reviewNote:''}),/revision_conflict/);
   await assert.rejects(invoke('admin_application_decide',admin,{id:application.id,revision:1,status:'rejected',reviewNote:''}),/review_note_required/);
   await invoke('admin_application_decide',admin,{id:application.id,revision:1,status:'rejected',reviewNote:'수험번호 확인 필요'});
-  assert.equal((await session(newcomer)).data.application.review_note,'수험번호 확인 필요');
+  for(let i=0;i<2;i++){
+   const rejected=(await session(newcomer)).data;
+   assert.equal(rejected.application.review_note,'수험번호 확인 필요');
+   assert.equal(rejected.application.status,'rejected','Reading status never reapplies');
+   assert.equal(rejected.application.revision,2);
+   assert.equal(rejected.available,false);
+  }
+  assert(!(await invoke('admin_applications',admin,{status:'pending'})).applications.some(a=>a.id===application.id));
   application=(await post({action:'apply',name:'신규 면접학생',track:'기관',examNumber:'N-002',revision:2},newcomer)).data.application;
+  assert.equal(application.status,'pending');
+  assert.equal(application.review_note,'');
+  assert((await invoke('admin_applications',admin,{status:'pending'})).applications.some(a=>a.id===application.id));
   await invoke('admin_application_decide',admin,{id:application.id,revision:3,status:'approved',reviewNote:'수강 확인',expiresOn:'2099-12-31'});
   assert.equal((await session(newcomer)).data.available,true);
   const boot=await invoke('bootstrap',{type:'student',id:newId});assert.equal(boot.member.exam_number,'N-002');

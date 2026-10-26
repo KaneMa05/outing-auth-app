@@ -22,7 +22,7 @@ async function api(action,payload={}){
  const response=await fetch('/api/interview-auth',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
-const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
+const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
  disposeLogin?.();disposeLogin=null;
@@ -57,10 +57,11 @@ function render(){
  }else{
   const app=state.application;
   const registered=state.member?.enabled&&(!state.member.expires_on||state.member.expires_on>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}));
-  box.innerHTML=`<section class="ip-panel ip-portal-status"><span class="ip-application-status">${registered?'이용 등록 완료':app?({pending:'관리자 승인 대기',rejected:'신청 보완 필요',approved:'이용 기간·등록 확인 필요'})[app.status]:'면접반 신청'}</span>
+  box.innerHTML=`<section class="ip-panel ip-portal-status"><span class="ip-application-status">${registered?'이용 등록 완료':app?({pending:'관리자 승인 대기',rejected:'수강 신청 반려',approved:'이용 기간·등록 확인 필요'})[app.status]:'면접반 신청'}</span>
    <h2>${registered?'면접반 운영 준비 중입니다.':app?.status==='pending'?'수강 신청을 확인하고 있습니다.':'면접반 등록'}</h2>
    ${registered?'<p>수강 등록은 확인되었습니다. 관리자가 학습 공간을 개방하면 이용할 수 있습니다.</p>':app?.status==='pending'?'<p>관리자가 수강 등록을 확인하면 이용할 수 있습니다. ‘등록 상태 확인’으로 승인 결과를 확인해주세요.</p>':''}
-   ${app?.review_note?`<div class="ip-feedback"><strong>관리자 안내</strong><br>${esc(app.review_note)}</div>`:''}
+   ${app?.review_note?`<div class="ip-feedback"><strong>${app.status==='rejected'?'반려 사유':'관리자 안내'}</strong><br>${esc(app.review_note)}</div>`:''}
+   ${app?.status==='rejected'?'<p>반려 사유를 확인하고 신청 정보를 수정한 뒤 <strong>재신청</strong>을 눌러주세요. 재신청 전까지 반려 상태가 유지됩니다.</p>':''}
    ${!registered?(app?.status==='pending'?`<p>${esc(app.name)} · ${esc(app.track)} · 수험번호 ${esc(app.exam_number)}</p><details><summary>신청 정보 수정</summary>${applyForm()}</details>`:applyForm()):''}
    <button class="ip-btn" type="button" data-refresh>등록 상태 확인</button></section>`;
  }
