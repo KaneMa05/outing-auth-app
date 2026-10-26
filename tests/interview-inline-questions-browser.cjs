@@ -1,0 +1,64 @@
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/W11/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const root=path.resolve(__dirname,'..'),out=path.resolve(root,'../../output/life-inline-questions');
+const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/interview-prep.css"><style>body{margin:0;padding:20px;background:#f1f5f8;font-family:Arial,'Malgun Gothic',sans-serif}main{max-width:820px;margin:auto}.ip-panel{margin-bottom:16px}</style><main class="ip-root"><h2>인생그래프 작성하기</h2><div id="life"></div></main><script type="module">
+import {mountLife} from '/interview-life-ui.js';
+window.calls=[];window.failSave=false;
+window.saved={revision:1,status:'draft',content:{background:'',none:[],qualifications:[],affiliations:[],awards:[],experiences:[{id:'a',age:'23',satisfaction:'5',title:'팀 프로젝트 갈등',content:'팀 프로젝트에서 일정에 대한 의견이 달랐습니다.',appeal:'경청과 협력',competencyIds:[]},{id:'b',age:'25',satisfaction:'10',title:'목표 달성',content:'준비한 시험에 합격했습니다.',appeal:'꾸준함',competencyIds:[]}]}};
+const result=()=>({profile:structuredClone(saved),member:{name:'예시 학생',track:'공채',exam_number:'예시'},competencies:[]});
+window.mount=async(options={})=>{window.editor?.destroy();document.querySelector('#life').replaceChildren();window.editor=mountLife(document.querySelector('#life'),{embedded:true,combined:true,initialSection:'experiences',request:async(action,payload)=>{calls.push({action,payload});if(action==='life_save'){if(failSave)throw Error('network_error');saved={...saved,revision:saved.revision+1,status:payload.status,content:structuredClone(payload.content)};}return result();},...options});await editor.ready;};
+await mount();window.ready=true;
+</script></html>`;
+const server=http.createServer((req,res)=>{const name=decodeURIComponent(req.url.split('?')[0]);if(name==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(html);}const file=path.resolve(root,'.'+name);if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.statusCode=404;return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'application/octet-stream');res.end(fs.readFileSync(file));});
+(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));fs.mkdirSync(out,{recursive:true});const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});try{
+ const page=await browser.newPage({viewport:{width:1200,height:1050},deviceScaleFactor:1});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:'+server.address().port);await page.waitForFunction(()=>window.ready);
+ assert.equal(await page.locator('[data-writing-questions]').count(),0,'read-only rows have no writing prompts');
+ const row=page.locator('[data-life-row="a"]'),input=row.locator('[data-life-field=content]');
+ await row.locator('[data-life-action=edit-experience]').click();
+ assert.equal(await row.locator('[data-question]').count(),4);
+ assert.match(await row.locator('[data-writing-questions]').innerText(),/의견 차이/);
+ const before=await page.evaluate(()=>calls.length);
+ await input.fill('실패한 경험을 돌아보니 준비가 부족했습니다.');await row.locator('[data-life-field=title]').fill('첫 도전 실패');
+ assert.match(await row.locator('[data-writing-questions]').innerText(),/기대와 실제 결과/);
+ assert.equal(await page.evaluate(()=>calls.length),before,'typing must not trigger requests or saves');
+ await input.focus();await input.press('End');await input.pressSequentially(' 직접 다시 준비했습니다.');
+ assert.equal(await input.evaluate(n=>n===document.activeElement),true,'typing retains focus');
+ const existing=await input.inputValue();await row.locator('[data-question]').first().click();
+ assert((await input.inputValue()).startsWith(existing+'\n\n질문: '),'original content is preserved');
+ assert.equal(await input.evaluate(n=>n===document.activeElement),true,'insert focuses content');
+ const inserted=await input.inputValue();await row.locator('[data-question]').first().click();assert.equal(await input.inputValue(),inserted,'no duplicate question insertion');
+ await input.fill(inserted+'계획을 세분화하고 실천했습니다.');
+ await page.evaluate(()=>window.failSave=true);await row.locator('[data-life-action=save-experience]').click();
+ assert((await input.inputValue()).endsWith('계획을 세분화하고 실천했습니다.'),'failed save retains answer');
+ assert.equal(await row.locator('[data-question]').first().isEnabled(),true,'failed save restores prompt controls');
+ await page.evaluate(()=>window.failSave=false);await row.locator('[data-life-action=save-experience]').click();
+ assert.equal(await row.locator('[data-writing-questions]').count(),0);
+ await page.reload();await page.waitForFunction(()=>window.ready); // fixture intentionally resets; verify saved API payload before reloading below
+ await page.evaluate(async()=>{await mount();});
+ await row.locator('[data-life-action=edit-experience]').click();await input.fill('변경 전 내용을 보관합니다.');await row.locator('[data-question]').first().click();
+ const expected=await input.inputValue();await row.locator('[data-life-action=save-experience]').click();await page.evaluate(()=>mount());
+ assert.equal(await input.inputValue(),expected,'saved answer survives editor remount');
+ assert.equal(await page.locator('[data-life-row="b"] [data-life-field=content]').inputValue(),'준비한 시험에 합격했습니다.','other experiences are unchanged');
+ await row.locator('[data-life-action=edit-experience]').click();await input.fill('가'.repeat(12000));await row.locator('[data-question]').first().click();assert.equal((await input.inputValue()).length,12000);assert.match(await row.locator('[data-writing-question-message]').innerText(),/12,000/);
+ await input.fill('팀 프로젝트에서 일정에 대한 의견이 달랐습니다.');await row.locator('[data-life-field=title]').fill('팀 프로젝트 갈등');
+ // Korean IME composition must not disrupt the editing node or cursor.
+ await input.evaluate(n=>{window.beforeInput=n;n.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));n.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true}));n.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));n.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:false}));});
+ assert.equal(await input.evaluate(n=>n===window.beforeInput),true);
+ await row.screenshot({path:out+'/desktop.png'});
+ await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile has no horizontal overflow');await row.screenshot({path:out+'/mobile.png'});
+ await page.evaluate(()=>mount({admin:true,combined:false}));assert.equal(await page.locator('[data-writing-questions]').count(),0,'admin view is unchanged');
+ await page.evaluate(()=>mount({initialSection:'basic'}));assert.equal(await page.locator('[data-writing-questions]').count(),0,'basic history view is unchanged');
+ await page.evaluate(()=>mount());await page.locator('[data-life-action=add]').click();assert.equal(await page.locator('[data-writing-questions] [data-question]').count(),4,'new blank experience immediately has four questions');
+  await page.evaluate(()=>mount({followupRequest:async(action,payload)=>{
+   calls.push({action:'followup:'+action,payload});
+   if(action==='availability')return {enabled:true,sessions:[]};
+   return {session:{id:'followup-a',answer_revision:0},profileRevision:saved.revision,sourceHash:'fixture',experience:saved.content.experiences[0],questions:[],requests:[],outputs:[]};
+  }}));
+  await row.locator('[data-life-action=followup]').waitFor();await row.locator('[data-life-action=edit-experience]').click();
+  await row.locator('[data-question]').last().click();const followupDraft=await input.inputValue();
+  await row.locator('[data-life-action=followup]').click();await page.locator('[data-fu-action=back]').waitFor();
+  assert.equal(await page.evaluate(()=>saved.content.experiences[0].content),followupDraft,'existing followup saves the assisted draft before opening');
+  await page.locator('[data-fu-action=back]').click();assert.equal(await input.inputValue(),followupDraft,'returning from existing followup retains content');
+ assert.deepEqual(errors,[]);console.log('PASS inline prompts: new/edit/readonly/admin/basic, contextual questions, no typing requests, focus/IME, original preservation, duplicate/length guards, save failure/recovery, persistence, sibling isolation, mobile layout.');
+ }finally{await browser.close();await new Promise(r=>server.close(r));}})().catch(e=>{console.error(e);process.exitCode=1;server.close();});

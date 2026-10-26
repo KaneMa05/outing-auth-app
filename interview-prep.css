@@ -137,3 +137,28 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-root .ip-identity-fields>.ip-basic-field{min-width:0;max-width:100%}
 .ip-root .ip-identity-fields input{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
 @media(max-width:640px){.ip-root .ip-basic-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Inline life-graph writing aids: scoped to student experience editors. */
+.ip-root .ip-writing-questions{border:1px solid #c8ded8;border-radius:14px;background:#f1f8f5;padding:18px;margin:12px 0 20px;overflow-wrap:anywhere}
+.ip-root .ip-writing-questions h4{margin:0 0 6px;color:#1b6256;font-size:16px}
+.ip-root .ip-writing-questions ol{padding-left:22px;margin:12px 0}
+.ip-root .ip-writing-questions li{padding:10px 0;border-top:1px solid #dbe9e3}
+.ip-root .ip-writing-questions li span{display:block;margin-bottom:6px}
+.ip-root .ip-writing-questions .ip-btn{font-size:12px;min-height:36px;padding:5px 10px;background:#fff;color:#235e53;border-color:#b8d3c9}
+.ip-root .ip-writing-questions .ip-btn:focus-visible{outline:3px solid #237e87;outline-offset:3px}
+.ip-root .ip-writing-questions [data-writing-question-message]{margin:10px 0 0}
+@media(max-width:600px){.ip-root .ip-writing-questions{padding:14px}.ip-root .ip-writing-questions li{padding:12px 0}}
+
+/* iOS focus zoom is triggered by small form text. Keep touch inputs readable
+   before focus, including fields inheriting 13-15px label/help text. Preserve
+   user pinch zoom and leave ordinary student and teacher screens unchanged. */
+@media(max-width:1024px),(any-pointer:coarse){
+  body:not([data-app-mode="teacher"]) .ip-root :is(input,textarea,select,[contenteditable="true"],[contenteditable="plaintext-only"]){
+    font-size:max(16px,1em);
+  }
+  body:not([data-app-mode="teacher"]) .ip-root :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),textarea,select){
+    box-sizing:border-box;
+    min-width:0;
+    max-width:100%;
+  }
+}

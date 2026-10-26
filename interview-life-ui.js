@@ -1,3 +1,4 @@
+import {experiencePrompts,appendExperiencePrompt} from './client/interview-experience-prompts.js?v=20261026-inline-questions';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
 import {basicFields,identityFields,identityGenders,emptyBasic,schoolStatuses,basicFieldText,normalizeBirthDate,validBirthDate} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {mountLifeFollowup} from './interview-life-followup-ui.js?v=20261021-followup-entry';
@@ -64,12 +65,36 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     const labels=isLanguage(row)?{date:'응시·예정 시기',name:'시험명',effort:'어떻게 준비했나요?'}:row.type==='자격·면허'?{name:'자격·면허명'}:row.type==='기타'?{date:'취득·참여 시기',name:'활동·성과명',effort:'어떤 준비와 노력을 했나요?'}:{};
     return labels[key]||fallback;
   }
+  function writingQuestions(row){
+    return `<aside class="ip-writing-questions" data-writing-questions data-row="${esc(row.id)}" aria-label="꼬리질문"><h4>꼬리질문</h4><ol>${experiencePrompts(experienceText(row)).map(q=>`<li><span>${esc(q)}</span>${button('내용에 질문 넣기','insert-question',`data-row="${esc(row.id)}" data-question="${esc(q)}"`)}</li>`).join('')}</ol><p class="ip-help" data-writing-question-message role="status">질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.</p></aside>`;
+  }
+  function updateWritingQuestions(row){
+    const panel=[...host.querySelectorAll('[data-writing-questions]')].find(n=>n.dataset.row===row.id);
+    if(!panel)return;
+    panel.querySelector('[data-writing-question-message]').textContent='질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.';
+    const questions=experiencePrompts(experienceText(row)),buttons=[...panel.querySelectorAll('[data-question]')];
+    if(questions.every((q,i)=>buttons[i]?.dataset.question===q))return;
+    // Update only the guide: keep the active textarea, selection and IME untouched.
+    buttons.forEach((b,i)=>{b.dataset.question=questions[i];b.previousElementSibling.textContent=questions[i];});
+  }
+  function insertWritingQuestion(target){
+    const row=content.experiences.find(r=>r.id===target.dataset.row);
+    if(admin||!row||!editingExperiences.has(row.id))return;
+    const result=appendExperiencePrompt(experienceText(row).content,target.dataset.question);
+    const message=target.closest('[data-writing-questions]').querySelector('[data-writing-question-message]');
+    if(result.reason!=='added'){message.textContent=result.reason==='duplicate'?'이미 내용에 넣은 질문입니다. 내용 칸에서 답변을 이어 적어주세요.':'내용은 12,000자까지 입력할 수 있습니다. 기존 내용을 줄인 뒤 질문을 넣어주세요.';return;}
+    const input=[...host.querySelectorAll('[data-life-field=content]')].find(n=>n.dataset.row===row.id);
+    row.content=result.content;input.value=result.content;mark();
+    input.focus({preventScroll:true});input.setSelectionRange(input.value.length,input.value.length);input.scrollTop=input.scrollHeight;
+    input.scrollIntoView({block:'center',behavior:'smooth'});
+    message.textContent='질문을 내용 끝에 넣었습니다. 그 아래에 답변을 적은 뒤 저장해주세요.';
+  }
   function rowView(row,index,id=section){
     if(id==='experiences')row=experienceText(row);
     const readonly=id==='experiences'&&!editingExperiences.has(row.id);
     return `<article class="ip-panel" data-life-row="${esc(row.id)}"><div class="ip-row"><h4>${index+1}. ${esc(row.title||row.name||titles[id])}</h4>${!admin?`<div>${button('위로','up',`data-row="${esc(row.id)}" ${index===0?'disabled':''}`)} ${button('삭제','remove',`data-row="${esc(row.id)}"`)}</div>`:''}</div>
       ${schema[id].map(([key,label])=>[key,id==='qualifications'?qualificationLabel(row,key,label):label]).map(([key,label])=>admin?`<h4>${esc(label)}</h4><p class="ip-life-text">${esc(row[key]||'미작성')}</p>`:
-        `<label><span data-life-label="${key}">${esc(label)}</span>${id==='qualifications'&&key==='type'?qualificationTypeInput(row):key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>`).join('')}
+        `<label><span data-life-label="${key}">${esc(label)}</span>${id==='qualifications'&&key==='type'?qualificationTypeInput(row):key==='satisfaction'?satisfactionInput(row,readonly):['effort','activities','action','content','appeal'].includes(key)?`<textarea ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${key==='content'?12000:2000}">${esc(row[key])}</textarea>`:`<input ${readonly?'readonly':''} data-life-field="${key}" data-row="${esc(row.id)}" maxlength="${['age','contribution'].includes(key)?3:2000}" ${['age','contribution'].includes(key)?'inputmode="numeric"':''} ${key==='age'?'placeholder="예: 23"':''} value="${esc(row[key])}">`}</label>${id==='experiences'&&key==='content'&&!readonly?writingQuestions(row):''}`).join('')}
       ${id==='experiences'&&!admin?`<div class="ip-life-toolbar">${button('내용 수정','edit-experience',`data-row="${esc(row.id)}" ${readonly?'':'disabled'}`)}${followupButton(row.id)}${button('저장','save-experience',`data-row="${esc(row.id)}" ${readonly?'disabled':''}`)}<span data-experience-state="${esc(row.id)}" role="status">${rowState(row.id)}</span>${followupEnabled&&followupProgress[row.id]?`<span class="ip-help">답변 ${followupProgress[row.id].answered}개 저장됨</span>`:''}</div><p class="ip-help">수정한 내용은 저장 버튼을 눌러야 반영됩니다.${followupEnabled?' 추가 질문에서는 이 경험의 상황·선택 이유·행동을 더 자세히 적을 수 있습니다.':''}</p>`:''}
       </article>`;
   }
@@ -230,7 +255,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     selectEventSection(e.target);
     if(e.target.matches('[data-basic-field]')){content.basicInfo??=emptyBasic();const key=e.target.dataset.basicField;content.basicInfo[key]??={text:'',none:false};content.basicInfo[key].text=key==='birthDate'?normalizeBirthDate(e.target.value):e.target.value;if(key==='birthDate')e.target.setCustomValidity('');mark();}
     if(e.target.matches('[data-life-field]')){
-      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='qualifications'&&e.target.dataset.lifeField==='type'){const article=e.target.closest('[data-life-row]');for(const [key,label]of schema.qualifications){const node=article.querySelector(`[data-life-label="${key}"]`);if(node)node.textContent=qualificationLabel(row,key,label);}}if(section==='experiences')updateGraph();}
+      const row=currentRows().find(r=>r.id===e.target.dataset.row);if(row){row[e.target.dataset.lifeField]=e.target.value;mark();if(section==='qualifications'&&e.target.dataset.lifeField==='type'){const article=e.target.closest('[data-life-row]');for(const [key,label]of schema.qualifications){const node=article.querySelector(`[data-life-label="${key}"]`);if(node)node.textContent=qualificationLabel(row,key,label);}}if(section==='experiences'){updateGraph();if(!e.isComposing)updateWritingQuestions(row);}}
     }
     if(e.target.matches('[data-life-feedback]'))mark();
   };
@@ -255,6 +280,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
       if(admin)dirty=false;
       section=target.dataset.section;render();
     }else if(action==='add')add();
+    else if(action==='insert-question')insertWritingQuestion(target);
     else if(action==='edit-experience')editExperience(target.dataset.row);
     else if(action==='followup')await openFollowup(target.dataset.row);
     else if(action==='save-experience'){
