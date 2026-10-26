@@ -66,7 +66,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
     return labels[key]||fallback;
   }
   function writingQuestions(row){
-    return `<aside class="ip-writing-questions" data-writing-questions data-row="${esc(row.id)}" aria-label="꼬리질문"><h4>꼬리질문</h4><ol>${experiencePrompts(experienceText(row)).map(q=>`<li><span>${esc(q)}</span>${button('내용에 질문 넣기','insert-question',`data-row="${esc(row.id)}" data-question="${esc(q)}"`)}</li>`).join('')}</ol><p class="ip-help" data-writing-question-message role="status">질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.</p></aside>`;
+    return `<aside class="ip-writing-questions" data-writing-questions data-row="${esc(row.id)}" aria-label="꼬리질문"><h4>꼬리질문</h4><ol>${experiencePrompts(experienceText(row)).map(q=>`<li><span>${esc(q)}</span>${button('답변하기','insert-question',`data-row="${esc(row.id)}" data-question="${esc(q)}"`)}</li>`).join('')}</ol><p class="ip-help" data-writing-question-message role="status">질문을 넣어도 자동 저장되지는 않습니다. 답변을 적은 뒤 저장해주세요.</p></aside>`;
   }
   function updateWritingQuestions(row){
     const panel=[...host.querySelectorAll('[data-writing-questions]')].find(n=>n.dataset.row===row.id);
@@ -120,7 +120,7 @@ export function mountLife(host,{request,followupRequest,admin=false,studentId=''
       ${currentRows(id).map((row,index)=>rowView(row,index,id)).join('')||`<p class="ip-empty">${content.none.includes(id)?'해당 없음':'아직 입력한 내용이 없습니다.'}</p>`}`}</div>`;
   }
   function timeline(){
-    return `<div data-life-graph>${renderLifeGraph(content.experiences,{interactive:!admin})}</div>`;
+    return `${!admin&&(experienceOnly||section==='experiences')?'<p class="ip-feedback" data-life-lecture-guide><strong>인강 듣고 작성하세요</strong></p>':''}<div data-life-graph>${renderLifeGraph(content.experiences,{interactive:!admin})}</div>`;
   }
   function updateGraph(){const box=host.querySelector('[data-life-graph]');if(box)box.innerHTML=renderLifeGraph(content.experiences,{interactive:!admin});}
   function openExperience(id){

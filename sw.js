@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v536-interview-input-focus";
+const CACHE_NAME = "outing-auth-app-v537-life-guide-copy";
 const APP_SHELL = [
   "/interview-life-ui.js?v=20261024-school-status",
   "/client/interview-experience-prompts.js?v=20261026-inline-questions",
