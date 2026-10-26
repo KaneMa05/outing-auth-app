@@ -33,8 +33,8 @@ export function mountReview(host,options){
  mount();return {ready:current.ready,canLeave:()=>current.canLeave(),destroy(){current.destroy();host.onclick=null;}};
 }
 
-function mountStudentReview(host,{request,templates,canWrite=false}){
- let destroyed=false,version=0,page=0,filter={search:'',track:'',status:''},roster=null,detail=null,selected='',area='all';
+export function mountStudentReview(host,{request,templates,canWrite=false,assignmentArea=null}){
+ let destroyed=false,version=0,page=0,filter={search:'',track:'',status:''},roster=null,detail=null,selected='',area=assignmentArea||'all';
  let editor=null;
  const histories=new Map();
  const clearHistories=()=>{for(const h of histories.values())h.destroy();histories.clear();};
@@ -46,7 +46,7 @@ function mountStudentReview(host,{request,templates,canWrite=false}){
  const closeEditor=()=>{editor?.destroy();editor=null;};
  host.classList.add('ip-review');
  function listShell(){
-  host.innerHTML=`<section class="ip-panel"><h3>학생 찾기</h3><p>학생별로 나의 DB와 모든 작성 답변을 모아봅니다. 임시저장과 이용 중지·기간 만료 계정의 기록도 포함합니다.</p>
+  host.innerHTML=`<section class="ip-panel"><h3>학생 찾기</h3><p>${assignmentArea?'학생을 선택하면 선택한 과제의 기존 작성 내용과 상태를 확인합니다. 아래 목록의 건수와 상태 필터는 학생의 전체 작성 기록 기준입니다.':'학생별로 나의 DB와 모든 작성 답변을 모아봅니다.'} 임시저장과 이용 중지·기간 만료 계정의 기록도 포함합니다.</p>
    <form data-review-filter class="ip-toolbar"><label>수강생 검색<input name="search" maxlength="200" placeholder="이름 · 수험번호 · 학생 ID" value="${esc(filter.search)}"></label>
    <label>직렬<select name="track">${options([['','전체 직렬'],...['공채','항해','기관','방제','관제','기타'].map(t=>[t,t])],filter.track)}</select></label>
    <label>작성 상태<select name="status">${options([['','전체'],['pending','확인 대기'],['revision','보완·도움 요청'],['draft','임시저장 있음'],['empty','저장 내역 없음']],filter.status)}</select></label>
@@ -81,21 +81,22 @@ function mountStudentReview(host,{request,templates,canWrite=false}){
  function dbRecords(){
   const profile=detail.profile,content=profile?.content;
   const basicValues=content?.basicInfo?Object.fromEntries(basicFields.map(([k])=>[k,basicFieldText(k,content.basicInfo[k])])):null;
-  let html=profile?record('기본 정보·주요 이력',profile,basicValues?textFields(basicFields,basicValues):textFields([['background','주요 이력·전공']],content)):'<p class="ip-help">나의 DB에 저장한 이력이 없습니다.</p>';
+  let html=assignmentArea==='life'?'':profile?record('기본 정보·주요 이력',profile,basicValues?textFields(basicFields,basicValues):textFields([['background','주요 이력·전공']],content)):'<p class="ip-help">나의 DB에 저장한 이력이 없습니다.</p>';
   if(profile)for(const [key,title] of Object.entries(sections)){
+   if(assignmentArea==='basic'&&key==='experiences'||assignmentArea==='life'&&key!=='experiences')continue;
    const rows=key==='experiences'?(content[key]||[]).map(experienceText):content[key]||[];
    if(key==='experiences')html+=renderLifeGraph(rows);
    html+=record(`${title} · ${rows.length}개`,profile,
     content.none?.includes(key)?'<p>학생이 해당 없음으로 표시했습니다.</p>':rows.map((r,i)=>`<article class="ip-review-experience"><h4>${i+1}. ${esc(r.title||r.name||title)}</h4>${textFields(fields[key],r)}
      ${r.competencyIds?.length?`<p><strong>연결한 역량</strong> ${esc(r.competencyIds.map(id=>detail.competencies.find(c=>c.id===id)?.title||id).join(' · '))}</p>`:''}</article>`).join('')||'<p>아직 작성한 내용이 없습니다.</p>');
   }
-  for(const n of detail.notes){
+  for(const n of assignmentArea?[]:detail.notes){
    const pairs=getTopicQuestions(n.topic,templates)||[];
    const keys=new Set(pairs.map(([key])=>key));
    const all=[...pairs,...Object.keys(n.fields).filter(key=>!keys.has(key)).map(key=>[key,key==='help'?'도움 요청':key])];
    html+=record(n.topic.title,n,textFields(all,n.fields),!n.topic.active?'보관된 준비 항목':n.topic_revision!==n.topic.revision?'작성 후 준비 항목이 변경됨':'인성 준비 노트');
   }
-  return html;
+  return html||'<p class="ip-help">아직 작성한 내용이 없습니다.</p>';
  }
  function writingRecords(kind){
   const rows=detail.writings.filter(w=>w.kind===kind);
@@ -106,13 +107,13 @@ function mountStudentReview(host,{request,templates,canWrite=false}){
   closeEditor();
   const s=detail.student;
   const writingKinds={...kinds,...Object.fromEntries(detail.writings.filter(w=>!kinds[w.kind]).map(w=>[w.kind,w.kind]))};
-  const tabs=[['all','전체'],['db','나의 DB'],...Object.entries(writingKinds)];
+  const tabs=assignmentArea?[[assignmentArea,{basic:'기본이력',life:'인생그래프',...kinds}[assignmentArea]]]:[['all','전체'],['db','나의 DB'],...Object.entries(writingKinds)];
   host.querySelector('[data-review-detail]').innerHTML=`<section class="ip-panel ip-review-reader" tabindex="-1">
    <div class="ip-row"><div><h3>${esc(s.name)}의 작성 내용</h3><p>${esc(s.track)} · 수험번호 ${esc(s.exam_number)} · ${esc(account(s))}</p></div><div class="ip-toolbar">${button('최신 내용 불러오기','reload-detail')}${button('닫기','close')}</div></div>
    <p class="ip-help">서버에 저장된 내용을 표시합니다. 학생의 편집창에만 있는 미저장 내용은 포함되지 않습니다.</p>
-   <nav class="ip-tabs ip-review-tabs" aria-label="학생 작성 영역">${tabs.map(([id,title])=>`<button type="button" class="ip-btn" data-review-action="area" data-area="${esc(id)}" ${area===id?'aria-current="page"':''}>${esc(title)}${id==='db'?` (${(detail.profile?1:0)+detail.notes.length})`:id==='all'?'':` (${detail.writings.filter(w=>w.kind===id).length})`}</button>`).join('')}</nav>
+   <nav class="ip-tabs ip-review-tabs" aria-label="학생 작성 영역">${tabs.map(([id,title])=>`<button type="button" class="ip-btn" data-review-action="area" data-area="${esc(id)}" ${area===id?'aria-current="page"':''}>${esc(title)}${['basic','life'].includes(id)?'':id==='db'?` (${(detail.profile?1:0)+detail.notes.length})`:id==='all'?'':` (${detail.writings.filter(w=>w.kind===id).length})`}</button>`).join('')}</nav>
    <div class="ip-toolbar">${button('모두 펼치기','expand')}${button('모두 접기','collapse')}</div>
-   <div data-review-records>${area==='all'||area==='db'?`<h4>나의 DB · 인생그래프·경험·준비 노트</h4>${dbRecords()}`:''}
+   <div data-review-records>${['all','db','basic','life'].includes(area)?`<h4>${assignmentArea==='basic'?'기본이력':assignmentArea==='life'?'인생그래프':'나의 DB · 인생그래프·경험·준비 노트'}</h4>${['basic','life'].includes(assignmentArea)?'<p class="ip-help">기본이력과 인생그래프의 저장·확인 상태는 함께 관리됩니다.</p>':''}${dbRecords()}`:''}
     ${Object.entries(writingKinds).filter(([id])=>area==='all'||area===id).map(([id,title])=>`<section class="ip-review-group" data-review-writing-kind="${esc(id)}"><h4>${esc(title)}</h4>${writingRecords(id)}</section>`).join('')}</div><div data-review-feedback-editor></div></section>`;
   mountHistories();
  }
@@ -157,7 +158,7 @@ function mountStudentReview(host,{request,templates,canWrite=false}){
     box.scrollIntoView({block:'start',behavior:'smooth'});break;
    }
    case 'close-feedback':renderDetail();break;
-   case 'student':area='all';loadDetail(n.dataset.id);break;
+   case 'student':area=assignmentArea||'all';loadDetail(n.dataset.id);break;
    case 'reload-detail':if(selected)loadDetail(selected);break;
    case 'reload-list':loadList();break;
    case 'reset':filter={search:'',track:'',status:''};page=0;loadList();break;

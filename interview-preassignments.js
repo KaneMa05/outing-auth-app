@@ -50,7 +50,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  }
  function adminOverview(){
   const settings=data.settings;
-  shell(`<section class="pa-card pa-intro"><h2>핵심 25제 과제 관리</h2><p>핵심인성 25문항 · ${esc(settings.cohort)}</p><p>${settings.enabled?'학생 제출 운영 중':'학생 제출 준비 중'}</p></section>
+  shell(`<section class="pa-card pa-intro"><h2>과제 관리</h2><p>핵심인성 25문항 · ${esc(settings.cohort)}</p><p>${settings.enabled?'학생 제출 운영 중':'학생 제출 준비 중'}</p></section>
   <div class="pa-toolbar">${button('질문별 진단 지침','guidelines','',true)}</div>
   ${canWrite?`<details class="pa-card"><summary>제출 운영 설정</summary><div class="pa-fields"><label class="pa-check"><input type="checkbox" data-setting="enabled" ${settings.enabled?'checked':''}>사전과제 제출 열기</label><label>최초 제출 마감 (한국시간, 해당 분까지)<input type="datetime-local" data-setting="dueAt" value="${kstInput(settings.due_at)}"></label><label>수정 답변 제출 마감 (한국시간, 해당 분까지)<input type="datetime-local" data-setting="revisionDueAt" value="${kstInput(settings.revision_due_at)}"></label><label class="pa-check"><input type="checkbox" data-setting="allowLate" ${settings.allow_late?'checked':''}>마감 후 지각 제출 허용</label>${button('운영 설정 저장','settings','',true)}</div></details>`:''}
   <form data-pa-filter class="pa-toolbar"><label>이름·직렬 검색<input name="search" value="${esc(filter.search)}" maxlength="200"></label><label>상태<select name="status">${[['','전체'],['empty','미제출 과제 있음'],['submitted','제출한 과제 있음'],['complete','전체 제출 완료']].map(([v,t])=>`<option value="${v}" ${filter.status===v?'selected':''}>${t}</option>`).join('')}</select></label><button class="ip-btn ip-primary">검색</button></form>

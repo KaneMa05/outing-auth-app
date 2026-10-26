@@ -179,10 +179,10 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     <div class="ip-row"><p>학생 이용: <strong>${catalog.enabled?'등록 학생에게 개방':'준비 중'}</strong></p>${btn(catalog.enabled?'이용 중지':'등록 학생에게 개방','enabled',canWrite?'':'disabled')}</div>`}
     <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
-    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('핵심 25제 과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
     if(tab==='preassignments'){
-      host.querySelector('.ip-hero h2').textContent='핵심 25제 제출 현황';
-      host.querySelector('.ip-hero>p').textContent='학생이 작성한 답변과 제출 현황을 조회합니다. 진단은 학생이 직접 요청합니다.';
+      host.querySelector('.ip-hero h2').textContent='과제 관리';
+      host.querySelector('.ip-hero>p').textContent='핵심 25제, 기본이력, 인생그래프, 자기소개, 지원동기, 공직관의 작성 내용과 상태를 확인합니다.';
       host.querySelector('.ip-hero .ip-summary').remove();
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
     }
@@ -222,9 +222,10 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountPreassignments}=await import('./interview-preassignments.js?v=20261026-no-video-reference');
+      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261026-assignments');
       if(destroyed||version!==loadVersion)return;
-      const next=await mountPreassignments(box,{admin:true,canWrite});
+      const next=mountAssignmentManagement(box,{request,templates,canWrite});
+      await next.ready;
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
       return;
     }
