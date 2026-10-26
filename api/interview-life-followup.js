@@ -2,17 +2,19 @@
 const {bodyOf,sameOrigin,postOnly,sendError}=require('../lib/interview-ai-http');
 const {generate}=require('../lib/interview-life-followup-engine');
 const {UUID,keys,fail}=require('../lib/interview-ai-validation');
-const actions={availability:[],start:['experienceId'],get:['sessionId','experienceId'],status:['sessionId'],save_answers:['sessionId','answerRevision','answers'],generate_questions:['sessionId','sourceHash','answerRevision','requestKey'],summarize:['sessionId','sourceHash','answerRevision','requestKey'],apply:['sessionId','sourceHash','profileRevision','answerRevision','outputId','fields'],restore:['sessionId','sourceHash','profileRevision','outputId']};
+const actions={draft_questions:['experience'],draft_status:['id'],availability:[],start:['experienceId'],get:['sessionId','experienceId'],status:['sessionId'],save_answers:['sessionId','answerRevision','answers'],generate_questions:['sessionId','sourceHash','answerRevision','requestKey'],summarize:['sessionId','sourceHash','answerRevision','requestKey'],apply:['sessionId','sourceHash','profileRevision','answerRevision','outputId','fields'],restore:['sessionId','sourceHash','profileRevision','outputId']};
 function validate(b){
  if(!actions[b.action])fail('unsupported_action');
  keys(b,['action','studentId','deviceToken',...actions[b.action]]);
  if(b.sessionId!==undefined&&!UUID.test(b.sessionId))fail('invalid_request');
  if(b.outputId!==undefined&&!UUID.test(b.outputId))fail('invalid_request');
- if(!['availability','start','get'].includes(b.action)&&!b.sessionId)fail('invalid_request');
+ if(!['availability','start','get','draft_questions','draft_status'].includes(b.action)&&!b.sessionId)fail('invalid_request');
  if(['start','get'].includes(b.action)&&!b.sessionId&&!/^[a-zA-Z0-9_-]{1,80}$/.test(b.experienceId||''))fail('invalid_request');
  for(const k of ['answerRevision','profileRevision'])if(k in b&&(!Number.isInteger(b[k])||b[k]<0))fail('invalid_request');
  if('sourceHash' in b&&!/^[a-f0-9]{32}$/.test(b.sourceHash))fail('invalid_request');
  if(['generate_questions','summarize'].includes(b.action)&&(!/^[a-f0-9]{32}$/.test(b.sourceHash||'')||!Number.isInteger(b.answerRevision)||typeof b.requestKey!=='string'||b.requestKey.length<8||b.requestKey.length>100))fail('invalid_request');
+ if(b.action==='draft_status'&&!UUID.test(b.id||''))fail('invalid_request');
+ if(b.action==='draft_questions'){const e=b.experience;if(!e||typeof e!=='object'||Array.isArray(e))fail('invalid_request');keys(e,['title','content']);if(typeof e.title!=='string'||e.title.length>2000||typeof e.content!=='string'||e.content.trim().length<10||[...e.content].length>12000)fail('invalid_request');}
  if(b.action==='save_answers'&&(!Array.isArray(b.answers)||b.answers.length>15||b.answers.some(a=>!a||!UUID.test(a.questionId)||typeof a.text!=='string'||[...a.text].length>4000||!['answered','unknown','skipped'].includes(a.status))))fail('invalid_request');
 }
 function remoteProvider(){
@@ -28,6 +30,8 @@ function remoteProvider(){
 function defaults(){return {
  provider:remoteProvider(),
  enabled:()=>process.env.INTERVIEW_LIFE_FOLLOWUP_ENABLED==='true',
+ draftEnabled:()=>process.env.INTERVIEW_DRAFT_QUESTIONS_ENABLED==='true',
+ draftInvoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_draft_question_service',{p_action:action,p_actor:actor,p_body:body}),
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
@@ -38,6 +42,7 @@ function createHandler(deps){return async(req,res)=>{try{
  let student=await d.authenticateWeb(req);
  if(!student){if(!d.previewAllowed(b.studentId))fail('forbidden',403);student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student)fail('unauthorized',401);if(!d.previewAllowed(student.id))fail('forbidden',403);}
  const actor={type:'student',id:student.id};
+ if(['draft_questions','draft_status'].includes(b.action)){if(!d.draftEnabled?.())fail('automation_disabled');return res.status(200).json(await d.draftInvoke(b.action==='draft_questions'?'request':'status',actor,b.action==='draft_questions'?{experience:b.experience}:{id:b.id}));}
  if(!d.enabled()){if(b.action==='availability')return res.status(200).json({ok:true,enabled:false,sessions:[]});fail('automation_disabled');}
  const body={...b};delete body.action;delete body.studentId;delete body.deviceToken;
  if(['generate_questions','summarize'].includes(b.action)){

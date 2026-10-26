@@ -49,6 +49,7 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-shell .ip-workspace-hero,.ip-app-db .ip-workspace-tabs{display:none!important}
 .ip-app-writing .ip-workspace-tabs [data-workspace-page=db]{display:none}
 .ip-app-shell .ip-workspace{padding:0!important;max-width:none!important}
+@media(min-width:1024px){.ip-app-shell{max-width:1180px!important;padding-left:32px!important;padding-right:32px!important}}
 .ip-app-shell .ip-workspace-tabs{margin-bottom:16px!important}
 .ip-app-shell .ip-db-layout{display:block}.ip-app-shell .ip-db-sidebar{display:none}.ip-app-shell .ip-db-mobile{display:block;margin-bottom:16px}
 .ip-app-shell .ip-life-combined article.ip-panel{grid-template-columns:minmax(0,1fr);padding:16px;gap:16px}
