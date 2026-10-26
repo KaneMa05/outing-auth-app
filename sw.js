@@ -1,8 +1,9 @@
-const CACHE_NAME = "outing-auth-app-v533-home-notice";
+const CACHE_NAME = "outing-auth-app-v534-home-notice";
 const APP_SHELL = [
   "/app-startup.css?v=20261024-startup",
   "/app-startup.js?v=20261024-startup",
   "/interview-prep.js?v=20261026-home-notice",
+  "/interview-prep.js?v=20261026-application-summary",
   "/app.js?v=20261024-startup",
   "/interview-app.css?v=20261026-home-notice",
   "/interview-preassignments.js?v=20261023-pa8",
