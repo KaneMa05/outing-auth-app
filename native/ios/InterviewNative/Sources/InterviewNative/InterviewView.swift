@@ -29,7 +29,7 @@ import SwiftUI
             .foregroundStyle(ink).navigationTitle("모의면접").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("돌아가기") { if model.active { showExit = true } else { dismiss() } } } }
             .tint(teal)
-            .confirmationDialog("면접을 마칠까요?", isPresented: $showExit, titleVisibility: .visible) {
+            .alert("면접을 마칠까요?", isPresented: $showExit) {
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }

@@ -11,6 +11,18 @@
       "sha256": "5287e36893889bbb0918224df0f879e6dff4c498b221d4f9a60e929e898251f1"
     },
     {
+      "path": "native/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "sha256": "8e8b977d57ec6e4c4808709c8ae208e923b79a67e9167b43846c284b4b1164e9"
+    },
+    {
+      "path": "native/ios/App/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "6ad2c5c3bbcf972c7f02d217d6afcac3f24a10e30510c7e2d06c582371ed9d22"
+    },
+    {
+      "path": "native/ios/App/Assets.xcassets/Contents.json",
+      "sha256": "10e3b5dc202f1cd9fad1f688c8fc9fe9e9669bf3f8295e67d216b10fd99b6f49"
+    },
+    {
       "path": "native/ios/App/Info.plist",
       "sha256": "39021a0cde7dd3b3a08fbf2121a08713d09cabb46c5c515397f9cf62225ecbbc"
     },
@@ -28,7 +40,7 @@
     },
     {
       "path": "native/ios/App/project.yml",
-      "sha256": "9de4397c59b19b9c69ad7ef28dc12d76166ffb7f312be7ba415bb6a2bea93d4e"
+      "sha256": "d9334852052ca72882333faa2765c195cad570ac95193c46f331bc898bdf10bb"
     },
     {
       "path": "native/ios/InterviewNative/Package.swift",
@@ -56,7 +68,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewView.swift",
-      "sha256": "9030e23317ffe47b472c55fd30eb8b9e9673dfb0f5335aaa3fd90721447e9ddb"
+      "sha256": "f928406ee03681082b3e1699049944eb6105d031d7ea5d830444c9dcbfd419eb"
     },
     {
       "path": "scripts/ios/build-cloud.sh",
@@ -71,7 +83,7 @@
       "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
     }
   ],
-  "sourceCount": 17,
+  "sourceCount": 20,
   "deploymentEnabled": false,
   "remotePushPerformed": false,
   "cloudBuildPerformed": false
