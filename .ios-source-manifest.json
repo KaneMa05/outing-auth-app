@@ -24,7 +24,7 @@
     },
     {
       "path": "native/ios/App/Info.plist",
-      "sha256": "39021a0cde7dd3b3a08fbf2121a08713d09cabb46c5c515397f9cf62225ecbbc"
+      "sha256": "12f00993b00a9fca02793601185f7ef24667f4c4970bcdc11f951f010ad2381d"
     },
     {
       "path": "native/ios/App/Sources/RonparkStudyApp.swift",
