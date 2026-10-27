@@ -1,3 +1,4 @@
+import {mountAIUsage} from './interview-ai-usage.js?v=20261027';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관'};
@@ -5,8 +6,9 @@ const statuses={submitted:'확인 대기',needs_revision:'보완 필요',approve
 const date=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 export function mountWritingBoard(host,{request,canWrite=false}){
  let destroyed=false,version=0,page=0,data=null,editor=null,selected=null,loading=false,filter={search:'',kind:'',status:''};
+ let aiUsage=null;
  const canLeave=()=>!editor||editor.canLeave();
- const close=()=>{editor?.destroy();editor=null;selected=null;host.querySelector('[data-board-detail]').replaceChildren();};
+ const close=()=>{aiUsage?.destroy();aiUsage=null;editor?.destroy();editor=null;selected=null;host.querySelector('[data-board-detail]').replaceChildren();};
  host.innerHTML=`<section class="ip-panel"><div class="ip-row"><div><h3>제출물 첨삭 게시판</h3><p class="ip-help">제출한 답변을 열어 원문에 표시하고 학생에게 전달하세요. 학생별 최신 제출이 한 줄씩 표시됩니다.</p></div></div>
   <form data-board-filter class="ip-board-filter"><label>제목 · 학생 검색<input name="search" maxlength="200" placeholder="제목, 이름, 수험번호 또는 학생 ID"></label><label>제출 항목<select name="kind"><option value="">전체 항목</option>${Object.entries(kinds).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label><label>처리 상태<select name="status"><option value="">전체 상태</option>${Object.entries(statuses).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label><button class="ip-btn ip-primary">검색</button><button type="button" class="ip-btn" data-board-action="reset">초기화</button></form></section>
   <div data-board-results aria-live="polite"></div><div data-board-detail></div>`;
@@ -31,7 +33,8 @@ export function mountWritingBoard(host,{request,canWrite=false}){
   const submission=data?.submissions[index];if(!submission)return;
   close();selected=submission;render();
   const box=host.querySelector('[data-board-detail]');
-  box.innerHTML=`<section class="ip-panel ip-board-detail"><div class="ip-row"><h3 tabindex="-1">${esc(submission.name)} · ${kinds[submission.kind]} 첨삭</h3><button type="button" class="ip-btn" data-board-action="close">목록으로</button></div><div data-board-editor></div></section>`;
+  box.innerHTML=`<section class="ip-panel ip-board-detail"><div class="ip-row"><h3 tabindex="-1">${esc(submission.name)} · ${kinds[submission.kind]} 첨삭</h3><button type="button" class="ip-btn" data-board-action="close">목록으로</button></div><div data-board-ai-usage></div><div data-board-editor></div></section>`;
+  aiUsage=mountAIUsage(box.querySelector('[data-board-ai-usage]'),{request,studentId:submission.student_id,kind:submission.kind});
   editor=mountWriting(box.querySelector('[data-board-editor]'),{request,admin:true,studentId:submission.student_id,kind:submission.kind,initialItemId:submission.item_id,canWrite,hideQuestionPicker:true,onFeedbackSaved(){load({keepEditor:true});}});
   box.querySelector('h3').focus({preventScroll:true});box.scrollIntoView({block:'start',behavior:'smooth'});
  }
@@ -49,5 +52,5 @@ export function mountWritingBoard(host,{request,canWrite=false}){
  };
  host.oninput=e=>e.stopPropagation();host.onchange=e=>e.stopPropagation();
  const ready=load();
- return {ready,canLeave,destroy(){destroyed=true;++version;editor?.destroy();host.onclick=null;host.onsubmit=null;host.oninput=null;host.onchange=null;}};
+ return {ready,canLeave,destroy(){aiUsage?.destroy();destroyed=true;++version;editor?.destroy();host.onclick=null;host.onsubmit=null;host.oninput=null;host.onchange=null;}};
 }

@@ -235,7 +235,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261024-school-status');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261027-ai-usage');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

@@ -1,4 +1,5 @@
-import {mountWritingBoard} from './interview-writing-board.js?v=20261024-colors';
+import {mountAIUsage} from './interview-ai-usage.js?v=20261027';
+import {mountWritingBoard} from './interview-writing-board.js?v=20261027-ai-usage';
 import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
 import {getTopicQuestions} from './interview-prep-prompts.js';
 import {basicFields,basicFieldText} from './client/interview-basic-fields.js?v=20261024-school-status';
@@ -35,7 +36,7 @@ export function mountReview(host,options){
 
 export function mountStudentReview(host,{request,templates,canWrite=false,assignmentArea=null}){
  let destroyed=false,version=0,page=0,filter={search:'',track:'',status:''},roster=null,detail=null,selected='',area=assignmentArea||'all';
- let editor=null;
+ let editor=null,aiUsage=null;
  const histories=new Map();
  const clearHistories=()=>{for(const h of histories.values())h.destroy();histories.clear();};
  function mountHistories(){
@@ -43,7 +44,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   for(const el of host.querySelectorAll('[data-review-rounds]'))if(!histories.has(el))histories.set(el,mountWritingHistory(el,{request,admin:true,studentId:selected,kind:el.dataset.kind,itemId:el.dataset.item}));
  }
  const canLeave=()=>!editor||editor.canLeave();
- const closeEditor=()=>{editor?.destroy();editor=null;};
+ const closeEditor=()=>{aiUsage?.destroy();aiUsage=null;editor?.destroy();editor=null;};
  host.classList.add('ip-review');
  function listShell(){
   host.innerHTML=`<section class="ip-panel"><h3>학생 찾기</h3><p>${assignmentArea?'학생을 선택하면 선택한 과제의 기존 작성 내용과 상태를 확인합니다. 아래 목록의 건수와 상태 필터는 학생의 전체 작성 기록 기준입니다.':'학생별로 나의 DB와 모든 작성 답변을 모아봅니다.'} 임시저장과 이용 중지·기간 만료 계정의 기록도 포함합니다.</p>
@@ -131,10 +132,12 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   host.querySelector('[data-review-detail]').innerHTML=`<section class="ip-panel ip-review-reader" tabindex="-1">
    <div class="ip-row"><div><h3>${esc(s.name)}의 작성 내용</h3><p>${esc(s.track)} · 수험번호 ${esc(s.exam_number)} · ${esc(account(s))}</p></div><div class="ip-toolbar">${button('최신 내용 불러오기','reload-detail')}${button('닫기','close')}</div></div>
    <p class="ip-help">서버에 저장된 내용을 표시합니다. 학생의 편집창에만 있는 미저장 내용은 포함되지 않습니다.</p>
+   <div data-review-ai-usage></div>
    <nav class="ip-tabs ip-review-tabs" aria-label="학생 작성 영역">${tabs.map(([id,title])=>`<button type="button" class="ip-btn" data-review-action="area" data-area="${esc(id)}" ${area===id?'aria-current="page"':''}>${esc(title)}${['basic','life'].includes(id)?'':id==='db'?` (${(detail.profile?1:0)+detail.notes.length})`:id==='all'?'':` (${detail.writings.filter(w=>w.kind===id).length})`}</button>`).join('')}</nav>
    <div class="ip-toolbar">${button('모두 펼치기','expand')}${button('모두 접기','collapse')}</div>
    <div data-review-records>${['all','db','basic','life'].includes(area)?`<h4>${assignmentArea==='basic'?'기본이력':assignmentArea==='life'?'인생그래프':'나의 DB · 인생그래프·경험·준비 노트'}</h4>${['basic','life'].includes(assignmentArea)?'<p class="ip-help">기본이력과 인생그래프의 저장·확인 상태는 함께 관리됩니다.</p>':''}${dbRecords()}`:''}
     ${Object.entries(writingKinds).filter(([id])=>area==='all'||area===id).map(([id,title])=>`<section class="ip-review-group" data-review-writing-kind="${esc(id)}"><h4>${esc(title)}</h4>${writingRecords(id)}</section>`).join('')}</div><div data-review-feedback-editor></div></section>`;
+  if(!['basic','life','db'].includes(area))aiUsage=mountAIUsage(host.querySelector('[data-review-ai-usage]'),{request,studentId:selected,kind:area==='all'?null:area});
   mountHistories();
  }
  async function loadDetail(id){
