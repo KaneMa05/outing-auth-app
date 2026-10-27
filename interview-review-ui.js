@@ -51,7 +51,12 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    <label>직렬<select name="track">${options([['','전체 직렬'],...['공채','항해','기관','방제','관제','기타'].map(t=>[t,t])],filter.track)}</select></label>
    <label>작성 상태<select name="status">${options([['','전체'],['pending','확인 대기'],['revision','보완·도움 요청'],['draft','임시저장 있음'],['empty','저장 내역 없음']],filter.status)}</select></label>
    <button class="ip-btn ip-primary">검색</button>${button('초기화','reset')}</form></section>
-   <div data-review-roster></div><div data-review-detail></div>`;
+   <div data-review-roster></div>${assignmentArea?'<dialog class="ip-life-dialog ip-assignment-dialog" aria-label="학생 과제 내용" style="width:min(1100px,calc(100% - 32px));max-height:88dvh;overflow:auto"><div data-review-detail></div></dialog>':'<div data-review-detail></div>'}`;
+  const dialog=host.querySelector('.ip-assignment-dialog');
+  if(dialog)dialog.addEventListener('cancel',e=>{
+   e.preventDefault();
+   if(canLeave())closeDetail();
+  });
  }
  async function loadList(){
   clearHistories();
@@ -74,6 +79,21 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
      <td>나의 DB ${s.life_count+s.note_count}건<small>작성 답변 ${s.writing_count}건</small></td><td>확인 대기 ${s.pending_count}건<small>보완·도움 ${s.revision_count}건 · 임시저장 ${s.draft_count}건</small></td><td>${esc(date(s.updated_at))}</td>
      <td>${button('내용 보기','student',`data-id="${esc(s.id)}" aria-label="${esc(s.name)} 작성 내용 보기"`)}</td></tr>`).join('')}</tbody></table>${!data.students.length?'<p class="ip-empty">검색 조건에 맞는 수강생이 없습니다.</p>':''}</div>
     <div class="ip-toolbar">${button('이전','prev',page===0?'disabled':'')}<span>${page+1} / ${Math.max(1,Math.ceil(data.total/data.pageSize))} 페이지</span>${button('다음','next',(page+1)*data.pageSize>=data.total?'disabled':'')}${button('목록 새로고침','reload-list')}</div>`;
+ }
+ function placeDetail(){
+  if(!assignmentArea)return;
+  const dialog=host.querySelector('.ip-assignment-dialog');
+  if(!dialog.open)dialog.showModal();
+ }
+ function closeDetail(){
+  clearHistories();closeEditor();
+  const id=selected;
+  ++version;detail=null;selected='';
+  host.querySelector('.ip-assignment-dialog')?.close();
+  host.querySelector('[data-review-detail]').replaceChildren();
+  const row=[...host.querySelectorAll('[data-review-student]')].find(row=>row.dataset.reviewStudent===id);
+  row?.querySelector('button')?.focus({preventScroll:true});
+  host.querySelectorAll('.is-selected').forEach(el=>el.classList.remove('is-selected'));
  }
  function record(title,row,body,extra=''){
   return `<details class="ip-review-record"><summary><span><strong>${esc(title)}</strong>${extra?`<small>${esc(extra)}</small>`:''}</span>${badge(row.status)}<small>${esc(date(row.updated_at))}</small></summary><div class="ip-review-record-body">${body}${writingCorrections(row)}${row.submitted_revision?'':feedback(row)}</div></details>`;
@@ -121,7 +141,8 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   clearHistories();
   closeEditor();
   const current=++version;selected=id;detail=null;
-  const box=host.querySelector('[data-review-detail]');box.innerHTML='<p role="status">학생 작성 내용을 불러오는 중…</p>';
+  const box=host.querySelector('[data-review-detail]');box.innerHTML='<p role="status">학생 작성 내용을 불러오는 중…</p>'+button('닫기','close');
+  placeDetail();
   host.querySelectorAll('[data-review-student]').forEach(row=>row.classList.toggle('is-selected',row.dataset.reviewStudent===id));
   try{
    const result=await request('admin_review_detail',{targetStudentId:id});
@@ -129,7 +150,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    detail=result;renderDetail();
    host.querySelector('.ip-review-reader').focus({preventScroll:true});
    box.scrollIntoView({block:'start',behavior:'smooth'});
-  }catch(e){if(!destroyed&&current===version)box.innerHTML=`<p role="alert">${esc(failure(e))}</p>${button('다시 시도','reload-detail')}`;}
+  }catch(e){if(!destroyed&&current===version)box.innerHTML=`<p role="alert">${esc(failure(e))}</p>${button('다시 시도','reload-detail')}${button('닫기','close')}`;}
  }
  host.onsubmit=e=>{e.preventDefault();e.stopPropagation();if(!e.target.matches('[data-review-filter]')||!canLeave())return;filter=Object.fromEntries(new FormData(e.target));page=0;loadList();};
  host.onclick=e=>{
@@ -166,16 +187,10 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    case 'next':if(roster&&(page+1)*roster.pageSize<roster.total){page++;loadList();}break;
    case 'area':if(detail){area=n.dataset.area;renderDetail();}break;
    case 'expand':case 'collapse':host.querySelectorAll('.ip-review-record').forEach(el=>el.open=n.dataset.reviewAction==='expand');break;
-   case 'close':{
-    clearHistories();
-    closeEditor();
-    ++version;detail=null;selected='';host.querySelector('[data-review-detail]').replaceChildren();
-    const row=host.querySelector('.is-selected');row?.querySelector('button')?.focus({preventScroll:true});row?.scrollIntoView({block:'center',behavior:'smooth'});
-    host.querySelectorAll('.is-selected').forEach(el=>el.classList.remove('is-selected'));break;
-   }
+   case 'close':closeDetail();break;
   }
  };
  host.oninput=e=>e.stopPropagation();host.onchange=e=>e.stopPropagation();
  const ready=loadList();
- return {ready,canLeave,destroy(){destroyed=true;++version;closeEditor();clearHistories();host.onclick=null;host.onsubmit=null;host.oninput=null;host.onchange=null;}};
+ return {ready,canLeave,destroy(){destroyed=true;++version;host.querySelector('.ip-assignment-dialog')?.close();closeEditor();clearHistories();host.onclick=null;host.onsubmit=null;host.oninput=null;host.onchange=null;}};
 }

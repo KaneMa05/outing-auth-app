@@ -3,14 +3,14 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_assignment_overview','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
   'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide',
   'admin_writing_board','writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
   'admin_rubric_list','admin_rubric_detail','admin_rubric_save']);
-const reads = new Set(['admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
+const reads = new Set(['admin_assignment_overview','admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_core_questions','admin_life_get','admin_applications','admin_writing_list','admin_review_students','admin_review_detail','admin_rubric_list','admin_rubric_detail']);
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
@@ -70,7 +70,7 @@ function validate(body) {
   if(body.action==='admin_question_publish' && (!Array.isArray(body.items)||body.items.length<1||body.items.length>30||
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
-function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,
+function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,
   invoke=(action,actor,body)=>requestSupabase('POST',action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
@@ -107,7 +107,9 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];
-      res.status(200).json(await invoke(body.action,actor,payload));
+      res.status(200).json(body.action==='admin_assignment_overview'
+        ?await require('../lib/interview-assignment-overview.cjs').overview(payload,actor,invoke,read)
+        :await invoke(body.action,actor,payload));
     } catch(error) {
       const known=['unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
       known.push('rubric_incomplete');
