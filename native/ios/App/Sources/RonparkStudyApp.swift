@@ -50,6 +50,14 @@ private struct StudentWebApp: UIViewRepresentable {
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.userContentController.add(context.coordinator, name: "interviewNative")
+        // The installed WKWebView is standalone too. Set this before the existing
+        // web app evaluates its install gate; never apply it to third-party pages.
+        let installedApp = WKUserScript(source: """
+            if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                Object.defineProperty(navigator, 'standalone', { value: true });
+            }
+            """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        config.userContentController.addUserScript(installedApp)
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator; view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true

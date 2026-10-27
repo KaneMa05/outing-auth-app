@@ -28,7 +28,7 @@
     },
     {
       "path": "native/ios/App/Sources/RonparkStudyApp.swift",
-      "sha256": "1f79c296f32757fa64e3324fd3e691ff9fbd078adc97d2549cbeeb09e5ae513b"
+      "sha256": "084edaca7de9cafd5489aabb4e3fb6f0e0aea0c0897938495683ed9753977c7a"
     },
     {
       "path": "native/ios/App/Tests/Policy/InterviewLaunchPolicyTests.swift",
@@ -36,7 +36,7 @@
     },
     {
       "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
-      "sha256": "dcc0929f86e07544ebfe1252644961f598dcfb443bfd50cd87017daccd45837f"
+      "sha256": "50e8d245fbb45e038b3d1e9f09278926bdfa492c3937d5a26637a815006a8ec5"
     },
     {
       "path": "native/ios/App/project.yml",
