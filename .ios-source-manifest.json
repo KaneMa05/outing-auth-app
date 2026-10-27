@@ -40,7 +40,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewCall.swift",
-      "sha256": "846c8f4f01e90008c4c029771f7a3cc9bf9e4dbfaf2d196564a29ac0686e5dc8"
+      "sha256": "da618ca0077c8a7fc575903dfc68d599f38240c637272361c332bc76b41823fe"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewLaunchPolicy.swift",

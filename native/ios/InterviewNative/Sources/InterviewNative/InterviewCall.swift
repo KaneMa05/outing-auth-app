@@ -37,8 +37,8 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
             oldCategory = av.category; oldMode = av.mode; oldOptions = av.categoryOptions
             let rtcAudio = RTCAudioSession.sharedInstance()
             rtcAudio.lockForConfiguration(); defer { rtcAudio.unlockForConfiguration() }
-            try rtcAudio.setCategory(AVAudioSession.Category.playAndRecord.rawValue, with: [.defaultToSpeaker, .allowBluetooth])
-            try rtcAudio.setMode(AVAudioSession.Mode.voiceChat.rawValue)
+            try rtcAudio.setCategory(AVAudioSession.Category.playAndRecord, with: [.defaultToSpeaker, .allowBluetooth])
+            try rtcAudio.setMode(AVAudioSession.Mode.voiceChat)
             try rtcAudio.setActive(true)
             interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification,
                 object: nil, queue: .main) { [weak self] _ in self?.stop(failed: true) }
@@ -180,8 +180,8 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
         let rtcAudio = RTCAudioSession.sharedInstance(); rtcAudio.lockForConfiguration()
         try? rtcAudio.setActive(false)
         if let oldCategory, let oldMode, let oldOptions {
-            try? rtcAudio.setCategory(oldCategory.rawValue, with: oldOptions)
-            try? rtcAudio.setMode(oldMode.rawValue)
+            try? rtcAudio.setCategory(oldCategory, with: oldOptions)
+            try? rtcAudio.setMode(oldMode)
         }
         rtcAudio.unlockForConfiguration()
         onEnd?(runID, failed)
