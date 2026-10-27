@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
 assert.equal(entry,'interview-prep.js?v=20261027-admin-overview-modal');
 assert(read('sw.js').includes('"/'+entry+'"'));
-assert(read('sw.js').includes('v545-admin-overview-modal'));
+assert(read('sw.js').includes('v546-life-graph-labels'));
 assert(read('interview-prep.js').includes("admin?import('./interview-prep-ui.js?v=20261027-overview-modal')"));
 assert(read('interview-prep-ui.js').includes("import('./interview-assignment-management.js?v=20261027-overview-modal')"));
 assert(read('interview-assignment-management.js').includes("./interview-assignment-overview.js?v=20261027-overview-modal"));

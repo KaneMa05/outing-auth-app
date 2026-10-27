@@ -1,6 +1,6 @@
 import {createDraftQuestions} from './client/interview-draft-questions.js?v=20261026-content-questions';
 import {appendExperiencePrompt} from './client/interview-experience-prompts.js?v=20261026-inline-questions';
-import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261021-life-save-fix';
+import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261027-label-layout';
 import {basicFields,identityFields,identityGenders,emptyBasic,schoolStatuses,basicFieldText,normalizeBirthDate,validBirthDate} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {mountLifeFollowup} from './interview-life-followup-ui.js?v=20261021-followup-entry';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
