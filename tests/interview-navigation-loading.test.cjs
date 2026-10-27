@@ -105,3 +105,14 @@ test('assignment article can be reopened from its URL without loading student da
  assert.match(host.querySelector('[data-app-content]').innerHTML,/id="ip-assignment-title"/);
  view.destroy();
 });
+
+test('DB section changes never open DB sections inside the writing tab',async()=>{
+ const mounted=[],host=element();
+ const c=load('interview-app-ui.js',{location:{hash:'#interview-prep?tab=db&page=motivation'},mountWorkspace:async(host,options)=>{mounted.push(options);return {canLeave:()=>true,destroy(){}};}});
+ const view=await c.mountInterviewApp(host,{request:async()=>({})});
+ mounted[0].onPageChange('db','life:experiences');
+ await host.listeners.get('click')({target:{closest:()=>({dataset:{appTab:'writing'},hasAttribute:()=>false})}});
+ assert.equal(mounted[1].initialPage,'motivation');
+ assert.equal(mounted[1].initialArea,'life:experiences');
+ view.destroy();
+});

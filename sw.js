@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v543-mobile-db-tabs";
+const CACHE_NAME = "outing-auth-app-v544-writing-route";
 const APP_SHELL = [
   "/client/interview-draft-questions.js?v=20261026-content-questions",
   "/interview-life-ui.js?v=20261024-school-status",

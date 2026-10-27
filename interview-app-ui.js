@@ -47,7 +47,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
    }else if(['db','writing'].includes(route.tab)){
     box.classList.add('ip-app-editor',route.tab==='db'?'ip-app-db':'ip-app-writing');
     const editor=document.createElement('div');box.replaceChildren(editor);
-    const next=await mountWorkspace(editor,{request,aiRequest,compactNavigation:true,initialPage:route.tab==='db'?'db':route.page,initialArea:route.area,onPageChange(page,area){route={...route,page,area};setUrl(true);}});
+    const next=await mountWorkspace(editor,{request,aiRequest,compactNavigation:true,initialPage:route.tab==='db'?'db':Object.hasOwn(pages,route.page)?route.page:'introduction',initialArea:route.area,onPageChange(page,area){route={...route,...(Object.hasOwn(pages,page)?{page}:{}),area};setUrl(true);}});
     if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else{
     // Mock modes show a static notice without starting interviews or requesting microphone access.
