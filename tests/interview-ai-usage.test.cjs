@@ -8,7 +8,7 @@ const auth=require('../api/teacher-auth-utils');
  const read=async(method,path)=>{
   calls++;assert.equal(method,'GET');
   const q=new URLSearchParams(path.split('?')[1]);
-  assert.equal(q.get('student_id'),'eq."student,&other"');
+  assert.equal(q.get('student_id'),'eq.student,&other');
   assert.equal(q.get('limit'),'1');assert.equal(q.get('select'),'created_at,ip_ai_jobs(status)');
   return q.get('kind')==='eq.self_intro'?[{created_at:'2026-10-27T01:00:00Z',ip_ai_jobs:[{status:'COMPLETED'}]}]:[];
  };
