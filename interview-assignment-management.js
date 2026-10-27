@@ -1,6 +1,6 @@
 import {mountPreassignments} from './interview-preassignments.js?v=20261026-assignments';
-import {mountStudentReview} from './interview-review-ui.js?v=20261027-ai-usage';
-import {mountAssignmentOverview} from './interview-assignment-overview.js?v=20261027';
+import {mountStudentReview} from './interview-review-ui.js?v=20261027-overview-modal';
+import {mountAssignmentOverview} from './interview-assignment-overview.js?v=20261027-overview-modal';
 
 const areas=[['overview','전체 현황'],['basic','기본이력'],['life','인생그래프'],['introduction','자기소개'],['motivation','지원동기'],['public_service','공직관'],['core','핵심 25제']];
 export function mountAssignmentManagement(host,options){

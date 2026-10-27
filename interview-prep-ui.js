@@ -222,7 +222,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261027-assignment-overview');
+      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261027-overview-modal');
       if(destroyed||version!==loadVersion)return;
       const next=mountAssignmentManagement(box,{request,templates,canWrite});
       await next.ready;
@@ -235,7 +235,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261027-ai-usage');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261027-overview-modal');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

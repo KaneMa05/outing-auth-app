@@ -34,7 +34,7 @@ export function mountReview(host,options){
  mount();return {ready:current.ready,canLeave:()=>current.canLeave(),destroy(){current.destroy();host.onclick=null;}};
 }
 
-export function mountStudentReview(host,{request,templates,canWrite=false,assignmentArea=null}){
+export function mountStudentReview(host,{request,templates,canWrite=false,assignmentArea=null,initialStudentId='',modal=false,onCloseDetail=()=>{}}){
  let destroyed=false,version=0,page=0,filter={search:'',track:'',status:''},roster=null,detail=null,selected='',area=assignmentArea||'all';
  let editor=null,aiUsage=null;
  const histories=new Map();
@@ -52,7 +52,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    <label>직렬<select name="track">${options([['','전체 직렬'],...['공채','항해','기관','방제','관제','기타'].map(t=>[t,t])],filter.track)}</select></label>
    <label>작성 상태<select name="status">${options([['','전체'],['pending','확인 대기'],['revision','보완·도움 요청'],['draft','임시저장 있음'],['empty','저장 내역 없음']],filter.status)}</select></label>
    <button class="ip-btn ip-primary">검색</button>${button('초기화','reset')}</form></section>
-   <div data-review-roster></div>${assignmentArea?'<dialog class="ip-life-dialog ip-assignment-dialog" aria-label="학생 과제 내용" style="width:min(1100px,calc(100% - 32px));max-height:88dvh;overflow:auto"><div data-review-detail></div></dialog>':'<div data-review-detail></div>'}`;
+   <div data-review-roster></div>${assignmentArea||modal?'<dialog class="ip-life-dialog ip-assignment-dialog" aria-label="학생 과제 내용" style="width:min(1100px,calc(100% - 32px));max-height:88dvh;overflow:auto"><div data-review-detail></div></dialog>':'<div data-review-detail></div>'}`;
   const dialog=host.querySelector('.ip-assignment-dialog');
   if(dialog)dialog.addEventListener('cancel',e=>{
    e.preventDefault();
@@ -82,7 +82,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
     <div class="ip-toolbar">${button('이전','prev',page===0?'disabled':'')}<span>${page+1} / ${Math.max(1,Math.ceil(data.total/data.pageSize))} 페이지</span>${button('다음','next',(page+1)*data.pageSize>=data.total?'disabled':'')}${button('목록 새로고침','reload-list')}</div>`;
  }
  function placeDetail(){
-  if(!assignmentArea)return;
+  if(!assignmentArea&&!modal)return;
   const dialog=host.querySelector('.ip-assignment-dialog');
   if(!dialog.open)dialog.showModal();
  }
@@ -95,6 +95,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   const row=[...host.querySelectorAll('[data-review-student]')].find(row=>row.dataset.reviewStudent===id);
   row?.querySelector('button')?.focus({preventScroll:true});
   host.querySelectorAll('.is-selected').forEach(el=>el.classList.remove('is-selected'));
+  onCloseDetail();
  }
  function record(title,row,body,extra=''){
   return `<details class="ip-review-record"><summary><span><strong>${esc(title)}</strong>${extra?`<small>${esc(extra)}</small>`:''}</span>${badge(row.status)}<small>${esc(date(row.updated_at))}</small></summary><div class="ip-review-record-body">${body}${writingCorrections(row)}${row.submitted_revision?'':feedback(row)}</div></details>`;
@@ -120,6 +121,11 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   return html||'<p class="ip-help">아직 작성한 내용이 없습니다.</p>';
  }
  function writingRecords(kind){
+  if(kind==='core'&&detail.assignments)return detail.assignments.map(u=>{
+   const d=u.draft,s=d?.ip_pa_submissions;
+   const answers=values=>textFields((u.fields||[]).map(f=>[f.id,f.label]),values||{});
+   return `<details class="ip-review-record"><summary><strong>${esc(u.title)}</strong><span class="ip-badge">${s?'제출 완료':d?.revision?'저장 · 미제출':'미작성'}</span></summary><div class="ip-review-record-body"><p class="ip-review-text">${esc(s?.definition?.prompt||u.prompt)}</p>${s?`<p class="ip-help">${s.round}차 제출 · ${esc(date(s.submitted_at))}</p>${answers(s.fields)}${s.feedback?`<aside class="ip-feedback"><strong>교사 피드백</strong><p class="ip-review-text">${esc(s.feedback)}</p></aside>`:''}`:''}${d?.revision&&(!s||JSON.stringify(d.fields)!==JSON.stringify(s.fields))?`<h5>현재 저장한 답변 · 미제출</h5>${answers(d.fields)}`:''}${!s&&!d?.revision?'<p class="ip-help">저장한 답변이 없습니다.</p>':''}</div></details>`;
+  }).join('');
   const rows=detail.writings.filter(w=>w.kind===kind);
   return rows.map(w=>record(w.prompt_snapshot,{...w,status:w.submission_status||w.status},`${w.submitted_at?`<p class="ip-help">${w.submission_round||1}차 제출 답변 · ${esc(date(w.submitted_at))}</p><p class="ip-review-text">${esc(w.submitted_body)}</p>${w.body!==w.submitted_body?`<details><summary>제출 후 수정한 내용 · 아직 미제출</summary><p class="ip-review-text">${esc(w.body)}</p></details>`:''}<div data-review-rounds data-kind="${esc(w.kind)}" data-item="${esc(w.item_id)}"></div>`:`<p class="ip-review-text">${esc(w.body)||'작성 내용 없음'}</p>`}${canWrite&&w.submitted_at?button('피드백 작성','feedback',`data-kind="${esc(w.kind)}" data-item="${esc(w.item_id)}"`):''}`,kinds[kind]||kind)).join('')||'<p class="ip-empty">저장한 답변이 없습니다.</p>';
  }
@@ -127,13 +133,13 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   clearHistories();
   closeEditor();
   const s=detail.student;
-  const writingKinds={...kinds,...Object.fromEntries(detail.writings.filter(w=>!kinds[w.kind]).map(w=>[w.kind,w.kind]))};
+  const writingKinds={...kinds,...Object.fromEntries(detail.writings.filter(w=>!kinds[w.kind]).map(w=>[w.kind,w.kind])),...(detail.assignments?{core:'핵심 25제'}:{})};
   const tabs=assignmentArea?[[assignmentArea,{basic:'기본이력',life:'인생그래프',...kinds}[assignmentArea]]]:[['all','전체'],['db','나의 DB'],...Object.entries(writingKinds)];
   host.querySelector('[data-review-detail]').innerHTML=`<section class="ip-panel ip-review-reader" tabindex="-1">
    <div class="ip-row"><div><h3>${esc(s.name)}의 작성 내용</h3><p>${esc(s.track)} · 수험번호 ${esc(s.exam_number)} · ${esc(account(s))}</p></div><div class="ip-toolbar">${button('최신 내용 불러오기','reload-detail')}${button('닫기','close')}</div></div>
    <p class="ip-help">서버에 저장된 내용을 표시합니다. 학생의 편집창에만 있는 미저장 내용은 포함되지 않습니다.</p>
    <div data-review-ai-usage></div>
-   <nav class="ip-tabs ip-review-tabs" aria-label="학생 작성 영역">${tabs.map(([id,title])=>`<button type="button" class="ip-btn" data-review-action="area" data-area="${esc(id)}" ${area===id?'aria-current="page"':''}>${esc(title)}${['basic','life'].includes(id)?'':id==='db'?` (${(detail.profile?1:0)+detail.notes.length})`:id==='all'?'':` (${detail.writings.filter(w=>w.kind===id).length})`}</button>`).join('')}</nav>
+   <nav class="ip-tabs ip-review-tabs" aria-label="학생 작성 영역">${tabs.map(([id,title])=>`<button type="button" class="ip-btn" data-review-action="area" data-area="${esc(id)}" ${area===id?'aria-current="page"':''}>${esc(title)}${['basic','life'].includes(id)?'':id==='db'?` (${(detail.profile?1:0)+detail.notes.length})`:id==='all'?'':` (${id==='core'&&detail.assignments?detail.assignments.length:detail.writings.filter(w=>w.kind===id).length})`}</button>`).join('')}</nav>
    <div class="ip-toolbar">${button('모두 펼치기','expand')}${button('모두 접기','collapse')}</div>
    <div data-review-records>${['all','db','basic','life'].includes(area)?`<h4>${assignmentArea==='basic'?'기본이력':assignmentArea==='life'?'인생그래프':'나의 DB · 인생그래프·경험·준비 노트'}</h4>${['basic','life'].includes(assignmentArea)?'<p class="ip-help">기본이력과 인생그래프의 저장·확인 상태는 함께 관리됩니다.</p>':''}${dbRecords()}`:''}
     ${Object.entries(writingKinds).filter(([id])=>area==='all'||area===id).map(([id,title])=>`<section class="ip-review-group" data-review-writing-kind="${esc(id)}"><h4>${esc(title)}</h4>${writingRecords(id)}</section>`).join('')}</div><div data-review-feedback-editor></div></section>`;
@@ -148,7 +154,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   placeDetail();
   host.querySelectorAll('[data-review-student]').forEach(row=>row.classList.toggle('is-selected',row.dataset.reviewStudent===id));
   try{
-   const result=await request('admin_review_detail',{targetStudentId:id});
+   const result=await request(initialStudentId?'admin_assignment_detail':'admin_review_detail',{targetStudentId:id});
    if(destroyed||current!==version)return;
    detail=result;renderDetail();
    host.querySelector('.ip-review-reader').focus({preventScroll:true});
@@ -194,6 +200,11 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
   }
  };
  host.oninput=e=>e.stopPropagation();host.onchange=e=>e.stopPropagation();
- const ready=loadList();
+ let ready;
+ if(initialStudentId){
+  listShell();
+  host.querySelector('[data-review-filter]').closest('section').hidden=true;
+  ready=loadDetail(initialStudentId);
+ }else ready=loadList();
  return {ready,canLeave,destroy(){destroyed=true;++version;host.querySelector('.ip-assignment-dialog')?.close();closeEditor();clearHistories();host.onclick=null;host.onsubmit=null;host.oninput=null;host.onchange=null;}};
 }
