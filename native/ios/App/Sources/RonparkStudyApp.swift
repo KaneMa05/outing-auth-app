@@ -73,16 +73,16 @@ private struct StudentWebApp: UIViewRepresentable {
                 if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
                   const credentials = \(credentials);
                   localStorage.setItem('outing-pending-device:' + credentials[0], credentials[2]);
-                  let lookedUp = false, submitted = false;
+                  let lastLookup = 0, submitted = false;
                   const timer = setInterval(() => {
                     const form = document.querySelector('form.student-auth-card');
                     if (!form) return;
                     const id = form.querySelector('input[name="studentId"]');
                     const profile = form.querySelector('.student-auth-profile');
-                    if (!lookedUp && id) {
+                    if (id && (!profile || profile.hidden) && Date.now() - lastLookup > 2000) {
                       id.value = credentials[0];
                       const button = Array.from(form.querySelectorAll('button')).find(b => b.textContent === '로그인');
-                      if (button) { lookedUp = true; button.click(); }
+                      if (button) { lastLookup = Date.now(); button.click(); }
                     }
                     if (!submitted && profile && !profile.hidden) {
                       const password = form.querySelector('input[name="password"]');

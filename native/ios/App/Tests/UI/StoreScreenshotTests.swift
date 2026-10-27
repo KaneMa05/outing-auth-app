@@ -14,6 +14,12 @@ final class StoreScreenshotTests: XCTestCase {
         app.launchEnvironment["REVIEW_STUDENT_PASSWORD"] = password
         app.launchEnvironment["REVIEW_SCREENSHOT_DEVICE_TOKEN"] = env["REVIEW_SCREENSHOT_DEVICE_TOKEN"]
         app.launch()
+        defer {
+            let evidence = XCTAttachment(screenshot: app.screenshot())
+            evidence.name = "store-student-screen"
+            evidence.lifetime = .keepAlways
+            add(evidence)
+        }
         let login = app.webViews.textFields["예: 18004"]
         XCTAssertTrue(login.waitForExistence(timeout: 60), "Student login must load")
         let loggedIn = NSPredicate(format: "exists == false")
