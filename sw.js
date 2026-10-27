@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v541-assignment-management";
+const CACHE_NAME = "outing-auth-app-v542-student-login";
 const APP_SHELL = [
   "/client/interview-draft-questions.js?v=20261026-content-questions",
   "/interview-life-ui.js?v=20261024-school-status",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "/interview-prep.js?v=20261026-home-notice",
   "/interview-prep.js?v=20261026-application-summary",
   "/app.js?v=20261024-startup",
+  "/app.js?v=20261027-student-login",
+  "/styles.css?v=20261027-student-login",
   "/interview-app.css?v=20261026-home-notice",
   "/interview-preassignments.js?v=20261026-no-video-reference",
   "/interview-core25-summaries.js?v=20261026-no-video-reference",

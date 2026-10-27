@@ -1055,13 +1055,14 @@ function isTeacherAppAccount(student) {
 }
 
 function renderStudentAuth() {
+  const compactLogin = document.body.dataset.interviewPortal !== "true";
   const idInput = input("studentId", "text", "예: 18004", state.settings.studentAuthId || "");
   const lookupResult = el("div", { className: "student-auth-result", ariaLive: "polite" });
   const resetRequestArea = el("div", { className: "student-auth-reset-request", hidden: true });
   const profileArea = el("div", { className: "student-auth-profile", hidden: true });
   const studentNameNode = el("strong", { className: "student-auth-name" }, "-");
   const authTitle = el("h2", {}, "로그인");
-  const authDescription = el("p", {}, "고유번호를 입력해 본인 정보를 확인해주세요.");
+  const authDescription = el("p", {}, compactLogin ? "발급받은 등록번호로 시작하세요." : "고유번호를 입력해 본인 정보를 확인해주세요.");
   let selectedStudent = null;
 
   const showResetRequestButton = (credentials) => {
@@ -1090,6 +1091,7 @@ function renderStudentAuth() {
     lookupResult.innerHTML = "";
     hideResetRequestButton();
     profileArea.hidden = true;
+    if (compactLogin) submitButton.hidden = true;
 
     if (!selectedStudent) {
       lookupResult.className = "student-auth-result error";
@@ -1109,12 +1111,13 @@ function renderStudentAuth() {
       lookupResult.className = "student-auth-result success";
       lookupResult.textContent = `${selectedStudent.name} 선생님 계정이 확인되었습니다.`;
       profileArea.hidden = false;
+      if (compactLogin) { submitButton.hidden = false; lookupButton.hidden = true; }
       return;
     }
 
     authTitle.textContent = "로그인";
-    authDescription.textContent = "고유번호를 입력해 본인 정보를 확인해주세요.";
-    submitButton.textContent = "시작하기";
+    authDescription.textContent = compactLogin ? "본인 정보를 확인하고 비밀번호를 입력해주세요." : "고유번호를 입력해 본인 정보를 확인해주세요.";
+    submitButton.textContent = compactLogin ? "로그인" : "시작하기";
     trackField.hidden = false;
     genderField.hidden = false;
     const registeredTrack = normalizeCoastGuardTrack(selectedStudent.track || profile.initialTrack || profile.track);
@@ -1149,6 +1152,7 @@ function renderStudentAuth() {
         ? "신청 정보가 확인되었습니다. 사용할 비밀번호만 설정해주세요."
         : `${selectedStudent.name} 학생이 확인되었습니다.`;
     profileArea.hidden = false;
+    if (compactLogin) { submitButton.hidden = false; lookupButton.hidden = true; }
   });
 
   const trackSelect = select("track", ["", ...getCoastGuardTrackOptions()]);
@@ -1177,20 +1181,43 @@ function renderStudentAuth() {
   );
 
   const submitButton = button("시작하기", "btn");
+  if (compactLogin) {
+    lookupButton.textContent = "계속하기";
+    lookupButton.className = "btn";
+    submitButton.hidden = true;
+    submitButton.textContent = "로그인";
+    idInput.autocomplete = "username";
+    passwordInput.autocomplete = "current-password";
+    idInput.addEventListener("input", () => {
+      selectedStudent = null;
+      profileArea.hidden = true;
+      submitButton.hidden = true;
+      lookupButton.hidden = false;
+      lookupResult.textContent = "";
+      hideResetRequestButton();
+      authTitle.textContent = "로그인";
+      authDescription.textContent = "발급받은 등록번호로 시작하세요.";
+    });
+  }
   const form = el("form", { className: "student-auth-card" }, [
     el("div", {}, [
       authTitle,
       authDescription,
     ]),
-    field("등록번호", el("div", { className: "student-auth-lookup" }, [idInput, lookupButton]), "", "발급받은 수강생 등록번호를 입력해주세요."),
+    field("등록번호", el("div", { className: "student-auth-lookup" }, compactLogin ? [idInput] : [idInput, lookupButton]), "", compactLogin ? "" : "발급받은 수강생 등록번호를 입력해주세요."),
     lookupResult,
     resetRequestArea,
     profileArea,
     submitButton,
+    ...(compactLogin ? [lookupButton] : []),
   ]);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (compactLogin && profileArea.hidden) {
+      lookupButton.click();
+      return;
+    }
     const data = formData(form);
     const studentId = String(data.studentId || "").trim();
     selectedStudent = selectedStudent?.id === studentId ? selectedStudent : findStudent(studentId);
@@ -1233,7 +1260,7 @@ function renderStudentAuth() {
       return;
     } finally {
       submitButton.innerHTML = "";
-      submitButton.textContent = "시작하기";
+      submitButton.textContent = compactLogin ? "로그인" : "시작하기";
       submitButton.disabled = false;
     }
 
@@ -1284,10 +1311,17 @@ function renderStudentAuth() {
       form, el("p", {}, "등록번호가 없거나 면접반 이용 등록이 필요하면 관리자에게 문의해주세요."),
     ]);
   }
-  return el("div", { className: "grid student-view" }, [form, button('면접반 로그인','btn secondary','button',()=>location.assign('/interview?app=1')), renderLectureApplicationEntryCard(), renderStudentAuthInstallCard()].filter(Boolean));
+  return el("div", { className: "grid student-view student-login" }, [
+    form,
+    el("nav", { className: "student-login-links", ariaLabel: "다른 로그인 및 등록" }, [
+      button("면접반 로그인", "student-login-link", "button", () => location.assign('/interview?app=1')),
+      renderLectureApplicationEntryCard(true),
+    ]),
+    renderStudentAuthInstallCard(),
+  ].filter(Boolean));
 }
 
-function renderLectureApplicationEntryCard() {
+function renderLectureApplicationEntryCard(compact = false) {
   const receipt = getLectureApplicationReceipt();
   if (receipt) {
     ensureLectureApplicationStatusLoaded(receipt);
@@ -1297,6 +1331,7 @@ function renderLectureApplicationEntryCard() {
         : receipt
     );
   }
+  if (compact) return button("수강생 등록 신청", "student-login-link", "button", openLectureApplicationModal);
   return el("section", { className: "lecture-application-entry-card" }, [
     el("div", {}, [
       el("strong", {}, "신규 수강생인가요?"),

@@ -191,7 +191,7 @@ const browserInstallOnlySource = appSource.match(/function renderStudentBrowserI
 assert.match(browserInstallOnlySource, /button\("앱으로 이용하기"/);
 assert.doesNotMatch(browserInstallOnlySource, /renderLectureApplicationEntryCard\(\)/);
 // Verify the actual auth-card result for both shells, independent of formatting.
-const authSource = appSource.slice(appSource.indexOf('function renderStudentAuth()'), appSource.indexOf('function renderLectureApplicationEntryCard()'));
+const authSource = appSource.slice(appSource.indexOf('function renderStudentAuth()'), appSource.indexOf('function renderLectureApplicationEntryCard('));
 const authReturn = authSource.slice(authSource.lastIndexOf('  });') + '  });'.length).trim().replace(/\}\s*$/, '');
 for (const interviewPortal of ['false', 'true']) {
   const result = require('node:vm').runInNewContext(`(function(){${authReturn}})()`, {
@@ -202,7 +202,7 @@ for (const interviewPortal of ['false', 'true']) {
     renderStudentAuthInstallCard: () => 'install-card',
   });
   assert.equal(result.children[0], 'auth-form');
-  assert.equal(result.children.includes('application-card'), interviewPortal !== 'true');
+  assert.equal(result.children.some(child => child?.children?.includes('application-card')), interviewPortal !== 'true');
   assert.equal(result.children.includes('install-card'), interviewPortal !== 'true');
 }
 assert.match(appSource, /function enableLectureApplicationPush\(application\)/);
