@@ -16,7 +16,7 @@ workflows:
       - name: Capture authorized review account on iPhone and iPad
         script: bash scripts/ios/capture-store.sh
     artifacts:
-      - artifacts/store-screenshots/**/*.png
+      - artifacts/store-screenshots/**/*
     # Manual capture only. No signing, App Store upload or release.
   ios-signed-review:
     name: Ronpark Study - App Store Connect upload
