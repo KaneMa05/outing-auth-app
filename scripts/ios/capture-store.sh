@@ -12,7 +12,7 @@ export REVIEW_SCREENSHOT_DEVICE_TOKEN="$(uuidgen)"
 cleanup() {
   # Revoke only this job's ephemeral device, never any existing user device.
   python3 - <<'PY'
-import json, os, urllib.request
+import json, os, urllib.request, urllib.error
 payload = {'studentId': os.environ['REVIEW_STUDENT_ID'], 'deviceToken': os.environ['REVIEW_SCREENSHOT_DEVICE_TOKEN']}
 def call(body):
     req = urllib.request.Request('https://outing-auth-app.vercel.app/api/student-devices', data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
@@ -25,6 +25,11 @@ try:
         if not revoked.get('ok'):
             raise RuntimeError('cleanup failed')
     print('Temporary screenshot device session cleaned up.')
+except urllib.error.HTTPError as error:
+    if error.code == 403:
+        print('No active temporary screenshot device session remains.')
+    else:
+        print('Temporary screenshot device cleanup requires verification.')
 except Exception:
     print('Temporary screenshot device cleanup requires verification.')
 PY
@@ -64,6 +69,17 @@ while read -r kind simulator; do
     -derivedDataPath "$build_dir/derived" -resultBundlePath "$build_dir/$kind.xcresult" \
     CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > "$build_dir/$kind.log" 2>&1 || {
       printf '%s\n' "Screenshot test failed for $kind; no potentially sensitive test logs published." >&2
+      python3 - "$build_dir/$kind.log" <<'PY'
+import os, sys
+for line in open(sys.argv[1], errors='replace'):
+    if 'error:' in line or 'TEST FAILED' in line or ('Test Case' in line and 'failed' in line):
+        for key in ('REVIEW_STUDENT_ID', 'REVIEW_STUDENT_PASSWORD', 'REVIEW_SCREENSHOT_DEVICE_TOKEN'):
+            line = line.replace(os.environ[key], '[redacted]')
+        print(line[:500].rstrip())
+PY
+      if [[ -d "$build_dir/$kind.xcresult" ]]; then
+        xcrun xcresulttool export attachments --path "$build_dir/$kind.xcresult" --output-path "$output/$kind-failure" > /dev/null || true
+      fi
       exit 1
     }
   xcrun xcresulttool export attachments --path "$build_dir/$kind.xcresult" --output-path "$output/$kind" > /dev/null
