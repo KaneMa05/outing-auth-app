@@ -60,7 +60,7 @@
     },
     {
       "path": "scripts/ios/build-cloud.sh",
-      "sha256": "eea7d840dad75bfa05ec80e2c1b2ea3c9c3a943fe120dd7f09437ce5b2090c7c"
+      "sha256": "dae855f2797d2fb6514508896e55bb71066bbc3c41b1594e905712e46deca3ba"
     },
     {
       "path": "scripts/ios/install-tools.sh",
