@@ -80,7 +80,7 @@
     },
     {
       "path": "scripts/ios/capture-store.sh",
-      "sha256": "6bfb350be6a1de17907ee0f77afc64e0a43d9e272b76a924179fb47ab6b4f257"
+      "sha256": "4579167a46cd721abdb62ce744145657bc6053be1559d35f53c1b1aee0ba7e9d"
     },
     {
       "path": "scripts/ios/install-tools.sh",

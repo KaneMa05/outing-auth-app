@@ -7,6 +7,8 @@ workflows:
       xcode: 26.3
       groups:
         - ronpark-store-review
+      vars:
+        CAPTURE_KINDS: iPhone
     scripts:
       - name: Install pinned XcodeGen
         script: |

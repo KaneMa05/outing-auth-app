@@ -12,24 +12,24 @@ export REVIEW_SCREENSHOT_DEVICE_TOKEN="$(uuidgen)"
 cleanup() {
   # Revoke only this job's ephemeral device, never any existing user device.
   python3 - <<'PY'
-import json, os, urllib.request, urllib.error
+import json, os, subprocess
 payload = {'studentId': os.environ['REVIEW_STUDENT_ID'], 'deviceToken': os.environ['REVIEW_SCREENSHOT_DEVICE_TOKEN']}
 def call(body):
-    req = urllib.request.Request('https://outing-auth-app.vercel.app/api/student-devices', data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=20) as response:
-        return json.load(response)
+    response = subprocess.run(['curl', '--silent', '--show-error', '--max-time', '20',
+        'https://outing-auth-app.vercel.app/api/student-devices', '-H', 'Content-Type: application/json',
+        '--data-binary', '@-'], input=json.dumps(body), capture_output=True, text=True, check=True)
+    return json.loads(response.stdout)
 try:
     result = call(dict(payload, action='validate'))
-    if result.get('valid') and result.get('deviceId'):
+    if result.get('ok') and result.get('valid') and result.get('deviceId'):
         revoked = call(dict(payload, action='revoke', targetDeviceId=result['deviceId'], reason='Completed App Store screenshot capture'))
         if not revoked.get('ok'):
             raise RuntimeError('cleanup failed')
-    print('Temporary screenshot device session cleaned up.')
-except urllib.error.HTTPError as error:
-    if error.code == 403:
+        print('Temporary screenshot device session cleaned up.')
+    elif result.get('error') == 'device_not_active':
         print('No active temporary screenshot device session remains.')
     else:
-        print('Temporary screenshot device cleanup requires verification.')
+        print('Temporary screenshot device cleanup requires verification: ' + str(result.get('error', 'unexpected_response')))
 except Exception:
     print('Temporary screenshot device cleanup requires verification.')
 PY
@@ -39,9 +39,9 @@ trap cleanup EXIT
 xcodegen generate --spec "$root/native/ios/App/project.yml"
 xcrun simctl list devices available --json > "$build_dir/devices.json"
 python3 - "$build_dir/devices.json" > "$build_dir/selected.txt" <<'PY'
-import json, sys
+import json, sys, os
 inventory = json.load(open(sys.argv[1]))
-for kind in ('iPhone', 'iPad'):
+for kind in os.environ.get('CAPTURE_KINDS', 'iPhone,iPad').split(','):
     choices = []
     for runtime, devices in inventory['devices'].items():
         if '.iOS-' not in runtime:
@@ -49,7 +49,7 @@ for kind in ('iPhone', 'iPad'):
         version = tuple(map(int, runtime.split('.iOS-')[1].split('-')))
         for d in devices:
             name = d.get('name', '')
-            wanted = ('Pro Max' in name) if kind == 'iPhone' else ('Pro' in name and ('13-inch' in name or '12.9-inch' in name))
+            wanted = ('Pro' in name and 'Max' not in name) if kind == 'iPhone' else ('Pro' in name and ('13-inch' in name or '12.9-inch' in name))
             if name.startswith(kind) and wanted and d.get('isAvailable'):
                 choices.append((version, name, d['udid']))
     if not choices:
