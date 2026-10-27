@@ -28,7 +28,7 @@
     },
     {
       "path": "native/ios/App/Sources/RonparkStudyApp.swift",
-      "sha256": "084edaca7de9cafd5489aabb4e3fb6f0e0aea0c0897938495683ed9753977c7a"
+      "sha256": "5879e4a4e69c0dfb1562a797300830eb8ca7d1c68509dc805336c6a8ffccc79a"
     },
     {
       "path": "native/ios/App/Tests/Policy/InterviewLaunchPolicyTests.swift",
@@ -37,6 +37,10 @@
     {
       "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
       "sha256": "50e8d245fbb45e038b3d1e9f09278926bdfa492c3937d5a26637a815006a8ec5"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/StoreScreenshotTests.swift",
+      "sha256": "123de86314b1d68af050c3a1b864ade732f96597aa240aac9a80f797145b3846"
     },
     {
       "path": "native/ios/App/project.yml",
@@ -75,6 +79,10 @@
       "sha256": "dae855f2797d2fb6514508896e55bb71066bbc3c41b1594e905712e46deca3ba"
     },
     {
+      "path": "scripts/ios/capture-store.sh",
+      "sha256": "f4b9b50f232ddf8f70443913376652801dbd1e3ba0f1f541a5397f6fbd878446"
+    },
+    {
       "path": "scripts/ios/install-tools.sh",
       "sha256": "62ca08a9d32df1299ca7db8bd6236e6430c660cfbe421632d6d77b973e285899"
     },
@@ -83,7 +91,7 @@
       "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
     }
   ],
-  "sourceCount": 20,
+  "sourceCount": 22,
   "deploymentEnabled": false,
   "remotePushPerformed": false,
   "cloudBuildPerformed": false

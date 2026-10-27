@@ -1,4 +1,23 @@
 workflows:
+  ios-store-screenshots:
+    name: Ronpark Study - Store screenshots only
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: 26.3
+      groups:
+        - ronpark-store-review
+    scripts:
+      - name: Install pinned XcodeGen
+        script: |
+          export GITHUB_PATH="$(mktemp)"
+          bash scripts/ios/install-tools.sh
+          printf 'PATH=%s:%s\n' "$(cat "$GITHUB_PATH")" "$PATH" >> "$CM_ENV"
+      - name: Capture authorized review account on iPhone and iPad
+        script: bash scripts/ios/capture-store.sh
+    artifacts:
+      - artifacts/store-screenshots/**/*.png
+    # Manual capture only. No signing, App Store upload or release.
   ios-signed-review:
     name: Ronpark Study - App Store Connect upload
     instance_type: mac_mini_m2
