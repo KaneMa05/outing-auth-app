@@ -52,11 +52,11 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewModel.swift",
-      "sha256": "21945ef5cea1190884adecf9bf97d2d20727125d6da4535e49e97a881120f5a4"
+      "sha256": "d4e5472c56714440c75711cb68417e5c051ad864437e1065d627c1ca5252fc90"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewView.swift",
-      "sha256": "1c2b9c4492460e7bf59c01621c681b6f1ff9cba1a5bdf7d2b0936e3d9220c9aa"
+      "sha256": "9030e23317ffe47b472c55fd30eb8b9e9673dfb0f5335aaa3fd90721447e9ddb"
     },
     {
       "path": "scripts/ios/build-cloud.sh",

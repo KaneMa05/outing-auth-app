@@ -5,7 +5,9 @@ import SwiftUI
     @StateObject private var model: InterviewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
-    @State private var showExit = false, showCaptions = true, details = false
+    @State private var showExit = false
+    @State private var showCaptions = true
+    @State private var details = false
     private let teal = Color(red: 0.03, green: 0.49, blue: 0.45)
     private let ink = Color(red: 0.08, green: 0.17, blue: 0.26)
     public init(launchCode: String) { _model = StateObject(wrappedValue: InterviewModel(code: launchCode, demo: false)) }
