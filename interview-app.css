@@ -52,6 +52,12 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 @media(min-width:1024px){.ip-app-shell{max-width:1180px!important;padding-left:32px!important;padding-right:32px!important}}
 .ip-app-shell .ip-workspace-tabs{margin-bottom:16px!important}
 .ip-app-shell .ip-db-layout{display:block}.ip-app-shell .ip-db-sidebar{display:none}.ip-app-shell .ip-db-mobile{display:block;margin-bottom:16px}
+@media(max-width:767px){
+ .ip-app-shell .ip-db-sidebar{position:static;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;max-height:none;overflow:visible;margin-bottom:16px;padding:5px;border-radius:12px}
+ .ip-app-shell .ip-db-sidebar .ip-db-group,.ip-app-shell .ip-db-mobile{display:none}
+ .ip-app-shell .ip-db-sidebar .ip-db-item{min-width:0;min-height:44px;margin:0;padding:10px 4px;text-align:center;font-size:13px;word-break:keep-all}
+ .ip-app-shell .ip-db-sidebar .ip-db-item[aria-current]{background:#eaf3f4;color:#1c5a61;box-shadow:inset 0 -3px #367b82}
+}
 .ip-app-shell .ip-life-combined article.ip-panel{grid-template-columns:minmax(0,1fr);padding:16px;gap:16px}
 .ip-app-shell .ip-life-combined>[data-life-section]{padding:20px}
 .ip-app-shell [data-writing-text]{min-height:300px!important}
