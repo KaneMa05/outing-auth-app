@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { TITLE: DELETION_TITLE, isDeletionRequest } = require("../lib/account-deletion-request");
 const {
   COOKIE_NAME,
   getConfig,
@@ -56,6 +57,7 @@ async function handleStudentAction(res, action, body, student) {
     await enforceInquiryRateLimit(student.id);
     const category = normalizeCategory(body.category);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
+    if (title === DELETION_TITLE) throw httpError("use_account_deletion", 400);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
     const rows = await requestSupabase("POST", "student_inquiries", {
       student_id: student.id,
@@ -70,8 +72,10 @@ async function handleStudentAction(res, action, body, student) {
   }
   if (action === "update") {
     const inquiry = await requireStudentInquiry(body.inquiryId, student.id);
+    if (isDeletionRequest(inquiry)) throw httpError("deletion_request_read_only", 403);
     const category = normalizeCategory(body.category);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
+    if (title === DELETION_TITLE) throw httpError("use_account_deletion", 400);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
     await requestSupabase("PATCH", `student_inquiries?id=eq.${inquiry.id}&student_id=eq.${encodeURIComponent(student.id)}`, {
       category,
@@ -85,6 +89,7 @@ async function handleStudentAction(res, action, body, student) {
   }
   if (action === "delete") {
     const inquiry = await requireStudentInquiry(body.inquiryId, student.id);
+    if (isDeletionRequest(inquiry)) throw httpError("deletion_request_read_only", 403);
     await requestSupabase("PATCH", `student_inquiries?id=eq.${inquiry.id}&student_id=eq.${encodeURIComponent(student.id)}`, {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

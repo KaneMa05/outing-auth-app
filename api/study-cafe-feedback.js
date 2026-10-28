@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { assertAcceptableText } = require("../lib/student-content-safety");
 const { handleStudyCafeFeatures, createRemoteFeatureStore, requireFeature } = require("./study-cafe-features");
 
 const FEEDBACK_SUBJECT = "스터디카페 의견";
@@ -25,6 +26,7 @@ function normalizeFeedbackId(value) {
 function normalizeFeedbackBody(value) {
   const body = typeof value === "string" ? value.replace(/\r\n/g, "\n").trim() : "";
   if (body.length < 2 || body.length > 1000) throw feedbackError("invalid_feedback_body");
+  assertAcceptableText(body);
   return body;
 }
 

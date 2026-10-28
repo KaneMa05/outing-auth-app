@@ -257,7 +257,7 @@ function renderStudentInquiryDetail() {
       el("h2", {}, inquiry.title),
       el("time", {}, formatInquiryDate(inquiry.createdAt)),
       el("div", { className: "inquiry-body" }, inquiry.body),
-      el("div", { className: "inquiry-detail-actions" }, [
+      isAccountDeletionInquiry(inquiry) ? null : el("div", { className: "inquiry-detail-actions" }, [
         button("수정", "mini-btn", "button", () => openStudentInquiryForm(inquiry)),
         button("삭제", "mini-btn danger", "button", () => deleteStudentInquiry(inquiry)),
       ]),
@@ -310,6 +310,7 @@ function renderInquiryAdmin() {
   });
   return el("div", { className: "grid inquiry-admin-page" }, [
     panel("문의 관리", [
+      typeof openStudentContentReportAdmin === "function" ? button("콘텐츠 신고 관리", "btn secondary", "button", openStudentContentReportAdmin) : null,
       el("p", { className: "subtle" }, "수강생의 비공개 문의를 확인하고 답변합니다. 자유 게시판과는 별도로 운영됩니다."),
       searchForm,
       renderInquiryCategoryFilters(inquiryAdminState, true),
@@ -387,6 +388,7 @@ function renderInquiryAdminDetail() {
       el("h2", {}, inquiry.title),
       el("p", { className: "subtle" }, `${inquiry.studentName} · ${formatInquiryDate(inquiry.createdAt)}`),
       el("div", { className: "inquiry-body" }, inquiry.body),
+      isAccountDeletionInquiry(inquiry) ? el("p", { role: "note" }, "계정 전체의 영구 삭제 요청입니다. 연결 데이터와 파일을 확인해 실제 삭제하고 등록된 연락처로 결과를 안내해 주세요. 답변 등록만으로 삭제가 실행되거나 완료되지 않습니다.") : null,
     ]),
     panel(`답변 및 추가 내용 ${messages.length}`, [
       messages.length ? el("div", { className: "inquiry-message-list" }, messages.map(renderInquiryMessage)) : el("div", { className: "empty" }, "등록된 답변이 없습니다."),
@@ -404,6 +406,10 @@ function closeInquiryAdminDetail() {
 async function refreshInquiryAdmin() {
   inquiryAdminState.loaded = false;
   await loadInquiryAdmin();
+}
+
+function isAccountDeletionInquiry(inquiry) {
+  return inquiry?.category === "계정·기기" && inquiry?.title === "계정 및 데이터 영구 삭제 요청";
 }
 
 function renderInquiryStatusBadge(status) {

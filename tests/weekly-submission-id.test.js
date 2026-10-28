@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const source = fs.readFileSync("shared.js", "utf8");
+const source = fs.readFileSync("shared.js", "utf8").replace(/\r\n/g, "\n");
 const helperSource = source.match(
   /function getExamSubmissionRemoteKey\([\s\S]*?\n}\n\nasync function persistNormalizedWeeklySectionScores/
 )?.[0].replace(/\n\nasync function persistNormalizedWeeklySectionScores$/, "");

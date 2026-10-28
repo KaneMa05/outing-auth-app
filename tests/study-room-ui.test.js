@@ -40,7 +40,7 @@ assert.match(app, /function openStudyRoomMembersModal\(\)/);
 assert.match(app, /title: `멤버 목록 · \$\{room\.members\.length\}명`/);
 assert.match(app, /member\.role === "host"/);
 assert.match(app, /member\.seatNumber \? `\$\{member\.seatNumber\}번 좌석` : "좌석 미선택"/);
-assert.match(app, /const canViewDetails = !member\.isMine && Boolean\(member\.seatNumber\)/);
+assert.match(app, /const canViewDetails = !member\.isMine;/);
 assert.match(app, /canViewDetails \? "button" : "article"/);
 assert.match(app, /ariaLabel: `\$\{member\.name\}님 상세 보기`/);
 assert.match(app, /className: "study-room-members-item-arrow"/);

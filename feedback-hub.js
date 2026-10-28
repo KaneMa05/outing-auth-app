@@ -16,6 +16,7 @@ async function requestFeedbackHub(action, payload = {}, admin = false) {
 }
 
 function feedbackHubError(error) {
+  if (error.message === "inappropriate_content") return "부적절한 표현을 수정한 뒤 다시 시도해 주세요.";
   if (error.message === "feature_not_found") return "공개가 종료되었거나 찾을 수 없는 소개글입니다.";
   if (error.message === "forbidden" || error.message === "unauthorized") return "로그인 상태와 관리자 권한을 확인해주세요.";
   if (/image/.test(error.message)) return "사진을 확인해주세요. JPG, PNG, WebP 사진을 최대 3장까지 첨부할 수 있습니다.";

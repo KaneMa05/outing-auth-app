@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { withStudentContentSafety, contentSafePath, contentSafeResult, assertAcceptableText } = require("../lib/student-content-safety");
 const {
   COOKIE_NAME,
   getConfig,
@@ -57,7 +58,7 @@ module.exports = async function handler(req, res) {
       res.status(403).json({ ok: false, error: "lecture_student_only" });
       return;
     }
-    await handleStudentAction(res, action, body, student);
+    await withStudentContentSafety(student.id, requestSupabase, () => handleStudentAction(res, action, body, student), action !== "subjects");
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ ok: false, error: error.message || "question_board_error" });
@@ -92,6 +93,7 @@ async function handleStudentAction(res, action, body, student) {
     await requireAllowedSubject(subject, student.track);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
+    assertAcceptableText(title, content);
     const postId = crypto.randomUUID();
     const uploadedPaths = await uploadQuestionImages(body.images, student.id, postId);
     let rows;
@@ -120,6 +122,7 @@ async function handleStudentAction(res, action, body, student) {
     await requireAllowedSubject(subject, student.track);
     const title = normalizeRequired(body.title, 120, "invalid_title", 2);
     const content = normalizeRequired(body.body, 5000, "invalid_body", 2, true);
+    assertAcceptableText(title, content);
     const currentPaths = normalizeStoredImagePaths(post.image_paths);
     const retainedPaths = normalizeRetainedImagePaths(body.retainedImagePaths, currentPaths);
     const incomingImages = normalizeQuestionImages(body.images);
@@ -155,6 +158,7 @@ async function handleStudentAction(res, action, body, student) {
     await enforceCommentRateLimit(student.id);
     const post = await requireVisiblePost(body.postId);
     const content = normalizeRequired(body.body, 2000, "invalid_comment", 1, true);
+    assertAcceptableText(content);
     const teacherAccount = student.account_type === "teacher";
     const rows = await requestSupabase("POST", "question_comments", {
       post_id: post.id,
@@ -489,7 +493,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
   const supabaseUrl = process.env.SUPABASE_URL || "";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceRoleKey) throw httpError("service_role_not_configured", 503);
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${contentSafePath(method, path)}`, {
     method,
     headers: {
       apikey: serviceRoleKey,
@@ -506,7 +510,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}) {
     throw error;
   }
   if (response.status === 204) return null;
-  return response.json().catch(() => null);
+  return contentSafeResult(await response.json().catch(() => null));
 }
 
 function normalizeQuestionImages(value) {

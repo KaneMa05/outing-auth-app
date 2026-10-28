@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const sharedSource = fs.readFileSync("shared.js", "utf8");
+const sharedSource = fs.readFileSync("shared.js", "utf8").replace(/\r\n/g, "\n");
 const teacherGradeSource = fs.readFileSync("teacher-grades.js", "utf8");
 const studentSource = fs.readFileSync("student.js", "utf8");
 

@@ -1,5 +1,11 @@
-const CACHE_NAME = "outing-auth-app-v546-life-graph-labels";
+const CACHE_NAME = "outing-auth-app-v547-deletion-request";
 const APP_SHELL = [
+  "/student-content-safety.js?v=20261028-content-safety",
+  "/question-board.js?v=20261028-content-safety",
+  "/community-guidelines.html",
+  "/app.js?v=20261028-deletion-request",
+  "/inquiry-board.js?v=20261028-deletion-request",
+  "/styles.css?v=20261028-deletion-request",
   "/interview-life-graph.js?v=20261027-label-layout",
   "/client/interview-draft-questions.js?v=20261026-content-questions",
   "/interview-life-ui.js?v=20261024-school-status",

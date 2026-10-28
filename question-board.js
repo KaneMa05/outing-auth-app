@@ -511,7 +511,7 @@ function renderQuestionPostDetail() {
   const actions = [
     post.isOwn ? button("수정", "mini-btn", "button", () => editQuestionPost(post)) : null,
     post.isOwn ? button("삭제", "mini-btn danger", "button", () => deleteQuestionPost(post)) : null,
-    !post.isOwn && post.authorType !== "teacher" ? button("신고", "mini-btn", "button", () => reportQuestionTarget("post", post.id)) : null,
+    !post.isOwn && post.authorType !== "teacher" ? (typeof renderStudentSafetyActions === "function" ? renderStudentSafetyActions({surface:"post",targetId:post.id,onChange:closeQuestionDetail}) : button("신고", "mini-btn", "button", () => reportQuestionTarget("post", post.id))) : null,
   ].filter(Boolean);
 
   return el("div", { className: "question-board-page question-detail-page student-view" }, [
@@ -544,7 +544,7 @@ function renderQuestionPostDetail() {
 function renderQuestionComment(comment, post) {
   const actions = [
     comment.isOwn ? button("삭제", "question-comment-action", "button", () => deleteQuestionComment(comment, post.id)) : null,
-    !comment.isOwn && comment.authorType !== "teacher" ? button("신고", "question-comment-action", "button", () => reportQuestionTarget("comment", comment.id)) : null,
+    !comment.isOwn && comment.authorType !== "teacher" ? (typeof renderStudentSafetyActions === "function" ? renderStudentSafetyActions({surface:"comment",targetId:comment.id,onChange:closeQuestionDetail}) : button("신고", "question-comment-action", "button", () => reportQuestionTarget("comment", comment.id))) : null,
   ].filter(Boolean);
   return el("article", { className: `question-comment ${comment.authorType === "teacher" ? "teacher" : ""}` }, [
     el("div", { className: "question-comment-head" }, [
@@ -1138,6 +1138,7 @@ function questionBoardErrorMessage(error) {
     image_too_large: "사진 용량이 너무 큽니다. 다른 사진을 선택해주세요.",
     question_image_store_unavailable: "사진 저장소를 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
     already_reported: "이미 신고한 내용입니다.",
+    inappropriate_content: "부적절한 표현을 수정한 뒤 다시 시도해 주세요.",
     forbidden: "이 기능을 사용할 권한이 없습니다.",
     unauthorized: "관리자 로그인이 필요합니다.",
   };
