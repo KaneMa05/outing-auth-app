@@ -115,7 +115,7 @@ assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\)
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-detail-card\s*\{[^}]*border-bottom: 1px solid rgba\(211,228,238,\.2\)[^}]*background: transparent;[^}]*box-shadow: none/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-reply-form \.btn\s*\{[^}]*min-width: 96px[^}]*background: #218c83/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.question-detail-page \.question-reply-form\s*\{[^}]*border-radius: 14px[^}]*background: rgba\(137,174,193,\.09\)/);
-assert.match(read("index.html"), /question-board\.js\?v=20261028-content-safety/);
+assert.match(read("index.html"), /question-board\.js\?v=20261028-board-loading/);
 assert.match(localDevServerSource, /"Cache-Control": "no-store"/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*z-index: 35[^}]*pointer-events: auto[^}]*touch-action: manipulation/);
 assert.match(styleSource, /\.question-write-button\s*\{[^}]*bottom: 100px;[^}]*env\(safe-area-inset-bottom, 0px\)/);

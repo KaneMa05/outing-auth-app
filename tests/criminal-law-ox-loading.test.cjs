@@ -112,10 +112,10 @@ test('OX keeps its deployment region while unrelated functions retain their defa
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
   assert.deepEqual(config.functions['api/criminal-law-ox.js'],{regions:['syd1']});
   assert.equal(config.regions,undefined);
-  const interviewSydney = new Set(['api/interview-auth.js','api/interview-prep.js','api/interview-ai.js','api/interview-ai-worker.js','api/interview-life-followup.js','api/interview-exam.js','api/interview-preassignments.js','api/interview-live-socket.js','api/interview-live-cleanup.js','api/interview-live.js','api/interview-native.js','api/interview-core25-worker.js']);
+  const configuredSydney = new Set(['api/question-board.js','api/student-content-safety.js','api/interview-auth.js','api/interview-prep.js','api/interview-ai.js','api/interview-ai-worker.js','api/interview-life-followup.js','api/interview-exam.js','api/interview-preassignments.js','api/interview-live-socket.js','api/interview-live-cleanup.js','api/interview-live.js','api/interview-native.js','api/interview-core25-worker.js']);
   for(const [name,options] of Object.entries(config.functions)){
     if(name==='api/criminal-law-ox.js')continue;
-    if(interviewSydney.has(name)) assert.deepEqual(options.regions,['syd1'],name+' must retain its configured interview region');
+    if(configuredSydney.has(name)) assert.deepEqual(options.regions,['syd1'],name+' must retain its configured region');
     else assert.equal(options.regions,undefined,name+' must use the default region');
   }
 });

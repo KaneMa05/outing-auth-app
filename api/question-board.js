@@ -325,11 +325,16 @@ async function loadPostDetail(postId, { studentId = "", teacher = false } = {}) 
   const rows = await requestSupabase("GET", `question_posts?id=eq.${postId}&board_type=eq.subject&deleted_at=is.null&select=id,student_id,subject,title,body,image_paths,status,view_count,is_hidden,hidden_reason,created_at,updated_at&limit=1`);
   const post = rows?.[0];
   if (!post || (!teacher && post.is_hidden)) return null;
-  const comments = await requestSupabase("GET", `question_comments?post_id=eq.${postId}&deleted_at=is.null&select=id,post_id,author_type,student_id,teacher_name,body,is_hidden,hidden_reason,created_at,updated_at&order=created_at.asc`);
-  const studentIds = [post.student_id, ...(comments || []).map((row) => row.student_id)].filter(Boolean);
-  const authors = await loadAuthorMap(studentIds);
+  const [{ comments, authors }, images] = await Promise.all([
+    (async () => {
+      const comments = await requestSupabase("GET", `question_comments?post_id=eq.${postId}&deleted_at=is.null&select=id,post_id,author_type,student_id,teacher_name,body,is_hidden,hidden_reason,created_at,updated_at&order=created_at.asc`);
+      const studentIds = [post.student_id, ...(comments || []).map((row) => row.student_id)].filter(Boolean);
+      return { comments, authors: await loadAuthorMap(studentIds) };
+    })(),
+    signQuestionImages(normalizeStoredImagePaths(post.image_paths)),
+  ]);
   const serializedPost = serializePost(post, { studentId, authors, counts: new Map([[post.id, (comments || []).filter((row) => teacher || !row.is_hidden).length]]), teacher });
-  serializedPost.images = await signQuestionImages(normalizeStoredImagePaths(post.image_paths));
+  serializedPost.images = images;
   return {
     post: serializedPost,
     comments: (comments || [])

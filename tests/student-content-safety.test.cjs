@@ -6,6 +6,65 @@ const {createHandler}=require('../api/student-content-safety');
 const safety=require('../lib/student-content-safety');
 const token='test-safety-device',hash=crypto.createHash('sha256').update(token).digest('hex');
 const target='550e8400-e29b-41d4-a716-446655440000',room='550e8400-e29b-41d4-a716-446655440001';
+test('real HTTP transport accepts empty successful PostgREST writes and preserves JSON reads and failures',async()=>{
+ const saved={fetch:global.fetch,url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY};
+ try{
+  process.env.SUPABASE_URL='https://safety-test.supabase.co';process.env.SUPABASE_SERVICE_ROLE_KEY='test-only-key';
+  for(const status of [200,201,204]){
+   global.fetch=async()=>new Response(null,{status});
+   assert.equal(await safety.requestStore('POST','student_content_reports',{reason:'test'}),null);
+  }
+  global.fetch=async()=>Response.json([{blocked_student_id:'18002'}]);
+  assert.deepEqual(await safety.requestStore('GET','student_content_blocks?select=blocked_student_id'),[{blocked_student_id:'18002'}]);
+  global.fetch=async()=>Response.json({valid:true});
+  assert.deepEqual(await safety.requestStore('POST','rpc/validate_student_device',{}),{valid:true});
+  global.fetch=async()=>new Response('not json',{status:200});
+  await assert.rejects(safety.requestStore('GET','student_content_blocks'),SyntaxError);
+  for(const status of [409,500]){
+   global.fetch=async()=>Response.json({message:'private diagnostic'},{status});
+   await assert.rejects(safety.requestStore('POST','student_content_reports',{}),error=>error.status===(status===409?409:503)&&error.message===(status===409?'already_reported':'content_safety_unavailable'));
+  }
+ }finally{
+  global.fetch=saved.fetch;
+  for(const [name,value] of [['SUPABASE_URL',saved.url],['SUPABASE_SERVICE_ROLE_KEY',saved.key]])if(value===undefined)delete process.env[name];else process.env[name]=value;
+ }
+});
+test('authenticated report, block, list and unblock succeed through HTTP transport with empty write responses',async()=>{
+ const saved={fetch:global.fetch,url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY};
+ const blocks=[],reports=[];
+ try{
+  process.env.SUPABASE_URL='https://safety-test.supabase.co';process.env.SUPABASE_SERVICE_ROLE_KEY='test-only-key';
+  global.fetch=async(url,options)=>{
+   const path=new URL(url).pathname,body=options.body?JSON.parse(options.body):null;
+   if(path.endsWith('/validate_student_device'))return Response.json({valid:body.p_student_id==='18001'&&body.p_device_token_hash===hash});
+   if(path.endsWith('/students'))return Response.json([{id:'18001',student_category:'lecture'}]);
+   if(path.endsWith('/question_posts'))return Response.json([{id:target,student_id:'18002',board_type:'subject',body:'test post'}]);
+   if(path.endsWith('/student_content_blocks')){
+    if(options.method==='POST'){blocks.push({...body,created_at:'2026-10-28T01:00:00Z'});return new Response(null,{status:201});}
+    if(options.method==='DELETE'){blocks.length=0;return new Response(null,{status:204});}
+    return Response.json(blocks);
+   }
+   if(path.endsWith('/student_content_reports')){
+    if(options.method==='POST'){reports.push(body);return new Response(null,{status:201});}
+    return Response.json([]);
+   }
+   assert.fail('Unexpected HTTP request');
+  };
+  const handler=createHandler({enabled:true});
+  const invoke=async(body)=>{const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.data=data;return this;}};await handler({method:'POST',headers:{},body:{studentId:'18001',deviceToken:token,...body}},res);return res;};
+  const report=await invoke({action:'report',surface:'post',targetId:target,reason:'신고 사유'});
+  assert.equal(report.code,201);assert.equal(report.data.ok,true);assert.equal(reports.length,1);
+  const block=await invoke({action:'block',surface:'post',targetId:target});
+  assert.equal(block.code,200);assert.equal(block.data.ok,true);assert.equal(blocks.length,1);
+  const list=await invoke({action:'list'});assert.equal(list.code,200);assert.equal(list.data.blocks.length,1);
+  assert.equal(list.data.blocks[0].authorRef,block.data.authorRef);
+  assert.equal((await invoke({action:'block',surface:'post',targetId:target})).code,200);assert.equal(blocks.length,1);
+  assert.equal((await invoke({action:'unblock',authorRef:block.data.authorRef})).code,200);assert.equal(blocks.length,0);
+ }finally{
+  global.fetch=saved.fetch;
+  for(const [name,value] of [['SUPABASE_URL',saved.url],['SUPABASE_SERVICE_ROLE_KEY',saved.key]])if(value===undefined)delete process.env[name];else process.env[name]=value;
+ }
+});
 function fixture({valid=true,member=true,privatePost=false,category='lecture'}={}){
  const blocks=[],reports=[],calls=[];
  const request=async(method,path,body)=>{

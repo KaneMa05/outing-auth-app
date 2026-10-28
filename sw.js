@@ -1,7 +1,7 @@
-const CACHE_NAME = "outing-auth-app-v547-deletion-request";
+const CACHE_NAME = "outing-auth-app-v548-board-loading";
 const APP_SHELL = [
   "/student-content-safety.js?v=20261028-content-safety",
-  "/question-board.js?v=20261028-content-safety",
+  "/question-board.js?v=20261028-board-loading",
   "/community-guidelines.html",
   "/app.js?v=20261028-deletion-request",
   "/inquiry-board.js?v=20261028-deletion-request",

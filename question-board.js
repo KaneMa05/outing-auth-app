@@ -172,7 +172,7 @@ function renderQuestionBoard() {
   if (questionBoardState.studentId !== student.id) resetQuestionBoardState(student.id);
   if (questionBoardHomePreviewState.studentId === String(student.id)) questionBoardHomePreviewState.loaded = false;
   syncQuestionWriteButton();
-  if (!questionBoardState.loaded && !questionBoardState.loading) loadQuestionBoardHome();
+  if (questionBoardState.mode === "list" && !questionBoardState.loaded && !questionBoardState.loading) loadQuestionBoardHome();
 
   if (questionBoardState.mode === "subject-picker") {
     const pickerBackground = questionBoardState.subjectPickerReturnMode === "form"
