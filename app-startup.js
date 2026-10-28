@@ -6,6 +6,34 @@
   const enabled = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone || document.referrer.startsWith('android-app://') || (portal && new URLSearchParams(location.search).get('app') === '1') || returning);
   if (!enabled) return;
   const root = document.documentElement;
+  // iOS chooses the installed app's edge colors during launch. Restore the
+  // lecture appearance before painting, rather than after the roster loads.
+  if (document.currentScript?.dataset.startupPage === 'student' && navigator.standalone === true &&
+      /iPhone|iPad|iPod/.test(navigator.userAgent || '') && !window.webkit?.messageHandlers?.interviewNative) {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    const statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    const theme = document.querySelector('meta[name="theme-color"]');
+    const original = { viewport: viewport?.getAttribute('content'), statusBar: statusBar?.getAttribute('content'), theme: theme?.getAttribute('content') };
+    window.__studentViewport = {
+      update(category) {
+        const lecture = category === 'lecture';
+        root.classList.toggle('student-lecture-ios-standalone', lecture);
+        if (viewport) viewport.setAttribute('content', lecture ? (original.viewport || 'width=device-width, initial-scale=1') + ', viewport-fit=cover' : original.viewport);
+        if (statusBar) statusBar.setAttribute('content', lecture ? 'black-translucent' : original.statusBar);
+        if (theme) theme.setAttribute('content', lecture ? '#0b2746' : original.theme);
+      },
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('ronpark_outing_auth_v2') || 'null');
+      const id = saved?.settings?.studentAuthId;
+      const profile = saved?.settings?.studentProfiles?.[id];
+      const student = saved?.students?.find(item => String(item.id) === String(id));
+      const explicit = student?.studentCategory || student?.student_category;
+      const category = ['offline', 'online_managed', 'lecture'].includes(explicit) ? explicit :
+        student && (/^2/.test(String(id)) || /^9\d{5}$/.test(String(id))) ? 'lecture' : 'offline';
+      window.__studentViewport.update(student && profile?.passwordHash && profile?.deviceToken ? category : 'offline');
+    } catch { window.__studentViewport.update('offline'); }
+  }
   root.classList.add('app-starting');
   let finished = false;
   const slow = window.setTimeout(() => {

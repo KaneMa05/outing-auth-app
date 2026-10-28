@@ -1,4 +1,6 @@
 #app-startup{display:none}
+html.student-lecture-ios-standalone.app-starting,html.student-lecture-ios-standalone.app-starting body,html.student-lecture-ios-standalone.app-starting #app-startup{background:#0b2746!important;color:#fff}
+html.student-lecture-ios-standalone #app-startup p{color:#dce7f4}
 html.app-starting,html.app-starting body{background:#f3f7fb!important}
 html.app-starting body{overflow:hidden!important}
 html.app-starting:not(.app-startup-leaving) body>:not(#app-startup):not(noscript){visibility:hidden!important}

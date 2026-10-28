@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
 assert.equal(entry,'interview-prep.js?v=20261027-admin-overview-modal');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
-assert(read('sw.js').includes('v549-private-interview'));
+assert(read('sw.js').includes('v550-ios-lecture-edges'));
 assert(read('interview-prep.js').includes("admin?import('./interview-prep-ui.js?v=20261027-overview-modal')"));
 assert(read('interview-prep-ui.js').includes("import('./interview-assignment-management.js?v=20261027-overview-modal')"));
 assert(read('interview-assignment-management.js').includes("./interview-assignment-overview.js?v=20261027-overview-modal"));
