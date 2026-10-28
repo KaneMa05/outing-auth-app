@@ -180,6 +180,14 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
+    if(tab==='dashboard'){
+      host.querySelector('.ip-hero h2').textContent='면접반 운영 현황';
+      host.querySelector('.ip-hero>p').textContent='수강 신청과 학생 작성 현황을 확인하고 필요한 업무로 이동하세요.';
+      const summary=host.querySelector('.ip-hero .ip-summary');
+      summary.dataset.dashboardSummary='';
+      summary.setAttribute('role','status');
+      summary.textContent='운영 현황을 불러오는 중…';
+    }
     if(tab==='preassignments'){
       host.querySelector('.ip-hero h2').textContent='과제 관리';
       host.querySelector('.ip-hero>p').textContent='핵심 25제, 기본이력, 인생그래프, 자기소개, 지원동기, 공직관의 작성 내용과 상태를 확인합니다.';
@@ -242,9 +250,24 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='dashboard'){
-      box.innerHTML=`<section class="ip-panel"><h3>면접반 운영 순서</h3><p>학생에게 직렬·수험번호·이용 기간을 등록하고, 공개할 질문을 검토한 뒤 작성 내용을 첨삭하세요.</p><div class="ip-toolbar">${btn('수강 신청·승인','section','data-section="applications"',true)}${btn('학생 등록·첨삭','section','data-section="members"')}${btn('핵심인성 30제 검토','section','data-section="core"')}${btn('질문 요소 분석','section','data-section="analysis"')}</div></section>
-      <section class="ip-panel"><h3>피드백 관리</h3><p>수강생의 나의 DB, 자기소개, 지원동기, 공직관, 핵심 30제 답변을 한곳에서 확인하세요. 임시저장·확인 대기·보완 요청 상태로 학생을 찾을 수 있습니다.</p>${btn('피드백 관리 열기','section','data-section="review"',true)}</section>
-      <section class="ip-panel"><h3>질문 관리</h3><div class="ip-toolbar">${btn('인성 기출 관리','section','data-section="questions"')}${btn('직무 기출 관리','section','data-section="job"')}</div><p class="ip-help">직무 질문은 학생 개인 데이터 작성률에 포함하지 않습니다.</p></section>`;
+      const summary=host.querySelector('[data-dashboard-summary]');
+      const number=value=>Number.isSafeInteger(value)?value.toLocaleString('ko-KR'):'—';
+      const metric=(value,label,section)=>btn(`<strong>${number(value)}</strong> ${label}`,'section',`data-section="${section}"`);
+      const results=await Promise.allSettled([
+        request('admin_applications',{status:'pending',page:0}),
+        request('admin_review_students',{search:'',track:'',status:'',page:0})
+      ]);
+      if(destroyed||version!==loadVersion)return;
+      const enrollment=results[0].status==='fulfilled'?results[0].value.summary:null;
+      const review=results[1].status==='fulfilled'?results[1].value:null;
+      summary.innerHTML=metric(enrollment?.students,'명 이용 가능','members')+metric(enrollment?.pending,'건 신청 대기','applications')+metric(review?.pendingStudents,'명 확인 대기','review')+metric(review?.revisionStudents,'명 보완·도움 요청','review');
+      box.innerHTML=`<section class="ip-panel"><div class="ip-row"><h3>우선 확인할 업무</h3>${btn('현황 새로고침','section','data-section="home"')}</div>
+      <p class="ip-help">이용 가능 수강생은 이용 중지·기간 만료를 제외합니다. 확인 대기와 보완·도움 요청은 전체 등록 학생의 저장 기록 기준이며, 같은 학생이 두 항목에 포함될 수 있습니다.</p>
+      ${!enrollment||!review?'<p role="alert">일부 현황을 불러오지 못했습니다. —는 집계 불가를 의미합니다. 새로고침하거나 해당 관리 화면에서 확인하세요.</p>':''}
+      <div class="ip-toolbar">${btn('수강 신청·승인','section','data-section="applications"',true)}${btn('피드백 관리','section','data-section="review"')}${btn('과제 관리','section','data-section="preassignments"')}${btn('학생 등록·첨삭','section','data-section="members"')}</div></section>
+      <section class="ip-panel"><h3>기출 질문 현황</h3><p class="ip-help">질문 자료의 공개 상태이며 학생 수·제출물 수와 별도로 집계합니다.</p>
+      ${[['personality','인성 기출','questions'],['job','직무 기출','job']].map(([key,label,section])=>{const c=catalog.categoryCounts?.[key];return `<div class="ip-question"><div class="ip-row"><strong>${label}</strong>${btn('관리 열기','section',`data-section="${section}"`)}</div><p>전체 ${number(c?.total)}개 · 검토 대기 ${number(c?.draft)}개 · 공개 ${number(c?.published)}개</p></div>`;}).join('')}
+      <div class="ip-toolbar">${btn('핵심인성 30제','section','data-section="core"')}${btn('질문 요소 분석','section','data-section="analysis"')}</div></section>`;
       return;
     }
     if(tab==='applications'){
