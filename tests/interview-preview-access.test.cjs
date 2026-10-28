@@ -178,3 +178,11 @@ test('interview content is not precached and missing optional module cannot brea
   assert.match(app, /typeof renderInterviewPrep === "function" \? requireStudentAuth/);
   assert.match(app, /typeof renderInterviewPrepAdmin === "function" \? renderInterviewPrepAdmin/);
 });
+
+
+test('student mypage does not expose the interview entry, including pilot accounts', () => {
+  const app = fs.readFileSync('app.js', 'utf8');
+  const mypage = app.slice(app.indexOf('function renderStudentMypage()'), app.indexOf('function openStudentAccountDeletion()'));
+  assert.ok(mypage.includes('renderStudentDeviceRegistrationCard'));
+  assert.doesNotMatch(mypage, /renderInterviewPrepEntry/);
+});

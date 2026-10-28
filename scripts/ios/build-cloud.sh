@@ -39,6 +39,8 @@ xcodebuild "${common[@]}" -resolvePackageDependencies 2>&1 | tee "$output/packag
 # No Apple account, certificate, OpenAI key, or production login is supplied to this job.
 xcrun simctl list devices available --json > "$output/simulators.json"
 simulator=$(python3 "$root/scripts/ios/select-simulator.py" < "$output/simulators.json")
+xcrun simctl boot "$simulator" || true
+xcrun simctl bootstatus "$simulator" -b
 xcodebuild "${common[@]}" test -configuration Debug \
   -destination "platform=iOS Simulator,id=$simulator" -destination-timeout 120 \
   -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \

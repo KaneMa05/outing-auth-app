@@ -3,6 +3,20 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const { test } = require("node:test");
 
+test("public safety flag defaults off and follows the server build setting without exposing secrets", () => {
+  for (const flag of [undefined, "false", "true"]) {
+    let output;
+    vm.runInNewContext(fs.readFileSync("build-config.js", "utf8"), {
+      require: name => name === './lib/interview-preview-access' ? require('../lib/interview-preview-access') : ({ existsSync: () => true, writeFileSync: (_, value) => { output = value; } }),
+      process: { env: { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'public', STUDENT_CONTENT_SAFETY_ENABLED: flag, SUPABASE_SERVICE_ROLE_KEY: 'private-secret' } },
+      console: { log() {} }, URL,
+    });
+    const context={window:{}};vm.runInNewContext(output,context);
+    assert.equal(context.window.OUTING_APP_CONFIG.studentContentSafetyEnabled,flag==='true');
+    assert.ok(!output.includes('private-secret'));
+  }
+});
+
 test("deployment with missing configuration fails before replacing the existing config", () => {
   const source = fs.readFileSync("build-config.js", "utf8");
   for (const env of [{ VERCEL: "1" }, { VERCEL_ENV: "production", SUPABASE_URL: "https://example.supabase.co" }, { VERCEL_ENV: "preview", SUPABASE_ANON_KEY: "public-key" }]) {
@@ -69,6 +83,12 @@ test("service worker installs every current page asset and never caches API requ
     const html = fs.readFileSync(filename, "utf8");
     for (const match of html.matchAll(/(?:src|href)="\.\/([^"#]+)"/g)) {
       if (match[1].startsWith("config.js")) continue;
+      // Optional interview modules load on demand and must not be installed
+      // into every student's offline shell.
+      if (match[1].startsWith("interview")) {
+        assert.equal(stored.has("/" + match[1]), false, "Interview assets must remain optional");
+        continue;
+      }
       assert.ok(stored.has("/" + match[1]), `${filename}: ${match[1]} missing from precache`);
     }
   }

@@ -1,6 +1,8 @@
 package com.ronpark.interview;
 import android.content.Context;
 import android.view.ViewGroup;
+import android.view.View;
+import android.graphics.*;
 import org.webrtc.*;
 
 /** Preview frames never enter a PeerConnection, recorder, file, or upload. */
@@ -13,6 +15,12 @@ final class InterviewCamera {
         capturer=cameras.createCapturer(id,null);source=factory.createVideoSource(false);helper=SurfaceTextureHelper.create("InterviewPreview",egl.getEglBaseContext());capturer.initialize(helper,context,source.getCapturerObserver());
         track=factory.createVideoTrack("preview-only",source);renderer=new SurfaceViewRenderer(context);renderer.init(egl.getEglBaseContext(),null);renderer.setMirror(cameras.isFrontFacing(id));renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);track.addSink(renderer);attach(parent);capturer.startCapture(640,480,15);
     }
-    void attach(ViewGroup parent){if(renderer==null)return;if(renderer.getParent() instanceof ViewGroup)((ViewGroup)renderer.getParent()).removeView(renderer);parent.addView(renderer,new ViewGroup.LayoutParams(-1,-1));}
+    void attach(ViewGroup parent){if(renderer==null)return;if(renderer.getParent() instanceof ViewGroup)((ViewGroup)renderer.getParent()).removeView(renderer);parent.addView(renderer,new ViewGroup.LayoutParams(-1,-1));
+        // A foreground mask also rounds SurfaceView previews on older Android devices.
+        parent.addView(new View(parent.getContext()){
+            final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);final Path path=new Path();
+            protected void onDraw(Canvas canvas){float radius=Math.min(getWidth()/4f,18*getResources().getDisplayMetrics().density);path.reset();path.setFillType(Path.FillType.EVEN_ODD);path.addRect(0,0,getWidth(),getHeight(),Path.Direction.CW);path.addRoundRect(new RectF(0,0,getWidth(),getHeight()),radius,radius,Path.Direction.CW);paint.setColor(Color.rgb(246,248,250));canvas.drawPath(path,paint);}
+        },new ViewGroup.LayoutParams(-1,-1));
+    }
     void stop(){if(capturer!=null){try{capturer.stopCapture();}catch(Exception ignored){}capturer.dispose();capturer=null;}if(track!=null){if(renderer!=null)track.removeSink(renderer);track.dispose();track=null;}if(renderer!=null){if(renderer.getParent() instanceof ViewGroup)((ViewGroup)renderer.getParent()).removeView(renderer);renderer.release();renderer=null;}if(source!=null){source.dispose();source=null;}if(helper!=null){helper.dispose();helper=null;}if(factory!=null){factory.dispose();factory=null;}if(egl!=null){egl.release();egl=null;}}
 }

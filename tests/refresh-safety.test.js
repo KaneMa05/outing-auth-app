@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
-const source = fs.readFileSync("shared.js", "utf8");
+const source = fs.readFileSync("shared.js", "utf8").replace(/\r\n/g, "\n");
 const studentSource = fs.readFileSync("student.js", "utf8");
 const schemaSource = fs.readFileSync("supabase/schema.sql", "utf8");
 const outingSyncMigrationSource = fs.readFileSync("supabase/add-outing-sync-indexes.sql", "utf8");

@@ -4608,6 +4608,31 @@ body:not([data-app-mode="teacher"]) .student-answer-nav {
   font-size: 1.16rem;
 }
 
+.info-modal-panel.account-deletion-modal {
+  max-height: calc(100vh - 44px);
+  max-height: calc(100dvh - 44px);
+  overflow-y: auto;
+}
+
+.account-deletion-content,
+.account-deletion-content form {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.account-deletion-content p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.info-modal-panel.student-content-safety-modal { max-height: calc(100vh - 44px); max-height: calc(100dvh - 44px); overflow-y: auto; }
+.student-content-safety-content { display: grid; gap: 14px; }
+.student-content-safety-content textarea { width: 100%; box-sizing: border-box; }
+.student-content-safety-content article { padding: 10px 0; border-bottom: 1px solid #dce3e6; }
+.student-content-report-snapshot { white-space: pre-wrap; overflow-wrap: anywhere; }
+.student-content-safety-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+
 .info-modal-panel p {
   margin: 0;
   color: var(--muted);

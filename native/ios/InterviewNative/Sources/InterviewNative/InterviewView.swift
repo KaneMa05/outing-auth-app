@@ -5,7 +5,9 @@ import SwiftUI
     @StateObject private var model: InterviewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
-    @State private var showExit = false, showCaptions = true, details = false
+    @State private var showExit = false
+    @State private var showCaptions = true
+    @State private var details = false
     private let teal = Color(red: 0.03, green: 0.49, blue: 0.45)
     private let ink = Color(red: 0.08, green: 0.17, blue: 0.26)
     public init(launchCode: String) { _model = StateObject(wrappedValue: InterviewModel(code: launchCode, demo: false)) }
@@ -27,7 +29,7 @@ import SwiftUI
             .foregroundStyle(ink).navigationTitle("모의면접").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("돌아가기") { if model.active { showExit = true } else { dismiss() } } } }
             .tint(teal)
-            .confirmationDialog("면접을 마칠까요?", isPresented: $showExit, titleVisibility: .visible) {
+            .alert("면접을 마칠까요?", isPresented: $showExit) {
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }

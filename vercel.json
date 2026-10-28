@@ -5,6 +5,16 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
+    "api/question-board.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/student-content-safety.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
     "api/interview-auth.js": {
       "regions": [
         "syd1"

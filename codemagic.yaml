@@ -1,0 +1,63 @@
+workflows:
+  ios-store-screenshots:
+    name: Ronpark Study - Store screenshots only
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: 26.3
+      groups:
+        - ronpark-store-review
+      vars:
+        CAPTURE_KINDS: iPhone
+    scripts:
+      - name: Install pinned XcodeGen
+        script: |
+          export GITHUB_PATH="$(mktemp)"
+          bash scripts/ios/install-tools.sh
+          printf 'PATH=%s:%s\n' "$(cat "$GITHUB_PATH")" "$PATH" >> "$CM_ENV"
+      - name: Capture authorized review account on iPhone and iPad
+        script: bash scripts/ios/capture-store.sh
+    artifacts:
+      - artifacts/store-screenshots/**/*
+    # Manual capture only. No signing, App Store upload or release.
+  ios-signed-review:
+    name: Ronpark Study - App Store Connect upload
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    integrations:
+      app_store_connect: Codemagic iOS Build
+    environment:
+      xcode: 26.3
+      ios_signing:
+        certificates:
+          - ronpark-ios-distribution
+        provisioning_profiles:
+          - ronpark-study-app-store
+      vars:
+        APP_STORE_APPLE_ID: "6827374000"
+    scripts:
+      - name: Install pinned XcodeGen
+        script: |
+          export GITHUB_PATH="$(mktemp)"
+          bash scripts/ios/install-tools.sh
+          printf 'PATH=%s:%s\n' "$(cat "$GITHUB_PATH")" "$PATH" >> "$CM_ENV"
+      - name: Generate Xcode project
+        script: |
+          xcodegen generate --spec native/ios/App/project.yml
+      - name: Apply existing distribution signing
+        script: xcode-project use-profiles --project native/ios/App/RonparkStudy.xcodeproj
+      - name: Build signed IPA for review
+        script: |
+          xcode-project build-ipa \
+            --project native/ios/App/RonparkStudy.xcodeproj \
+            --scheme RonparkStudy \
+            --archive-xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+    # Manual execution only. Upload does not submit for review or release.

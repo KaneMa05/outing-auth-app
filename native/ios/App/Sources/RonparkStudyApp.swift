@@ -24,8 +24,10 @@ private struct StudentApp: View {
         ZStack(alignment: .bottomTrailing) {
             StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
             #if DEBUG
+            if !ProcessInfo.processInfo.arguments.contains("--store-screenshots") {
             Button("무료 모의면접 시연") { launch = InterviewLaunch(code: "", preview: true) }
                 .buttonStyle(.borderedProminent).padding(.bottom, 75).padding(.trailing, 12)
+            }
             #endif
         }
         .fullScreenCover(item: $launch) { entry in
@@ -50,6 +52,50 @@ private struct StudentWebApp: UIViewRepresentable {
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.userContentController.add(context.coordinator, name: "interviewNative")
+        // The installed WKWebView is standalone too. Set this before the existing
+        // web app evaluates its install gate; never apply it to third-party pages.
+        let installedApp = WKUserScript(source: """
+            if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                Object.defineProperty(navigator, 'standalone', { value: true });
+            }
+            """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        config.userContentController.addUserScript(installedApp)
+        #if DEBUG
+        // Screenshot-only login uses ephemeral runner environment values. Never
+        // compile credentials into the app or include them in test activity logs.
+        let env = ProcessInfo.processInfo.environment
+        if ProcessInfo.processInfo.arguments.contains("--store-screenshots"),
+           let account = env["REVIEW_STUDENT_ID"], let password = env["REVIEW_STUDENT_PASSWORD"],
+           let token = env["REVIEW_SCREENSHOT_DEVICE_TOKEN"],
+           let data = try? JSONSerialization.data(withJSONObject: [account, password, token]),
+           let credentials = String(data: data, encoding: .utf8) {
+            let source = """
+                if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                  const credentials = \(credentials);
+                  localStorage.setItem('outing-pending-device:' + credentials[0], credentials[2]);
+                  let lastLookup = 0, submitted = false;
+                  const timer = setInterval(() => {
+                    const form = document.querySelector('form.student-auth-card');
+                    if (!form) return;
+                    const id = form.querySelector('input[name="studentId"]');
+                    const profile = form.querySelector('.student-auth-profile');
+                    if (id && (!profile || profile.hidden) && Date.now() - lastLookup > 2000) {
+                      id.value = credentials[0];
+                      const button = Array.from(form.querySelectorAll('button')).find(b => b.textContent === '로그인');
+                      if (button) { lastLookup = Date.now(); button.click(); }
+                    }
+                    if (!submitted && profile && !profile.hidden) {
+                      const password = form.querySelector('input[name="password"]');
+                      if (password) { submitted = true; password.value = credentials[1]; form.requestSubmit(); clearInterval(timer); }
+                    }
+                  }, 500);
+                  setTimeout(() => clearInterval(timer), 45000);
+                }
+                """
+            config.userContentController.addUserScript(WKUserScript(source: source,
+                injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
+        #endif
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator; view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true

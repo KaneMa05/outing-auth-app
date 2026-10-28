@@ -4,13 +4,19 @@ import AVFoundation
 @MainActor final class InterviewModel: ObservableObject {
     enum Screen: Hashable { case auth, prep, connecting, live, closing, result, records, error }
     @Published var screen: Screen = .auth
-    @Published var ready = false, muted = false, answering = false
-    @Published var question = "", transcript = "", spoken = ""
+    @Published var ready = false
+    @Published var muted = false
+    @Published var answering = false
+    @Published var question = ""
+    @Published var transcript = ""
+    @Published var spoken = ""
     @Published var notice = "앱 연결을 확인하고 있습니다."
     @Published var questionNumber = 0
     @Published var record: InterviewJSON?
     @Published var records: [InterviewJSON] = []
-    @Published var hasMore = false, page = 0, recordsLoading = false
+    @Published var hasMore = false
+    @Published var page = 0
+    @Published var recordsLoading = false
     let media = InterviewMedia()
     let api = InterviewAPI()
     let demo: Bool

@@ -1,5 +1,6 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
+const { withStudentContentSafety, contentSafePath, contentSafeResult, assertAcceptableText, contentRef } = require("../lib/student-content-safety");
 const { createRpcRetryState, isStoreConnectionFailure } = require("../supabase-rpc-retry");
 const { withSupabaseDeadline } = require("../supabase-request-timeout");
 
@@ -44,6 +45,7 @@ module.exports = async function handler(req, res) {
     const student = await authenticateStudent(studentId, deviceToken, body.client);
     if (!student) return sendError(res, 403, "device_not_active");
     if (!hasStudyCafeAccess(student)) return sendError(res, 403, "online_student_only");
+    return await withStudentContentSafety(studentId, requestStore, async () => {
     await clearStaleRoomSeats();
 
     if (action === "list") {
@@ -56,6 +58,7 @@ module.exports = async function handler(req, res) {
     }
     if (action === "create") {
       const room = normalizeRoomInput(body);
+      assertAcceptableText(room.name, room.description);
       const passwordRecord = room.accessType === "password" ? hashRoomPassword(room.password) : null;
       const roomId = await callRpc("create_study_cafe_room", {
         p_host_student_id: studentId,
@@ -132,6 +135,7 @@ module.exports = async function handler(req, res) {
     }
     if (action === "message_send") {
       const message = normalizeMessage(body.message);
+      assertAcceptableText(message);
       await enforceMessageRateLimit(roomId, studentId);
       const rows = await requestStore("POST", "study_cafe_room_messages", {
         room_id: roomId,
@@ -177,6 +181,7 @@ module.exports = async function handler(req, res) {
 
     if (membership.role !== "host") return sendError(res, 403, "room_host_required");
     if (action === "update") {
+      assertAcceptableText(body.name, body.description);
       const existing = await getRoom(roomId, true);
       const room = normalizeRoomInput(body, { passwordOptional: true, current: existing });
       const changes = {
@@ -230,6 +235,7 @@ module.exports = async function handler(req, res) {
       await broadcastRoomChange(roomId, "room-closed");
       res.status(200).json({ ok: true });
     }
+    }, ["list", "load", "join", "message_send"].includes(action));
   } catch (error) {
     console.error(error);
     const known = extractStoreError(error);
@@ -331,6 +337,8 @@ async function loadOwnRoomLegacy(student) {
     const session = sessionMap.get(member.student_id);
     return {
       studentId: own.role === "host" || member.student_id === studentId ? member.student_id : undefined,
+      safetyRef: contentRef(member.student_id),
+      safetyRoomId: room.id,
       name: member.student_id === studentId ? "나" : name,
       track: summarizeTrack(source.track),
       tone: normalizeTone(profile.avatar_tone, member.student_id),
@@ -354,6 +362,7 @@ async function loadOwnRoomLegacy(student) {
       theme: room.theme || "dawn",
       locked: room.access_type === "password",
       role: own.role,
+      hostSafetyRef: contentRef(room.host_student_id),
       mySeatNumber: Number(own.seat_number) || null,
       members: serializedMembers,
       messages: orderedMessages.map((message) => serializeMessage(message, studentId, nameMap)),
@@ -395,6 +404,8 @@ function serializeStudyRoomSnapshot(snapshot, student) {
     const session = sessionMap.get(member.student_id);
     return {
       studentId: own.role === "host" || member.student_id === student.id ? member.student_id : undefined,
+      safetyRef: contentRef(member.student_id),
+      safetyRoomId: room.id,
       name: member.student_id === student.id ? "나" : name,
       track: summarizeTrack(source.track),
       tone: normalizeTone(profile.avatar_tone, member.student_id),
@@ -418,6 +429,7 @@ function serializeStudyRoomSnapshot(snapshot, student) {
       theme: room.theme || "dawn",
       locked: room.access_type === "password",
       role: own.role,
+      hostSafetyRef: contentRef(room.host_student_id),
       mySeatNumber: Number(own.seat_number) || null,
       members: serializedMembers,
       messages: orderedMessages.map((message) => serializeMessage(message, student.id, nameMap)),
@@ -583,6 +595,7 @@ function serializeMessage(row, ownStudentId, nameMap) {
   return {
     id: row.id,
     type: row.message_type,
+    safetyRef: contentRef(row.student_id),
     text: row.deleted_at ? "삭제된 메시지입니다." : row.message_text,
     deleted: Boolean(row.deleted_at),
     senderName: row.message_type === "system" ? "알림" : row.student_id === ownStudentId ? "나" : nameMap.get(row.student_id) || "구성원",
@@ -652,7 +665,7 @@ async function requestStore(method, path, body, extraHeaders = {}) {
     throw error;
   }
   return withSupabaseDeadline(async (signal) => {
-    const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
+    const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${contentSafePath(method, path)}`, {
       method,
       signal,
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...extraHeaders },
@@ -666,7 +679,7 @@ async function requestStore(method, path, body, extraHeaders = {}) {
       throw error;
     }
     if (response.status === 204) return null;
-    return response.json().catch(() => null);
+    return contentSafeResult(await response.json().catch(() => null));
   });
 }
 

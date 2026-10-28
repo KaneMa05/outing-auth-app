@@ -15,12 +15,13 @@ async function call(handler,body,headers={}){let status,data;await handler({meth
   await prep('admin_enabled',{type:'admin',id:'qa'},{enabled:true});
   const invoke=async(action,a,body)=>(await db.query('select ip_native_launch_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(a),JSON.stringify(body)])).rows[0].result;
   let delegated;
-  const deps={enabled:true,secret,invoke,live:{authenticateWeb:async()=>actor,previewAllowed:()=>false,
+  const deps={enabled:true,secret,invoke,readTrack:async id=>{assert.equal(id,'ip-a');return '기관';},live:{authenticateWeb:async()=>actor,previewAllowed:()=>false,
    config:{enabled:true,configured:true,transport:'vercel'},invoke:async(action,a,b)=>{delegated={action,actor:a,body:b};return {ok:true,runs:[]};}}};
   const handler=createHandler(deps);
   const launched=await call(handler,{action:'launch'});assert.equal(launched.status,200);assert.match(launched.data.code,/^[A-Za-z0-9_-]{43}$/);
   const row=(await db.query('select * from ip_native_launch_codes')).rows[0];assert.equal(row.code_hash,auth.hash(launched.data.code));assert(!JSON.stringify(row).includes(launched.data.code));
-  const exchange=await call(handler,{action:'exchange',code:launched.data.code});assert.equal(exchange.status,200);assert.equal(auth.read(exchange.data.token,secret).id,'ip-a');
+  const exchange=await call(handler,{action:'exchange',code:launched.data.code});assert.equal(exchange.status,200);assert.equal(auth.read(exchange.data.token,secret).id,'ip-a');assert.equal(exchange.data.track,'기관');
+  assert.equal((await call(handler,{action:'exchange',code:launched.data.code,track:'공채'})).status,400);
   assert.equal((await call(handler,{action:'exchange',code:launched.data.code})).status,401);
   const headers={authorization:'Bearer '+exchange.data.token};
   assert.equal((await call(handler,{action:'command',command:{action:'list'}},headers)).status,200);assert.equal(delegated.actor.id,'ip-a');

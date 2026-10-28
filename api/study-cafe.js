@@ -1,5 +1,6 @@
 const characterHair = require("../study-character");
 const crypto = require("crypto");
+const { withStudentContentSafety, contentSafePath, contentSafeResult, assertAcceptableText, contentRef } = require("../lib/student-content-safety");
 const { createRpcRetryState, isStoreConnectionFailure } = require("../supabase-rpc-retry");
 const { withSupabaseDeadline } = require("../supabase-request-timeout");
 const { sendStudyCafeIdleReleasePush } = require("./study-cafe-idle-push");
@@ -96,6 +97,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    return await withStudentContentSafety(studentId, requestSupabase, async () => {
     if (["feature_list", "feature_detail", "feedback_list", "feedback_create", "feedback_create_private", "feedback_replies", "feedback_reply_create", "feedback_delete", "feedback_reply_delete"].includes(action)) {
       res.status(200).json(await handleStudyCafeFeedback({
         action, body, student, store: createRemoteFeedbackStore(requestSupabase),
@@ -201,6 +203,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "save_profile") {
+      assertAcceptableText(body.nickname, body.statusMessage);
       const avatarTone = body.avatarTone === undefined ? undefined : normalizeAvatarTone(body.avatarTone);
       const hairStyle = body.hairStyle;
       if (hairStyle !== undefined && !characterHair.isValid(hairStyle)) {
@@ -593,6 +596,7 @@ module.exports = async function handler(req, res) {
       );
     }
     res.status(200).json({ ok: true, serverNow: now.toISOString() });
+    }, ["load", "ranking", "feedback_list", "feedback_replies", "feedback_reply_create"].includes(action));
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ ok: false, error: error.message || "study_cafe_error" });
@@ -782,6 +786,7 @@ async function buildStudyCafeSnapshot(student, now) {
   const ranking = [...totalsByStudent.entries()]
     .map(([id, totalSeconds]) => ({
       studentId: id === studentId ? id : undefined,
+      safetyRef: contentRef(id),
       name: id === studentId
         ? "나"
         : normalizeStoredNickname(profileMap.get(id)?.nickname) ||
@@ -822,6 +827,7 @@ async function buildStudyCafeSnapshot(student, now) {
       const botAppearance = (Array.isArray(botAppearances) ? botAppearances : []).find(bot => bot.student_id === row.student_id);
       return {
         seatNumber: Number(row.seat_number),
+        safetyRef: contentRef(row.student_id),
         status: row.status,
         currentSubject: row.current_subject || "",
         name: row.student_id === studentId
@@ -1168,6 +1174,7 @@ async function loadStudyRanking(studentId, period, now) {
     right - left || String(leftId).localeCompare(String(rightId), "en"))
     .map(([id, totalSeconds]) => ({
       studentId: id === studentId ? id : undefined,
+      safetyRef: contentRef(id),
       name: id === studentId
         ? "나"
         : normalizeStoredNickname(profileMap.get(id)?.nickname) ||
@@ -1399,7 +1406,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}, requestOpt
     throw error;
   }
   return withSupabaseDeadline(async (signal) => {
-    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${contentSafePath(method, path)}`, {
       method,
       ...requestOptions,
       signal,
@@ -1419,7 +1426,7 @@ async function requestSupabase(method, path, body, extraHeaders = {}, requestOpt
       throw error;
     }
     if (response.status === 204) return null;
-    const data = await response.json().catch(() => null);
+    const data = contentSafeResult(await response.json().catch(() => null));
     const range = response.headers?.get?.("content-range")?.match(/^(\d+)-(\d+)\//);
     if (Array.isArray(data) && range) Object.defineProperty(data, "nextPageOffset", { value: Number(range[2]) + 1 });
     return data;

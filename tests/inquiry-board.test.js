@@ -63,7 +63,7 @@ assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\)
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-card,[\s\S]*?background: rgba\(219,231,236,\.9\)/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page > article\.inquiry-surface\s*\{[^}]*border-bottom: 1px solid rgba\(211,228,238,\.2\)/);
 assert.match(styleSource, /body\.student-online-mode:not\(\.student-home-route\) \.inquiry-detail-page \.inquiry-message-form\s*\{[^}]*border-radius: 14px;[^}]*background: rgba\(137,174,193,\.09\)/);
-assert.match(indexSource, /inquiry-board\.js\?v=20260902-inquiry-prefetch/);
+assert.match(indexSource, /inquiry-board\.js\?v=20261028-safety-fallback/);
 
 assert.match(inquiryApiSource, /student_inquiries/);
 assert.match(inquiryApiSource, /student_inquiry_messages/);

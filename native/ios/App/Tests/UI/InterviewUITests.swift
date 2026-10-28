@@ -1,5 +1,19 @@
 import XCTest
 
+final class StudentWebUITests: XCTestCase {
+    func testInstalledAppShowsStudentLoginWithoutInstallGate() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.webViews.textFields["예: 18004"].waitForExistence(timeout: 60),
+                      "Installed iOS app must show student login, not the browser install gate")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "07-student-login"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
+
 final class InterviewUITests: XCTestCase {
     private var app: XCUIApplication!
     override func setUpWithError() throws {

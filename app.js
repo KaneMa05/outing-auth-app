@@ -2524,6 +2524,7 @@ async function mutateStudyRoom(action, payload = {}, options = {}) {
 
 function getStudyRoomErrorMessage(error) {
   const messages = {
+    inappropriate_content: "부적절한 표현을 수정한 뒤 다시 시도해 주세요.",
     room_password_invalid: "방 비밀번호가 일치하지 않습니다.",
     room_full: "방 정원이 모두 찼습니다.",
     room_membership_exists: "이미 참여 중인 스터디방이 있습니다.",
@@ -2820,7 +2821,7 @@ async function mutateStudyCafeRemote(action, payload = {}, options = {}) {
       keepalive: options.keepalive === true,
     });
     if (!result.ok && options.notify !== false) {
-      const message = result.error === "seat_taken"
+      const message = result.error === "inappropriate_content" ? "부적절한 표현을 수정한 뒤 다시 시도해 주세요." : result.error === "seat_taken"
         ? "방금 다른 학생이 이 좌석을 선택했습니다."
         : "스터디카페 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.";
       notify(message);
@@ -4561,16 +4562,88 @@ function renderStudentMypage() {
     category !== "lecture" ? renderStudentPenaltyHistoryButton(student.id) : null,
     renderStudentPushNotificationCard(student, profile),
     renderStudentOtherSettingsCard(),
-    typeof renderInterviewPrepEntry === "function" ? renderInterviewPrepEntry() : null,
     typeof renderStudentRewardAccountLink === "function" ? renderStudentRewardAccountLink() : null,
     renderStudentDeviceRegistrationCard(),
+    isOnlineStudentExperience(student) && typeof isStudentContentSafetyEnabled === "function" && isStudentContentSafetyEnabled() && typeof openStudentContentBlockList === "function" ? button("차단한 사용자", "btn secondary", "button", openStudentContentBlockList) : null,
     renderHomeScreenInstallCard(),
     el("nav", { className: "student-policy-links", ariaLabel: "개인정보 및 계정 안내" }, [
       el("a", { href: "./app-privacy.html" }, "개인정보처리방침"),
       el("span", { ariaHidden: "true" }, "·"),
-      el("a", { href: "./account-deletion.html" }, "계정 및 데이터 삭제"),
+      el("a", { href: "./community-guidelines.html" }, "커뮤니티 이용 규칙"),
+      el("span", { ariaHidden: "true" }, "·"),
+      el("a", { href: "./account-deletion.html", onclick: (event) => { event.preventDefault(); openStudentAccountDeletion(); } }, "계정 및 데이터 삭제"),
     ]),
   ]);
+}
+
+function openStudentAccountDeletion() {
+  const student = getAuthedStudent();
+  const profile = getStudentProfile(student?.id);
+  if (!student || !profile?.deviceToken) return notify("다시 로그인해 주세요.");
+  const content = el("div", { className: "account-deletion-content" });
+  openInfoModal({ title: "계정 및 데이터 삭제", content, className: "account-deletion-modal", confirmLabel: "닫기" });
+  const request = async (action, confirmation) => {
+    if (getAuthedStudent()?.id !== student.id) throw new Error("unauthorized");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch("/api/account-deletion", {
+        method: "POST", credentials: "same-origin", signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, studentId: student.id, deviceToken: profile.deviceToken, confirmation }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.ok !== true) throw new Error(data.error || "unavailable");
+      return data.request;
+    } finally { window.clearTimeout(timeout); }
+  };
+  const load = async () => {
+    content.replaceChildren(el("p", { role: "status" }, "삭제 요청을 확인하고 있습니다."));
+    try {
+      const receipt = await request("status");
+      if (!content.isConnected) return;
+      if (receipt) {
+        content.replaceChildren(
+          el("p", { role: "status" }, "계정 전체 삭제 요청이 접수되었습니다. 아직 삭제가 완료된 상태는 아닙니다."),
+          el("p", {}, `접수일: ${new Date(receipt.createdAt).toLocaleString("ko-KR")}`),
+          el("p", {}, "접수일부터 10일 이내에 처리 결과를 등록된 연락처로 안내합니다. 별도 이메일을 보내실 필요가 없습니다."),
+          ...(receipt.replies || []).map(reply => el("p", {}, reply.body)),
+          button("처리 안내 새로고침", "btn secondary", "button", load),
+        );
+        return;
+      }
+      const confirmation = input("deletionConfirmation", "text", "계정 삭제");
+      confirmation.autocomplete = "off";
+      const errorNode = el("p", { role: "alert" });
+      const submit = button("계정 전체 삭제 요청", "btn danger", "submit");
+      submit.disabled = true;
+      confirmation.addEventListener("input", () => { submit.disabled = confirmation.value.trim() !== "계정 삭제"; });
+      const form = el("form", {}, [
+        el("p", {}, "계정과 연결된 개인정보, 출석·외출·학습·성적 기록, 게시물·채팅·첨부 파일 전체의 영구 삭제를 요청합니다. 삭제 완료 후에는 복구할 수 없습니다."),
+        el("p", {}, "담당자가 접수일부터 10일 이내 처리 결과를 등록된 연락처로 안내합니다. 법령상 보존 자료와 보관 기간은 삭제 안내에서 확인할 수 있습니다. 수강 계약 해지·환불은 별도입니다."),
+        el("a", { href: "./account-deletion.html" }, "삭제 범위와 보관 예외 확인"),
+        field("본인 계정의 영구 삭제를 원하면 ‘계정 삭제’를 입력해 주세요.", confirmation),
+        errorNode, submit,
+      ]);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (submit.disabled || confirmation.value.trim() !== "계정 삭제") return;
+        submit.disabled = true;
+        confirmation.disabled = true;
+        errorNode.textContent = "";
+        try { await request("request", confirmation.value.trim()); await load(); }
+        catch {
+          errorNode.textContent = "접수 여부를 확인하지 못했습니다. 새로고침으로 확인 후 다시 시도해 주세요.";
+          confirmation.disabled = false;
+          submit.disabled = confirmation.value.trim() !== "계정 삭제";
+        }
+      });
+      content.replaceChildren(form, button("접수 여부 새로고침", "btn secondary", "button", load));
+    } catch {
+      if (content.isConnected) content.replaceChildren(el("p", { role: "alert" }, "삭제 요청을 확인하지 못했습니다. 로그인 상태와 인터넷 연결을 확인하고 다시 시도해 주세요."), button("다시 시도", "btn secondary", "button", load));
+    }
+  };
+  load();
 }
 
 function renderStudentDeviceRegistrationCard() {
@@ -6937,7 +7010,8 @@ function openStudyCafeNoticeModal({ featureId = "", container = null } = {}) {
 }
 
 function renderStudyCafeFeedbackDelete(item, { admin = false, postId = "", onDeleted = () => {} } = {}) {
-  if (item.isDeleted || (!admin && !item.isOwn)) return null;
+  if (item.isDeleted) return null;
+  if (!admin && !item.isOwn) return typeof renderStudentSafetyActions === "function" && !item.isAdmin ? renderStudentSafetyActions({surface:postId ? "reply" : "feedback",targetId:item.id,onChange:()=>onDeleted({threadEmpty:false})}) : null;
   const actor = admin ? teacherAuth.user?.username : getAuthedStudent()?.id;
   const status = el("span", { role: "status", className: "study-cafe-feedback-delete-status" });
   const control = button("삭제", "study-cafe-feedback-delete", "button", async () => {
@@ -7185,7 +7259,7 @@ function openStudyRoomMembersModal() {
     className: "study-room-members-modal",
     content: el("div", { className: "study-room-members-list" },
       members.map((member) => {
-        const canViewDetails = !member.isMine && Boolean(member.seatNumber);
+        const canViewDetails = !member.isMine;
         return el(canViewDetails ? "button" : "article", {
           className: `study-room-members-item ${member.isMine ? "mine" : ""} ${canViewDetails ? "is-clickable" : ""}`.trim(),
           ...(canViewDetails ? {
@@ -7401,6 +7475,10 @@ function renderStudyRoomChat(room) {
       : renderStudyRoomChatBody(room, messages),
   ]);
   if (!collapsed && room.unreadCount) window.setTimeout(() => markStudyRoomMessagesRead(room.id), 0);
+  if (room.role !== "host" && typeof renderStudentSafetyActions === "function") {
+    const actions = renderStudentSafetyActions({surface:"room",targetId:room.id,onChange:async()=>{await ensureStudyRoomLoaded({force:true});renderStudyCafeStateUpdate();}});
+    if(actions)chat.appendChild(actions);
+  }
   return chat;
 }
 
@@ -7413,6 +7491,7 @@ function renderStudyRoomChatBody(room, messages) {
             el("time", {}, formatStudyRoomMessageTime(message.createdAt)),
           ]),
           el("p", {}, message.text),
+          !message.deleted && message.type === "chat" && !message.isMine && typeof renderStudentSafetyActions === "function" ? renderStudentSafetyActions({surface:"message",targetId:message.id,onChange:async()=>{await ensureStudyRoomLoaded({force:true});renderStudyCafeStateUpdate();}}) : null,
           !message.deleted && message.type === "chat" && (message.isMine || room.role === "host")
             ? button("삭제", "study-room-message-delete", "button", () => deleteStudyRoomMessage(room.id, message.id))
             : null,
@@ -7510,6 +7589,7 @@ function renderStudyRoomListItem(room) {
       ]),
       room.description ? el("p", {}, room.description) : null,
       el("span", {}, `${room.memberCount}/${room.capacity}명${room.isMine ? " · 참여 중" : ""}`),
+      !room.isMine && typeof renderStudentSafetyActions === "function" ? renderStudentSafetyActions({surface:"room",targetId:room.id,onChange:openStudyRoomListModal}) : null,
     ]),
     button(
       room.isMine ? "내 방" : room.full ? "정원 마감" : "참여하기",
@@ -9811,6 +9891,7 @@ function openStudyCafeMemberModal(occupant, seatNumber, options = {}) {
       el("div", { className: "study-cafe-member-profile" }, [
         el("strong", {}, occupant.name),
         el("span", {}, occupant.fullTrack || occupant.track || "직렬 미등록"),
+        !isMine && occupant.safetyRef && typeof renderStudentSafetyActions === "function" ? renderStudentSafetyActions({surface:occupant.safetyRoomId ? "member" : "profile",targetId:occupant.safetyRoomId ? `${occupant.safetyRoomId}:${occupant.safetyRef}` : String(seatNumber),authorRef:occupant.safetyRef,onChange:async()=>{await ensureStudyRoomLoaded({force:true});await ensureStudyCafeRemoteLoaded({force:true});renderStudyCafeStateUpdate();}}) : null,
       ]),
       el("div", { className: "study-cafe-member-chips" }, [
         occupant.status === "unseated"

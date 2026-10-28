@@ -56,6 +56,8 @@ const apiHandlers = {
   "/api/students": require("./api/students"),
   "/api/student-reset-registration": require("./api/student-reset-registration"),
   "/api/student-devices": require("./api/student-devices"),
+  "/api/account-deletion": require("./api/account-deletion"),
+  "/api/student-content-safety": require("./api/student-content-safety"),
   "/api/student-push": require("./api/student-push"),
   "/api/student-rewards": require("./api/student-rewards"),
   "/api/study-cafe": require("./api/study-cafe"),

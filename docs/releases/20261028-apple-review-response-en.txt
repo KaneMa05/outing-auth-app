@@ -1,0 +1,124 @@
+DRAFT — NOT READY TO SEND
+Remove this notice only after filling every [REQUIRED ...] field and completing
+the release gates in 20261028-apple-review-check.md. This file does not assert
+that physical-device testing, account deletion or content blocking is complete.
+
+Hello App Review Team,
+
+Thank you for your message regarding Guideline 2.1. Below is the requested
+information for Ronpark Study (Apple ID 6827374000).
+
+1. Physical-device demonstration and testing
+
+Recording: [REQUIRED: attachment name or reviewer-accessible video link]
+Device: [REQUIRED: physical device model]
+Operating system: [REQUIRED: exact latest public OS version used]
+App version/build: [REQUIRED: verify the tested/submitted version; currently
+recorded in our submission history as 1.0.0 (4)]
+
+[REQUIRED: State the actual test results after testing. Do not claim a simulator
+recording or a screen mockup was captured on a physical device.]
+
+The recording starts with launching the installed app and demonstrates
+[REQUIRED: list the flows actually shown, including registration, login,
+account deletion, reporting and blocking wherever those functions apply].
+
+2. Purpose, audience and value
+
+Ronpark Study is an educational study-management app for learners preparing
+for examinations, including Korean coast guard recruitment examinations.
+It brings study planning, study-time tracking, progress information and
+communication with instructors into one service. Depending on the learner's
+course type, the app also provides attendance and outing management, exam
+results, subject discussion boards, or interview-preparation tools.
+
+The app supports three general learner experiences: offline students,
+online managed-class students, and internet-course students. These experiences expose different menus
+according to the learner's enrollment; a missing menu can therefore reflect
+the account's course type.
+
+All app features are provided free of charge. There are no paid app features
+that the reviewer must purchase to complete the review.
+
+3. Setup, access and main-feature instructions
+
+An internet connection is required. General learners sign in with their
+student registration number and password. The registration-number lookup
+is followed by the password step. A registration application and the
+operator's approval are used to issue new learner access. Existing users
+can use the dedicated demonstration accounts below without waiting for
+registration approval.
+
+Demo credentials: [REQUIRED: enter credentials securely in App Store Connect;
+do not commit passwords to this file or include them in the recording]
+
+- Offline student: [REQUIRED: demo login and any necessary instructions]
+  Home > Attendance > Outing > Grades > My.
+- Online managed-class student: [REQUIRED: demo login/instructions]
+  Home > Study Cafe > Grades > My.
+- Internet-course student: [REQUIRED: demo login/instructions]
+  Home > Planner > Study Cafe > My; the home screen provides access to the
+  subject discussion board.
+- The supplied review account does not have access to the interview-class
+  area. The demonstrated flows are the general learner features above.
+
+Account deletion: My > Account and data deletion > review the scope and
+processing period > type the displayed Korean confirmation phrase > submit.
+The request is recorded inside the app, without requiring an email or phone
+call. An operator processes the request and notifies the registered contact
+within 10 days. The receipt is explicitly distinguished from completion.
+
+Reporting/blocking: open the discussion post/comment, room chat message,
+public feedback/reply, or the user's profile details, and select Report or
+Block author. Blocking hides that author's posts, comments and chat messages
+and masks their nickname/status. My > Blocked users allows unblocking.
+Basic abusive-text filtering and operator review of reports supplement
+these controls. Community rules apply to text and attachments.
+
+[REQUIRED: Verify these paths on the physical device after deploying the
+prepared changes. If a separate interview signup is reachable, disclose it
+and supply the applicable access/deletion instructions; the review account's
+enrollment alone does not establish that such a path is absent.]
+
+[REQUIRED: Confirm whether sample files are needed. If needed, attach them
+and explain the exact feature that uses them.]
+
+4. External services and platforms
+
+- Vercel: hosting of the web-based app content and server-side API endpoints.
+- Supabase: storage and processing of account, study and application data,
+  uploaded files and realtime features where used. General student login is
+  the app's student-number/password and registered-device system; it should
+  not be described as Supabase Auth unless that is actually used.
+- SOLAPI: phone-number verification and SMS/Kakao notifications where enabled.
+- Kakao: authentication for the interview portal where enabled.
+- [REQUIRED: include OpenAI only for AI/interview functions actually enabled
+  and reachable in the submitted app, explaining their precise purpose.]
+- [REQUIRED: include Google Gemini or any other AI/transcription service only
+  if it is actually deployed and used. Uncommitted local code is not evidence
+  that the submitted app uses a service.]
+
+[REQUIRED: Verify this list against the production configuration and the
+privacy disclosures before removing these notes.]
+
+5. Regional availability and differences
+
+The recorded App Store availability setting is South Korea only, and the
+user interface is primarily Korean.
+[REQUIRED: confirm whether features/content vary with a user's location,
+including behavior when an Apple reviewer accesses the backend from abroad.
+Course/enrollment differences should be explained separately from region.]
+
+6. Regulated services and third-party content
+
+The described purpose is education and study management.
+[REQUIRED: confirm whether any regulated service is provided; if none, state
+that regulatory-service credentials are not applicable.]
+
+Our project submission history records the owner's confirmation on
+2026-10-27 that the content is original or appropriately licensed.
+[REQUIRED: replace this internal-history statement with the actual content
+rights explanation and attach relevant licenses/permissions if applicable.
+Do not claim to have attached documentation that has not been supplied.]
+
+Thank you for reviewing Ronpark Study.

@@ -4,6 +4,12 @@ const root=path.resolve(__dirname,'../..'),base=path.join(root,'.tmp/play-androi
 if(!fs.existsSync(path.join(base,'app/src/main/AndroidManifest.xml')))throw Error('Generate the existing TWA Android project first.');
 fs.cpSync(base,target,{recursive:true,filter:p=>!['build','.gradle','.git'].includes(path.basename(p))});
 fs.cpSync(path.join(root,'native/android/interview'),path.join(target,'interview'),{recursive:true});
+// Optional local USB test bridge. Contains a loopback token, never a Gemini API key.
+const localBridge=path.join(root,'.tmp/interview-free-api/bridge.json');
+if(fs.existsSync(localBridge)){
+ const assets=path.join(target,'interview/src/debug/assets');fs.mkdirSync(assets,{recursive:true});
+ fs.copyFileSync(localBridge,path.join(assets,'interview-local-bridge.json'));
+}
 const edit=(p,fn)=>{const file=path.join(target,p);fs.writeFileSync(file,fn(fs.readFileSync(file,'utf8')));};
 edit('settings.gradle',s=>s+"\ninclude ':interview'\n");
 edit('build.gradle',s=>s.replaceAll('jcenter()','mavenCentral()'));

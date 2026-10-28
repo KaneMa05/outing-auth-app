@@ -1,3 +1,113 @@
+2026-10-27 TestFlight internal distribution
+- Owner supplied yong_hui@nate.com for TestFlight invitation. Confirmed this is
+  an existing App Store Connect account owner/admin, so no new ASC role granted.
+- Created manual-distribution internal group: Ronpark Study internal test.
+  Group ID: c80e1589-68a8-4b44-b3f0-7da2394de4db.
+- Added the requested account and build 1.0.0 (4). Group has 1 tester / 1 build;
+  build status shown as Testing (테스트 중).
+- No new cloud build, website deployment, App Store submission change or release.
+2026-10-27 Apple App Review submission completed
+- Owner explicitly approved final Apple review submission and confirmed final Mac
+  capture device removal. Read-only account check: 1 active device before submission.
+- Ronpark Study 1.0.0 (4) submitted successfully on 2026-10-27 14:10 KST.
+- App Store Connect status: Waiting for Review (심사 대기 중).
+- Submission ID: dacecc86-102b-4857-b841-3166cf0b60c0.
+- Review details:
+  https://appstoreconnect.apple.com/apps/6827374000/distribution/reviewsubmissions/details/dacecc86-102b-4857-b841-3166cf0b60c0
+- Free download, South Korea only. Manual release retained after Apple approval.
+- Public App Store release has NOT occurred. Await Apple review decision.
+- Temporary cloud review credentials were removed after screenshots.
+2026-10-27 Store screenshots and final review preparation
+- iPhone required medium (1206x2622) and iPad required 13-inch (2064x2752)
+  screenshots uploaded and visible as 1 screenshot each in App Store Connect.
+  Optional large iPhone (1320x2868) screenshot also uploaded.
+- Capture build 5: 6ae0282e4a72334e32e5951a, success (iPhone large + iPad).
+- Capture build 6: 6ae02e384a72334e32e5963a, source 0aa3305, success (iPhone medium).
+- Original image artifacts are retained in artifacts/app-store-screenshots-20261027.
+- Codemagic temporary REVIEW_STUDENT_ID and REVIEW_STUDENT_PASSWORD variables
+  removed after capture; app environment variables list is empty.
+- Automatic temporary-device cleanup did not confirm success. Owner asked to
+  remove the final newly created Mac device so Apple can log in.
+- Apple version remains signed build 1.0.0 (4). Manual release selected.
+  Review menu guidance saved; actual Apple review submission awaits final owner approval.
+- No website/Android production deployment or release performed.
+2026-10-27 Owner confirmations applied
+- Owner confirmed content is original or licensed. Apple content-rights
+  declaration saved (third-party content with necessary rights).
+- Owner explicitly approved all 16 privacy data types and publication.
+  Privacy declaration published successfully in App Store Connect.
+- Owner reported existing device removed. Read-only verification shows
+  review account has 1 active device (previously 2). Store capture can resume.
+2026-10-27 Screenshot blocker verified
+- Review account password validated by existing read-only device_state API.
+  Account has 2 active registered devices; no slot for iOS capture or Apple review.
+  No existing user device was revoked. Owner must free a slot or supply another account.
+- Screenshot builds 1-3 failed at login (not native compilation).
+  Latest diagnostic build 6ae01f3e4a72334e32e5936e cancelled after blocker identified.
+- Dedicated branch latest 8b80505; screenshot output accepts all exported image formats.
+- Public App Store submission still blocked on account device slot, screenshots,
+  explicit privacy-declaration publication approval, and content rights confirmation.
+2026-10-27 Store metadata / screenshot preparation
+- Owner approved proceeding with free download pricing and temporary cloud
+  use of the review account for screenshots. Free price confirmed in Apple.
+- Availability saved for South Korea only (1 country/region).
+- Screenshot-only workflow prepared and pushed: d5ad692, dedicated iOS branch.
+  Uses app-specific encrypted Codemagic variable group ronpark-store-review.
+  Debug simulator capture only; no new signed IPA or website deployment.
+  Temporary device token shared across capture simulators and self-revoked
+  after the job. Raw XCTest result/logs are not published as artifacts.
+- Local native integration tests and source snapshot tests passed.
+- Privacy declaration publication was rejected by automatic approval review
+  pending explicit final confirmation of its 16 data types and publication.
+- Content rights factual confirmation still pending from owner.
+2026-10-27 App Store preparation update (latest)
+- App: Ronpark Study / Apple ID 6827374000 / com.ronpark.study.
+- Signed version 1.0.0 (4), source f987b1d, uploaded successfully to Apple.
+  Codemagic: 6ae015a64a72334e32e5918b.
+  Delivery UUID: 48225c89-77f1-49eb-97d5-956ac56e02e4.
+- Build 4 export questionnaire saved; TestFlight ready to submit.
+  Build 4 attached and saved to App Store version 1.0.0; replaces build 3.
+- GitHub validation 40440838971 succeeded, including the installed iOS
+  WKWebView student login smoke test and unsigned Release archive.
+- Native wrapper recognizes installed iOS app only on the production HTTPS host.
+  Existing production web/Android application has not been deployed or modified.
+- Apple review test account and contact supplied by owner saved in App Store Connect.
+  Credentials and private contact data are intentionally omitted here.
+- Category and age questionnaire saved. Privacy declaration draft configured
+  for 16 data types, linked to user, no tracking; not published yet.
+- Owner selected South Korea only; availability still needs to be saved.
+- Free download price draft pending explicit owner approval after automatic
+  approval review rejected committing an unapproved commercial setting.
+- Store screenshots and content rights confirmation still outstanding.
+- No App Store review submission or public release performed. Manual release selected.
+- Earlier records below are historical and may describe superseded builds.
+2026-10-27 iOS 배포 준비 업데이트
+- Apple Developer 가입 완료. 팀 RONPARK / 3A8HPYVQ7M.
+- App Store Connect: 론박스터디 / Apple ID 6827374000 / com.ronpark.study.
+- 사용자 승인 후 codex/ios-native-build-20261021 전용 브랜치를 푸시했다.
+  이 브랜치는 웹 자동 배포를 차단한다. 운영 main에는 반영하지 않았다.
+- Swift 상태 변수 및 WebRTC 오디오 타입 컴파일 오류를 수정했다.
+  종료 확인창을 명시적인 알림창으로 변경하고 앱 아이콘을 추가했다.
+- Codemagic 앱 6ae00969a48632ae0bf8395e에서 서명 IPA 생성 성공.
+  빌드 6ae00bb64a72334e32e58f8c / 소스 128b31f / RonparkStudy.ipa 20.79 MB.
+- 기존 ronpark-ios-distribution 인증서와 새 ronpark-study-app-store 프로파일 사용.
+  개인 키는 Codemagic에 보관하며 저장소에는 포함하지 않았다.
+- 사용자 최종 승인 후 codemagic.yaml에 바이너리 업로드만 연결했다.
+  1.0.0 (3) Apple 업로드 성공 / 2026-10-27 / 소스 c38525f.
+  Codemagic 빌드: 6ae00ec04a72334e32e59041.
+  Delivery UUID: 2ef09967-65d4-43bb-b5b6-520d44e0f139.
+  App Store Connect TestFlight에서 1.0.0 빌드 3 수신을 확인했다.
+  현재 상태는 수출 규정 관련 문서 누락이며 암호화 사용 질문 응답이 필요하다.
+  Apple 검증의 iPad 멀티태스킹 방향 누락을 iPad 전용 Info.plist 키로 수정했다.
+  심사 자동 제출·TestFlight 자동 제출·출시는 비활성이다.
+  제품 설명·키워드·지원 URL·개인정보처리방침 URL과 수동 출시 설정을 저장했다.
+- GitHub 검증 실행: https://github.com/KaneMa05/outing-auth-app/actions/runs/40437789507
+  최종 성공: iPhone 시뮬레이터 정책·화면 테스트 및 서명 없는 Release 아카이브 완료.
+- 심사 제출·출시와 실기기 검증은 미완료다. 심사용 로그인·연락처와 스크린샷,
+  개인정보 수집 선언·연령 등급·가격/지역 등의 제출 항목을 완료해야 한다.
+
+이하 내용은 2026-10-21 구현 당시 기록이며 가입·컴파일 상태는 위 업데이트를 따른다.
+
 모의면접 부분 네이티브 구현 — 2026-10-21
 
 현재 상태

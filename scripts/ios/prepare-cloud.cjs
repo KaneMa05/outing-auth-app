@@ -6,7 +6,11 @@ const branch='codex/ios-native-build-20261021';
 const fixed=[
  '.github/workflows/ios-native-build.yml','AGENTS.md',
  'native/ios/App/project.yml','native/ios/App/Info.plist','native/ios/InterviewNative/Package.swift',
- 'scripts/ios/install-tools.sh','scripts/ios/build-cloud.sh','scripts/ios/select-simulator.py'
+ 'native/ios/App/Assets.xcassets/Contents.json',
+ 'native/ios/App/Assets.xcassets/AppIcon.appiconset/Contents.json',
+ 'native/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
+ 'scripts/ios/install-tools.sh','scripts/ios/build-cloud.sh','scripts/ios/select-simulator.py',
+ 'scripts/ios/capture-store.sh'
 ];
 function sourceFiles(sourceRoot=root){
  const files=[...fixed];
