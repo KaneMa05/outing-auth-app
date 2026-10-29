@@ -86,6 +86,12 @@ test('banner opens the assignment article without API reads and home returns to 
  const view=await c.mountInterviewApp(host,{request:async action=>{calls.push(action);return {};}});
  const box=host.querySelector('[data-app-content]');
  assert.match(box.innerHTML,/data-app-notice="preassignments"/);
+ assert.match(box.innerHTML,/aria-labelledby="ip-app-notices-title"/);
+ assert.match(box.innerHTML,/11\.9/);
+ assert.match(box.innerHTML,/11\.10/);
+ assert.match(box.innerHTML,/ronpark1234/);
+ assert.match(box.innerHTML,/RONPARK1234/);
+ assert.equal((box.innerHTML.match(/data-app-notice="preassignments"/g)||[]).length,1);
  assert.doesNotMatch(box.innerHTML,/ip-app-welcome|이어서 작성하기/);
  calls.length=0;
  await host.listeners.get('click')({target:{closest:()=>({dataset:{appNotice:'preassignments'},hasAttribute:()=>false})}});
