@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "ios:sync-practice": "node scripts/ios/sync-practice-audio.cjs",
     "test:penalty-export": "node tests/penalty-export.test.cjs",
     "test:interview-prep": "node tests/interview-prep.test.cjs",
     "test:interview-navigation": "node tests/interview-navigation-loading.test.cjs",

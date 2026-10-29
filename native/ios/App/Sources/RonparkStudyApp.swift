@@ -14,7 +14,8 @@ private struct StudentApp: View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--interview-native-preview") {
             // UI tests run the real SwiftUI screens without opening a production web page.
-            InterviewView(preview: true)
+            if ProcessInfo.processInfo.arguments.contains("--interview-legacy-fixture") { InterviewView(preview: true) }
+            else { InterviewPracticeView() }
         } else { studentContent }
         #else
         studentContent
@@ -25,14 +26,14 @@ private struct StudentApp: View {
             StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
             #if DEBUG
             if !ProcessInfo.processInfo.arguments.contains("--store-screenshots") {
-            Button("무료 모의면접 시연") { launch = InterviewLaunch(code: "", preview: true) }
+            Button("모의면접 연습 테스트") { launch = InterviewLaunch(code: "", preview: true) }
                 .buttonStyle(.borderedProminent).padding(.bottom, 75).padding(.trailing, 12)
             }
             #endif
         }
         .fullScreenCover(item: $launch) { entry in
             #if DEBUG
-            if entry.preview { InterviewView(preview: true) }
+            if entry.preview { InterviewPracticeView() }
             else { InterviewView(launchCode: entry.code) }
             #else
             InterviewView(launchCode: entry.code)

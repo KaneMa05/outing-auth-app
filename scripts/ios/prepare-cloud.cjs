@@ -5,7 +5,7 @@ const snapshotName='ios-cloud-build-20261021';
 const branch='codex/ios-native-build-20261021';
 const fixed=[
  '.github/workflows/ios-native-build.yml','AGENTS.md',
- 'native/ios/App/project.yml','native/ios/App/Info.plist','native/ios/InterviewNative/Package.swift',
+ 'native/ios/App/project.yml','native/ios/App/copy-debug-resources.sh','native/ios/App/Info.plist','native/ios/InterviewNative/Package.swift',
  'native/ios/App/Assets.xcassets/Contents.json',
  'native/ios/App/Assets.xcassets/AppIcon.appiconset/Contents.json',
  'native/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
@@ -22,6 +22,15 @@ function sourceFiles(sourceRoot=root){
   else throw Error('Unexpected file in Swift source: '+relative);
  }}
  for(const folder of ['native/ios/App/Sources','native/ios/App/Tests','native/ios/InterviewNative/Sources'])swiftFiles(folder);
+ const audioFolder='native/ios/App/DebugResources/InterviewPracticeAudio';
+ for(const entry of fs.readdirSync(path.join(sourceRoot,audioFolder),{withFileTypes:true})){
+  if(!entry.isFile()||!(/^[A-Za-z0-9_-]+\.mp3$/.test(entry.name)||entry.name==='catalog.json'||entry.name==='answer-cue.wav'))throw Error('Unexpected debug audio resource');
+  files.push(audioFolder+'/'+entry.name);
+ }
+ for(const name of ['interviewer-man-1','interviewer-woman','interviewer-man-2']){
+  const avatarFile='native/ios/App/DebugResources/InterviewAvatar/'+name+'.mp4';
+  if(fs.existsSync(path.join(sourceRoot,avatarFile)))files.push(avatarFile);
+ }
  for(const file of files){const resolved=path.resolve(sourceRoot,file);if(!resolved.startsWith(path.resolve(sourceRoot)+path.sep)||fs.lstatSync(resolved).isSymbolicLink())throw Error('Invalid source path');}
  return files.sort();
 }

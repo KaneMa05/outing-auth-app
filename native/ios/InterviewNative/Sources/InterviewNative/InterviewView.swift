@@ -77,14 +77,13 @@ import SwiftUI
                         .onChange(of: seconds) { value in if value >= 600 { model.stop() } }
                 }
             }
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .bottomTrailing) {
+                InterviewLiveCamera(media: model.media)
                 ZStack {
-                    Circle().fill(teal.opacity(0.04)).frame(width: 180, height: 180)
-                    Circle().fill(teal.opacity(0.06)).frame(width: 150, height: 150)
-                    Circle().fill(RadialGradient(colors: [Color(red: 0.84, green: 0.99, blue: 0.95), Color(red: 0.54, green: 0.84, blue: 0.77), Color(red: 0.16, green: 0.28, blue: 0.37)], center: .topLeading, startRadius: 0, endRadius: 145)).frame(width: 120, height: 120)
-                }.frame(maxWidth: .infinity).accessibilityLabel("AI 면접관")
-                InterviewSmallCamera(media: model.media)
-            }
+                    Circle().fill(teal.opacity(0.12)).frame(width: 70, height: 70)
+                    Circle().fill(RadialGradient(colors: [Color(red: 0.84, green: 0.99, blue: 0.95), teal, ink], center: .topLeading, startRadius: 0, endRadius: 65)).frame(width: 48, height: 48)
+                }.background(.ultraThinMaterial, in: Circle()).padding(10).accessibilityLabel("AI 면접관 음성")
+            }.frame(maxWidth: 260).frame(maxWidth: .infinity)
             Text(String(format: "진행 질문 %02d", model.questionNumber)).font(.caption).foregroundStyle(teal)
             Text(model.question).font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
             if showCaptions {
@@ -93,7 +92,6 @@ import SwiftUI
                     Text("내 답변 · 실시간 자막").font(.caption).foregroundStyle(teal); Text(model.transcript)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
             }
-            action(model.muted ? "마이크 켜기" : "마이크 끄기", enabled: model.screen == .live) { model.mute() }
             action(showCaptions ? "자막 숨기기" : "자막 보기") { showCaptions.toggle() }
             action(model.answering ? "답변 확인 중…" : "답변 완료 →", primary: true,
                    enabled: model.screen == .live && !model.answering && !model.muted) { model.answer() }.accessibilityIdentifier("interview.answer")
@@ -158,7 +156,7 @@ private struct InterviewPreparationMedia: View {
         VStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 24).fill(Color.gray.opacity(0.12))
-                if media.cameraOn { InterviewCameraPreview(session: media.capture) }
+                if media.cameraOn { InterviewCameraPreview(media: media) }
                 else { Text("카메라 미리보기\n영상은 전송·저장하지 않습니다.").font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.secondary) }
             }.frame(height: 200).clipShape(RoundedRectangle(cornerRadius: 24))
             Button(media.cameraOn ? "내 모습 함께 보기 · 켜짐" : "내 모습 함께 보기 · 꺼짐") { media.toggleCamera() }.buttonStyle(.bordered)
@@ -168,9 +166,13 @@ private struct InterviewPreparationMedia: View {
         }
     }
 }
-private struct InterviewSmallCamera: View {
+private struct InterviewLiveCamera: View {
     @ObservedObject var media: InterviewMedia
     var body: some View {
-        if media.cameraOn { InterviewCameraPreview(session: media.capture).frame(width: 72, height: 96).clipShape(RoundedRectangle(cornerRadius: 14)).accessibilityLabel("내 카메라 미리보기") }
+        ZStack {
+            RoundedRectangle(cornerRadius: 24).fill(Color.gray.opacity(0.12))
+            if media.cameraOn { InterviewCameraPreview(media: media) }
+            else { VStack { Image(systemName: "person.crop.rectangle").font(.largeTitle); Text("내 모습 미리보기"); Button("카메라 켜기") { media.toggleCamera() } }.foregroundStyle(.secondary) }
+        }.aspectRatio(3/4, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 24)).accessibilityLabel("내 카메라 미리보기")
     }
 }

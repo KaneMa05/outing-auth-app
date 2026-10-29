@@ -222,3 +222,106 @@ https://developer.apple.com/programs/whats-included/
 - 잠금/백그라운드/전화 수신/네트워크 끊김에서 캡처 종료와 기록 보존
 - 학생 본인 기록과 관리자 기록의 접근, 재생, 만료 삭제
 - iOS 컴파일·네이티브 화면 렌더링·기기 오디오 연결
+
+2026-10-28 Local Mac Android/iOS practice parity
+- iOS Debug practice now offers job, personality and AI modes, the same six
+  tracks and exact packaged question catalog/audio as Android Debug.
+- Native preparation layout, turn hints, question replay, answer cue, mic noise
+  calibration, seven-second silence progression and ten-minute limit are wired.
+- Real 16 kHz mono PCM16 WAV answers and JSON records persist in app-private
+  Application Support/InterviewPractice, excluded from iCloud backup. Records can
+  be reopened, replayed and deleted with confirmation. Video is preview only.
+- For future Android bank changes run: npm run ios:sync-practice
+  This refreshes the iOS DebugResources copy before generating/building Xcode.
+- Debug entry: --interview-native-preview, or installed Debug app's
+  '모의면접 연습 테스트' button. --interview-legacy-fixture is a Debug-only
+  synthetic fixture retained for the pre-existing UI regression tests.
+- Optional captions/feedback use the existing scripts/interview-free-api-server.cjs
+  protocol. Start that loopback server on the Mac with GEMINI_API_KEY configured,
+  then rebuild Debug to copy its .tmp/interview-free-api/bridge.json. The app
+  requires explicit Gemini data-transmission consent before sending answer PCM.
+  This bridge is simulator-only: a physical iPhone cannot use the Mac's loopback
+  address. No provider key is bundled. API analysis has not been exercised here.
+- Release builds exclude practice source, audio and local bridge configuration;
+  the existing authenticated production interview remains a separate route.
+- Local Xcode 27.1 uses Device Hub at Xcode.app/Contents/Applications/DeviceHub.app.
+  The simulator does not support the front camera; camera checks require iPhone.
+- No push, cloud build, store upload, production deployment or database change.
+
+2026-10-29 Physical iPhone local Debug installation
+- Paired the owner's iPhone 16 (iOS 26.6.1) after the owner enabled Developer Mode.
+- Owner signed in to Xcode. RONPARK team development signing and provisioning
+  succeeded; signed Debug build installed successfully as com.ronpark.study.
+- devicectl confirmed foreground launch with --interview-native-preview.
+- Owner can now test camera/microphone, bundled questions and local recordings.
+- Gemini loopback bridge is simulator-only; physical-device AI connectivity still
+  requires a separate connection path. No key is embedded in the installed app.
+- No source push, store upload or production deployment performed.
+
+2026-10-29 Physical iPhone AI bridge and native UI update
+- Physical iPhone reported 'Interview bridge ready: true' over a same-Wi-Fi TLS
+  connection. A pinned RSA-2048 certificate and ECDHE/AES-GCM TLS 1.2 resolved the
+  device's TLS decode error. No trust bypass or system-wide CA installation.
+- Loopback HTTP for Android/simulator remains 127.0.0.1:8787. Device HTTPS/WSS
+  binds only the Mac's selected private IPv4 address on port 8788, with the same
+  authentication, audio-transmission consent and usage limits.
+- Run node scripts/ios/prepare-device-bridge.cjs, then start the Mac server with
+  INTERVIEW_DEVICE_BRIDGE=1 node scripts/interview-free-api-server.cjs.
+  Rebuild/install Debug afterward. Certificate validity is two days; rerun setup
+  and rebuild after expiration or a Mac Wi-Fi address change. The device must
+  allow local network access. Provider API credentials remain only on the Mac.
+- Native interview now places a large portrait camera in the center with a small
+  voice indicator at its lower-right. Menu buttons have short press/release
+  feedback respecting Reduce Motion. Removed whole-screen identity replacement.
+- Camera preview session binding, question preparation and recorder engine
+  startup/shutdown are off the main UI thread. Meter updates no longer invalidate
+  the whole interview screen. Device test build uses Swift optimization (-O).
+- Real-device AI readiness is verified; the owner's live voice transcription and
+  feedback still require a consented interview trial. No push or deployment.
+
+2026-10-29 Owner feedback applied to physical practice UI
+- Preparation no longer opens the camera automatically on mode selection.
+  The check button starts preview/mic checks; starting the interview also starts
+  the camera asynchronously. Camera readiness no longer blocks the interview.
+- Replaced the large voice orb with compact, actual-level voice bars beside a
+  speaker/microphone symbol at the lower-right of the central camera.
+- Reduced check-button text and added spring press/release feedback.
+- Removed the microphone meter explanation and question-count/silence-rule line
+  at the owner's request. Transient status and permission/errors remain.
+- Mic-check engine startup is off-main; the meter uses ambient-noise calibration
+  and a short sustained-input gate instead of displaying all raw background noise.
+- Physical device AI readiness remains verified. Real camera timing and subjective
+  meter response are owner-tested; do not represent simulator checks as proof of
+  real camera performance. No push or production deployment.
+
+2026-10-29 Camera startup and native practice timing update
+- A single AVCaptureVideoPreviewLayer binds to an empty idle session before
+  configuration/startRunning and moves between main-thread view hosts without
+  reconnecting the capture graph. Front camera input is configured once.
+- Actual device first-preview logs measured 0.249-0.316 seconds before avatar
+  integration. Physical tests verify cold start and prep-to-live continuity.
+- Practice starts with a cancellable three-second countdown. Four seconds of
+  local microphone silence after recorder startup advances to the next question,
+  including empty answers. Caption network latency does not extend that timer.
+- Removed the manual mute button from the authenticated interview view.
+- Debug practice shows one randomly assigned, bundled silent interviewer video
+  at left and the front camera at right. The same avatar remains for all questions.
+  Three completed HeyGen clips are included. Male age refinement is still pending;
+  see DebugResources/InterviewAvatar/README.txt. No paid generation was performed.
+- Owner's final layout: joined left/right video panes at exactly 50:50, zero
+  spacing and only the outer corners rounded. Device UI test checks equal widths
+  and adjacent pane edges. The three completed clips are used as supplied; no
+  additional paid age-refinement generation has been performed.
+
+2026-10-29 Debug-only local practice video
+- Preparation offers an opt-in video toggle (off by default). The front camera
+  and microphone save one interview.mov per run in the existing private,
+  backup-excluded InterviewPractice record folder. No video upload path added.
+- The existing per-answer WAV recorder remains active. Video capture starts
+  before countdown; a small camera-corner badge indicates actual recording.
+- Recording completion checks both audio and video tracks before attaching the
+  file to its record. Results play it in AVKit; deleting the record deletes video.
+- Existing audio-only records decode without the optional video field.
+- Release retains preview-only camera usage text and excludes recording code.
+- Avatar clips remain visible; overlapping local players dissolve at each loop
+  boundary instead of cutting directly from the final frame to the first.

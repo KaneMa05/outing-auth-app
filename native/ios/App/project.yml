@@ -17,6 +17,10 @@ targets:
   RonparkStudy:
     type: application
     platform: iOS
+    postBuildScripts:
+      - name: Debug interview practice resources
+        script: bash "$SRCROOT/copy-debug-resources.sh"
+        basedOnDependencyAnalysis: false
     sources:
       - Sources
       - Assets.xcassets
@@ -29,6 +33,12 @@ targets:
         INFOPLIST_FILE: Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        APP_DISPLAY_NAME: 론박스터디
+        CAMERA_USAGE_DESCRIPTION: 모의면접 중 내 모습 미리보기에 카메라를 사용합니다. 영상은 저장하지 않습니다.
+      configs:
+        Debug:
+          APP_DISPLAY_NAME: 론박스터디 테스트
+          CAMERA_USAGE_DESCRIPTION: 모의면접 미리보기와 선택한 연습 영상 녹화에 카메라를 사용합니다. 영상은 이 기기에만 저장됩니다.
   InterviewPolicyTests:
     type: bundle.unit-test
     platform: iOS
