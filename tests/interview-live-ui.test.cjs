@@ -15,7 +15,7 @@ function harness({request,connect,mediaDevices={getUserMedia:async()=>{throw Err
  const window={RTCPeerConnection(){},addEventListener(){},removeEventListener(){}};
  const context={window,navigator:{mediaDevices},document:{querySelector:()=>true},AbortController,setInterval,clearInterval,connectLive:connect};
  vm.createContext(context);
- vm.runInContext(fs.readFileSync('interview-live-ui.js','utf8').replace(/^export \{mountLive\}.*$/m,'').replaceAll('export async function','async function'),context);
+ vm.runInContext(fs.readFileSync('interview-live-ui.js','utf8').replace(/^export \{mountLive\}.*$/m,'').replaceAll('export async function','async function').replaceAll('export function','function'),context);
  vm.runInContext(fs.readFileSync('client/interview-live-view.js','utf8').replace(/^import .*\r?\n/gm,'').replace(/^const esc=.*\r?\n/m,'').replaceAll('export async function','async function'),context);
  return {host,mount:()=>context.mountLive(host,{request,connect}),click(name){const button=host.querySelector(`[${name}]`);button.attrs.add(name);return host.listeners.get('click')({target:button});}};
 }
@@ -72,4 +72,17 @@ test('microphone permission resolving after view destruction immediately release
  const view=await h.mount();await settle();const checking=h.click('data-live-mic');
  view.destroy();permission.resolve({getTracks:()=>[{stop(){released++;}}]});await checking;
  assert.equal(released,1);assert.equal(h.host.innerHTML,'');
+});
+test('ended report uses the saved snapshot; unknown closure never fabricates a report',async()=>{
+ let state='completed',reads=0;
+ const saved={version:1,state:'completed',createdAt:'2026-10-29T00:00:00Z',counts:{mainQuestions:1,plannedMainQuestions:3,followups:1,completedAnswers:2,incompleteAnswers:0,emptyTranscripts:0},turns:[],pendingQuestion:'<새 질문>',nextPractice:['<원음 확인>']};
+ const h=harness({request:async action=>{
+  if(action==='get'){reads++;return {run:{state,turns:[],result_report:state==='unknown'?null:saved,retain_until:'2099-01-01'}};}
+  return action==='ready'?{ready:true}:{runs:[],hasMore:false};
+ },connect:async()=>({runId:'run',question:'첫 질문',stop:async()=>{},request:async()=>({})})});
+ const view=await h.mount();await settle();await h.click('data-live-start');await h.click('data-live-stop');await settle();
+ const box=h.host.querySelector('[data-live-report-body]');
+ assert.match(box.innerHTML,/data-live-saved-report/);assert.match(box.innerHTML,/&lt;새 질문&gt;/);assert.doesNotMatch(box.innerHTML,/<원음 확인>/);
+ const count=reads;await h.click('data-live-load-report');assert.equal(reads,count+1);
+ state='unknown';await h.click('data-live-load-report');assert.match(box.innerHTML,/서버에서 면접 종료를 확인/);assert.doesNotMatch(box.innerHTML,/data-live-saved-report/);view.destroy();
 });

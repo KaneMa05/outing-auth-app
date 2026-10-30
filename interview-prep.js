@@ -207,11 +207,11 @@ function renderInterviewPrepModule(admin) {
     }
     if(renderInterviewPrepModule.view!==view)return;
     if(!document.querySelector('link[data-interview-style]'))
-      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261024-school-status','data-interview-style':'true'}));
+      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261030-question-approval','data-interview-style':'true'}));
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261027-overview-modal'):appShell?import('./interview-app-ui.js?v=20261026-home-notice'):import('./interview-workspace.js?v=20261024-school-status'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261030-question-approval'):appShell?import('./interview-app-ui.js?v=20261026-home-notice'):import('./interview-workspace.js?v=20261024-school-status'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{

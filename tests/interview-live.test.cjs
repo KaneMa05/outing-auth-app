@@ -36,6 +36,7 @@ async function api(handler,body){let code,out;await handler({method:'POST',heade
  const spool=path.resolve('.tmp/interview-live-tests');fs.mkdirSync(spool,{recursive:true});
  try{
   await db.exec(fs.readFileSync(migration,'utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261029142215_interview_live_result_reports.sql','utf8'));
   for(const id of ['ip-a','ip-b'])await prep('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:'QA',enabled:true,expiresOn:'2099-12-01'});
   await prep('admin_enabled',admin,{enabled:true});
   assert.equal((await invoke('ready',a)).reason,'questions_unavailable');
@@ -68,7 +69,7 @@ async function api(handler,body){let code,out;await handler({method:'POST',heade
   assert.equal(live.turns[0].answer,'경험 답변입니다.');assert.equal(live.turns[1].answer,'경험 답변 1');
   assert(live.turns[1].audioStartBytes>=live.turns[0].audioEndBytes);
   await engine.finish(live,'completed');assert.equal(engine.sessions.size,0);
-  const saved=await engine.command(a,{action:'get',runId:started.runId});assert.equal(saved.run.turns.length,9);assert(saved.recordings);assert(!saved.run.provider_id);assert(!saved.run.questions);
+  const saved=await engine.command(a,{action:'get',runId:started.runId});assert.equal(saved.run.turns.length,9);assert.equal(saved.run.result_report.counts.completedAnswers,9);assert.equal(saved.run.result_report.counts.followups,6);assert.deepEqual(saved.run.result_report.turns,saved.run.turns);assert(saved.recordings);assert(!saved.run.provider_id);assert(!saved.run.questions);
   assert.equal((await engine.command(admin,{action:'admin_list'})).runs.length,1);
   assert.equal((await engine.command(b,{action:'list'})).runs.length,0);
   // New speech arriving during generation invalidates the candidate question.

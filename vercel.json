@@ -35,7 +35,24 @@
         "syd1"
       ]
     },
+    "api/interview-draft-worker.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
     "api/interview-life-followup.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-personality.js": {
+      "maxDuration": 240,
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-job-exam.js": {
+      "maxDuration": 240,
       "regions": [
         "syd1"
       ]
