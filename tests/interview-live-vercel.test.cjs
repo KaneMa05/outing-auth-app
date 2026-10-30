@@ -44,6 +44,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
  const {db,invoke:prep}=await createDb();let server,wss,control;
  try{
   await db.exec(fs.readFileSync('supabase/migrations/20261021060740_interview_live_sessions.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261029142215_interview_live_result_reports.sql','utf8'));
   await prep('admin_member_save',{type:'admin',id:'qa'},{targetStudentId:'ip-a',track:'공채',examNumber:'QA',enabled:true,expiresOn:'2099-12-01'});await prep('admin_enabled',{type:'admin',id:'qa'},{enabled:true});
   await db.exec("insert into ip_questions(id,prompt,category,status) values('ws1','협업 경험은?','personality','published'),('ws2','지원 동기는?','personality','published'),('ws3','갈등 해결은?','personality','published')");
   const invoke=async(action,actor,body={})=>(await db.query('select ip_live_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
@@ -59,7 +60,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
   assert.equal(created,1);assert(current.engine.sessions.get(control.runId).started);
   event({type:'session.input_audio.append',audio:Buffer.alloc(480,2).toString('base64')});event({type:'session.input_transcript.delta',delta:'실제 시험이 아닌 합성 테스트 답변'});
   const heartbeat=await control.request('heartbeat',{runId:control.runId});assert.equal(heartbeat.run.student_id,'ip-a');
-  const runId=control.runId;await control.stop();control=null;assert(stopped>0);const saved=await invoke('get',actor,{runId});assert.equal(saved.run.state,'interrupted');assert.equal(saved.run.recording_state,'ready');assert.equal(saved.run.turns[0].grade,null);assert(cloud.objects.has(runId+'/input.wav'));
+  const runId=control.runId;await control.stop();control=null;assert(stopped>0);const saved=await invoke('get',actor,{runId});assert.equal(saved.run.state,'interrupted');assert.equal(saved.run.result_report.state,'interrupted');assert.equal(saved.run.recording_state,'ready');assert.equal(saved.run.turns[0].grade,null);assert(cloud.objects.has(runId+'/input.wav'));
   // Reusing a valid ticket cannot create another paid session after completion.
   const retry=new Socket(origin.replace('http:','ws:')+'/api/interview-live-socket');await once(retry,'open');
   const reply=once(retry,'message');retry.send(JSON.stringify({id:1,ticket:issue(actor,startPayload.requestKey,sdp,secret),body:{...startPayload,action:'start'}}));
@@ -69,7 +70,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
   // Lost owner: cleanup builds playable files from previously durable pieces.
   const recoveryId=randomUUID(),recoverRec=createCloudRecorder(cloud.store,recoveryId);recoverRec.append('input',Buffer.alloc(480,3).toString('base64'));await recoverRec.flush();
   await db.query("insert into ip_live_runs(id,student_id,request_key,questions,state,provider_id,heartbeat_at,retain_until) values($1,'ip-a',$2,'[]','active','live_lost',now()-interval '2 minutes',now()+interval '1 day')",[recoveryId,randomUUID()]);
-  const cleaned=await cleanup({invoke,provider:{closeSession:async()=>true},storage:cloud.store});assert(cleaned.ok);const recovered=(await invoke('get',actor,{runId:recoveryId})).run;assert.equal(recovered.recording_state,'ready');assert(recovered.recording_partial);
+  const cleaned=await cleanup({invoke,provider:{closeSession:async()=>true},storage:cloud.store});assert(cleaned.ok);const recovered=(await invoke('get',actor,{runId:recoveryId})).run;assert.equal(recovered.recording_state,'ready');assert(recovered.recording_partial);assert.equal(recovered.result_report.state,'interrupted');
   console.log('PASS Vercel ticket scope/replay safeguards, real local WebSocket + WebRTC lifecycle, private chunk recovery, storage failure, cleanup auth and expiration. No paid calls.');
  }finally{await control?.stop().catch(()=>{});for(const client of wss?.clients||[])client.terminate();wss?.close();if(server)await new Promise(r=>server.close(r));await db.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

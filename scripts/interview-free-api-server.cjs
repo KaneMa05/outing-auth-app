@@ -1,5 +1,5 @@
 'use strict';
-// Local USB-connected Android testing only. API credentials never enter the APK.
+// Local interview testing. Provider credentials remain on the Mac; optional pinned TLS serves physical iPhones.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..');
 try{process.loadEnvFile(path.join(root,'.env.local'));}catch{}
@@ -17,8 +17,8 @@ function consume(){
  recent.push(now);fs.writeFileSync(usagePath,JSON.stringify({day,count:usage.day===day?usage.count+1:1}));
 }
 function reply(res,status,value){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
-function authorized(req){const token=(req.headers.authorization||'').replace(/^Bearer /,'');return token.length===config.token.length&&crypto.timingSafeEqual(Buffer.from(token),Buffer.from(config.token));}
-const server=http.createServer(async(req,res)=>{
+function authorized(req){const token=Buffer.from((req.headers.authorization||'').replace(/^Bearer /,''));const expected=Buffer.from(config.token);return token.length===expected.length&&crypto.timingSafeEqual(token,expected);}
+const handleRequest=async(req,res)=>{
  if(!authorized(req))return reply(res,401,{ok:false,error:'unauthorized'});
  if(req.method==='GET'&&req.url==='/status')return reply(res,200,{ok:true,ready:!!process.env.GEMINI_API_KEY,model:MODEL});
  if(req.method!=='POST'||req.url!=='/analyze')return reply(res,404,{ok:false,error:'not_found'});
@@ -35,7 +35,22 @@ const server=http.createServer(async(req,res)=>{
   }catch(error){const allowed=['invalid_request','invalid_audio','free_limit_reached','provider_timeout','api_not_configured'];reply(res,error.message==='free_limit_reached'?429:400,{ok:false,error:allowed.includes(error.message)?error.message:'analysis_failed'});}
   finally{active=false;}
  });
-});
+};
+const server=http.createServer(handleRequest);
 server.requestTimeout=60000;
 attachLive(server,{key:process.env.GEMINI_API_KEY,authorize:authorized,consume});
 server.listen(8787,'127.0.0.1',()=>console.log('Local interview API listening on 127.0.0.1:8787; model '+MODEL+'; credentials not logged.'));
+
+// Explicit local-only opt-in. Reuse the same authentication, request handler and quotas.
+if(process.env.INTERVIEW_DEVICE_BRIDGE==='1'){
+ const https=require('node:https');
+ const device=JSON.parse(fs.readFileSync(path.join(dir,'bridge-device.json'),'utf8'));
+ const url=new URL(device.url);
+ if(url.protocol!=='https:'||url.port!=='8788'||!(/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(url.hostname)))throw Error('invalid_device_host');
+ const secure=https.createServer({key:fs.readFileSync(path.join(dir,'device-server.key')),cert:fs.readFileSync(path.join(dir,'device-server.crt')),minVersion:'TLSv1.2',maxVersion:'TLSv1.2',ciphers:'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384'},handleRequest);
+ secure.requestTimeout=60000;
+ secure.on('tlsClientError',error=>console.log('Device bridge TLS handshake error: '+(error.code||'unknown')));
+ secure.on('secureConnection',()=>console.log('Device bridge TLS connection established'));
+ attachLive(secure,{key:process.env.GEMINI_API_KEY,authorize:authorized,consume});
+ secure.listen(8788,url.hostname,()=>console.log('Pinned TLS device bridge listening on '+url.origin+'; credentials not logged.'));
+}

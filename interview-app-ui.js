@@ -53,12 +53,43 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
     const next=await mountWorkspace(editor,{request,aiRequest,compactNavigation:true,initialPage:route.tab==='db'?'db':Object.hasOwn(pages,route.page)?route.page:'introduction',initialArea:route.area,onPageChange(page,area){route={...route,...(Object.hasOwn(pages,page)?{page}:{}),area};setUrl(true);}});
     if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else{
-    // Mock modes show a static notice without starting interviews or requesting microphone access.
+    // Each mode mounts only its own controller and authenticated API.
     const [data,life,writing]=route.tab==='mock'?[]:await Promise.all(
      route.tab==='home'?[request('bootstrap'),request('life_get'),request('writing_list')]:[request('bootstrap')]);
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
      box.innerHTML=mockScreen();
+     if(route.mockMode==='job'){
+      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261030-concepts');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="job"]').replaceWith(slot);
+      child=mountJobExam(slot,{accountId:account.id,request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-job-exam',{action,...body});
+       const response=await fetch('/api/interview-job-exam',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+     }
+     if(route.mockMode==='personality'){
+      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261029-personality');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="personality"]').replaceWith(slot);
+      child=mountPersonalityPractice(slot,{accountId:account.id,request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-personality',{action,...body});
+       const response=await fetch('/api/interview-personality',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+     }
+     if(route.mockMode==='ai'){
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261029-student-live');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
+      const next=await mountLive(slot,{request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-live',{action,...body});
+       const response=await fetch('/api/interview-live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+      if(destroyed||ticket!==generation)next.destroy();else child=next;
+     }
     }else if(route.tab==='my'){
      const m=data.member||{};
      box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><section class="ip-panel">${onExit?'<button class="ip-app-link" type="button" data-app-exit>기존 반으로 전환<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;

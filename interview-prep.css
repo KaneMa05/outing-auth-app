@@ -162,3 +162,4 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
     max-width:100%;
   }
 }
+.ip-root .ip-question-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:156px}.ip-root .ip-question-actions .ip-btn{min-height:40px}

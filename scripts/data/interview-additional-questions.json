@@ -1,0 +1,320 @@
+{
+  "source": "questions-20261030.json",
+  "questions": [
+    {
+      "id": "q-0c2de85d7363311de735a25e",
+      "prompt": "비상소집 도중에 적색 신호를 지키지 않으면 제시간에 도착할 수 있는 상황, 신호를 지킬 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-1a757da6894404dd4e00aaaa",
+      "prompt": "학창시절 동아리 활동은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-1f1cd11279652d4a3b6ca295",
+      "prompt": "동료가 할머니가 주신 꽃게를 야식으로 먹자고 권할 때, 특히 동료가 뇌물 전력이 있는 경우",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-210761b1dea48d044db9e925",
+      "prompt": "최근에 본 영화나 책은 무엇입니까?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-220afd909dd6efe1c389fae1",
+      "prompt": "실패했던 경험이 있나요?  / 실패를 통해 무얼 배웠나요?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-36cf0702676c3e4a5277ffbc",
+      "prompt": "공무원에게 있어 음주 문제가 중요한 이유는?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-36f6b0f61c87af79a00f20b5",
+      "prompt": "퇴근 후 상사가 직무 관련된 일을 주면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-456c834e315d55f794644772",
+      "prompt": "창의적인 의견을 건의하여 기여했던 적은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-51c592698a108e014d946d1c",
+      "prompt": "친분 있는 분이 법을 어긴 사실을 본인만 알고 있을 때 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-5279f961e35ad7bfa346941f",
+      "prompt": "층간소음을 일으키는 윗집 사람을 엘리베이터에서 만났다면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-5289f845e9560255c3e03f0f",
+      "prompt": "함정 근무 당직 중 상급자가 위험 해역으로 향한다면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-534210246df2f87a67192ee1",
+      "prompt": "어민들이 낚시 관광객의 무분별한 낚시행위로 인해 갈등을 겪고 있을 때 해경으로서 해결 방안",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-5381d37de3ed67559885ed61",
+      "prompt": "(사고관련) 안전사고는 왜 일어난다고 생각합니까?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-55ffd64673ca158298bf4b60",
+      "prompt": "공무원들의 고쳐야 할 점 / 공직관 심화",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-5b416cf23b980d30032bbbdd",
+      "prompt": "면접이 끝난 후 친구에게 면접 내용을 알려줄 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6890fe878a42d81c178f8d96",
+      "prompt": "동료가 자신의 일을 계속 도와달라고 하면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6a2c035a0f0acd6fb608b6fd",
+      "prompt": "본인이 팀장인데 어려운 일과 쉬운 일 두가지가 있다. 팀원들은 쉬운 일만 하고 싶어하는데 어떤 결정을 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6a8e56f602d9a13dc7626126",
+      "prompt": "스트레스는 언제 받고, 어떻게 해소하는지?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6b5c347c76f4ac625b16a37d",
+      "prompt": "행사를 해야 하는데 예산과 인력이 부족하다면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6bbd98c4aec9259197782d37",
+      "prompt": "동료가 다른 동료의 외모를 평가하는 상황에 대한 의견",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-6fd5dd758562b9834ca053a2",
+      "prompt": "(불안형 질문)일이 육체적으로 힘들고 박봉인데 선택한 이유는?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-7388eb4d9cd586fa52e0f71a",
+      "prompt": "직장 내에서 내가 가해자가 되어 피해자가 고소하려 한다. 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-788727af94238ddd3d528371",
+      "prompt": "동료가 당직 교대를 늦게 올라오면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-82a153eaf2b3f4321beda74d",
+      "prompt": "자신의 단점?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-860ca464bdb74d9ed111f204",
+      "prompt": "(학교/승선/의경 생활시) 상사에게 어떤 평가를 받았는지?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-8776811611578f91b5b230a0",
+      "prompt": "동료의 비리를 목격했다면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-8c2602b4b8a3de8047c86d5e",
+      "prompt": "산골짜기 부모님 댁에서 반주를 했는데 비상소집이 나왔을 경우 어떻게 하겠는가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-a24109cc28e28ce485cd7336",
+      "prompt": "상사가 부당한 지시를 내렸을 때?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-a529c11e48d752793991a7e7",
+      "prompt": "사람들 간의 문제를 해결한 적은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-ad945450db62d1cc91320110",
+      "prompt": "(불안형) 입사 후 자신이 맡은 업무가 자신의 생각과 달랐다면 어떻게 하겠습니까?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-adfc57da32192cef4d3d2da8",
+      "prompt": "본인이 다른 동료에게 일을 떠넘겨야 하는 상황이 온다면, 그 상황은 어떤 상황일 것 같은지? 만약 동료가 그 상황에 처해도 본인에게 일을 넘기지 않는다면 어떨 것 같은지?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-b25108c2f46dcb79eb37208b",
+      "prompt": "공동 목표를 위해 자신이 희생한 경험은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-bc817c887e5100b977b09fcc",
+      "prompt": "가족이 해양경찰을 그만두라고 권한다면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-bddc49ec8f9defc8b0bb9b7f",
+      "prompt": "본인의 강점을 살려 우리 조직에 들어와 발휘 하는 있는 점?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-c66761b22345bfff31978707",
+      "prompt": "담당 기기 문제가 있을 때 상사와 의견이 다르면 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-cf25a52a25bdb6e35a49bdd1",
+      "prompt": "존경하는 인물이 있습니까?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-d642e0d697dc71078f395733",
+      "prompt": "본인은 어떤 리더십을 가지고 있습니까?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-e2f5412daeb4b1d3ef0d7617",
+      "prompt": "10년 후 자신의 모습은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-e57828ad0f25a2fa817948a9",
+      "prompt": "공무원이 갖추어야 할 성인지감수성은?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-e7f407ed88827135b1653e36",
+      "prompt": "과정과 결과 중 무엇이 더 중요한가요?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-ea28cca882fefd552ca57c8f",
+      "prompt": "근무 중 아이가 아프다는 연락을 받았을 때 어떻게 할 것인가?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-f461b32d3b5ffb4ddfdf875f",
+      "prompt": "본인이 생각할 때 좋은 팀워크를 이루기 위한 3가지는?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-f5b80c042d56f1e0d5e7aad0",
+      "prompt": "화가 나면 참는 편인가요? 화를 내는 편인가요?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-f77becb2f5512087c1f6ac7e",
+      "prompt": "우리 조직의 홍보 방법에 대해서 말해 보세요.",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    },
+    {
+      "id": "q-f7ce3755f87ddac81e17a046",
+      "prompt": "주변에 조언을 구할 동료도 상사도 없는 상황에서 불법 중국 어선을 단속했는데, 그들이 난민이라 주장한다면?",
+      "category": "personality",
+      "tracks": [],
+      "revision": 1
+    }
+  ]
+}

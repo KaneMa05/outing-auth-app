@@ -5,6 +5,7 @@
   "scripts": {
     "test:penalty-export": "node tests/penalty-export.test.cjs",
     "test:interview-prep": "node tests/interview-prep.test.cjs",
+    "test:interview-publication": "node tests/interview-question-publication.test.cjs && node tests/interview-question-publication-ui.test.cjs",
     "test:interview-navigation": "node tests/interview-navigation-loading.test.cjs",
     "test:interview-exam": "node tests/interview-exam.test.cjs && node tests/interview-exam-metrics.test.cjs",
     "test:interview-live": "node tests/interview-live.test.cjs && node tests/interview-live-client.test.cjs && node tests/interview-live-connection.test.cjs && node tests/interview-live-vercel.test.cjs && node tests/interview-live-ui.test.cjs",

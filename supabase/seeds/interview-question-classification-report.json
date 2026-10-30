@@ -1,0 +1,80 @@
+{
+  "version": "interview-intent-v2",
+  "questions": 5128,
+  "imported_questions": 5083,
+  "additional_questions": 45,
+  "source_sha256": "821675fa8d2cf11bbe6894249afedde6a1f0404c50d4ea7129f61909275ecfa8",
+  "before": {
+    "personality": 2997,
+    "job": 2131
+  },
+  "after": {
+    "personality": 3078,
+    "job": 2050
+  },
+  "changes": 267,
+  "transitions": {
+    "job→personality": 174,
+    "personality→job": 93
+  },
+  "methods": {
+    "intent-family-v2": 2659,
+    "exact-question-reading-v2": 2469
+  },
+  "changed_from_previous": 74,
+  "classification_status": {
+    "classified": 5074,
+    "needs_context": 54
+  },
+  "resolved_categories": {
+    "personality": 3027,
+    "job": 2047
+  },
+  "pending_original_categories": {
+    "personality": 51,
+    "job": 3
+  },
+  "answer_types": {
+    "profile": 1126,
+    "experience": 393,
+    "value": 974,
+    "opinion": 145,
+    "context": 54,
+    "knowledge": 1751,
+    "personal_situation": 404,
+    "job_situation": 123,
+    "rapport": 92,
+    "followup": 39,
+    "mixed": 14,
+    "practical": 13
+  },
+  "questions_with_assessment_parts": 14,
+  "subtypes": {
+    "profile": 1121,
+    "experience": 306,
+    "values_fit": 439,
+    "technical_practice": 1462,
+    "context": 54,
+    "law_policy_current_affairs": 548,
+    "interpersonal_judgement": 523,
+    "ethics": 177,
+    "strength_evidence": 156,
+    "responsibility": 63,
+    "emotion_regulation": 133,
+    "rapport": 92,
+    "policy_opinion": 37,
+    "language_profile": 9,
+    "social_opinion": 8
+  },
+  "flags": {
+    "context_needed": 93,
+    "mixed_intent": 124,
+    "rapport": 92,
+    "language_background": 27,
+    "source_answer_mismatch": 2,
+    "sensitive_review": 51,
+    "language_performance": 21
+  },
+  "production_applied": false,
+  "published": false
+}

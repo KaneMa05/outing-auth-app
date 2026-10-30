@@ -6,10 +6,10 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261029-home-notices"));
-  assert.ok(portal.includes("interview-portal.js?v=20261029-home-notices"));
+  assert.ok(index.includes("interview-prep.js?v=20261030-interview-integration"));
+  assert.ok(portal.includes("interview-portal.js?v=20261030-interview-integration"));
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261029-home-notices"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261030-interview-integration"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
 });
