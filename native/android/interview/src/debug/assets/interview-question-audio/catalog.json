@@ -141,6 +141,16 @@
       ]
     },
     {
+      "id": "q-016605579c9768e56ea76cc1",
+      "prompt": "세월호 사건 이후로 국민의 질타를 받고 있는데 어떻게 생각하는가?",
+      "spokenPrompt": "세월호 참사 이후 해양경찰에 대한 국민의 비판을 어떻게 생각하십니까?",
+      "file": "q-016605579c9768e56ea76cc1.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
       "id": "q-0172409471ace5edb2ee5617",
       "prompt": "한국 eca지역 어디인지 아느냐",
       "spokenPrompt": "국내 배출규제해역은 어디에 지정되어 있습니까?",
@@ -291,6 +301,16 @@
       ]
     },
     {
+      "id": "q-0334577b19699dd4d16fdc05",
+      "prompt": "다발성 손상 환자가 있다 처치와 장비사용법",
+      "spokenPrompt": "다발성 손상 환자의 처치와 필요한 장비 사용법을 설명해 주세요.",
+      "file": "q-0334577b19699dd4d16fdc05.mp3",
+      "category": "job",
+      "tracks": [
+        "기타"
+      ]
+    },
+    {
       "id": "q-03589c5c0bdee44694141624",
       "prompt": "자차 편차차이",
       "spokenPrompt": "자차와 편차는 어떻게 다릅니까?",
@@ -341,6 +361,16 @@
       ]
     },
     {
+      "id": "q-044d865aaf027ad5d5e391b4",
+      "prompt": "해양오염사고가 발생하였을때 어떻게 해야 하며 어느 기관에 도움협조를 요청하여야 하는지?",
+      "spokenPrompt": "해양오염사고가 발생하면 어떻게 대응하고 어느 기관에 협조를 요청하겠습니까?",
+      "file": "q-044d865aaf027ad5d5e391b4.mp3",
+      "category": "job",
+      "tracks": [
+        "관제"
+      ]
+    },
+    {
       "id": "q-049be4ff22aaaadd411143b2",
       "prompt": "서해5도, 서특단 하는 일",
       "spokenPrompt": "서해 오도와 서해 오도 특별경비단의 주요 임무를 설명해 주세요.",
@@ -381,6 +411,16 @@
       ]
     },
     {
+      "id": "q-04fa9a20e4700a3b1f8d8395",
+      "prompt": "구조를 할 때 상대가 구조를 거부한다면 어떻게 할건가요?(법적근거 토대 설명)",
+      "spokenPrompt": "구조 대상자가 구조를 거부한다면 어떻게 하겠습니까? 법적 근거를 들어 설명해 주세요.",
+      "file": "q-04fa9a20e4700a3b1f8d8395.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
       "id": "q-04ff2dd7e8692ab0f8ae5a6f",
       "prompt": "공동현상이 무엇인지, 방지법",
       "spokenPrompt": "공동현상이 무엇이며 어떻게 방지할 수 있습니까?",
@@ -388,6 +428,16 @@
       "category": "job",
       "tracks": [
         "기관"
+      ]
+    },
+    {
+      "id": "q-0550256c41bcdf86a21d0056",
+      "prompt": "등고높이가 200m 라고 했는데, 등고높이는 어떤 수면을 기준으로 하는가",
+      "spokenPrompt": "등고높이는 어떤 수면을 기준으로 측정합니까?",
+      "file": "q-0550256c41bcdf86a21d0056.mp3",
+      "category": "job",
+      "tracks": [
+        "관제"
       ]
     },
     {
@@ -431,6 +481,66 @@
       ]
     },
     {
+      "id": "q-05ab335ce66d30847aa0b816",
+      "prompt": "북반구에서 태풍피항법에 대해 말씀해보세요",
+      "spokenPrompt": "북반구에서 태풍을 피하는 항법을 설명해 주세요.",
+      "file": "q-05ab335ce66d30847aa0b816.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-05bda969588de6fdda9c446b",
+      "prompt": "인재상 중 헌신을 할려면 필요한 덕목",
+      "spokenPrompt": "헌신하는 해양경찰이 되려면 어떤 덕목이 필요하다고 생각하십니까?",
+      "file": "q-05bda969588de6fdda9c446b.mp3",
+      "category": "job",
+      "tracks": [
+        "관제"
+      ]
+    },
+    {
+      "id": "q-05ce14a50c639def76c218dc",
+      "prompt": "배타적경제수역에서 외국인어업 허가는 누가?",
+      "spokenPrompt": "배타적 경제수역에서 외국인의 어업을 허가하는 주체는 누구입니까?",
+      "file": "q-05ce14a50c639def76c218dc.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-05d9f90d861f02fa226c2481",
+      "prompt": "친환경 연료를 사용하는 선박에 대해 어떻게 생각하는가?",
+      "spokenPrompt": "친환경 연료를 사용하는 선박에 대해 어떻게 생각하십니까?",
+      "file": "q-05d9f90d861f02fa226c2481.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0625389a879d5456cdc0d432",
+      "prompt": "배기가스 흰색 나오는 이유",
+      "spokenPrompt": "기관의 배기가스가 흰색으로 나오는 원인은 무엇입니까?",
+      "file": "q-0625389a879d5456cdc0d432.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-063e63fcc5edea441d0147c9",
+      "prompt": "해양경비법 목적, 경비란 (다른 사항들 답하니 뭐라 함)",
+      "spokenPrompt": "해양경비법의 목적과 해양경비의 의미를 설명해 주세요.",
+      "file": "q-063e63fcc5edea441d0147c9.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
       "id": "q-065d6e5f3be2f961a04a6191",
       "prompt": "감청과 도청의 차이?",
       "spokenPrompt": "감청과 도청은 어떻게 다릅니까?",
@@ -458,6 +568,901 @@
       "category": "job",
       "tracks": [
         "기타"
+      ]
+    },
+    {
+      "id": "q-06bc30548a54b9eee66adb4d",
+      "prompt": "야간표지종류",
+      "spokenPrompt": "선박의 야간 표지 종류를 설명해 주세요.",
+      "file": "q-06bc30548a54b9eee66adb4d.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-073c9fc90b4c5b13be387d88",
+      "prompt": "이어도는 섬인지? 암초입니다.",
+      "spokenPrompt": "이어도는 섬에 해당합니까? 그 이유를 설명해 주세요.",
+      "file": "q-073c9fc90b4c5b13be387d88.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-074ce679f4eb70f165cf3944",
+      "prompt": "안전속력",
+      "spokenPrompt": "안전속력이란 무엇입니까?",
+      "file": "q-074ce679f4eb70f165cf3944.mp3",
+      "category": "job",
+      "tracks": [
+        "관제"
+      ]
+    },
+    {
+      "id": "q-075289eee709c49baecbb8a4",
+      "prompt": "바다의 날? 5월31일",
+      "spokenPrompt": "바다의 날은 언제입니까?",
+      "file": "q-075289eee709c49baecbb8a4.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0757bb5f1729c507b1598fa7",
+      "prompt": "해양경찰의 소관 업무는 무엇인가?",
+      "spokenPrompt": "해양경찰의 소관 업무는 무엇입니까?",
+      "file": "q-0757bb5f1729c507b1598fa7.mp3",
+      "category": "job",
+      "tracks": [
+        "공채",
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0782e4602a3dd0f944fecd88",
+      "prompt": "의무경찰과 전투경찰 차이",
+      "spokenPrompt": "의무경찰과 전투경찰은 어떻게 다릅니까?",
+      "file": "q-0782e4602a3dd0f944fecd88.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-07bb3c8802dd0827403d33fb",
+      "prompt": "해경인재상-뭐가 본인한테 맞는지",
+      "spokenPrompt": "해양경찰 인재상 중 본인에게 가장 잘 맞는 것은 무엇입니까?",
+      "file": "q-07bb3c8802dd0827403d33fb.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-07c5997d7164a04eb515f080",
+      "prompt": "페스카마호 사건을 보호주의와 연관하여 설명해보세요.",
+      "spokenPrompt": "페스카마호 사건을 보호주의와 관련지어 설명해 주세요.",
+      "file": "q-07c5997d7164a04eb515f080.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-07e09a6122ec2b180acd71d2",
+      "prompt": "유도선법에서 면허 발급관청",
+      "spokenPrompt": "유선 및 도선 사업의 면허를 발급하는 관청은 어디입니까?",
+      "file": "q-07e09a6122ec2b180acd71d2.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-07ec3a2e2a465e77491e2921",
+      "prompt": "수중레저활동 사용 가능 장비 3개",
+      "spokenPrompt": "수중레저활동에 사용하는 장비 세 가지를 말씀해 주세요.",
+      "file": "q-07ec3a2e2a465e77491e2921.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-080ea55a3f1603b7e0c94ed5",
+      "prompt": "서울의 경도는 몇 도인가?",
+      "spokenPrompt": "서울의 경도는 몇 도입니까?",
+      "file": "q-080ea55a3f1603b7e0c94ed5.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-082594f27d54c02a7d7a6fb5",
+      "prompt": "4행정 장점단점 2행정 장점단점",
+      "spokenPrompt": "사행정 기관과 이행정 기관의 장단점을 비교해 설명해 주세요.",
+      "file": "q-082594f27d54c02a7d7a6fb5.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-0851fa831a64b2552ad00901",
+      "prompt": "기관실 화재 소화법",
+      "spokenPrompt": "기관실에서 화재가 발생하면 어떻게 진화하겠습니까?",
+      "file": "q-0851fa831a64b2552ad00901.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-0861982d4b79e6c0db54b771",
+      "prompt": "화재시 대처법",
+      "spokenPrompt": "화재가 발생하면 어떻게 대처하겠습니까?",
+      "file": "q-0861982d4b79e6c0db54b771.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-08717e67a176f634f199441c",
+      "prompt": "윤활유의 기능 중 2가지?",
+      "spokenPrompt": "윤활유의 기능 두 가지를 설명해 주세요.",
+      "file": "q-08717e67a176f634f199441c.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-08aa9e0d448ff9fa4145879e",
+      "prompt": "국가공무원법에 명시된 공무원의 의무",
+      "spokenPrompt": "국가공무원법에 규정된 공무원의 의무를 설명해 주세요.",
+      "file": "q-08aa9e0d448ff9fa4145879e.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-09125936231bc0aa8ca9efb3",
+      "prompt": "ATM기 위에 돈 있는데 가져가면 무슨 죄",
+      "spokenPrompt": "현금자동입출금기 위에 놓인 돈을 가져가면 어떤 죄에 해당할 수 있습니까?",
+      "file": "q-09125936231bc0aa8ca9efb3.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0912635f8ab785388f0cea0c",
+      "prompt": "금어기 생물 포획시 대처",
+      "spokenPrompt": "금어기에 수산생물을 포획한 상황을 발견하면 어떻게 대처하겠습니까?",
+      "file": "q-0912635f8ab785388f0cea0c.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0926c4e3b495bd40db4718d3",
+      "prompt": "배타적 경제수역 정의",
+      "spokenPrompt": "배타적 경제수역의 정의를 설명해 주세요.",
+      "file": "q-0926c4e3b495bd40db4718d3.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-09291c3945f462597fc19445",
+      "prompt": "해경방제과에서 하는 일이 무엇인지?",
+      "spokenPrompt": "방제과에서 수행하는 업무를 설명해 주세요.",
+      "file": "q-09291c3945f462597fc19445.mp3",
+      "category": "job",
+      "tracks": [
+        "방제"
+      ]
+    },
+    {
+      "id": "q-093e7b7ba17892776aadcdf8",
+      "prompt": "불법 중국어선에 올라 단속하던 중 다른 여러 척의 중국어선이 둘러싸 해경을 위협하고 있다.",
+      "spokenPrompt": "불법 중국어선을 단속하던 중 여러 척의 어선이 둘러싸 위협한다면 어떻게 대응하겠습니까?",
+      "file": "q-093e7b7ba17892776aadcdf8.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-09eac1624fef2fa11e9a6eea",
+      "prompt": "속지주의 속인주의",
+      "spokenPrompt": "속지주의와 속인주의는 어떻게 다릅니까?",
+      "file": "q-09eac1624fef2fa11e9a6eea.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0a0c57eff10c464ca5ef3d98",
+      "prompt": "해도상 수면이란",
+      "spokenPrompt": "해도에서 기준으로 삼는 수면에 대해 설명해 주세요.",
+      "file": "q-0a0c57eff10c464ca5ef3d98.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0a113f2d11a2a636f0eb9c5e",
+      "prompt": "영장 청구 안하고 범인 체포할 수 있는 경우는?",
+      "spokenPrompt": "영장 없이 피의자를 체포할 수 있는 경우를 설명해 주세요.",
+      "file": "q-0a113f2d11a2a636f0eb9c5e.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0a3d32eb9ea5227ef8e74318",
+      "prompt": "해양오염방지법 상 배출 규제 대상에 대해 설명하시오",
+      "spokenPrompt": "해양오염방지법상 배출 규제 대상에 대해 설명해 주세요.",
+      "file": "q-0a3d32eb9ea5227ef8e74318.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0aa4089de8ebeac6567bd16b",
+      "prompt": "수상레저기구란",
+      "spokenPrompt": "수상레저기구란 무엇입니까?",
+      "file": "q-0aa4089de8ebeac6567bd16b.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0aecaa4b208d3b3eb35f7252",
+      "prompt": "법체계",
+      "spokenPrompt": "우리나라의 법체계를 설명해 주세요.",
+      "file": "q-0aecaa4b208d3b3eb35f7252.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0b166b74983dbe0cd3fb7ab6",
+      "prompt": "발전기 병렬조건",
+      "spokenPrompt": "발전기를 병렬 운전하기 위한 조건을 설명해 주세요.",
+      "file": "q-0b166b74983dbe0cd3fb7ab6.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-0b23cfaeec9dedbab2f02273",
+      "prompt": "우현에 빨간등부표 있는데 어떻게 항해할거냐",
+      "spokenPrompt": "항해 중 우현에 빨간 등부표가 보인다면 어떻게 항해하겠습니까?",
+      "file": "q-0b23cfaeec9dedbab2f02273.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0b2e4cc05be4f097df9d2792",
+      "prompt": "경비함정을 지원하려는 후배가 있는데 어떤 조언을 해주고 싶은지?",
+      "spokenPrompt": "경비함정에 지원하려는 후배에게 어떤 조언을 해 주겠습니까?",
+      "file": "q-0b2e4cc05be4f097df9d2792.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0b4f22992c619f15830772d3",
+      "prompt": "중국어선이 어떻게 불법어업을 하는가?",
+      "spokenPrompt": "중국어선의 불법어업 유형을 설명해 주세요.",
+      "file": "q-0b4f22992c619f15830772d3.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0b58d7b3b811ad5cc4b9b87c",
+      "prompt": "중국어선 정선 명령은 무엇인가?",
+      "spokenPrompt": "불법조업 중국어선에 대한 정선 명령을 설명해 주세요.",
+      "file": "q-0b58d7b3b811ad5cc4b9b87c.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0b6209718d18424538315dec",
+      "prompt": "무해통항권이 무엇인지?",
+      "spokenPrompt": "무해통항권이란 무엇입니까?",
+      "file": "q-0b6209718d18424538315dec.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0bc006558422dc7db4698912",
+      "prompt": "Vdr에 대해서",
+      "spokenPrompt": "항해자료기록장치인 브이디알에 대해 설명해 주세요.",
+      "file": "q-0bc006558422dc7db4698912.mp3",
+      "category": "job",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
+      "id": "q-0be2e923d30b48dce62cee73",
+      "prompt": "공해?",
+      "spokenPrompt": "국제법상 공해란 무엇입니까?",
+      "file": "q-0be2e923d30b48dce62cee73.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0bff08244393dbff1c5f0370",
+      "prompt": "구속 정의와 요건",
+      "spokenPrompt": "구속의 정의와 요건을 설명해 주세요.",
+      "file": "q-0bff08244393dbff1c5f0370.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0c09620b36c28ef7f1164390",
+      "prompt": "소형선박 사고가 급증하는데, 이에 대해 해경은 어떠한 부분을 보완해야 되는가?",
+      "spokenPrompt": "소형선박 사고 증가에 대응하기 위해 해양경찰이 보완해야 할 점은 무엇입니까?",
+      "file": "q-0c09620b36c28ef7f1164390.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0c1b423981e8c21d7a54758d",
+      "prompt": "독수과실이론과 그 예외를 설명해보세요.",
+      "spokenPrompt": "독수과실이론과 그 예외를 설명해 주세요.",
+      "file": "q-0c1b423981e8c21d7a54758d.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0c5588ca5506bbbbbc814bcd",
+      "prompt": "배기가스 온도가 높아지는 이유가 뭔가?",
+      "spokenPrompt": "기관의 배기 온도가 상승하는 원인은 무엇입니까?",
+      "file": "q-0c5588ca5506bbbbbc814bcd.mp3",
+      "category": "job",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-0dbdf161a40abc4c237e2895",
+      "prompt": "할머니가 시장에서 물고기를 파는데 그 물고기가 잡으면 안되는 생선을 팔고 있다. 어떻게 할 것인가?",
+      "spokenPrompt": "시장에서 어르신이 포획이 금지된 물고기를 판매하고 있다면 어떻게 하겠습니까?",
+      "file": "q-0dbdf161a40abc4c237e2895.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0df191fe258c1650f33c3126",
+      "prompt": "해경역사",
+      "spokenPrompt": "해양경찰의 역사를 설명해 주세요.",
+      "file": "q-0df191fe258c1650f33c3126.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0ec10ebb5fdc5eb0164a92bf",
+      "prompt": "솔라스",
+      "spokenPrompt": "해상인명안전협약인 솔라스에 대해 설명해 주세요.",
+      "file": "q-0ec10ebb5fdc5eb0164a92bf.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0eda3817ec14119953f79995",
+      "prompt": "해결할 수 없는 민원을 계속해서 제기하는 진상 민원인 어떻게 대처할 것인가",
+      "spokenPrompt": "해결하기 어려운 민원을 반복해서 제기하는 민원인에게 어떻게 대응하겠습니까?",
+      "file": "q-0eda3817ec14119953f79995.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-0f80aa41e15ab51ea333b8ab",
+      "prompt": "일반사법경찰과 특별사법경찰의 차이가 무엇인가?",
+      "spokenPrompt": "일반사법경찰과 특별사법경찰은 어떻게 다릅니까?",
+      "file": "q-0f80aa41e15ab51ea333b8ab.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1061c47d622b319d0ce7ed1e",
+      "prompt": "태풍주의보가 발령된 상황에서 현장 구조대원이라면 어떻게 대응하겠습니까?",
+      "spokenPrompt": "태풍주의보가 발령된 상황에서 현장 구조대원이라면 어떻게 대응하겠습니까?",
+      "file": "q-1061c47d622b319d0ce7ed1e.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-10b36e679a21a84e641c5d3d",
+      "prompt": "차장계급",
+      "spokenPrompt": "해양경찰청 차장의 계급은 무엇입니까?",
+      "file": "q-10b36e679a21a84e641c5d3d.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-11e0b89d5a1198176b29deb8",
+      "prompt": "수사의 종류(임의수사, 강제수사) + 설명",
+      "spokenPrompt": "임의수사와 강제수사의 개념과 차이를 설명해 주세요.",
+      "file": "q-11e0b89d5a1198176b29deb8.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1362fadc0b3c0b3a29c2622d",
+      "prompt": "긴급출동 상황의 절차를 설명해보세요.",
+      "spokenPrompt": "긴급출동 상황의 절차를 설명해 주세요.",
+      "file": "q-1362fadc0b3c0b3a29c2622d.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-141610d400513343b4f03c8b",
+      "prompt": "배타적 경제수역이란?",
+      "spokenPrompt": "배타적 경제수역의 정의를 설명해 주세요.",
+      "file": "q-141610d400513343b4f03c8b.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-14571cb2a8d7fc45b835de52",
+      "prompt": "연안구조정 타고 순찰 돌다가 밍크고래 그물에 걸려있을 때 어떻게 할지",
+      "spokenPrompt": "연안구조정으로 순찰하던 중 그물에 걸린 밍크고래를 발견하면 어떻게 하겠습니까?",
+      "file": "q-14571cb2a8d7fc45b835de52.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1500f2f067f997fbe1583199",
+      "prompt": "긴급체포",
+      "spokenPrompt": "긴급체포의 요건과 절차를 설명해 주세요.",
+      "file": "q-1500f2f067f997fbe1583199.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-15a45ba80b2bfbe7bbcf247f",
+      "prompt": "외국구조대가 대한민국에 구조대 파견할 때 절차는?",
+      "spokenPrompt": "외국 구조대가 대한민국에 파견될 때 필요한 절차를 설명해 주세요.",
+      "file": "q-15a45ba80b2bfbe7bbcf247f.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-15e10cc996aa0547d0b1f8b7",
+      "prompt": "공해에서 해경이 무엇을 할 수 있는지",
+      "spokenPrompt": "공해에서 해양경찰이 수행할 수 있는 활동을 설명해 주세요.",
+      "file": "q-15e10cc996aa0547d0b1f8b7.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-161d45ce6bdb549102fab848",
+      "prompt": "함정에서 격벽용접 작업중이다. 무엇을 할 것인가",
+      "spokenPrompt": "함정에서 격벽 용접 작업을 할 때 어떤 안전 조치를 취해야 합니까?",
+      "file": "q-161d45ce6bdb549102fab848.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-171dd2d9508d88b75f84a1be",
+      "prompt": "유선 도선",
+      "spokenPrompt": "유선과 도선의 정의와 차이를 설명해 주세요.",
+      "file": "q-171dd2d9508d88b75f84a1be.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-172e8c395c110c953de01c9a",
+      "prompt": "민원인이 폭언하면 어떻게 대응하겠습니까?",
+      "spokenPrompt": "민원인이 폭언하면 어떻게 대응하겠습니까?",
+      "file": "q-172e8c395c110c953de01c9a.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-17f1c2a457936fc0d2953a73",
+      "prompt": "NLL(북방한계선)-1953년 유엔사령부가 정전협정 체결 직후 서해 5도인 백령도, 대청도, 소청도, 연평도, 우도를 따라 그은 해안 경계선을 말한다",
+      "spokenPrompt": "북방한계선인 엔엘엘에 대해 설명해 주세요.",
+      "file": "q-17f1c2a457936fc0d2953a73.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1839b9282f79e7a31da6979c",
+      "prompt": "해양경찰의 날은 언제이며, 그 날짜로 지정한 이유는 무엇입니까?",
+      "spokenPrompt": "해양경찰의 날은 언제이며 그 날짜로 지정한 이유는 무엇입니까?",
+      "file": "q-1839b9282f79e7a31da6979c.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1922c44ee0d90154b001d18f",
+      "prompt": "공정성이란 무엇인가",
+      "spokenPrompt": "공정성이란 무엇이라고 생각하십니까?",
+      "file": "q-1922c44ee0d90154b001d18f.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1b0b4b1339e0cba9b893bc93",
+      "prompt": "V-pass",
+      "spokenPrompt": "어선 위치발신장치인 브이패스에 대해 설명해 주세요.",
+      "file": "q-1b0b4b1339e0cba9b893bc93.mp3",
+      "category": "job",
+      "tracks": [
+        "공채",
+        "항해",
+        "기관"
+      ]
+    },
+    {
+      "id": "q-1b3e2a02f0297c73c4e2b9a1",
+      "prompt": "불법조업을 하고 있는 어업인이 있을 때 어떻게 대처할 것인가?",
+      "spokenPrompt": "불법조업 중인 어업인을 발견하면 어떻게 대처하겠습니까?",
+      "file": "q-1b3e2a02f0297c73c4e2b9a1.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1b6731f2cc40e28f576e1b45",
+      "prompt": "해양사고 발생시",
+      "spokenPrompt": "해양사고가 발생하면 어떻게 대응하겠습니까?",
+      "file": "q-1b6731f2cc40e28f576e1b45.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1ba9d3107368a7d9b3d9b0f6",
+      "prompt": "형사미성년자와 촉법소년의 연령·차이점을 설명하고, 형벌의 종류를 말해보세요.",
+      "spokenPrompt": "형사미성년자와 촉법소년의 연령과 차이를 설명하고 형벌의 종류를 말씀해 주세요.",
+      "file": "q-1ba9d3107368a7d9b3d9b0f6.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-1d3451d0714f1ee70931d57b",
+      "prompt": "해경의 임무",
+      "spokenPrompt": "해양경찰의 임무를 설명해 주세요.",
+      "file": "q-1d3451d0714f1ee70931d57b.mp3",
+      "category": "job",
+      "tracks": [
+        "공채",
+        "기관"
+      ]
+    },
+    {
+      "id": "q-1e5f652661d43ad1e55a1683",
+      "prompt": "공무원이 가져야 할 공직윤리",
+      "spokenPrompt": "공무원이 갖추어야 할 공직윤리를 설명해 주세요.",
+      "file": "q-1e5f652661d43ad1e55a1683.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-202f6d374e3b03953f6d50dd",
+      "prompt": "위도, 경도",
+      "spokenPrompt": "위도와 경도를 설명해 주세요.",
+      "file": "q-202f6d374e3b03953f6d50dd.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-20a7054f9e26ee9d8e7b8954",
+      "prompt": "준현행범인",
+      "spokenPrompt": "준현행범인이란 무엇입니까?",
+      "file": "q-20a7054f9e26ee9d8e7b8954.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-21903a4384bc6df6c7294b6e",
+      "prompt": "바다날씨가 굉장히 안좋을 때 단정을 내리면 탈 건가?",
+      "spokenPrompt": "해상 기상이 매우 나쁜 상황에서 단정에 탑승하라는 지시를 받으면 어떻게 하겠습니까?",
+      "file": "q-21903a4384bc6df6c7294b6e.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2249208600c0c35a50e5790a",
+      "prompt": "긴급피난, 정당방위 형법을 통해 설명해봐라",
+      "spokenPrompt": "형법상 긴급피난과 정당방위를 설명해 주세요.",
+      "file": "q-2249208600c0c35a50e5790a.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-22d136ee344556a546c94cbd",
+      "prompt": "해경 소관법률, 해경이 하는 일",
+      "spokenPrompt": "해양경찰의 소관 법률과 주요 업무를 설명해 주세요.",
+      "file": "q-22d136ee344556a546c94cbd.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-23717cdf6e7e6d11c74aa5a9",
+      "prompt": "범죄수사의 3대 원칙인 3S를 설명해보세요.",
+      "spokenPrompt": "범죄수사의 삼대 원칙인 쓰리에스를 설명해 주세요.",
+      "file": "q-23717cdf6e7e6d11c74aa5a9.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-23b31404367d4d205ab4e180",
+      "prompt": "연안사고예방에 관한 법률의 제정이유",
+      "spokenPrompt": "연안사고 예방에 관한 법률이 제정된 이유를 설명해 주세요.",
+      "file": "q-23b31404367d4d205ab4e180.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2432527fd8e05511228cab7a",
+      "prompt": "잠정조치수역이란?",
+      "spokenPrompt": "잠정조치수역이란 무엇입니까?",
+      "file": "q-2432527fd8e05511228cab7a.mp3",
+      "category": "job",
+      "tracks": [
+        "공채",
+        "항해"
+      ]
+    },
+    {
+      "id": "q-24c66e166722a952ddeae6a1",
+      "prompt": "해양경찰 인재상에 대해 설명해주시고 강점 말해보세요",
+      "spokenPrompt": "해양경찰의 인재상을 설명하고 이에 부합하는 본인의 강점을 말씀해 주세요.",
+      "file": "q-24c66e166722a952ddeae6a1.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-24cd7794a6b4aa882f705d0c",
+      "prompt": "법규명령",
+      "spokenPrompt": "법규명령이란 무엇입니까?",
+      "file": "q-24cd7794a6b4aa882f705d0c.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2798f262117356fd41545948",
+      "prompt": "친고죄와 반의사불벌죄의 차이를 설명해보세요.",
+      "spokenPrompt": "친고죄와 반의사불벌죄는 어떻게 다릅니까?",
+      "file": "q-2798f262117356fd41545948.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2915a284a3eb503e8508630f",
+      "prompt": "실험이나 훈련 중 동료가 크게 다쳤다면 어떻게 대응하겠습니까?",
+      "spokenPrompt": "실험이나 훈련 중 동료가 크게 다쳤다면 어떻게 대응하겠습니까?",
+      "file": "q-2915a284a3eb503e8508630f.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2a2f956d59bff09efd56667a",
+      "prompt": "낚시어선 등록 절차",
+      "spokenPrompt": "낚시어선의 등록 절차를 설명해 주세요.",
+      "file": "q-2a2f956d59bff09efd56667a.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2a42c5119ca05dfe554859f2",
+      "prompt": "수사개시의 조건은 무엇입니까?",
+      "spokenPrompt": "수사개시의 조건은 무엇입니까?",
+      "file": "q-2a42c5119ca05dfe554859f2.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2b33d484d3b491e67257825b",
+      "prompt": "업무를 반복해도 처리 속도가 느리다면 누구의 책임이라고 생각합니까?",
+      "spokenPrompt": "업무를 반복해도 처리 속도가 느리다면 누구의 책임이라고 생각합니까?",
+      "file": "q-2b33d484d3b491e67257825b.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2b527ac97ecb6e3407630b7d",
+      "prompt": "전문증거와 전문법칙의 개념 및 예외를 설명해보세요.",
+      "spokenPrompt": "전문증거와 전문법칙의 개념 및 예외를 설명해 주세요.",
+      "file": "q-2b527ac97ecb6e3407630b7d.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2b5d123229e0700581a26340",
+      "prompt": "공정에 대해",
+      "spokenPrompt": "공정성이란 무엇이라고 생각하십니까?",
+      "file": "q-2b5d123229e0700581a26340.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2c120507f9344083f6208350",
+      "prompt": "함정근무와 사무실 근무에서 페이 차이에 대해서 어떻게 생각하느냐",
+      "spokenPrompt": "함정근무와 사무실 근무의 보수 차이를 어떻게 생각하십니까?",
+      "file": "q-2c120507f9344083f6208350.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2cca8022122888ef32120f35",
+      "prompt": "현행범의 체포요건이 무엇인가?",
+      "spokenPrompt": "현행범인의 체포 요건을 설명해 주세요.",
+      "file": "q-2cca8022122888ef32120f35.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2dfaaa0b1454d2ed9799b997",
+      "prompt": "본인의 실수로 민원인이 피해를 보거나 민원 처리가 잘못되었다면 어떻게 하겠습니까?",
+      "spokenPrompt": "본인의 실수로 민원인이 피해를 보거나 민원 처리가 잘못되었다면 어떻게 하겠습니까?",
+      "file": "q-2dfaaa0b1454d2ed9799b997.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2e2facf8fdf449830e4cd977",
+      "prompt": "태풍 등 기상이 악화된 상황에서도 구조하겠습니까?",
+      "spokenPrompt": "태풍 등 기상이 악화된 상황에서도 구조하겠습니까?",
+      "file": "q-2e2facf8fdf449830e4cd977.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2f52edde74f7b7d56519c7eb",
+      "prompt": "해양경찰의 업무 중 가장 중요한 것은 무엇이라 생각하는가?",
+      "spokenPrompt": "해양경찰의 업무 중 가장 중요하다고 생각하는 것은 무엇입니까?",
+      "file": "q-2f52edde74f7b7d56519c7eb.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2f838d3a290c09a0802c2c28",
+      "prompt": "기선이란?",
+      "spokenPrompt": "기선이란 무엇입니까?",
+      "file": "q-2f838d3a290c09a0802c2c28.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-2f959c03104f8c261c6b7d80",
+      "prompt": "해양오염 방제 기자재의 종류와 각각의 용도를 설명해보세요.",
+      "spokenPrompt": "해양오염 방제 기자재의 종류와 각각의 용도를 설명해 주세요.",
+      "file": "q-2f959c03104f8c261c6b7d80.mp3",
+      "category": "job",
+      "tracks": [
+        "공채"
       ]
     },
     {
@@ -816,6 +1821,26 @@
       ]
     },
     {
+      "id": "q-0404594ae2534176e1cbfa6d",
+      "prompt": "공무원으로서 가장 중요한 덕목이 뭐라고 생각?",
+      "spokenPrompt": "공무원에게 가장 중요한 덕목은 무엇이라고 생각하십니까?",
+      "file": "q-0404594ae2534176e1cbfa6d.mp3",
+      "category": "personality",
+      "tracks": [
+        "기관"
+      ]
+    },
+    {
+      "id": "q-0409edd9cf9c935e00fc057a",
+      "prompt": "영어 잘하나봐요?",
+      "spokenPrompt": "본인의 영어 활용 능력을 설명해 주세요.",
+      "file": "q-0409edd9cf9c935e00fc057a.mp3",
+      "category": "personality",
+      "tracks": [
+        "항해"
+      ]
+    },
+    {
       "id": "q-040fa0b372fae3c90f7de093",
       "prompt": "회사 내 진급 규정이 어떻게 되느냐?",
       "spokenPrompt": "재직했던 회사의 진급 규정은 어떻게 되어 있었습니까?",
@@ -970,6 +1995,16 @@
       "prompt": "힘들었던 경험과 어떻게 이겨냈나",
       "spokenPrompt": "힘들었던 경험과 이를 극복한 방법을 말씀해 주세요.",
       "file": "q-05ae15a3a853d0cf78cac87c.mp3",
+      "category": "personality",
+      "tracks": [
+        "공채"
+      ]
+    },
+    {
+      "id": "q-c40711b648957bff86ee2ad1",
+      "prompt": "본인의 실수로 민원인이 피해를 보거나 민원 처리가 잘못되었다면 어떻게 하겠습니까?",
+      "spokenPrompt": "본인의 실수로 민원인이 피해를 보거나 민원 처리가 잘못되었다면 어떻게 하겠습니까?",
+      "file": "q-c40711b648957bff86ee2ad1.mp3",
       "category": "personality",
       "tracks": [
         "공채"
