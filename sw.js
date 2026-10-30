@@ -1,13 +1,14 @@
-const CACHE_NAME = "outing-auth-app-v549-private-interview";
+const CACHE_NAME = "outing-auth-app-v552-interview-integration";
 const APP_SHELL = [
   "/student-content-safety.js?v=20261028-safety-fallback",
   "/question-board.js?v=20261028-safety-fallback",
   "/community-guidelines.html",
-  "/app.js?v=20261028-private-interview",
+  "/app.js?v=20261028-ios-lecture-edges",
   "/inquiry-board.js?v=20261028-safety-fallback",
+  "/styles.css?v=20261028-ios-lecture-edges",
   "/styles.css?v=20261028-deletion-request",
-  "/app-startup.css?v=20261024-startup",
-  "/app-startup.js?v=20261024-startup",
+  "/app-startup.css?v=20261028-ios-lecture-edges",
+  "/app-startup.js?v=20261028-ios-lecture-edges",
   "/app.js?v=20261024-startup",
   "/app.js?v=20261027-student-login",
   "/styles.css?v=20261027-student-login",

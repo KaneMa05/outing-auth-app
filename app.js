@@ -5489,6 +5489,7 @@ function updateStudentNavigationVisibility() {
   const student = getAuthedStudent();
   const category = student ? getStudentCategory(student) : "offline";
   const lectureMode = category === "lecture";
+  window.__studentViewport?.update(category);
   const onlineManagedMode = category === "online_managed" && isOnlineManagedStudyCafeEnabled();
   const onlineMode = lectureMode || onlineManagedMode;
   const studyMode = lectureMode;

@@ -2,6 +2,27 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const read=file=>fs.readFileSync(file,'utf8');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('only the installed iOS lecture screen restores dark full-screen edges and resets on account changes',()=>{
+ for(const [category,standalone,ua,page,native] of [
+  ['lecture',true,'iPhone','student',false],['offline',true,'iPhone','student',false],
+  ['online_managed',true,'iPhone','student',false],['lecture',false,'iPhone','student',false],
+  ['lecture',true,'Android','student',false],['lecture',true,'iPhone','teacher',false],
+  ['lecture',true,'iPhone','student',true],
+ ]){
+  const classes=new Set();const metas=Object.fromEntries([['viewport','width=device-width, initial-scale=1'],['apple-mobile-web-app-status-bar-style','default'],['theme-color','#f3f7fb']].map(([name,value])=>[name,{value,getAttribute(){return this.value;},setAttribute(_,next){this.value=next;}}]));
+  const saved={settings:{studentAuthId:'20001',studentProfiles:{'20001':{passwordHash:'test',deviceToken:'test'}}},students:[{id:'20001',studentCategory:category}]};
+  const context=vm.createContext({navigator:{standalone,userAgent:ua},URLSearchParams,location:{search:''},sessionStorage:{getItem(){}},localStorage:{getItem:()=>JSON.stringify(saved)},
+   window:{webkit:native?{messageHandlers:{interviewNative:{}}}:undefined,matchMedia:()=>({matches:standalone}),setTimeout(){},clearTimeout(){}},
+   document:{currentScript:{dataset:{startupPage:page}},referrer:'',documentElement:{classList:{add:x=>classes.add(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x)}},
+    querySelector:s=>metas[s.match(/name="([^"]+)"/)?.[1]],addEventListener(){}}});
+  vm.runInContext(read('app-startup.js'),context);
+  const expected=category==='lecture'&&standalone&&ua==='iPhone'&&page==='student'&&!native;
+  assert.equal(classes.has('student-lecture-ios-standalone'),expected);
+  assert.equal(metas.viewport.value.includes('viewport-fit=cover'),expected);
+  assert.equal(metas['apple-mobile-web-app-status-bar-style'].value,expected?'black-translucent':'default');
+  if(expected){context.window.__studentViewport.update('offline');assert.equal(metas.viewport.value,'width=device-width, initial-scale=1');assert.equal(metas['theme-color'].value,'#f3f7fb');assert.equal(classes.has('student-lecture-ios-standalone'),false);}
+ }
+});
 function portalHarness(){
  const session=deferred(),home=deferred(),calls=[];
  const box={innerHTML:''},host={innerHTML:'',querySelector:()=>box,addEventListener(){}},actions={innerHTML:''};
