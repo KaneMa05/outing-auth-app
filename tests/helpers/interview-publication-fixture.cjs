@@ -6,6 +6,7 @@ const admin={type:'admin',id:'publication-qa'},student={type:'student',id:'ip-a'
 async function createPublicationFixture(){
  const {db,invoke:base}=await createDb();
  await db.exec(fs.readFileSync(migration,'utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261031054439_interview_optional_personality_topics.sql','utf8'));
  const invoke=async(action,actor,body={})=>action==='admin_question_publication'
   ?(await db.query('select public.ip_question_publication_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result
   :base(action,actor,body);
