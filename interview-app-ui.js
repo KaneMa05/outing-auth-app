@@ -4,7 +4,7 @@ const pages={introduction:'자기소개',motivation:'지원동기',public_servic
 const icons={home:'home',db:'question-board',writing:'study-todo',mock:'study-cafe',my:'mypage'};
 const tabs=[['home','홈'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
 const mockModes={
- job:{title:'전공(직무) 시험모드'},
+ job:{title:'전공 연습'},
  personality:{title:'인성 연습모드'},
  ai:{title:'실전 모의면접 (AI)'}
 };
@@ -66,7 +66,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
      if(route.mockMode==='job'){
-      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261030-concepts');
+      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261031-simple-start');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="job"]').replaceWith(slot);
       child=mountJobExam(slot,{accountId:account.id,request:async(action,body={})=>{

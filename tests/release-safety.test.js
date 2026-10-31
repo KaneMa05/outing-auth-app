@@ -9,7 +9,7 @@ test("both mobile interview entry points bypass the cached pre-announcement load
   assert.ok(index.includes("interview-prep.js?v=20261030-interview-integration"));
   assert.ok(portal.includes("interview-portal.js?v=20261030-interview-integration"));
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261030-mock-test-access"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261031-simple-start"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
 });

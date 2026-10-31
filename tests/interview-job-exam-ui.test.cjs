@@ -42,3 +42,11 @@ test('destroy during recording releases capture and records an interruption befo
  const h=await harness();await h.click('start');h.view.destroy();await new Promise(resolve=>setImmediate(resolve));
  assert.equal([...h.records.values()][0].state,'interrupted');assert.ok(h.released>0);assert.equal(h.closed,true);
 });
+
+test('first screen is concise and recording controls appear only during an attempt',async()=>{
+ const h=await harness();
+ assert.match(h.host.innerHTML,/연습 시작/);assert.match(h.host.innerHTML,/내 기록/);
+ assert.doesNotMatch(h.host.innerHTML,/data-job-action="stop"|data-job-action="submit"|저장된 응시 기록이 없습니다|data-job-action="qnext"/);
+ await h.click('history');assert.match(h.host.innerHTML,/저장된 응시 기록이 없습니다/);
+ await h.click('start');assert.match(h.host.innerHTML,/data-job-action="stop"/);h.view.destroy();
+});
