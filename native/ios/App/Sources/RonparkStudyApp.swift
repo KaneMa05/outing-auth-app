@@ -123,7 +123,7 @@ private struct StudentWebApp: UIViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
-            if url.scheme == "https", url.host == StudentWebApp.host { decisionHandler(.allow); return }
+            if InterviewLaunchPolicy.allowsWebNavigation(url) { decisionHandler(.allow); return }
             // Never run the native bridge for third-party pages or unknown URL schemes.
             decisionHandler(.cancel)
             if navigationAction.navigationType == .linkActivated, ["https", "http", "tel", "mailto"].contains(url.scheme ?? "") {
@@ -133,7 +133,7 @@ private struct StudentWebApp: UIViewRepresentable {
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             guard navigationAction.targetFrame == nil, let url = navigationAction.request.url else { return nil }
-            if url.scheme == "https", url.host == StudentWebApp.host { webView.load(navigationAction.request) }
+            if InterviewLaunchPolicy.allowsWebNavigation(url) { webView.load(navigationAction.request) }
             else if ["https", "http", "tel", "mailto"].contains(url.scheme ?? "") { UIApplication.shared.open(url) }
             return nil
         }
