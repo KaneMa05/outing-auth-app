@@ -2,6 +2,7 @@
 const path=require('node:path'),{setTimeout:wait}=require('node:timers/promises');
 const {createProvider}=require('./core25-diagnosis-cli.cjs');
 const {draftQuestions,INSTRUCTIONS,schema}=require('../lib/interview-draft-questions');
+const {withHeartbeat}=require('../lib/interview-worker-heartbeat.cjs');
 async function main(){
  const origin=process.env.INTERVIEW_CORE25_ORIGIN||'https://app.ronparkpass.com',token=process.env.INTERVIEW_CORE25_WORKER_TOKEN;
  if(new URL(origin).protocol!=='https:'||!/^[A-Za-z0-9_-]{43}$/.test(token||''))throw Error('configuration');
@@ -11,7 +12,7 @@ async function main(){
  log('worker_started');
  for(;;){try{const {jobs}=await request('poll');for(const job of jobs){
   const ref={id:job.id,lease:job.lease};let questions;
-  try{questions=await draftQuestions(job.experience,provider);}catch{await request('fail',ref);log('generation_failed');continue;}
+  try{questions=await withHeartbeat(()=>draftQuestions(job.experience,provider),()=>request('heartbeat'),()=>log('heartbeat_unavailable'));}catch{await request('fail',ref);log('generation_failed');continue;}
   // Retry only result delivery, never model execution.
   for(let attempt=0;attempt<3;attempt++){try{await request('complete',{...ref,questions});log('questions_completed');break;}catch{if(attempt===2)log('delivery_failed');else await wait(2000);}}
  }}catch{log('connection_unavailable');}await wait(5000);}

@@ -5,14 +5,14 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['admin_assignment_detail','admin_ai_usage','admin_assignment_overview','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
   'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide',
   'admin_writing_board','writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
   'admin_rubric_list','admin_rubric_detail','admin_rubric_save']);
-const reads = new Set(['admin_assignment_detail','admin_ai_usage','admin_assignment_overview','admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
+const reads = new Set(['admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_core_questions','admin_life_get','admin_applications','admin_writing_list','admin_review_students','admin_review_detail','admin_rubric_list','admin_rubric_detail']);
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
@@ -112,7 +112,9 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];
-      res.status(200).json(body.action==='admin_assignment_detail'
+      res.status(200).json(body.action==='admin_draft_worker_status'
+        ?await require('../lib/interview-draft-worker-status.cjs').workerStatus(payload,actor,read)
+        :body.action==='admin_assignment_detail'
         ?await require('../lib/interview-assignment-detail.cjs').assignmentDetail(payload,actor,invoke,read)
         :body.action==='admin_ai_usage'
         ?await require('../lib/interview-ai-usage.cjs').usage(payload,actor,read)

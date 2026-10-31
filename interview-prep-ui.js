@@ -1,5 +1,6 @@
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
+import {mountDraftWorkerStatus} from './interview-draft-worker-status.js?v=20261031';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
 const kinds={experience:'경험형',value:'가치관형',situation:'인성 상황형'};
@@ -191,6 +192,8 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       summary.dataset.dashboardSummary='';
       summary.setAttribute('role','status');
       summary.textContent='운영 현황을 불러오는 중…';
+      host.querySelector('[data-content]').insertAdjacentHTML('beforebegin','<section class="ip-panel" data-draft-worker-status></section>');
+      life=mountDraftWorkerStatus(host.querySelector('[data-draft-worker-status]'),{request});
     }
     if(tab==='preassignments'){
       host.querySelector('.ip-hero h2').textContent='과제 관리';

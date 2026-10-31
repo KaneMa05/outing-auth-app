@@ -13,7 +13,7 @@ function element(){
   const context={window:{addEventListener(){},removeEventListener(){}},confirm:message=>{confirms.push(message);return accept;},
    console,FormData,AbortController,location:{reload(){}}};
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync('interview-prep-ui.js','utf8').replace(/^import .*\n/gm,'').replaceAll('export ',''),context);
+  vm.runInContext(fs.readFileSync('interview-prep-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
   const host=element(),request=async(action,body={})=>{if(action==='admin_question_publication'&&lockControl)assert.equal(lockControl.disabled,true,'Typing is blocked during approval requests');calls.push({action,...JSON.parse(JSON.stringify(body))});return f.invoke(action,f.admin,body);};
   const view=await context.mountAdmin(host,{request,initialSection:'questions'});
   const content=()=>host.querySelector('[data-content]').innerHTML;
