@@ -178,7 +178,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   function questionTitle(q){
     const clip=questionAudio[q.category]?.get(q.id);
-    return clip?.prompt===q.prompt&&clip.spokenPrompt?clip.spokenPrompt:q.prompt;
+    return clip?.prompt===q.prompt&&clip.spokenPrompt?(clip.displayPrompt||clip.spokenPrompt):q.prompt;
   }
   function questionOriginal(q){
     return questionTitle(q)!==q.prompt?`<details><summary>기출 원문</summary><p>${esc(q.prompt)}</p></details>`:'';
@@ -428,7 +428,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     selected=r?.question||{revision:0,prompt:'',category,topic_ids:[],tracks:[],status:'draft'};
     editor(`<h3>${id?'질문 검토·수정':'질문 추가'}</h3>${id?`<h4 data-question-title>${esc(questionTitle(selected))}</h4>`:''}<form data-question-form>
       <label>상위 카테고리<select name="category">${options([['personality','인성'],['job','직무']],selected.category)}</select></label>
-      <label>질문 원문<textarea name="prompt" maxlength="4000" required>${esc(selected.prompt)}</textarea></label><p class="ip-help">음성이 연결된 질문의 제목은 음성 대본과 동일하게 표시합니다. 원문을 수정하면 기존 음성의 재연결이 필요합니다.</p><div data-topic-checks ${selected.category==='job'?'hidden':''}><strong>연결할 인성 준비 항목 (선택)</strong><p class="ip-help">선택하지 않아도 저장·공개 승인할 수 있습니다. 연결하면 수강생에게 관련 준비 노트를 안내합니다.</p>${topicChecks(selected.topic_ids)}</div>
+      <label>질문 원문<textarea name="prompt" maxlength="4000" required>${esc(selected.prompt)}</textarea></label><p class="ip-help">질문 제목은 음성 대본의 내용을 기준으로 표시하며, 숫자는 읽기 쉽게 표기합니다. 원문을 수정하면 기존 음성의 재연결이 필요합니다.</p><div data-topic-checks ${selected.category==='job'?'hidden':''}><strong>연결할 인성 준비 항목 (선택)</strong><p class="ip-help">선택하지 않아도 저장·공개 승인할 수 있습니다. 연결하면 수강생에게 관련 준비 노트를 안내합니다.</p>${topicChecks(selected.topic_ids)}</div>
       <strong>대상 직렬 <small>(선택하지 않으면 공통)</small></strong>${trackChecks(selected.tracks)}
       <p>공개 승인 여부: ${approvalBadge(selected)}</p>
       <label>관리 상태<select name="status">${options([['draft','승인 대기'],...(selected.status==='published'?[['published','공개 승인 완료']]:[]),['archived','보관']],selected.status)}</select></label>

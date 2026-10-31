@@ -11,7 +11,8 @@ for(const q of catalog.clips){
  assert.equal(data.length,q.bytes);assert.equal(crypto.createHash('sha256').update(data).digest('hex'),q.sha256);
 }
 assert.equal(new Set(catalog.clips.map(q=>q.id)).size,catalog.clips.length);
-const sample=catalog.clips.find(q=>q.spokenPrompt!==q.prompt);
+const sample=process.argv[3]?catalog.clips.find(q=>q.id===process.argv[3]):catalog.clips.find(q=>q.spokenPrompt!==q.prompt);
+const expectedTitle=sample?.displayPrompt||sample?.spokenPrompt;
 assert(sample,'Exercise a recording whose spoken title differs from the original');
 const html=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/interview-prep.css"><main id="admin"></main><script type="module">
 import {mountAdmin} from '/interview-prep-ui.js';
@@ -42,7 +43,7 @@ const server=http.createServer((req,res)=>{
   const url='http://127.0.0.1:'+server.address().port;
   await page.goto(url);await page.waitForFunction(()=>window.ready);
   assert.equal(await page.locator('audio').count(),1);await page.getByText('질문 음성 미연결',{exact:true}).waitFor();
-  assert.equal((await page.locator('tbody tr').first().locator('td').first().locator('label').innerText()).trim(),sample.spokenPrompt);
+  assert.equal((await page.locator('tbody tr').first().locator('td').first().locator('label').innerText()).trim(),expectedTitle);
   await page.getByText('기출 원문',{exact:true}).waitFor();
   const audio=page.locator('audio');assert.equal(await audio.getAttribute('preload'),'none');
   await audio.evaluate(async node=>{await node.play();node.pause();});
@@ -50,7 +51,7 @@ const server=http.createServer((req,res)=>{
   await page.getByRole('button',{name:'검토·수정'}).first().click();
   const editor=page.locator('[data-editor]').last();
   await editor.getByText('질문 음성 연결됨',{exact:true}).waitFor();
-  assert.equal(await editor.locator('[data-question-title]').innerText(),sample.spokenPrompt);
+  assert.equal(await editor.locator('[data-question-title]').innerText(),expectedTitle);
   assert.equal(await editor.locator('[name=prompt]').inputValue(),sample.prompt);
   await editor.locator('[name=prompt]').fill('수정된 질문입니다.');
   await editor.getByText('질문이 변경되어 음성 재연결이 필요합니다.',{exact:true}).waitFor();
