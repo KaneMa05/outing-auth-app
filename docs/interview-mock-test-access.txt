@@ -30,3 +30,10 @@ WebSocket: 유효한 연결 티켓도 해제된 계정이면 거부.
 UI: 허용 계정별 모드 연결, 비허용 및 네트워크 실패 시 메뉴/직접 주소 차단.
 기존 모의면접·준비·공개 승인 테스트 통과. iOS Debug/Release 빌드 로그는 iOS worktree의
 .tmp/mock-access-Debug.log 및 .tmp/mock-access-Release.log에서 확인.
+
+2026-10-31 운영 반영 진행
+운영 DB에 접근 제어를 적용했으며 기존 87개 계정은 모두 테스트 비허용을 유지한다.
+GitHub main 7a22011에 웹/API 변경을 보존했다.
+iOS codex/ios-app의 c528d44까지 푸시하고 실기기 재설치·실행을 확인했다.
+테스트 앱은 면접반 /interview?app=1에서 시작하고 일반 Release 시작 화면은 유지한다.
+사용자가 확인된 Vercel 계정 이메일을 커밋 작성자로 사용하고 GitHub에 공개하는 것을 승인했다.
