@@ -13,6 +13,9 @@ function homeNotices(){
 }
 export async function mountInterviewApp(host,{request,aiRequest,account={},onExit,onLogout}){
  let destroyed=false,busy=false,child=null,generation=0,route=readRoute();
+ let mockAllowed=false;
+ try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
+ if(route.tab==='mock'&&!mockAllowed)route={...route,tab:'home',mockMode:''};
  host.className='ip-root ip-portal ip-app-shell';
  const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave());
  function readRoute(){
@@ -26,6 +29,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  function setUrl(replace=false){history[replace?'replaceState':'pushState'](null,'',url());remember();}
  async function go(next,{historyChange=false}={}){
   if(destroyed||!canLeave()){if(historyChange)setUrl(true);return;}
+  if(next.tab==='mock'&&!mockAllowed)return;
   route={...route,...next};if(!historyChange)setUrl();else remember();await render();window.scrollTo({top:0,behavior:'auto'});
  }
  const link=(label,tab,page='',area='')=>`<button type="button" class="ip-app-link" data-app-tab="${tab}" ${page?`data-page="${esc(page)}"`:''} ${area?`data-area="${esc(area)}"`:''}>${esc(label)}<span aria-hidden="true">›</span></button>`;
@@ -40,7 +44,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
-  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · 면접반</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div><span class="ip-app-mark" aria-hidden="true">R</span></header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" aria-label="면접반 하단 메뉴">${tabs.map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
+  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · 면접반</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div><span class="ip-app-mark" aria-hidden="true">R</span></header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed?5:4},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
   const box=host.querySelector('[data-app-content]');
   box.classList.toggle('ip-app-mock',route.tab==='mock');
   try{
@@ -58,6 +62,8 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      route.tab==='home'?[request('bootstrap'),request('life_get'),request('writing_list')]:[request('bootstrap')]);
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
+     const access=await request('mock_status');if(destroyed||ticket!==generation)return;
+     if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
      if(route.mockMode==='job'){
       const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261030-concepts');

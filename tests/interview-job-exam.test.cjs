@@ -12,7 +12,7 @@ async function fixture(t){
  await prep('admin_rubric_save',admin,{id:d.question.id,revision:0,questionRevision:2,kind:'job_knowledge',rationale:'학생 응시용 가상 검증 기준입니다.',criteria:d.rubric.criteria,criticalErrors:d.rubric.critical_errors,verificationNote:d.rubric.verification_note,scoreMap:d.rubric.score_map,status:'reviewed'});
  const invoke=async(action,actor,body={})=>(await db.query('select ip_job_exam_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  const files=new Map();let paid=0,uploads=0,identity='ip-a',uploadFail=false;
- const deps={config:()=>({enabled:true,ready:true,storageReady:true}),authenticateWeb:async()=>({id:identity}),previewAllowed:()=>false,authenticateDevice:async()=>null,invoke,
+ const deps={requireMockAccess:async()=>{},config:()=>({enabled:true,ready:true,storageReady:true}),authenticateWeb:async()=>({id:identity}),previewAllowed:()=>false,authenticateDevice:async()=>null,invoke,
  provider:()=>provider({transcribe:async()=>{paid++;return 'VHF를 사용하고 위치 정보를 교환합니다.';}}),
  storage:()=>({put:async(id,audio)=>{uploads++;if(uploadFail)throw Error('recording_unavailable');files.set(id,Buffer.from(audio));},signed:async id=>'https://example.invalid/private/'+id,remove:async id=>{files.delete(id);}}),cronSecret:'x'.repeat(32)};
  async function call(body,options={}){let status,data;await createHandler({...deps,...options.deps})({method:'POST',headers:{host:'localhost',...options.headers},body},{setHeader(){},status(s){status=s;return this;},json(d){data=d;}});return {status,data};}

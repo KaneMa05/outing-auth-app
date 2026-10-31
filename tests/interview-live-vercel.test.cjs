@@ -28,7 +28,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
  for(const fn of [()=>read(ticket,sdp+'x',secret,2000),()=>read(ticket,sdp,secret,32000),()=>read(ticket+'x',sdp,secret,2000)])assert.throws(fn,/unauthorized/);
  const env={INTERVIEW_LIVE_TRANSPORT:'vercel',INTERVIEW_LIVE_WORKER_SECRET:secret,INTERVIEW_LIVE_ENABLED:'true',OPENAI_API_KEY:'test-key',INTERVIEW_LIVE_FOLLOWUP_MODEL:'test-model',SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-key',CRON_SECRET:'c'.repeat(64),INTERVIEW_LIVE_RUNTIME_SECONDS:'800'};
  assert(configuration(env).enabled);assert(!configuration({...env,INTERVIEW_LIVE_RUNTIME_SECONDS:'300'}).enabled);
- const handler=createHandler({config:configuration(env),authenticateWeb:async()=>actor,invoke:async()=>({ok:true,ready:true})});
+ const handler=createHandler({requireMockAccess:async()=>{},config:configuration(env),authenticateWeb:async()=>actor,invoke:async()=>({ok:true,ready:true})});
  const issued=await call(handler,{action:'start',requestKey,sdp,studentId:'spoof'});assert.equal(issued.status,200);assert.equal(read(issued.data.ticket,sdp,secret).actor.id,actor.id);assert.equal(issued.data.url,'/api/interview-live-socket');assert(!JSON.stringify(issued.data).includes('test-key'));
  assert.equal((await call(handler,{action:'begin',runId:randomUUID()})).status,409);
  const f=storageFixture(),id=randomUUID(),rec=createCloudRecorder(f.store,id);
@@ -50,11 +50,11 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
   const invoke=async(action,actor,body={})=>(await db.query('select ip_live_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
   let current,event,created=0,stopped=0;const cloud=storageFixture();
   function createRuntime(){const recorders=new Map();const engine=new LiveEngine({invoke,spool:'',recorder:(_root,id)=>{const r=createCloudRecorder(cloud.store,id);recorders.set(id,r);return r;},cleanup:(_root,id)=>recorders.delete(id),storage:{signed:async()=>({input:'signed-input',output:'signed-output'}),upload:async id=>recorders.get(id).finalize()},provider:{create:async()=>{created++;return {id:'live_test',sdp:'answer'};},attach:async(id,callback)=>{event=callback;return {send:e=>{if(e.type==='session.close')callback({type:'session.closed'});},destroy(){}};},closeSession:async()=>true,followup:async()=>({turnComplete:true,ask:false,question:'',evidence:''})}});return current={engine,recorders};}
-  server=http.createServer();wss=attach(server,{env,createRuntime});server.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
+  server=http.createServer();wss=attach(server,{requireMockAccess:async()=>{},env,createRuntime});server.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
   class Socket extends WebSocket{constructor(url){super(url,{origin});}}
   let peer;class Peer{constructor(){peer=this;this.iceGatheringState='complete';}addTrack(){}createDataChannel(){return this.channel={readyState:'open',send(){},close(){}};}async createOffer(){return {type:'offer',sdp};}async setLocalDescription(d){this.localDescription=d;}async setRemoteDescription(){this.channel.onmessage({data:JSON.stringify({type:'session.started'})});}close(){}}
   const context={URL,location:{origin},setTimeout,clearTimeout,Date,crypto:require('node:crypto').webcrypto,AbortController};vm.createContext(context);vm.runInContext(fs.readFileSync('client/interview-live-client.js','utf8').replace('export async function connectLive','async function connectLive')+'\nglobalThis.connectLive=connectLive;',context);
-  const httpHandler=createHandler({config:configuration(env),authenticateWeb:async()=>actor,invoke});
+  const httpHandler=createHandler({requireMockAccess:async()=>{},config:configuration(env),authenticateWeb:async()=>actor,invoke});
   let startPayload;
   control=await context.connectLive({request:async(action,payload)=>{if(action==='start')startPayload=payload;const r=await call(httpHandler,{...payload,action});if(r.status!==200)throw Error(r.data.error);return r.data;},audio:{pause(){},play:async()=>{},srcObject:null},onEvent(){},onFailure(){},Socket,Peer,mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++;}}]})}});
   assert.equal(created,1);assert(current.engine.sessions.get(control.runId).started);
