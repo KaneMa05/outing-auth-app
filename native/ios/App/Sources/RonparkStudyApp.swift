@@ -24,12 +24,7 @@ private struct StudentApp: View {
     private var studentContent: some View {
         ZStack(alignment: .bottomTrailing) {
             StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
-            #if DEBUG
-            if !ProcessInfo.processInfo.arguments.contains("--store-screenshots") {
-            Button("모의면접 연습 테스트") { launch = InterviewLaunch(code: "", preview: true) }
-                .buttonStyle(.borderedProminent).padding(.bottom, 75).padding(.trailing, 12)
-            }
-            #endif
+
         }
         .fullScreenCover(item: $launch) { entry in
             #if DEBUG
