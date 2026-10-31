@@ -65,6 +65,17 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
+     if(route.mockMode==='job'&&window.__ronparkPracticeNative===true){
+      const slot=box.querySelector('[data-mock-mode="job"]');
+      slot.innerHTML='<h2>전공 연습</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
+      slot.querySelector('[data-native-practice]').onclick=async e=>{
+       const button=e.currentTarget;button.disabled=true;
+       try{const access=await request('mock_status');if(access.allowed!==true)throw Error('forbidden');window.webkit.messageHandlers.interviewPractice.postMessage({mode:'job'});}
+       catch{slot.querySelector('[data-native-status]').textContent='테스트 권한과 연결 상태를 확인해주세요.';}
+       finally{button.disabled=false;}
+      };
+      return;
+     }
      if(route.mockMode==='job'){
       const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261031-simple-start');
       if(destroyed||ticket!==generation)return;

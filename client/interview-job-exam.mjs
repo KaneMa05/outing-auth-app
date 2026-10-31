@@ -28,7 +28,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
    ${!run&&!recording?`${questions.length?`<label>연습할 질문<select data-job-question ${locked?'disabled':''}>${questions.map(q=>`<option value="${esc(q.id)}">${esc(q.prompt)}</option>`).join('')}</select></label>`:''}
    ${qpage>0||qmore?`<div class="ip-toolbar"><button class="ip-btn" type="button" data-job-action="qprev" ${locked||qpage===0?'disabled':''}>이전 질문</button><button class="ip-btn" type="button" data-job-action="qnext" ${locked||!qmore?'disabled':''}>다음 질문</button></div>`:''}
    <div class="ip-toolbar"><button class="ip-btn ip-primary" type="button" data-job-action="start" ${locked||!available||!questions.length||!attempts?'disabled':''}>연습 시작</button><button class="ip-btn" type="button" data-job-action="history" ${locked?'disabled':''}>내 기록</button></div>
-   <small>답변은 최대 90초입니다. 제출한 음성은 AI 분석에 사용됩니다.</small>`:''}
+   <small>답변은 최대 90초입니다.</small>`:''}
    ${recording?'<button class="ip-btn ip-primary" type="button" data-job-action="stop">답변 완료</button><span role="timer" data-job-clock></span>':''}
    <p role="status" data-job-status>${esc(notice)}</p>
    ${!available&&!run?`<button class="ip-btn" type="button" data-job-action="retry" ${locked?'disabled':''}>다시 확인</button>`:''}</section>

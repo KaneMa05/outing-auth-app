@@ -5,7 +5,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['admin_assignment_detail','admin_ai_usage','admin_assignment_overview','mock_status','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
@@ -109,6 +109,14 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         if(!previewAllowed(student.id))fail('forbidden',403);
         actor={type:'student',id:student.id};
         }
+      }
+      if(body.action==='practice_bootstrap') {
+        const access=await invoke('mock_status',actor,{});
+        if(access.allowed!==true)fail('forbidden',403);
+        const info=await invoke('bootstrap',actor,{});
+        const pool=await invoke('questions',actor,{category:'job',page:0});
+        return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,
+          questions:pool.questions.map(({id,prompt,category,tracks})=>({id,prompt,category,tracks}))});
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];

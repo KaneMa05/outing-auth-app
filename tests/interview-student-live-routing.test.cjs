@@ -23,3 +23,13 @@ for(const offline of [false,true])test(`unapproved account cannot see or deep-li
  await host.listeners.get('click')({target:{closest:()=>({dataset:{appTab:'mock'},hasAttribute:()=>false})}});
  assert.equal(imports.length,0);view.destroy();
 });
+test('test iPhone opens authorized native job practice instead of an unconfigured cloud exam',async()=>{
+ const host=element(),sent=[],imports=[];
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkPracticeNative:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode=job'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
+ let allowed=true;const view=await context.mountInterviewApp(host,{request:async()=>({allowed})});
+ const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="job"]');
+ const button=slot.querySelector('[data-native-practice]');assert.match(slot.innerHTML,/연습 시작/);
+ await button.onclick({currentTarget:button});assert.equal(sent[0].mode,'job');assert.equal(imports.length,0);
+ allowed=false;await button.onclick({currentTarget:button});assert.equal(sent.length,1);view.destroy();
+});
