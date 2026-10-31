@@ -21,6 +21,7 @@ test('polling pauses when hidden, resumes when visible and ignores destroyed res
  const host={innerHTML:''};
  const view=mountDraftWorkerStatus(host,{doc,request:async action=>{assert.equal(action,'admin_draft_worker_status');calls++;if(calls===3)return new Promise(r=>resolve=r);if(calls===2)throw Error('offline');return {enabled:true,connected:true,running:0,queued:0};},schedule(fn,ms){assert.equal(ms,10000);next=fn;return 1;},cancel(){cancelled++;}});
  await flush();assert.equal(calls,1);
+ assert.equal(view.canLeave(),true,'Read-only status panel permits administrator navigation');
  doc.hidden=true;listener();await next();assert.equal(calls,1);
  doc.hidden=false;listener();await flush();assert.equal(calls,2);assert.match(host.innerHTML,/상태를 확인하지 못했습니다/);
  const pending=next();view.destroy();const before=host.innerHTML;resolve({enabled:false});await pending;

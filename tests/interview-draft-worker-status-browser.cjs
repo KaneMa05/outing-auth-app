@@ -12,7 +12,7 @@ const root=path.resolve(__dirname,'..');
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
  try{
-  browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+  browser=await chromium.launch({...(process.env.CHROME_EXECUTABLE?{executablePath:process.env.CHROME_EXECUTABLE}:{}),headless:true});
   const page=await browser.newPage();await page.clock.install();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/qa');
@@ -31,6 +31,7 @@ const root=path.resolve(__dirname,'..');
    }});
   });
   const card=page.locator('[data-draft-worker-status]');
+  assert.equal(await page.evaluate(()=>window.view.canLeave()),true,'Outer sidebar navigation checks the dashboard controller');
   assert.match(await card.textContent(),/질문 생성 중/);
   for(const width of [1280,390]){
    await page.setViewportSize({width,height:900});
@@ -39,9 +40,16 @@ const root=path.resolve(__dirname,'..');
   if(process.env.DRAFT_STATUS_SCREENSHOT)await page.screenshot({path:process.env.DRAFT_STATUS_SCREENSHOT,fullPage:true});
   await page.clock.runFor(10000);assert.match(await card.textContent(),/연결 확인 지연/);
   await page.clock.runFor(10000);assert.match(await card.textContent(),/상태를 확인하지 못했습니다/);
-  await page.evaluate(()=>window.view.openSection('questions'));const count=await page.evaluate(()=>window.statusCalls);
+  await page.locator('[data-ip="category"][data-category="job"]').click();
+  await page.getByRole('heading',{name:'직무 기출 관리',exact:true}).waitFor();
+  assert.equal(await card.count(),0);
+  await page.evaluate(()=>window.view.openSection('home'));
+  assert.equal(await page.evaluate(()=>window.view.canLeave()),true);
+  await page.locator('[data-ip="tab"][data-tab="questions"]').click();
+  await page.getByRole('heading',{name:'인성 준비 관리',exact:true}).waitFor();
+  const count=await page.evaluate(()=>window.statusCalls);
   await page.clock.runFor(30000);assert.equal(await page.evaluate(()=>window.statusCalls),count);
   await page.evaluate(()=>window.view.destroy());assert.deepEqual(errors,[]);
-  console.log('PASS browser: admin home, busy/disconnected/error transitions, mobile layout and navigation cleanup');
+  console.log('PASS browser: admin home, busy/disconnected/error transitions, mobile layout, sidebar canLeave, job/personality navigation and polling cleanup');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

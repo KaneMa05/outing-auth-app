@@ -32,5 +32,5 @@ export function mountDraftWorkerStatus(host,{request,doc=document,schedule=setTi
  doc.addEventListener('visibilitychange',visibility);
  host.innerHTML='<h3>경험 질문 생성기</h3><p>실행 상태를 확인하는 중…</p>';
  void refresh();
- return {destroy(){destroyed=true;cancel(timer);doc.removeEventListener('visibilitychange',visibility);}};
+ return {canLeave:()=>true,destroy(){destroyed=true;cancel(timer);doc.removeEventListener('visibilitychange',visibility);}};
 }
