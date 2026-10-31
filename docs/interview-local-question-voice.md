@@ -63,3 +63,24 @@ Mac 실행기는 https://github.com/Blaizzy/mlx-audio 이며 설치한 커밋은
 채택된 대본은 `questions-interviewer.json`,
 수정 음성은 `local-qwen-interviewer/`에 저장한다.
 기존 `local-qwen/` 결과와 앱의 음성 파일은 보존한다.
+
+## 관리자 인성·직무 기출 음성 연결
+
+검증 완료된 `local-qwen-interviewer/catalog.json` 중 직무 질문 2,131개와 인성 질문 2,997개를
+`scripts/package-interview-job-audio.cjs`로 MP3로 패키징했다.
+실행 시 ffmpeg 실행 파일 경로를 첫 번째 인수로 지정할 수 있다.
+두 번째 인수는 `job`(기본값) 또는 `personality`다.
+새 음성을 생성하거나 유료 API를 호출하지 않는다.
+
+배포 대상은 `assets/interview-job-audio/`(약 48 MiB),
+`assets/interview-personality-audio/`(약 67 MiB)의 MP3와 `catalog.json`이다.
+관리자 인성·직무 기출 목록과 검토·수정 화면에서 질문 ID와 원문이 모두 일치할 때만
+재생한다. 질문 원문을 수정하면 재연결 필요로 표시한다. 미생성 질문 및 목록·파일
+로딩 실패도 구분해서 표시한다. 음성은 재생 요청 전에는 내려받지 않는다.
+연결된 질문 제목은 음성 대본(`spokenPrompt`)과 일치하게 표시하고, 기출 원문은
+별도 펼침 항목과 원문 수정란에 유지한다. 수강생 화면에는 플레이어를 추가하지 않는다.
+
+`tests/interview-job-question-audio.test.cjs`는 전체 파일 해시와 브라우저 재생,
+질문 수정, 제목·음성 대본 일치, 원문 보존, 미연결, 목록 실패 복구,
+모바일 크기와 카테고리별 연결 분리를 검증한다. 인수 `personality`로 인성을 검증한다.
+배포는 사용자 최종 확인 후 별도로 진행한다.

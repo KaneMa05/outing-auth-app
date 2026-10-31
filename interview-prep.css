@@ -163,3 +163,7 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
   }
 }
 .ip-root .ip-question-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:156px}.ip-root .ip-question-actions .ip-btn{min-height:40px}
+.ip-root [data-linked-question-audio]{margin-top:10px;max-width:360px;white-space:normal}
+.ip-root [data-linked-question-audio] audio{display:block;width:100%;max-width:300px}
+.ip-root .ip-audio-question-table{min-width:760px}
+.ip-root .ip-audio-question-table td:first-child{min-width:300px}
