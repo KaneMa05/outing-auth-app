@@ -95,7 +95,13 @@ private struct StudentWebApp: UIViewRepresentable {
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator; view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
-        view.load(URLRequest(url: URL(string: "https://" + Self.host + "/index.html#home")!))
+        #if DEBUG
+        let startPath = ProcessInfo.processInfo.arguments.contains("--store-screenshots")
+            ? "/index.html#home" : "/interview?app=1"
+        #else
+        let startPath = "/index.html#home"
+        #endif
+        view.load(URLRequest(url: URL(string: "https://" + Self.host + startPath)!))
         return view
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
