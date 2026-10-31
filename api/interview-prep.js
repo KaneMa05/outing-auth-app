@@ -5,7 +5,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
@@ -24,7 +24,7 @@ function validate(body) {
   }
   for(const key of ['revision','topicRevision','questionRevision','page','sortOrder'])
     if(body[key]!==undefined && (!Number.isInteger(body[key]) || body[key]<0 || body[key]>100000)) fail('invalid_request');
-  for(const key of ['enabled','required','active','registeredOnly','approved'])
+  for(const key of ['mockTestEnabled','enabled','required','active','registeredOnly','approved'])
     if(body[key]!==undefined && typeof body[key]!=='boolean') fail('invalid_request');
   for(const key of ['topicIds','tracks','elementIds'])
     if(body[key]!==undefined && (!Array.isArray(body[key]) || body[key].length>50 || body[key].some(v=>typeof v!=='string'||v.length>120))) fail('invalid_request');
@@ -76,7 +76,7 @@ function validate(body) {
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
 function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,
-  invoke=(action,actor,body)=>requestSupabase('POST',action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
+  invoke=(action,actor,body)=>requestSupabase('POST',['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
     try {
@@ -109,6 +109,14 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         if(!previewAllowed(student.id))fail('forbidden',403);
         actor={type:'student',id:student.id};
         }
+      }
+      if(body.action==='practice_bootstrap') {
+        const access=await invoke('mock_status',actor,{});
+        if(access.allowed!==true)fail('forbidden',403);
+        const info=await invoke('bootstrap',actor,{});
+        const pool=await invoke('questions',actor,{category:'job',page:0});
+        return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,
+          questions:pool.questions.map(({id,prompt,category,tracks})=>({id,prompt,category,tracks}))});
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];

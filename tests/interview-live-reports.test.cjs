@@ -47,7 +47,7 @@ test('stored Live reports preserve exact records and existing access controls',a
   });
   await t.test('existing authenticated API returns saved report and signed audio without new model calls',async()=>{
    let signs=0;
-   const handler=createHandler({config:{transport:'vercel',enabled:true},authenticateWeb:async()=>owner,invoke,storage:()=>({signed:async()=>{signs++;return {input:'/audio/input',output:'/audio/output'};}})});
+   const handler=createHandler({requireMockAccess:async()=>{},config:{transport:'vercel',enabled:true},authenticateWeb:async()=>owner,invoke,storage:()=>({signed:async()=>{signs++;return {input:'/audio/input',output:'/audio/output'};}})});
    let status,body;await handler({method:'POST',headers:{host:'localhost',origin:'http://localhost'},body:{action:'get',runId:oldId}},{setHeader(){},status(c){status=c;return this;},json(d){body=d;}});
    assert.equal(status,200);assert.equal(body.run.result_report.runId,oldId);assert.equal(signs,1);assert.equal(body.recordings.input,'/audio/input');assert.equal(body.run.provider_id,undefined);assert.equal(body.run.questions,undefined);
   });

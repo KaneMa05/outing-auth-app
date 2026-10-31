@@ -12,7 +12,7 @@ async function fixture(t){
  await prep('admin_rubric_save',{type:'admin',id:'qa'},{id:question.id,revision:0,questionRevision:2,kind:'personality_experience',rationale:'인성 답변 구조 연습을 위한 가상 문항입니다.',criteria:[],criticalErrors:[],verificationNote:'로컬 검증용이며 실제 출제 승인과 무관합니다.',scoreMap:null,status:'reviewed'});
  const invoke=async(action,actor,body={})=>(await db.query('select ip_personality_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  const files=new Map();let identity='ip-a',analyses=0,transcriptions=0,uploadFail=false;
- const deps={config:()=>({enabled:true,ready:true,storageReady:true}),authenticateWeb:async()=>({id:identity}),previewAllowed:()=>false,authenticateDevice:async()=>null,invoke,
+ const deps={requireMockAccess:async()=>{},config:()=>({enabled:true,ready:true,storageReady:true}),authenticateWeb:async()=>({id:identity}),previewAllowed:()=>false,authenticateDevice:async()=>null,invoke,
  provider:()=>provider({transcribe:async()=>{transcriptions++;return transcript;},analyze:async()=>{analyses++;return analysis();}}),
  storage:()=>({put:async(id,audio)=>{if(uploadFail)throw Error('recording_unavailable');files.set(id,Buffer.from(audio));},signed:async id=>'https://example.invalid/personality/'+id,remove:async id=>{files.delete(id);}}),cronSecret:'p'.repeat(32)};
  async function call(body,options={}){let status,data;await createHandler({...deps,...options.deps})({method:'POST',headers:{host:'localhost',...options.headers},body},{setHeader(){},status(s){status=s;return this;},json(d){data=d;}});return {status,data};}

@@ -30,7 +30,7 @@ function validate(b){
 function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);sameOrigin(req);const b=await bodyOf(req,66000);validate(b);const d=deps||defaults();let actor;
  if(b.action.startsWith('admin_'))actor={type:'admin',id:(await d.authenticateAdmin(req)).id};
- else{let student=await d.authenticateWeb(req);if(!student){if(!d.previewAllowed(b.studentId))fail('forbidden');student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student)fail('unauthorized');if(!d.previewAllowed(student.id))fail('forbidden');}actor={type:'student',id:student.id};}
+ else{let student=await d.authenticateWeb(req);if(!student){if(!d.previewAllowed(b.studentId))fail('forbidden');student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student)fail('unauthorized');if(!d.previewAllowed(student.id))fail('forbidden');}await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);actor={type:'student',id:student.id};}
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}
  const payload={...b};delete payload.studentId;delete payload.deviceToken;
  if(config.transport==='vercel'){

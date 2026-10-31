@@ -40,6 +40,7 @@ function createHandler(deps){return async(req,res)=>{
   sameOrigin(req);
   let student=await d.authenticateWeb(req);
   if(!student){if(!d.previewAllowed(b.studentId))throw Error('forbidden');student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student||!d.previewAllowed(student.id))throw Error('unauthorized');}
+  await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);
   actor={type:'student',id:student.id};const config=d.config();
   const enabled=config.enabled&&config.ready&&config.storageReady;
   if(b.action==='status')return res.status(200).json(enabled?await d.invoke('ready',actor,{}):{ok:true,ready:false,reason:'practice_not_configured'});

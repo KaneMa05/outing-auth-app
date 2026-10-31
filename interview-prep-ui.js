@@ -17,7 +17,7 @@ const errors={unauthorized:'로그인이 만료되었습니다. 다시 로그인
   incomplete_note:'모든 항목에 10자 이상 입력해주세요. 글자 수는 내용 품질을 보장하지 않으며 강사가 별도로 확인합니다.',
   help_reason_required:'어떤 부분이 막히는지 5자 이상 적어주세요.',not_submitted:'학생이 작성 완료로 제출한 내용만 확인 완료할 수 있습니다.',
   forbidden:'이 작업을 수행할 권한이 없습니다.',student_unavailable:'사용 가능한 수강생을 찾을 수 없습니다.',
-  invalid_topic:'사용할 준비 항목을 한 개 이상 선택해주세요.',invalid_request:'입력 항목을 확인해주세요.',
+  invalid_topic:'연결할 항목은 사용 중인 인성 준비 항목으로 선택하거나 선택을 해제해주세요.',invalid_request:'입력 항목을 확인해주세요.',
   interview_unavailable:'면접 준비 기능에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'};
 const message = e=>errors[e.code] || errors[e.message] || '처리하지 못했습니다. 입력 내용을 유지하고 다시 시도해주세요.';
 const btn=(label,action,extra='',primary=false)=>`<button type="button" class="ip-btn${primary?' ip-primary':''}" data-ip="${action}" ${extra}>${label}</button>`;
@@ -152,6 +152,44 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   host.className='ip-root';
   let life=null;
   let catalog,analysisCatalog,category='personality',tab='questions',page=0,filter={},list=[],busy=false,selected=null,destroyed=false,loadVersion=0,dirty=false;
+  const questionAudio={},questionAudioLoading={};
+  async function loadQuestionAudio(audioCategory){
+    if(!['job','personality'].includes(audioCategory))return;
+    if(questionAudio[audioCategory])return;
+    if(!questionAudioLoading[audioCategory])questionAudioLoading[audioCategory]=(async()=>{
+      try{
+        const response=await fetch(`./assets/interview-${audioCategory}-audio/catalog.json`,{cache:'no-cache'});
+        if(!response.ok)throw Error('audio_catalog_unavailable');
+        const data=await response.json();
+        if(data.version!==1||!Array.isArray(data.clips))throw Error('invalid_audio_catalog');
+        questionAudio[audioCategory]=new Map(data.clips.filter(q=>/^q-[a-f0-9]+$/.test(q.id)&&new RegExp('^'+q.id+'-[a-f0-9]{16}\\.mp3$').test(q.file)).map(q=>[q.id,q]));
+      }catch{questionAudio[audioCategory]=null;}
+      finally{questionAudioLoading[audioCategory]=null;}
+    })();
+    await questionAudioLoading[audioCategory];
+  }
+  function questionAudioMarkup(q){
+    if(!['job','personality'].includes(q.category))return '';
+    const audio=questionAudio[q.category],clip=audio?.get(q.id);
+    if(!audio)return '<p class="ip-help" role="status">질문 음성 목록을 불러오지 못했습니다. 다시 검색하거나 질문을 열어 재시도해주세요.</p>';
+    if(!clip)return '<p class="ip-help">질문 음성 미연결</p>';
+    if(clip.prompt!==q.prompt)return '<p class="ip-help">질문이 변경되어 음성 재연결이 필요합니다.</p>';
+    return `<div data-linked-question-audio><p class="ip-help">질문 음성 연결됨</p><audio data-question-audio controls preload="none" aria-label="질문 읽기 음성" src="./assets/interview-${esc(q.category)}-audio/${esc(clip.file)}"></audio><details><summary>음성 대본</summary><p>${esc(clip.spokenPrompt)}</p></details><p data-audio-status role="status"></p></div>`;
+  }
+  function questionTitle(q){
+    const clip=questionAudio[q.category]?.get(q.id);
+    return clip?.prompt===q.prompt&&clip.spokenPrompt?clip.spokenPrompt:q.prompt;
+  }
+  function questionOriginal(q){
+    return questionTitle(q)!==q.prompt?`<details><summary>기출 원문</summary><p>${esc(q.prompt)}</p></details>`:'';
+  }
+  function bindQuestionAudio(){
+    host.querySelectorAll('audio[data-question-audio]').forEach(audio=>{
+      audio.onplay=()=>host.querySelectorAll('audio[data-question-audio]').forEach(other=>{if(other!==audio)other.pause();});
+      audio.onerror=()=>{audio.parentElement.querySelector('[data-audio-status]').textContent='질문 음성 파일을 재생하지 못했습니다. 파일 연결을 확인해주세요.';};
+    });
+  }
+  function stopQuestionAudio(){host.querySelectorAll('audio[data-question-audio]').forEach(audio=>audio.pause());}
   const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live'];
   function setSection(section){
     category=['job','rubrics'].includes(section)?'job':'personality';
@@ -177,6 +215,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
   function shell(){
+    stopQuestionAudio();
     life?.destroy();life=null;
     const counts=catalog.categoryCounts?.[category]||{total:0,draft:0,published:0};
     host.innerHTML=`<nav class="ip-tabs ip-category-tabs" aria-label="면접 상위 카테고리">${[['personality','인성'],['job','직무']].map(([key,label])=>btn(label,'category',`data-category="${key}" ${key===category?'aria-current="page"':''}`)).join('')}</nav>
@@ -223,6 +262,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     }
   }
   const editor=(html,row=null)=>{
+    stopQuestionAudio();
     life?.destroy();life=null;dirty=false;
     const n=host.querySelector('[data-editor]');
     (row||host).append(n);n.hidden=false;n.innerHTML=html;
@@ -231,6 +271,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   };
   const formValue=(form,key)=>new FormData(form).get(key);
   async function load(){
+    stopQuestionAudio();
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
     const inlineEditor=box.querySelector('[data-editor]');
@@ -306,18 +347,20 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     const r=await request(isQ?'admin_questions':'admin_members',{...filter,category,page});
     if(destroyed||version!==loadVersion)return;
     list=isQ?r.questions:r.members;
+    if(isQ){await loadQuestionAudio(category);if(destroyed||version!==loadVersion)return;}
     box.innerHTML=`<form data-filter class="ip-toolbar"><label>${isQ?'질문 검색':'이름·학생 ID'}<input name="search" value="${esc(filter.search||'')}" maxlength="200"></label>
     ${isQ?`${category==='personality'?`<label>인성 준비 항목<select name="topicId"><option value="">전체 항목</option>${options(catalog.topics.map(t=>[t.id,t.title]),filter.topicId)}</select></label>`:''}<label>직렬<select name="track"><option value="">전체 직렬</option>${options(tracks.map(t=>[t,t]),filter.track)}</select></label><label>상태<select name="status">${options([['','전체'],['draft','승인 대기'],['published','공개 승인 완료'],['archived','보관']],filter.status||'')}</select></label>`:
     `<label>대상<select name="registeredOnly">${options([['true','등록 학생'],['false','전체 학생·등록하기']],String(filter.registeredOnly!==false))}</select></label>
     <label>준비 항목<select name="topicId"><option value="">전체 항목</option>${options(catalog.topics.filter(t=>t.active).map(t=>[t.id,t.title]),filter.topicId)}</select></label>
     <label>작성 상태<select name="noteStatus">${options([['','전체'],['empty','미작성'],['draft','작성 중'],['submitted','작성 완료'],['needs_revision','보완 필요'],['approved','강사 확인'],['no_experience','소재 찾기'],['changed','항목 변경']],filter.noteStatus||'')}</select></label>`}
-    <button class="ip-btn ip-primary">검색</button></form>${isQ?`<p class="ip-help">질문·분류·원문 해설을 확인한 뒤 공개 승인하세요. 승인된 질문만 수강생에게 표시됩니다. ${category==='personality'?'인성 질문은 연결할 준비 항목도 확인해주세요.':'직무 질문에는 인성 준비 항목을 연결하지 않습니다.'} 승인 후 내용을 수정하면 다시 승인 대기로 바뀝니다.</p><div class="ip-toolbar">${btn('질문 추가','question-new',canWrite?'':'disabled')}${btn('선택 문항 공개 승인','question-publish',canWrite?'':'disabled')}</div>`:''}
-    <div class="ip-panel ip-table-wrap">${isQ?`<table><thead><tr><th>질문</th><th>항목·직렬</th><th>공개 승인 여부</th><th>관리</th></tr></thead><tbody>${list.map(q=>`<tr><td><label><input type="checkbox" data-publish-id="${esc(q.id)}" ${canWrite&&q.status==='draft'?'':'disabled'}> ${esc(q.prompt)}</label><small>출처 ${q.source_count}건</small></td><td>${esc(q.topic_ids.map(id=>catalog.topics.find(t=>t.id===id)?.title||id).join(' · '))}<br><small>${esc(q.tracks.join(' · ')||'공통')}</small></td><td>${approvalBadge(q)}</td><td><div class="ip-question-actions">${btn('검토·수정','question-edit',`data-id="${esc(q.id)}"`)}${approvalButton(q)}</div></td></tr>`).join('')}</tbody></table>`:
-    `<table class="ip-matrix"><thead><tr><th>학생·이용 관리</th><th>필수 작성</th>${catalog.topics.filter(t=>t.active).map(t=>`<th>${esc(t.title)}${t.required?' *':''}</th>`).join('')}</tr></thead><tbody>${list.map(s=>{const required=catalog.topics.filter(t=>t.required&&topicApplicable(t,s.track)),complete=required.filter(t=>s.notes.some(n=>n.topic_id===t.id&&n.topic_revision===t.revision&&['submitted','approved'].includes(n.status))).length;return `<tr><td><strong>${esc(s.name)}</strong><br><small>${esc(s.id)} · ${esc(s.track||'미등록')}<br>${s.track?(s.enabled?'이용 허용':'이용 중지'):''}${s.expires_on?' · '+esc(s.expires_on):''}</small><br>${btn('등록·수정','member-edit',`data-id="${esc(s.id)}"`)}${s.track?btn('인생그래프','life',`data-id="${esc(s.id)}"`)+btn('작성 답변','writing',`data-id="${esc(s.id)}"`):''}</td><td>${s.track?`${complete} / ${required.length}`:'미등록'}</td>${catalog.topics.filter(t=>t.active).map(t=>{const n=s.notes.find(n=>n.topic_id===t.id);return `<td>${s.track&&!topicApplicable(t,s.track)?'대상 아님':`<button class="ip-link" data-ip="feedback" data-id="${esc(s.id)}" data-topic="${esc(t.id)}">${n&&n.topic_revision!==t.revision?'항목 변경':badge(n)}</button>`}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table>`}
+    <button class="ip-btn ip-primary">검색</button></form>${isQ?`<p class="ip-help">질문·분류·원문 해설을 확인한 뒤 공개 승인하세요. 승인된 질문만 수강생에게 표시됩니다. ${category==='personality'?'인성 준비 항목 연결은 선택 사항입니다. 연결하지 않아도 공개 승인할 수 있습니다.':'직무 질문에는 인성 준비 항목을 연결하지 않습니다.'} 승인 후 내용을 수정하면 다시 승인 대기로 바뀝니다.</p><div class="ip-toolbar">${btn('질문 추가','question-new',canWrite?'':'disabled')}${btn('선택 문항 공개 승인','question-publish',canWrite?'':'disabled')}</div>`:''}
+    <div class="ip-panel ip-table-wrap">${isQ?`<table class="ip-audio-question-table"><thead><tr><th>질문</th><th>항목·직렬</th><th>공개 승인 여부</th><th>관리</th></tr></thead><tbody>${list.map(q=>`<tr><td><label><input type="checkbox" data-publish-id="${esc(q.id)}" ${canWrite&&q.status==='draft'?'':'disabled'}> ${esc(questionTitle(q))}</label>${questionOriginal(q)}<small>출처 ${q.source_count}건</small>${questionAudioMarkup(q)}</td><td>${esc(q.topic_ids.map(id=>catalog.topics.find(t=>t.id===id)?.title||id).join(' · ')||(q.category==='personality'?'미연결 (선택)':''))}<br><small>${esc(q.tracks.join(' · ')||'공통')}</small></td><td>${approvalBadge(q)}</td><td><div class="ip-question-actions">${btn('검토·수정','question-edit',`data-id="${esc(q.id)}"`)}${approvalButton(q)}</div></td></tr>`).join('')}</tbody></table>`:
+    `<table class="ip-matrix"><thead><tr><th>학생·이용 관리</th><th>필수 작성</th>${catalog.topics.filter(t=>t.active).map(t=>`<th>${esc(t.title)}${t.required?' *':''}</th>`).join('')}</tr></thead><tbody>${list.map(s=>{const required=catalog.topics.filter(t=>t.required&&topicApplicable(t,s.track)),complete=required.filter(t=>s.notes.some(n=>n.topic_id===t.id&&n.topic_revision===t.revision&&['submitted','approved'].includes(n.status))).length;return `<tr><td><strong>${esc(s.name)}</strong><br><small>${esc(s.id)} · ${esc(s.track||'미등록')}<br>${s.track?(s.enabled?'이용 허용':'이용 중지'):''}${s.expires_on?' · '+esc(s.expires_on):''}<br>${s.mock_test_enabled?'모의면접 테스트 허용':'모의면접 테스트 비허용'}</small><br>${btn('등록·수정','member-edit',`data-id="${esc(s.id)}"`)}${s.track?btn('인생그래프','life',`data-id="${esc(s.id)}"`)+btn('작성 답변','writing',`data-id="${esc(s.id)}"`):''}</td><td>${s.track?`${complete} / ${required.length}`:'미등록'}</td>${catalog.topics.filter(t=>t.active).map(t=>{const n=s.notes.find(n=>n.topic_id===t.id);return `<td>${s.track&&!topicApplicable(t,s.track)?'대상 아님':`<button class="ip-link" data-ip="feedback" data-id="${esc(s.id)}" data-topic="${esc(t.id)}">${n&&n.topic_revision!==t.revision?'항목 변경':badge(n)}</button>`}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table>`}
     ${list.length?'':'<p class="ip-empty">검색 결과가 없습니다.</p>'}</div>
     <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
+    bindQuestionAudio();
   }
-  async function refresh(){catalog=await request('admin_catalog');shell();await load();}
+  async function refresh(){stopQuestionAudio();catalog=await request('admin_catalog');shell();await load();}
   async function updateQuestionPublication(action,payload,success){
     const controls=[...host.querySelector('[data-editor]').querySelectorAll('input,textarea,select,button')].map(node=>({node,disabled:node.disabled}));
     controls.forEach(({node})=>node.disabled=true);
@@ -379,16 +422,21 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   async function editQuestion(id){
     const r=id?await request('admin_question_detail',{id}):null;
+    if(r)await loadQuestionAudio(r.question.category);
+    if(destroyed)return;
+    stopQuestionAudio();
     selected=r?.question||{revision:0,prompt:'',category,topic_ids:[],tracks:[],status:'draft'};
-    editor(`<h3>${id?'질문 검토·수정':'질문 추가'}</h3><form data-question-form>
+    editor(`<h3>${id?'질문 검토·수정':'질문 추가'}</h3>${id?`<h4 data-question-title>${esc(questionTitle(selected))}</h4>`:''}<form data-question-form>
       <label>상위 카테고리<select name="category">${options([['personality','인성'],['job','직무']],selected.category)}</select></label>
-      <label>질문<textarea name="prompt" maxlength="4000" required>${esc(selected.prompt)}</textarea></label><div data-topic-checks ${selected.category==='job'?'hidden':''}><strong>연결할 인성 준비 항목</strong>${topicChecks(selected.topic_ids)}</div>
+      <label>질문 원문<textarea name="prompt" maxlength="4000" required>${esc(selected.prompt)}</textarea></label><p class="ip-help">음성이 연결된 질문의 제목은 음성 대본과 동일하게 표시합니다. 원문을 수정하면 기존 음성의 재연결이 필요합니다.</p><div data-topic-checks ${selected.category==='job'?'hidden':''}><strong>연결할 인성 준비 항목 (선택)</strong><p class="ip-help">선택하지 않아도 저장·공개 승인할 수 있습니다. 연결하면 수강생에게 관련 준비 노트를 안내합니다.</p>${topicChecks(selected.topic_ids)}</div>
       <strong>대상 직렬 <small>(선택하지 않으면 공통)</small></strong>${trackChecks(selected.tracks)}
       <p>공개 승인 여부: ${approvalBadge(selected)}</p>
       <label>관리 상태<select name="status">${options([['draft','승인 대기'],...(selected.status==='published'?[['published','공개 승인 완료']]:[]),['archived','보관']],selected.status)}</select></label>
       <p class="ip-help">공개 승인은 아래 별도 버튼에서 진행합니다. 질문·분류·연결 항목·직렬을 수정하면 다시 승인해야 수강생에게 표시됩니다. 수정 중인 내용은 먼저 저장해주세요.</p>
       <div class="ip-toolbar"><button class="ip-btn ip-primary" data-write>저장</button>${id?btn('삭제·보관','question-delete','data-write'):''}${btn('닫기','close')}</div></form>
+      <div data-editor-question-audio>${questionAudioMarkup(selected)}</div>
       ${r?`<h3>원본 출처와 해설</h3>${r.sources.map(s=>`<details><summary>${esc(s.year)} · ${esc(s.track)} · ${esc(s.region)} · Q${esc(s.number)}</summary><p class="ip-help">${esc(s.filename)}<br>${esc(s.section_title)} · ${esc(s.locator)}</p><p>${esc(s.original_prompt)}</p><div class="ip-feedback">${esc(s.answer||'원문에 해설 없음')}</div></details>`).join('')}<div class="ip-toolbar">${approvalButton(selected)}</div>`:''}`);
+    bindQuestionAudio();
   }
   function editTopic(id){
     selected=catalog.topics.find(t=>t.id===id)||{revision:0,title:'',kind:'experience',guidance:'',tracks:[],required:true,active:true,sort_order:catalog.topics.length+1};
@@ -401,7 +449,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   function editMember(id){
     selected=list.find(s=>s.id===id);
-    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>이용 종료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><button class="ip-btn ip-primary" data-write>저장</button></form>`);
+    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>이용 종료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">지정한 계정만 전공·인성·실전 모의면접을 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
   }
   async function feedback(id,topicId){
     const student=list.find(s=>s.id===id),t=catalog.topics.find(t=>t.id===topicId);
@@ -468,7 +516,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         life=mountWriting(host.querySelector('[data-writing-host]'),{request,admin:true,studentId:target.dataset.id,canWrite});
       }
       else if(a==='feedback')await feedback(target.dataset.id,target.dataset.topic);
-      else if(a==='close'){life?.destroy();life=null;host.querySelector('[data-editor]').hidden=true;}
+      else if(a==='close'){stopQuestionAudio();life?.destroy();life=null;host.querySelector('[data-editor]').hidden=true;}
       else if(a==='question-delete'){if(confirm('사용·출처 이력이 있는 질문은 보관 처리합니다. 삭제 또는 보관할까요?')){const r=await request('admin_question_delete',{id:selected.id,revision:selected.revision});await refresh();notify(host,r.result==='deleted'?'삭제했습니다.':'이력을 보존하고 보관했습니다.');}}
       else if(a==='history'){const r=await request('admin_history',{targetStudentId:selected.student.id,topicId:selected.t.id});host.querySelector('[data-history]').innerHTML=r.history.map(h=>`<div class="ip-history"><strong>${esc(new Date(h.created_at).toLocaleString('ko-KR'))} · ${states[h.snapshot.status]}</strong><p>${esc(Object.values(h.snapshot.fields||{}).join('\n'))}</p>${esc(h.snapshot.feedback)}</div>`).join('');}
     }catch(e){notify(host,message(e),true);}finally{busy=false;target.disabled=false;}
@@ -482,7 +530,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     try{
       if(form.matches('[data-question-form]'))await request('admin_question_save',{id:selected.id,revision:selected.revision,prompt:f.get('prompt'),category:f.get('category'),topicIds:f.get('category')==='personality'?f.getAll('topicIds'):[],tracks:f.getAll('tracks'),status:f.get('status')});
       else if(form.matches('[data-topic-form]'))await request('admin_topic_save',{id:selected.id,revision:selected.revision,title:f.get('title'),kind:f.get('kind'),guidance:f.get('guidance'),sortOrder:Number(f.get('sortOrder')),required:f.getAll('flags').includes('required'),active:f.getAll('flags').includes('active'),tracks:f.getAll('tracks')});
-      else if(form.matches('[data-member-form]'))await request('admin_member_save',{targetStudentId:selected.id,track:f.get('track'),examNumber:f.get('examNumber'),expiresOn:f.get('expiresOn'),enabled:f.has('enabled')});
+      else if(form.matches('[data-member-form]'))await request('admin_member_save',{targetStudentId:selected.id,track:f.get('track'),examNumber:f.get('examNumber'),expiresOn:f.get('expiresOn'),enabled:f.has('enabled'),mockTestEnabled:f.has('mockTestEnabled')});
       else if(form.matches('[data-feedback-form]'))await request('admin_feedback',{targetStudentId:selected.student.id,topicId:selected.t.id,revision:selected.n.revision,status:f.get('status'),feedback:f.get('feedback')});
       else if(form.matches('[data-analysis-form]'))await request('admin_analysis_save',{id:selected.question.id,questionRevision:selected.question.revision,revision:selected.analysis?.revision||0,elementIds:f.getAll('elementIds'),disposition:f.get('disposition'),answerForm:f.get('answerForm'),rationale:f.get('rationale'),status:f.get('status')});
       else if(form.matches('[data-application-review]')){
@@ -505,7 +553,16 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       host.querySelector('[data-element-guides]').innerHTML=elementCards(analysisCatalog.elements.filter(x=>ids.includes(x.id)));
     }
   };
-  host.oninput=e=>{if(e.target.closest('[data-editor]'))dirty=true;};
+  host.oninput=e=>{
+    if(e.target.closest('[data-editor]'))dirty=true;
+    if(e.target.name==='prompt'&&['job','personality'].includes(selected?.category)){
+      stopQuestionAudio();
+      host.querySelector('[data-editor-question-audio]').innerHTML=questionAudioMarkup({...selected,prompt:e.target.value});
+      const title=host.querySelector('[data-question-title]');
+      if(title)title.textContent=questionTitle({...selected,prompt:e.target.value});
+      bindQuestionAudio();
+    }
+  };
   try{await refresh();}catch(e){host.innerHTML=`<section class="ip-panel"><h2>면접 준비 관리</h2><p role="alert">${esc(message(e))}</p>${btn('다시 시도','retry')}</section>`;host.querySelector('button').onclick=()=>location.reload();}
-  return {openSection,canLeave,destroy(){destroyed=true;life?.destroy();window.removeEventListener('beforeunload',beforeUnload);host.onclick=null;host.onsubmit=null;host.onchange=null;host.oninput=null;}};
+  return {openSection,canLeave,destroy(){stopQuestionAudio();destroyed=true;life?.destroy();window.removeEventListener('beforeunload',beforeUnload);host.onclick=null;host.onsubmit=null;host.onchange=null;host.oninput=null;}};
 }

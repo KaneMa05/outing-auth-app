@@ -18,10 +18,10 @@ async function api(handler,body){let code,out;await handler({method:'POST',heade
  assert(verify(raw,secret,signed.timestamp,signed.signature));assert(!verify(raw+' ',secret,signed.timestamp,signed.signature));assert(!verify(raw,secret,signed.timestamp,signed.signature,Date.now()+31000));
  assert.throws(()=>validate({action:'start',actor:SERVER,sdp:'v=0',requestKey:randomUUID()}),/invalid_request/);
  const calls=[];
- const handler=createHandler({config:{enabled:true,url:'http://localhost',secret},authenticateWeb:async()=>a,
+ const handler=createHandler({requireMockAccess:async()=>{},config:{enabled:true,url:'http://localhost',secret},authenticateWeb:async()=>a,
   fetchImpl:async(url,options)=>{const data=JSON.parse(options.body);calls.push(data);assert(verify(options.body,secret,options.headers['X-Live-Time'],options.headers['X-Live-Signature']));return {ok:true,json:async()=>({ok:true,ready:true})};}});
  assert.equal((await api(handler,{action:'ready',studentId:'spoof'})).code,200);assert.equal(calls[0].actor.id,a.id);assert(!calls[0].body.studentId);
- const rejected=createHandler({config:{enabled:true},authenticateWeb:async()=>null,previewAllowed:()=>false});
+ const rejected=createHandler({requireMockAccess:async()=>{},config:{enabled:true},authenticateWeb:async()=>null,previewAllowed:()=>false});
  assert.equal((await api(rejected,{action:'start',sdp:'v=0',requestKey:randomUUID()})).code,403);
  const providerCalls=[];
  const contract=createProvider({key:'test-not-a-key',followupModel:'test-model',WebSocket:class{},fetchImpl:async(url,options)=>{
