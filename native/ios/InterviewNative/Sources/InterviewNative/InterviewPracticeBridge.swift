@@ -4,12 +4,14 @@ import Security
 
 /// Debug-only Mac bridge. Physical devices use TLS and an exact bundled certificate pin.
 @MainActor final class PracticeBridge: NSObject, URLSessionTaskDelegate {
+    private(set) var isLocal = false
+    private(set) var liveCaptions = true
     private let token: String
     nonisolated private let endpoint: URL
     nonisolated private let certificateData: Data?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 55; config.timeoutIntervalForResource = 60
+        config.timeoutIntervalForRequest = 280; config.timeoutIntervalForResource = 285
         config.httpCookieStorage = nil; config.urlCache = nil
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
@@ -66,6 +68,8 @@ import Security
             var statusRequest = request("status"); statusRequest.timeoutInterval = 5
             let (data, response) = try await session.data(for: statusRequest)
             let value = try JSONSerialization.jsonObject(with: data) as? InterviewJSON
+            isLocal = value?["provider"] as? String == "local"
+            liveCaptions = value?["liveCaptions"] as? Bool ?? true
             return (response as? HTTPURLResponse)?.statusCode == 200 && value?["ok"] as? Bool == true && value?["ready"] as? Bool == true
         } catch { let error = error as NSError; print("Interview bridge status error: \(error.domain) \(error.code), underlying: \(String(describing: error.userInfo[NSUnderlyingErrorKey]))"); return false }
     }
@@ -142,7 +146,7 @@ import Security
         finishing = true; completed = callback
         if ready { Task { try? await socket.send(.string("{\"type\":\"end\"}")) } }
         timeout = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            try? await Task.sleep(nanoseconds: 20_000_000_000)
             guard !Task.isCancelled, let self else { return }; finish(text: text, confirmed: false)
         }
     }

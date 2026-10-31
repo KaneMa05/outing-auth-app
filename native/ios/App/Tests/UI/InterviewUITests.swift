@@ -72,8 +72,8 @@ final class InterviewPracticeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.mode.personality"].waitForExistence(timeout: 15))
-        app.buttons["practice.mode.personality"].tap()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
         // No device-check tap: the camera must start with the first question.
         app.buttons["interview.start"].tap()
         XCTAssertTrue(app.staticTexts["practice.start-countdown"].exists)
@@ -99,8 +99,8 @@ final class InterviewPracticeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.mode.personality"].waitForExistence(timeout: 15))
-        app.buttons["practice.mode.personality"].tap()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
         app.buttons["interview.start"].tap()
         XCTAssertTrue(app.staticTexts["practice.start-countdown"].exists)
         app.buttons["interview.end"].tap()
@@ -118,11 +118,11 @@ final class InterviewPracticeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.mode.personality"].waitForExistence(timeout: 15))
-        app.buttons["practice.mode.personality"].tap()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
         let prep = app.descendants(matching: .any)["practice.prep-camera"].firstMatch
         XCTAssertEqual(prep.value as? String, "camera-pending", "Camera stays off until explicitly requested")
-        app.buttons["practice.media"].tap()
+        app.buttons["practice.camera-test"].tap()
         let prepared = expectation(for: NSPredicate(format: "value == %@", "camera-ready"), evaluatedWith: prep)
         wait(for: [prepared], timeout: 3)
         app.buttons["interview.start"].tap()
@@ -139,8 +139,8 @@ final class InterviewPracticeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.mode.personality"].waitForExistence(timeout: 15))
-        app.buttons["practice.mode.personality"].tap()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
         app.buttons["interview.start"].tap()
         if app.alerts.firstMatch.waitForExistence(timeout: 3) {
             let allow = app.alerts.buttons["허용"]
@@ -184,8 +184,8 @@ final class InterviewPracticeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.mode.personality"].waitForExistence(timeout: 15))
-        app.buttons["practice.mode.personality"].tap()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
         app.switches["practice.video-toggle"].tap()
         app.buttons["interview.start"].tap()
         XCTAssertTrue(app.staticTexts["녹화 중"].firstMatch.waitForExistence(timeout: 25))
@@ -206,13 +206,84 @@ final class InterviewPracticeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["practice.video-play"].waitForExistence(timeout: 10))
         #endif
     }
+    func testJobContinuousAnswersAndFinalReview() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.mode.job"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.job"].tap()
+        app.buttons["practice.track"].tap()
+        app.buttons["practice.track.항해"].tap()
+        app.segmentedControls["practice.job-count"].buttons["3문항"].tap()
+        XCTAssertFalse(app.switches["practice.job-auto"].exists)
+        app.buttons["interview.start"].tap()
+        for index in 1...3 {
+            let answer = app.buttons["interview.answer"]
+            let enabled = expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: answer)
+            wait(for: [enabled], timeout: 75)
+            Thread.sleep(forTimeInterval: 1)
+            XCTAssertFalse(app.buttons["내 답변 듣기"].exists)
+            XCTAssertFalse(app.buttons["practice.job-next"].exists)
+            answer.tap()
+        }
+        XCTAssertTrue(app.buttons["practice.job-repeat"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["내 답변 듣기"].firstMatch.exists)
+        let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
+        XCTAssertTrue(example.exists)
+        example.tap()
+        XCTAssertTrue(app.staticTexts["학습 참고용 · 공식 정답이 아닙니다."].firstMatch.exists)
+        app.swipeDown()
+        app.buttons["practice.job-repeat"].tap()
+        XCTAssertTrue(app.buttons["interview.start"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.segmentedControls["practice.job-count"].buttons["3문항"].isSelected)
+    }
+
+    func testJobAndPersonalityUseAudioOnly() {
+        for mode in ["job", "personality"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
+            app.launch()
+            XCTAssertTrue(app.buttons["practice.mode." + mode].waitForExistence(timeout: 15))
+            app.buttons["practice.mode." + mode].tap()
+            XCTAssertFalse(app.descendants(matching: .any)["practice.prep-camera"].firstMatch.exists)
+            XCTAssertFalse(app.switches["practice.video-toggle"].exists)
+            XCTAssertTrue(app.buttons["테스트하기"].exists)
+            XCTAssertFalse(app.switches["practice.live-captions"].exists)
+            XCTAssertFalse(app.switches["practice.job-auto"].exists)
+            app.buttons["interview.start"].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["practice.audio-only"].firstMatch.waitForExistence(timeout: 10))
+            let captions = app.switches["practice.live-captions"]
+            XCTAssertTrue(captions.exists)
+            XCTAssertEqual(captions.value as? String, "0")
+            captions.tap()
+            XCTAssertEqual(captions.value as? String, "1")
+            captions.tap()
+            XCTAssertFalse(app.descendants(matching: .any)["practice.avatar"].firstMatch.exists)
+            XCTAssertFalse(app.descendants(matching: .any)["practice.live-camera"].firstMatch.exists)
+            app.terminate()
+        }
+    }
+
+    func testRealInterviewKeepsAvatarAndCamera() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
+        app.buttons["practice.mode.ai"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["practice.prep-camera"].firstMatch.exists)
+        app.buttons["interview.start"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["practice.avatar"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["practice.live-camera"].firstMatch.exists)
+        XCTAssertFalse(app.descendants(matching: .any)["practice.audio-only"].firstMatch.exists)
+    }
+
     func testPracticeMenuAndTrackSelectionUseBundledQuestions() {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--interview-offline-testing", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.buttons["practice.mode.job"].waitForExistence(timeout: 15))
         app.buttons["practice.mode.job"].tap()
-        XCTAssertTrue(app.staticTexts["면접 준비"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["직무 연습 준비"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["practice.media"].exists)
         XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.track"].tap()
@@ -226,5 +297,26 @@ final class InterviewPracticeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["interview.start"].waitForExistence(timeout: 5))
         app.buttons["practice.records"].tap()
         XCTAssertTrue(app.staticTexts["내 면접 기록"].waitForExistence(timeout: 5))
+    }
+}
+
+final class PortalPracticeUITests: XCTestCase {
+    func testApprovedPortalQuestionStartsWithSpeechFallback() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--interview-offline-testing"]
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "Allow", "OK", "확인"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
+        app.launch()
+        let start = app.buttons["interview.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        let enabled = NSPredicate(format: "enabled == true")
+        expectation(for: enabled, evaluatedWith: start)
+        waitForExpectations(timeout: 15)
+        for _ in 0..<3 { if start.isHittable { break }; app.swipeUp() }
+        start.tap(); app.tap()
+        XCTAssertTrue(app.buttons["interview.answer"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["해양경찰의 역할을 설명해주세요."].firstMatch.waitForExistence(timeout: 20))
     }
 }

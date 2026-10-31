@@ -10,11 +10,17 @@ private struct InterviewLaunch: Identifiable { let id = UUID(); let code: String
 
 private struct StudentApp: View {
     @State private var launch: InterviewLaunch?
+    #if DEBUG
+    @State private var practice: PracticePortalSession?
+    #endif
     var body: some View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--interview-native-preview") {
             // UI tests run the real SwiftUI screens without opening a production web page.
             if ProcessInfo.processInfo.arguments.contains("--interview-legacy-fixture") { InterviewView(preview: true) }
+            else if ProcessInfo.processInfo.arguments.contains("--portal-practice-fixture") {
+                InterviewPracticeView(loadSession: { ["accountId": "ui-fixture", "track": "공채", "questions": [["id": "portal-only", "prompt": "해양경찰의 역할을 설명해주세요.", "tracks": ["공채"]]]] })
+            }
             else { InterviewPracticeView() }
         } else { studentContent }
         #else
@@ -23,9 +29,19 @@ private struct StudentApp: View {
     }
     private var studentContent: some View {
         ZStack(alignment: .bottomTrailing) {
+            #if DEBUG
+            StudentWebApp(onInterview: { code in launch = InterviewLaunch(code: code, preview: false) },
+                onPractice: { view in practice = PracticePortalSession(webView: view) })
+            #else
             StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
+            #endif
 
         }
+        #if DEBUG
+        .fullScreenCover(item: $practice) { session in
+            InterviewPracticeView(loadSession: { try await session.load() })
+        }
+        #endif
         .fullScreenCover(item: $launch) { entry in
             #if DEBUG
             if entry.preview { InterviewPracticeView() }
@@ -41,13 +57,18 @@ private struct StudentApp: View {
 // Safari/PWA cookies are not shared: first login in this installed app is required.
 private struct StudentWebApp: UIViewRepresentable {
     let onInterview: (String) -> Void
+    var onPractice: ((WKWebView) -> Void)? = nil
     static let host = InterviewLaunchPolicy.host
-    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview) }
+    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview, onPractice: onPractice) }
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.userContentController.add(context.coordinator, name: "interviewNative")
+        #if DEBUG
+        config.userContentController.add(context.coordinator, name: "interviewPractice")
+        config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){window.__ronparkPracticeNative=true;}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #endif
         // The installed WKWebView is standalone too. Set this before the existing
         // web app evaluates its install gate; never apply it to third-party pages.
         let installedApp = WKUserScript(source: """
@@ -107,13 +128,24 @@ private struct StudentWebApp: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewNative")
+        #if DEBUG
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewPractice")
+        #endif
         uiView.stopLoading(); uiView.navigationDelegate = nil; uiView.uiDelegate = nil
     }
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         let onInterview: (String) -> Void
-        init(onInterview: @escaping (String) -> Void) { self.onInterview = onInterview }
+        let onPractice: ((WKWebView) -> Void)?
+        init(onInterview: @escaping (String) -> Void, onPractice: ((WKWebView) -> Void)? = nil) { self.onInterview = onInterview; self.onPractice = onPractice }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             let origin = message.frameInfo.securityOrigin
+            #if DEBUG
+            if message.name == "interviewPractice", origin.protocol == "https", origin.host == StudentWebApp.host,
+               origin.port == 0 || origin.port == 443, message.frameInfo.isMainFrame,
+               let data = message.body as? [String: String], data == ["mode": "job"], let webView = message.webView {
+                onPractice?(webView); return
+            }
+            #endif
             guard message.name == "interviewNative", let data = message.body as? [String: String],
                   InterviewLaunchPolicy.accepts(scheme: origin.protocol, host: origin.host, port: origin.port,
                                                 isMainFrame: message.frameInfo.isMainFrame, payload: data),
@@ -158,3 +190,32 @@ private struct StudentWebApp: UIViewRepresentable {
         }
     }
 }
+
+#if DEBUG
+/// Reads the authenticated portal through its own cookie jar; credentials never enter JavaScript payloads.
+@MainActor private final class PracticePortalSession: Identifiable {
+    let id = UUID()
+    private weak var webView: WKWebView?
+    init(webView: WKWebView) { self.webView = webView }
+    func load() async throws -> [String: Any] {
+        guard let webView, webView.url?.host == InterviewLaunchPolicy.host else { throw URLError(.userAuthenticationRequired) }
+        let cookies = await withCheckedContinuation { continuation in
+            webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { continuation.resume(returning: $0) }
+        }
+        let relevant = cookies.filter { $0.domain == InterviewLaunchPolicy.host || $0.domain == "." + InterviewLaunchPolicy.host }
+        let origin = "https://" + InterviewLaunchPolicy.host
+        var request = URLRequest(url: URL(string: origin + "/api/interview-prep")!)
+        request.httpMethod = "POST"; request.timeoutInterval = 20
+        request.setValue(origin, forHTTPHeaderField: "Origin")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HTTPCookie.requestHeaderFields(with: relevant)["Cookie"], forHTTPHeaderField: "Cookie")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["action": "practice_bootstrap"])
+        let config = URLSessionConfiguration.ephemeral; config.httpCookieStorage = nil
+        let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
+        let (data, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200,
+              let body = try JSONSerialization.jsonObject(with: data) as? [String: Any], body["ok"] as? Bool == true else { throw URLError(.userAuthenticationRequired) }
+        return body
+    }
+}
+#endif

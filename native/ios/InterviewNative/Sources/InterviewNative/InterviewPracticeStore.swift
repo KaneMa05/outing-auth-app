@@ -4,6 +4,12 @@ import Foundation
 struct PracticeQuestion: Decodable {
     let id: String, prompt: String, spokenPrompt: String, file: String, category: String
     let tracks: [String]
+    static let examples: [String: String] = {
+        guard let folder = Bundle.main.url(forResource: "InterviewPracticeAudio", withExtension: nil),
+              let data = try? Data(contentsOf: folder.appendingPathComponent("examples.json")),
+              let examples = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+        return examples
+    }()
     var url: URL? {
         guard file.range(of: "^[A-Za-z0-9_-]+\\.mp3$", options: .regularExpression) != nil else { return nil }
         return Bundle.main.url(forResource: "InterviewPracticeAudio", withExtension: nil)?.appendingPathComponent(file)
@@ -20,12 +26,35 @@ struct PracticeQuestion: Decodable {
     }
 }
 
+struct PracticeAssessment: Decodable, Identifiable {
+    let index: Int
+    let label: String
+    let claim: String
+    let status: String
+    let quote: String
+    let reason: String
+    var id: Int { index }
+    var symbol: String { status == "O" ? "○" : status == "partial" ? "△" : status == "X" ? "×" : "—" }
+    var statusLabel: String { status == "O" ? "충족" : status == "partial" ? "부분 충족" : status == "X" ? "미충족" : "판정 보류" }
+}
 struct PracticeTurn: Codable, Identifiable {
+    var assessment: [PracticeAssessment] {
+        guard let raw = analysis?["assessment"], let data = raw.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([PracticeAssessment].self, from: data)) ?? []
+    }
+
+    var overallAssessment: String {
+        let rows = assessment
+        guard !rows.isEmpty, !rows.contains(where: { !["O", "partial", "X"].contains($0.status) }) else { return "uncertain" }
+        if rows.allSatisfy({ $0.status == "O" }) { return "O" }
+        return rows.contains(where: { $0.status == "O" || $0.status == "partial" }) ? "partial" : "X"
+    }
     var id: Int
     var question: String
     var answer = ""
     var duration: TimeInterval = 0
     var audio: String
+    var questionID: String?
     var analysis: [String: String]?
     var analysisPending = false
     var analysisError = false
