@@ -7,7 +7,19 @@ async function call(handler,body,headers={}){let status,data;await handler({meth
  const {db,invoke:prep}=await createDb();
  try{
   await db.exec(fs.readFileSync('supabase/migrations/20261030140517_interview_mock_test_access.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261031052127_fix_mock_access_portal_accounts.sql','utf8'));
   const invoke=async(action,actor,body={})=>(await db.query('select ip_mock_access_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
+  await db.exec("insert into ip_owners(id,name) values('kakao-only-test','카카오 전용 테스트')");
+  const portalMember={targetStudentId:'kakao-only-test',track:'공채',examNumber:'TEST',enabled:true,mockTestEnabled:true,expiresOn:''};
+  await prep('admin_enabled',admin,{enabled:true});
+  await invoke('admin_member_save',admin,portalMember);
+  const portalActor={type:'student',id:'kakao-only-test'};
+  assert.equal((await invoke('mock_status',portalActor)).allowed,true,'Kakao-only member needs no academic student row');
+  await db.exec("update ip_owners set active=false where id='kakao-only-test'");
+  assert.equal((await invoke('mock_status',portalActor)).allowed,false);
+  await db.exec("update ip_owners set active=true where id='kakao-only-test'");
+  await invoke('admin_member_save',admin,{...portalMember,mockTestEnabled:false});
+  assert.equal((await invoke('mock_status',portalActor)).allowed,false);
   const member={targetStudentId:'ip-a',track:'공채',examNumber:'QA',enabled:true,expiresOn:''};
   await prep('admin_enabled',admin,{enabled:true});
   await invoke('admin_member_save',admin,member);
