@@ -1,11 +1,12 @@
-import {mountStudentReview} from './interview-review-ui.js?v=20261102-history';
+import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
+import {mountStudentReview} from './interview-review-ui.js?v=20261102-source-tracks';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles=['기본이력','인생그래프','자기소개','지원동기','공직관','핵심 25제'];
 const saved=status=>status==='saved'?'작성됨':'미작성';
 const writing=value=>value?.submitted?`제출 ${value.submitted}건`:value?.saved?'저장 · 미제출':'미작성';
 export function mountAssignmentOverview(host,{request,templates,canWrite=false}){
  let destroyed=false,version=0,page=0,total=0,pageSize=30,filter={search:'',track:''};
- host.innerHTML=`<section class="ip-panel"><h3>전체 학생 과제 현황</h3><p>기본이력·인생그래프는 저장된 작성 여부, 답변 과제는 저장·제출 현황입니다. 교사 검토 여부를 의미하지 않습니다. 임시저장과 이용 중지 계정도 포함합니다.</p><form data-overview-filter class="ip-toolbar"><label>학생 검색<input name="search" maxlength="200" placeholder="이름 · 수험번호 · 학생 ID"></label><label>직렬<select name="track"><option value="">전체 직렬</option>${['공채','항해','기관','방제','관제','기타'].map(t=>`<option>${t}</option>`).join('')}</select></label><button class="ip-btn ip-primary">검색</button><button type="button" class="ip-btn" data-overview-action="reset">초기화</button></form></section><div data-overview-results aria-live="polite"></div>`;
+ host.innerHTML=`<section class="ip-panel"><h3>전체 학생 과제 현황</h3><p>기본이력·인생그래프는 저장된 작성 여부, 답변 과제는 저장·제출 현황입니다. 교사 검토 여부를 의미하지 않습니다. 임시저장과 이용 중지 계정도 포함합니다.</p><form data-overview-filter class="ip-toolbar"><label>학생 검색<input name="search" maxlength="200" placeholder="이름 · 수험번호 · 학생 ID"></label><label>직렬<select name="track"><option value="">전체 직렬</option>${interviewTracks.map(t=>`<option>${t}</option>`).join('')}</select></label><button class="ip-btn ip-primary">검색</button><button type="button" class="ip-btn" data-overview-action="reset">초기화</button></form></section><div data-overview-results aria-live="polite"></div>`;
  const results=host.querySelector('[data-overview-results]');
  const detailHost=document.createElement('div');host.append(detailHost);let reader=null;
  function closeReader(){reader?.destroy();reader=null;detailHost.replaceChildren();}

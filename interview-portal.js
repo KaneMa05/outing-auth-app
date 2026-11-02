@@ -1,3 +1,4 @@
+import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
 import {mountInterviewLogin} from './interview-login.js?v=20261024-coast-login';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,7 +23,7 @@ async function api(action,payload={}){
  const response=await fetch('/api/interview-auth',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
-const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${['공채','항해','기관','방제','관제','기타'].map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
+const applyForm=()=>`<form data-application-form><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${interviewTracks.map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 수강 정보를 확인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'면접반 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
  disposeLogin?.();disposeLogin=null;

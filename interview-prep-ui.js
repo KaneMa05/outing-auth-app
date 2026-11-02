@@ -1,3 +1,4 @@
+import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
@@ -24,7 +25,7 @@ const message = e=>errors[e.code] || errors[e.message] || '처리하지 못했�
 const btn=(label,action,extra='',primary=false)=>`<button type="button" class="ip-btn${primary?' ip-primary':''}" data-ip="${action}" ${extra}>${label}</button>`;
 const badge=n=>`<span class="ip-badge ${esc(n?.status||'')}">${states[n?.status]||states.empty}</span>`;
 const options=(rows,value)=>rows.map(([id,title])=>`<option value="${esc(id)}" ${id===value?'selected':''}>${esc(title)}</option>`).join('');
-const tracks=['공채','항해','기관','방제','관제','기타'];
+const tracks=interviewTracks;
 const analysisDispositions={personal:'학생 인성 소재 연결 후보',knowledge_review:'직무·시사 재분류 검토',context_needed:'앞선 문맥 확인',rapport:'안부·진행 질문',sensitive_review:'개인정보 수집 범위 검토',unresolved:'요소 판정 보류'};
 const analysisForms={experience:'실제 경험',value:'가치·이유',situation:'가정 상황',profile:'자기 설명',mixed:'복합 질문',context:'문맥 필요'};
 const analysisStates={draft:'검토 대기',reviewed:'관리자 검토 완료',missing:'분석 없음',stale:'질문 변경·재분석 필요'};
@@ -296,7 +297,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261102-history');
+      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261102-source-tracks');
       if(destroyed||version!==loadVersion)return;
       const next=mountAssignmentManagement(box,{request,templates,canWrite});
       await next.ready;
@@ -309,7 +310,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261102-history');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261102-source-tracks');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

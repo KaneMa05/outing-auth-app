@@ -1,4 +1,5 @@
 'use strict';
+const interviewTracks=require('../lib/interview-tracks.json');
 const crypto=require('node:crypto');
 const {bodyOf,postOnly,sameOrigin,sendError}=require('../lib/interview-ai-http');
 const auth=require('../lib/interview-native-auth'),live=require('./interview-live');
@@ -21,7 +22,7 @@ function createHandler(deps){return async(req,res)=>{try{
   const data=await d.invoke('consume',{type:'server',id:'native'},{codeHash:auth.hash(b.code)});
   await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(data.studentId);
   const track=d.readTrack?await d.readTrack(data.studentId):'';
-  return res.status(200).json({ok:true,token:auth.issue(data.studentId,d.secret),expiresIn:1800,track:['공채','항해','기관','방제','관제','기타'].includes(track)?track:''});
+  return res.status(200).json({ok:true,token:auth.issue(data.studentId,d.secret),expiresIn:1800,track:interviewTracks.includes(track)?track:''});
  }
  if(b.action==='command'){
   if(Object.keys(b).some(k=>!['action','command'].includes(k))||!b.command||typeof b.command!=='object'||Array.isArray(b.command))throw Error('invalid_request');

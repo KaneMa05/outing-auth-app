@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "source": {
+    "id": "src-da17bdb3c0527c82dc34a355",
+    "filename": "06_기타_면접 기출해설.hwpx",
+    "sha256": "da17bdb3c0527c82dc34a355b3bdc356c71ff2f13c8c176a22b6190868fd3440",
+    "track": "기타"
+  },
+  "occurrence_count": 393,
+  "question_count": 373,
+  "sections": [
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 7,
+      "title": "구급(응급구조)",
+      "track": "구급(응급구조)"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 229,
+      "title": "구조",
+      "track": "구조"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 312,
+      "title": "항공",
+      "track": "항공"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 334,
+      "title": "특공(전술)",
+      "track": "특공(전술)"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 423,
+      "title": "전산",
+      "track": "전산"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 473,
+      "title": "통신",
+      "track": "통신"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 513,
+      "title": "특임",
+      "track": "특임"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 532,
+      "title": "함정정비",
+      "track": "함정정비"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 559,
+      "title": "간부",
+      "track": "간부"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 614,
+      "title": "수사",
+      "track": "수사"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 768,
+      "title": "홍보",
+      "track": "홍보"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 797,
+      "title": "정책",
+      "track": "정책"
+    },
+    {
+      "section": "Contents/section0.xml",
+      "paragraph": 814,
+      "title": "중국어",
+      "track": "중국어"
+    }
+  ]
+}

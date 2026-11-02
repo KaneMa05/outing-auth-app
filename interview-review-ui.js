@@ -1,3 +1,4 @@
+import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
 import {mountAIUsage} from './interview-ai-usage.js?v=20261102-history';
 import {mountWritingBoard} from './interview-writing-board.js?v=20261102-history';
 import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
@@ -49,7 +50,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
  function listShell(){
   host.innerHTML=`<section class="ip-panel"><h3>학생 찾기</h3><p>${assignmentArea?'학생을 선택하면 선택한 과제의 기존 작성 내용과 상태를 확인합니다. 아래 목록의 건수와 상태 필터는 학생의 전체 작성 기록 기준입니다.':'학생별로 나의 DB와 모든 작성 답변을 모아봅니다.'} 임시저장과 이용 중지·기간 만료 계정의 기록도 포함합니다.</p>
    <form data-review-filter class="ip-toolbar"><label>수강생 검색<input name="search" maxlength="200" placeholder="이름 · 수험번호 · 학생 ID" value="${esc(filter.search)}"></label>
-   <label>직렬<select name="track">${options([['','전체 직렬'],...['공채','항해','기관','방제','관제','기타'].map(t=>[t,t])],filter.track)}</select></label>
+   <label>직렬<select name="track">${options([['','전체 직렬'],...interviewTracks.map(t=>[t,t])],filter.track)}</select></label>
    <label>작성 상태<select name="status">${options([['','전체'],['pending','확인 대기'],['revision','보완·도움 요청'],['draft','임시저장 있음'],['empty','저장 내역 없음']],filter.status)}</select></label>
    <button class="ip-btn ip-primary">검색</button>${button('초기화','reset')}</form></section>
    <div data-review-roster></div>${assignmentArea||modal?'<dialog class="ip-life-dialog ip-assignment-dialog" aria-label="학생 과제 내용" style="width:min(1100px,calc(100% - 32px));max-height:88dvh;overflow:auto"><div data-review-detail></div></dialog>':'<div data-review-detail></div>'}`;

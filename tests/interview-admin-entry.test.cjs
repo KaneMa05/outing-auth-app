@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
-assert.equal(entry,'interview-prep.js?v=20261102-ai-history');
+assert.equal(entry,'interview-prep.js?v=20261102-source-tracks');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
 assert(read('sw.js').includes('v552-interview-integration'));
 assert.match(read('interview-prep.js'),/admin\?import\('\.\/interview-prep-ui\.js\?v=[^']+'\)/);
@@ -11,3 +11,6 @@ assert.match(read('interview-assignment-management.js'),/\.\/interview-assignmen
 assert(read('interview-assignment-overview.js').includes('data-overview-student'));
 assert(read('interview-assignment-overview.js').includes('modal:true'));
 console.log('PASS administrator entry: teacher HTML and versioned imports preserve access without interview precaching');
+
+assert(read('interview.html').includes('interview-portal.js?v=20261102-source-tracks'));
+for(const file of ['interview-prep-ui.js','interview-review-ui.js','interview-assignment-overview.js','interview-portal.js'])assert(read(file).includes('./client/interview-tracks.js?v=20261102-source-tracks'));
