@@ -1,0 +1,92 @@
+{
+  "fields": [
+    {
+      "id": "coast_guard",
+      "label": "해양경찰 직무·경찰학",
+      "scope": "해양경찰의 조직·임무, 경찰학·행정학, 헌법·행정법·복무 및 공통 안전관리 이론"
+    },
+    {
+      "id": "navigation",
+      "label": "항해학",
+      "scope": "항법, 항해기기, 선박 조종·복원성, 해도·기상·해양지리"
+    },
+    {
+      "id": "domestic_maritime_law",
+      "label": "국내 해사법규",
+      "scope": "국내 해양 관련 법률의 목적·적용범위·허가·규제·법적 책임"
+    },
+    {
+      "id": "criminal_law_investigation",
+      "label": "형사법·수사절차",
+      "scope": "범죄 성립·형벌·형사절차·증거·수사·피해자 보호"
+    },
+    {
+      "id": "engineering_maintenance",
+      "label": "기관학·함정정비",
+      "scope": "추진기관·보조기기·전기·연료·냉각·윤활·정비·기관 안전"
+    },
+    {
+      "id": "international_maritime_law",
+      "label": "해양법·국제협약",
+      "scope": "해양수역·국제 관할권·어업협정·국제 해사협약·해양안보 국제협력"
+    },
+    {
+      "id": "marine_environment",
+      "label": "해양환경·방제",
+      "scope": "오염 원리·물질·시료분석·방제 장비·방제 절차·환경규제 대응"
+    },
+    {
+      "id": "vts_communications",
+      "label": "관제·해상통신",
+      "scope": "VTS 운용·관제절차·해상통신·조난통신·SMCP"
+    },
+    {
+      "id": "rescue_diving",
+      "label": "구조·잠수",
+      "scope": "수색·인명구조·잠수·구조장비·해상 소방과 소화"
+    },
+    {
+      "id": "emergency_care",
+      "label": "구급·응급처치",
+      "scope": "환자 평가·중증도 분류·심폐소생술·응급처치·이송"
+    },
+    {
+      "id": "special_operations",
+      "label": "특공·대테러",
+      "scope": "특수작전·대테러·전술·총기 및 공용화기 장비"
+    },
+    {
+      "id": "it_security",
+      "label": "전산·정보보안",
+      "scope": "프로그래밍·전산·네트워크·정보보안 및 기술 적용"
+    }
+  ],
+  "formats": [
+    {
+      "id": "knowledge",
+      "label": "지식설명"
+    },
+    {
+      "id": "situation",
+      "label": "상황대처"
+    },
+    {
+      "id": "opinion",
+      "label": "의견제시"
+    },
+    {
+      "id": "debate",
+      "label": "찬반토론"
+    }
+  ],
+  "tags": [
+    {
+      "id": "marine_incident",
+      "label": "사건·사고"
+    },
+    {
+      "id": "current_affairs",
+      "label": "시사·이슈"
+    }
+  ]
+}

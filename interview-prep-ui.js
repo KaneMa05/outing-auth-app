@@ -1,3 +1,4 @@
+import {taxonomyFilters,taxonomySummary,taxonomyEditor,taxonomyPayload} from './client/interview-taxonomy-ui.js?v=20261102-taxonomy';
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
@@ -372,8 +373,8 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     `<label>대상<select name="registeredOnly">${options([['true','등록 학생'],['false','전체 학생·등록하기']],String(filter.registeredOnly!==false))}</select></label>
     <label>준비 항목<select name="topicId"><option value="">전체 항목</option>${options(catalog.topics.filter(t=>t.active).map(t=>[t.id,t.title]),filter.topicId)}</select></label>
     <label>작성 상태<select name="noteStatus">${options([['','전체'],['empty','미작성'],['draft','작성 중'],['submitted','작성 완료'],['needs_revision','보완 필요'],['approved','강사 확인'],['no_experience','소재 찾기'],['changed','항목 변경']],filter.noteStatus||'')}</select></label>`}
-    <button class="ip-btn ip-primary">검색</button></form>${isQ?`<p class="ip-help">질문·분류·원문 해설을 확인한 뒤 공개 승인하세요. 승인된 질문만 수강생에게 표시됩니다. ${category==='personality'?'인성 준비 항목 연결은 선택 사항입니다. 연결하지 않아도 공개 승인할 수 있습니다.':'직무 질문에는 인성 준비 항목을 연결하지 않습니다.'} 승인 후 내용을 수정하면 다시 승인 대기로 바뀝니다.</p><div class="ip-toolbar">${btn('질문 추가','question-new',canWrite?'':'disabled')}${btn('선택 문항 공개 승인','question-publish',canWrite?'':'disabled')}</div>`:''}
-    <div class="ip-panel ip-table-wrap">${isQ?`<table class="ip-audio-question-table"><thead><tr><th>질문</th><th>항목·직렬</th><th>공개 승인 여부</th><th>관리</th></tr></thead><tbody>${list.map(q=>`<tr><td><label><input type="checkbox" data-publish-id="${esc(q.id)}" ${canWrite&&q.status==='draft'?'':'disabled'}> ${esc(questionTitle(q))}</label>${questionOriginal(q)}<small>출처 ${q.source_count}건</small>${questionAudioMarkup(q)}</td><td>${esc(q.topic_ids.map(id=>catalog.topics.find(t=>t.id===id)?.title||id).join(' · ')||(q.category==='personality'?'미연결 (선택)':''))}<br><small>${esc(q.tracks.join(' · ')||'공통')}</small></td><td>${approvalBadge(q)}</td><td><div class="ip-question-actions">${btn('검토·수정','question-edit',`data-id="${esc(q.id)}"`)}${approvalButton(q)}</div></td></tr>`).join('')}</tbody></table>`:
+    ${isQ?taxonomyFilters(filter):''}<button class="ip-btn ip-primary">검색</button></form>${isQ&&Number.isSafeInteger(r.total)?`<p class="ip-help">검색 결과 ${r.total.toLocaleString('ko-KR')}개</p>`:''}${isQ?`<p class="ip-help">질문·분류·원문 해설을 확인한 뒤 공개 승인하세요. 승인된 질문만 수강생에게 표시됩니다. ${category==='personality'?'인성 준비 항목 연결은 선택 사항입니다. 연결하지 않아도 공개 승인할 수 있습니다.':'직무 질문에는 인성 준비 항목을 연결하지 않습니다.'} 승인 후 내용을 수정하면 다시 승인 대기로 바뀝니다.</p><div class="ip-toolbar">${btn('질문 추가','question-new',canWrite?'':'disabled')}${btn('선택 문항 공개 승인','question-publish',canWrite?'':'disabled')}</div>`:''}
+    <div class="ip-panel ip-table-wrap">${isQ?`<table class="ip-audio-question-table"><thead><tr><th>질문</th><th>분야·항목·직렬</th><th>공개 승인 여부</th><th>관리</th></tr></thead><tbody>${list.map(q=>`<tr><td><label><input type="checkbox" data-publish-id="${esc(q.id)}" ${canWrite&&q.status==='draft'?'':'disabled'}> ${esc(questionTitle(q))}</label>${questionOriginal(q)}<small>출처 ${q.source_count}건</small>${questionAudioMarkup(q)}</td><td>${esc(q.topic_ids.map(id=>catalog.topics.find(t=>t.id===id)?.title||id).join(' · ')||(q.category==='personality'?'미연결 (선택)':''))}<br><small>${esc(q.tracks.join(' · ')||'공통')}</small>${taxonomySummary(q)}</td><td>${approvalBadge(q)}</td><td><div class="ip-question-actions">${btn('검토·수정','question-edit',`data-id="${esc(q.id)}"`)}${btn('분류 검토','taxonomy-edit',`data-id="${esc(q.id)}"`)}${approvalButton(q)}</div></td></tr>`).join('')}</tbody></table>`:
     `<table class="ip-matrix"><thead><tr><th>학생·이용 관리</th><th>필수 작성</th>${catalog.topics.filter(t=>t.active).map(t=>`<th>${esc(t.title)}${t.required?' *':''}</th>`).join('')}</tr></thead><tbody>${list.map(s=>{const required=catalog.topics.filter(t=>t.required&&topicApplicable(t,s.track)),complete=required.filter(t=>s.notes.some(n=>n.topic_id===t.id&&n.topic_revision===t.revision&&['submitted','approved'].includes(n.status))).length;return `<tr><td><strong>${esc(s.name)}</strong><br><small>${esc(s.id)} · ${esc(s.track||'미등록')}<br>${s.track?(s.enabled?'이용 허용':'이용 중지'):''}${s.expires_on?' · '+esc(s.expires_on):''}<br>${s.mock_test_enabled?'모의면접 테스트 허용':'모의면접 테스트 비허용'}</small><br>${btn('등록·수정','member-edit',`data-id="${esc(s.id)}"`)}${s.track?btn('인생그래프','life',`data-id="${esc(s.id)}"`)+btn('작성 답변','writing',`data-id="${esc(s.id)}"`):''}</td><td>${s.track?`${complete} / ${required.length}`:'미등록'}</td>${catalog.topics.filter(t=>t.active).map(t=>{const n=s.notes.find(n=>n.topic_id===t.id);return `<td>${s.track&&!topicApplicable(t,s.track)?'대상 아님':`<button class="ip-link" data-ip="feedback" data-id="${esc(s.id)}" data-topic="${esc(t.id)}">${n&&n.topic_revision!==t.revision?'항목 변경':badge(n)}</button>`}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table>`}
     ${list.length?'':'<p class="ip-empty">검색 결과가 없습니다.</p>'}</div>
     <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
@@ -453,7 +454,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       <label>관리 상태<select name="status">${options([['draft','승인 대기'],...(selected.status==='published'?[['published','공개 승인 완료']]:[]),['archived','보관']],selected.status)}</select></label>
       <p class="ip-help">공개 승인은 아래 별도 버튼에서 진행합니다. 질문·분류·연결 항목·직렬을 수정하면 다시 승인해야 수강생에게 표시됩니다. 수정 중인 내용은 먼저 저장해주세요.</p>
       <div class="ip-toolbar"><button class="ip-btn ip-primary" data-write>저장</button>${id?btn('삭제·보관','question-delete','data-write'):''}${btn('닫기','close')}</div></form>
-      <div data-editor-question-audio>${questionAudioMarkup(selected)}</div>
+      ${taxonomySummary(selected)}<div data-editor-question-audio>${questionAudioMarkup(selected)}</div>
       ${r?`<h3>원본 출처와 해설</h3>${r.sources.map(s=>`<details><summary>${esc(s.year)} · ${esc(s.track)} · ${esc(s.region)} · Q${esc(s.number)}</summary><p class="ip-help">${esc(s.filename)}<br>${esc(s.section_title)} · ${esc(s.locator)}</p><p>${esc(s.original_prompt)}</p><div class="ip-feedback">${esc(s.answer||'원문에 해설 없음')}</div></details>`).join('')}<div class="ip-toolbar">${approvalButton(selected)}</div>`:''}`);
     bindQuestionAudio();
   }
@@ -484,13 +485,14 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     busy=true;target.disabled=true;
     try{
       const a=target.dataset.ip;
-      if(['category','tab','section','prev','next','question-new','question-edit','analysis-edit','application-reject','application-edit','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled'].includes(a)&&!canLeave())return;
+      if(['category','tab','section','prev','next','question-new','question-edit','taxonomy-edit','analysis-edit','application-reject','application-edit','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled'].includes(a)&&!canLeave())return;
       if(['category','tab','section','close'].includes(a))dirty=false;
       if(a==='section'){if(onSection)onSection(target.dataset.section);else await openSection(target.dataset.section);}
       else if(a==='category'){category=target.dataset.category;tab='questions';page=0;filter={};shell();await load();}
       else if(a==='tab'){tab=target.dataset.tab;page=0;filter={};shell();await load();}
       else if(a==='enabled'){if(confirm(catalog.enabled?'면접 준비 기능 이용을 중지할까요?':'검토한 항목을 등록 학생에게 개방할까요?')){await request('admin_enabled',{enabled:!catalog.enabled});await refresh();}}
       else if(a==='prev'||a==='next'){page+=a==='next'?1:-1;await load();}
+      else if(a==='taxonomy-edit'){const r=await request('admin_question_detail',{id:target.dataset.id});if(destroyed)return;selected=r.question;editor(taxonomyEditor(selected,r.sources));}
       else if(a==='question-new'||a==='question-edit')await editQuestion(target.dataset.id);
       else if(a==='analysis-edit')await editAnalysis(target.dataset.id);
       else if(a==='analysis-source'){
@@ -547,7 +549,8 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(!canWrite)return;
     busy=true;const submit=form.querySelector('button');submit.disabled=true;
     try{
-      if(form.matches('[data-question-form]'))await request('admin_question_save',{id:selected.id,revision:selected.revision,prompt:f.get('prompt'),category:f.get('category'),topicIds:f.get('category')==='personality'?f.getAll('topicIds'):[],tracks:f.getAll('tracks'),status:f.get('status')});
+      if(form.matches('[data-taxonomy-form]'))await request('admin_question_taxonomy_save',taxonomyPayload(selected,f));
+      else if(form.matches('[data-question-form]'))await request('admin_question_save',{id:selected.id,revision:selected.revision,prompt:f.get('prompt'),category:f.get('category'),topicIds:f.get('category')==='personality'?f.getAll('topicIds'):[],tracks:f.getAll('tracks'),status:f.get('status')});
       else if(form.matches('[data-topic-form]'))await request('admin_topic_save',{id:selected.id,revision:selected.revision,title:f.get('title'),kind:f.get('kind'),guidance:f.get('guidance'),sortOrder:Number(f.get('sortOrder')),required:f.getAll('flags').includes('required'),active:f.getAll('flags').includes('active'),tracks:f.getAll('tracks')});
       else if(form.matches('[data-member-form]'))await request('admin_member_save',{targetStudentId:selected.id,track:f.get('track'),examNumber:f.get('examNumber'),expiresOn:f.get('expiresOn'),enabled:f.has('enabled'),mockTestEnabled:f.has('mockTestEnabled')});
       else if(form.matches('[data-feedback-form]'))await request('admin_feedback',{targetStudentId:selected.student.id,topicId:selected.t.id,revision:selected.n.revision,status:f.get('status'),feedback:f.get('feedback')});

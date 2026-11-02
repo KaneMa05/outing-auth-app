@@ -5,7 +5,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
@@ -49,6 +49,7 @@ function validate(body) {
     admin_analysis_detail:['id'],
   };
   if((required[body.action]||[]).some(key=>body[key]===undefined||body[key]===null))fail('invalid_request');
+  if(['admin_questions','admin_question_taxonomy_save'].includes(body.action))require('../lib/interview-taxonomy.cjs').validateTaxonomy(body);
   if(body.action==='admin_ai_usage')require('../lib/interview-ai-usage.cjs').validate(body);
   if(body.annotations!==undefined&&(!Array.isArray(body.annotations)||body.annotations.length>100||body.annotations.some(m=>!m||!['underline','strike','bracket','comment','color'].includes(m.type)||!Number.isInteger(m.start)||!Number.isInteger(m.end)||m.start<0||(m.type==='comment'?m.start>m.end:m.start>=m.end)||m.end>10000||typeof m.note!=='string'||m.note.length>1000||(m.type==='comment'&&!m.note.trim())||((m.color!==undefined||m.type==='color')&&(typeof m.color!=='string'||!/^#[0-9a-f]{6}$/i.test(m.color))))))fail('invalid_request');
   if(body.action==='note_save' && (!body.fields || typeof body.fields!=='object'||Array.isArray(body.fields)))fail('invalid_request');
@@ -77,7 +78,7 @@ function validate(body) {
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
 function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,
-  invoke=(action,actor,body)=>requestSupabase('POST',['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
+  invoke=(action,actor,body)=>requestSupabase('POST',['admin_questions','admin_question_detail','admin_question_taxonomy_save'].includes(action)?'rpc/ip_taxonomy_service':['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
     try {
