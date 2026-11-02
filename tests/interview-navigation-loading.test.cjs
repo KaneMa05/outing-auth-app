@@ -18,11 +18,14 @@ function load(file,extra={}){
  return context;
 }
 
-test('home starts all independent reads before any response, and my loads only membership',async()=>{
- const calls=[],pending=new Map(['bootstrap','life_get','writing_list'].map(a=>[a,deferred()]));
+test('home checks mock access then starts independent reads together; my loads only membership',async()=>{
+ const calls=[],pending=new Map(['mock_status','bootstrap','life_get','writing_list'].map(a=>[a,deferred()]));
  const host=element(),c=load('interview-app-ui.js');
  const mounted=c.mountInterviewApp(host,{request:action=>{calls.push(action);return pending.get(action).promise;}});
- assert.deepEqual(calls,['bootstrap','life_get','writing_list']);
+ assert.deepEqual(calls,['mock_status']);
+ pending.get('mock_status').resolve({enabled:false});
+ await settle();
+ assert.deepEqual(calls,['mock_status','bootstrap','life_get','writing_list']);
  pending.get('bootstrap').resolve({notes:[],topics:[],member:{}});
  pending.get('life_get').resolve({profile:null});pending.get('writing_list').resolve({writings:[]});
  const view=await mounted;

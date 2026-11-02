@@ -194,7 +194,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     });
   }
   function stopQuestionAudio(){host.querySelectorAll('audio[data-question-audio]').forEach(audio=>audio.pause());}
-  const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live'];
+  const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live','ai_history'];
   function setSection(section){
     category=['job','rubrics'].includes(section)?'job':'personality';
     tab=section==='home'?'dashboard':section==='job'?'questions':section;
@@ -228,6 +228,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('AI 생성 기록','tab',`data-tab="ai_history" ${tab==='ai_history'?'aria-current="page"':''}`));
     if(tab==='dashboard'){
       host.querySelector('.ip-hero h2').textContent='면접반 운영 현황';
       host.querySelector('.ip-hero>p').textContent='수강 신청과 학생 작성 현황을 확인하고 필요한 업무로 이동하세요.';
@@ -241,6 +242,12 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(tab==='preassignments'){
       host.querySelector('.ip-hero h2').textContent='과제 관리';
       host.querySelector('.ip-hero>p').textContent='핵심 25제, 기본이력, 인생그래프, 자기소개, 지원동기, 공직관의 작성 내용과 상태를 확인합니다.';
+      host.querySelector('.ip-hero .ip-summary').remove();
+      host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
+    }
+    if(tab==='ai_history'){
+      host.querySelector('.ip-hero h2').textContent='AI 생성 기록';
+      host.querySelector('.ip-hero>p').textContent='면접반 전체 수강생의 생성 요청과 결과를 확인합니다. 실패·중단·보완 요청과 재요청 이력도 포함합니다.';
       host.querySelector('.ip-hero .ip-summary').remove();
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
     }
@@ -278,11 +285,18 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     stopQuestionAudio();
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
+    if(tab==='ai_history'){
+      const {mountAIUsage}=await import('./interview-ai-usage.js?v=20261102-history');
+      if(destroyed||version!==loadVersion)return;
+      const next=mountAIUsage(box,{request});await next.ready;
+      if(destroyed||version!==loadVersion)next.destroy();else life=next;
+      return;
+    }
     const inlineEditor=box.querySelector('[data-editor]');
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261027-overview-modal');
+      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261102-history');
       if(destroyed||version!==loadVersion)return;
       const next=mountAssignmentManagement(box,{request,templates,canWrite});
       await next.ready;
@@ -295,7 +309,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261027-overview-modal');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261102-history');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

@@ -30,7 +30,7 @@ function validate(body) {
     if(body[key]!==undefined && (!Array.isArray(body[key]) || body[key].length>50 || body[key].some(v=>typeof v!=='string'||v.length>120))) fail('invalid_request');
   const required={
     writing_history:['kind','itemId'],admin_writing_history:['targetStudentId','kind','itemId'],
-    admin_review_detail:['targetStudentId'],admin_ai_usage:['targetStudentId'],admin_assignment_detail:['targetStudentId'],
+    admin_review_detail:['targetStudentId'],admin_assignment_detail:['targetStudentId'],
     writing_save:['kind','itemId','text','status','revision'],admin_writing_list:['targetStudentId'],
     admin_writing_feedback:['targetStudentId','kind','itemId','revision','status','feedback'],
     admin_application_decide:['id','revision','status','reviewNote'],
@@ -49,6 +49,7 @@ function validate(body) {
     admin_analysis_detail:['id'],
   };
   if((required[body.action]||[]).some(key=>body[key]===undefined||body[key]===null))fail('invalid_request');
+  if(body.action==='admin_ai_usage')require('../lib/interview-ai-usage.cjs').validate(body);
   if(body.annotations!==undefined&&(!Array.isArray(body.annotations)||body.annotations.length>100||body.annotations.some(m=>!m||!['underline','strike','bracket','comment','color'].includes(m.type)||!Number.isInteger(m.start)||!Number.isInteger(m.end)||m.start<0||(m.type==='comment'?m.start>m.end:m.start>=m.end)||m.end>10000||typeof m.note!=='string'||m.note.length>1000||(m.type==='comment'&&!m.note.trim())||((m.color!==undefined||m.type==='color')&&(typeof m.color!=='string'||!/^#[0-9a-f]{6}$/i.test(m.color))))))fail('invalid_request');
   if(body.action==='note_save' && (!body.fields || typeof body.fields!=='object'||Array.isArray(body.fields)))fail('invalid_request');
   if(body.action==='life_save' && (!body.content || typeof body.content!=='object'||Array.isArray(body.content)))fail('invalid_request');
@@ -130,13 +131,13 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         ?await require('../lib/interview-assignment-overview.cjs').overview(payload,actor,invoke,read)
         :await invoke(body.action,actor,payload));
     } catch(error) {
-      const known=['unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
+      const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
       known.push('rubric_incomplete');
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
       const status=error.status || (['revision_conflict','topic_changed','topic_in_use'].includes(code)?409:
-        ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code?400:503);
+        ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code==='not_found'?404:code?400:503);
       res.status(status).json({ok:false,error:code||'interview_unavailable'});
     }
   };

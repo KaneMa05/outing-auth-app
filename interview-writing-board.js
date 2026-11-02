@@ -1,4 +1,4 @@
-import {mountAIUsage} from './interview-ai-usage.js?v=20261027';
+import {mountAIUsage} from './interview-ai-usage.js?v=20261102-history';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관'};

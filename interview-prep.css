@@ -167,3 +167,11 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-root [data-linked-question-audio] audio{display:block;width:100%;max-width:300px}
 .ip-root .ip-audio-question-table{min-width:760px}
 .ip-root .ip-audio-question-table td:first-child{min-width:300px}
+.ip-root .ip-ai-history .ip-table-wrap{margin-top:12px}
+.ip-root .ip-ai-history td small{display:block;color:var(--ip-muted,#64748b);overflow-wrap:anywhere}
+.ip-root .ip-ai-history details{margin:12px 0;padding:12px;border:1px solid #dbe4ee;border-radius:12px;overflow-wrap:anywhere}
+.ip-root .ip-ai-history summary{cursor:pointer;font-weight:700}
+.ip-root .ip-ai-history dl{display:grid;grid-template-columns:minmax(80px,150px) minmax(0,1fr);gap:8px 12px;margin:12px 0}
+.ip-root .ip-ai-history dt{font-weight:600}.ip-root .ip-ai-history dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.ip-root .ip-ai-history li{margin:8px 0}.ip-root .ip-ai-history select{max-width:100%}
+@media(max-width:600px){.ip-root .ip-ai-history dl{display:block}.ip-root .ip-ai-history dd{margin:4px 0 12px}.ip-root .ip-ai-history td{min-width:110px}}

@@ -1,5 +1,5 @@
-import {mountAIUsage} from './interview-ai-usage.js?v=20261027';
-import {mountWritingBoard} from './interview-writing-board.js?v=20261027-ai-usage';
+import {mountAIUsage} from './interview-ai-usage.js?v=20261102-history';
+import {mountWritingBoard} from './interview-writing-board.js?v=20261102-history';
 import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
 import {getTopicQuestions} from './interview-prep-prompts.js';
 import {basicFields,basicFieldText} from './client/interview-basic-fields.js?v=20261024-school-status';
@@ -143,7 +143,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    <div class="ip-toolbar">${button('모두 펼치기','expand')}${button('모두 접기','collapse')}</div>
    <div data-review-records>${['all','db','basic','life'].includes(area)?`<h4>${assignmentArea==='basic'?'기본이력':assignmentArea==='life'?'인생그래프':'나의 DB · 인생그래프·경험·준비 노트'}</h4>${['basic','life'].includes(assignmentArea)?'<p class="ip-help">기본이력과 인생그래프의 저장·확인 상태는 함께 관리됩니다.</p>':''}${dbRecords()}`:''}
     ${Object.entries(writingKinds).filter(([id])=>area==='all'||area===id).map(([id,title])=>`<section class="ip-review-group" data-review-writing-kind="${esc(id)}"><h4>${esc(title)}</h4>${writingRecords(id)}</section>`).join('')}</div><div data-review-feedback-editor></div></section>`;
-  if(!['basic','life','db'].includes(area))aiUsage=mountAIUsage(host.querySelector('[data-review-ai-usage]'),{request,studentId:selected,kind:area==='all'?null:area});
+  aiUsage=mountAIUsage(host.querySelector('[data-review-ai-usage]'),{request,studentId:selected});
   mountHistories();
  }
  async function loadDetail(id){
