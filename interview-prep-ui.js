@@ -287,7 +287,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
     if(tab==='ai_history'){
-      const {mountAIUsage}=await import('./interview-ai-usage.js?v=20261102-history');
+      const {mountAIUsage}=await import('./interview-ai-usage.js?v=20261102-ai-answers');
       if(destroyed||version!==loadVersion)return;
       const next=mountAIUsage(box,{request});await next.ready;
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
@@ -297,7 +297,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(inlineEditor){inlineEditor.hidden=true;host.append(inlineEditor);}
     box.textContent='불러오는 중…';
     if(tab==='preassignments'){
-      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261102-source-tracks');
+      const {mountAssignmentManagement}=await import('./interview-assignment-management.js?v=20261102-ai-answers');
       if(destroyed||version!==loadVersion)return;
       const next=mountAssignmentManagement(box,{request,templates,canWrite});
       await next.ready;
@@ -310,7 +310,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261102-source-tracks');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261102-ai-answers');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

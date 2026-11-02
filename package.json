@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test:interview-ai-history": "node tests/interview-ai-capacity.test.cjs && node tests/interview-ai-usage.test.cjs && node tests/interview-ai-history-db.test.cjs && node tests/interview-ai-history-browser.cjs",
+    "test:interview-ai-history": "node tests/interview-ai-capacity.test.cjs && node tests/interview-question-usage.test.cjs && node tests/interview-ai-usage.test.cjs && node tests/interview-ai-history-db.test.cjs && node tests/interview-ai-history-browser.cjs",
     "test:penalty-export": "node tests/penalty-export.test.cjs",
     "test:interview-prep": "node tests/interview-prep.test.cjs",
     "test:interview-publication": "node tests/interview-question-publication.test.cjs && node tests/interview-question-publication-ui.test.cjs",

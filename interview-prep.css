@@ -173,5 +173,7 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-root .ip-ai-history summary{cursor:pointer;font-weight:700}
 .ip-root .ip-ai-history dl{display:grid;grid-template-columns:minmax(80px,150px) minmax(0,1fr);gap:8px 12px;margin:12px 0}
 .ip-root .ip-ai-history dt{font-weight:600}.ip-root .ip-ai-history dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.ip-root .ip-ai-history .ip-student-answer{margin:12px 0;border-left:3px solid #4775a9}
+.ip-root .ip-ai-history [data-ai-current-experiences] article+article{border-top:1px solid #dbe4ee;margin-top:16px;padding-top:12px}
 .ip-root .ip-ai-history li{margin:8px 0}.ip-root .ip-ai-history select{max-width:100%}
 @media(max-width:600px){.ip-root .ip-ai-history dl{display:block}.ip-root .ip-ai-history dd{margin:4px 0 12px}.ip-root .ip-ai-history td{min-width:110px}}

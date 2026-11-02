@@ -17,12 +17,13 @@ const {chromium}=require('C:/Users/W11/.cache/codex-runtimes/codex-primary-runti
   await page.evaluate(async()=>{
    window.calls=[];window.fail=false;
    const sources=[{id:'drafts',title:'답변 초안'},{id:'questions',title:'인생그래프 후속 질문'},{id:'diagnosis',title:'핵심 25제 진단'}];
+   const studentUsage={profileAvailable:true,savedAt:'2026-11-02T02:00:00Z',questionCount:2,savedAnswerCount:1,addedQuestionCount:2,questions:[{question:'<img src=x onerror="window.injected=true">경험에서 본인이 맡은 역할은 무엇인가요?',matches:[{experienceTitle:'팀 프로젝트',answer:'학생이 직접 쓴 저장 답변 <script>window.injected=true</script>'}]},{question:'두 번째 질문은 무엇인가요?',matches:[{experienceTitle:'팀 프로젝트',answer:''}]}],experiences:[{title:'팀 프로젝트',age:'23',content:'현재 경험 원문과 질문 아래에 저장한 답변',appeal:'협업'}]};
    window.request=async(action,b={})=>{
     calls.push({action,...b});if(action==='admin_catalog')return {enabled:true,topics:[],tracks:[],categoryCounts:{}};
     if(action!=='admin_ai_usage')throw Error('unexpected action');if(window.fail)throw Error('offline');
-    if(b.recordId){if(window.delayed)return new Promise(r=>window.releaseDetail=()=>r({sections:[{title:'생성된 질문',value:['지연된 결과']}]}));return {sections:[{title:'생성된 질문',value:['<img src=x onerror="window.injected=true">경험에서 본인이 맡은 역할은 무엇인가요?']},{title:'재요청 전 결과',value:[{status:'NEEDS_INPUT',result:{missing:['실제로 한 행동을 보완해주세요.']}},{status:'COMPLETED',result:{answer:'보완한 자료로 생성한 답변'}}]}]};}
+    if(b.recordId){if(window.delayed)return new Promise(r=>window.releaseDetail=()=>r({sections:[{title:'생성된 질문',value:['지연된 결과']}]}));return {studentUsage:b.source==='questions'?studentUsage:undefined,sections:[{title:'생성된 질문',value:['<img src=x onerror="window.injected=true">경험에서 본인이 맡은 역할은 무엇인가요?']},{title:'재요청 전 결과',value:[{status:'NEEDS_INPUT',result:{missing:['실제로 한 행동을 보완해주세요.']}},{status:'COMPLETED',result:{answer:'보완한 자료로 생성한 답변'}}]}]};}
     const second=!!b.cursor,types=b.source?[b.source]:['questions','drafts','diagnosis'];
-    return {ok:true,sources,unavailable:[],records:Array.from({length:second?2:25},(_,i)=>({id:'00000000-0000-0000-0000-'+String((second?25:0)+i).padStart(12,'0'),source:types[i%types.length],kind:types[i%types.length]==='drafts'?'self_intro':types[i%types.length],title:sources.find(s=>s.id===types[i%types.length]).title,studentName:'가상 수강생 '+(i+1),studentId:'test-'+i,createdAt:'2026-11-02T01:30:00.123456+00:00',statuses:[i===0?'failed':'completed']})),nextCursor:second?null:'next-fixture'};
+    return {ok:true,sources,unavailable:[],records:Array.from({length:second?2:25},(_,i)=>({id:'00000000-0000-0000-0000-'+String((second?25:0)+i).padStart(12,'0'),source:types[i%types.length],kind:types[i%types.length]==='drafts'?'self_intro':types[i%types.length],title:sources.find(s=>s.id===types[i%types.length]).title,studentName:'가상 수강생 '+(i+1),studentId:'test-'+i,createdAt:'2026-11-02T01:30:00.123456+00:00',statuses:[i===1?'failed':'completed'],studentUsage:types[i%types.length]==='questions'?{profileAvailable:true,questionCount:2,savedAnswerCount:1,addedQuestionCount:2}:undefined})),nextCursor:second?null:'next-fixture'};
    };
    const {mountAdmin}=await import('/interview-prep-ui.js');window.admin=await mountAdmin(document.querySelector('#host'),{request,canWrite:false,initialSection:'ai_history'});
   });
@@ -30,8 +31,11 @@ const {chromium}=require('C:/Users/W11/.cache/codex-runtimes/codex-primary-runti
   assert.equal(await page.locator('[data-tab=ai_history]').getAttribute('aria-current'),'page');
   assert(await page.locator('[data-ai-usage-refresh]').isEnabled(),'Read-only administrator can refresh history');
   await page.locator('[data-ai-open]').first().click();await page.locator('[data-ai-detail] details').first().waitFor();
+  assert.match(await page.locator('[data-ai-saved-answer]').innerText(),/학생이 직접 쓴 저장 답변/);
+  assert.match(await page.locator('[data-ai-student-usage]').innerText(),/질문만 저장되어 있고 답변 내용은 아직 없습니다/);
+  await page.locator('[data-ai-detail] summary').filter({hasText:'재요청 전 결과'}).click();
   assert.match(await page.locator('[data-ai-detail]').innerText(),/보완한 자료로 생성한 답변/);
-  assert.equal(await page.locator('[data-ai-detail] img').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);
+  assert.equal(await page.locator('[data-ai-detail] img').count(),0);assert.equal(await page.locator('[data-ai-detail] script').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);
   await page.screenshot({path:path.join(output,'desktop.png'),fullPage:true});
   await page.locator('[data-ai-next]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-ai-open]').length===2);
   assert(await page.locator('[data-ai-next]').isDisabled());await page.locator('[data-ai-prev]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-ai-open]').length===25);

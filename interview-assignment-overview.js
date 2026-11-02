@@ -1,5 +1,5 @@
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {mountStudentReview} from './interview-review-ui.js?v=20261102-source-tracks';
+import {mountStudentReview} from './interview-review-ui.js?v=20261102-ai-answers';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles=['기본이력','인생그래프','자기소개','지원동기','공직관','핵심 25제'];
 const saved=status=>status==='saved'?'작성됨':'미작성';
