@@ -1,4 +1,5 @@
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
+import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountDraftWorkerStatus} from './interview-draft-worker-status.js?v=20261031-dashboard-navigation';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -153,31 +154,34 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   let life=null;
   let catalog,analysisCatalog,category='personality',tab='questions',page=0,filter={},list=[],busy=false,selected=null,destroyed=false,loadVersion=0,dirty=false;
   const questionAudio={},questionAudioLoading={};
-  async function loadQuestionAudio(audioCategory){
+  async function loadQuestionAudio(audioCategory,questions=[]){
     if(!['job','personality'].includes(audioCategory))return;
-    if(questionAudio[audioCategory])return;
+    if(questionAudio[audioCategory]){
+      if(questions.some(q=>questionAudio[audioCategory].get(q.id)?.prompt!==q.prompt))await loadQuestionAudio(audioCategory==='job'?'personality':'job');
+      return;
+    }
     if(!questionAudioLoading[audioCategory])questionAudioLoading[audioCategory]=(async()=>{
       try{
         const response=await fetch(`./assets/interview-${audioCategory}-audio/catalog.json`,{cache:'no-cache'});
         if(!response.ok)throw Error('audio_catalog_unavailable');
         const data=await response.json();
-        if(data.version!==1||!Array.isArray(data.clips))throw Error('invalid_audio_catalog');
-        questionAudio[audioCategory]=new Map(data.clips.filter(q=>/^q-[a-f0-9]+$/.test(q.id)&&new RegExp('^'+q.id+'-[a-f0-9]{16}\\.mp3$').test(q.file)).map(q=>[q.id,q]));
+        questionAudio[audioCategory]=indexQuestionAudioCatalog(data);
       }catch{questionAudio[audioCategory]=null;}
       finally{questionAudioLoading[audioCategory]=null;}
     })();
     await questionAudioLoading[audioCategory];
+    if(questions.some(q=>questionAudio[audioCategory]?.get(q.id)?.prompt!==q.prompt))await loadQuestionAudio(audioCategory==='job'?'personality':'job');
   }
   function questionAudioMarkup(q){
     if(!['job','personality'].includes(q.category))return '';
-    const audio=questionAudio[q.category],clip=audio?.get(q.id);
-    if(!audio)return '<p class="ip-help" role="status">질문 음성 목록을 불러오지 못했습니다. 다시 검색하거나 질문을 열어 재시도해주세요.</p>';
-    if(!clip)return '<p class="ip-help">질문 음성 미연결</p>';
-    if(clip.prompt!==q.prompt)return '<p class="ip-help">질문이 변경되어 음성 재연결이 필요합니다.</p>';
-    return `<div data-linked-question-audio><p class="ip-help">질문 음성 연결됨</p><audio data-question-audio controls preload="none" aria-label="질문 읽기 음성" src="./assets/interview-${esc(q.category)}-audio/${esc(clip.file)}"></audio><details><summary>음성 대본</summary><p>${esc(clip.spokenPrompt)}</p></details><p data-audio-status role="status"></p></div>`;
+    const audio=resolveQuestionAudio(q,questionAudio),clip=audio.clip;
+    if(audio.state==='unavailable')return '<p class="ip-help" role="status">질문 음성 목록을 불러오지 못했습니다. 다시 검색하거나 질문을 열어 재시도해주세요.</p>';
+    if(audio.state==='missing')return '<p class="ip-help">질문 음성 미연결</p>';
+    if(audio.state==='stale')return '<p class="ip-help">질문이 변경되어 음성 재연결이 필요합니다.</p>';
+    return `<div data-linked-question-audio><p class="ip-help">질문 음성 연결됨</p><audio data-question-audio controls preload="none" aria-label="질문 읽기 음성" src="${esc(audio.url)}"></audio><details><summary>음성 대본</summary><p>${esc(clip.spokenPrompt)}</p></details><p data-audio-status role="status"></p></div>`;
   }
   function questionTitle(q){
-    const clip=questionAudio[q.category]?.get(q.id);
+    const clip=resolveQuestionAudio(q,questionAudio).clip;
     return clip?.prompt===q.prompt&&clip.spokenPrompt?(clip.displayPrompt||clip.spokenPrompt):q.prompt;
   }
   function questionOriginal(q){
@@ -347,7 +351,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     const r=await request(isQ?'admin_questions':'admin_members',{...filter,category,page});
     if(destroyed||version!==loadVersion)return;
     list=isQ?r.questions:r.members;
-    if(isQ){await loadQuestionAudio(category);if(destroyed||version!==loadVersion)return;}
+    if(isQ){await loadQuestionAudio(category,list);if(destroyed||version!==loadVersion)return;}
     box.innerHTML=`<form data-filter class="ip-toolbar"><label>${isQ?'질문 검색':'이름·학생 ID'}<input name="search" value="${esc(filter.search||'')}" maxlength="200"></label>
     ${isQ?`${category==='personality'?`<label>인성 준비 항목<select name="topicId"><option value="">전체 항목</option>${options(catalog.topics.map(t=>[t.id,t.title]),filter.topicId)}</select></label>`:''}<label>직렬<select name="track"><option value="">전체 직렬</option>${options(tracks.map(t=>[t,t]),filter.track)}</select></label><label>상태<select name="status">${options([['','전체'],['draft','승인 대기'],['published','공개 승인 완료'],['archived','보관']],filter.status||'')}</select></label>`:
     `<label>대상<select name="registeredOnly">${options([['true','등록 학생'],['false','전체 학생·등록하기']],String(filter.registeredOnly!==false))}</select></label>
@@ -422,7 +426,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   async function editQuestion(id){
     const r=id?await request('admin_question_detail',{id}):null;
-    if(r)await loadQuestionAudio(r.question.category);
+    if(r)await loadQuestionAudio(r.question.category,[r.question]);
     if(destroyed)return;
     stopQuestionAudio();
     selected=r?.question||{revision:0,prompt:'',category,topic_ids:[],tracks:[],status:'draft'};
