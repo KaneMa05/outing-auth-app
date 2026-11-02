@@ -109,7 +109,7 @@ async function logoutInterviewStudent(student,token){
 
 function renderInterviewPrep() { return renderInterviewPrepModule(false); }
 function renderInterviewPrepAdmin() { return renderInterviewPrepModule(true); }
-const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
+const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
 function getInterviewAdminSection(){
   const section=new URLSearchParams((location.hash.split('?')[1]||'')).get('section');
   return Object.hasOwn(interviewAdminSections,section)?section:'home';

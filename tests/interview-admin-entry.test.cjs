@@ -1,8 +1,12 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const vm=require('node:vm');
 const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
-assert.equal(entry,'interview-prep.js?v=20261102-source-tracks');
+assert.equal(entry,'interview-prep.js?v=20261102-ai-history-nav');
+assert(read('teacher.html').includes('data-interview-section="ai_history"'));
+const routing=read('interview-prep.js'),start=routing.indexOf('const interviewAdminSections='),end=routing.indexOf('function restoreInterviewAdminRoute',start);
+assert.equal(vm.runInNewContext(routing.slice(start,end)+';getInterviewAdminSection()',{URLSearchParams,location:{hash:'#interview-prep-admin?section=ai_history'}}),'ai_history');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
 assert(read('sw.js').includes('v552-interview-integration'));
 assert.match(read('interview-prep.js'),/admin\?import\('\.\/interview-prep-ui\.js\?v=[^']+'\)/);
