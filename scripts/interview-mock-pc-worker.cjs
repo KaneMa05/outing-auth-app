@@ -45,7 +45,7 @@ async function main(){
  const lock=await fs.open(path.join(root,'worker.lock'),'wx',0o600);await lock.writeFile(String(process.pid));
  try{
   let healthProbe,healthTimer,reportedHealth;
-  const request=async(action,body={})=>{const current=action==='heartbeat'?healthProbe?.read():null,health=current?.checkedAt!==reportedHealth?current:null;const r=await fetch(new URL('/api/interview-mock-worker',url),{method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body,...(health?{health}:{})})});const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||'connection_unavailable');if(health&&data.healthRecorded===true)reportedHealth=health.checkedAt;return data;};
+  const request=async(action,body={})=>{const current=['heartbeat','poll'].includes(action)?healthProbe?.read():null,health=current?.checkedAt!==reportedHealth?current:null;const r=await fetch(new URL('/api/interview-mock-worker',url),{method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body,...(health?{health}:{})})});const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||'connection_unavailable');if(health&&data.healthRecorded===true)reportedHealth=health.checkedAt;return data;};
   const infer=createInference({runtimeDir:root}),receipts=createReceipts(root),models={judge:process.env.INTERVIEW_MOCK_CLI_JUDGE_MODEL||MODEL,verifier:process.env.INTERVIEW_MOCK_CLI_VERIFIER_MODEL||MODEL,analyzer:process.env.INTERVIEW_MOCK_CLI_ANALYSIS_MODEL||MODEL};
   const transcriptionConfig=process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG?JSON.parse(await fs.readFile(process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG,'utf8')):null;
   const transcribe=transcriptionConfig?createTranscriber(transcriptionConfig,{runtimeDir:root}):null;
@@ -53,9 +53,12 @@ async function main(){
   healthProbe=createHealthProbe({executable:process.env.INTERVIEW_CODEX||'codex',models,transcriptionConfigured});await healthProbe.check();
   healthTimer=setInterval(()=>void healthProbe.check().catch(()=>{}),60000);
   console.log(JSON.stringify({event:'worker_started',audioProcessing:!!transcribe}));
-  try{for(;;){try{await request('heartbeat');await runOnce({request,receipts,infer,transcribe,models});}catch(e){const reason=['execution_needs_review','delivery_pending','lease_lost'].includes(e.message)?e.message:'processing_unavailable';
+  try{for(;;){try{
+   if(!healthProbe.read()?.cliReady){await request('heartbeat');await wait(30000);continue;}
+   const worked=await runOnce({request,receipts,infer,transcribe,models});if(!worked)await wait(30000);
+  }catch(e){const reason=['execution_needs_review','delivery_pending','lease_lost'].includes(e.message)?e.message:'processing_unavailable';
    const current=healthProbe.read();if(current){current.blockedReason=reason;current.checkedAt=new Date().toISOString();await request('heartbeat').catch(()=>{});}
-   console.error(JSON.stringify({event:'worker_paused',reason}));process.exitCode=1;return;}await wait(5000);}}finally{clearInterval(healthTimer);}
+   console.error(JSON.stringify({event:'worker_paused',reason}));process.exitCode=1;return;}}}finally{clearInterval(healthTimer);}
  }finally{await lock.close();await fs.rm(path.join(root,'worker.lock'),{force:true});}
 }
 if(require.main===module)main().catch(()=>{console.error('Worker configuration or receipt requires review.');process.exitCode=1;});

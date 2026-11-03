@@ -10,7 +10,7 @@ function defaults(){return {token:process.env.INTERVIEW_MOCK_CLI_WORKER_TOKEN,co
 function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);const d=deps||defaults(),token=(req.headers.authorization||'').replace(/^Bearer /,'');
  if(!d.configured||!d.token||Buffer.byteLength(token)!==Buffer.byteLength(d.token)||!timingSafeEqual(Buffer.from(token),Buffer.from(d.token)))throw Error('unauthorized');
- const b=await bodyOf(req,1100000),fields={heartbeat:['id','lease','health'],poll:['kinds'],complete:['id','lease','report'],fail:['id','lease']};
+ const b=await bodyOf(req,1100000),fields={heartbeat:['id','lease','health'],poll:['kinds','health'],complete:['id','lease','report'],fail:['id','lease']};
  if(!fields[b.action]||Object.keys(b).some(k=>!['action',...fields[b.action]].includes(k)))throw Error('invalid_request');
  if(['complete','fail'].includes(b.action)||b.id!==undefined)if(!UUID.test(b.id||'')||!UUID.test(b.lease||''))throw Error('invalid_request');
  if(b.kinds!==undefined&&(!Array.isArray(b.kinds)||!b.kinds.length||b.kinds.some(k=>!['job','personality','report'].includes(k))))throw Error('invalid_request');

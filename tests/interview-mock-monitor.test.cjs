@@ -62,6 +62,12 @@ test('worker health authenticates before writes and telemetry failure preserves 
  const unavailable=workerApi.createHandler({token,configured:true,queue:{invoke:async()=>({ok:true})},reportHealth:async()=>{throw Error('migration missing');}});
  const result=await send(unavailable,{action:'heartbeat',health:structuredClone(health)},headers);assert.equal(result.status,200);assert.equal(result.data.healthRecorded,false);
 });
+test('polling carries fresh health without a second heartbeat request or exposing it to the queue',async()=>{
+ const health={checkedAt:stamp(),cliReady:true,transcriptionConfigured:false,verificationConfigured:false,analysisConfigured:true,blockedReason:''},token='x'.repeat(43),queueCalls=[],reports=[];
+ const handler=workerApi.createHandler({token,configured:true,queue:{invoke:async(...args)=>{queueCalls.push(args);return {ok:true,jobs:[]};}},reportHealth:async value=>reports.push(value)});
+ const result=await send(handler,{action:'poll',kinds:['report'],health},{authorization:'Bearer '+token});
+ assert.equal(result.status,200);assert.equal(result.data.healthRecorded,true);assert.equal(queueCalls.length,1);assert.deepEqual(queueCalls[0][2],{action:'poll',kinds:['report']});assert.deepEqual(reports,[health]);
+});
 test('health probe only checks saved ChatGPT login, coalesces and caches; excludes API credentials',async()=>{
  let launches=0,time=now,child;
  const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='must-not-forward';
