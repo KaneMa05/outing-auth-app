@@ -38,6 +38,7 @@ async function runOnce({request,receipts,infer,transcribe,models,heartbeatMs=150
   await request('fail',ref).catch(()=>{});throw e;
  }finally{clearInterval(beat);}
 }
+async function canRetryIdle(error,receipts){return error.transient===true&&await receipts.read()===null;}
 async function main(){
  const origin=process.env.INTERVIEW_MOCK_CLI_ORIGIN,token=process.env.INTERVIEW_MOCK_CLI_WORKER_TOKEN;
  const url=new URL(origin);if(url.protocol!=='https:'||url.username||url.password||url.pathname!=='/'||url.search||url.hash||!/^[A-Za-z0-9_-]{43}$/.test(token||''))throw Error('configuration');
@@ -45,7 +46,11 @@ async function main(){
  const lock=await fs.open(path.join(root,'worker.lock'),'wx',0o600);await lock.writeFile(String(process.pid));
  try{
   let healthProbe,healthTimer,reportedHealth;
-  const request=async(action,body={})=>{const current=['heartbeat','poll'].includes(action)?healthProbe?.read():null,health=current?.checkedAt!==reportedHealth?current:null;const r=await fetch(new URL('/api/interview-mock-worker',url),{method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body,...(health?{health}:{})})});const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||'connection_unavailable');if(health&&data.healthRecorded===true)reportedHealth=health.checkedAt;return data;};
+  const request=async(action,body={})=>{
+   const current=['heartbeat','poll'].includes(action)?healthProbe?.read():null,health=current?.checkedAt!==reportedHealth?current:null;let status;
+   try{const r=await fetch(new URL('/api/interview-mock-worker',url),{method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body,...(health?{health}:{})})});status=r.status;const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||'connection_unavailable');if(health&&data.healthRecorded===true)reportedHealth=health.checkedAt;return data;}
+   catch(e){e.transient=status>=500||status===429||e instanceof TypeError||['AbortError','TimeoutError'].includes(e.name);throw e;}
+  };
   const infer=createInference({runtimeDir:root}),receipts=createReceipts(root),models={judge:process.env.INTERVIEW_MOCK_CLI_JUDGE_MODEL||MODEL,verifier:process.env.INTERVIEW_MOCK_CLI_VERIFIER_MODEL||MODEL,analyzer:process.env.INTERVIEW_MOCK_CLI_ANALYSIS_MODEL||MODEL};
   const transcriptionConfig=process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG?JSON.parse(await fs.readFile(process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG,'utf8')):null;
   const transcribe=transcriptionConfig?createTranscriber(transcriptionConfig,{runtimeDir:root}):null;
@@ -56,10 +61,12 @@ async function main(){
   try{for(;;){try{
    if(!healthProbe.read()?.cliReady){await request('heartbeat');await wait(30000);continue;}
    const worked=await runOnce({request,receipts,infer,transcribe,models});if(!worked)await wait(30000);
-  }catch(e){const reason=['execution_needs_review','delivery_pending','lease_lost'].includes(e.message)?e.message:'processing_unavailable';
+  }catch(e){
+   if(await canRetryIdle(e,receipts)){console.error(JSON.stringify({event:'worker_connection_delayed'}));await wait(30000);continue;}
+   const reason=['execution_needs_review','delivery_pending','lease_lost'].includes(e.message)?e.message:'processing_unavailable';
    const current=healthProbe.read();if(current){current.blockedReason=reason;current.checkedAt=new Date().toISOString();await request('heartbeat').catch(()=>{});}
    console.error(JSON.stringify({event:'worker_paused',reason}));process.exitCode=1;return;}}}finally{clearInterval(healthTimer);}
  }finally{await lock.close();await fs.rm(path.join(root,'worker.lock'),{force:true});}
 }
 if(require.main===module)main().catch(()=>{console.error('Worker configuration or receipt requires review.');process.exitCode=1;});
-module.exports={runOnce,createReceipts,deliver};
+module.exports={runOnce,createReceipts,deliver,canRetryIdle};

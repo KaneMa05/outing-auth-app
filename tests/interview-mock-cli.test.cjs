@@ -36,6 +36,13 @@ test('worker resumes completed encrypted receipts without repeating model execut
 test('workers without a transcription adapter claim only summary jobs',async()=>{
  let kinds;assert.equal(await runOnce({receipts:receipts(),request:async(action,body)=>{kinds=body.kinds;return {jobs:[]};}}),false);assert.deepEqual(kinds,['report']);
 });
+test('temporary idle network failures can recover but an uncertain or completed execution never reruns',async()=>{
+ const {canRetryIdle}=require('../scripts/interview-mock-pc-worker.cjs'),error=Object.assign(Error('connection_unavailable'),{transient:true});
+ assert.equal(await canRetryIdle(error,receipts()),true);
+ assert.equal(await canRetryIdle(Error('unauthorized'),receipts()),false);
+ for(const phase of ['started','result'])assert.equal(await canRetryIdle(error,receipts({phase})),false);
+ await assert.rejects(canRetryIdle(error,{read:async()=>{throw Error('receipt_unavailable');}}),/receipt_unavailable/);
+});
 test('selecting PC mode without transcription readiness fails closed instead of falling back to paid API',()=>{
  const {audioConfiguration}=require('../lib/interview-mock-cli-queue.cjs');
  assert.deepEqual(audioConfiguration('job',{}),{});
