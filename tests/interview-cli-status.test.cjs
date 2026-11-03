@@ -80,14 +80,17 @@ test('UI shows each CLI, independent failures, disabled features and escaped tim
  const failed=renderCLIStatus({workers:[{id:'core25',available:false},{id:'questions',available:true,enabled:false,connected:true,lastSeenAt:stamp(-15),running:0,queued:0,lastFailedAt:'<img onerror=x>'}]});
  assert.match(failed,/상태 확인 불가/);assert.match(failed,/연결됨 · 요청 대기 중/);assert.match(failed,/꺼짐/);assert.doesNotMatch(failed,/<img/);
 });
-test('UI refresh avoids overlap, pauses when hidden and cleans up navigation and late responses',async()=>{
- const {mountCLIStatus}=await load();let listener,next,resolve,calls=0;
- const doc={hidden:false,addEventListener(name,fn){listener=fn;},removeEventListener(){listener=null;}};
+test('CLI status only refreshes on entry or request and ignores overlap and destroyed responses',async t=>{
+ const {mountCLIStatus}=await load();let listeners=0,resolve,calls=0;
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const doc={hidden:false,addEventListener(){listeners++;},removeEventListener(){}};
  const host={innerHTML:'',querySelector(){return null;}};
- const view=mountCLIStatus(host,{doc,request:async action=>{assert.equal(action,'admin_cli_status');calls++;if(calls===2)return new Promise(r=>resolve=r);return {};},schedule(fn,ms){assert.equal(ms,10000);next=fn;return 1;},cancel(){}});
+ const view=mountCLIStatus(host,{doc,request:async action=>{assert.equal(action,'admin_cli_status');calls++;if(calls===2)return new Promise(r=>resolve=r);return {};}});
  await view.ready;assert.equal(calls,1);assert.equal(view.canLeave(),true);
- doc.hidden=true;listener();await next();assert.equal(calls,1);
- doc.hidden=false;listener();await next();assert.equal(calls,2,'No overlapping requests');
+ assert.match(host.innerHTML,/조회 시점/);assert.doesNotMatch(host.innerHTML,/10초마다/);assert.equal(listeners,0);
+ t.mock.timers.tick(60000);await new Promise(r=>setImmediate(r));assert.equal(calls,1,'Staying on the home never polls');
+ doc.hidden=true;doc.hidden=false;await new Promise(r=>setImmediate(r));assert.equal(calls,1,'Returning to the tab never refreshes');
+ host.onclick({target:{closest:()=>({})},stopPropagation(){}});await view.refresh();assert.equal(calls,2,'No overlapping manual requests');
  view.destroy();host.innerHTML='another screen';resolve({});await new Promise(r=>setImmediate(r));
- assert.equal(host.innerHTML,'another screen');assert.equal(listener,null);assert.equal(host.onclick,null);
+ await view.refresh();t.mock.timers.tick(60000);assert.equal(calls,2);assert.equal(host.innerHTML,'another screen');assert.equal(host.onclick,null);
 });

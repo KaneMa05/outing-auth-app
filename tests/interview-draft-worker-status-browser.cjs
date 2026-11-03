@@ -46,8 +46,9 @@ const root=path.resolve(__dirname,'..');
    if(process.env.CLI_STATUS_SCREENSHOT_DIR){fs.mkdirSync(process.env.CLI_STATUS_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.CLI_STATUS_SCREENSHOT_DIR,'home-'+width+'.png'),fullPage:true});}
   }
   if(process.env.DRAFT_STATUS_SCREENSHOT)await page.screenshot({path:process.env.DRAFT_STATUS_SCREENSHOT,fullPage:true});
-  await page.clock.runFor(10000);assert.match(await card.textContent(),/연결 확인 지연/);
-  await page.clock.runFor(10000);assert.match(await card.textContent(),/상태를 확인하지 못했습니다/);
+  await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>window.statusCalls),1,'No automatic status polling');
+  await card.getByRole('button',{name:'상태 새로고침'}).click();assert.match(await card.textContent(),/연결 확인 지연/);
+  await card.getByRole('button',{name:'상태 새로고침'}).click();assert.match(await card.textContent(),/상태를 확인하지 못했습니다/);
   await card.getByRole('button',{name:'상태 새로고침'}).click();
   assert.equal(await page.evaluate(()=>window.statusCalls),4);
   assert.match(await card.locator('[data-cli-worker="questions"]').textContent(),/연결됨 · 요청 대기 중/);
@@ -61,6 +62,6 @@ const root=path.resolve(__dirname,'..');
   const count=await page.evaluate(()=>window.statusCalls);
   await page.clock.runFor(30000);assert.equal(await page.evaluate(()=>window.statusCalls),count);
   await page.evaluate(()=>window.view.destroy());assert.deepEqual(errors,[]);
-  console.log('PASS browser: all CLI cards on admin home, busy/disconnected/partial/error states, manual refresh, mobile layout, sidebar navigation and polling cleanup');
+  console.log('PASS browser: all CLI cards on admin home, busy/disconnected/partial/error states, manual refresh, mobile layout, sidebar navigation and no automatic polling');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

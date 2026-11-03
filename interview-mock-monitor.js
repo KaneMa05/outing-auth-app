@@ -3,7 +3,7 @@ const stamp=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))?e
 const number=value=>Number.isSafeInteger(value)&&value>=0?value.toLocaleString('ko-KR'):'—';
 const names={job:'전공·직무 시험',personality:'인성 연습',live:'실전 AI 면접',report:'종합 분석'};
 const states={disabled:['신규 접수 꺼짐','muted'],configuration:['설정 확인 필요','warning'],unavailable:['확인 불가','error'],disconnected:['PC 연결 확인','error'],health_unknown:['실행 상태 미확인','warning'],blocked:['PC 처리 확인','error'],login_required:['로그인 확인 필요','error'],transcription_required:['음성 전사 설정 필요','warning'],verification_required:['검증 모델 확인','warning'],questions_required:['출제 문항 준비','warning'],attention:['처리 오류 확인','error'],recording_pending:['음성 저장 확인 대기','warning'],running:['처리 중','info'],queued:['처리 대기','info'],recent_failure:['최근 오류 기록','warning'],completed:['최근 처리 완료','success'],ready:['준비됨 · 처리 미확인','info']};
-function unavailable(){return {modes:Object.entries(names).map(([kind,label])=>({kind,label,state:'unavailable',message:'현재 상태를 확인하지 못했습니다. 잠시 후 다시 조회합니다.',metricsAvailable:false})),metricsAvailable:false};}
+function unavailable(){return {modes:Object.entries(names).map(([kind,label])=>({kind,label,state:'unavailable',message:'현재 상태를 확인하지 못했습니다. 상태 새로고침을 눌러 다시 확인해주세요.',metricsAvailable:false})),metricsAvailable:false};}
 export function renderMockMonitor(data){
  if(!data||!Array.isArray(data.modes)||data.modes.length!==4||new Set(data.modes.map(m=>m.kind)).size!==4||data.modes.some(m=>!names[m.kind]||!states[m.state]))data=unavailable();
  return `<div class="ip-mm-heading"><div><h3>모의면접 모니터링</h3><p>모드별 활성화 설정과 접속·처리 기록을 확인합니다.</p></div><button class="ip-btn" type="button" data-mock-monitor-refresh>상태 새로고침</button></div>
@@ -18,10 +18,10 @@ export function renderMockMonitor(data){
    ${mode.kind==='live'&&mode.recordingPending?`<p class="ip-mm-small">음성 저장 확인 대기 ${number(mode.recordingPending)}건</p>`:''}
    ${mode.metricsAvailable===false?'<p class="ip-mm-small" role="status">처리 집계 연결을 확인해주세요.</p>':''}
    ${mode.checks?.length?`<details><summary>준비 상태 상세</summary><ul>${[...mode.checks,...(mode.runtimeChecks||[])].map(c=>`<li>${escape(c.label)} <strong>${c.ok===null?'미확인':c.ok?'확인됨':'확인 필요'}</strong></li>`).join('')}</ul></details>`:''}</article>`;
- }).join('')}</div><div class="ip-mm-footer"><p>홈을 보고 있을 때 10초마다 갱신합니다. 상태 조회는 AI 분석이나 작업 재실행을 요청하지 않습니다.</p><p>PC 접속 신호는 45초, 실행 준비 보고는 2분 이내 기준입니다. 최근 처리 완료는 실제 음성 인식·평가 정확도를 보증하지 않습니다.</p><small>확인 시각: ${stamp(data.checkedAt)} (한국 시간)</small></div>`;
+ }).join('')}</div><div class="ip-mm-footer"><p>홈에 들어올 때 한 번 조회하며, 이후에는 ‘상태 새로고침’을 눌러 갱신합니다. 상태 조회는 AI 분석이나 작업 재실행을 요청하지 않습니다.</p><p>접속·실행 상태는 아래 확인 시각 기준입니다. PC 접속 신호는 45초, 실행 준비 보고는 2분 이내 기준입니다. 최근 처리 완료는 실제 음성 인식·평가 정확도를 보증하지 않습니다.</p><small>확인 시각: ${stamp(data.checkedAt)} (한국 시간)</small></div>`;
 }
-export function mountMockMonitor(host,{request,doc=document,schedule=setTimeout,cancel=clearTimeout}={}){
- let destroyed=false,timer,busy=false;
+export function mountMockMonitor(host,{request,doc=document}={}){
+ let destroyed=false,busy=false;
  host.classList?.add('ip-mock-monitor');
  if(doc.createElement&&!doc.querySelector('link[data-mock-monitor-style]')){const link=doc.createElement('link');link.rel='stylesheet';link.href='/interview-mock-monitor.css?v=20261102-monitor';link.dataset.mockMonitorStyle='';doc.head.appendChild(link);}
  function paint(data){
@@ -30,13 +30,13 @@ export function mountMockMonitor(host,{request,doc=document,schedule=setTimeout,
   for(const kind of open){const detail=host.querySelector?.(`[data-monitor-mode="${kind}"] details`);if(detail)detail.open=true;}
  }
  async function refresh(){
-  cancel(timer);if(destroyed||doc.hidden||busy)return;busy=true;
+  if(destroyed||busy)return;busy=true;
+  const control=host.querySelector?.('[data-mock-monitor-refresh]');if(control)control.disabled=true;
   try{const data=await request('admin_mock_monitor');if(!destroyed)paint(data);}
   catch{if(!destroyed)paint(unavailable());}
-  finally{busy=false;if(!destroyed&&!doc.hidden)timer=schedule(refresh,10000);}
+  finally{busy=false;}
  }
- const visibility=()=>{cancel(timer);if(!doc.hidden)void refresh();};doc.addEventListener('visibilitychange',visibility);
  host.innerHTML='<h3>모의면접 모니터링</h3><p>모드별 상태를 확인하는 중…</p>';
  host.onclick=e=>{if(e.target.closest('[data-mock-monitor-refresh]')){e.stopPropagation();void refresh();}};
- void refresh();return {canLeave:()=>true,refresh,destroy(){destroyed=true;cancel(timer);doc.removeEventListener('visibilitychange',visibility);host.onclick=null;}};
+ const ready=refresh();return {ready,canLeave:()=>true,refresh,destroy(){destroyed=true;host.onclick=null;}};
 }

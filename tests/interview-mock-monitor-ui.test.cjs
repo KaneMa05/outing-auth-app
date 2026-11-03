@@ -10,12 +10,13 @@ test('four modes show distinct activation, processing and error labels; data is 
  const html=renderMockMonitor(d);for(const text of ['최근 처리 완료','PC 연결 확인','신규 접수 꺼짐','실행 상태 미확인','전공·직무 시험','인성 연습','실전 AI 면접','종합 분석'])assert(html.includes(text));assert.doesNotMatch(html,/<img/);assert.match(html,/&lt;img/);
  d.modes[0].kind='unknown';assert.match(renderMockMonitor(d),/현재 상태를 확인하지 못했습니다/);assert.match(renderMockMonitor(buildStatus(null,{env:{},metricsAvailable:false})),/처리 집계 연결/);
 });
-test('visible polling prevents overlap, clears old success on errors, pauses and cleans up',async()=>{
- const {mountMockMonitor}=await load();let listener,next,calls=0,resolve,cancelled=0;
- const doc={hidden:false,addEventListener(name,fn){listener=fn;},removeEventListener(){listener=null;}},host={innerHTML:''};
- const view=mountMockMonitor(host,{doc,request:async action=>{assert.equal(action,'admin_mock_monitor');calls++;if(calls===3)return new Promise(r=>resolve=r);if(calls===2)throw Error('offline');const d=data();d.modes[0].state='completed';return d;},schedule(fn,ms){assert.equal(ms,10000);next=fn;return 1;},cancel(){cancelled++;}});
- await flush();assert.equal(calls,1);assert.match(host.innerHTML,/data-level="success"/);assert.equal(view.canLeave(),true);
- doc.hidden=true;listener();await next();assert.equal(calls,1);
- doc.hidden=false;listener();await flush();assert.equal(calls,2);assert.match(host.innerHTML,/현재 상태를 확인하지 못했습니다/);assert.doesNotMatch(host.innerHTML,/data-level="success"/);
- const pending=next();await view.refresh();assert.equal(calls,3);const before=host.innerHTML;view.destroy();resolve(data());await pending;assert.equal(host.innerHTML,before);assert.equal(listener,null);assert.equal(host.onclick,null);assert(cancelled>0);
+test('manual monitoring never polls or refreshes on tab return and safely handles errors and navigation',async t=>{
+ const {mountMockMonitor}=await load();let listeners=0,calls=0,resolve;
+ t.mock.timers.enable({apis:['setTimeout','setInterval']});
+ const doc={hidden:false,addEventListener(){listeners++;},removeEventListener(){}},host={innerHTML:''};
+ const view=mountMockMonitor(host,{doc,request:async action=>{assert.equal(action,'admin_mock_monitor');calls++;if(calls===3)return new Promise(r=>resolve=r);if(calls===2)throw Error('offline');const d=data();d.modes[0].state='completed';return d;}});
+ await view.ready;assert.equal(calls,1);assert.match(host.innerHTML,/data-level="success"/);assert.equal(view.canLeave(),true);assert.equal(listeners,0);assert.doesNotMatch(host.innerHTML,/10초마다/);
+ t.mock.timers.tick(60000);await flush();assert.equal(calls,1,'No scheduled polling');doc.hidden=true;doc.hidden=false;await flush();assert.equal(calls,1,'No refresh when returning to the tab');
+ host.onclick({target:{closest:()=>({})},stopPropagation(){}});await flush();assert.equal(calls,2);assert.match(host.innerHTML,/현재 상태를 확인하지 못했습니다/);assert.match(host.innerHTML,/새로고침을 눌러/);assert.doesNotMatch(host.innerHTML,/data-level="success"/);
+ const pending=view.refresh();await view.refresh();assert.equal(calls,3);const before=host.innerHTML;view.destroy();resolve(data());await pending;await view.refresh();assert.equal(calls,3);assert.equal(host.innerHTML,before);assert.equal(host.onclick,null);
 });
