@@ -44,7 +44,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
  const {db,invoke:prep}=await createDb();let server,wss,control;
  try{
   await db.exec(fs.readFileSync('supabase/migrations/20261021060740_interview_live_sessions.sql','utf8'));
-  await db.exec(fs.readFileSync('supabase/migrations/20261029142215_interview_live_result_reports.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261103062625_interview_live_result_reports.sql','utf8'));
   await prep('admin_member_save',{type:'admin',id:'qa'},{targetStudentId:'ip-a',track:'공채',examNumber:'QA',enabled:true,expiresOn:'2099-12-01'});await prep('admin_enabled',{type:'admin',id:'qa'},{enabled:true});
   await db.exec("insert into ip_questions(id,prompt,category,status) values('ws1','협업 경험은?','personality','published'),('ws2','지원 동기는?','personality','published'),('ws3','갈등 해결은?','personality','published')");
   const invoke=async(action,actor,body={})=>(await db.query('select ip_live_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;

@@ -12,8 +12,9 @@ const { PGlite } = require(process.env.PGLITE_MODULE || 'C:/Users/Public/Documen
       create schema storage;
       create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
     const before = (await db.query('select * from public.students')).rows;
-    const files = fs.readdirSync('supabase/migrations').filter(name => /^2026102\d+_interview_.*\.sql$/.test(name)).sort();
+    const files = fs.readdirSync('supabase/migrations').filter(name => /^\d{14}_interview_.*\.sql$/.test(name)).sort();
     assert.ok(files.length >= 28);
+    assert.ok(files.some(name => name.endsWith('_interview_mock_operations_monitor.sql')));
     for (const file of files) {
       try { await db.exec(fs.readFileSync('supabase/migrations/' + file, 'utf8')); }
       catch (error) { throw new Error(file + ': ' + error.message, { cause: error }); }

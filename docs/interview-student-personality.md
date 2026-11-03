@@ -70,7 +70,7 @@ Supabase의 [Storage access control](https://supabase.com/docs/guides/storage/se
 
 공식 CLI `supabase migration new interview_student_personality`로 생성한 파일:
 
-`supabase/migrations/20261029135643_interview_student_personality.sql`
+`supabase/migrations/20261103062611_interview_student_personality.sql`
 
 운영에 적용하지 않았다. 기존 기반 마이그레이션 이후 적용하고, 전용 모델·비공개 저장소·보관 정리·실기기 검증을 확인한 뒤 활성화해야 한다.
 

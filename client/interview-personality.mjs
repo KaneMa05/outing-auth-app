@@ -7,12 +7,7 @@ import {toExamWav,audioBase64} from './interview-job-exam-audio.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={started:'연습 시작',uploading:'답변 저장 중',upload_failed:'저장 재시도 가능',evaluating:'구조 분석 중',completed:'리포트 확인 가능',unknown:'처리 확인 필요',cancelled:'응시 취소',expired:'제출 시간 만료'};
 const errors={practice_not_configured:'인성 연습 서비스를 준비하고 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'연습할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
-export function mountPersonalityPractice(host,{request,accountId,mediaDevices=globalThis.navigator?.mediaDevices,openStore=openAttemptStore,openPrepared=openPersonalitySubmissions,createRecorder=recordAttempt,convert=toExamWav,locks=globalThis.navigator?.locks}={}){
- let destroyed=false,busy=false,recording=false,available=false,store,prepared,attempts,questions=[],runs=[],locals=[],run=null,recorder,stream,lease,releaseLease,timer,audioUrl='',remoteAudio='',page=0,hasMore=false,qpage=0,qmore=false,notice='이용 가능 여부를 확인하고 있습니다.';
- const status=text=>{notice=text;if(!destroyed){const n=host.querySelector('[data-personality-status]');if(n)n.textContent=text;}};
- const releaseStream=()=>{stream?.getTracks().forEach(t=>t.stop());stream=null;};
- const requestSafe=async(action,body={})=>request(action,body);
- function reportMarkup(report){
+export function renderPersonalityReport(report){
   if(!report)return '';
   const names={conclusion:'결론',reason:'이유',experience:'경험',closing:'마무리'},presence={present:'있음',missing:'누락',uncertain:'확인 필요'},quality={clear:'충분',partial:'보완 필요',insufficient:'구체성 부족',not_assessable:'충실도 판단 불가'};
   const analysis=report.analysis;
@@ -27,6 +22,28 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
    <h4>반복·모순 확인</h4>${analysis.issues.length?analysis.issues.map(issue=>`<article><strong>${issue.kind==='repetition'?'반복':'내용 모순 검토'}</strong><blockquote>${esc(issue.firstQuote)}</blockquote><blockquote>${esc(issue.secondQuote)}</blockquote><p>${esc(issue.feedback)}</p></article>`).join(''):'<p>이번 분석에서 별도로 지적된 항목이 없습니다.</p>'}
    <h4>다음 연습</h4><p>${esc(analysis.nextPractice)}</p><h4>답변 전사</h4><p style="white-space:pre-wrap">${esc(report.transcripts?.[0]||'')}</p></section>`;
  }
+export function mountPersonalityPractice(host,{request,accountId,mediaDevices=globalThis.navigator?.mediaDevices,openStore=openAttemptStore,openPrepared=openPersonalitySubmissions,createRecorder=recordAttempt,convert=toExamWav,locks=globalThis.navigator?.locks}={}){
+ let destroyed=false,busy=false,recording=false,available=false,store,prepared,attempts,questions=[],runs=[],locals=[],run=null,recorder,stream,lease,releaseLease,timer,audioUrl='',remoteAudio='',page=0,hasMore=false,qpage=0,qmore=false,notice='이용 가능 여부를 확인하고 있습니다.';
+ const status=text=>{notice=text;if(!destroyed){const n=host.querySelector('[data-personality-status]');if(n)n.textContent=text;}};
+ let analysisTimer;
+ function observeProcessing(data){
+  clearTimeout(analysisTimer);
+  const state=data.processing?.state,id=data.run?.id;
+  const messages={queued:'답변을 저장했습니다. 분석 순서를 기다리고 있습니다.',running:'답변을 분석하고 있습니다. 다른 화면으로 이동해도 결과는 보존됩니다.',failed:'분석을 완료하지 못했습니다. 원음은 보존되며 담당자 확인이 필요합니다.',unknown:'이전 분석의 완료 여부를 확인 중입니다. 자동으로 다시 실행하지 않습니다.',cancelled:'분석 이용 권한 또는 보관 기간을 확인해주세요.'};
+  if(messages[state])status(messages[state]);
+  if(!['queued','running'].includes(state)||!id||destroyed)return;
+  analysisTimer=setTimeout(async()=>{
+   if(destroyed||run?.id!==id)return;
+   if(busy||recording||globalThis.document?.hidden){observeProcessing(data);return;}
+   try{const next=await requestSafe('get',{id});if(destroyed||run?.id!==id)return;
+    const changed=run.state!==next.run.state;run=next.run;remoteAudio=next.audioUrl||remoteAudio;
+    if(run.state==='completed')status('분석이 완료되었습니다. 저장된 리포트를 확인해주세요.');
+    observeProcessing(next);if(changed)draw();
+   }catch{if(!destroyed){observeProcessing(data);status('분석 상태를 확인하지 못했습니다. 잠시 후 다시 확인합니다.');}}
+  },5000);
+ }
+ const releaseStream=()=>{stream?.getTracks().forEach(t=>t.stop());stream=null;};
+ const requestSafe=async(action,body={})=>request(action,body);
  function draw(){if(destroyed)return;
   const locked=busy||recording;
   host.innerHTML=`<section class="ip-panel"><h2>인성 연습모드</h2><p>문항별 최대 90초 · 하루 최대 3회. 녹음 종료 후 답변을 확인하고 제출하세요.</p><p>제출한 답변은 결론·이유·경험·마무리 구조를 분석합니다. 녹음은 이 기기에 임시 저장됩니다. 제출 시 음성이 서버와 AI 분석 서비스로 전송됩니다.</p><p role="status" data-personality-status>${esc(notice)}</p>
@@ -38,7 +55,7 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
    ${audioUrl||remoteAudio?`<audio controls preload="metadata" style="max-width:100%" src="${esc(audioUrl||remoteAudio)}"></audio>`:''}
    <button class="ip-btn ip-primary" type="button" data-personality-action="submit" ${locked||!audioUrl||!['started','upload_failed'].includes(run.state)?'disabled':''}>답변 제출</button>
    <button class="ip-btn" type="button" data-personality-action="check" ${locked?'disabled':''}>결과 확인</button>
-   <button class="ip-btn" type="button" data-personality-action="cancel" ${locked||run.state!=='started'?'disabled':''}>연습 취소</button></section>${reportMarkup(run.report)}`:''}
+   <button class="ip-btn" type="button" data-personality-action="cancel" ${locked||run.state!=='started'?'disabled':''}>연습 취소</button></section>${renderPersonalityReport(run.report)}`:''}
    <section class="ip-panel"><h3>내 인성 연습 기록</h3><button class="ip-btn" type="button" data-personality-action="refresh" ${locked?'disabled':''}>기록 새로고침</button>
    ${runs.map(r=>`<p><button class="ip-btn" type="button" data-personality-open="${esc(r.id)}" ${locked?'disabled':''}>${esc(r.question.prompt)} · ${esc(labels[r.state])}</button></p>`).join('')||'<p>저장된 응시 기록이 없습니다.</p>'}
    <button class="ip-btn" type="button" data-personality-action="prev" ${locked||!page?'disabled':''}>이전 기록</button><button class="ip-btn" type="button" data-personality-action="next" ${locked||!hasMore?'disabled':''}>다음 기록</button></section>
@@ -49,7 +66,7 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
   run=data.run;remoteAudio=data.audioUrl||'';if(audioUrl)URL.revokeObjectURL(audioUrl);audioUrl='';
   if(attempts)try{const blob=await attempts.audio(accountId,id);if(blob.size)audioUrl=URL.createObjectURL(blob);}catch{}
   if(destroyed){if(audioUrl)URL.revokeObjectURL(audioUrl);return;}
-  status(run.state==='completed'?'저장된 리포트를 조회했습니다.':run.state==='unknown'?'처리 상태를 확인해야 합니다. 유료 분석을 자동 재실행하지 않습니다.':labels[run.state]);
+  status(run.state==='completed'?'저장된 리포트를 조회했습니다.':run.state==='unknown'?'처리 상태를 확인해야 합니다. 유료 분석을 자동 재실행하지 않습니다.':labels[run.state]);observeProcessing(data);
  }
  async function stop(){if(!recorder||busy)return;busy=true;clearInterval(timer);let message='녹음 종료 · 재생 후 답변을 제출해주세요.';
   try{await recorder.stop();status('녹음이 기기에 저장되었습니다. 재생 후 답변을 제출해주세요.');}
@@ -99,7 +116,7 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
     if(!wav)wav=await prepared.put(accountId,run.id,await convert(await attempts.audio(accountId,run.id)));
     if(destroyed)return;
     const data=await requestSafe('submit',{id:run.id,audioBase64:await audioBase64(wav)});
-    if(destroyed)return;run=data.run;remoteAudio=data.audioUrl||'';status(run.state==='completed'?'답변과 리포트를 서버에 저장했습니다.':'서버에서 처리 중입니다. 결과 확인 버튼으로 확인해주세요.');
+    if(destroyed)return;run=data.run;remoteAudio=data.audioUrl||'';status(run.state==='completed'?'답변과 리포트를 서버에 저장했습니다.':'서버에서 처리 중입니다. 결과 확인 버튼으로 확인해주세요.');observeProcessing(data);
    },{locks});
    else if(action==='check')await open(run.id);
    else if(action==='cancel'){await requestSafe('cancel',{id:run.id});await open(run.id);}
@@ -126,7 +143,7 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
   if(results[2].status==='rejected')available=false;
   else if(available&&results[1].status==='rejected')notice='응시 기록을 불러오지 못했습니다. 기록 새로고침으로 확인해주세요.';draw();
  })();
- return {ready,canLeave(){if(busy||recording){status('녹음·제출을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;clearInterval(timer);releaseStream();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pageHide);host.onclick=null;if(audioUrl)URL.revokeObjectURL(audioUrl);
+ return {ready,canLeave(){if(busy||recording){status('녹음·제출을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;clearTimeout(analysisTimer);clearInterval(timer);releaseStream();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pageHide);host.onclick=null;if(audioUrl)URL.revokeObjectURL(audioUrl);
   const closing=recorder?recorder.interrupt().catch(()=>{}):Promise.resolve();void closing.finally(()=>{releaseLease?.();void lease?.catch(()=>{});store?.close();prepared?.close();});
  }};
 }

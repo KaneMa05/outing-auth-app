@@ -12,7 +12,7 @@ function configuration(env=process.env){
  return {url,secret,configured:valid&&secret.length>=32,enabled:env.INTERVIEW_LIVE_ENABLED==='true'&&valid&&secret.length>=32};
 }
 function defaults(){const auth=require('./teacher-auth-utils');return {
- config:configuration(),authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
+ config:configuration(),cliEnabled:require('../lib/interview-mock-cli-queue.cjs').enabled('report'),queue:()=>require('../lib/interview-mock-cli-queue.cjs').createQueue(),authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
  authenticateAdmin:async req=>{const s=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
@@ -20,7 +20,7 @@ function defaults(){const auth=require('./teacher-auth-utils');return {
  invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_service',{p_action:action,p_actor:actor,p_body:body}),
  storage:()=>require('../lib/interview-live-cloud-storage').createCloudStorage({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};}
 function validate(b){
- const fields={ready:[],start:['requestKey','sdp'],begin:['runId'],heartbeat:['runId'],answer_done:['runId'],finish:['runId'],list:['page'],get:['runId'],admin_list:['page'],admin_get:['runId']};
+ const fields={analysis_request:['runId'],analysis_get:['runId'],ready:[],start:['requestKey','sdp'],begin:['runId'],heartbeat:['runId'],answer_done:['runId'],finish:['runId'],list:['page'],get:['runId'],admin_list:['page'],admin_get:['runId']};
  if(!fields[b.action])fail('unsupported_action');
  if(Object.keys(b).some(k=>!['action','studentId','deviceToken',...fields[b.action]].includes(k)))fail('invalid_request');
  if(fields[b.action].includes('runId')&&!UUID.test(b.runId||''))fail('invalid_request');
@@ -31,6 +31,14 @@ function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);sameOrigin(req);const b=await bodyOf(req,66000);validate(b);const d=deps||defaults();let actor;
  if(b.action.startsWith('admin_'))actor={type:'admin',id:(await d.authenticateAdmin(req)).id};
  else{let student=await d.authenticateWeb(req);if(!student){if(!d.previewAllowed(b.studentId))fail('forbidden');student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student)fail('unauthorized');if(!d.previewAllowed(student.id))fail('forbidden');}await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);actor={type:'student',id:student.id};}
+ if(['analysis_request','analysis_get'].includes(b.action)){
+  if(!d.cliEnabled)fail('automation_disabled');await d.invoke('get',actor,{runId:b.runId});
+  if(b.action==='analysis_request')await d.queue().enqueue('report',b.runId,actor);
+  return res.status(200).json({ok:true,processing:await d.queue().get('report',b.runId,actor)});
+ }
+ async function withAnalysis(data){if(b.action==='get'&&d.cliEnabled&&['completed','interrupted'].includes(data.run?.state)){
+  data.analysisEnabled=true;data.processing=await d.queue().get('report',b.runId,actor);
+ }return data;}
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}
  const payload={...b};delete payload.studentId;delete payload.deviceToken;
  if(config.transport==='vercel'){
@@ -45,12 +53,12 @@ function createHandler(deps){return async(req,res)=>{try{
   }
   const data=await d.invoke(b.action,actor,payload);
   if(data.run?.recording_state==='ready')data.recordings=await d.storage().signed(b.runId,Math.floor((Date.parse(data.run.retain_until)-Date.now())/1000));
-  return res.status(200).json(data);
+  return res.status(200).json(await withAnalysis(data));
  }
  const raw=JSON.stringify({actor,body:payload}),signed=sign(raw,config.secret);
  const r=await d.fetchImpl(config.url.replace(/\/$/,'')+'/command',{method:'POST',redirect:'error',signal:AbortSignal.timeout(55000),headers:{'Content-Type':'application/json','X-Live-Time':signed.timestamp,'X-Live-Signature':signed.signature},body:raw});
  const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||'automation_unavailable');
- res.status(200).json(data);
+ res.status(200).json(await withAnalysis(data));
  }catch(e){sendError(res,e);}};}
 module.exports=createHandler();module.exports.createHandler=createHandler;module.exports.validate=validate;module.exports.configuration=configuration;
 module.exports.defaults=defaults;

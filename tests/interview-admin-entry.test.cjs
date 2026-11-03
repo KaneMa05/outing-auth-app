@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
-assert.equal(entry,'interview-prep.js?v=20261103-cli-status');
+assert.equal(entry,'interview-prep.js?v=20261103-mock-monitor');
 assert(read('teacher.html').includes('data-interview-section="ai_history"'));
 const routing=read('interview-prep.js'),start=routing.indexOf('const interviewAdminSections='),end=routing.indexOf('function restoreInterviewAdminRoute',start);
 assert.equal(vm.runInNewContext(routing.slice(start,end)+';getInterviewAdminSection()',{URLSearchParams,location:{hash:'#interview-prep-admin?section=ai_history'}}),'ai_history');
@@ -16,5 +16,5 @@ assert(read('interview-assignment-overview.js').includes('data-overview-student'
 assert(read('interview-assignment-overview.js').includes('modal:true'));
 console.log('PASS administrator entry: teacher HTML and versioned imports preserve access without interview precaching');
 
-assert(read('interview.html').includes('interview-portal.js?v=20261102-source-tracks'));
+assert(read('interview.html').includes('interview-portal.js?v=20261102-mock-cli'));
 for(const file of ['interview-prep-ui.js','interview-review-ui.js','interview-assignment-overview.js','interview-portal.js'])assert(read(file).includes('./client/interview-tracks.js?v=20261102-source-tracks'));

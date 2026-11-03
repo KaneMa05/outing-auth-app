@@ -1,0 +1,21 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const {buildStatus}=require('../lib/interview-mock-monitor.cjs');
+const source=fs.readFileSync('interview-mock-monitor.js','utf8');
+let imported;const load=()=>imported||=import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const data=()=>({checkedAt:new Date().toISOString(),metricsAvailable:true,modes:['job','personality','live','report'].map(kind=>({kind,state:'ready',enabled:true,transport:kind==='live'?'live':'pc',queued:0,running:0,attention:0,held:0,interrupted:0,completed24h:0,failed24h:0,message:'준비됨',checks:[{label:'<img onerror=x>',ok:true}],runtimeChecks:[]}))});
+const flush=()=>new Promise(r=>setImmediate(r));
+test('four modes show distinct activation, processing and error labels; data is escaped',async()=>{
+ const {renderMockMonitor}=await load();let d=data();d.modes[0].state='completed';d.modes[1].state='disconnected';d.modes[2].state='disabled';d.modes[3].state='health_unknown';
+ const html=renderMockMonitor(d);for(const text of ['최근 처리 완료','PC 연결 확인','신규 접수 꺼짐','실행 상태 미확인','전공·직무 시험','인성 연습','실전 AI 면접','종합 분석'])assert(html.includes(text));assert.doesNotMatch(html,/<img/);assert.match(html,/&lt;img/);
+ d.modes[0].kind='unknown';assert.match(renderMockMonitor(d),/현재 상태를 확인하지 못했습니다/);assert.match(renderMockMonitor(buildStatus(null,{env:{},metricsAvailable:false})),/처리 집계 연결/);
+});
+test('visible polling prevents overlap, clears old success on errors, pauses and cleans up',async()=>{
+ const {mountMockMonitor}=await load();let listener,next,calls=0,resolve,cancelled=0;
+ const doc={hidden:false,addEventListener(name,fn){listener=fn;},removeEventListener(){listener=null;}},host={innerHTML:''};
+ const view=mountMockMonitor(host,{doc,request:async action=>{assert.equal(action,'admin_mock_monitor');calls++;if(calls===3)return new Promise(r=>resolve=r);if(calls===2)throw Error('offline');const d=data();d.modes[0].state='completed';return d;},schedule(fn,ms){assert.equal(ms,10000);next=fn;return 1;},cancel(){cancelled++;}});
+ await flush();assert.equal(calls,1);assert.match(host.innerHTML,/data-level="success"/);assert.equal(view.canLeave(),true);
+ doc.hidden=true;listener();await next();assert.equal(calls,1);
+ doc.hidden=false;listener();await flush();assert.equal(calls,2);assert.match(host.innerHTML,/현재 상태를 확인하지 못했습니다/);assert.doesNotMatch(host.innerHTML,/data-level="success"/);
+ const pending=next();await view.refresh();assert.equal(calls,3);const before=host.innerHTML;view.destroy();resolve(data());await pending;assert.equal(host.innerHTML,before);assert.equal(listener,null);assert.equal(host.onclick,null);assert(cancelled>0);
+});

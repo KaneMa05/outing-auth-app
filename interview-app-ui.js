@@ -77,7 +77,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       return;
      }
      if(route.mockMode==='job'){
-      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261031-simple-start');
+      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261102-cli');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="job"]').replaceWith(slot);
       child=mountJobExam(slot,{accountId:account.id,request:async(action,body={})=>{
@@ -87,7 +87,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='personality'){
-      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261029-personality');
+      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261102-cli');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="personality"]').replaceWith(slot);
       child=mountPersonalityPractice(slot,{accountId:account.id,request:async(action,body={})=>{
@@ -97,7 +97,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='ai'){
-      const {mountLive}=await import('./client/interview-live-view.js?v=20261029-student-live');
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261102-cli');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
       const next=await mountLive(slot,{request:async(action,body={})=>{

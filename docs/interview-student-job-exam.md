@@ -45,7 +45,7 @@
 
 ### 운영 준비 파일과 설정
 
-새 마이그레이션은 공식 CLI로 생성한 `supabase/migrations/20261029025804_interview_student_job_exam.sql`이다. 앞선 키워드 조건 마이그레이션 다음에 적용한다. 운영 적용은 하지 않았다.
+새 마이그레이션은 공식 CLI로 생성한 `supabase/migrations/20261103062554_interview_student_job_exam.sql`이다. 앞선 키워드 조건 마이그레이션 다음에 적용한다. 운영 적용은 하지 않았다.
 
 ```text
 INTERVIEW_JOB_EXAM_ENABLED=false

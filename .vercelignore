@@ -44,3 +44,6 @@ native/
 
 # Lecture source documents and internal server-only diagnosis code
 output/
+
+# Internal Word planning files must never be published
+**/*.docx

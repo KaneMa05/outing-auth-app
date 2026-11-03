@@ -16,7 +16,7 @@
 
 ## 저장 리포트
 
-새 마이그레이션 `supabase/migrations/20261029142215_interview_live_result_reports.sql`은 기존 `ip_live_runs`에 `result_report` JSONB 컬럼과 서버 트리거를 추가한다. `completed`/`interrupted` 상태 변경과 같은 DB 트랜잭션에서 기록을 저장하고 기존 종료 기록도 채운다. Storage 재시도·보관 기한 변경만으로는 리포트를 재작성하지 않는다.
+새 마이그레이션 `supabase/migrations/20261103062625_interview_live_result_reports.sql`은 기존 `ip_live_runs`에 `result_report` JSONB 컬럼과 서버 트리거를 추가한다. `completed`/`interrupted` 상태 변경과 같은 DB 트랜잭션에서 기록을 저장하고 기존 종료 기록도 채운다. Storage 재시도·보관 기한 변경만으로는 리포트를 재작성하지 않는다.
 
 - 보고서 버전·응시 ID·생성 시각·종료 상태.
 - 배정 기본 문항 수, 저장된 기본/꼬리 문답 수, 완료·미완료 답변과 전사가 없는 문답 수.

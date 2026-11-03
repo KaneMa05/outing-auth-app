@@ -8,7 +8,8 @@ const {timingSafeEqual}=require('node:crypto');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SERVER={type:'server',id:'job-exam'};
 function defaults(){return {
- config:()=>({...configuration(),enabled:process.env.INTERVIEW_JOB_EXAM_ENABLED==='true',storageReady:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.CRON_SECRET?.length>=32)}),
+ config:()=>({...configuration(),...require('../lib/interview-mock-cli-queue.cjs').audioConfiguration('job'),enabled:process.env.INTERVIEW_JOB_EXAM_ENABLED==='true',storageReady:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.CRON_SECRET?.length>=32)}),
+ queue:()=>require('../lib/interview-mock-cli-queue.cjs').createQueue(),
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
@@ -35,7 +36,7 @@ function createHandler(deps){return async(req,res)=>{
    if(!secret||secret.length<32||token.length!==secret.length||!timingSafeEqual(Buffer.from(token),Buffer.from(secret)))throw Error('unauthorized');
    const expired=await d.invoke('sweep',SERVER,{});let removed=0;
    for(const r of expired.runs){await d.storage().remove(r.id);await d.invoke('purge',SERVER,{id:r.id});removed++;}
-   return res.status(200).json({ok:true,removed});
+   if(d.config().mode==='pc')await d.queue().purge();return res.status(200).json({ok:true,removed});
   }
   sameOrigin(req);
   let student=await d.authenticateWeb(req);
@@ -45,7 +46,7 @@ function createHandler(deps){return async(req,res)=>{
   const enabled=config.enabled&&config.ready&&config.storageReady;
   if(b.action==='status')return res.status(200).json(enabled?await d.invoke('ready',actor,{}):{ok:true,ready:false,reason:'exam_not_configured'});
   if(['questions','start','submit'].includes(b.action)&&!enabled)throw Error('exam_not_configured');
-  async function get(runId){const data=await d.invoke('get',actor,{id:runId});
+  async function get(runId){const processing=config.mode==='pc'?await d.queue().get('job',runId,actor):null;const data=await d.invoke('get',actor,{id:runId});if(processing)data.processing=processing;
    if(data.run.audioReady){try{data.audioUrl=await d.storage().signed(runId,data.run.retainUntil);}catch{data.audioUnavailable=true;}}
    return data;
   }
@@ -62,6 +63,7 @@ function createHandler(deps){return async(req,res)=>{
   if(!claim.claimed)return res.status(200).json(await get(b.id));
   id=b.id;phase='upload';const frozen=await d.invoke('internal_get',SERVER,{id});rubricSnapshot(frozen.run.rubric_detail);
   await d.storage().put(id,audio);await d.invoke('stored',SERVER,{id});phase='evaluation';
+  if(config.mode==='pc'){await d.queue().enqueue('job',id);phase='done';return res.status(200).json(await get(id));}
   // Deliberately grade against the start-time snapshot, even if the author later edits a rubric.
   const report=await evaluateAudio({audio,detail:frozen.run.rubric_detail,provider:d.provider(config),loadCurrent:async()=>frozen.run.rubric_detail});
   await d.invoke('complete',SERVER,{id,report});phase='done';return res.status(200).json(await get(id));

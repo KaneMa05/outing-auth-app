@@ -15,12 +15,13 @@ async function harness({microphone,requestOverride,waitReady=true,submitError=fa
   if(action==='status')return {ready:true};if(action==='questions')return {questions:[{id:'q1',prompt:'가상 질문'}]};if(action==='list')return {runs:[]};
   if(action==='start'){starts++;return {run};}if(action==='get')return {run};if(action==='cancel')return {ok:true};if(action==='submit'){if(submitError)throw Error('network');run={...run,state:'completed',report};return {run};}throw Error(action);
  };
- const context={Blob,URL,crypto:require('node:crypto').webcrypto,console,audioBase64,createAttempts,withAttemptLease,recoverAttempts,window:{addEventListener(){},removeEventListener(){}},setInterval:()=>1,clearInterval(){},confirm:()=>true};vm.createContext(context);
- vm.runInContext(fs.readFileSync('client/interview-personality.mjs','utf8').replace(/^import .*\n/gm,'').replaceAll('export ',''),context);
+ const timers=new Map();const document={hidden:false};
+ const context={document,setTimeout:fn=>{const id=Symbol();timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob,URL,crypto:require('node:crypto').webcrypto,console,audioBase64,createAttempts,withAttemptLease,recoverAttempts,window:{addEventListener(){},removeEventListener(){}},setInterval:()=>1,clearInterval(){},confirm:()=>true};vm.createContext(context);
+ vm.runInContext(fs.readFileSync('client/interview-personality.mjs','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
  const view=context.mountPersonalityPractice(host,{request,accountId:'a',mediaDevices:{getUserMedia:microphone||(async()=>stream)},openStore:async()=>store,openPrepared:async()=>({get:async()=>undefined,put:async(a,id,b)=>b,remove:async()=>{},close(){}}),locks,createRecorder:({attempts,accountId,id})=>({stop:async()=>{await attempts.append(accountId,id,new Blob(['test'],{type:'audio/webm'}));return attempts.finish(accountId,id);},interrupt:async()=>attempts.finish(accountId,id,{interrupted:true})}),convert:async b=>b});
  if(waitReady)await view.ready;
  const click=action=>host.onclick({target:{closest:()=>({disabled:false,dataset:{personalityAction:action}})},stopPropagation(){}});
- return {host,view,click,stream,get released(){return released;},get starts(){return starts;},get closed(){return closed;},records};
+ return {timers,document,tick:async()=>{const tasks=[...timers.values()];timers.clear();for(const fn of tasks)await fn();},host,view,click,stream,get released(){return released;},get starts(){return starts;},get closed(){return closed;},records};
 }
 test('microphone permission resolving after leaving releases capture and never starts a personality practice',async()=>{
  const microphone=deferred(),h=await harness({microphone:()=>microphone.promise});const starting=h.click('start');assert.equal(h.view.canLeave(),false);h.view.destroy();microphone.resolve(h.stream);await starting;

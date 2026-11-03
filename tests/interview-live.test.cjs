@@ -36,7 +36,7 @@ async function api(handler,body){let code,out;await handler({method:'POST',heade
  const spool=path.resolve('.tmp/interview-live-tests');fs.mkdirSync(spool,{recursive:true});
  try{
   await db.exec(fs.readFileSync(migration,'utf8'));
-  await db.exec(fs.readFileSync('supabase/migrations/20261029142215_interview_live_result_reports.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261103062625_interview_live_result_reports.sql','utf8'));
   for(const id of ['ip-a','ip-b'])await prep('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:'QA',enabled:true,expiresOn:'2099-12-01'});
   await prep('admin_enabled',admin,{enabled:true});
   assert.equal((await invoke('ready',a)).reason,'questions_unavailable');

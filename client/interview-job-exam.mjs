@@ -8,12 +8,7 @@ import {toExamWav,audioBase64} from './interview-job-exam-audio.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={started:'응시 시작',uploading:'답변 저장 중',upload_failed:'저장 재시도 가능',evaluating:'판정 중',completed:'리포트 확인 가능',unknown:'처리 확인 필요',cancelled:'응시 취소',expired:'제출 시간 만료'};
 const errors={exam_not_configured:'연습 서버 연결을 준비하고 있습니다. 연결 후 시작할 수 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'응시할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
-export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.navigator?.mediaDevices,openStore=openAttemptStore,openPrepared=openJobSubmissions,createRecorder=recordAttempt,convert=toExamWav,locks=globalThis.navigator?.locks}={}){
- let destroyed=false,busy=false,recording=false,available=false,showHistory=false,store,prepared,attempts,questions=[],runs=[],locals=[],run=null,recorder,stream,lease,releaseLease,timer,audioUrl='',remoteAudio='',page=0,hasMore=false,qpage=0,qmore=false,notice='이용 가능 여부를 확인하고 있습니다.';
- const status=text=>{notice=text;if(!destroyed){const n=host.querySelector('[data-job-status]');if(n)n.textContent=text;}};
- const releaseStream=()=>{stream?.getTracks().forEach(t=>t.stop());stream=null;};
- const requestSafe=async(action,body={})=>request(action,body);
- function reportMarkup(report){
+export function renderJobReport(report){
   if(!report)return '';
   const contextStatus=index=>{const votes=(report.judgments||[]).map(j=>j.criteria.find(c=>c.index===index)?.status);return votes.length===2&&votes[0]===votes[1]?votes[0]:'uncertain';};
   const grade={O:'O',partial:'△',X:'X'},states={accepted:'충족',rejected:'불인정',partial:'부분 충족',absent:'표현 없음',uncertain:'검토 필요'};
@@ -22,6 +17,28 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
    <h4>답변 전사</h4><p style="white-space:pre-wrap">${esc(report.transcripts?.[0]||'전사문을 확인하지 못했습니다.')}</p>
    ${(report.judgments?.[0]?.criteria||[]).map(c=>`<p>${esc(c.quote)}<br>${esc(c.reason)}</p>`).join('')}${(report.judgments||[]).map((j,i)=>(j.errors||[]).filter(e=>e.status!=='absent').map(e=>`<article><h4>핵심 오류 검토 ${i+1} · ${e.status==='present'?'오류 확인':'검토 필요'}</h4><p>${esc(e.quote)}</p><p>${esc(e.reason)}</p></article>`).join('')).join('')}</section>`;
  }
+export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.navigator?.mediaDevices,openStore=openAttemptStore,openPrepared=openJobSubmissions,createRecorder=recordAttempt,convert=toExamWav,locks=globalThis.navigator?.locks}={}){
+ let destroyed=false,busy=false,recording=false,available=false,showHistory=false,store,prepared,attempts,questions=[],runs=[],locals=[],run=null,recorder,stream,lease,releaseLease,timer,audioUrl='',remoteAudio='',page=0,hasMore=false,qpage=0,qmore=false,notice='이용 가능 여부를 확인하고 있습니다.';
+ const status=text=>{notice=text;if(!destroyed){const n=host.querySelector('[data-job-status]');if(n)n.textContent=text;}};
+ let analysisTimer;
+ function observeProcessing(data){
+  clearTimeout(analysisTimer);
+  const state=data.processing?.state,id=data.run?.id;
+  const messages={queued:'답변을 저장했습니다. 분석 순서를 기다리고 있습니다.',running:'답변을 분석하고 있습니다. 다른 화면으로 이동해도 결과는 보존됩니다.',failed:'분석을 완료하지 못했습니다. 원음은 보존되며 담당자 확인이 필요합니다.',unknown:'이전 분석의 완료 여부를 확인 중입니다. 자동으로 다시 실행하지 않습니다.',cancelled:'분석 이용 권한 또는 보관 기간을 확인해주세요.'};
+  if(messages[state])status(messages[state]);
+  if(!['queued','running'].includes(state)||!id||destroyed)return;
+  analysisTimer=setTimeout(async()=>{
+   if(destroyed||run?.id!==id)return;
+   if(busy||recording||globalThis.document?.hidden){observeProcessing(data);return;}
+   try{const next=await requestSafe('get',{id});if(destroyed||run?.id!==id)return;
+    const changed=run.state!==next.run.state;run=next.run;remoteAudio=next.audioUrl||remoteAudio;
+    if(run.state==='completed')status('분석이 완료되었습니다. 저장된 리포트를 확인해주세요.');
+    observeProcessing(next);if(changed)draw();
+   }catch{if(!destroyed){observeProcessing(data);status('분석 상태를 확인하지 못했습니다. 잠시 후 다시 확인합니다.');}}
+  },5000);
+ }
+ const releaseStream=()=>{stream?.getTracks().forEach(t=>t.stop());stream=null;};
+ const requestSafe=async(action,body={})=>request(action,body);
  function draw(){if(destroyed)return;
   const locked=busy||recording;
   host.innerHTML=`<section class="ip-panel"><h2>전공 연습</h2><p>질문에 답하고, 내 답변과 피드백을 확인하세요.</p>
@@ -37,7 +54,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
    ${['completed','cancelled','expired'].includes(run.state)?'<button class="ip-btn ip-primary" type="button" data-job-action="new">다시 연습</button>':''}
    <button class="ip-btn ip-primary" type="button" data-job-action="submit" ${locked||!audioUrl||!['started','upload_failed'].includes(run.state)?'disabled':''}>답변 제출</button>
    <button class="ip-btn" type="button" data-job-action="check" ${locked?'disabled':''}>결과 확인</button>
-   <button class="ip-btn" type="button" data-job-action="cancel" ${locked||run.state!=='started'?'disabled':''}>응시 취소</button></section>${reportMarkup(run.report)}`:''}
+   <button class="ip-btn" type="button" data-job-action="cancel" ${locked||run.state!=='started'?'disabled':''}>응시 취소</button></section>${renderJobReport(run.report)}`:''}
    ${showHistory?`<section class="ip-panel"><h3>내 기록</h3><button class="ip-btn" type="button" data-job-action="refresh" ${locked?'disabled':''}>기록 새로고침</button>
    ${runs.map(r=>`<p><button class="ip-btn" type="button" data-job-open="${esc(r.id)}" ${locked?'disabled':''}>${esc(r.question.prompt)} · ${esc(labels[r.state])}</button></p>`).join('')||'<p>저장된 응시 기록이 없습니다.</p>'}
    <button class="ip-btn" type="button" data-job-action="prev" ${locked||!page?'disabled':''}>이전 기록</button><button class="ip-btn" type="button" data-job-action="next" ${locked||!hasMore?'disabled':''}>다음 기록</button></section>`:''}
@@ -48,7 +65,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
   run=data.run;remoteAudio=data.audioUrl||'';if(audioUrl)URL.revokeObjectURL(audioUrl);audioUrl='';
   if(attempts)try{const blob=await attempts.audio(accountId,id);if(blob.size)audioUrl=URL.createObjectURL(blob);}catch{}
   if(destroyed){if(audioUrl)URL.revokeObjectURL(audioUrl);return;}
-  status(run.state==='completed'?'저장된 리포트를 조회했습니다.':run.state==='unknown'?'처리 상태를 확인해야 합니다. 유료 분석을 자동 재실행하지 않습니다.':labels[run.state]);
+  status(run.state==='completed'?'저장된 리포트를 조회했습니다.':run.state==='unknown'?'처리 상태를 확인해야 합니다. 유료 분석을 자동 재실행하지 않습니다.':labels[run.state]);observeProcessing(data);
  }
  async function stop(){if(!recorder||busy)return;busy=true;clearInterval(timer);let message='녹음 종료 · 재생 후 답변을 제출해주세요.';
   try{await recorder.stop();status('녹음이 기기에 저장되었습니다. 재생 후 답변을 제출해주세요.');}
@@ -101,7 +118,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
     if(!wav)wav=await prepared.put(accountId,run.id,await convert(await attempts.audio(accountId,run.id)));
     if(destroyed)return;
     const data=await requestSafe('submit',{id:run.id,audioBase64:await audioBase64(wav)});
-    if(destroyed)return;run=data.run;remoteAudio=data.audioUrl||'';status(run.state==='completed'?'답변과 리포트를 서버에 저장했습니다.':'서버에서 처리 중입니다. 결과 확인 버튼으로 확인해주세요.');
+    if(destroyed)return;run=data.run;remoteAudio=data.audioUrl||'';status(run.state==='completed'?'답변과 리포트를 서버에 저장했습니다.':'서버에서 처리 중입니다. 결과 확인 버튼으로 확인해주세요.');observeProcessing(data);
    },{locks});
    else if(action==='check')await open(run.id);
    else if(action==='cancel'){await requestSafe('cancel',{id:run.id});await open(run.id);}
@@ -130,7 +147,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
   else if(available&&results[1].status==='rejected')notice='응시 기록을 불러오지 못했습니다. 기록 새로고침으로 확인해주세요.';draw();
  }
  const ready=initialize();
- return {ready,canLeave(){if(busy||recording){status('녹음·제출을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;clearInterval(timer);releaseStream();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pageHide);host.onclick=null;if(audioUrl)URL.revokeObjectURL(audioUrl);
+ return {ready,canLeave(){if(busy||recording){status('녹음·제출을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;clearTimeout(analysisTimer);clearInterval(timer);releaseStream();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pageHide);host.onclick=null;if(audioUrl)URL.revokeObjectURL(audioUrl);
   const closing=recorder?recorder.interrupt().catch(()=>{}):Promise.resolve();void closing.finally(()=>{releaseLease?.();void lease?.catch(()=>{});store?.close();prepared?.close();});
  }};
 }

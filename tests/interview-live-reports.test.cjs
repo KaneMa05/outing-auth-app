@@ -12,7 +12,7 @@ test('stored Live reports preserve exact records and existing access controls',a
   const turns=[{kind:'initial',parentQuestionId:'q1',question:'첫 질문',answer:'협업 <경험>을 말했습니다.',complete:true,transcriptSource:'live_sideband_unverified',grade:null,score:null},
    {kind:'followup',parentQuestionId:'q1',evidence:'협업',question:'그 경험의 결과는?',answer:'미완료 발언',complete:false}];
   const oldId=await insert('interrupted',turns,'그 경험의 결과는?');
-  await db.exec(fs.readFileSync('supabase/migrations/20261029142215_interview_live_result_reports.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261103062625_interview_live_result_reports.sql','utf8'));
   const get=async id=>(await invoke('get',owner,{runId:id})).run;
   await t.test('backfills terminal runs with exact followup evidence, partial answer and no grades',async()=>{
    const r=(await get(oldId)).result_report;

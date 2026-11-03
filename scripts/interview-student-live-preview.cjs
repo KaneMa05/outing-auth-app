@@ -8,7 +8,7 @@ const {createRecorder,removeSpool}=require('../lib/interview-live-storage');
 const {attach}=require('../lib/interview-live-socket');
 (async()=>{
  const {db}=await createDb();
- for(const file of ['20261021060740_interview_live_sessions.sql','20261029142215_interview_live_result_reports.sql'])await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
+ for(const file of ['20261021060740_interview_live_sessions.sql','20261103062625_interview_live_result_reports.sql'])await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
  await db.exec("update ip_settings set enabled=true;insert into ip_members(student_id,track,exam_number,expires_on) values('ip-a','공채','qa-only','2099-01-01');insert into ip_questions(id,prompt,category,status) values('qa-live-1','협업에서 의견 차이를 조율한 경험을 말씀해주세요.','personality','published'),('qa-live-2','갈등을 해결한 경험을 말씀해주세요.','personality','published'),('qa-live-3','지원 동기를 말씀해주세요.','personality','published');");
  const invoke=async(action,actor,body={})=>(await db.query('select ip_live_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'student-live-preview-')),token=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex');

@@ -14,16 +14,28 @@ async function harness({microphone,requestOverride,waitReady=true,submitError=fa
   if(action==='status')return {ready:true};if(action==='questions')return {questions:[{id:'q1',prompt:'가상 질문'}]};if(action==='list')return {runs:[]};
   if(action==='start'){starts++;return {run};}if(action==='get')return {run};if(action==='cancel')return {ok:true};if(action==='submit'){if(submitError)throw Error('network');run={...run,state:'completed'};return {run};}throw Error(action);
  };
- const context={Blob,URL,crypto:require('node:crypto').webcrypto,console,audioBase64,createAttempts,withAttemptLease,recoverAttempts,window:{addEventListener(){},removeEventListener(){}},setInterval:()=>1,clearInterval(){},confirm:()=>true};vm.createContext(context);
- vm.runInContext(fs.readFileSync('client/interview-job-exam.mjs','utf8').replace(/^import .*\n/gm,'').replaceAll('export ',''),context);
+ const timers=new Map();const document={hidden:false};
+ const context={document,setTimeout:fn=>{const id=Symbol();timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob,URL,crypto:require('node:crypto').webcrypto,console,audioBase64,createAttempts,withAttemptLease,recoverAttempts,window:{addEventListener(){},removeEventListener(){}},setInterval:()=>1,clearInterval(){},confirm:()=>true};vm.createContext(context);
+ vm.runInContext(fs.readFileSync('client/interview-job-exam.mjs','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
  const view=context.mountJobExam(host,{request,accountId:'a',mediaDevices:{getUserMedia:microphone||(async()=>stream)},openStore:async()=>store,openPrepared:async()=>({get:async()=>undefined,put:async(a,id,b)=>b,remove:async()=>{},close(){}}),locks,createRecorder:({attempts,accountId,id})=>({stop:async()=>{await attempts.append(accountId,id,new Blob(['test'],{type:'audio/webm'}));return attempts.finish(accountId,id);},interrupt:async()=>attempts.finish(accountId,id,{interrupted:true})}),convert:async b=>b});
  if(waitReady)await view.ready;
  const click=action=>host.onclick({target:{closest:()=>({disabled:false,dataset:{jobAction:action}})},stopPropagation(){}});
- return {host,view,click,stream,get released(){return released;},get starts(){return starts;},get closed(){return closed;},records};
+ return {timers,document,tick:async()=>{const tasks=[...timers.values()];timers.clear();for(const fn of tasks)await fn();},host,view,click,stream,get released(){return released;},get starts(){return starts;},get closed(){return closed;},records};
 }
 test('microphone permission resolving after leaving releases capture and never starts an exam',async()=>{
  const microphone=deferred(),h=await harness({microphone:()=>microphone.promise});const starting=h.click('start');assert.equal(h.view.canLeave(),false);h.view.destroy();microphone.resolve(h.stream);await starting;
  assert.equal(h.starts,0);assert.ok(h.released>0);
+});
+
+test('queued PC analysis refreshes to completion, pauses while hidden, and releases its timer',async()=>{
+ let gets=0;const run={id:'17fd429e-5298-4a4b-9384-82c24047e4f0',question:{id:'q1',prompt:'가상 질문'},state:'started',retainUntil:'2099-01-01'};
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')return {ready:true};if(action==='questions')return {questions:[run.question]};if(action==='list')return {runs:[]};if(action==='start')return {run};
+  if(action==='submit')return {run:{...run,state:'evaluating'},processing:{mode:'pc',state:'queued'}};
+  if(action==='get'){gets++;return {run:{...run,state:'completed'},processing:{mode:'pc',state:'completed'}};}throw Error(action);
+ }});
+ await h.click('start');await h.click('stop');await h.click('submit');assert.equal(h.timers.size,1);assert.equal(h.view.canLeave(),true);
+ const before=gets;h.document.hidden=true;await h.tick();assert.equal(gets,before);assert.equal(h.timers.size,1);h.document.hidden=false;await h.tick();assert.equal(gets,before+1);assert.equal(h.timers.size,0);assert.match(h.host.innerHTML,/분석이 완료/);h.view.destroy();assert.equal(h.timers.size,0);
 });
 test('recording blocks navigation; stop preserves the local answer and releases the lease',async()=>{
  const h=await harness();await h.click('start');assert.equal(h.view.canLeave(),false);assert.equal(h.starts,1);
