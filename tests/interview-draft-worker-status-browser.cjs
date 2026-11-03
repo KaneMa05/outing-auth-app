@@ -22,24 +22,35 @@ const root=path.resolve(__dirname,'..');
     if(action==='admin_catalog')return {topics:[],categoryCounts:{},enabled:true};
     if(action==='admin_applications')return {summary:{students:42,pending:1},applications:[]};
     if(action==='admin_review_students')return {pendingStudents:3,revisionStudents:1};
-    if(action==='admin_draft_worker_status'){
+    if(action==='admin_cli_status'){
      window.statusCalls++;if(window.statusCalls===3)throw Error('offline');
-     return {enabled:true,connected:window.statusCalls===1,running:1,queued:2,lastSeenAt:'2026-10-31T06:00:00Z',lastCompletedAt:'2026-10-31T05:59:00Z',checkedAt:'2026-10-31T06:00:15Z'};
+     const status={available:true,enabled:true,connected:true,running:0,queued:2,lastSeenAt:'2026-11-03T01:00:00Z',lastCompletedAt:'2026-11-03T00:59:00Z'};
+     return {checkedAt:'2026-11-03T01:00:15Z',workers:[{...status,id:'core25',connected:window.statusCalls===1,running:1},{...status,id:'questions'},{id:'answers',available:false}]};
     }
     if(action==='admin_questions')return {questions:[]};
     throw Error(action);
    }});
   });
-  const card=page.locator('[data-draft-worker-status]');
+  const card=page.locator('[data-cli-worker-status]');
   assert.equal(await page.evaluate(()=>window.view.canLeave()),true,'Outer sidebar navigation checks the dashboard controller');
-  assert.match(await card.textContent(),/질문 생성 중/);
+  assert.match(await card.textContent(),/CLI 실행 상태/);
+  assert.equal(await card.locator('[data-cli-worker]').count(),3);
+  assert.match(await card.locator('[data-cli-worker="core25"]').textContent(),/처리 중 1건/);
+  assert.match(await card.locator('[data-cli-worker="questions"]').textContent(),/연결됨 · 요청 대기 중/);
+  assert.match(await card.locator('[data-cli-worker="answers"]').textContent(),/상태 확인 불가/);
+  assert(await page.evaluate(()=>document.querySelector('.ip-hero').nextElementSibling.matches('[data-cli-worker-status]')),'Status is directly below the home summary');
   for(const width of [1280,390]){
    await page.setViewportSize({width,height:900});
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
+   assert((await card.boundingBox()).y<900,'CLI status heading is visible without scrolling');
+   if(process.env.CLI_STATUS_SCREENSHOT_DIR){fs.mkdirSync(process.env.CLI_STATUS_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.CLI_STATUS_SCREENSHOT_DIR,'home-'+width+'.png'),fullPage:true});}
   }
   if(process.env.DRAFT_STATUS_SCREENSHOT)await page.screenshot({path:process.env.DRAFT_STATUS_SCREENSHOT,fullPage:true});
   await page.clock.runFor(10000);assert.match(await card.textContent(),/연결 확인 지연/);
   await page.clock.runFor(10000);assert.match(await card.textContent(),/상태를 확인하지 못했습니다/);
+  await card.getByRole('button',{name:'상태 새로고침'}).click();
+  assert.equal(await page.evaluate(()=>window.statusCalls),4);
+  assert.match(await card.locator('[data-cli-worker="questions"]').textContent(),/연결됨 · 요청 대기 중/);
   await page.locator('[data-ip="category"][data-category="job"]').click();
   await page.getByRole('heading',{name:'직무 기출 관리',exact:true}).waitFor();
   assert.equal(await card.count(),0);
@@ -50,6 +61,6 @@ const root=path.resolve(__dirname,'..');
   const count=await page.evaluate(()=>window.statusCalls);
   await page.clock.runFor(30000);assert.equal(await page.evaluate(()=>window.statusCalls),count);
   await page.evaluate(()=>window.view.destroy());assert.deepEqual(errors,[]);
-  console.log('PASS browser: admin home, busy/disconnected/error transitions, mobile layout, sidebar canLeave, job/personality navigation and polling cleanup');
+  console.log('PASS browser: all CLI cards on admin home, busy/disconnected/partial/error states, manual refresh, mobile layout, sidebar navigation and polling cleanup');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

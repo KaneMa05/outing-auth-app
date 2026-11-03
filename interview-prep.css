@@ -177,3 +177,8 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-root .ip-ai-history [data-ai-current-experiences] article+article{border-top:1px solid #dbe4ee;margin-top:16px;padding-top:12px}
 .ip-root .ip-ai-history li{margin:8px 0}.ip-root .ip-ai-history select{max-width:100%}
 @media(max-width:600px){.ip-root .ip-ai-history dl{display:block}.ip-root .ip-ai-history dd{margin:4px 0 12px}.ip-root .ip-ai-history td{min-width:110px}}
+
+.ip-root .ip-cli-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.ip-root .ip-cli-worker{min-width:0;border:1px solid #dce5ee;border-radius:12px;padding:16px;overflow-wrap:anywhere}
+.ip-root .ip-cli-worker h4{font-size:15px;margin:0}.ip-root .ip-cli-worker p:last-child{margin-bottom:0}
+@media(max-width:1000px){.ip-root .ip-cli-status-grid{grid-template-columns:1fr}}
