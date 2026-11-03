@@ -18,3 +18,14 @@ node tests/interview-draft-worker-status-browser.cjs
 ```
 
 관련 홈 집계, 메뉴 이동, 기존 작업기 상태·생존 신호, 배포 안전성 검사와 격리 빌드도 확인한다. 사용자 최종 확인 전에는 푸시·배포하지 않는다.
+
+## 운영 반영
+
+2026-11-03 사용자의 ‘반영’ 승인 후 최신 운영 코드 `5e845d2`에 CLI 상태 변경만 통합해 `ddffaba`를 원격 main에 푸시했다. 기존 질문 분류 기능을 유지한 상태로 관련 자동 검사 28개, 로컬 DB 조회, 질문 분류 회귀 검사, 두 브라우저 검사와 빌드를 통과했다.
+
+- 배포: `dpl_BqbR1afS6cncFAAP2WjCFDfPDEf5` · READY
+- 배포 주소: https://outing-auth-h3grnmk68-ronpark.vercel.app
+- 운영 홈: https://outing-auth-app.vercel.app/teacher#interview-prep-admin?section=home
+- 새 배포의 빌드 성공 후 운영 도메인으로 승격했다. 운영 화면·모듈·스타일 및 기존 학생 앱 자산 10개의 소스 일치와 미인증 상태 API의 401 응답을 확인했다.
+- 실제 로그인된 관리자 홈에서 세 CLI의 상태와 처리 중·대기 건수, 마지막 접속·완료·실패 시각이 표시됨을 확인했다. 확인 당시 핵심 25제 진단은 연결 확인 지연, 경험 질문 생성과 답변 초안 생성은 연결됨·요청 대기 중이었다.
+- DB·학생 자료·작업기 프로세스에는 변경하지 않았다. 이 기록 추가는 문서 전용이며 추가 배포하지 않는다.
