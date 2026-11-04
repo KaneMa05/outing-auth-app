@@ -22,7 +22,7 @@ const messages={
 export function mountInterviewAI(host,{request,kind='self_intro',savePending,onAdopt=async()=>false,onQuestionChange=async()=>true,onBusy=()=>{},interval}){
  let destroyed=false,busy=false,enabled=null,dbReady=false,experienceCount=0,missing=[],pendingDB=false,availabilityVersion=0,history=[],current=null,selected=new Set(),activeKind='',notice='생성 기능 상태를 확인하고 있습니다.',failed=false;
  const abort=new AbortController();
- let questions=[],questionId='',allHistory=[];
+ let questions=[],questionId='',allHistory=[],readinessVersion='';
  const transport=request||(async(url,body)=>{
   const response=await fetch(url,{method:'POST',credentials:'same-origin',cache:'no-store',signal:abort.signal,
    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -33,8 +33,10 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
  const ai=createInterviewAI({request:transport,interval,onUpdate:update});
  const retryable=i=>['FAILED','NEEDS_INPUT'].includes(i.status)||(i.status==='CANCELED'&&i.reason==='operator_resolved');
  const running=()=>current?.items?.some(i=>['QUEUED','PROCESSING','BLOCKED'].includes(i.status));
+ const dbRequirement=()=>kind==='self_intro'?'‘DB 정리’에서 기본 이력과 서로 다른 경험 3개를 작성하고 저장해주세요. 부족한 경험은 ‘진단하기’의 보완 질문을 참고해주세요.':'자료 보완 필요: 기본 이력과 인성 경험·가치관의 모든 항목을 입력하고 저장해주세요.';
  function availability(data){
   enabled=data.enabled===true;dbReady=data.dbReady===true;experienceCount=data.experienceCount||0;
+  readinessVersion=data.readinessVersion||'';
   missing=Array.isArray(data.missing)?data.missing:[];
   if(kind==='core30'){
    questions=Array.isArray(data.questions)?data.questions:[];
@@ -47,8 +49,8 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   if(data.ok===false){notice=messages[data.error]||messages.connection_error;failed=true;render();return;}
   if(Object.hasOwn(data,'enabled')){
    availability(data);
-   notice=!enabled?messages.automation_disabled:!dbReady?'자료 보완 필요: 기본 이력과 인성 경험·가치관의 모든 항목을 입력하고 저장해주세요.':activeKind==='self_intro'&&!data.ready?
-    `자료 보완 필요: 상황·본인이 한 행동·실제 결과가 모두 있는 서로 다른 경험이 3개 이상 필요합니다. 현재 ${data.experienceCount||0}개입니다. ‘나의 DB 정리하기 → 경험·인생그래프’에서 ${Math.max(0,3-(data.experienceCount||0))}개 이상 보완해주세요. 같은 경험을 복사한 항목은 중복으로 계산합니다.`:
+   notice=!enabled?messages.automation_disabled:!dbReady?dbRequirement():kind==='self_intro'&&!data.ready?
+    '인생그래프에 서로 다른 경험 3개 이상을 작성하고 저장해주세요.':
     !data.ready?'자료 보완 필요: 나의 DB에 실제 경험이나 생각을 입력해주세요. 지원동기는 지원 계기·이유·준비 노력, 공직관은 중요하게 여기는 가치·이유·실천 사례를 구체적으로 적어주세요.':'저장된 자료를 확인했습니다.';
    failed=!enabled||!data.ready;
   }
@@ -72,9 +74,9 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   host.innerHTML=`<section class="ip-panel ip-ai-panel" aria-label="AI 초안" aria-busy="${busy}">
    <div class="ip-row"><h3>${kinds[kind]} 초안</h3><span class="ip-badge">${enabled===true?'AI 초안':enabled===false?'기능 준비 중':'연결 확인 중'}</span></div>
    ${kind==='core30'?`<label class="ip-writing-picker">질문 선택<select data-ai-question ${busy||!questions.length?'disabled':''}>${questions.length?questions.map(q=>`<option value="${esc(q.key)}" ${q.key===questionId?'selected':''}>${q.position}. ${esc(q.question)}</option>`).join(''):'<option>설정된 질문이 없습니다.</option>'}</select></label>`:''}
+   ${kind==='self_intro'?`<div class="ip-feedback ip-ai-requirements" aria-label="자기소개 초안 준비 안내"><strong>기본 이력과 서로 다른 경험 3개 이상을 준비해주세요.</strong><p data-ai-experience-count>${enabled===null?'준비된 경험 수를 확인하고 있습니다.':`현재 준비된 서로 다른 경험 <strong>${experienceCount}개</strong> / 최소 3개${experienceCount<3?` · ${3-experienceCount}개 더 필요합니다.`:' · 경험 수 조건을 충족했습니다.'}`}</p><p class="ip-help">‘DB 정리 → 인생그래프’에서 각 경험의 나이·키워드·내용·어필할 점을 작성하고 저장해주세요. 같은 내용을 복사한 경험은 1개로 계산합니다.</p><p class="ip-help" data-ai-diagnosis-guide>내용 보완이 필요하면 ‘DB 정리 → 진단하기’로 돌아가 보완 질문을 확인하고, 해당 경험의 내용과 어필할 점을 수정해 인생그래프에 저장해주세요.${readinessVersion==='self_intro_life_v1'?' 13개 진단 항목을 모두 작성하거나 4/4로 채울 필요는 없습니다.':''}</p></div>`:''}
    <div class="ip-ai-buttons"><button type="button" class="ip-btn" data-ai-generate="${kind}" ${busy||enabled!==true||!dbReady||kind==='core30'&&!questionId||kind==='self_intro'&&experienceCount<3||running()?'disabled':''}>${kind==='core30'?'이 질문 초안 만들기':kinds[kind]+' 초안 만들기'}</button></div>
-   ${missing.length?`<details class="ip-ai-missing"><summary>보완할 입력 항목 ${missing.length}개</summary><ul>${missing.map(text=>`<li>${esc(text)}</li>`).join('')}</ul></details>`:''}
-   ${kind==='self_intro'&&dbReady&&experienceCount<3?`<p class="ip-help">자기소개는 상황·행동·결과가 있는 서로 다른 경험 3개가 필요합니다. 현재 ${experienceCount}개입니다. 경험·인생그래프를 보완해주세요.</p>`:''}
+   ${missing.length?`<details class="ip-ai-missing"><summary>${kind==='self_intro'?'초안 생성 전 확인할 내용':'보완할 입력 항목'} ${missing.length}개</summary><ul>${missing.map(text=>`<li>${esc(text)}</li>`).join('')}</ul></details>`:''}
    ${notice!==messages.automation_disabled?`<p class="ip-message" data-ai-message role="status" ${failed?'data-error="true"':''}>${esc(notice)}</p>`:''}
    ${current?`<details class="ip-ai-results" open><summary>${esc(kinds[current.kind])} 초안 · ${items.filter(i=>i.status==='COMPLETED').length}/${items.length} 완료</summary>
     ${current.stale?'<p class="ip-help">DB 자료가 변경되었습니다. 아래 초안은 이전 자료를 포함할 수 있습니다.</p>':''}
@@ -107,7 +109,7 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   history=allHistory.filter(r=>r.kind===kind&&(kind!=='core30'||r.questionId===questionId));
   if(destroyed)return;
   if(current||history.length)await ai.resume(current?.requestId||history[0].id);
-  else notice=enabled?(dbReady?'':'기본 이력과 인성 경험·가치관 입력을 완료해주세요.'):messages.automation_disabled;
+  else notice=enabled?(dbReady?'':kind==='self_intro'?dbRequirement():'기본 이력과 인성 경험·가치관 입력을 완료해주세요.'):messages.automation_disabled;
   if(!enabled)notice=messages.automation_disabled;
   else if(kind==='core30'&&!questions.length)notice=messages.invalid_core30;
  }
