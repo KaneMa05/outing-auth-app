@@ -65,6 +65,7 @@ export function createInterviewAI({request, onUpdate = () => {}, interval = 5000
   visibility?.addEventListener?.('visibilitychange', onVisibility);
   return {
     prepare: kind => call('prepare', {kind}),
+    saveMaterials: (kind,body) => call('materials_save',{kind,...body}),
     pause() {stopped = true; ++pollVersion; clearTimer();},
     async generate(kind, {savePending = async () => {}, regenerate = false, questionId} = {}) {
       const operationKey=kind+':'+(questionId||'');

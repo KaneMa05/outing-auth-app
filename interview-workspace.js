@@ -1,4 +1,4 @@
-import {mountInterviewAI} from './interview-ai-ui.js?v=20261104-experience-guidance';
+import {mountInterviewAI} from './interview-ai-ui.js?v=20261104-typed-materials';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
@@ -18,7 +18,7 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
   if(['life_save','note_save'].includes(action)&&!destroyed)await ai?.refreshAvailability();
   return result;
  };
- const canLeave=()=>!busy&&!aiBusy&&(!child?.canLeave||child.canLeave());
+ const canLeave=()=>!busy&&!aiBusy&&(!ai?.canLeave||ai.canLeave())&&(!child?.canLeave||child.canLeave());
  function navigation(){
   const links=areas.map(([id,title])=>['life:'+id,title]).concat([['diagnosis','진단하기']]);
   return `<aside class="ip-db-sidebar">${areas.map(([id,title])=>areaButton('life:'+id,title)).join('')}<p class="ip-db-group">인성 경험·가치관</p>${areaButton('diagnosis','진단하기')}</aside>

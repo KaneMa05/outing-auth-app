@@ -17,12 +17,14 @@ function defaultDeps() {
       return {id: session.username};
     },
     invoke: (action, actor, body) => require('./curriculum')._private.requestSupabase('POST',
-      'rpc/ip_ai_service', {p_action: action, p_actor: actor, p_body: body})
+      action==='materials_save'?'rpc/ip_ai_materials_service':'rpc/ip_ai_service',
+      action==='materials_save'?{p_actor:actor,p_body:body}:{p_action: action, p_actor: actor, p_body: body})
   };
 }
 function validate(body) {
   const allowed = {
     prepare: ['kind'], generate: ['kind', 'questionId', 'sourceHash', 'requestKey', 'regenerate'],
+    materials_save:['kind','topicRevision','revision','fields'],
     status: ['requestId', 'version'], requests: [], retry_items: ['requestId', 'itemKeys', 'sourceHash', 'requestKey'],
     admin_configure: ['enabled', 'bundleHash', 'dailyCallLimit', 'coreQuestionIds', 'maxPendingTotal', 'requestsPerMinute'],
     admin_register_worker: ['label', 'studentIds'], admin_revoke_worker: ['workerId'],
@@ -33,6 +35,12 @@ function validate(body) {
   if (body.studentId !== undefined && !text(body.studentId, 120)) fail('invalid_request');
   if (body.deviceToken !== undefined && !text(body.deviceToken, 256)) fail('invalid_request');
   if (['prepare', 'generate'].includes(body.action) && !KINDS.has(body.kind)) fail('invalid_request');
+  if(body.action==='materials_save'){
+    if(!['motivation','public_service'].includes(body.kind)||!Number.isInteger(body.revision)||body.revision<0||
+      !Number.isInteger(body.topicRevision)||body.topicRevision<1)fail('invalid_request');
+    keys(body.fields,['position','reason','application']);
+    if(!Object.keys(body.fields).length||Object.values(body.fields).some(value=>!text(value,2000,0)))fail('invalid_request');
+  }
   if (body.action==='generate' && (body.kind==='core30' ? !text(body.questionId,120) : body.questionId!==undefined))
     fail('invalid_request');
   if (['generate','retry_items'].includes(body.action) && (!HASH.test(body.sourceHash || '') ||

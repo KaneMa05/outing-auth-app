@@ -13,7 +13,7 @@
     "check:interview-live": "node scripts/check-interview-live.cjs",
     "test:interview-native": "node tests/interview-native.test.cjs && node tests/interview-native-launcher.test.cjs",
     "start:interview-live-worker": "node --env-file-if-exists=.env --env-file-if-exists=.env.local tools/interview-live-worker/server.cjs",
-    "test:interview-ai": "node tests/interview-ai-api.test.cjs && node tests/interview-ai-client.test.cjs && node tests/interview-ai-db.test.cjs && node tests/interview-ai-readiness.test.cjs && node tests/interview-self-intro-readiness.test.cjs && node tests/interview-local-demo.test.cjs",
+    "test:interview-ai": "node tests/interview-ai-api.test.cjs && node tests/interview-ai-client.test.cjs && node tests/interview-ai-db.test.cjs && node tests/interview-ai-readiness.test.cjs && node tests/interview-self-intro-readiness.test.cjs && node tests/interview-draft-materials.test.cjs && node tests/interview-local-demo.test.cjs",
     "preview:interview-prep": "node scripts/interview-prep-ui-qa.cjs --serve",
     "preview:interview-ai": "node scripts/interview-prep-ui-qa.cjs --serve --local-ai",
     "test:interview": "node tests/interview-preview-access.test.cjs && node tests/interview-prep.test.cjs && node tests/interview-analysis.test.cjs && node tests/interview-core30.test.cjs && node tests/interview-life.test.cjs && node tests/interview-diagnosis.test.cjs && node tests/interview-auth.test.cjs && node tests/interview-writing.test.cjs && node tests/interview-writing-rounds.test.cjs && node tests/interview-review.test.cjs && node tests/interview-rubrics.test.cjs && node tests/interview-writing-annotations.test.cjs",

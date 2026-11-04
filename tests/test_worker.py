@@ -137,10 +137,16 @@ class WorkerTests(unittest.TestCase):
         self.store = Store(self.tmp / "state.db", Protector(test_plain=True))
         Worker(self.api, self.bridge, self.store, GUIDES).tick()
         self.assertEqual(self.bridge.starts, 1)
-    def test_self_intro_requires_three_distinct_body_experiences(self):
+    def test_self_intro_requires_grounded_selected_experience(self):
         j = job(); j["kind"] = "self_intro"
         with self.assertRaisesRegex(WorkerError, "experience_required"):
             validate_result(result(), j)
+        j["sources"][0]["experience_id"] = "selected"
+        r = result(); r["experience_coverage"] = [{"experience_id":"selected","answer_excerpt":"직접 적은 지원 이유"}]
+        validate_result(r, j)
+        r["experience_coverage"][0]["experience_id"] = "invented"
+        with self.assertRaisesRegex(WorkerError, "experience_required"):
+            validate_result(r, j)
     def test_needs_input_has_no_invented_answer(self):
         r = result(); r.update(status="needs_input", answer="", source_refs=[], experience_coverage=[], missing=["추가 자료"])
         validate_result(r, job())
