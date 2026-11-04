@@ -68,12 +68,12 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      box.innerHTML=mockScreen();
      // Approved accounts still see only the notice in the ordinary released app.
      if(!mockTestApp)return;
-     if(route.mockMode==='job'&&window.__ronparkPracticeNative===true){
-      const slot=box.querySelector('[data-mock-mode="job"]');
-      slot.innerHTML='<h2>전공 연습</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
+     if(window.__ronparkPracticeNative===true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))){
+      const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
+      slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
       slot.querySelector('[data-native-practice]').onclick=async e=>{
        const button=e.currentTarget;button.disabled=true;
-       try{const access=await request('mock_status');if(access.allowed!==true)throw Error('forbidden');window.webkit.messageHandlers.interviewPractice.postMessage({mode:'job'});}
+       try{const access=await request('mock_status');if(access.allowed!==true)throw Error('forbidden');window.webkit.messageHandlers.interviewPractice.postMessage({mode:route.mockMode});}
        catch{slot.querySelector('[data-native-status]').textContent='테스트 권한과 연결 상태를 확인해주세요.';}
        finally{button.disabled=false;}
       };
@@ -100,7 +100,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='ai'){
-      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-test-app');
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-windows-cli');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
       const next=await mountLive(slot,{request:async(action,body={})=>{

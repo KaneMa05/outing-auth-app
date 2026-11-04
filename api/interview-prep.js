@@ -116,8 +116,9 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         const access=await invoke('mock_status',actor,{});
         if(access.allowed!==true)fail('forbidden',403);
         const info=await invoke('bootstrap',actor,{});
-        const pool=await invoke('questions',actor,{category:'job',page:0});
-        return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,
+        const mode=body.mode||'job';if(!['job','personality','ai'].includes(mode))fail('invalid_request',400);
+        const pool=await invoke('questions',actor,{category:mode==='job'?'job':'personality',page:0});
+        return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,mode,
           questions:pool.questions.map(({id,prompt,category,tracks})=>({id,prompt,category,tracks}))});
       }
       const payload={...body};

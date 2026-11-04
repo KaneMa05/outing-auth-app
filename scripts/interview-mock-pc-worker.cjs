@@ -1,5 +1,5 @@
 'use strict';
-const fs=require('node:fs/promises'),path=require('node:path'),{spawn}=require('node:child_process'),{setTimeout:wait}=require('node:timers/promises');
+const fs=require('node:fs/promises'),path=require('node:path'),{spawn,spawnSync}=require('node:child_process'),{setTimeout:wait}=require('node:timers/promises');
 const {digest}=require('../lib/interview-exam-scoring');
 const {analyzeTask}=require('../lib/interview-mock-analysis.cjs');
 const {createInference,createTranscriber}=require('./interview-mock-cli.cjs');
@@ -22,7 +22,7 @@ async function deliver(receipt,request,receipts){
 async function runOnce({request,receipts,infer,transcribe,models,heartbeatMs=15000}){
  const receipt=await receipts.read();
  if(receipt){if(receipt.phase!=='result')throw Error('execution_needs_review');await deliver(receipt,request,receipts);return true;}
- const {jobs}=await request('poll',{kinds:transcribe?['job','personality','report']:['report']});if(!jobs.length)return false;
+ const {jobs}=await request('poll',{kinds:transcribe?['job','personality','report','practice']:['report']});if(!jobs.length)return false;
  const job=jobs[0],ref={id:job.id,lease:job.lease};await receipts.write({...ref,phase:'started'});
  const signal=new AbortController();let beating=false;
  const beat=setInterval(async()=>{if(beating)return;beating=true;try{await request('heartbeat',ref);}catch{signal.abort();}finally{beating=false;}},heartbeatMs);
@@ -54,12 +54,19 @@ async function main(){
   const infer=createInference({runtimeDir:root}),receipts=createReceipts(root),models={judge:process.env.INTERVIEW_MOCK_CLI_JUDGE_MODEL||MODEL,verifier:process.env.INTERVIEW_MOCK_CLI_VERIFIER_MODEL||MODEL,analyzer:process.env.INTERVIEW_MOCK_CLI_ANALYSIS_MODEL||MODEL};
   const transcriptionConfig=process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG?JSON.parse(await fs.readFile(process.env.INTERVIEW_MOCK_TRANSCRIBER_CONFIG,'utf8')):null;
   const transcribe=transcriptionConfig?createTranscriber(transcriptionConfig,{runtimeDir:root}):null;
-  let transcriptionConfigured=false;if(transcribe)try{await fs.access(transcriptionConfig.executable);transcriptionConfigured=true;}catch{}
+  let transcriptionConfigured=false;if(transcribe){
+   await fs.access(transcriptionConfig.executable);
+   if(!Array.isArray(transcriptionConfig.healthArgs)||transcriptionConfig.healthArgs.some(a=>typeof a!=='string'))throw Error('transcription_check_required');
+   const check=spawnSync(transcriptionConfig.executable,transcriptionConfig.healthArgs,{windowsHide:true,encoding:'utf8',timeout:120000,maxBuffer:2000000});
+   if(check.status!==0||JSON.parse(check.stdout).ok!==true)throw Error('transcription_check_failed');transcriptionConfigured=true;
+  }
   healthProbe=createHealthProbe({executable:process.env.INTERVIEW_CODEX||'codex',models,transcriptionConfigured});await healthProbe.check();
   healthTimer=setInterval(()=>void healthProbe.check().catch(()=>{}),60000);
   console.log(JSON.stringify({event:'worker_started',audioProcessing:!!transcribe}));
+  let lastCleanup=0;
   try{for(;;){try{
    if(!healthProbe.read()?.cliReady){await request('heartbeat');await wait(30000);continue;}
+   if(Date.now()-lastCleanup>3600000){await request('cleanup');lastCleanup=Date.now();}
    const worked=await runOnce({request,receipts,infer,transcribe,models});if(!worked)await wait(30000);
   }catch(e){
    if(await canRetryIdle(e,receipts)){console.error(JSON.stringify({event:'worker_connection_delayed'}));await wait(30000);continue;}

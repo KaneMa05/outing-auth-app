@@ -6,14 +6,15 @@ const {configured,createQueue,completion}=require('../lib/interview-mock-cli-que
 const WORKER={type:'worker',id:'mock-cli'};
 function defaults(){return {token:process.env.INTERVIEW_MOCK_CLI_WORKER_TOKEN,configured:configured(),queue:createQueue(),
  reportHealth:health=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_mock_cli_report_health',{p_health:health}),
- storage:kind=>require(kind==='job'?'../lib/interview-job-exam-storage.cjs':'../lib/interview-personality-storage.cjs')[kind==='job'?'createJobExamStorage':'createPersonalityStorage']({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};}
+ storage:kind=>require(kind==='personality'?'../lib/interview-personality-storage.cjs':'../lib/interview-job-exam-storage.cjs')[kind==='personality'?'createPersonalityStorage':'createJobExamStorage']({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};}
 function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);const d=deps||defaults(),token=(req.headers.authorization||'').replace(/^Bearer /,'');
  if(!d.configured||!d.token||Buffer.byteLength(token)!==Buffer.byteLength(d.token)||!timingSafeEqual(Buffer.from(token),Buffer.from(d.token)))throw Error('unauthorized');
- const b=await bodyOf(req,1100000),fields={heartbeat:['id','lease','health'],poll:['kinds','health'],complete:['id','lease','report'],fail:['id','lease']};
+ const b=await bodyOf(req,1100000),fields={cleanup:[],pause:[],resume:[],heartbeat:['id','lease','health'],poll:['kinds','health'],complete:['id','lease','report'],fail:['id','lease']};
  if(!fields[b.action]||Object.keys(b).some(k=>!['action',...fields[b.action]].includes(k)))throw Error('invalid_request');
  if(['complete','fail'].includes(b.action)||b.id!==undefined)if(!UUID.test(b.id||'')||!UUID.test(b.lease||''))throw Error('invalid_request');
- if(b.kinds!==undefined&&(!Array.isArray(b.kinds)||!b.kinds.length||b.kinds.some(k=>!['job','personality','report'].includes(k))))throw Error('invalid_request');
+ if(b.kinds!==undefined&&(!Array.isArray(b.kinds)||!b.kinds.length||b.kinds.some(k=>!['job','personality','report','practice'].includes(k))))throw Error('invalid_request');
+ if(b.action==='cleanup'){await d.queue.purge();return res.status(200).json({ok:true});}
  const health=b.health;
  if(health!==undefined){
   if(!health||typeof health!=='object'||Array.isArray(health)||Object.keys(health).length!==6||!['checkedAt','cliReady','transcriptionConfigured','verificationConfigured','analysisConfigured','blockedReason'].every(k=>Object.hasOwn(health,k))||!['cliReady','transcriptionConfigured','verificationConfigured','analysisConfigured'].every(k=>typeof health[k]==='boolean')||typeof health.checkedAt!=='string'||!Number.isFinite(Date.parse(health.checkedAt))||!['','execution_needs_review','delivery_pending','lease_lost','processing_unavailable'].includes(health.blockedReason))throw Error('invalid_request');
