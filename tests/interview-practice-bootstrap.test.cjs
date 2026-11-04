@@ -18,3 +18,13 @@ test('native practice uses verified portal identity and approved server question
  assert.equal(r.data.fields.length,12);
  allowed=false;calls.length=0;assert.equal((await call(handler,{action:'practice_bootstrap'})).status,403);assert.equal(calls.length,1);
 });
+test('job filter restoration preserves existing personality and AI preparation paths',async()=>{
+ for(const mode of ['personality','ai']){
+  const handler=createHandler({authenticateWeb:async()=>({id:'owner'}),read:async()=>{throw Error('job catalog must not run');},invoke:async(action,_actor,body)=>{
+   if(action==='mock_status')return {allowed:true};if(action==='bootstrap')return {member:{track:'공채'}};
+   assert.equal(action,'questions');assert.deepEqual(body,{category:'personality',page:0});
+   return {questions:[{id:'q',prompt:'경험 질문',category:'personality',tracks:['공채'],answer:'private'}]};
+  }});
+  const r=await call(handler,{action:'practice_bootstrap',mode});assert.equal(r.status,200);assert.deepEqual(r.data.fields,[]);assert.equal(r.data.questions[0].answer,undefined);
+ }
+});
