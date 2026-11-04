@@ -3,7 +3,7 @@ import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tr
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
-import {mountMockMonitor} from './interview-mock-monitor.js?v=20261103-manual-status';
+import {mountMockMonitor} from './interview-mock-monitor.js?v=20261104-connection';
 import {mountCLIStatus} from './interview-cli-status.js?v=20261103-manual-status';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
