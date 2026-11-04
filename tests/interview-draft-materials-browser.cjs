@@ -59,7 +59,7 @@ const {chromium}=require('C:/Users/W11/.cache/codex-runtimes/codex-primary-runti
   await page.screenshot({path:path.join(out,'public-service-mobile.png'),fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.locator('[data-workspace-page=introduction]').click();await page.waitForFunction(()=>document.querySelector('[data-ai-generate=self_intro]')&&document.querySelector('.ip-ai-panel').getAttribute('aria-busy')==='false');
-  assert.match(await page.locator('.ip-ai-requirements').innerText(),/핵심 경험 1~2개/);assert.match(await page.locator('[data-ai-experience-count]').innerText(),/최소 3개/);
+  assert.match(await page.locator('.ip-ai-requirements').innerText(),/자기소개 본문에는 서로 다른 실제 경험을 최소 3개 포함/);assert.match(await page.locator('[data-ai-experience-count]').innerText(),/최소 3개/);
   assert.deepEqual(errors,[]);console.log('PASS browser: typed questions, DB reuse, failure preservation, unsaved navigation, save-before-generation, type-specific experience counts and mobile layout. Synthetic API only; no model calls.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

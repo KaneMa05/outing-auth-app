@@ -137,16 +137,34 @@ class WorkerTests(unittest.TestCase):
         self.store = Store(self.tmp / "state.db", Protector(test_plain=True))
         Worker(self.api, self.bridge, self.store, GUIDES).tick()
         self.assertEqual(self.bridge.starts, 1)
-    def test_self_intro_requires_grounded_selected_experience(self):
+    def test_self_intro_requires_three_grounded_body_experiences(self):
         j = job(); j["kind"] = "self_intro"
         with self.assertRaisesRegex(WorkerError, "experience_required"):
             validate_result(result(), j)
-        j["sources"][0]["experience_id"] = "selected"
-        r = result(); r["experience_coverage"] = [{"experience_id":"selected","answer_excerpt":"직접 적은 지원 이유"}]
+        j["sources"] = [{"id": f"source-{i}", "text": f"직접 행동과 결과 {i}", "experience_id": f"experience-{i}"} for i in range(3)]
+        r = result()
+        r["answer"] = " ".join(s["text"] for s in j["sources"])
+        r["source_refs"] = [{"source_id": s["id"], "quote": s["text"], "answer_excerpt": s["text"]} for s in j["sources"]]
+        r["experience_coverage"] = [{"experience_id": s["experience_id"], "answer_excerpt": s["text"]} for s in j["sources"]]
         validate_result(r, j)
-        r["experience_coverage"][0]["experience_id"] = "invented"
+        for count in (1, 2):
+            short = copy.deepcopy(r); short["experience_coverage"] = short["experience_coverage"][:count]
+            with self.assertRaisesRegex(WorkerError, "experience_required"):
+                validate_result(short, j)
+        duplicate = copy.deepcopy(r)
+        for c in duplicate["experience_coverage"]: c["experience_id"] = "experience-0"
         with self.assertRaisesRegex(WorkerError, "experience_required"):
-            validate_result(r, j)
+            validate_result(duplicate, j)
+        duplicate = copy.deepcopy(r)
+        for c in duplicate["experience_coverage"]: c["answer_excerpt"] = r["answer"]
+        with self.assertRaisesRegex(WorkerError, "experience_required"):
+            validate_result(duplicate, j)
+        absent = copy.deepcopy(r); absent["answer"] = " ".join(s["text"] for s in j["sources"][:2])
+        with self.assertRaisesRegex(WorkerError, "invalid_evidence"):
+            validate_result(absent, j)
+        invented = copy.deepcopy(r); invented["experience_coverage"][2]["experience_id"] = "invented"
+        with self.assertRaisesRegex(WorkerError, "experience_required"):
+            validate_result(invented, j)
     def test_needs_input_has_no_invented_answer(self):
         r = result(); r.update(status="needs_input", answer="", source_refs=[], experience_coverage=[], missing=["추가 자료"])
         validate_result(r, job())

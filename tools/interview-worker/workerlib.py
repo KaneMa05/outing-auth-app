@@ -75,7 +75,7 @@ def validate_result(result, job):
             or not isinstance(c["answer_excerpt"], str) or not 1 <= len(c["answer_excerpt"]) <= 3000):
             raise WorkerError("invalid_output")
     if job["kind"] == "self_intro":
-        if len({c["experience_id"] for c in coverage}) < 1 or len({c["answer_excerpt"] for c in coverage}) < 1:
+        if len({c["experience_id"] for c in coverage}) < 3 or len({c["answer_excerpt"] for c in coverage}) < 3:
             raise WorkerError("experience_required")
         for c in coverage:
             if c["answer_excerpt"] not in answer or not any(

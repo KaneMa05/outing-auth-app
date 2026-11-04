@@ -17,7 +17,7 @@ const {validateResult}=require('../lib/interview-ai-validation');
    '20261021065038_interview_life_satisfaction.sql','20261020074446_interview_ai_load_protection.sql','20261020081526_interview_ai_single_question.sql',
    '20261021071011_interview_experience_age_only.sql','20261021082149_interview_basic_fields_followup.sql','20261023052344_interview_applicant_identity.sql',
    '20261024130513_simplify_basic_history_save.sql','20261024133818_interview_school_status.sql','20261102053618_interview_ai_history_and_owners.sql','20261104043227_interview_self_intro_readiness.sql',
-   '20261104060256_interview_all_draft_readiness.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8').replace(/\r?\n/g,'\r\n'));
+   '20261104060256_interview_all_draft_readiness.sql','20261104072421_interview_self_intro_three_body_experiences.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8').replace(/\r?\n/g,'\r\n'));
   await base('admin_enabled',admin,{enabled:true});
   for(const id of ['ip-a','ip-b'])await base('admin_member_save',admin,{targetStudentId:id,track:'공채',examNumber:id,enabled:true});
   await invoke('admin_configure',admin,{enabled:true,bundleHash:'b'.repeat(64)});
@@ -64,14 +64,34 @@ const {validateResult}=require('../lib/interview-ai-validation');
   }
   const other=await invoke('prepare',{type:'student',id:'ip-b'},{kind:'motivation'});assert.equal(other.ready,false);assert.equal(other.experienceCount,0);
   await saveLife([0,1,2].map(experience));assert.equal((await prep('self_intro')).ready,true);
-  const sources=(await db.query("select ip_ai_sources('ip-a','self_intro') s")).rows[0].s,source=sources.find(s=>s.id==='life:experiences:materials-0:content');
-  const result={schema_version:'1.0',status:'ready',answer:source.text,missing:[],source_refs:[{source_id:source.id,quote:source.text,answer_excerpt:source.text}],
-   experience_coverage:[{experience_id:'materials-0',answer_excerpt:source.text}]};
+  const sources=(await db.query("select ip_ai_sources('ip-a','self_intro') s")).rows[0].s;
+  const used=[0,1,2].map(i=>sources.find(s=>s.id==='life:experiences:materials-'+i+':content'));
+  const result={schema_version:'1.0',status:'ready',answer:used.map(s=>s.text).join(' '),missing:[],
+   source_refs:used.map(s=>({source_id:s.id,quote:s.text,answer_excerpt:s.text})),
+   experience_coverage:used.map(s=>({experience_id:s.experience_id,answer_excerpt:s.text}))};
   validateResult(result,sources,'self_intro');await db.query('select ip_ai_validate_result($1::jsonb,$2::jsonb,$3)',[JSON.stringify(result),JSON.stringify(sources),'self_intro']);
-  assert.throws(()=>validateResult({...result,experience_coverage:[]},sources,'self_intro'),/experience_required/);
+  const rejected=async(candidate,code=/experience_required/)=>{
+   assert.throws(()=>validateResult(candidate,sources,'self_intro'),code);
+   await assert.rejects(db.query('select ip_ai_validate_result($1::jsonb,$2::jsonb,$3)',[JSON.stringify(candidate),JSON.stringify(sources),'self_intro']),code);
+  };
+  for(const count of [0,1,2])await rejected({...result,experience_coverage:result.experience_coverage.slice(0,count)});
+  await rejected({...result,experience_coverage:result.experience_coverage.map(c=>({...c,experience_id:'materials-0'}))});
+  await rejected({...result,experience_coverage:result.experience_coverage.map(c=>({...c,answer_excerpt:result.answer}))});
+  const invented=structuredClone(result);invented.experience_coverage[2].experience_id='invented';
+  await rejected(invented);
+  await rejected({...result,answer:used.slice(0,2).map(s=>s.text).join(' ')},/invalid_evidence/);
+  // One grounded experience remains valid for the other two draft types.
+  const single={...result,answer:used[0].text,source_refs:result.source_refs.slice(0,1),experience_coverage:result.experience_coverage.slice(0,1)};
+  for(const kind of ['motivation','public_service']){
+   validateResult(single,sources,kind);
+   await db.query('select ip_ai_validate_result($1::jsonb,$2::jsonb,$3)',[JSON.stringify(single),JSON.stringify(sources),kind]);
+  }
+  const policy=(await db.query("select pg_get_functiondef('public.ip_ai_service(text,jsonb,jsonb)'::regprocedure) definition")).rows[0].definition;
+  assert(policy.includes('서로 다른 실제 경험을 최소 3개 포함'));
+  assert(!policy.includes('경험 1~2개'));
   assert.equal((await prep('core30')).dbReady,false,'Legacy core preparation is unchanged');
   for(const role of ['anon','authenticated'])for(const fn of ['ip_ai_draft_materials(text,text)','ip_ai_materials_service(jsonb,jsonb)','ip_ai_draft_answer_sources(text,text)'])
    assert.equal((await db.query('select has_function_privilege($1,$2,$3) allowed',[role,fn,'execute'])).rows[0].allowed,false);
-  console.log('PASS typed draft materials: short questions, saved DB/diagnosis reuse, own-note merge/revisions, API validation, one-experience motivation/public drafts, three-experience introduction pool with selected evidence, direct generation/retries and private RPCs.');
+  console.log('PASS typed draft materials: short questions, saved DB/diagnosis reuse, own-note merge/revisions, API validation, one-experience motivation/public drafts, three grounded body experiences in JS/SQL, direct generation/retries and private RPCs.');
  }finally{await db.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
