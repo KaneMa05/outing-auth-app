@@ -13,7 +13,7 @@ function element(){const nodes=new Map(),listeners=new Map(),attrs=new Set();ret
 function harness({request,connect,combinedDevices=false,audioContext,mediaDevices={getUserMedia:async()=>{throw Error('permission');}}}){
  const host=element();
  const window={RTCPeerConnection(){},addEventListener(){},removeEventListener(){}};
- if(combinedDevices)window.webkit={messageHandlers:{interviewNative:{}}};
+ if(combinedDevices){window.__ronparkMockTestApp=true;window.webkit={messageHandlers:{interviewNative:{}}};}
  window.AudioContext=audioContext;
  window.MediaStream=class{constructor(tracks){this.tracks=tracks;}getTracks(){return this.tracks;}};
  const context={window,navigator:{mediaDevices},document:{querySelector:()=>true},AbortController,setInterval,clearInterval,connectLive:connect};

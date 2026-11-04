@@ -1,12 +1,23 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function element(){const nodes=new Map(),listeners=new Map();return {nodes,listeners,innerHTML:'',style:{},classList:{add(){},toggle(){},contains(){return false;}},querySelector(s){if(!nodes.has(s))nodes.set(s,element());return nodes.get(s);},querySelectorAll(){return [];},replaceWith(){},replaceChildren(){this.innerHTML='';},addEventListener(k,v){listeners.set(k,v);},removeEventListener(k){listeners.delete(k);}};}
+for(const mode of ['ai','job','personality'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
+ const host=element(),calls=[],imports=[];
+ const window={addEventListener(){},removeEventListener(){},scrollTo(){}};
+ if(installed)window.webkit={messageHandlers:{interviewNative:{}}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window,location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('ordinary app must not load interview controllers');}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
+ const view=await context.mountInterviewApp(host,{request:async action=>{calls.push(action);return {allowed:true};},aiRequest:async()=>{throw Error('ordinary app must not call interview APIs');}});
+ assert.match(host.querySelector('[data-app-content]').innerHTML,/준비 중입니다\./);
+ assert.equal(imports.length,0);assert.deepEqual(calls,['mock_status','mock_status']);
+ assert.equal(view.canLeave(),true);view.destroy();
+});
 for(const mode of ['ai','job','personality'])test(`${mode} mounts only its own authenticated student controller`,async()=>{
  const host=element(),calls=[],mounts=[],imports=[];let leave=false,destroyed=0;
  const controller=async(_host,options)=>{mounts.push(options);await options.request('ready');return {canLeave:()=>leave,destroy(){destroyed++;}};};
  // Existing job/personality mounts are synchronous.
  const syncController=(_host,options)=>{mounts.push(options);void options.request('ready');return {canLeave:()=>leave,destroy(){destroyed++;}};};
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},loadMode:async url=>{imports.push(url);return {mountLive:controller,mountJobExam:syncController,mountPersonalityPractice:syncController};}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},loadMode:async url=>{imports.push(url);return {mountLive:controller,mountJobExam:syncController,mountPersonalityPractice:syncController};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async action=>{calls.push(action);return action==='mock_status'?{allowed:true}:{};},aiRequest:async(url,body)=>{calls.push({url,...body});return {ready:true};}});
  const endpoint={ai:'/api/interview-live',job:'/api/interview-job-exam',personality:'/api/interview-personality'}[mode];
@@ -25,7 +36,7 @@ for(const offline of [false,true])test(`unapproved account cannot see or deep-li
 });
 test('test iPhone opens authorized native job practice instead of an unconfigured cloud exam',async()=>{
  const host=element(),sent=[],imports=[];
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkPracticeNative:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode=job'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkPracticeNative:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode=job'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  let allowed=true;const view=await context.mountInterviewApp(host,{request:async()=>({allowed})});
  const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="job"]');

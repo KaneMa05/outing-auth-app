@@ -12,6 +12,7 @@ function homeNotices(){
  return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2><div style="line-height:1.8;overflow-wrap:anywhere"><p>(0) 오프반 : 11.9 전까지 사전과제 이행</p><p>(1) 적성 및 면접기출교재 발송일 : <strong>11.9(월)</strong><br>인강생은 인강사이트 주소로 발송, 오프라인은 현장 및 택배수령(신청시 작성 주소)<br><strong>*적성 pdf 비번 : ronpark1234 혹은 RONPARK1234</strong></p><p>(2) 인성검사 온라인검사 실시일 : <strong>11.10(화)</strong><br>인강,오프라인생 검사 문자 발송</p></div></section>`;
 }
 export async function mountInterviewApp(host,{request,aiRequest,account={},onExit,onLogout}){
+ const mockTestApp=window.__ronparkMockTestApp===true;
  let destroyed=false,busy=false,child=null,generation=0,route=readRoute();
  let mockAllowed=false;
  try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
@@ -65,6 +66,8 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
+     // Approved accounts still see only the notice in the ordinary released app.
+     if(!mockTestApp)return;
      if(route.mockMode==='job'&&window.__ronparkPracticeNative===true){
       const slot=box.querySelector('[data-mock-mode="job"]');
       slot.innerHTML='<h2>전공 연습</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
@@ -97,7 +100,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='ai'){
-      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-devices');
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-test-app');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
       const next=await mountLive(slot,{request:async(action,body={})=>{

@@ -5,7 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const reasons={live_not_configured:'음성 면접 연결을 준비하고 있습니다.',enrollment_end_required:'수강 종료일 등록이 필요합니다.',not_enrolled:'면접반 이용 기간과 등록 상태를 확인해주세요.',questions_unavailable:'공개된 면접 질문을 준비하고 있습니다.',daily_limit:'오늘의 이용 횟수(3회)를 모두 사용했습니다.',queue_full:'현재 면접 중인 학생이 많습니다. 잠시 후 다시 시도해주세요.',admission_busy:'진행 중인 면접의 종료를 확인하고 있습니다.',unsafe_retry:'이전 연결 상태를 확인 중입니다. 새 연결을 반복하지 말고 관리자에게 문의해주세요.'};
 const time=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 export async function mountLive(host,{request=liveRequest,connect=connectLive}={}){
- const combinedDevices=!!window.webkit?.messageHandlers?.interviewNative;
+ const combinedDevices=window.__ronparkMockTestApp===true&&!!window.webkit?.messageHandlers?.interviewNative;
  let destroyed=false,phase='idle',screen='prep',connection=null,attempt=null,answering=false,stopPromise=null,ready=false,checking=false;
  let micStream,micContext,micTimer,cameraStream,cameraVersion=0,cameraPending=false,historyView,ticker,poller,polling=false;
  let muted=false,transcript='',spoken='',question='',questionNumber=0,startedAt=0,lastRunId,report=null,reportPanel='summary',analysisView;
