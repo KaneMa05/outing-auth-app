@@ -97,7 +97,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='ai'){
-      const {mountLive}=await import('./client/interview-live-view.js?v=20261102-cli');
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-devices');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
       const next=await mountLive(slot,{request:async(action,body={})=>{

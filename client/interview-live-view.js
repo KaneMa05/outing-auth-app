@@ -5,6 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const reasons={live_not_configured:'음성 면접 연결을 준비하고 있습니다.',enrollment_end_required:'수강 종료일 등록이 필요합니다.',not_enrolled:'면접반 이용 기간과 등록 상태를 확인해주세요.',questions_unavailable:'공개된 면접 질문을 준비하고 있습니다.',daily_limit:'오늘의 이용 횟수(3회)를 모두 사용했습니다.',queue_full:'현재 면접 중인 학생이 많습니다. 잠시 후 다시 시도해주세요.',admission_busy:'진행 중인 면접의 종료를 확인하고 있습니다.',unsafe_retry:'이전 연결 상태를 확인 중입니다. 새 연결을 반복하지 말고 관리자에게 문의해주세요.'};
 const time=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 export async function mountLive(host,{request=liveRequest,connect=connectLive}={}){
+ const combinedDevices=!!window.webkit?.messageHandlers?.interviewNative;
  let destroyed=false,phase='idle',screen='prep',connection=null,attempt=null,answering=false,stopPromise=null,ready=false,checking=false;
  let micStream,micContext,micTimer,cameraStream,cameraVersion=0,cameraPending=false,historyView,ticker,poller,polling=false;
  let muted=false,transcript='',spoken='',question='',questionNumber=0,startedAt=0,lastRunId,report=null,reportPanel='summary',analysisView;
@@ -13,8 +14,8 @@ export async function mountLive(host,{request=liveRequest,connect=connectLive}={
  host.innerHTML=`<div class="il-flow">
  <section data-live-screen="prep"><p class="il-eyebrow">BEFORE WE BEGIN</p><h2 class="il-title">편안하게 앉아 주세요.</h2><p class="il-sub">질문은 한 번에 하나씩, 충분히 듣겠습니다.</p>
  <div class="il-camera"><video data-live-preview autoplay muted playsinline hidden></video><div data-live-camera-placeholder class="il-person" aria-hidden="true"></div><span class="il-camera-label">카메라 미리보기 · 영상 저장 안 함</span></div>
- <div class="il-setting"><div><strong>내 모습 함께 보기</strong><p class="il-sub">면접 중 작은 화면으로 표시</p></div><button type="button" data-live-camera class="il-switch" aria-label="내 모습 함께 보기" aria-pressed="false"></button></div><p data-live-camera-status class="il-sub" role="status">켜면 카메라 사용 권한을 요청합니다.</p>
- <div class="il-setting"><div><strong>음성 대화 준비</strong><p class="il-sub">조용한 곳에서 이어폰을 사용해 주세요.</p></div><button type="button" class="il-secondary" data-live-mic>마이크 확인</button></div><meter data-live-meter min="0" max="1" value="0" aria-label="마이크 입력 크기"></meter>
+ ${combinedDevices?`<div class="il-setting"><div><strong>카메라·마이크 준비</strong><p class="il-sub">내 모습과 마이크 입력을 함께 확인합니다.</p></div><button type="button" class="il-secondary" data-live-devices aria-pressed="false">카메라·마이크 켜기</button></div><p data-live-camera-status class="il-sub" role="status">켜면 카메라와 마이크 사용 권한을 요청합니다.</p>`:`<div class="il-setting"><div><strong>내 모습 함께 보기</strong><p class="il-sub">면접 중 작은 화면으로 표시</p></div><button type="button" data-live-camera class="il-switch" aria-label="내 모습 함께 보기" aria-pressed="false"></button></div><p data-live-camera-status class="il-sub" role="status">켜면 카메라 사용 권한을 요청합니다.</p>
+ <div class="il-setting"><div><strong>음성 대화 준비</strong><p class="il-sub">조용한 곳에서 이어폰을 사용해 주세요.</p></div><button type="button" class="il-secondary" data-live-mic>마이크 확인</button></div>`}<meter data-live-meter min="0" max="1" value="0" aria-label="마이크 입력 크기"></meter>
  <div class="il-summary"><div><strong>3문항</strong><small>기본 질문</small></div><div><strong>최대 2개</strong><small>질문별 꼬리 질문</small></div><div><strong>10분</strong><small>면접 제한</small></div></div>
  <p class="il-sub">음성과 대화 기록은 수강 종료 후 30일까지 보관됩니다. 확정 점수는 부여하지 않습니다.</p>
  <div class="il-bottom"><button type="button" class="il-primary" data-live-start disabled>면접 시작하기 →</button><button type="button" class="il-secondary il-wide" data-live-records>내 면접 기록</button><button type="button" class="il-secondary il-wide" data-live-retry hidden>연결 상태 다시 확인</button></div></section>
@@ -32,8 +33,9 @@ export async function mountLive(host,{request=liveRequest,connect=connectLive}={
  function show(next){if(destroyed)return;screen=next;for(const section of host.querySelectorAll('[data-live-screen]')){section.hidden=section.dataset.liveScreen!==next;if(section.hidden)for(const player of section.querySelectorAll('audio'))player.pause();}host.dataset.liveScreen=next;host.scrollIntoView?.({block:'start',behavior:'instant'});}
  function controls(){if(destroyed)return;host.dataset.livePhase=phase;
   find('[data-live-start]').disabled=!ready||phase!=='idle';find('[data-live-start]').textContent=phase==='connecting'?'연결 중…':'면접 시작하기 →';
-  find('[data-live-mic]').disabled=phase!=='idle';find('[data-live-mic]').textContent=micStream?'마이크 확인 종료':'마이크 확인';
-  find('[data-live-camera]').disabled=cameraPending||phase!=='idle';find('[data-live-camera]').setAttribute('aria-pressed',String(!!cameraStream));
+  if(combinedDevices){const on=!!(cameraStream||micStream),button=find('[data-live-devices]');button.disabled=cameraPending||phase!=='idle';button.setAttribute('aria-pressed',String(on));button.textContent=cameraPending?'연결 중…':on?'카메라·마이크 끄기':'카메라·마이크 켜기';}
+  else{find('[data-live-mic]').disabled=phase!=='idle';find('[data-live-mic]').textContent=micStream?'마이크 확인 종료':'마이크 확인';
+   find('[data-live-camera]').disabled=cameraPending||phase!=='idle';find('[data-live-camera]').setAttribute('aria-pressed',String(!!cameraStream));}
   find('[data-live-done]').disabled=answering||phase!=='active'||!connection;find('[data-live-done]').textContent=answering?'답변 확인 중…':'답변 완료 →';
   find('[data-live-stop]').disabled=phase!=='active'||!connection;find('[data-live-stop]').textContent=phase==='closing'?'종료·저장 중…':'종료하고 기록 보기';
   find('[data-live-exit]').disabled=phase!=='active';find('[data-live-mute]').disabled=phase!=='active';
@@ -42,6 +44,27 @@ export async function mountLive(host,{request=liveRequest,connect=connectLive}={
  }
  function stopMic(){clearInterval(micTimer);micStream?.getTracks().forEach(t=>t.stop());micStream=null;micContext?.close().catch(()=>{});micContext=null;if(!destroyed)find('[data-live-meter]').value=0;}
  function stopCamera(){++cameraVersion;cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;cameraPending=false;for(const key of ['preview','self']){const v=find(`[data-live-${key}]`);v.srcObject=null;v.hidden=true;}find('[data-live-camera-placeholder]').hidden=false;}
+ async function toggleDevices(){
+  if(cameraStream||micStream){stopMic();stopCamera();find('[data-live-camera-status]').textContent='카메라와 마이크를 껐습니다.';controls();return;}
+  const version=++cameraVersion;cameraPending=true;phase='devices';controls();find('[data-live-camera-status]').textContent='카메라와 마이크 권한을 확인하고 있습니다.';
+  let stream;
+  try{
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+   if(destroyed||version!==cameraVersion){stream.getTracks().forEach(t=>t.stop());return;}
+   if(!stream.getVideoTracks().length||!stream.getAudioTracks().length)throw Error('devices_unavailable');
+   // Separate local ownership: starting the interview releases only this test mic.
+   cameraStream=new window.MediaStream(stream.getVideoTracks());micStream=new window.MediaStream(stream.getAudioTracks());
+   for(const key of ['preview','self']){const v=find(`[data-live-${key}]`);v.srcObject=cameraStream;v.hidden=false;void v.play().catch(()=>{});}
+   find('[data-live-camera-placeholder]').hidden=true;
+   micContext=new (window.AudioContext||window.webkitAudioContext)();await micContext.resume();
+   if(destroyed||version!==cameraVersion){stream.getTracks().forEach(t=>t.stop());return;}
+   const analyser=micContext.createAnalyser();micContext.createMediaStreamSource(micStream).connect(analyser);const values=new Uint8Array(analyser.fftSize);
+   micTimer=setInterval(()=>{if(destroyed||version!==cameraVersion)return;analyser.getByteTimeDomainData(values);find('[data-live-meter]').value=Math.min(1,Math.sqrt(values.reduce((n,v)=>n+((v-128)/128)**2,0)/values.length)*5);},100);
+   for(const track of stream.getTracks())track.addEventListener?.('ended',()=>{if(!destroyed&&version===cameraVersion&&phase==='idle'){stopMic();stopCamera();find('[data-live-camera-status]').textContent='장치 연결이 끊겼습니다. 카메라·마이크를 다시 켜주세요.';controls();}});
+   find('[data-live-camera-status]').textContent='카메라와 마이크가 켜졌습니다. 마이크 입력 막대를 확인해주세요.';
+  }catch{stream?.getTracks().forEach(t=>t.stop());if(!destroyed&&version===cameraVersion){stopMic();stopCamera();find('[data-live-camera-status]').textContent='카메라와 마이크 권한을 확인한 뒤 다시 켜주세요.';}}
+  finally{if(!destroyed&&phase==='devices'){phase='idle';cameraPending=false;controls();}}
+ }
  async function toggleCamera(){if(cameraStream){stopCamera();controls();return;}const version=++cameraVersion;cameraPending=true;controls();find('[data-live-camera-status]').textContent='카메라 권한을 확인하고 있습니다.';
   try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});if(destroyed||version!==cameraVersion){stream.getTracks().forEach(t=>t.stop());return;}cameraStream=stream;for(const key of ['preview','self']){const v=find(`[data-live-${key}]`);v.srcObject=stream;v.hidden=false;void v.play().catch(()=>{});}find('[data-live-camera-placeholder]').hidden=true;find('[data-live-camera-status]').textContent='내 기기에서만 표시되며 영상은 전송·저장하지 않습니다.';}catch{if(!destroyed&&version===cameraVersion)find('[data-live-camera-status]').textContent='카메라 권한과 연결을 확인해주세요. 카메라 없이도 면접할 수 있습니다.';}finally{if(version===cameraVersion){cameraPending=false;controls();}}
  }
@@ -77,10 +100,11 @@ export async function mountLive(host,{request=liveRequest,connect=connectLive}={
    if(destroyed||failed||currentAttempt.signal.aborted){await c.stop();if(!destroyed)status('연결을 완료하지 못했습니다. 기기와 연결 상태를 확인해주세요.');return;}
    connection=c;lastRunId=c.runId;setQuestion(c.question);phase='active';startedAt=Date.now();find('[data-live-time]').textContent='0:00 / 10:00';find('[data-live-progress]').value=0;show('live');status('질문을 듣고 천천히 답해주세요.');find('[data-live-activity]').textContent='음성 면접 진행 중';
    ticker=setInterval(()=>{if(destroyed)return;const elapsed=Math.min(600,Math.floor((Date.now()-startedAt)/1000));find('[data-live-time]').textContent=`${time(elapsed)} / 10:00`;find('[data-live-progress]').value=elapsed;},1000);poller=setInterval(poll,10000);
-  }catch(e){status(reasons[e.code||e.message]||'연결하지 못했습니다. 마이크 권한과 연결 상태를 확인해주세요.');}finally{if(!connection)phase='idle';controls();}
+  }catch(e){status(reasons[e.code||e.message]||'연결하지 못했습니다. 마이크 권한과 연결 상태를 확인해주세요.');}finally{if(!connection){phase='idle';if(combinedDevices)stopCamera();}controls();}
  }
  async function click(e){const button=e.target.closest('button');if(!button||!host.contains(button)||button.disabled||destroyed)return;
   if(button.hasAttribute('data-live-camera'))return toggleCamera();
+  if(button.hasAttribute('data-live-devices'))return toggleDevices();
   if(button.hasAttribute('data-live-start'))return start();
   if(button.hasAttribute('data-live-retry'))return checkReady();
   if(button.hasAttribute('data-live-exit')){dialog.showModal();find('[data-live-resume]').focus();return;}
@@ -100,5 +124,5 @@ export async function mountLive(host,{request=liveRequest,connect=connectLive}={
  const pagehide=()=>{attempt?.abort();connection?.release();connection=null;clearInterval(poller);clearInterval(ticker);stopMic();stopCamera();};
  host.addEventListener('click',click);window.addEventListener('beforeunload',beforeUnload);window.addEventListener('pagehide',pagehide);
  void mountLiveHistory(find('[data-live-history]'),{request}).then(view=>{if(destroyed)view.destroy();else historyView=view;});void checkReady();controls();
- return {canLeave(){if(connection||phase==='connecting'||phase==='closing'||phase==='mic'){status('면접 종료 또는 진행 중인 연결을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;analysisView?.destroy();attempt?.abort();clearInterval(poller);clearInterval(ticker);stopMic();stopCamera();if(connection){const c=connection;connection=null;void c.stop().catch(()=>{});}dialog.close();historyView?.destroy();host.removeEventListener('click',click);window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pagehide);host.replaceChildren();}};
+ return {canLeave(){if(connection||phase==='connecting'||phase==='closing'||phase==='mic'||phase==='devices'){status('면접 종료 또는 진행 중인 연결을 마친 뒤 이동해주세요.');return false;}return true;},destroy(){destroyed=true;analysisView?.destroy();attempt?.abort();clearInterval(poller);clearInterval(ticker);stopMic();stopCamera();if(connection){const c=connection;connection=null;void c.stop().catch(()=>{});}dialog.close();historyView?.destroy();host.removeEventListener('click',click);window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('pagehide',pagehide);host.replaceChildren();}};
 }

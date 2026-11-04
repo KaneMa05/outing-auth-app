@@ -10,15 +10,68 @@ function element(){const nodes=new Map(),listeners=new Map(),attrs=new Set();ret
  addEventListener(k,v){listeners.set(k,v);},removeEventListener(k){listeners.delete(k);},
  hasAttribute(k){return attrs.has(k);},closest(){return this;},replaceChildren(){this.innerHTML='';},
  };}
-function harness({request,connect,mediaDevices={getUserMedia:async()=>{throw Error('permission');}}}){
+function harness({request,connect,combinedDevices=false,audioContext,mediaDevices={getUserMedia:async()=>{throw Error('permission');}}}){
  const host=element();
  const window={RTCPeerConnection(){},addEventListener(){},removeEventListener(){}};
+ if(combinedDevices)window.webkit={messageHandlers:{interviewNative:{}}};
+ window.AudioContext=audioContext;
+ window.MediaStream=class{constructor(tracks){this.tracks=tracks;}getTracks(){return this.tracks;}};
  const context={window,navigator:{mediaDevices},document:{querySelector:()=>true},AbortController,setInterval,clearInterval,connectLive:connect};
  vm.createContext(context);
  vm.runInContext(fs.readFileSync('interview-live-ui.js','utf8').replace(/^export \{mountLive\}.*$/m,'').replaceAll('export async function','async function').replaceAll('export function','function'),context);
  vm.runInContext(fs.readFileSync('client/interview-live-view.js','utf8').replace(/^import .*\r?\n/gm,'').replace(/^const esc=.*\r?\n/m,'').replaceAll('export async function','async function'),context);
  return {host,mount:()=>context.mountLive(host,{request,connect}),click(name){const button=host.querySelector(`[${name}]`);button.attrs.add(name);return host.listeners.get('click')({target:button});}};
 }
+function devices(){
+ const audio={kind:'audio',stopped:false,stop(){this.stopped=true;}},video={kind:'video',stopped:false,stop(){this.stopped=true;}};
+ return {audio,video,stream:{getTracks:()=>[audio,video],getAudioTracks:()=>[audio],getVideoTracks:()=>[video]}};
+}
+class MeterContext {
+ async resume(){}async close(){}
+ createAnalyser(){return {fftSize:8,getByteTimeDomainData(values){values.fill(128);}};}
+ createMediaStreamSource(){return {connect(){}};}
+}
+const readyResponse=async action=>action==='ready'?{ready:true}:{runs:[],hasMore:false};
+test('iPhone prepares camera and microphone with one permission request and one off button',async()=>{
+ const d=devices();let requests=0;
+ const h=harness({combinedDevices:true,audioContext:MeterContext,request:readyResponse,mediaDevices:{getUserMedia:async options=>{requests++;assert.equal(options.video.facingMode,'user');assert.equal(options.audio.echoCancellation,true);return d.stream;}}});
+ const view=await h.mount();await settle();
+ assert.match(h.host.innerHTML,/data-live-devices/);assert.doesNotMatch(h.host.innerHTML,/data-live-camera class|data-live-mic>/);
+ await h.click('data-live-devices');assert.equal(requests,1);
+ assert.equal(h.host.querySelector('[data-live-devices]')['aria-pressed'],'true');
+ assert.equal(h.host.querySelector('[data-live-preview]').srcObject.getTracks()[0],d.video);
+ await h.click('data-live-devices');assert.equal(d.audio.stopped,true);assert.equal(d.video.stopped,true);
+ assert.equal(h.host.querySelector('[data-live-preview]').srcObject,null);view.destroy();
+});
+test('iPhone entering interview releases the preparation mic and retains its camera until exit',async()=>{
+ const d=devices();
+ const h=harness({combinedDevices:true,audioContext:MeterContext,request:readyResponse,mediaDevices:{getUserMedia:async()=>d.stream},connect:async()=>({runId:'run',question:'질문',stop:async()=>{},request:async()=>({})})});
+ const view=await h.mount();await settle();await h.click('data-live-devices');await h.click('data-live-start');
+ assert.equal(d.audio.stopped,true);assert.equal(d.video.stopped,false);
+ assert.ok(h.host.querySelector('[data-live-self]').srcObject);
+ await h.click('data-live-stop');assert.equal(d.video.stopped,true);view.destroy();
+});
+test('iPhone late permission after leaving releases both devices and blocks duplicate starts',async()=>{
+ const permission=deferred(),d=devices();let requests=0;
+ const h=harness({combinedDevices:true,audioContext:MeterContext,request:readyResponse,mediaDevices:{getUserMedia:()=>{requests++;return permission.promise;}}});
+ const view=await h.mount();await settle();const pending=h.click('data-live-devices');
+ assert.equal(h.host.querySelector('[data-live-start]').disabled,true);assert.equal(view.canLeave(),false);
+ await h.click('data-live-devices');assert.equal(requests,1);view.destroy();permission.resolve(d.stream);await pending;
+ assert.equal(d.audio.stopped,true);assert.equal(d.video.stopped,true);
+});
+test('iPhone microphone setup failure releases the camera too',async()=>{
+ const d=devices();class BrokenContext extends MeterContext{async resume(){throw Error('audio_failed');}}
+ const h=harness({combinedDevices:true,audioContext:BrokenContext,request:readyResponse,mediaDevices:{getUserMedia:async()=>d.stream}});
+ const view=await h.mount();await settle();await h.click('data-live-devices');
+ assert.equal(d.audio.stopped,true);assert.equal(d.video.stopped,true);
+ assert.equal(h.host.querySelector('[data-live-devices]').disabled,false);view.destroy();
+});
+test('iPhone connection failure releases remaining camera capture',async()=>{
+ const d=devices();
+ const h=harness({combinedDevices:true,audioContext:MeterContext,request:readyResponse,mediaDevices:{getUserMedia:async()=>d.stream},connect:async()=>{throw Error('connection_failed');}});
+ const view=await h.mount();await settle();await h.click('data-live-devices');await h.click('data-live-start');
+ assert.equal(d.audio.stopped,true);assert.equal(d.video.stopped,true);view.destroy();
+});
 test('slow history does not block readiness or leaving; late completion stays detached',async()=>{
  const history=deferred();
  const h=harness({request:action=>action==='ready'?Promise.resolve({ready:true}):history.promise});
