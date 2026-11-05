@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "check:application-slack": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.slack.local scripts/check-application-slack.cjs",
+    "test:application-slack": "node --test tests/application-slack.test.cjs",
     "test:interview-ai-history": "node tests/interview-ai-capacity.test.cjs && node tests/interview-question-usage.test.cjs && node tests/interview-ai-usage.test.cjs && node tests/interview-ai-history-db.test.cjs && node tests/interview-ai-history-browser.cjs",
     "test:penalty-export": "node tests/penalty-export.test.cjs",
     "test:interview-prep": "node tests/interview-prep.test.cjs",
