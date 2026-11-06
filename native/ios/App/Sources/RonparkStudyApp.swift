@@ -18,8 +18,28 @@ private struct StudentApp: View {
         if ProcessInfo.processInfo.arguments.contains("--interview-native-preview") {
             // UI tests run the real SwiftUI screens without opening a production web page.
             if ProcessInfo.processInfo.arguments.contains("--interview-legacy-fixture") { InterviewView(preview: true) }
+            else if ProcessInfo.processInfo.arguments.contains("--portal-practice-filter-fixture") {
+                InterviewPracticeView(mode: "job", loadSession: {
+                    ["accountId": "ui-filter-fixture", "track": "공채", "mode": "job",
+                     "fields": [["id": "criminal_law_investigation", "label": "형사법·수사절차"], ["id": "domestic_maritime_law", "label": "해사법규"]],
+                     "questions": [
+                        ["id": "nav", "prompt": "항법 질문", "category": "job", "tracks": ["공채"], "fieldIds": ["criminal_law_investigation"], "regions": ["서해"]],
+                        ["id": "law", "prompt": "법규 질문", "category": "job", "tracks": ["공채"], "fieldIds": ["domestic_maritime_law"], "regions": ["중부"]]]]
+                }, requestAnalysis: { _, _ in ["ok": true, "ready": true] })
+            }
+            else if ProcessInfo.processInfo.arguments.contains("--portal-practice-ai-fixture") {
+                InterviewPracticeView(mode: "ai", loadSession: {
+                    ["accountId": "ui-fixture", "track": "공채", "questions": [["id": "portal-only", "prompt": "협업 경험을 설명해주세요.", "category": "personality", "tracks": ["공채"]]]]
+                }, requestAnalysis: { _, _ in ["ok": true, "ready": true] })
+            }
             else if ProcessInfo.processInfo.arguments.contains("--portal-practice-fixture") {
-                InterviewPracticeView(loadSession: { ["accountId": "ui-fixture", "track": "공채", "questions": [["id": "portal-only", "prompt": "해양경찰의 역할을 설명해주세요.", "tracks": ["공채"]]]] })
+                InterviewPracticeView(loadSession: {
+                    let recorded = ProcessInfo.processInfo.arguments.contains("--portal-recorded-question")
+                    return ["accountId": "ui-fixture", "track": "공채", "questions": [[
+                        "id": recorded ? "q-00c6efa46a2fb0112fa02e6c" : "portal-only",
+                        "prompt": recorded ? "서해지방해양경찰청의 관할을 알고 있는가?" : "해양경찰의 역할을 설명해주세요.",
+                        "tracks": ["공채"]]]]
+                })
             }
             else { InterviewPracticeView() }
         } else { studentContent }
@@ -69,8 +89,9 @@ private struct StudentWebApp: UIViewRepresentable {
         #if DEBUG
         config.userContentController.add(context.coordinator, name: "interviewPractice")
         let pcPractice = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice")
-        let practiceFlags = pcPractice ? "window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;" : "window.__ronparkOpenAIPractice=true;"
-        config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){\(practiceFlags)window.__ronparkMockTestApp=true;}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        let practiceFlags = pcPractice ? "window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;" : "window.__ronparkOpenAIPractice=true;window.__ronparkPracticeNative=true;"
+        let testFlag = ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") ? "" : "window.__ronparkMockTestApp=true;"
+        config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){\(practiceFlags)\(testFlag)}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         #endif
         // The installed WKWebView is standalone too. Set this before the existing
         // web app evaluates its install gate; never apply it to third-party pages.
@@ -80,7 +101,94 @@ private struct StudentWebApp: UIViewRepresentable {
             }
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(installedApp)
+        let cameraLayout = WKUserScript(source: """
+            if (location.protocol === 'https:' && location.hostname === '\(Self.host)' && (!location.port || location.port === '443')) {
+              document.documentElement.dataset.ronparkInstalledIos = 'true';
+              const style = document.createElement('style');
+              style.textContent = `
+                html[data-ronpark-installed-ios] .ip-live-view [data-live-screen="prep"] .il-camera {
+                  width: min(100%, 216px);
+                  height: auto;
+                  aspect-ratio: 3 / 4;
+                  margin-inline: auto;
+                }
+              `;
+              document.head.appendChild(style);
+            }
+            """, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        config.userContentController.addUserScript(cameraLayout)
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--interview-api-status-diagnostic") {
+            config.userContentController.addUserScript(WKUserScript(source: """
+                if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                  const post = async (path, body) => {
+                    const response = await fetch(path, {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
+                    return {status:response.status, body:await response.json()};
+                  };
+                  for (const name of ['job','personality','access']) {
+                    (async () => {
+                      let text;
+                      try {
+                        if (name === 'access') {
+                          const result = await post('/api/interview-prep', {action:'mock_status'});
+                          text = 'API 진단 access HTTP ' + result.status + ' allowed=' + result.body.allowed;
+                        } else {
+                          const bootstrap = await post('/api/interview-prep', {action:'practice_bootstrap',mode:name});
+                          const result = await post('/api/interview-practice-openai', {action:'status',accountId:bootstrap.body.accountId});
+                          text = 'API 진단 ' + name + ' HTTP ' + result.status + ' ready=' + result.body.ready + ' questions=' + (bootstrap.body.questions || []).length + ' bootstrap=' + bootstrap.status + ' reason=' + (result.body.reason || result.body.error || 'none');
+                        }
+                      } catch (error) { text = 'API 진단 ' + name + ' network=' + error.name; }
+                      const result = document.createElement('p');result.textContent = text;document.body.prepend(result);
+                    })();
+                  }
+                }
+                """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
+        if ProcessInfo.processInfo.arguments.contains("--web-camera-layout-fixture") {
+            config.userContentController.addUserScript(WKUserScript(source: """
+                if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                  (async () => {
+                    const {mountLive} = await import('https://\(Self.host)/client/interview-live-view.js?v=20261102-cli');
+                    const host = document.createElement('main');
+                    document.body.replaceChildren(host);
+                    await mountLive(host, {request: async () => ({ready:false})});
+                    const sheet = document.querySelector('link[data-interview-live-style]');
+                    if (!sheet.sheet) await new Promise(resolve => sheet.addEventListener('load', resolve, {once:true}));
+                    const live = host.querySelector('[data-live-screen="live"]');
+                    live.hidden = false;
+                    const self = host.querySelector('[data-live-self]');
+                    self.hidden = false;
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                    const preview = host.querySelector('.il-camera');
+                    const p = preview.getBoundingClientRect(), l = self.getBoundingClientRect();
+                    const result = document.createElement('p');
+                    const equal = p.height > 0 && l.height > 0 && Math.abs(p.width/p.height - l.width/l.height) < 0.005;
+                    result.textContent = equal ? '준비·면접 카메라 비율 일치' : '카메라 비율 불일치';
+                    document.body.prepend(result);
+                    live.hidden = true;
+                  })().catch(error => {
+                    const result = document.createElement('p');
+                    result.textContent = '카메라 비율 검증 오류: ' + error.message;
+                    document.body.prepend(result);
+                  });
+                }
+                """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
+        if ProcessInfo.processInfo.arguments.contains("--web-media-permission-fixture") {
+            config.userContentController.addUserScript(WKUserScript(source: """
+                if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                  setTimeout(async () => {
+                    const result = document.createElement('p');
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+                      stream.getTracks().forEach(track => track.stop());
+                      result.textContent = '웹 마이크 권한 허용 확인';
+                    } catch { result.textContent = '웹 마이크 권한 거부 확인'; }
+                    document.body.prepend(result);
+                  }, 500);
+                }
+                """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         // Screenshot-only login uses ephemeral runner environment values. Never
         // compile credentials into the app or include them in test activity logs.
         let env = ProcessInfo.processInfo.environment
@@ -179,6 +287,35 @@ private struct StudentWebApp: UIViewRepresentable {
             alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in completionHandler() })
             present(alert, from: webView, fallback: completionHandler)
         }
+        func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            let frameOrigin = frame.securityOrigin
+            guard InterviewLaunchPolicy.acceptsMediaCapture(scheme: origin.protocol, host: origin.host, port: origin.port,
+                    isMainFrame: frame.isMainFrame, topLevelURL: webView.url),
+                  InterviewLaunchPolicy.acceptsMediaCapture(scheme: frameOrigin.protocol, host: frameOrigin.host, port: frameOrigin.port,
+                    isMainFrame: frame.isMainFrame, topLevelURL: webView.url) else { decisionHandler(.deny); return }
+            let resource: String, reason: String
+            switch type {
+            case .microphone:
+                resource = "마이크"; reason = "모의면접 답변 녹음과 마이크 확인에 사용합니다."
+            case .camera:
+                resource = "카메라"; reason = "모의면접 카메라 미리보기에 사용합니다."
+            case .cameraAndMicrophone:
+                resource = "카메라와 마이크"; reason = "모의면접 카메라 미리보기와 답변 녹음에 사용합니다."
+            @unknown default: decisionHandler(.deny); return
+            }
+            let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "론박스터디 앱"
+            let alert = UIAlertController(title: "‘\(name)’에서 \(resource)를 사용하도록 허용할까요?", message: reason, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "허용 안 함", style: .cancel) { _ in decisionHandler(.deny) })
+            alert.addAction(UIAlertAction(title: "허용", style: .default) { [weak webView] _ in
+                // A navigation while the dialog was open must not authorize another site.
+                let valid = InterviewLaunchPolicy.acceptsMediaCapture(scheme: origin.protocol, host: origin.host, port: origin.port,
+                    isMainFrame: frame.isMainFrame, topLevelURL: webView?.url)
+                decisionHandler(valid ? .grant : .deny)
+            })
+            present(alert, from: webView, fallback: { decisionHandler(.deny) })
+        }
         func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
                      initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
             let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
@@ -210,7 +347,8 @@ private struct StudentWebApp: UIViewRepresentable {
     func analysis(_ action: String, _ fields: [String: Any]) async throws -> [String: Any] {
         guard ["status", "submit", "get"].contains(action), fields["action"] == nil else { throw URLError(.badURL) }
         var body = fields; body["action"] = action
-        return try await post("/api/interview-practice-cli", body)
+        let path = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice") ? "/api/interview-practice-cli" : "/api/interview-practice-openai"
+        return try await post(path, body)
     }
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
         willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,

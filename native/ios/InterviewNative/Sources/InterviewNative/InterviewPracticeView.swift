@@ -24,7 +24,9 @@ import AVKit
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack {
-                        Text(model.screen == .menu ? "론박스터디 · 면접반" : model.modeTitle).font(.subheadline).foregroundStyle(teal)
+                        Text(model.screen == .menu ? "론박스터디 · 면접반" : model.modeTitle)
+                            .font(model.screen == .prep ? .title.bold() : .subheadline)
+                            .foregroundStyle(model.screen == .prep ? ink : teal)
                         Spacer()
                         if (model.screen == .menu || model.screen == .prep) && !model.isPortalPractice {
                             Menu {
@@ -36,7 +38,7 @@ import AVKit
                         } else { Text(model.record?.track ?? model.track).font(.subheadline).foregroundStyle(teal) }
                     }
                     content
-                    if model.screen != .live {
+                    if model.screen != .live && !model.sessionLoading && !compactNotice.isEmpty {
                         Text(compactNotice).font(.footnote).foregroundStyle(teal).frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14).background(teal.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
                     }
@@ -69,8 +71,9 @@ import AVKit
                 Button("삭제", role: .destructive) { if let deleting { model.delete(deleting.id) }; deleting = nil }
                 Button("취소", role: .cancel) { deleting = nil }
             } message: { Text("이 기기에 저장된 답변 음성과 영상도 삭제됩니다.") }
-            .onChange(of: model.screen) { _ in
+            .onChange(of: model.screen) { screen in
                 DispatchQueue.main.async { scroll.scrollTo("practice.top", anchor: .top) }
+                if screen == .result { model.refreshCLIResults(allowSubmission: true) }
             }
             }
         }
@@ -80,7 +83,6 @@ import AVKit
         .onDisappear { model.dispose() }
     }
     private var compactNotice: String {
-        if model.usesPC && !model.pcFeedbackEnabled && model.screen == .prep { return "녹음은 이 기기에 저장됩니다." }
         switch model.notice {
         case "무료 AI 테스트 연결됨 · 테스트용 답변만 사용해주세요.": return "AI 연결됨"
         case "기기 내 녹음·재생 · AI 서버 연결 대기": return "AI 연결 대기"
@@ -93,45 +95,64 @@ import AVKit
             .foregroundStyle(primary ? .white : teal)
             .buttonStyle(PracticePressStyle(primary: primary, tint: teal)).disabled(!enabled).opacity(enabled ? 1 : 0.45).accessibilityIdentifier(id)
     }
+    private func practiceDropdown<Options: View>(title: String, value: String, id: String, @ViewBuilder options: () -> Options) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Menu { options() } label: {
+                HStack(spacing: 6) {
+                    Text(value).font(.subheadline).lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .foregroundStyle(ink).padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 48)
+                .background(.white, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.28), lineWidth: 1))
+            }
+            .buttonStyle(.plain).disabled(model.sessionLoading)
+            .accessibilityLabel(title).accessibilityValue(value).accessibilityIdentifier(id)
+        }.frame(maxWidth: .infinity)
+    }
     @ViewBuilder private var content: some View {
         switch model.screen {
         case .menu:
             Text("모의면접").font(.title.bold())
-            action("전공(직무) 시험모드     ›", id: "practice.mode.job") { model.select("job") }
+            action("직무(전공) 연습모드     ›", id: "practice.mode.job") { model.select("job") }
             action("인성 연습모드     ›", id: "practice.mode.personality") { model.select("personality") }
             action("실전 모의면접 (AI)     ›", id: "practice.mode.ai") { model.select("ai") }
                         action("내 면접 기록", id: "practice.records") { model.showRecords() }
             if !model.bridgeReady { action("AI 연결 다시 확인") { Task { await model.load() } } }
         case .prep:
-            Text(model.mode == "job" ? "전공 연습" : "면접 준비").font(.title.bold())
-            if model.mode == "job" { Text("질문을 듣고 답변한 뒤, 내 답변과 피드백을 확인하세요.").font(.subheadline).foregroundStyle(.secondary) }
-            if model.usesPC { Text("답변은 문항당 최대 85초입니다.").font(.caption).foregroundStyle(.secondary) }
-            if model.mode == "job" {
-                Text("연습 문항 수").font(.subheadline).foregroundStyle(.secondary)
-                Picker("연습 문항 수", selection: Binding(get: { model.jobQuestionCount }, set: { model.setJobQuestionCount($0) })) {
-                    ForEach([1, 3, 5, 10], id: \.self) { Text("\($0)문항").tag($0) }
-                }.pickerStyle(.segmented).accessibilityIdentifier("practice.job-count")
-                if model.questions.count < model.jobQuestionCount { Text("준비된 \(model.questions.count)문항으로 진행합니다.").font(.caption).foregroundStyle(.secondary) }
+            if model.mode == "job", model.isPortalPractice {
+                HStack(alignment: .top, spacing: 12) {
+                    practiceDropdown(title: "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
+                        Button("전체 분야") { model.changeField("") }
+                        ForEach(model.contentFields) { field in
+                            Button(field.label) { model.changeField(field.id) }
+                        }
+                    }
+                    practiceDropdown(title: "기출 지역", value: model.selectedRegion.isEmpty ? "전체 지역" : model.selectedRegion, id: "practice.region") {
+                        Button("전체 지역") { model.changeRegion("") }
+                        ForEach(model.availableRegions, id: \.self) { region in
+                            Button(region) { model.changeRegion(region) }
+                        }
+                    }
+                }
             }
-            PracticePreparationMedia(media: model.media, cameraEnabled: model.showsInterviewer)
+            if model.mode == "job" {
+                practiceDropdown(title: "연습 문항 수", value: "\(model.jobQuestionCount)문항", id: "practice.job-count") {
+                    ForEach([3, 5, 10, 15, 20], id: \.self) { count in
+                        Button("\(count)문항") { model.setJobQuestionCount(count) }
+                    }
+                }
+            }
             if model.showsInterviewer {
+            PracticePreparationMedia(media: model.media, cameraEnabled: true, combined: true)
             Toggle("내 모습과 답변 영상 녹화", isOn: $model.recordVideo).accessibilityIdentifier("practice.video-toggle")
             Text("영상은 기기에만 저장됩니다.").font(.caption).foregroundStyle(.secondary)
             }
-            if model.usesPC {
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("AI 피드백 받기", isOn: $model.pcFeedbackEnabled)
-                        .disabled(model.sessionLoading).accessibilityIdentifier("practice.ai-feedback")
-                    Text("켜면 답변 음성을 전송해 분석합니다.").font(.caption).foregroundStyle(.secondary)
-                    DisclosureGroup("자세히 보기") {
-                        Text("답변 음성을 서버에 저장하고, 음성을 글로 바꾼 내용은 AI 서비스로 전송해 피드백을 만듭니다. 음성은 수강 종료 후 31일(종료일이 없으면 접수 후 31일)까지 보관됩니다. 영상은 기기에만 저장되며, 피드백은 내 면접 기록에서 확인할 수 있습니다.")
-                            .font(.caption).foregroundStyle(.secondary).padding(.top, 4)
-                    }.font(.caption).accessibilityIdentifier("practice.ai-feedback-details")
-                }.padding(16).background(.white, in: RoundedRectangle(cornerRadius: 16))
-            }
-            if model.questions.isEmpty && !model.sessionLoading { Text(model.isPortalPractice ? "공개 승인된 질문이 없습니다. 관리자 승인 후 다시 열어주세요." : "해당 직렬에 준비된 질문이 없습니다.").font(.subheadline) }
-            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || !model.pcFeedbackEnabled || model.bridgeReady), id: "interview.start") { model.start() }
-            if model.usesPC && model.pcFeedbackEnabled && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
+            if model.questions.isEmpty && !model.sessionLoading { Text(model.isPortalPractice ? "선택 조건에 맞는 공개 승인 문항이 없습니다. 분야나 지역을 변경해주세요." : "해당 직렬에 준비된 질문이 없습니다.").font(.subheadline) }
+            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || model.bridgeReady), id: "interview.start") { model.start() }
+            if model.usesPC && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
         case .live:
             if !model.usesPC && (model.mode == "job" || model.mode == "personality") {
@@ -142,7 +163,7 @@ import AVKit
                 Text("질문 \(model.number) / \(model.questions.count)").font(.headline); Spacer()
                 Button("다시 듣기") { model.speakQuestion() }.disabled(model.answering || model.countdown != nil).accessibilityIdentifier("practice.replay")
             }
-            Text(String(format: "%d:%02d / 10:00", model.elapsed / 60, model.elapsed % 60)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            Text(String(format: "%d:%02d / %d:%02d", model.elapsed / 60, model.elapsed % 60, model.sessionLimitSeconds / 60, model.sessionLimitSeconds % 60)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
             if model.showsInterviewer {
             PracticeConversationStage(media: model.media, meter: model.meter, talking: model.talking, preparing: model.countdown != nil, avatarURL: model.avatarURL, questionPlayer: model.questionPlayer)
             } else {
@@ -160,6 +181,10 @@ import AVKit
                     .frame(maxWidth: .infinity).accessibilityIdentifier("practice.start-countdown")
             } else {
                 Text(model.question).font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+            }
+            if !model.questionAudioNotice.isEmpty {
+                Text(model.questionAudioNotice).font(.footnote).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("practice.question-audio-notice")
             }
             if model.streamsCaptions && !model.transcript.isEmpty {
                 Text(model.transcript).font(.subheadline).foregroundStyle(.secondary)
@@ -180,6 +205,8 @@ import AVKit
                 VStack(alignment: .leading, spacing: 10) {
                     Text(record.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
                     Text(record.track + " · 질문 \(record.turns.count)개").font(.caption)
+                    if let field = record.fieldLabel { Text(field).font(.caption) }
+                    if let region = record.region { Text(region).font(.caption) }
                     action("기록 보기") { model.record = record; model.screen = .result }
                     Button("기록 삭제", role: .destructive) { deleting = record }
                 }.padding().background(.white, in: RoundedRectangle(cornerRadius: 16))
@@ -237,8 +264,8 @@ import AVKit
                         action("내 답변 듣기") { model.play(turn) }
                         if !turn.answer.isEmpty {
                             DisclosureGroup("나의 답변") { Text(turn.answer).font(.subheadline) }
-                        } else {
-                            Text(turn.analysisPending ? "전사·분석 중…" : "인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
+                        } else if !turn.analysisPending {
+                            Text("인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
                         }
                         if let example = model.exampleAnswer(for: turn) {
                             DisclosureGroup("예시답변") {
@@ -274,19 +301,30 @@ import AVKit
                         } else if record.mode == "job", turn.analysis != nil, !model.usesPC {
                             Text("항목별 판정 기준 미등록").font(.caption).foregroundStyle(.secondary)
                         }
+                        if let status = turn.analysisNotice, !status.isEmpty {
+                            Text(status).font(.caption).foregroundStyle(.secondary)
+                        }
+                        if turn.analysisPending {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("답변 분석 중…").font(.subheadline)
+                            }.accessibilityIdentifier("practice.analysis-progress.\(turn.id)")
+                        }
                         if let feedback = turn.analysis {
                             Text("AI 연습 피드백").font(.caption).foregroundStyle(teal)
                             ForEach(["summary", "strength", "improvement", "nextPractice"], id: \.self) { key in
                                 if let value = feedback[key], !value.isEmpty { Text(value).font(.subheadline) }
                             }
-                        } else {
-                            Text(turn.analysisNotice ?? (turn.analysisState == "queued" ? "분석 순서를 기다리고 있습니다. 다른 질문을 연습해도 됩니다." : turn.analysisPending ? "답변을 저장하고 피드백을 준비하고 있습니다." : turn.analysisError ? "분석 상태를 확인해야 합니다. 자동으로 다시 실행하지 않습니다." : "AI 평가 미연결")).font(.caption).foregroundStyle(.secondary)
+                        } else if !turn.analysisPending && turn.analysisNotice == nil {
+                            Text(turn.analysisState == "queued" ? "분석 순서를 기다리고 있습니다. 다른 질문을 연습해도 됩니다." : turn.analysisPending ? "답변을 저장하고 피드백을 준비하고 있습니다." : turn.analysisError ? "분석 상태를 확인해야 합니다. 자동으로 다시 실행하지 않습니다." : "AI 평가 미연결").font(.caption).foregroundStyle(.secondary)
                         }
                     }.padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
                 }
             }
             action("재생 중지") { model.stopPlayback() }
-            if model.usesPC { action("분석 결과 확인") { model.refreshCLIResults(allowSubmission: true) } }
+            if model.usesPC && model.record?.turns.contains(where: { $0.analysisState == "connection_required" }) == true {
+                action("연결 다시 확인") { model.refreshCLIResults(allowSubmission: true) }
+            }
             action("다시 연습하기", primary: true) { model.select(model.mode) }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
             action(model.isPortalPractice ? "면접 준비로" : "모의면접 메뉴") { model.stopPlayback(); model.screen = model.isPortalPractice ? .prep : .menu }
@@ -337,6 +375,7 @@ private struct PracticePressStyle: ButtonStyle {
 private struct PracticePreparationMedia: View {
     @ObservedObject var media: InterviewMedia
     let cameraEnabled: Bool
+    var combined = false
     @State private var detectedInput = false
     @State private var attempted = false
     @State private var permissionDenied = false
@@ -358,8 +397,16 @@ private struct PracticePreparationMedia: View {
                 }.frame(width: 216, height: 288).clipShape(RoundedRectangle(cornerRadius: 23)).frame(maxWidth: .infinity)
                     .accessibilityIdentifier("practice.prep-camera")
                     .accessibilityValue(media.cameraReady ? "camera-ready" : "camera-pending")
-                Button(media.cameraOn ? "카메라 끄기" : "카메라 켜기") { media.toggleCamera() }
-                    .buttonStyle(.bordered).accessibilityIdentifier("practice.camera-test")
+                if combined {
+                    Button(media.cameraOn || media.micOn ? "카메라·마이크 끄기" : "카메라·마이크 켜기") {
+                        if media.cameraOn || media.micOn { media.stop() }
+                        else { detectedInput = false; attempted = true; media.startCamera(); media.toggleMic() }
+                    }.buttonStyle(.bordered).accessibilityIdentifier("practice.camera-mic-test")
+                    if !media.message.isEmpty { Text(media.message).font(.caption).foregroundStyle(.secondary) }
+                } else {
+                    Button(media.cameraOn ? "카메라 끄기" : "카메라 켜기") { media.toggleCamera() }
+                        .buttonStyle(.bordered).accessibilityIdentifier("practice.camera-test")
+                }
             }
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -372,7 +419,7 @@ private struct PracticePreparationMedia: View {
                         Button("설정 열기") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                         }.accessibilityIdentifier("practice.mic-settings")
-                    } else {
+                    } else if !combined || !cameraEnabled {
                         Button(media.micOn ? "종료" : "테스트하기") {
                             if media.micOn { media.stopMic() }
                             else { detectedInput = false; attempted = true; media.toggleMic() }
@@ -393,7 +440,10 @@ private struct PracticePreparationMedia: View {
         .onChange(of: phase) { value in
             if value == .active { permissionDenied = AVAudioSession.sharedInstance().recordPermission == .denied }
         }
-        .onChange(of: media.micOn) { _ in permissionDenied = AVAudioSession.sharedInstance().recordPermission == .denied }
+        .onChange(of: media.micOn) { enabled in
+            permissionDenied = AVAudioSession.sharedInstance().recordPermission == .denied
+            if !enabled && combined && cameraEnabled { media.stopCamera() }
+        }
         .onChange(of: media.level) { value in
             if media.micOn && value > 0.05 && media.message != "주변 소음 확인 중…" { detectedInput = true }
         }

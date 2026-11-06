@@ -1,9 +1,41 @@
 #if DEBUG
 import Foundation
 
+struct PracticeRecording: Decodable {
+    let id: String, prompt: String, spokenPrompt: String, file: String
+    let displayPrompt: String?
+    static let catalog: [String: Self] = {
+        struct Catalog: Decodable { let version: Int; let clips: [PracticeRecording] }
+        guard let folder = Bundle.main.url(forResource: "InterviewRecordedAudio", withExtension: nil),
+              let data = try? Data(contentsOf: folder.appendingPathComponent("catalog.json")),
+              let catalog = try? JSONDecoder().decode(Catalog.self, from: data), catalog.version == 1 else { return [:] }
+        return catalog.clips.reduce(into: [:]) { result, clip in result[clip.id] = clip }
+    }()
+    static func matching(id: String, prompt: String) -> Self? {
+        guard let recording = catalog[id], recording.prompt == prompt else { return nil }
+        return recording
+    }
+    var url: URL? {
+        guard id.range(of: "^q-[a-f0-9]+$", options: .regularExpression) != nil,
+              file.range(of: "^" + id + "-[a-f0-9]{16}\\.mp3$", options: .regularExpression) != nil,
+              let folder = Bundle.main.url(forResource: "InterviewRecordedAudio", withExtension: nil) else { return nil }
+        let url = folder.appendingPathComponent(file)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
+    }
+}
+
+struct PracticeContentField: Identifiable {
+    let id: String, label: String
+}
+
 struct PracticeQuestion: Decodable {
     let id: String, prompt: String, spokenPrompt: String, file: String, category: String
     let tracks: [String]
+    var fieldIDs: [String]? = nil
+    var regions: [String]? = nil
+    var recording: PracticeRecording? { PracticeRecording.matching(id: id, prompt: prompt) }
+    var displayPrompt: String { recording?.displayPrompt ?? recording?.spokenPrompt ?? spokenPrompt }
     static let examples: [String: String] = {
         guard let folder = Bundle.main.url(forResource: "InterviewPracticeAudio", withExtension: nil),
               let data = try? Data(contentsOf: folder.appendingPathComponent("examples.json")),
@@ -11,6 +43,9 @@ struct PracticeQuestion: Decodable {
         return examples
     }()
     var url: URL? {
+        if let recording { return recording.url }
+        // An edited question must not play the recording of its previous wording.
+        if PracticeRecording.catalog[id] != nil { return nil }
         guard file.range(of: "^[A-Za-z0-9_-]+\\.mp3$", options: .regularExpression) != nil else { return nil }
         return Bundle.main.url(forResource: "InterviewPracticeAudio", withExtension: nil)?.appendingPathComponent(file)
     }
@@ -56,8 +91,13 @@ struct PracticeTurn: Codable, Identifiable {
     var audio: String
     var questionID: String?
     var analysis: [String: String]?
+    var exampleAnswer: String?
     var analysisPending = false
     var analysisError = false
+    var remoteRequestID: String?
+    var remoteSubmitted: Bool?
+    var remoteQuestionPrompt: String?
+    var analysisQuestionPrompt: String?
     var analysisRequestID: String?
     var analysisState: String?
     var analysisNotice: String?
@@ -68,6 +108,9 @@ struct PracticeRecord: Codable, Identifiable {
     var track: String
     var createdAt = Date()
     var video: String?
+    var fieldID: String?
+    var fieldLabel: String?
+    var region: String?
     var completed = false
     var turns: [PracticeTurn] = []
     var accountID: String?
@@ -95,6 +138,20 @@ struct PracticeStore {
                   let data = try? Data(contentsOf: $0.appendingPathComponent("record.json")) else { return nil }
             return try? JSONDecoder().decode(PracticeRecord.self, from: data)
         }.sorted { $0.createdAt > $1.createdAt }
+    }
+    // Only called for the currently authenticated account's own scoped folder.
+    func migrateLegacyCLI(account: String) throws {
+        for var record in try list() where record.accountID == nil {
+            record.accountID = account
+            for index in record.turns.indices {
+                guard record.turns[index].analysisRequestID == nil,
+                      let id = record.turns[index].remoteRequestID else { continue }
+                record.turns[index].analysisRequestID = id
+                record.turns[index].analysisQuestionPrompt = record.turns[index].remoteQuestionPrompt
+                record.turns[index].analysisState = record.turns[index].analysis != nil ? "completed" : record.turns[index].analysisError ? "failed" : "connection_required"
+            }
+            try save(record)
+        }
     }
     func load(_ id: String) throws -> PracticeRecord {
         try JSONDecoder().decode(PracticeRecord.self, from: Data(contentsOf: folder(id).appendingPathComponent("record.json")))

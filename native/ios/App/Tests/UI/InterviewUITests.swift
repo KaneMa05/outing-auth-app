@@ -1,6 +1,45 @@
 import XCTest
 
 final class StudentWebUITests: XCTestCase {
+    func testPreparationCameraMatchesLiveCameraAspectRatio() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--web-camera-layout-fixture", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.webViews.staticTexts["준비·면접 카메라 비율 일치"].waitForExistence(timeout: 45))
+        XCTAssertFalse(app.webViews.staticTexts["카메라 비율 불일치"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "matching-preparation-camera"; screenshot.lifetime = .keepAlways; add(screenshot)
+        app.terminate()
+    }
+    func testWebMediaPermissionAllowsCaptureOnlyAfterConfirmation() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--web-media-permission-fixture", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        let alert = app.alerts["‘론박스터디 앱’에서 마이크를 사용하도록 허용할까요?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 45))
+        alert.buttons["허용"].tap()
+        let systemAlert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if systemAlert.waitForExistence(timeout: 3) {
+            if systemAlert.buttons["허용"].exists { systemAlert.buttons["허용"].tap() }
+            else if systemAlert.buttons["확인"].exists { systemAlert.buttons["확인"].tap() }
+        }
+        XCTAssertTrue(app.webViews.staticTexts["웹 마이크 권한 허용 확인"].waitForExistence(timeout: 10))
+        app.terminate()
+    }
+    func testWebMediaPermissionUsesAppNameAndRespectsDenial() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--web-media-permission-fixture", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        let alert = app.alerts["‘론박스터디 앱’에서 마이크를 사용하도록 허용할까요?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 45))
+        XCTAssertTrue(alert.buttons["허용"].exists)
+        XCTAssertTrue(alert.buttons["허용 안 함"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "branded-web-microphone-permission"; screenshot.lifetime = .keepAlways; add(screenshot)
+        alert.buttons["허용 안 함"].tap()
+        XCTAssertTrue(app.webViews.staticTexts["웹 마이크 권한 거부 확인"].waitForExistence(timeout: 10))
+        app.terminate()
+    }
     func testInstalledAppShowsStudentLoginWithoutInstallGate() {
         let app = XCUIApplication()
         // The screenshot entry uses the same student page as Release. The default
@@ -24,6 +63,17 @@ final class StudentWebUITests: XCTestCase {
 }
 
 final class InterviewUITests: XCTestCase {
+    func testPCPreparationCombinesMediaAndHasNoFeedbackOptIn() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-ai-fixture"]
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.camera-mic-test"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["practice.camera-test"].exists)
+        XCTAssertFalse(app.buttons["practice.media"].exists)
+        XCTAssertFalse(app.switches["practice.ai-feedback"].exists)
+        XCTAssertFalse(app.staticTexts["켜면 답변 음성을 전송해 분석합니다."].exists)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+    }
     private var app: XCUIApplication!
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -113,7 +163,8 @@ final class InterviewPracticeUITests: XCTestCase {
         app.buttons["practice.mode.ai"].tap()
         // Resolve first-launch microphone authorization before testing the short
         // countdown. A pending system prompt leaves the app on preparation.
-        let microphone = app.buttons["practice.media"]
+        let combined = app.buttons["practice.camera-mic-test"]
+        let microphone = combined.exists ? combined : app.buttons["practice.media"]
         microphone.tap()
         let permission = app.alerts.firstMatch
         if permission.waitForExistence(timeout: 3) {
@@ -122,7 +173,7 @@ final class InterviewPracticeUITests: XCTestCase {
             }
             allow.tap()
         }
-        XCTAssertEqual(microphone.label, "종료", "Preparation microphone test must be active")
+        XCTAssertEqual(microphone.label, combined.exists ? "카메라·마이크 끄기" : "종료", "Preparation microphone test must be active")
         microphone.tap()
         app.buttons["interview.start"].tap()
         XCTAssertTrue(app.staticTexts["practice.start-countdown"].waitForExistence(timeout: 2))
@@ -145,7 +196,7 @@ final class InterviewPracticeUITests: XCTestCase {
         app.buttons["practice.mode.ai"].tap()
         let prep = app.descendants(matching: .any)["practice.prep-camera"].firstMatch
         XCTAssertEqual(prep.value as? String, "camera-pending", "Camera stays off until explicitly requested")
-        app.buttons["practice.camera-test"].tap()
+        app.buttons["practice.camera-mic-test"].tap()
         let prepared = expectation(for: NSPredicate(format: "value == %@", "camera-ready"), evaluatedWith: prep)
         wait(for: [prepared], timeout: 3)
         app.buttons["interview.start"].tap()
@@ -237,7 +288,8 @@ final class InterviewPracticeUITests: XCTestCase {
         app.buttons["practice.mode.job"].tap()
         app.buttons["practice.track"].tap()
         app.buttons["practice.track.항해"].tap()
-        app.segmentedControls["practice.job-count"].buttons["3문항"].tap()
+        app.buttons["practice.job-count"].tap()
+        app.buttons["3문항"].tap()
         XCTAssertFalse(app.switches["practice.job-auto"].exists)
         app.buttons["interview.start"].tap()
         for index in 1...3 {
@@ -252,13 +304,15 @@ final class InterviewPracticeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["practice.job-repeat"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["질문 3개"].exists)
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "내 답변 듣기")).count, 3, "Every completed answer must remain playable")
-        // This offline bundle has no examples.json. The app must preserve all
-        // recordings without presenting an invented reference answer.
-        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "practice.example.")).firstMatch.exists)
+        // The restored local bundle retains its verified study references.
+        let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
+        XCTAssertTrue(example.exists)
+        example.tap()
+        XCTAssertTrue(app.staticTexts["학습 참고용 · 공식 정답이 아닙니다."].firstMatch.exists)
         app.swipeDown()
         app.buttons["practice.job-repeat"].tap()
         XCTAssertTrue(app.buttons["interview.start"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.segmentedControls["practice.job-count"].buttons["3문항"].isSelected)
+        XCTAssertEqual(app.buttons["practice.job-count"].value as? String, "3문항")
     }
 
     func testJobAndPersonalityUseAudioOnly() {
@@ -306,7 +360,7 @@ final class InterviewPracticeUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["practice.mode.job"].waitForExistence(timeout: 15))
         app.buttons["practice.mode.job"].tap()
-        XCTAssertTrue(app.staticTexts["전공 연습"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["직무(전공) 연습모드"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["practice.media"].exists)
         XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.track"].tap()
@@ -324,7 +378,48 @@ final class InterviewPracticeUITests: XCTestCase {
 }
 
 final class PortalPracticeUITests: XCTestCase {
-    func testApprovedPortalQuestionStartsWithSpeechFallback() {
+    func testMicrophonePermissionUsesKorean() {
+        let app = XCUIApplication()
+        app.resetAuthorizationStatus(for: .microphone)
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--interview-offline-testing", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        let start = app.buttons["interview.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: start)
+        waitForExpectations(timeout: 15)
+        for _ in 0..<3 { if start.isHittable { break }; app.swipeUp() }
+        start.tap()
+        let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        let allow = alert.buttons["허용"]
+        let confirm = alert.buttons["확인"]
+        XCTAssertTrue(allow.exists || confirm.exists, "System permission action must be Korean")
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "마이크")).firstMatch.exists)
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "korean-microphone-permission"; screenshot.lifetime = .keepAlways; add(screenshot)
+        if allow.exists { allow.tap() } else if confirm.exists { confirm.tap() }
+        app.terminate()
+    }
+    func testApprovedPortalQuestionPlaysPreparedRecording() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--portal-recorded-question", "--interview-offline-testing"]
+        app.launch()
+        let start = app.buttons["interview.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: start)
+        waitForExpectations(timeout: 15)
+        for _ in 0..<3 { if start.isHittable { break }; app.swipeUp() }
+        start.tap()
+        let question = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "서해지방해양경찰청의 관할 구역을 설명해 ")).firstMatch
+        XCTAssertTrue(question.waitForExistence(timeout: 15))
+        let answer = app.buttons["interview.answer"]
+        XCTAssertEqual(answer.label, "질문 듣는 중")
+        XCTAssertFalse(answer.isEnabled)
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: answer)
+        waitForExpectations(timeout: 20)
+        XCTAssertFalse(app.staticTexts["practice.question-audio-notice"].exists)
+    }
+    func testApprovedPortalQuestionWithoutRecordingUsesText() {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--interview-offline-testing"]
         addUIInterruptionMonitor(withDescription: "Microphone") { alert in
@@ -341,5 +436,209 @@ final class PortalPracticeUITests: XCTestCase {
         start.tap(); app.tap()
         XCTAssertTrue(app.buttons["interview.answer"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["해양경찰의 역할을 설명해주세요."].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["practice.question-audio-notice"].exists)
+    }
+}
+
+
+final class PhysicalPortalEndToEndTests: XCTestCase {
+    func testDeployedJobContentFieldAndRegionSelection() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the signed-in physical test iPhone")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40)); mock.tap()
+        let job = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "직무(전공) 연습모드")).firstMatch
+        XCTAssertTrue(job.waitForExistence(timeout: 15)); job.tap()
+        let start = web.buttons["연습 시작"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15)); start.tap()
+        let field = app.buttons["practice.content-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 30))
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: field)], timeout: 30), .completed)
+        let regionInput = app.buttons["practice.region"]
+        XCTAssertEqual(field.frame.minY, regionInput.frame.minY, accuracy: 2)
+        XCTAssertGreaterThan(regionInput.frame.minX, field.frame.maxX)
+        field.tap()
+        for label in ["구조·잠수", "관제·해상통신", "기관학·함정정비", "해양환경·방제", "특공·대테러", "전산·정보보안", "항해학"] {
+            XCTAssertFalse(app.buttons[label].exists, label)
+        }
+        let navigation = app.buttons["형사법·수사절차"]
+        XCTAssertTrue(navigation.waitForExistence(timeout: 10)); navigation.tap()
+        XCTAssertTrue((field.label + " " + String(describing: field.value)).contains("형사법·수사절차"))
+        let region = app.buttons["practice.region"]
+        XCTAssertTrue(region.waitForExistence(timeout: 10)); region.tap()
+        let west = app.buttons["서해"]
+        XCTAssertTrue(west.waitForExistence(timeout: 10)); west.tap()
+        XCTAssertTrue((region.label + " " + String(describing: region.value)).contains("서해"))
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
+        XCTAssertFalse(app.buttons["practice.media"].exists)
+        XCTAssertFalse(app.staticTexts["practice.mic-status"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "음성 분석 연결됨")).firstMatch.exists)
+        let questionCount = app.buttons["practice.job-count"]
+        for count in [3, 5, 10, 15, 20] {
+            questionCount.tap()
+            let option = app.buttons["\(count)문항"]
+            XCTAssertTrue(option.waitForExistence(timeout: 5)); option.tap()
+            XCTAssertEqual(questionCount.value as? String, "\(count)문항")
+        }
+        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "job-field-criminal-west"; screenshot.lifetime = .keepAlways; add(screenshot)
+        #endif
+    }
+    func testOrdinaryAppKeepsAllMockModesComingSoon() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the signed-in physical test iPhone")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ordinary-app-verification"]
+        app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40)); mock.tap()
+        for label in ["직무(전공) 연습모드", "인성 연습모드", "실전 모의면접"] {
+            let mode = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch
+            XCTAssertTrue(mode.waitForExistence(timeout: 15)); mode.tap()
+            let notice = web.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "준비 중입니다.")).firstMatch
+            XCTAssertTrue(notice.waitForExistence(timeout: 15))
+            XCTAssertFalse(web.buttons["연습 시작"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "ordinary-coming-soon-" + label; screenshot.lifetime = .keepAlways; add(screenshot)
+            let back = web.buttons.matching(NSPredicate(format: "label CONTAINS %@", "모의면접 목록")).firstMatch
+            XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
+        }
+        #endif
+    }
+    func testDeployedCombinedCameraAndMicrophoneControl() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the signed-in physical test iPhone")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40)); mock.tap()
+        let ai = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "실전 모의면접")).firstMatch
+        XCTAssertTrue(ai.waitForExistence(timeout: 15)); ai.tap()
+        let start = web.buttons["연습 시작"]
+        XCTAssertTrue(start.waitForExistence(timeout: 20)); start.tap()
+        let devices = app.buttons["practice.camera-mic-test"]
+        let visible = devices.waitForExistence(timeout: 30)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "deployed-combined-camera-microphone"; screenshot.lifetime = .keepAlways; add(screenshot)
+        XCTAssertTrue(visible)
+        XCTAssertFalse(app.buttons["practice.camera-test"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "윈도우")).firstMatch.waitForExistence(timeout: 30))
+        #endif
+    }
+    func testSignedInJobPreparationAndLocalConnection() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires signed-in physical test iPhone and spoken answer")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40), "Signed-in pilot account must have mock tab")
+        mock.tap()
+        let job = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "직무(전공) 연습모드")).firstMatch
+        XCTAssertTrue(job.waitForExistence(timeout: 15)); job.tap()
+        let open = web.buttons["연습 시작"]
+        XCTAssertTrue(open.waitForExistence(timeout: 15)); open.tap()
+        let start = app.buttons["interview.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 30))
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: start)
+        waitForExpectations(timeout: 30)
+        app.buttons["practice.job-count"].tap()
+        app.buttons["3문항"].tap()
+        for _ in 0..<3 { if start.isHittable { break }; app.swipeUp() }
+        start.tap()
+        let consent = app.alerts.buttons["동의하고 테스트"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 15), "Local AI bridge must be ready")
+        XCTAssertTrue(app.alerts["로컬 AI 피드백"].exists)
+        app.alerts.buttons["취소"].tap()
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "physical-portal-preparation"; screenshot.lifetime = .keepAlways; add(screenshot)
+        #endif
+    }
+}
+
+final class PracticeFilterUITests: XCTestCase {
+    func testContentFieldAndRegionIntersectWithoutFallingBackToOtherQuestions() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-filter-fixture"]
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 15))
+        app.buttons["practice.content-field"].tap()
+        app.buttons["형사법·수사절차"].tap()
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
+        app.buttons["practice.region"].tap()
+        app.buttons["중부"].tap()
+        XCTAssertTrue(app.staticTexts["선택 조건에 맞는 공개 승인 문항이 없습니다. 분야나 지역을 변경해주세요."].exists)
+        XCTAssertFalse(app.buttons["interview.start"].isEnabled)
+        app.buttons["practice.region"].tap()
+        app.buttons["서해"].tap()
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+        app.buttons["practice.job-count"].tap()
+        XCTAssertTrue(app.buttons["20문항"].exists)
+        app.buttons["20문항"].tap()
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+    }
+}
+
+final class PhysicalReadOnlyDiagnosticTests: XCTestCase {
+    func testSignedInPracticeStatusWithoutStartingAnAttempt() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Uses the owner's existing signed-in device cookie jar")
+        #else
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-api-status-diagnostic"]
+        app.launch()
+        for name in ["job", "personality", "access"] {
+            let label = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "API 진단 " + name)).firstMatch
+            XCTAssertTrue(label.waitForExistence(timeout: 40))
+            print(label.label)
+            XCTAssertTrue(label.label.contains("HTTP 200"), label.label)
+            if name == "access" {
+                XCTAssertTrue(label.label.contains("allowed=true"), label.label)
+            } else {
+                XCTAssertTrue(label.label.contains("ready=true"), label.label)
+                XCTAssertTrue(label.label.contains("bootstrap=200"), label.label)
+                XCTAssertFalse(label.label.contains("questions=0 "), label.label)
+            }
+        }
+        #endif
+    }
+}
+
+final class PracticeResultPresentationTests: XCTestCase {
+    func testResultsShowReferenceVerdictsAndPendingAnalysisOnTheResultScreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--practice-result-ui-fixture"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 15))
+        let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
+        XCTAssertTrue(example.waitForExistence(timeout: 5)); example.tap()
+        XCTAssertTrue(app.staticTexts["상황을 확인하고 동료에게 보고한 뒤 조치를 기록합니다."].exists)
+        for id in 1...3 {
+            let grade = app.descendants(matching: .any)["practice.overall-grade.\(id)"].firstMatch
+            for _ in 0..<4 { if grade.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(grade.exists)
+            XCTAssertTrue(app.staticTexts[["충족", "부분 충족", "미충족"][id - 1]].exists)
+        }
+        let progress = app.descendants(matching: .any)["practice.analysis-progress.4"].firstMatch
+        for _ in 0..<4 { if progress.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(progress.exists)
+        XCTAssertFalse(app.buttons["분석 결과 확인"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "practice-result-verdicts-and-progress"; screenshot.lifetime = .keepAlways; add(screenshot)
     }
 }

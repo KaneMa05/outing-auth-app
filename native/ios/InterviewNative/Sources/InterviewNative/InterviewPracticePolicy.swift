@@ -2,6 +2,22 @@ import Foundation
 
 public enum InterviewPracticePolicy {
     public static let tracks = ["공채", "항해", "기관", "방제", "관제", "기타"]
+    public static func contentFieldAllowed(_ field: String, track: String) -> Bool {
+        let common: Set<String> = ["coast_guard", "domestic_maritime_law", "criminal_law_investigation", "international_maritime_law"]
+        let specialties: [String: Set<String>] = [
+            "공채": [],
+            "항해": ["navigation", "vts_communications"],
+            "기관": ["engineering_maintenance"],
+            "방제": ["marine_environment", "engineering_maintenance"],
+            "관제": ["navigation", "vts_communications"]
+        ]
+        if track == "기타" { return true }
+        guard let extra = specialties[track] else { return false }
+        return common.contains(field) || extra.contains(field)
+    }
+    public static func matchesSelection(fields: [String], regions: [String], field: String, region: String) -> Bool {
+        (field.isEmpty || fields.contains(field)) && (region.isEmpty || regions.contains(region))
+    }
     public static func eligible(category: String, tracks: [String], mode: String, track: String) -> Bool {
         guard Self.tracks.contains(track) else { return false }
         return mode == "job" ? category == "job" && tracks.contains(track) : category == "personality"

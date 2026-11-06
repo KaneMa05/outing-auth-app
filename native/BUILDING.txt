@@ -325,3 +325,197 @@ https://developer.apple.com/programs/whats-included/
 - Release retains preview-only camera usage text and excludes recording code.
 - Avatar clips remain visible; overlapping local players dissolve at each loop
   boundary instead of cutting directly from the final frame to the first.
+
+2026-10-30: Native practice presentation follows mode: job/personality are
+microphone-only (no camera startup, avatar assignment, or video recording).
+AI mock interview alone retains random interviewer, camera and 5:5 stage.
+Question video playback is restricted to AI mode; answer recording and feedback
+remain shared. Simulator UI checks cover both audio-only modes and the AI stage.
+
+2026-10-30: Debug job practice now reviews each recorded answer before advancing.
+Preparation offers 1/3/5/10 questions (capped to available track questions) and
+an optional four-second silence completion toggle. Review exposes local playback,
+transcript/AI feedback state, and a self-check when AI is unavailable. Review time
+is excluded from the session timer. The current session can repeat its questions
+into a new record. Personality and AI modes retain continuous progression.
+
+2026-10-30 Local AI device bridge
+- INTERVIEW_AI_PROVIDER=local selects offline MLX Whisper turbo transcription
+  followed by installed Ollama qwen3:30b-a3b-instruct-2507-q4_K_M feedback.
+  INTERVIEW_LOCAL_RUNTIME points to the shared .tmp/local-ai directory.
+- Start the bundled Ollama with OLLAMA_MODELS pointing to that directory's models;
+  start scripts/interview-free-api-server.cjs with INTERVIEW_DEVICE_BRIDGE=1.
+  The local provider does not load a Gemini key or call external AI endpoints.
+- Device status advertises provider/local and disables streaming captions. Audio
+  is analyzed after each answer; local consent text identifies the Mac processor.
+- 24GB Mac uses 12 GPU layers, mmap, context 2048, and sequential Whisper/LLM.
+  First complete synthetic-audio transcription + feedback check took 66.5 seconds.
+  Responses remain practice feedback, without authoritative job-knowledge grading.
+- Temporary server audio is removed in finally; saved answer recordings remain
+  on the iPhone. Local pipeline allows up to 90s ASR + 180s feedback processing.
+- UI copy shortened; transcript and self-review checklist collapse on demand.
+
+2026-10-30 Local live captions
+- Authenticated /live WebSocket now accepts bounded 16kHz mono PCM and emits
+  replaceable partial Korean transcripts every 2.5s when new audio is available.
+  One persistent offline Whisper worker serializes ASR and reuses loaded weights.
+  Question context is supplied as a recognition hint, never an answer reference.
+- Synthetic speech smoke test: partial at 5.1s, updated at 8.0s, final at 10.8s.
+  Captions may revise earlier words; the final feedback still rechecks saved audio.
+- Local feedback requests queue instead of rejecting while another answer runs;
+  queue is bounded to four requests. Prompt forbids unsupported terminology
+  correction and factual grading without a supplied reference.
+
+2026-10-30 Final-only job review
+- Job mode now advances directly after each answer; playback and AI feedback
+  appear only on the final results screen. Three-question UI test passed.
+- Bundled examples.json supplies 49 existing source explanations and one
+  explicitly illustrative work-readiness response. Examples are expandable,
+  labeled study references, and are not fed into scoring or presented as official.
+- Optional questionID persists per answer; old records use exact prompt matching.
+- Main web workspace already implements admin question publication controls;
+  approval/withdrawal and access-control tests passed on local PGlite. Debug iOS
+  bundled questions do not yet synchronize web publication state.
+
+2026-10-30 Caption preference and final review
+- Job/personality preparation now offers Live captions, initially off. Disabling
+  it prevents the live socket from being opened; saved WAV still goes through
+  post-answer transcription and feedback after local-AI consent.
+- Removed the silence toggle and its copy; existing four-second progression stays.
+- Final results group answer playback, expandable transcript, feedback and example.
+- UI tests passed for both mode toggles and three-question final review.
+- Live captions now process bounded utterance windows on a 900ms schedule instead
+  of reprocessing the entire growing answer every 2.5 seconds. Actual latency
+  remains model- and load-dependent. Full saved audio is still used for feedback.
+
+2026-10-30 Bundled job practice criterion assessment
+- All 46 bundled job prompts map to source-example sentences as explicit criteria.
+  This is labeled reference-based practice assessment, not reviewed official grading.
+- Local 30B returns O/partial/X/uncertain with exact speech quotes and short reasons.
+  Missing, duplicated or unsupported evidence rows are held as uncertain.
+- UI displays ○/△/×/— and expandable speech evidence. Old results remain unchanged.
+- Real sample smoke test returned three X rows for an unrelated answer, in 100.1s.
+  App serializes feedback requests so later answers do not time out in server queues.
+- Final disclosure controls show down/up chevrons, and transcript is titled My answer.
+- Preparation has an optional mic-test card, input-detected state and settings link
+  on denied permission; camera control is separate. Live captions toggle is in live view.
+
+2026-11-04 iPhone test app: existing recorded question voice
+- Prepare the full local recording package from the main checkout:
+  node scripts/ios/package-recorded-questions.cjs ../..
+  Validates the catalog, filename, size and SHA-256 of all 5,128 existing MP3s
+  before copying them to .tmp/interview-recorded-audio (114.0 MiB).
+  No voice generation or external AI call is performed by packaging.
+- Debug builds include InterviewRecordedAudio separately from the 103-entry
+  offline question bank. Approved portal questions resolve audio by exact ID
+  and original prompt, independently of later category changes. Updated original
+  prompts cannot replay stale recordings. Display wording follows the recorded
+  script, including existing display-title overrides.
+- Practice modes play the prepared MP3, with the silent avatar retained for AI
+  presentation. Removed system speech fallback; missing/failed audio displays an
+  explicit notice and permits reading the question. Existing reference-assessment
+  question wording remains the analysis key when recording wording differs.
+- Release excludes the full recording package, offline practice resources,
+  avatars and local bridge configuration. Web/Android source is unchanged.
+- Verified: all 5,128 packaged MP3 hashes; package corruption/path checks;
+  simulator recording-to-answer transition and missing-audio notice; 11 policy
+  and record tests; job/personality audio presentation and AI avatar/camera stage;
+  signed device Debug build and unsigned Release build.
+- Updated the short-lived pinned local-AI certificate and reinstalled the signed
+  Debug app on the owner's connected iPhone. No push, cloud build or store upload.
+- Resumed device verification after the owner returned: Mac Wi-Fi had changed
+  from 192.168.0.5 to 172.30.1.60. Regenerated the endpoint/certificate, restarted
+  the local qwen3:14b bridge, rebuilt and reinstalled Debug. Confirmed the actual
+  iPhone reports bridge ready, TLS handshake and authenticated HTTPS succeed,
+  and PhysicalPortalEndToEndTests passes through the existing signed-in portal
+  to the local-AI consent dialog (cancelled before recording). No answer audio
+  was captured by this verification. Wi-Fi address changes require preparing
+  the device bridge again and rebuilding the local test app.
+- Speaker correction after the owner reported very quiet receiver playback:
+  prepared audio uses the default media mode after queued microphone-engine
+  teardown finishes. A built-in receiver route is explicitly switched to the
+  loudspeaker; Bluetooth, wired headphones and other external outputs retain
+  their selected route. Route-change handling covers question playback/replay;
+  answer-recorder startup also preserves the built-in speaker route. System
+  output volume and existing recording/voice-processing behavior are retained.
+- Speaker verification passed on simulator (routing policy and question flow)
+  and physical iPhone (question playback/answer transition). Final hardware
+  playback-only check reported `Speaker; AVAudioSessionModeDefault` while
+  playing the actual bundled question MP3. The Debug launch flags are
+  --interview-native-preview --interview-offline-testing
+  --interview-question-playback-check; no record or microphone is opened.
+- Korean permission prompts: declared ko as CFBundleDevelopmentRegion and the
+  supported app localization, with developmentLanguage ko in the XcodeGen
+  project. Usage descriptions were already Korean; the missing language
+  declaration allowed system permission actions to fall back to English.
+  Simulator verification resets only the simulator's microphone permission,
+  confirms Korean microphone text and allow/confirm action, and retains a
+  screenshot. The physical iPhone's existing permission grants are preserved.
+- Web-content permission prompt branding: WKUIDelegate now presents an explicit
+  Korean allow/deny dialog using CFBundleDisplayName for camera/microphone
+  requests from the app's own top-level HTTPS origin. Rejects other origins,
+  iframes, unexpected ports and navigation to another site before confirmation.
+  This addresses the separate WebKit prompt that showed outing-auth-app even
+  after the native app name was corrected. OS camera/microphone authorization
+  remains enforced. Confirmed actual getUserMedia allow and deny paths in the
+  simulator and retained branded-web-microphone-permission screenshot evidence.
+- The installed iPhone's web mock-interview preparation preview now uses the
+  same 3:4 portrait viewport as the existing 72x96 live self-camera. The scoped
+  WKWebView style changes only the preparation camera (maximum width 216px);
+  live layout, shared website files and other student screens remain unchanged.
+  A simulator check loads the actual production live-view module with a stubbed
+  readiness response, compares both viewport ratios, and retains a screenshot.
+  No camera, microphone or interview session is started by the layout check.
+- 2026-11-04 approved web rollout: main 7a347ed4, Vercel deployment
+  dpl_938T1d5g7F99CbZNzTNZMec4pTL4 (READY), promoted to
+  https://outing-auth-app.vercel.app. The installed iPhone now shows one
+  camera/microphone preparation toggle; web/Android retain separate controls.
+  Preparation makes one combined media permission request, stops both devices
+  together, and hands off only the test microphone when starting the interview.
+  Verified 23 local checks, source hashes before promotion, 9 production assets,
+  unauthenticated API rejection and the signed-in physical iPhone's deployed
+  toggle screen. Device check did not start media capture or an interview.
+- Corrected release scope at the owner's request: ordinary released apps keep
+  all three mock modes on the existing coming-soon screen, even for an approved
+  account. Only the Debug app sets __ronparkMockTestApp; existing account-based
+  authorization is still required. The combined device button is test-app-only.
+  Production fix: main 59bf47bc, deployment
+  dpl_3a6DQGGaQio4FdVw3oqw5LWbQirt (READY and promoted). Verified 28 local checks,
+  production asset hashes, absence of both debug flags in the Release binary,
+  and physical iPhone tests for all ordinary-mode notices and test-mode control.
+
+2026-10-30 Faster single overall assessment
+- Switched local default to installed qwen3:14b with full GPU offload and mmap.
+  INTERVIEW_LOCAL_MODEL can select the retained 30B model; no models deleted.
+- Job output now contains only bounded criterion judgments; summary is derived
+  deterministically instead of generating redundant paragraphs and followups.
+- Preserved all reference sentences while grouping them into 2–3 internal items.
+- Result shows one overall ○/△/× per answer; details expand without per-item symbols.
+  All O => O; some O/partial => △; all X => ×; any uncertainty => hold.
+- Benchmarks: compact 14B judging 9.3/11.2/18.5s for unrelated/partial/full samples;
+  actual TLS audio-to-feedback smoke test 10.6s (warm model). Not a latency guarantee.
+- Swift aggregate/record round-trip checks and reference/evidence tests passed.
+
+2026-11-06 Local iOS restoration audit
+- Latest base is 7f2ff751. Preserved its mode-specific, account-scoped PC CLI
+  requests, request ID recovery, and no-consent-modal flow. PC feedback is
+  automatic in all three modes; the optional switch and explanatory card are removed.
+- Reconciled the prior ios-app worktree's local source changes: reviewed job
+  field/region filters, recorded wording/display titles, examples, loudspeaker
+  routing, microphone teardown ordering, Korean permission branding and preview ratio.
+- Full 5,128 verified recordings remain in .tmp/interview-recorded-audio and
+  are included in local Debug builds. Missing audio uses explicit text, never system TTS.
+- Old remote request fields are retained and migrated only within the signed-in
+  account's own record folder, preserving IDs and avoiding automatic resubmission.
+- The original .worktrees/ios-app files remain intact. Source inventories,
+  backups, and verification records are in .tmp/ios-restoration-audit/.
+- No push, cloud build, store upload or production/database deployment performed.
+
+2026-11-06 Latest iOS branch sync
+- Updated base to 0f122aa; default Debug portal uses __ronparkOpenAIPractice.
+- --interview-pc-practice retains the prior native PC path. Existing local
+  fixes, all 5,128 recordings and examples are preserved; backup and test
+  evidence are in .tmp/ios-sync-0f122aa/. The pre-sync Git stash is retained.
+- Signed device build and 27 selected policy/UI tests passed.
+- iPhone unavailable at sync time: installation/relaunch not performed.
+- No push, cloud build, store upload or production deployment performed.

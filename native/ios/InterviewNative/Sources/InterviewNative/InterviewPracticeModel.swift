@@ -15,13 +15,22 @@ import CryptoKit
     }
 }
 
-@MainActor final class PracticeModel: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDelegate {
+@MainActor final class PracticeModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     enum Screen { case menu, prep, live, jobReview, result, records }
     @Published var screen = Screen.menu
     @Published var mode = "ai"
     @Published var track = UserDefaults.standard.string(forKey: "interview.practice.track") ?? "공채"
     @Published var questions: [PracticeQuestion] = []
     @Published var available = 0
+    @Published var contentFields: [PracticeContentField] = []
+    @Published var selectedField = ""
+    @Published var selectedRegion = ""
+    var availableRegions: [String] {
+        Array(Set(bank.filter { InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) }.flatMap { $0.regions ?? [] })).sorted()
+    }
+    func changeField(_ value: String) { guard screen == .prep else { return }; selectedField = value; refreshQuestions() }
+    func changeRegion(_ value: String) { guard screen == .prep else { return }; selectedRegion = value; refreshQuestions() }
+
     @Published var number = 0
     @Published var jobQuestionCount = 3
     @Published var liveCaptionsEnabled = false
@@ -35,6 +44,7 @@ import CryptoKit
     private var questionPlaybackTask: Task<Void, Never>?
     @Published var countdown: Int?
     @Published var talking = false
+    @Published private(set) var questionAudioNotice = ""
     @Published var answering = false
     @Published var transcript = ""
     let meter = PracticeMeter()
@@ -42,6 +52,7 @@ import CryptoKit
     var remaining: TimeInterval { get { meter.remaining } set { if abs(meter.remaining - newValue) > 0.08 { meter.remaining = newValue } } }
     @Published var recordingReady = false
     @Published var elapsed = 0
+    var sessionLimitSeconds: Int { mode == "job" ? max(600, questions.count * 120) : 600 }
     @Published var notice = "답변 음성은 이 기기에만 저장됩니다."
     @Published var record: PracticeRecord?
     @Published var records: [PracticeRecord] = []
@@ -50,9 +61,9 @@ import CryptoKit
     @Published var videoPlayer: AVPlayer?
     @Published var videoPresented = false
     @Published var bridgeReady = false
-    @Published var pcFeedbackEnabled = false
     var usesLocalAI: Bool { !usesPC && bridge.isLocal }
     var usesPC: Bool { cliRequest != nil }
+    var analyzesAnswers: Bool { bridgeReady && (usesPC || consent) }
     var cliRequest: PracticeCLI.Request?
     private var cliTasks: [String: Task<Void, Never>] = [:]
     @Published var needsConsent = false
@@ -63,8 +74,6 @@ import CryptoKit
     var portalAccount: String?
     var isPortalPractice: Bool { sessionLoader != nil }
     @Published var sessionLoading = false
-    private let speech = AVSpeechSynthesizer()
-    private var activeUtterance: AVSpeechUtterance?
     func refreshPortal() async throws {
         guard let sessionLoader else { return }
         let data = try await sessionLoader()
@@ -73,21 +82,33 @@ import CryptoKit
               let rows = data["questions"] as? [[String: Any]] else { throw InterviewError.invalidResponse }
         if let portalAccount, portalAccount != account { throw InterviewError.connection }
         portalAccount = account; track = newTrack
+        if let selected = data["mode"] as? String, ["job", "personality", "ai"].contains(selected) { mode = selected }
         let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
         let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("InterviewAccounts/" + scope, isDirectory: true)
         store = try PracticeStore(root: root)
+        try store?.migrateLegacyCLI(account: account)
+        let receivedFields: [PracticeContentField] = (data["fields"] as? [[String: Any]] ?? []).compactMap { row in
+            guard let id = row["id"] as? String, let label = row["label"] as? String else { return nil }
+            return PracticeContentField(id: id, label: label)
+        }
         let bundled = PracticeQuestion.load()
         bank = rows.compactMap { row in
             guard let id = row["id"] as? String, let prompt = row["prompt"] as? String, let tracks = row["tracks"] as? [String] else { return nil }
             let clip = bundled.first { $0.id == id && $0.prompt == prompt }
-            return PracticeQuestion(id: id, prompt: prompt, spokenPrompt: prompt, file: clip?.file ?? "", category: row["category"] as? String ?? (mode == "job" ? "job" : "personality"), tracks: tracks)
+            var question = PracticeQuestion(id: id, prompt: prompt, spokenPrompt: prompt, file: clip?.file ?? "", category: row["category"] as? String ?? (mode == "job" ? "job" : "personality"), tracks: tracks)
+            question.fieldIDs = row["fieldIds"] as? [String]; question.regions = row["regions"] as? [String]
+            return question
         }
+        let usedFields = Set(bank.filter { InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) }.flatMap { $0.fieldIDs ?? [] })
+        contentFields = receivedFields.filter { usedFields.contains($0.id) && InterviewPracticePolicy.contentFieldAllowed($0.id, track: track) }
+        if !selectedField.isEmpty && !contentFields.contains(where: { $0.id == selectedField }) { selectedField = "" }
         refreshQuestions()
     }
     private var store: PracticeStore?
     private let recorder = PracticeRecorder()
     private var player: AVAudioPlayer?
+    private var audioRouteObserver: NSObjectProtocol?
     private let playbackQueue = DispatchQueue(label: "interview.practice.playback", qos: .userInitiated)
     private var captions: PracticeCaptions?
     private var pendingCaptions: [UUID: PracticeCaptions] = [:]
@@ -104,14 +125,37 @@ import CryptoKit
     private var answerStartedAt = Date()
     private var disposed = false
     var showsInterviewer: Bool { mode == "ai" }
-    var question: String { questions.indices.contains(number - 1) ? questions[number - 1].spokenPrompt : "" }
-    var modeTitle: String { mode == "job" ? "전공(직무) 시험모드" : mode == "personality" ? "인성 연습모드" : "실전 모의면접 (AI)" }
+    var question: String { questions.indices.contains(number - 1) ? questions[number - 1].displayPrompt : "" }
+    var modeTitle: String { mode == "job" ? "직무(전공) 연습모드" : mode == "personality" ? "인성 연습모드" : "실전 모의면접 (AI)" }
     override init() {
         super.init()
+        audioRouteObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.screen == .live, self.talking, self.countdown == nil else { return }
+                try? PracticeAudioRouting.preferSpeakerForBuiltInOutput()
+            }
+        }
         if !InterviewPracticePolicy.tracks.contains(track) { track = "공채" }
         do { store = try PracticeStore() } catch { notice = "기록 저장 공간을 준비하지 못했습니다. 다시 실행해주세요." }
     }
     func load() async {
+        if ProcessInfo.processInfo.arguments.contains("--practice-result-ui-fixture"), !isPortalPractice {
+            mode = "job"; notice = ""
+            var preview = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+            for (index, status) in ["O", "partial", "X"].enumerated() {
+                let rows: [[String: Any]] = [["index": 0, "label": "핵심 항목", "claim": "상황을 확인하고 보고한다.", "status": status, "quote": status == "X" ? "" : "상황을 확인합니다.", "reason": "가상 답변 판정 근거"]]
+                let data = try! JSONSerialization.data(withJSONObject: rows)
+                var turn = PracticeTurn(id: index + 1, question: "가상 질문 \(index + 1)", audio: "preview.wav")
+                turn.answer = "상황을 확인합니다."
+                turn.exampleAnswer = "상황을 확인하고 동료에게 보고한 뒤 조치를 기록합니다."
+                turn.analysis = ["assessment": String(data: data, encoding: .utf8)!, "summary": "가상 연습 결과입니다."]
+                preview.turns.append(turn)
+            }
+            var pending = PracticeTurn(id: 4, question: "분석 중인 가상 질문", audio: "preview.wav")
+            pending.analysisPending = true; pending.analysisState = "running"; preview.turns.append(pending)
+            record = preview; screen = .result
+            return
+        }
         if isPortalPractice { sessionLoading = true }
         defer { sessionLoading = false }
         if isPortalPractice {
@@ -121,7 +165,7 @@ import CryptoKit
         }
         if let cliRequest, let account = portalAccount {
             bridgeReady = (try? await PracticeCLI(request: cliRequest).ready(account: account)) == true
-            notice = bridgeReady ? "음성 분석 연결됨 · 답변 후 내 기록에서 피드백을 확인하세요." : "음성 분석 연결을 확인하지 못했습니다. 연결을 다시 확인해주세요."
+            notice = bridgeReady ? "" : "음성 분석 연결을 확인하지 못했습니다. 연결을 다시 확인해주세요."
             return
         }
         bridgeReady = await bridge.ready()
@@ -136,6 +180,12 @@ import CryptoKit
         print("Interview bridge ready: \(bridgeReady)")
         if bridgeReady { notice = usesLocalAI ? "로컬 AI 연결됨" : "무료 AI 테스트 연결됨 · 테스트용 답변만 사용해주세요." }
         else { notice = "기기 내 녹음·재생 · AI 서버 연결 대기" }
+        if ProcessInfo.processInfo.arguments.contains("--interview-question-playback-check"), !isPortalPractice {
+            // Hardware playback check: no record means beginAnswer cannot open the microphone.
+            mode = "job"; refreshQuestions()
+            guard !questions.isEmpty else { return }
+            number = 1; screen = .live; speakQuestion()
+        }
     }
     func select(_ selectedMode: String) {
         stopPlayback(); media.stop(); avatarURL = nil; recordVideo = false; mode = selectedMode; refreshQuestions(); screen = .prep
@@ -146,11 +196,15 @@ import CryptoKit
         refreshQuestions()
     }
     func refreshQuestions() {
-        let eligible = bank.filter { InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) }
+        let eligible = bank.filter {
+            InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) &&
+            (mode != "job" || InterviewPracticePolicy.matchesSelection(fields: $0.fieldIDs ?? [], regions: $0.regions ?? [], field: selectedField, region: selectedRegion))
+        }
+
         available = eligible.count; questions = Array(eligible.shuffled().prefix(mode == "job" ? jobQuestionCount : 3))
     }
     func setJobQuestionCount(_ count: Int) {
-        guard mode == "job", screen == .prep, [1, 3, 5, 10].contains(count) else { return }
+        guard mode == "job", screen == .prep, [3, 5, 10, 15, 20].contains(count) else { return }
         jobQuestionCount = count; refreshQuestions()
     }
     func nextJobQuestion() {
@@ -174,7 +228,7 @@ import CryptoKit
                 defer { self.sessionLoading = false }
                 do {
                     try await self.refreshPortal()
-                    if self.pcFeedbackEnabled, let request = self.cliRequest, let account = self.portalAccount {
+                    if let request = self.cliRequest, let account = self.portalAccount {
                         self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
                         guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
                     }
@@ -186,9 +240,7 @@ import CryptoKit
     }
     private func startVerified(allowAI: Bool? = nil) {
         guard screen == .prep, !questions.isEmpty, store != nil, !videoSaving else { return }
-        if usesPC {
-            consent = pcFeedbackEnabled
-        } else {
+        if !usesPC {
             if bridgeReady && !consent && allowAI == nil { needsConsent = true; return }
             if let allowAI { consent = allowAI }
         }
@@ -206,6 +258,12 @@ import CryptoKit
         do {
             var record = PracticeRecord(id: UUID().uuidString, mode: mode, track: track)
             record.accountID = portalAccount
+            if mode == "job" {
+                record.fieldID = selectedField.isEmpty ? nil : selectedField
+                record.fieldLabel = contentFields.first { $0.id == selectedField }?.label
+                record.region = selectedRegion.isEmpty ? nil : selectedRegion
+            }
+
             record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id
             avatarURL = showsInterviewer ? InterviewAvatarVideo.availableURLs.randomElement() : nil
             remaining = InterviewAnswerGate.silenceSeconds
@@ -216,8 +274,8 @@ import CryptoKit
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     guard !Task.isCancelled, let self, self.screen == .live || self.screen == .jobReview else { return }
                     if self.screen == .jobReview { continue }
-                    self.elapsed = self.countdown == nil ? min(600, Int(Date().timeIntervalSince(self.startedAt))) : 0
-                    if self.elapsed >= 600 { self.stop(completed: false); return }
+                    self.elapsed = self.countdown == nil ? min(self.sessionLimitSeconds, Int(Date().timeIntervalSince(self.startedAt))) : 0
+                    if self.elapsed >= self.sessionLimitSeconds { self.stop(completed: false); return }
                 }
             }
             // Show the live screen immediately. Camera startup must not gate interview playback.
@@ -266,29 +324,24 @@ import CryptoKit
         // Replay preserves the recording already captured for this question.
         transcriptPrefix = transcript
         stopTurn(); talking = true; hint = "질문을 듣는 중"; remaining = InterviewAnswerGate.silenceSeconds
+        questionAudioNotice = ""
         guard questions.indices.contains(number - 1) else { stop(completed: false); return }
         guard let url = questions[number - 1].url else {
-            do { try configurePlayback() } catch { notice = "질문을 읽고 답변해주세요."; beginAnswer(); return }
-            let utterance = AVSpeechUtterance(string: questions[number - 1].spokenPrompt)
-            utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-            activeUtterance = utterance; speech.delegate = self; speech.speak(utterance)
+            questionAudioNotice = "이 질문에 연결된 음성파일이 없습니다. 화면의 질문을 읽고 답변해주세요."
+            beginAnswer()
             return
         }
         let active = generation
-        if showsInterviewer, let avatar = avatarURL?.deletingPathExtension().lastPathComponent,
-           let clip = InterviewQuestionVideo.url(avatar: avatar, question: questions[number - 1].id) {
-            playQuestionVideo(clip, generation: active)
-            return
-        }
+        // The silent avatar is visual only; every mode uses the prepared question audio.
         hint = "질문 음성 준비 중…"
+        let stoppedRecorder = recorder
         playbackQueue.async { [weak self] in
             let prepared: Result<AVAudioPlayer, Error>
             do {
-                let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-                try session.setActive(true)
+                stoppedRecorder.waitUntilStopped()
+                try PracticeAudioRouting.configurePlayback()
                 let player = try AVAudioPlayer(contentsOf: url)
+                player.volume = 1
                 guard player.prepareToPlay() else { throw InterviewError.connection }
                 prepared = .success(player)
             } catch { prepared = .failure(error) }
@@ -297,6 +350,8 @@ import CryptoKit
                 switch prepared {
                 case .success(let player):
                     self.player = player; player.delegate = self; player.isMeteringEnabled = true
+                    let audio = AVAudioSession.sharedInstance()
+                    print("Practice question output: \(audio.currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")); mode: \(audio.mode.rawValue)")
                     self.hint = "질문을 듣는 중"
                     self.playbackMeter = Task { [weak self, weak player] in
                         while !Task.isCancelled {
@@ -306,20 +361,14 @@ import CryptoKit
                             self.meter.updateLevel(min(1, pow(10, player.averagePower(forChannel: 0) / 20) * 3))
                         }
                     }
-                    if !player.play() { self.notice = "질문 음성을 재생하지 못했습니다. 화면의 질문을 확인해주세요."; self.beginAnswer() }
+                    if !player.play() { self.questionAudioNotice = "질문 음성을 재생하지 못했습니다. 화면의 질문을 확인해주세요."; self.beginAnswer() }
                 case .failure:
-                    self.notice = "질문 음성을 재생하지 못했습니다. 화면의 질문을 확인해주세요."; self.beginAnswer()
+                    self.questionAudioNotice = "질문 음성을 재생하지 못했습니다. 화면의 질문을 확인해주세요."; self.beginAnswer()
                 }
             }
         }
     }
 
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor [weak self] in
-            guard let self, self.activeUtterance === utterance, self.screen == .live, self.talking else { return }
-            self.activeUtterance = nil; self.beginAnswer()
-        }
-    }
     private func playQuestionVideo(_ url: URL, generation active: Int) {
         hint = "질문 영상 준비 중…"
         let item = AVPlayerItem(url: url)
@@ -441,6 +490,7 @@ import CryptoKit
             }
     }
     func exampleAnswer(for turn: PracticeTurn) -> String? {
+        if let example = turn.exampleAnswer, !example.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return example }
         let id = turn.questionID ?? bank.first(where: { $0.spokenPrompt == turn.question })?.id
         guard let id else { return nil }
         return PracticeQuestion.examples[id]
@@ -463,8 +513,9 @@ import CryptoKit
             let url = try store.audio(saved.id, "\(currentNumber).wav")
             let bytes = (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             guard bytes > 44 else { currentCaptions?.close(); return }
-            let shouldAnalyze = bridgeReady && consent
+            let shouldAnalyze = analyzesAnswers
             saved.turns.append(PracticeTurn(id: currentNumber, question: question, answer: text, duration: Double(bytes - 44) / 32000, audio: "\(currentNumber).wav", questionID: questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].id : nil, analysisPending: shouldAnalyze))
+            saved.turns[saved.turns.count - 1].analysisQuestionPrompt = questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].prompt : nil
             if usesPC && shouldAnalyze {
                 saved.turns[saved.turns.count - 1].analysisRequestID = UUID().uuidString.lowercased()
                 saved.turns[saved.turns.count - 1].analysisState = "submitting"
@@ -475,7 +526,7 @@ import CryptoKit
                 if shouldAnalyze { runCLI(saved.id, currentNumber, allowSubmission: true) }
                 return
             }
-            let run = saved.id, prompt = question, selectedMode = mode
+            let run = saved.id, prompt = questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].spokenPrompt : question, selectedMode = mode
             let prefix = transcriptPrefix
             let finish: (String, Bool) -> Void = { [weak self] final, confirmed in
                 guard let self else { return }
@@ -519,22 +570,23 @@ import CryptoKit
             do {
                 while !Task.isCancelled && !self.disposed {
                     let result = try await PracticeCLI(request: request).advance(id: id, account: account, mode: saved.mode,
-                        questionID: turn.questionID ?? "", question: turn.question, audio: try store.audio(run, turn.audio), allowSubmission: submit)
+                        questionID: turn.questionID ?? "", question: turn.analysisQuestionPrompt ?? turn.remoteQuestionPrompt ?? turn.question, audio: try store.audio(run, turn.audio), allowSubmission: submit)
                     guard !Task.isCancelled, !self.disposed, self.portalAccount == account else { return }
                     self.updateTurn(run, number) { row in
                         row.analysisState = result.state; row.analysisPending = result.pending; row.analysisError = ["failed", "unknown", "cancelled"].contains(result.state)
                         row.analysisNotice = result.notice; row.analysis = result.feedback
+                        if let example = result.exampleAnswer { row.exampleAnswer = example }
                         if !result.transcript.isEmpty { row.answer = result.transcript }
                     }
                     guard result.pending else { return }
                     submit = false
-                    try await Task.sleep(nanoseconds: 5_000_000_000)
+                    try await Task.sleep(nanoseconds: 2_000_000_000)
                 }
             } catch {
                 guard !Task.isCancelled, !self.disposed else { return }
                 self.updateTurn(run, number) { row in
                     row.analysisPending = false; row.analysisState = "connection_required"
-                    row.analysisNotice = "전송·분석 상태를 확인하지 못했습니다. 녹음은 보관되어 있습니다. 분석 결과 확인을 눌러주세요."
+                    row.analysisNotice = "전송·분석 상태를 확인하지 못했습니다. 녹음은 보관되어 있습니다. 연결 다시 확인을 눌러주세요."
                 }
             }
         }
@@ -556,13 +608,12 @@ import CryptoKit
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
     private func stopTurn() {
-        activeUtterance = nil; speech.stopSpeaking(at: .immediate)
         clearQuestionVideo()
         openingTask?.cancel(); openingTask = nil; countdown = nil
         generation += 1; answerTicker?.cancel(); playbackMeter?.cancel(); recorder.stop(); player?.stop(); player = nil
         captions?.close(); captions = nil; speaking = false; meter.level = 0; recordingReady = false
     }
-    func stopPlayback() { activeUtterance = nil; speech.stopSpeaking(at: .immediate); player?.stop(); player = nil; videoPlayer?.pause(); videoPlayer = nil; videoPresented = false }
+    func stopPlayback() { player?.stop(); player = nil; videoPlayer?.pause(); videoPlayer = nil; videoPresented = false }
     func playVideo() {
         stopPlayback()
         do {
@@ -571,8 +622,7 @@ import CryptoKit
         } catch { notice = "저장된 영상을 재생하지 못했습니다." }
     }
     private func configurePlayback() throws {
-        try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-        try AVAudioSession.sharedInstance().setActive(true)
+        try PracticeAudioRouting.configurePlayback()
     }
     func play(_ turn: PracticeTurn) {
         stopPlayback()
@@ -601,6 +651,8 @@ import CryptoKit
         if screen == .live || screen == .jobReview { stop() }
         disposed = true; media.stop(); stopTurn(); ticker?.cancel()
         for task in cliTasks.values { task.cancel() }; cliTasks = [:]
+        if let audioRouteObserver { NotificationCenter.default.removeObserver(audioRouteObserver) }
+        audioRouteObserver = nil
         for pending in pendingCaptions.values { pending.close() }; pendingCaptions = [:]
         bridge.close()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

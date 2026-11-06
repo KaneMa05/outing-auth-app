@@ -2,6 +2,7 @@
 # Local macOS alternative: xcodegen generate && open RonparkStudy.xcodeproj.
 name: RonparkStudy
 options:
+  developmentLanguage: ko
   deploymentTarget:
     iOS: "16.0"
 packages:
@@ -37,7 +38,7 @@ targets:
         CAMERA_USAGE_DESCRIPTION: 모의면접 중 내 모습 미리보기에 카메라를 사용합니다. 영상은 저장하지 않습니다.
       configs:
         Debug:
-          APP_DISPLAY_NAME: 론박스터디 테스트
+          APP_DISPLAY_NAME: 론박스터디 앱
           CAMERA_USAGE_DESCRIPTION: 모의면접 미리보기와 선택한 연습 영상 녹화에 카메라를 사용합니다. 영상은 이 기기에만 저장됩니다.
   InterviewPolicyTests:
     type: bundle.unit-test

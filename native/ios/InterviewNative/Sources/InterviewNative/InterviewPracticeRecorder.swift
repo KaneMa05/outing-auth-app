@@ -1,6 +1,26 @@
 #if DEBUG
 import AVFoundation
 
+enum PracticeAudioRouting {
+    static func shouldUseSpeaker(outputs: [AVAudioSession.Port]) -> Bool {
+        !outputs.isEmpty && outputs.contains(.builtInReceiver) &&
+            outputs.allSatisfy { $0 == .builtInReceiver || $0 == .builtInSpeaker }
+    }
+    static func preferSpeakerForBuiltInOutput() throws {
+        let session = AVAudioSession.sharedInstance()
+        if shouldUseSpeaker(outputs: session.currentRoute.outputs.map(\.portType)) {
+            try session.overrideOutputAudioPort(.speaker)
+        }
+    }
+    static func configurePlayback() throws {
+        let session = AVAudioSession.sharedInstance()
+        // Prepared question audio is media playback, not a telephone conversation.
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        try session.setActive(true)
+        try preferSpeakerForBuiltInOutput()
+    }
+}
+
 /// One microphone supplies the saved WAV, level detector, and optional caption stream.
 final class PracticeRecorder {
     private var engine: AVAudioEngine?
@@ -69,6 +89,12 @@ final class PracticeRecorder {
             DispatchQueue.main.async { sample(level, speaking, data) }
         }
         try engine.start()
+        try PracticeAudioRouting.preferSpeakerForBuiltInOutput()
+    }
+    func waitUntilStopped() {
+        // Call only from the playback queue. Voice-processing teardown can change
+        // the output route, so it must finish before configuring question playback.
+        controlQueue.sync { self.stopEngineOnQueue() }
     }
     private func stopEngineOnQueue() {
         if let engine { engine.stop(); engine.inputNode.removeTap(onBus: 0) }; engine = nil
