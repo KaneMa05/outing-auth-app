@@ -3,7 +3,10 @@
 현재 상태
 사용자가 전공·인성·AI 세 모드를 모두 OpenAI로 연결하도록 지정했습니다.
 사용자가 운영 반영을 최종 승인했으며 실사용자의 기존 준비 중 화면을 유지하도록 지정했습니다.
-서버 커밋 85c0fa3 및 iOS 커밋 fc3d425를 푸시했습니다. 새 DB 항목 적용·권한 검증을 완료했고 서버 배포를 진행합니다.
+서버 기능 커밋 85c0fa3과 DB 이력 정렬 커밋 52786b8을 푸시하고 운영 서버 배포를 완료했습니다.
+운영 주소: https://app.ronparkpass.com (https://outing-auth-app.vercel.app도 같은 배포)
+배포 ID: dpl_7tNLm8j6yBvsmuzav7sGqHHoKDQs / 배포 소스: 52786b8
+새 DB 항목·운영 환경변수 적용과 권한 검증을 완료했습니다. 일반 사용자 세 모드는 모두 준비 중 화면입니다.
 기존 서버용 OPENAI_API_KEY를 재사용합니다. 새 키를 발급하거나 키 값을 앱·브라우저·문서에 넣지 않았습니다.
 
 모드별 연결
@@ -25,14 +28,15 @@ AI: /api/interview-native → 기존 인증된 실시간 음성 면접 → 꼬�
 원격 읽기 전용 검사: node scripts/check-interview-openai.cjs --remote
 개별 기능의 명시적 false는 INTERVIEW_OPENAI_ENABLED보다 우선합니다.
 설정 스크립트는 키·다른 설정·기존 PC 토큰을 보존하고 로컬 면접 플래그만 구성합니다.
-운영 서버에는 OPENAI_API_KEY, 모델 설정, 각 면접 활성화 플래그, CRON_SECRET,
-INTERVIEW_LIVE_WORKER_SECRET, 기존 Supabase 서버 설정을 안전하게 등록해야 합니다.
+운영 서버에 OPENAI_API_KEY, 모델 설정, 각 면접 활성화 플래그, CRON_SECRET,
+INTERVIEW_LIVE_WORKER_SECRET을 등록했고 기존 Supabase·로그인·푸시·기타 서비스 설정을 보존했습니다.
+실시간 전송은 Vercel을 사용하며 실행 시간은 800초로 구성했습니다. 운영 프로젝트의 Pro 요금제를 확인했습니다.
 키를 Git에 커밋하거나 config.js에 넣지 않습니다.
 
 iOS 변경
 작업 폴더: .tmp/ios-practice-no-modal-20261106
-브랜치: codex/ios-practice-no-modal-20261106 (fc3d425 푸시 완료)
-변경 파일: RonparkStudyApp.swift, InterviewModel.swift, InterviewView.swift
+브랜치: codex/ios-practice-no-modal-20261106 (0f122aa 푸시 완료)
+주요 변경 파일: RonparkStudyApp.swift, InterviewModel.swift, InterviewView.swift, InterviewQuestionVideo.swift
 Debug 테스트앱은 전공·인성의 기존 녹음 답변 화면과 OpenAI API를 연결하고,
 AI 모드는 인증된 네이티브 실시간 면접 화면을 엽니다. 종합 피드백 생성·조회도 연결했습니다.
 PC 연습 화면이 필요하면 Debug 실행 인수 --interview-pc-practice를 사용합니다.
@@ -52,20 +56,24 @@ OpenAI 연결 및 라우팅 26개, 캐시·비밀키 비노출 릴리스 검사 
 기존 전공 판정, 인성 분석, 학생 API, 네이티브 인증, 실시간 WebRTC/WebSocket,
 음성 저장·복구·보관 만료·중복 과금 방지 검사 및 격리 빌드 통과.
 로컬 PostgreSQL(PGlite)에서 새 SQL을 실제 실행해 권한·동시 요청·결과 저장·만료 삭제를 검증했습니다.
-iOS 소스 패키징 검사 통과. Windows 환경으로 Xcode 컴파일과 iPhone 실발화 검증은 미실시입니다.
+iOS 소스 패키징 검사 통과. Mac 클라우드의 Xcode 26.3 Debug 테스트 및 Release 미서명 기기용 아카이브를 완료했습니다.
+정책 테스트 17개와 UI 테스트 11개가 통과했고 실패는 없습니다.
+실기기 카메라·영상 테스트 3개와 별도 로그인 정보가 필요한 스토어 캡처 1개는 실행하지 않았습니다.
+실행 기록: https://github.com/KaneMa05/outing-auth-app/actions/runs/42177011604
+iPhone 설치·실발화 검증은 별도로 필요합니다. 앱스토어 배포나 서명된 앱 업로드는 하지 않았습니다.
 실제 OpenAI 모델 조회 성공. 필수 입력을 생략한 비생성 요청으로 Responses·전사·Live API 권한 검사를 통과했습니다.
 실제 유료 음성 세션·전사·모델 생성은 아직 실행하지 않았습니다.
-운영 기존 면접 테이블·비공개 버킷은 읽기 전용 검사로 확인했습니다. 새 종합 피드백 테이블은 적용 전입니다.
+운영 DB·비공개 버킷·모델 접근 권한의 읽기 전용 사전 검사 34개를 통과했습니다.
+새 종합 피드백 테이블과 RPC를 운영에 적용했고 RLS 및 서버 역할 전용 권한을 확인했습니다.
+배포 후보와 운영 서버 각각 HTTP·비밀키 비노출·기존 화면 자산 보존 검사 17개를 통과했습니다.
+운영에서 내려받은 화면 코드로 일반 웹·설치 앱의 준비 중 표시 등 라우팅 검사 17개를 통과했습니다.
+두 공개 주소에 같은 새 코드가 반영됐고 운영 WebSocket 연결 및 미인증 제어 명령 거부를 확인했습니다.
+실제 학생 데이터 변경이나 유료 모델 생성 없이 검증했습니다.
 
-최종 확인 후 반영 순서
-1. 서버 변경 및 iOS 변경을 각 저장소 작업 위치에서 커밋·푸시합니다.
-2. 검증한 추가 SQL을 운영 DB에 적용하고 기존 데이터·접근 권한을 확인합니다.
-3. 서버 환경변수에 OpenAI 모드·모델·활성화 플래그와 필요한 비밀을 등록합니다.
-   Vercel 실행 시간이 실시간 면접을 지원하는 요금제·설정인지 확인합니다.
-4. 서버를 배포하고 미인증 접근 거부, 기존 일반 앱의 준비 중 표시를 확인합니다.
-5. 맥북에서 iOS 변경을 받은 뒤 Xcode Debug 빌드·설치합니다.
-6. 승인된 테스트 계정으로 전공·인성·AI 각각 실제 음성, 결과 재조회, 중단 후 기록을 검증합니다.
-운영 반영에는 AGENTS.md의 사용자 최종 확인이 필요합니다.
+남은 기기 확인
+맥북에서 iOS 브랜치의 변경을 받은 뒤 Xcode Debug 빌드를 테스트 iPhone에 설치합니다.
+승인된 테스트 계정으로 전공·인성·AI 각각 실제 음성, 결과 재조회, 중단 후 기록을 검증합니다.
+운영 DB·환경변수·서버 배포·커밋·푸시는 사용자의 최종 승인에 따라 완료했습니다.
 
 공식 규격 확인
 https://developers.openai.com/api/reference/resources/live/methods/create
