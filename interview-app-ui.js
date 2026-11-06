@@ -68,7 +68,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      box.innerHTML=mockScreen();
      // Approved accounts still see only the notice in the ordinary released app.
      if(!mockTestApp)return;
-     if(window.__ronparkPracticeNative===true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))){
+     if(window.__ronparkOpenAIPractice!==true&&window.__ronparkPracticeNative===true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))){
       const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
       slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
       slot.querySelector('[data-native-practice]').onclick=async e=>{
@@ -100,6 +100,18 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='ai'){
+      if(window.__ronparkOpenAIPractice===true&&window.webkit?.messageHandlers?.interviewNative){
+       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261106-openai');
+       if(destroyed||ticket!==generation)return;
+       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
+       const next=await mountNativeInterview(slot,{platform:'ios',request:async(url,body)=>{
+        if(aiRequest)return aiRequest(url,body);
+        const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+       }});
+       if(destroyed||ticket!==generation)next.destroy();else child=next;
+       return;
+      }
       const {mountLive}=await import('./client/interview-live-view.js?v=20261104-windows-cli');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);

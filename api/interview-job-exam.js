@@ -8,7 +8,7 @@ const {timingSafeEqual}=require('node:crypto');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SERVER={type:'server',id:'job-exam'};
 function defaults(){return {
- config:()=>({...configuration(),...require('../lib/interview-mock-cli-queue.cjs').audioConfiguration('job'),enabled:process.env.INTERVIEW_JOB_EXAM_ENABLED==='true',storageReady:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.CRON_SECRET?.length>=32)}),
+ config:()=>({...configuration(),...require('../lib/interview-mock-cli-queue.cjs').audioConfiguration('job'),enabled:require('../lib/interview-openai-config.cjs').feature('INTERVIEW_JOB_EXAM_ENABLED'),storageReady:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.CRON_SECRET?.length>=32)}),
  queue:()=>require('../lib/interview-mock-cli-queue.cjs').createQueue(),
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,

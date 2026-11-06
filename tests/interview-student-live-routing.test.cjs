@@ -44,3 +44,15 @@ for(const mode of ['job','personality','ai'])test('test iPhone opens authorized 
  await button.onclick({currentTarget:button});assert.equal(sent[0].mode,mode);assert.equal(imports.length,0);
  allowed=false;await button.onclick({currentTarget:button});assert.equal(sent.length,1);view.destroy();
 });
+
+for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes only the selected mode to its authenticated API: '+mode,async()=>{
+ const host=element(),calls=[],mounts=[],imports=[];
+ const native=async(_host,options)=>{mounts.push('native-live');assert.equal(options.platform,'ios');await options.request('/api/interview-native',{action:'launch'});return {canLeave:()=>true,destroy(){}};};
+ const exam=(_host,options)=>{mounts.push('recorded-answer');void options.request('status');return {canLeave:()=>true,destroy(){}};};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkOpenAIPractice:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewNative:{},interviewPractice:{postMessage(){throw Error('PC practice must not open');}}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountNativeInterview:native,mountJobExam:exam,mountPersonalityPractice:exam,mountLive:()=>{throw Error('native AI must use its handoff');}};}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
+ const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
+ assert.equal(imports.length,1);assert.equal(mounts.length,1);
+ assert.deepEqual(calls,[{url:{job:'/api/interview-job-exam',personality:'/api/interview-personality',ai:'/api/interview-native'}[mode],action:mode==='ai'?'launch':'status'}]);
+ assert.equal(mounts[0],mode==='ai'?'native-live':'recorded-answer');view.destroy();
+});

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "check:interview-openai": "node scripts/check-interview-openai.cjs",
+    "setup:interview-openai": "node scripts/configure-interview-openai.cjs",
+    "test:interview-openai": "node --test tests/interview-openai-config.test.cjs tests/interview-openai-report.test.cjs tests/interview-student-live-routing.test.cjs",
     "check:application-slack": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.slack.local scripts/check-application-slack.cjs",
     "test:application-slack": "node --test tests/application-slack.test.cjs",
     "test:interview-ai-history": "node tests/interview-ai-capacity.test.cjs && node tests/interview-question-usage.test.cjs && node tests/interview-ai-usage.test.cjs && node tests/interview-ai-history-db.test.cjs && node tests/interview-ai-history-browser.cjs",

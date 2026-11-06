@@ -3,16 +3,20 @@ const {bodyOf,sameOrigin,postOnly,sendError}=require('../lib/interview-ai-http')
 const {UUID,fail}=require('../lib/interview-ai-validation');
 const {sign}=require('../lib/interview-live-policy');
 function configuration(env=process.env){
+ const openai=require('../lib/interview-openai-config.cjs'),models=openai.models(env);
  const url=env.INTERVIEW_LIVE_WORKER_URL||'',secret=env.INTERVIEW_LIVE_WORKER_SECRET||'';
  if(env.INTERVIEW_LIVE_TRANSPORT==='vercel'){
-  const configured=Boolean(env.OPENAI_API_KEY&&env.INTERVIEW_LIVE_FOLLOWUP_MODEL&&env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY&&secret.length>=32&&env.CRON_SECRET?.length>=32&&Number(env.INTERVIEW_LIVE_RUNTIME_SECONDS)>=720);
-  return {transport:'vercel',secret,configured,enabled:env.INTERVIEW_LIVE_ENABLED==='true'&&configured};
+  const configured=Boolean(env.OPENAI_API_KEY&&models.live&&models.followup&&env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY&&secret.length>=32&&env.CRON_SECRET?.length>=32&&Number(env.INTERVIEW_LIVE_RUNTIME_SECONDS)>=720);
+  return {transport:'vercel',secret,configured,enabled:openai.feature('INTERVIEW_LIVE_ENABLED',env)&&configured};
  }
  let valid=false;try{const u=new URL(url);valid=u.protocol==='https:'||(u.protocol==='http:'&&['127.0.0.1','localhost'].includes(u.hostname));}catch{}
- return {url,secret,configured:valid&&secret.length>=32,enabled:env.INTERVIEW_LIVE_ENABLED==='true'&&valid&&secret.length>=32};
+ return {url,secret,configured:valid&&secret.length>=32,enabled:openai.feature('INTERVIEW_LIVE_ENABLED',env)&&valid&&secret.length>=32};
 }
 function defaults(){const auth=require('./teacher-auth-utils');return {
  config:configuration(),cliEnabled:require('../lib/interview-mock-cli-queue.cjs').enabled('report'),queue:()=>require('../lib/interview-mock-cli-queue.cjs').createQueue(),authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
+ openaiReportsEnabled:!!process.env.OPENAI_API_KEY&&require('../lib/interview-openai-config.cjs').feature('INTERVIEW_MOCK_REPORT_ENABLED')&&!!require('../lib/interview-openai-config.cjs').models().report,
+ reports:()=>require('../lib/interview-openai-report.cjs').createReports({key:process.env.OPENAI_API_KEY,model:require('../lib/interview-openai-config.cjs').models().report,
+  invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_openai_report_service',{p_action:action,p_actor:actor,p_body:body})}),
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
  authenticateAdmin:async req=>{const s=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
@@ -32,12 +36,13 @@ function createHandler(deps){return async(req,res)=>{try{
  if(b.action.startsWith('admin_'))actor={type:'admin',id:(await d.authenticateAdmin(req)).id};
  else{let student=await d.authenticateWeb(req);if(!student){if(!d.previewAllowed(b.studentId))fail('forbidden');student=await d.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student)fail('unauthorized');if(!d.previewAllowed(student.id))fail('forbidden');}await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);actor={type:'student',id:student.id};}
  if(['analysis_request','analysis_get'].includes(b.action)){
-  if(!d.cliEnabled)fail('automation_disabled');await d.invoke('get',actor,{runId:b.runId});
+  if(!d.cliEnabled&&!d.openaiReportsEnabled)fail('automation_disabled');const data=await d.invoke('get',actor,{runId:b.runId});
+  if(d.openaiReportsEnabled){const reports=d.reports();return res.status(200).json({ok:true,processing:b.action==='analysis_request'?await reports.request(actor,data.run):await reports.get(actor,b.runId)});}
   if(b.action==='analysis_request')await d.queue().enqueue('report',b.runId,actor);
   return res.status(200).json({ok:true,processing:await d.queue().get('report',b.runId,actor)});
  }
- async function withAnalysis(data){if(b.action==='get'&&d.cliEnabled&&['completed','interrupted'].includes(data.run?.state)){
-  data.analysisEnabled=true;data.processing=await d.queue().get('report',b.runId,actor);
+ async function withAnalysis(data){if(b.action==='get'&&(d.cliEnabled||d.openaiReportsEnabled)&&['completed','interrupted'].includes(data.run?.state)){
+  data.analysisEnabled=true;data.processing=d.openaiReportsEnabled?await d.reports().get(actor,b.runId):await d.queue().get('report',b.runId,actor);
  }return data;}
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}
  const payload={...b};delete payload.studentId;delete payload.deviceToken;

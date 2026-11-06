@@ -211,7 +211,7 @@ function renderInterviewPrepModule(admin) {
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261103-manual-status'):appShell?import('./interview-app-ui.js?v=20261104-self-intro-three'):import('./interview-workspace.js?v=20261104-self-intro-three'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261103-manual-status'):appShell?import('./interview-app-ui.js?v=20261106-openai-mock'):import('./interview-workspace.js?v=20261104-self-intro-three'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{

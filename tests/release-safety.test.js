@@ -6,11 +6,11 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261104-self-intro-three"));
+  assert.ok(index.includes("interview-prep.js?v=20261106-openai-mock"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261104-self-intro-three"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261106-openai-mock"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
   for(const [file,module] of [['interview-app-ui.js','interview-workspace.js'],['interview-workspace.js','interview-ai-ui.js'],['interview-ai-ui.js','client/interview-ai-client.js']])
@@ -22,12 +22,13 @@ test("public safety flag defaults off and follows the server build setting witho
     let output;
     vm.runInNewContext(fs.readFileSync("build-config.js", "utf8"), {
       require: name => name === './lib/interview-preview-access' ? require('../lib/interview-preview-access') : ({ existsSync: () => true, writeFileSync: (_, value) => { output = value; } }),
-      process: { env: { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'public', STUDENT_CONTENT_SAFETY_ENABLED: flag, SUPABASE_SERVICE_ROLE_KEY: 'private-secret' } },
+      process: { env: { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'public', STUDENT_CONTENT_SAFETY_ENABLED: flag, SUPABASE_SERVICE_ROLE_KEY: 'private-secret', OPENAI_API_KEY:'private-openai-secret' } },
       console: { log() {} }, URL,
     });
     const context={window:{}};vm.runInNewContext(output,context);
     assert.equal(context.window.OUTING_APP_CONFIG.studentContentSafetyEnabled,flag==='true');
     assert.ok(!output.includes('private-secret'));
+    assert.ok(!output.includes('private-openai-secret'));
   }
 });
 

@@ -3,7 +3,7 @@ const interviewTracks=require('../lib/interview-tracks.json');
 const crypto=require('node:crypto');
 const {bodyOf,postOnly,sameOrigin,sendError}=require('../lib/interview-ai-http');
 const auth=require('../lib/interview-native-auth'),live=require('./interview-live');
-function defaults(){return {enabled:process.env.INTERVIEW_NATIVE_ENABLED==='true',secret:process.env.INTERVIEW_LIVE_WORKER_SECRET||'',
+function defaults(){return {enabled:require('../lib/interview-openai-config.cjs').feature('INTERVIEW_NATIVE_ENABLED'),secret:process.env.INTERVIEW_LIVE_WORKER_SECRET||'',
  readTrack:async id=>{const rows=await require('./curriculum')._private.requestSupabase('GET','ip_members?select=track&student_id=eq.'+encodeURIComponent(id));return rows[0]?.track||'';},
  live:live.defaults(),invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_native_launch_service',{p_action:action,p_actor:actor,p_body:body})};}
 function createHandler(deps){return async(req,res)=>{try{
@@ -27,7 +27,7 @@ function createHandler(deps){return async(req,res)=>{try{
  if(b.action==='command'){
   if(Object.keys(b).some(k=>!['action','command'].includes(k))||!b.command||typeof b.command!=='object'||Array.isArray(b.command))throw Error('invalid_request');
   const student=auth.read((req.headers.authorization||'').replace(/^Bearer /,''),d.secret);
-  if(!['ready','start','begin','heartbeat','answer_done','finish','list','get'].includes(b.command.action)||'studentId' in b.command||'deviceToken' in b.command)throw Error('forbidden');
+  if(!['ready','start','begin','heartbeat','answer_done','finish','list','get','analysis_request','analysis_get'].includes(b.command.action)||'studentId' in b.command||'deviceToken' in b.command)throw Error('forbidden');
   return live.createHandler({...d.live,requireMockAccess:d.requireMockAccess||d.live.requireMockAccess,authenticateWeb:async()=>student})({...req,body:b.command},res);
  }
  throw Error('unsupported_action');
