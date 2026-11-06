@@ -47,3 +47,4 @@ config.js
 __pycache__/
 *.pyc
 /tools/interview-worker/config.json
+.env*
