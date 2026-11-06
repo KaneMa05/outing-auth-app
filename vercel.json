@@ -110,6 +110,12 @@
       "regions": [
         "syd1"
       ]
+    },
+    "api/interview-practice-openai.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 240
     }
   },
   "headers": [

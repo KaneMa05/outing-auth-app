@@ -6,7 +6,7 @@ import {openPersonalitySubmissions} from './interview-personality-submissions.mj
 import {toExamWav,audioBase64} from './interview-job-exam-audio.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={started:'연습 시작',uploading:'답변 저장 중',upload_failed:'저장 재시도 가능',evaluating:'구조 분석 중',completed:'리포트 확인 가능',unknown:'처리 확인 필요',cancelled:'응시 취소',expired:'제출 시간 만료'};
-const errors={practice_not_configured:'인성 연습 서비스를 준비하고 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'연습할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
+const errors={forbidden:"면접반 이용 권한을 확인하지 못했습니다. 로그인과 수강 승인을 확인해주세요.",unauthorized:"로그인이 만료되었습니다. 다시 로그인해주세요.",practice_not_configured:'인성 연습 서비스를 준비하고 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'연습할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
 export function renderPersonalityReport(report){
   if(!report)return '';
   const names={conclusion:'결론',reason:'이유',experience:'경험',closing:'마무리'},presence={present:'있음',missing:'누락',uncertain:'확인 필요'},quality={clear:'충분',partial:'보완 필요',insufficient:'구체성 부족',not_assessable:'충실도 판단 불가'};
@@ -138,8 +138,9 @@ export function mountPersonalityPractice(host,{request,accountId,mediaDevices=gl
   })()]);
   if(destroyed)return;
   const state=results[0];available=state.status==='fulfilled'&&state.value.ready;
-  if(available){try{const data=await requestSafe('questions',{page:0});if(destroyed)return;questions=data.questions;qmore=data.hasMore;}catch{available=false;}}
-  notice=results[2].status==='rejected'?'기기 저장 기능을 사용할 수 없습니다. 브라우저와 저장 공간을 확인해주세요.':available?'문항을 선택한 뒤 녹음을 시작해주세요.':errors[state.value?.reason]||'인성 연습 서비스를 준비하고 있습니다.';
+  let unavailableReason=state.status==='rejected'?(state.reason?.code||state.reason?.message):state.value?.reason;
+  if(available){try{const data=await requestSafe('questions',{page:0});if(destroyed)return;questions=data.questions;qmore=data.hasMore;}catch(error){available=false;unavailableReason=error.code||error.message;}}
+  notice=results[2].status==='rejected'?'기기 저장 기능을 사용할 수 없습니다. 브라우저와 저장 공간을 확인해주세요.':available?'문항을 선택한 뒤 녹음을 시작해주세요.':errors[unavailableReason]||'인성 연습 서비스를 준비하고 있습니다.';
   if(results[2].status==='rejected')available=false;
   else if(available&&results[1].status==='rejected')notice='응시 기록을 불러오지 못했습니다. 기록 새로고침으로 확인해주세요.';draw();
  })();

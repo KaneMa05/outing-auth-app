@@ -7,7 +7,7 @@ import {openJobSubmissions} from './interview-job-submissions.mjs';
 import {toExamWav,audioBase64} from './interview-job-exam-audio.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={started:'응시 시작',uploading:'답변 저장 중',upload_failed:'저장 재시도 가능',evaluating:'판정 중',completed:'리포트 확인 가능',unknown:'처리 확인 필요',cancelled:'응시 취소',expired:'제출 시간 만료'};
-const errors={exam_not_configured:'연습 서버 연결을 준비하고 있습니다. 연결 후 시작할 수 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'응시할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
+const errors={forbidden:"면접반 이용 권한을 확인하지 못했습니다. 로그인과 수강 승인을 확인해주세요.",unauthorized:"로그인이 만료되었습니다. 다시 로그인해주세요.",exam_not_configured:'연습 서버 연결을 준비하고 있습니다. 연결 후 시작할 수 있습니다.',not_enrolled:'면접반 수강 등록과 이용 기간을 확인해주세요.',questions_unavailable:'응시할 수 있는 승인 문항이 없습니다.',daily_limit:'오늘의 응시 가능 횟수를 모두 사용했습니다.',admission_busy:'진행 중인 응시를 먼저 확인해주세요.',session_expired:'제출 시간이 지났습니다. 기기 녹음은 보존됩니다.',invalid_audio_duration:'1초 이상 답변을 녹음해주세요.',empty_recording:'녹음된 음성을 확인하지 못했습니다. 응시를 취소하고 마이크를 점검한 뒤 다시 시작해주세요.',attempt_in_use:'다른 창에서 이 응시를 사용 중입니다.',queue_full:'다른 응시를 처리 중입니다. 잠시 후 제출해주세요.',recording_unavailable:'음성을 서버에 저장하지 못했습니다. 기기 원본은 보존됩니다.',NotAllowedError:'마이크 권한을 허용한 뒤 시작해주세요.',attempt_lock_unsupported:'이 브라우저는 안전한 녹음 저장을 지원하지 않습니다. 최신 브라우저를 사용해주세요.'};
 export function renderJobReport(report){
   if(!report)return '';
   const contextStatus=index=>{const votes=(report.judgments||[]).map(j=>j.criteria.find(c=>c.index===index)?.status);return votes.length===2&&votes[0]===votes[1]?votes[0]:'uncertain';};
@@ -41,7 +41,7 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
  const requestSafe=async(action,body={})=>request(action,body);
  function draw(){if(destroyed)return;
   const locked=busy||recording;
-  host.innerHTML=`<section class="ip-panel"><h2>전공 연습</h2><p>질문에 답하고, 내 답변과 피드백을 확인하세요.</p>
+  host.innerHTML=`<section class="ip-panel"><h2>직무(전공) 연습모드</h2><p>질문에 답하고, 내 답변과 피드백을 확인하세요.</p>
    ${!run&&!recording?`${questions.length?`<label>연습할 질문<select data-job-question ${locked?'disabled':''}>${questions.map(q=>`<option value="${esc(q.id)}">${esc(q.prompt)}</option>`).join('')}</select></label>`:''}
    ${qpage>0||qmore?`<div class="ip-toolbar"><button class="ip-btn" type="button" data-job-action="qprev" ${locked||qpage===0?'disabled':''}>이전 질문</button><button class="ip-btn" type="button" data-job-action="qnext" ${locked||!qmore?'disabled':''}>다음 질문</button></div>`:''}
    <div class="ip-toolbar"><button class="ip-btn ip-primary" type="button" data-job-action="start" ${locked||!available||!questions.length||!attempts?'disabled':''}>연습 시작</button><button class="ip-btn" type="button" data-job-action="history" ${locked?'disabled':''}>내 기록</button></div>
@@ -141,8 +141,9 @@ export function mountJobExam(host,{request,accountId,mediaDevices=globalThis.nav
   })()]);
   if(destroyed)return;
   const state=results[0];available=state.status==='fulfilled'&&state.value.ready;
-  if(available){try{const data=await requestSafe('questions',{page:0});if(destroyed)return;questions=data.questions;qmore=data.hasMore;}catch{available=false;}}
-  notice=results[2].status==='rejected'?'기기 저장 기능을 사용할 수 없습니다. 브라우저와 저장 공간을 확인해주세요.':available?(questions.length?'준비되었습니다.':'공개 승인된 질문이 없습니다. 관리자 승인 후 다시 확인해주세요.'):errors[state.value?.reason]||'연습 연결을 준비하고 있습니다. 잠시 후 다시 확인해주세요.';
+  let unavailableReason=state.status==='rejected'?(state.reason?.code||state.reason?.message):state.value?.reason;
+  if(available){try{const data=await requestSafe('questions',{page:0});if(destroyed)return;questions=data.questions;qmore=data.hasMore;}catch(error){available=false;unavailableReason=error.code||error.message;}}
+  notice=results[2].status==='rejected'?'기기 저장 기능을 사용할 수 없습니다. 브라우저와 저장 공간을 확인해주세요.':available?(questions.length?'준비되었습니다.':'공개 승인된 질문이 없습니다. 관리자 승인 후 다시 확인해주세요.'):errors[unavailableReason]||'연습 연결을 준비하고 있습니다. 잠시 후 다시 확인해주세요.';
   if(results[2].status==='rejected')available=false;
   else if(available&&results[1].status==='rejected')notice='응시 기록을 불러오지 못했습니다. 기록 새로고침으로 확인해주세요.';draw();
  }

@@ -30,7 +30,7 @@ function createHandler(deps){return async(req,res)=>{
   const d=deps||{invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_service',{p_action:action,p_actor:actor,p_body:body}),
    provider:require('../lib/interview-live-provider').createProvider({key:process.env.OPENAI_API_KEY,followupModel:process.env.INTERVIEW_LIVE_FOLLOWUP_MODEL}),
    storage:require('../lib/interview-live-cloud-storage').createCloudStorage({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};
-  const result=await cleanup(d);return res.status(result.ok?200:503).json(result);
+  const result=await cleanup(d);if(!deps)result.practice=await require('./interview-practice-openai').cleanup();return res.status(result.ok?200:503).json(result);
  }catch{return res.status(503).json({ok:false,error:'cleanup_unavailable'});}
  };}
 module.exports=createHandler();module.exports.createHandler=createHandler;module.exports.cleanup=cleanup;module.exports.authorized=authorized;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v554-openai-mock";
+const CACHE_NAME = "outing-auth-app-v554-openai-mock-practice-owner-fix";
 const APP_SHELL = [
   "/student-content-safety.js?v=20261028-safety-fallback",
   "/question-board.js?v=20261028-safety-fallback",

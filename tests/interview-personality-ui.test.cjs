@@ -54,3 +54,20 @@ test('personality report displays four structures without a score and escapes mo
 test('opening personality practice never recovers or displays another mode local recording',async()=>{
  const h=await harness({seedJob:true});assert.equal(h.records.get('job-preserved').state,'recording');assert.ok(!h.host.innerHTML.includes('기존 전공 녹음'));h.view.destroy();
 });
+
+test('initial authorization failures display the actual access problem without starting a recording',async()=>{
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')throw Object.assign(Error('forbidden'),{code:'forbidden'});
+  if(action==='list')return {runs:[]};throw Error('unexpected action');
+ }});
+ assert.match(h.host.innerHTML,/면접반 이용 권한을 확인하지 못했습니다/);
+ assert.equal(h.starts,0);h.view.destroy();
+});
+test('missing approved questions are distinguished from server preparation',async()=>{
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')return {ready:false,reason:'questions_unavailable'};
+  if(action==='list')return {runs:[]};throw Error('unexpected action');
+ }});
+ assert.match(h.host.innerHTML,/승인 문항이 없습니다/);
+ assert.equal(h.starts,0);h.view.destroy();
+});

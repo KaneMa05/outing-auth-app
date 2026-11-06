@@ -4,7 +4,7 @@ const pages={introduction:'자기소개',motivation:'지원동기',public_servic
 const icons={home:'home',db:'question-board',writing:'study-todo',mock:'study-cafe',my:'mypage'};
 const tabs=[['home','홈'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
 const mockModes={
- job:{title:'전공 연습'},
+ job:{title:'직무(전공) 연습모드'},
  personality:{title:'인성 연습모드'},
  ai:{title:'실전 모의면접 (AI)'}
 };
@@ -68,7 +68,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
      box.innerHTML=mockScreen();
      // Approved accounts still see only the notice in the ordinary released app.
      if(!mockTestApp)return;
-     if(window.__ronparkOpenAIPractice!==true&&window.__ronparkPracticeNative===true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))){
+     if(window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
       const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
       slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
       slot.querySelector('[data-native-practice]').onclick=async e=>{
@@ -80,7 +80,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       return;
      }
      if(route.mockMode==='job'){
-      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261102-cli');
+      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261106-status');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="job"]').replaceWith(slot);
       child=mountJobExam(slot,{accountId:account.id,request:async(action,body={})=>{
@@ -90,7 +90,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
       }});
      }
      if(route.mockMode==='personality'){
-      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261102-cli');
+      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261106-status');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="personality"]').replaceWith(slot);
       child=mountPersonalityPractice(slot,{accountId:account.id,request:async(action,body={})=>{

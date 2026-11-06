@@ -49,10 +49,13 @@ for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes onl
  const host=element(),calls=[],mounts=[],imports=[];
  const native=async(_host,options)=>{mounts.push('native-live');assert.equal(options.platform,'ios');await options.request('/api/interview-native',{action:'launch'});return {canLeave:()=>true,destroy(){}};};
  const exam=(_host,options)=>{mounts.push('recorded-answer');void options.request('status');return {canLeave:()=>true,destroy(){}};};
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkOpenAIPractice:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewNative:{},interviewPractice:{postMessage(){throw Error('PC practice must not open');}}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountNativeInterview:native,mountJobExam:exam,mountPersonalityPractice:exam,mountLive:()=>{throw Error('native AI must use its handoff');}};}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkOpenAIPractice:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewNative:{},interviewPractice:{postMessage:v=>calls.push({nativePractice:v.mode})}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountNativeInterview:native,mountJobExam:exam,mountPersonalityPractice:exam,mountLive:()=>{throw Error('native AI must use its handoff');}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
- assert.equal(imports.length,1);assert.equal(mounts.length,1);
- assert.deepEqual(calls,[{url:{job:'/api/interview-job-exam',personality:'/api/interview-personality',ai:'/api/interview-native'}[mode],action:mode==='ai'?'launch':'status'}]);
- assert.equal(mounts[0],mode==='ai'?'native-live':'recorded-answer');view.destroy();
+ if(mode!=='ai'){
+  const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
+  const button=slot.querySelector('[data-native-practice]');await button.onclick({currentTarget:button});
+  assert.equal(imports.length,0);assert.equal(mounts.length,0);assert.deepEqual(calls,[{nativePractice:mode}]);
+ }else{assert.equal(imports.length,1);assert.deepEqual(calls,[{url:'/api/interview-native',action:'launch'}]);assert.equal(mounts[0],'native-live');}
+ view.destroy();
 });

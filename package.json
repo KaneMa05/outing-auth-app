@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test:interview-practice-openai": "node --test tests/interview-practice-openai.test.cjs",
     "check:interview-openai": "node scripts/check-interview-openai.cjs",
     "setup:interview-openai": "node scripts/configure-interview-openai.cjs",
     "test:interview-openai": "node --test tests/interview-openai-config.test.cjs tests/interview-openai-report.test.cjs tests/interview-student-live-routing.test.cjs",
