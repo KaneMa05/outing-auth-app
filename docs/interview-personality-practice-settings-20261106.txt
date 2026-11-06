@@ -28,3 +28,14 @@
 - codex/ios-practice-no-modal-20261106에 iOS 설정 화면·정책·검사 포함.
 - 원격 푸시 후 기존 ronpark/outing-auth-app 운영 프로젝트에 배포.
 - iPhone 연결 확인 후 최신 앱 재설치 및 실제 로그인 준비 화면 확인.
+
+최종 반영 결과
+- 서버 코드 325bc1b 푸시 완료. 윈도우 8c318c7을 포함한 통합 이력 확인.
+- iOS 코드 1ced281 푸시 및 iPhone 재설치 완료.
+- 운영 배포 dpl_9kcLY2QVBH1dNqy4MmhhzAcEGsii, Ready.
+- https://app.ronparkpass.com 별칭 연결 확인.
+- 실제 로그인 iPhone에서 인성 분야 '실패·성장' 및 3/5/10/15/20문항 선택, 시작 버튼 활성화 확인(실기기 UI 검사 1개 통과).
+- 직무 지역·문항 수 UI가 인성 준비 화면에 혼재하지 않음을 확인.
+- 최신 질문 음성 5,128개 원문·발음문·SHA256이 설치 앱에서 원본과 모두 일치.
+- 실제 발화 녹음·유료 분석은 시작하지 않았으며, 보류된 추가 음성·채점 정확도 검증을 재개하지 않음.
+- 검사 로그: /tmp/ronpark-personality-settings-live.log
