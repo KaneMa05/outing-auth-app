@@ -60,11 +60,11 @@ import AVKit
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }
-            .alert(model.usesPC ? "음성 분석 안내" : model.usesLocalAI ? "로컬 AI 피드백" : "무료 AI 테스트", isPresented: $model.needsConsent) {
+            .alert(model.usesLocalAI ? "로컬 AI 피드백" : "무료 AI 테스트", isPresented: $model.needsConsent) {
                 Button("기기에서만 연습") { model.start(allowAI: false) }
                 Button("동의하고 테스트") { model.start(allowAI: true) }
                 Button("취소", role: .cancel) {}
-            } message: { Text(model.usesPC ? "답변 음성을 서버에 저장하고 PC에서 음성을 인식합니다. 전사문은 AI 서비스로 전송해 학습 피드백을 만듭니다. 음성은 수강 종료 후 31일(종료일이 없으면 접수 후 31일)까지 보관되며 영상은 기기에만 저장됩니다." : model.usesLocalAI ? "답변을 같은 Wi-Fi의 Mac에서 분석합니다. 외부 AI 서비스로 전송하지 않습니다. 답변 후 전사문과 피드백을 제공합니다." : "답변 음성이 Mac 서버를 거쳐 Google Gemini로 전송됩니다. 무료 서비스의 제품 개선에 이용될 수 있으므로 개인정보 없는 테스트용 답변만 사용해주세요.") }
+            } message: { Text(model.usesLocalAI ? "답변을 같은 Wi-Fi의 Mac에서 분석합니다. 외부 AI 서비스로 전송하지 않습니다. 답변 후 전사문과 피드백을 제공합니다." : "답변 음성이 Mac 서버를 거쳐 Google Gemini로 전송됩니다. 무료 서비스의 제품 개선에 이용될 수 있으므로 개인정보 없는 테스트용 답변만 사용해주세요.") }
             .alert("기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
                 Button("삭제", role: .destructive) { if let deleting { model.delete(deleting.id) }; deleting = nil }
                 Button("취소", role: .cancel) { deleting = nil }
@@ -80,6 +80,7 @@ import AVKit
         .onDisappear { model.dispose() }
     }
     private var compactNotice: String {
+        if model.usesPC && !model.pcFeedbackEnabled && model.screen == .prep { return "녹음은 이 기기에 저장됩니다." }
         switch model.notice {
         case "무료 AI 테스트 연결됨 · 테스트용 답변만 사용해주세요.": return "AI 연결됨"
         case "기기 내 녹음·재생 · AI 서버 연결 대기": return "AI 연결 대기"
@@ -104,7 +105,7 @@ import AVKit
         case .prep:
             Text(model.mode == "job" ? "전공 연습" : "면접 준비").font(.title.bold())
             if model.mode == "job" { Text("질문을 듣고 답변한 뒤, 내 답변과 피드백을 확인하세요.").font(.subheadline).foregroundStyle(.secondary) }
-            if model.usesPC { Text("답변은 문항당 최대 85초이며, 피드백은 답변 후 내 기록에서 확인할 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
+            if model.usesPC { Text("답변은 문항당 최대 85초입니다.").font(.caption).foregroundStyle(.secondary) }
             if model.mode == "job" {
                 Text("연습 문항 수").font(.subheadline).foregroundStyle(.secondary)
                 Picker("연습 문항 수", selection: Binding(get: { model.jobQuestionCount }, set: { model.setJobQuestionCount($0) })) {
@@ -117,9 +118,20 @@ import AVKit
             Toggle("내 모습과 답변 영상 녹화", isOn: $model.recordVideo).accessibilityIdentifier("practice.video-toggle")
             Text("영상은 기기에만 저장됩니다.").font(.caption).foregroundStyle(.secondary)
             }
+            if model.usesPC {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("AI 피드백 받기", isOn: $model.pcFeedbackEnabled)
+                        .disabled(model.sessionLoading).accessibilityIdentifier("practice.ai-feedback")
+                    Text("켜면 답변 음성을 전송해 분석합니다.").font(.caption).foregroundStyle(.secondary)
+                    DisclosureGroup("자세히 보기") {
+                        Text("답변 음성을 서버에 저장하고, 음성을 글로 바꾼 내용은 AI 서비스로 전송해 피드백을 만듭니다. 음성은 수강 종료 후 31일(종료일이 없으면 접수 후 31일)까지 보관됩니다. 영상은 기기에만 저장되며, 피드백은 내 면접 기록에서 확인할 수 있습니다.")
+                            .font(.caption).foregroundStyle(.secondary).padding(.top, 4)
+                    }.font(.caption).accessibilityIdentifier("practice.ai-feedback-details")
+                }.padding(16).background(.white, in: RoundedRectangle(cornerRadius: 16))
+            }
             if model.questions.isEmpty && !model.sessionLoading { Text(model.isPortalPractice ? "공개 승인된 질문이 없습니다. 관리자 승인 후 다시 열어주세요." : "해당 직렬에 준비된 질문이 없습니다.").font(.subheadline) }
-            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || model.bridgeReady), id: "interview.start") { model.start() }
-            if model.usesPC && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
+            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || !model.pcFeedbackEnabled || model.bridgeReady), id: "interview.start") { model.start() }
+            if model.usesPC && model.pcFeedbackEnabled && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
         case .live:
             if !model.usesPC && (model.mode == "job" || model.mode == "personality") {

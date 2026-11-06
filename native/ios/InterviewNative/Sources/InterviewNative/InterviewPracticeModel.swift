@@ -50,6 +50,7 @@ import CryptoKit
     @Published var videoPlayer: AVPlayer?
     @Published var videoPresented = false
     @Published var bridgeReady = false
+    @Published var pcFeedbackEnabled = false
     var usesLocalAI: Bool { !usesPC && bridge.isLocal }
     var usesPC: Bool { cliRequest != nil }
     var cliRequest: PracticeCLI.Request?
@@ -173,7 +174,7 @@ import CryptoKit
                 defer { self.sessionLoading = false }
                 do {
                     try await self.refreshPortal()
-                    if let request = self.cliRequest, let account = self.portalAccount {
+                    if self.pcFeedbackEnabled, let request = self.cliRequest, let account = self.portalAccount {
                         self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
                         guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
                     }
@@ -185,8 +186,12 @@ import CryptoKit
     }
     private func startVerified(allowAI: Bool? = nil) {
         guard screen == .prep, !questions.isEmpty, store != nil, !videoSaving else { return }
-        if bridgeReady && !consent && allowAI == nil { needsConsent = true; return }
-        if let allowAI { consent = allowAI }
+        if usesPC {
+            consent = pcFeedbackEnabled
+        } else {
+            if bridgeReady && !consent && allowAI == nil { needsConsent = true; return }
+            if let allowAI { consent = allowAI }
+        }
         generation += 1; let active = generation
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] allowed in
             DispatchQueue.main.async {
