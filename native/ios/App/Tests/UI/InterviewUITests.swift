@@ -251,7 +251,7 @@ final class InterviewPracticeUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["practice.job-repeat"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["질문 3개"].exists)
-        XCTAssertEqual(app.buttons["내 답변 듣기"].count, 3, "Every completed answer must remain playable")
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "내 답변 듣기")).count, 3, "Every completed answer must remain playable")
         // This offline bundle has no examples.json. The app must preserve all
         // recordings without presenting an invented reference answer.
         XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "practice.example.")).firstMatch.exists)
