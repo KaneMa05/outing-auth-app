@@ -206,6 +206,42 @@ final class InterviewPracticeTests: XCTestCase {
         XCTAssertEqual(try store.load(saved.id).turns[0].analysisState, "completed")
         XCTAssertEqual(try store.load(saved.id).turns[0].analysis?["summary"], "기존 피드백")
     }
+    @MainActor func testPersonalityTopicAndCountSettingsFilterAllQuestionsAndStaySeparateFromJob() async throws {
+        let account = "personality-settings-" + UUID().uuidString
+        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("InterviewAccounts/" + scope)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = PracticeModel(); defer { model.dispose() }
+        model.mode = "job"; model.screen = .prep; model.setJobQuestionCount(10)
+        let rows: [[String: Any]] = (0..<60).map { index in
+            let field = index < 30 ? "failure" : "teamwork"
+            return ["id": "\(field)-\(index)", "prompt": "인성 질문 \(index)", "category": "personality", "tracks": [String](), "fieldIds": [field]]
+        }
+        model.sessionLoader = { ["accountId": account, "track": "공채", "mode": "personality",
+            "fields": [["id": "failure", "label": "실패·성장"], ["id": "teamwork", "label": "협동심·팀워크"], ["id": "unused", "label": "문항 없음"]], "questions": rows] }
+        model.cliRequest = { _, _ in ["ok": true, "ready": true] }
+        await model.load()
+        XCTAssertEqual(model.contentFields.map { $0.id }, ["failure", "teamwork"])
+        XCTAssertEqual(model.available, 60); XCTAssertEqual(model.selectedQuestionCount, 3)
+        model.changeField("failure"); model.changeRegion("서해")
+        XCTAssertEqual(model.available, 30)
+        for count in [3, 5, 10, 15, 20] {
+            model.setPracticeQuestionCount(count)
+            XCTAssertEqual(model.questions.count, count)
+            XCTAssertTrue(model.questions.allSatisfy { $0.id.hasPrefix("failure-") })
+        }
+        XCTAssertEqual(model.jobQuestionCount, 10)
+        XCTAssertEqual(model.personalityQuestionCount, 20)
+        XCTAssertEqual(model.sessionLimitSeconds, 2400)
+        try await model.refreshPortal()
+        XCTAssertEqual(model.selectedField, "failure"); XCTAssertEqual(model.questions.count, 20)
+        model.changeField("teamwork")
+        XCTAssertTrue(model.questions.allSatisfy { $0.id.hasPrefix("teamwork-") })
+        model.select("job")
+        XCTAssertEqual(model.selectedField, ""); XCTAssertEqual(model.selectedQuestionCount, 10)
+        model.select("personality")
+        XCTAssertEqual(model.selectedQuestionCount, 20)
+    }
     func testLegacyPCRecordsKeepRequestAndAccountIsolation() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

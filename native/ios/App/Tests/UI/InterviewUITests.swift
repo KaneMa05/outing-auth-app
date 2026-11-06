@@ -517,6 +517,36 @@ final class PhysicalPortalEndToEndTests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "physical-saved-result-example"; screenshot.lifetime = .keepAlways; add(screenshot)
         #endif
     }
+    func testPersonalityPreparationAllowsTopicAndQuestionCount() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the signed-in physical test iPhone")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40)); mock.tap()
+        let personality = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "인성")).firstMatch
+        XCTAssertTrue(personality.waitForExistence(timeout: 15)); personality.tap()
+        let open = web.buttons["연습 시작"]
+        XCTAssertTrue(open.waitForExistence(timeout: 15)); open.tap()
+        let field = app.buttons["practice.content-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 30))
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: field)], timeout: 30), .completed)
+        field.tap(); app.buttons["실패·성장"].tap()
+        XCTAssertEqual(field.value as? String, "실패·성장")
+        let count = app.buttons["practice.personality-count"]
+        for number in [3, 5, 10, 15, 20] {
+            count.tap(); app.buttons["\(number)문항"].tap()
+            XCTAssertEqual(count.value as? String, "\(number)문항")
+        }
+        XCTAssertFalse(app.buttons["practice.region"].exists)
+        XCTAssertFalse(app.buttons["practice.job-count"].exists)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "personality-topic-count-preparation"; screenshot.lifetime = .keepAlways; add(screenshot)
+        #endif
+    }
     func testOrdinaryAppKeepsAllMockModesComingSoon() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Requires the signed-in physical test iPhone")
@@ -669,5 +699,27 @@ final class PracticeResultPresentationTests: XCTestCase {
         XCTAssertTrue(progress.exists)
         XCTAssertFalse(app.buttons["분석 결과 확인"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "practice-result-verdicts-and-progress"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+}
+
+final class PersonalityPreparationTests: XCTestCase {
+    func testTopicAndCountDropdownsCanBeSetBeforeStartingPractice() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-personality-filter-fixture"]
+        app.launch()
+        let field = app.buttons["practice.content-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        field.tap(); app.buttons["실패·성장"].tap()
+        XCTAssertEqual(field.value as? String, "실패·성장")
+        let count = app.buttons["practice.personality-count"]
+        for number in [3, 5, 10, 15, 20] {
+            count.tap(); app.buttons["\(number)문항"].tap()
+            XCTAssertEqual(count.value as? String, "\(number)문항")
+        }
+        XCTAssertFalse(app.buttons["practice.job-count"].exists)
+        XCTAssertFalse(app.buttons["practice.region"].exists)
+        XCTAssertFalse(app.buttons["practice.media"].exists)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "personality-settings-fixture"; screenshot.lifetime = .keepAlways; add(screenshot)
     }
 }

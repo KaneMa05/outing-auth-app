@@ -27,6 +27,15 @@ private struct StudentApp: View {
                         ["id": "law", "prompt": "법규 질문", "category": "job", "tracks": ["공채"], "fieldIds": ["domestic_maritime_law"], "regions": ["중부"]]]]
                 }, requestAnalysis: { _, _ in ["ok": true, "ready": true] })
             }
+            else if ProcessInfo.processInfo.arguments.contains("--portal-personality-filter-fixture") {
+                InterviewPracticeView(mode: "personality", loadSession: {
+                    let rows: [[String: Any]] = (0..<50).map { index in
+                        ["id": "personality-\(index)", "prompt": "인성 질문 \(index)", "category": "personality", "tracks": [String](), "fieldIds": [index < 25 ? "failure" : "teamwork"]]
+                    }
+                    return ["accountId": "personality-filter-ui", "track": "공채", "mode": "personality",
+                        "fields": [["id": "failure", "label": "실패·성장"], ["id": "teamwork", "label": "협동심·팀워크"]], "questions": rows]
+                }, requestAnalysis: { _, _ in ["ok": true, "ready": true] })
+            }
             else if ProcessInfo.processInfo.arguments.contains("--portal-practice-ai-fixture") {
                 InterviewPracticeView(mode: "ai", loadSession: {
                     ["accountId": "ui-fixture", "track": "공채", "questions": [["id": "portal-only", "prompt": "협업 경험을 설명해주세요.", "category": "personality", "tracks": ["공채"]]]]

@@ -122,26 +122,28 @@ import AVKit
                         action("내 면접 기록", id: "practice.records") { model.showRecords() }
             if !model.bridgeReady { action("AI 연결 다시 확인") { Task { await model.load() } } }
         case .prep:
-            if model.mode == "job", model.isPortalPractice {
+            if model.configurableQuestions, model.isPortalPractice {
                 HStack(alignment: .top, spacing: 12) {
-                    practiceDropdown(title: "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
+                    practiceDropdown(title: model.mode == "personality" ? "인성 분야" : "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
                         Button("전체 분야") { model.changeField("") }
                         ForEach(model.contentFields) { field in
                             Button(field.label) { model.changeField(field.id) }
                         }
                     }
-                    practiceDropdown(title: "기출 지역", value: model.selectedRegion.isEmpty ? "전체 지역" : model.selectedRegion, id: "practice.region") {
-                        Button("전체 지역") { model.changeRegion("") }
-                        ForEach(model.availableRegions, id: \.self) { region in
-                            Button(region) { model.changeRegion(region) }
+                    if model.mode == "job" {
+                        practiceDropdown(title: "기출 지역", value: model.selectedRegion.isEmpty ? "전체 지역" : model.selectedRegion, id: "practice.region") {
+                            Button("전체 지역") { model.changeRegion("") }
+                            ForEach(model.availableRegions, id: \.self) { region in
+                                Button(region) { model.changeRegion(region) }
+                            }
                         }
                     }
                 }
             }
-            if model.mode == "job" {
-                practiceDropdown(title: "연습 문항 수", value: "\(model.jobQuestionCount)문항", id: "practice.job-count") {
+            if model.configurableQuestions {
+                practiceDropdown(title: "연습 문항 수", value: "\(model.selectedQuestionCount)문항", id: model.mode == "personality" ? "practice.personality-count" : "practice.job-count") {
                     ForEach([3, 5, 10, 15, 20], id: \.self) { count in
-                        Button("\(count)문항") { model.setJobQuestionCount(count) }
+                        Button("\(count)문항") { model.setPracticeQuestionCount(count) }
                     }
                 }
             }

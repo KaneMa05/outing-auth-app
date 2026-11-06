@@ -33,6 +33,9 @@ import CryptoKit
 
     @Published var number = 0
     @Published var jobQuestionCount = 3
+    @Published var personalityQuestionCount = 3
+    var configurableQuestions: Bool { mode == "job" || mode == "personality" }
+    var selectedQuestionCount: Int { mode == "personality" ? personalityQuestionCount : jobQuestionCount }
     @Published var liveCaptionsEnabled = false
     var streamsCaptions: Bool { mode == "ai" || liveCaptionsEnabled }
     private var reviewStartedAt: Date?
@@ -57,7 +60,7 @@ import CryptoKit
     var remaining: TimeInterval { get { meter.remaining } set { if abs(meter.remaining - newValue) > 0.08 { meter.remaining = newValue } } }
     @Published var recordingReady = false
     @Published var elapsed = 0
-    var sessionLimitSeconds: Int { mode == "job" ? max(600, questions.count * 120) : 600 }
+    var sessionLimitSeconds: Int { configurableQuestions ? max(600, questions.count * 120) : 600 }
     @Published var notice = "답변 음성은 이 기기에만 저장됩니다."
     @Published var record: PracticeRecord?
     @Published var records: [PracticeRecord] = []
@@ -106,7 +109,7 @@ import CryptoKit
             return question
         }
         let usedFields = Set(bank.filter { InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) }.flatMap { $0.fieldIDs ?? [] })
-        contentFields = receivedFields.filter { usedFields.contains($0.id) && InterviewPracticePolicy.contentFieldAllowed($0.id, track: track) }
+        contentFields = receivedFields.filter { usedFields.contains($0.id) && (mode != "job" || InterviewPracticePolicy.contentFieldAllowed($0.id, track: track)) }
         if !selectedField.isEmpty && !contentFields.contains(where: { $0.id == selectedField }) { selectedField = "" }
         refreshQuestions()
     }
@@ -196,6 +199,7 @@ import CryptoKit
         }
     }
     func select(_ selectedMode: String) {
+        if mode != selectedMode { selectedField = ""; selectedRegion = "" }
         stopPlayback(); media.stop(); avatarURL = nil; recordVideo = false; mode = selectedMode; refreshQuestions(); screen = .prep
     }
     func changeTrack(_ value: String) {
@@ -206,14 +210,19 @@ import CryptoKit
     func refreshQuestions() {
         let eligible = bank.filter {
             InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) &&
-            (mode != "job" || InterviewPracticePolicy.matchesSelection(fields: $0.fieldIDs ?? [], regions: $0.regions ?? [], field: selectedField, region: selectedRegion))
+            (!configurableQuestions || InterviewPracticePolicy.matchesSelection(fields: $0.fieldIDs ?? [], regions: $0.regions ?? [], field: selectedField, region: mode == "job" ? selectedRegion : ""))
         }
 
-        available = eligible.count; questions = Array(eligible.shuffled().prefix(mode == "job" ? jobQuestionCount : 3))
+        available = eligible.count; questions = Array(eligible.shuffled().prefix(configurableQuestions ? selectedQuestionCount : 3))
+    }
+    func setPracticeQuestionCount(_ count: Int) {
+        guard configurableQuestions, screen == .prep, [3, 5, 10, 15, 20].contains(count) else { return }
+        if mode == "personality" { personalityQuestionCount = count } else { jobQuestionCount = count }
+        refreshQuestions()
     }
     func setJobQuestionCount(_ count: Int) {
-        guard mode == "job", screen == .prep, [3, 5, 10, 15, 20].contains(count) else { return }
-        jobQuestionCount = count; refreshQuestions()
+        guard mode == "job" else { return }
+        setPracticeQuestionCount(count)
     }
     func nextJobQuestion() {
         guard mode == "job", screen == .jobReview else { return }
@@ -266,10 +275,10 @@ import CryptoKit
         do {
             var record = PracticeRecord(id: UUID().uuidString, mode: mode, track: track)
             record.accountID = portalAccount
-            if mode == "job" {
+            if configurableQuestions {
                 record.fieldID = selectedField.isEmpty ? nil : selectedField
                 record.fieldLabel = contentFields.first { $0.id == selectedField }?.label
-                record.region = selectedRegion.isEmpty ? nil : selectedRegion
+                record.region = mode == "job" && !selectedRegion.isEmpty ? selectedRegion : nil
             }
 
             record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id
