@@ -1,0 +1,27 @@
+{
+  "status": "user_approved",
+  "approvedDate": "2026-10-30",
+  "interviewer": "interviewer-woman",
+  "referenceAudio": "artifacts/interview-avatars/approved/interviewer-woman/voice-reference.wav",
+  "referenceText": "협업 중 의견 차이를 해결한 경험을 말씀해 주세요.",
+  "referenceSha256": "4c7c721355491e39f6228506d14343ab0fc5db9857bbba04294eda99cff4d1e6",
+  "generation": {
+    "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit",
+    "seed": 92,
+    "temperature": 0.6,
+    "style": "A native Korean woman in her late forties, a meticulous professional interviewer. Clear focused female voice with a firm, slightly bright edge, mature and composed. Sound interested in the answer but exacting, like a real person asking a practical question across a desk. Natural conversational Seoul Korean with connected phrasing and relaxed articulation, even brisk rhythm. Let the sentence flow without stopping after each word. Keep emotion subtle, ending politely and firmly. Not theatrical, not sing-song, not breathy.",
+    "script": "scripts/avatars/create-mature-interviewer-options.py"
+  },
+  "preferences": {
+    "connectedPhrasing": true,
+    "globalSpeedAdjustment": 1.0,
+    "pitchAdjustment": 0,
+    "lipSync": "MuseTalk 1.5",
+    "mouthRestoration": "GFPGANv1.4",
+    "softBoundaryBlend": true
+  },
+  "nextGeneration": "Use approved reference audio for voice consistency; identical VoiceDesign instructions alone do not guarantee the same speaker. Validate subsequent question pronunciation and timing.",
+  "appIntegration": "Pending. Existing 87 videos use the previous voice and have not been replaced.",
+  "selection": "② 또렷하고 깐깐한 면접관 느낌",
+  "approvedVideoStatus": "No lip-sync video has been generated for this newly approved voice yet."
+}

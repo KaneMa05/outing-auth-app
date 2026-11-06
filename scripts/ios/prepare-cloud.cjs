@@ -24,12 +24,21 @@ function sourceFiles(sourceRoot=root){
  for(const folder of ['native/ios/App/Sources','native/ios/App/Tests','native/ios/InterviewNative/Sources'])swiftFiles(folder);
  const audioFolder='native/ios/App/DebugResources/InterviewPracticeAudio';
  for(const entry of fs.readdirSync(path.join(sourceRoot,audioFolder),{withFileTypes:true})){
-  if(!entry.isFile()||!(/^[A-Za-z0-9_-]+\.mp3$/.test(entry.name)||entry.name==='catalog.json'||entry.name==='answer-cue.wav'))throw Error('Unexpected debug audio resource');
+  if(!entry.isFile()||!(/^[A-Za-z0-9_-]+\.mp3$/.test(entry.name)||entry.name==='catalog.json'||entry.name==='examples.json'||entry.name==='answer-cue.wav'))throw Error('Unexpected debug audio resource');
   files.push(audioFolder+'/'+entry.name);
  }
  for(const name of ['interviewer-man-1','interviewer-woman','interviewer-man-2']){
   const avatarFile='native/ios/App/DebugResources/InterviewAvatar/'+name+'.mp4';
   if(fs.existsSync(path.join(sourceRoot,avatarFile)))files.push(avatarFile);
+ }
+ const questionVideoRoot='native/ios/App/DebugResources/InterviewQuestionVideo';
+ for(const avatar of ['interviewer-man-1','interviewer-woman','interviewer-man-2']){
+  const dir=questionVideoRoot+'/'+avatar;
+  if(!fs.existsSync(path.join(sourceRoot,dir)))continue;
+  for(const entry of fs.readdirSync(path.join(sourceRoot,dir),{withFileTypes:true})){
+   if(!entry.isFile()||!(/^[A-Za-z0-9_-]+\.mp4$/.test(entry.name)))throw Error('Unexpected question video resource');
+   files.push(dir+'/'+entry.name);
+  }
  }
  for(const file of files){const resolved=path.resolve(sourceRoot,file);if(!resolved.startsWith(path.resolve(sourceRoot)+path.sep)||fs.lstatSync(resolved).isSymbolicLink())throw Error('Invalid source path');}
  return files.sort();
