@@ -124,11 +124,39 @@ import SwiftUI
             } else {
                 Text("완료한 답변 \(turns.filter { $0["complete"] as? Bool == true }.count)개").font(.title2).foregroundStyle(teal)
                 Text("보관 종료: " + (run["retain_until"] as? String ?? "확인 중")).font(.caption)
-                Text("질문별 기록에서 답변과 녹음을 확인하세요. 강점·보완점 자동 분석은 아직 제공하지 않습니다.").font(.subheadline)
+                Text("질문별 기록에서 답변과 녹음을 확인하세요.").font(.subheadline)
+                if model.record?["analysisEnabled"] as? Bool == true { analysis }
             }
             if !model.demo { action("기록 다시 확인") { Task { await model.loadRecord() } } }
             action("다시 연습하기", primary: true) { Task { await model.checkReady() } }
             action("내 면접 기록") { Task { await model.loadRecords() } }
+        }
+    }
+    @ViewBuilder private var analysis: some View {
+        let processing = model.record?["processing"] as? InterviewJSON
+        let report = processing?["report"] as? InterviewJSON
+        let feedback = report?["analysis"] as? InterviewJSON
+        Text("종합 피드백").font(.headline)
+        if let feedback {
+            Text(feedback["summary"] as? String ?? "").font(.subheadline)
+            ForEach(["strengths", "improvements", "nextPractice"], id: \.self) { key in
+                let rows = feedback[key] as? [InterviewJSON] ?? []
+                if !rows.isEmpty {
+                    Text(key == "strengths" ? "잘한 점" : key == "improvements" ? "보완할 점" : "다음 연습").font(.subheadline.bold())
+                    ForEach(rows.indices, id: \.self) { index in
+                        Text(rows[index]["quote"] as? String ?? "").font(.caption).foregroundStyle(.secondary)
+                        Text(rows[index]["feedback"] as? String ?? "").font(.subheadline)
+                    }
+                }
+            }
+            Text("저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다.").font(.caption).foregroundStyle(.secondary)
+        } else if processing?["state"] as? String == "running" {
+            Text("저장된 답변을 분석하고 있습니다. 기록 다시 확인으로 결과를 확인해주세요.").font(.subheadline)
+        } else if processing != nil {
+            Text("분석 완료 여부를 확인해야 합니다. 자동으로 다시 실행하지 않습니다.").font(.subheadline)
+        } else {
+            action(model.analysisLoading ? "분석 중…" : "종합 피드백 받기", enabled: !model.analysisLoading) { Task { await model.requestAnalysis() } }
+                .accessibilityIdentifier("interview.analysis")
         }
     }
     private var records: some View {

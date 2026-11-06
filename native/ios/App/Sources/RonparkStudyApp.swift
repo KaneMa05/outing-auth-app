@@ -68,7 +68,9 @@ private struct StudentWebApp: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "interviewNative")
         #if DEBUG
         config.userContentController.add(context.coordinator, name: "interviewPractice")
-        config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;window.__ronparkMockTestApp=true;}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        let pcPractice = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice")
+        let practiceFlags = pcPractice ? "window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;" : "window.__ronparkOpenAIPractice=true;"
+        config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){\(practiceFlags)window.__ronparkMockTestApp=true;}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         #endif
         // The installed WKWebView is standalone too. Set this before the existing
         // web app evaluates its install gate; never apply it to third-party pages.

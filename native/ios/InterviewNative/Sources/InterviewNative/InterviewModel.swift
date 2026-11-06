@@ -17,6 +17,7 @@ import AVFoundation
     @Published var hasMore = false
     @Published var page = 0
     @Published var recordsLoading = false
+    @Published var analysisLoading = false
     let media = InterviewMedia()
     let api = InterviewAPI()
     let demo: Bool
@@ -132,6 +133,17 @@ import AVFoundation
         do { let data = try await api.command("list", ["page": page]); guard !disposed, screen == .records, generation == requestGeneration else { return }
             records = data["runs"] as? [InterviewJSON] ?? []; hasMore = data["hasMore"] as? Bool == true
         } catch { if !disposed { notice = "기록을 불러오지 못했습니다." } }
+    }
+    func requestAnalysis() async {
+        guard !demo, !disposed, !analysisLoading, record?["analysisEnabled"] as? Bool == true,
+              record?["processing"] as? InterviewJSON == nil else { return }
+        let requestedID = runID; analysisLoading = true
+        defer { analysisLoading = false }
+        do {
+            let data = try await api.command("analysis_request", ["runId": requestedID])
+            guard !disposed, runID == requestedID else { return }
+            record?["processing"] = data["processing"]
+        } catch { if !disposed { notice = "분석 상태를 확인하지 못했습니다. 기록 다시 확인을 눌러주세요." } }
     }
     func play(_ key: String) {
         stopPlayback()
