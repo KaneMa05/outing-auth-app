@@ -169,6 +169,43 @@ final class InterviewPracticeTests: XCTestCase {
         XCTAssertTrue(InterviewPracticePolicy.contentFieldAllowed("marine_environment", track: "방제"))
         XCTAssertTrue(InterviewPracticePolicy.contentFieldAllowed("vts_communications", track: "관제"))
     }
+    @MainActor func testPortalRecordsStayInTheirModeAndOldResultsNeverUploadAutomatically() {
+        let model = PracticeModel(); defer { model.dispose() }
+        model.sessionLoader = { [:] }; model.mode = "job"
+        let job = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        let personality = PracticeRecord(id: UUID().uuidString, mode: "personality", track: "공채")
+        model.records = [personality, job]
+        XCTAssertEqual(model.visibleRecords.map { $0.id }, [job.id])
+        model.record = personality; model.screen = .result
+        XCTAssertEqual(model.modeTitle, "인성 연습모드")
+        XCTAssertFalse(model.canAutomaticallySubmitCurrentAnswers)
+        model.mode = "personality"
+        XCTAssertEqual(model.visibleRecords.map { $0.id }, [personality.id])
+    }
+    @MainActor func testCompletedReferenceReadFailurePreservesResultAndCannotSubmitAgain() async throws {
+        let account = "reference-read-" + UUID().uuidString
+        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("InterviewAccounts/" + scope)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = PracticeModel(); defer { model.dispose() }
+        model.sessionLoader = { ["accountId": account, "track": "공채", "questions": []] }
+        var actions: [String] = []
+        model.cliRequest = { action, _ in
+            if action == "status" { return ["ok": true, "ready": true] }
+            actions.append(action); return ["ok": false, "error": "not_found"]
+        }
+        await model.load()
+        let store = try PracticeStore(root: root)
+        var saved = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채"); saved.accountID = account
+        var turn = PracticeTurn(id: 1, question: "기존 질문", audio: "1.wav")
+        turn.analysisRequestID = UUID().uuidString; turn.analysisState = "completed"; turn.analysis = ["summary": "기존 피드백"]
+        saved.turns = [turn]; try store.save(saved); model.record = saved
+        model.refreshCLIResults(allowSubmission: true, currentOnly: true)
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertEqual(actions, ["get"])
+        XCTAssertEqual(try store.load(saved.id).turns[0].analysisState, "completed")
+        XCTAssertEqual(try store.load(saved.id).turns[0].analysis?["summary"], "기존 피드백")
+    }
     func testLegacyPCRecordsKeepRequestAndAccountIsolation() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

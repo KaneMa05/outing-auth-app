@@ -488,6 +488,35 @@ final class PhysicalPortalEndToEndTests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "job-field-criminal-west"; screenshot.lifetime = .keepAlways; add(screenshot)
         #endif
     }
+    func testSavedResultLoadsSourceExampleWithoutASecondAnalysis() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the signed-in owner's existing saved practice")
+        #else
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launch()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 30))
+        let mock = web.buttons["모의면접"]
+        XCTAssertTrue(mock.waitForExistence(timeout: 40)); mock.tap()
+        let job = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "직무(전공) 연습모드")).firstMatch
+        XCTAssertTrue(job.waitForExistence(timeout: 15)); job.tap()
+        let start = web.buttons["연습 시작"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15)); start.tap()
+        let records = app.buttons["practice.records"]
+        XCTAssertTrue(records.waitForExistence(timeout: 30)); records.tap()
+        let open = app.buttons["기록 보기"].firstMatch
+        if !open.waitForExistence(timeout: 15) {
+            if app.staticTexts["아직 저장된 기록이 없습니다."].exists { throw XCTSkip("No saved job result is available on this signed-in device") }
+            XCTFail("Expected a saved job result or the empty-record state"); return
+        }
+        open.tap()
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 15))
+        let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
+        XCTAssertTrue(example.waitForExistence(timeout: 30)); example.tap()
+        XCTAssertTrue(app.staticTexts["학습 참고용 · 공식 정답이 아닙니다."].firstMatch.exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "physical-saved-result-example"; screenshot.lifetime = .keepAlways; add(screenshot)
+        #endif
+    }
     func testOrdinaryAppKeepsAllMockModesComingSoon() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Requires the signed-in physical test iPhone")

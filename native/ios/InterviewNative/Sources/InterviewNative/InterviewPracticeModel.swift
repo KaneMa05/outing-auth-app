@@ -37,6 +37,11 @@ import CryptoKit
     var streamsCaptions: Bool { mode == "ai" || liveCaptionsEnabled }
     private var reviewStartedAt: Date?
     private var activePracticeRecordID: String?
+    var canAutomaticallySubmitCurrentAnswers: Bool {
+        guard let activePracticeRecordID else { return false }
+        return record?.id == activePracticeRecordID
+    }
+    var visibleRecords: [PracticeRecord] { isPortalPractice ? records.filter { $0.mode == mode } : records }
     var canRepeatJobQuestions: Bool { mode == "job" && record?.id == activePracticeRecordID && !questions.isEmpty }
     @Published private(set) var avatarURL: URL?
     @Published private(set) var questionPlayer: AVPlayer?
@@ -126,7 +131,10 @@ import CryptoKit
     private var disposed = false
     var showsInterviewer: Bool { mode == "ai" }
     var question: String { questions.indices.contains(number - 1) ? questions[number - 1].displayPrompt : "" }
-    var modeTitle: String { mode == "job" ? "직무(전공) 연습모드" : mode == "personality" ? "인성 연습모드" : "실전 모의면접 (AI)" }
+    var modeTitle: String {
+        let displayedMode = screen == .result ? record?.mode ?? mode : mode
+        return displayedMode == "job" ? "직무(전공) 연습모드" : displayedMode == "personality" ? "인성 연습모드" : "실전 모의면접 (AI)"
+    }
     override init() {
         super.init()
         audioRouteObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -559,14 +567,15 @@ import CryptoKit
             if let row = records.firstIndex(where: { $0.id == run }) { records[row] = saved }
         } catch { notice = "기록을 갱신하지 못했습니다. 저장 공간을 확인해주세요." }
     }
-    private func runCLI(_ run: String, _ number: Int, allowSubmission: Bool) {
+    private func runCLI(_ run: String, _ number: Int, allowSubmission: Bool, includeCompletedReference: Bool = false) {
         guard let request = cliRequest, let account = portalAccount, let store,
               let saved = try? store.load(run), saved.accountID == account,
               let turn = saved.turns.first(where: { $0.id == number }), let id = turn.analysisRequestID,
-              !["completed", "unknown", "failed", "cancelled"].contains(turn.analysisState ?? ""), cliTasks[id] == nil else { return }
+              (!["completed", "unknown", "failed", "cancelled"].contains(turn.analysisState ?? "") || (includeCompletedReference && turn.analysisState == "completed" && turn.exampleAnswer == nil)), cliTasks[id] == nil else { return }
         cliTasks[id] = Task { [weak self] in
             guard let self else { return }; defer { self.cliTasks[id] = nil }
-            var submit = allowSubmission
+            let referenceOnly = turn.analysisState == "completed"
+            var submit = allowSubmission && !referenceOnly
             do {
                 while !Task.isCancelled && !self.disposed {
                     let result = try await PracticeCLI(request: request).advance(id: id, account: account, mode: saved.mode,
@@ -583,7 +592,7 @@ import CryptoKit
                     try await Task.sleep(nanoseconds: 2_000_000_000)
                 }
             } catch {
-                guard !Task.isCancelled, !self.disposed else { return }
+                guard !Task.isCancelled, !self.disposed, !referenceOnly else { return }
                 self.updateTurn(run, number) { row in
                     row.analysisPending = false; row.analysisState = "connection_required"
                     row.analysisNotice = "전송·분석 상태를 확인하지 못했습니다. 녹음은 보관되어 있습니다. 연결 다시 확인을 눌러주세요."
@@ -591,11 +600,11 @@ import CryptoKit
             }
         }
     }
-    func refreshCLIResults(allowSubmission: Bool = false) {
+    func refreshCLIResults(allowSubmission: Bool = false, currentOnly: Bool = false) {
         guard usesPC, let store else { return }
-        let saved = (try? store.list()) ?? []
+        let saved = currentOnly ? record.map { [$0] } ?? [] : (try? store.list()) ?? []
         for record in saved where record.accountID == portalAccount {
-            for turn in record.turns where turn.analysisRequestID != nil { runCLI(record.id, turn.id, allowSubmission: allowSubmission) }
+            for turn in record.turns where turn.analysisRequestID != nil { runCLI(record.id, turn.id, allowSubmission: allowSubmission, includeCompletedReference: currentOnly) }
         }
     }
     func foreground() { refreshCLIResults() }

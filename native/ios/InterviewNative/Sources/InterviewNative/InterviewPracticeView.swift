@@ -73,7 +73,7 @@ import AVKit
             } message: { Text("이 기기에 저장된 답변 음성과 영상도 삭제됩니다.") }
             .onChange(of: model.screen) { screen in
                 DispatchQueue.main.async { scroll.scrollTo("practice.top", anchor: .top) }
-                if screen == .result { model.refreshCLIResults(allowSubmission: true) }
+                if screen == .result { model.refreshCLIResults(allowSubmission: model.canAutomaticallySubmitCurrentAnswers, currentOnly: true) }
             }
             }
         }
@@ -200,8 +200,8 @@ import AVKit
         case .records:
             Text("내 면접 기록").font(.title.bold())
             action("면접 준비로") { model.select(model.mode) }
-            if model.records.isEmpty { Text("아직 저장된 기록이 없습니다.").font(.subheadline) }
-            ForEach(model.records) { record in
+            if model.visibleRecords.isEmpty { Text("아직 저장된 기록이 없습니다.").font(.subheadline) }
+            ForEach(model.visibleRecords) { record in
                 VStack(alignment: .leading, spacing: 10) {
                     Text(record.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
                     Text(record.track + " · 질문 \(record.turns.count)개").font(.caption)
@@ -323,7 +323,7 @@ import AVKit
             }
             action("재생 중지") { model.stopPlayback() }
             if model.usesPC && model.record?.turns.contains(where: { $0.analysisState == "connection_required" }) == true {
-                action("연결 다시 확인") { model.refreshCLIResults(allowSubmission: true) }
+                action("연결 다시 확인") { model.refreshCLIResults(allowSubmission: true, currentOnly: true) }
             }
             action("다시 연습하기", primary: true) { model.select(model.mode) }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
