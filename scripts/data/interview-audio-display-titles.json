@@ -1,4 +1,60 @@
 {
+  "q-be30bb67fd86a1b0cf678560": {
+    "spokenPrompt": "옴의법칙이란 무엇입니까?",
+    "displayPrompt": "옴의 법칙이란 무엇입니까?"
+  },
+  "q-0c66e6aca065d0ac60b87557": {
+    "spokenPrompt": "표준해사통신영어인 에스엠씨피에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "표준해사통신영어인 SMCP에 대해 설명해 주시겠습니까?"
+  },
+  "q-0cc2be1f9438a654f294dad7": {
+    "spokenPrompt": "세계해상조난 및 안전제도인 지엠디에스에스에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "세계해상조난 및 안전제도인 GMDSS에 대해 설명해 주시겠습니까?"
+  },
+  "q-1b0b4b1339e0cba9b893bc93": {
+    "spokenPrompt": "어선 위치발신장치인 브이패스에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "어선 위치발신장치인 V-PASS에 대해 설명해 주시겠습니까?"
+  },
+  "q-53134a96e36fe4fd79416da4": {
+    "spokenPrompt": "v pass 란 무엇입니까?",
+    "displayPrompt": "V-PASS란 무엇입니까?"
+  },
+  "q-d43fd0064dd656c5a8a8983b": {
+    "spokenPrompt": "AIS 란 무엇입니까?",
+    "displayPrompt": "AIS란 무엇입니까?"
+  },
+  "q-07ec3a2e2a465e77491e2921": {
+    "spokenPrompt": "수중레저활동에 사용하는 장비 세 가지를 말씀해 주시겠습니까?",
+    "displayPrompt": "수중레저활동에 사용하는 장비 3가지를 말씀해 주시겠습니까?"
+  },
+  "q-082594f27d54c02a7d7a6fb5": {
+    "spokenPrompt": "사행정 기관과 이행정 기관의 장단점을 비교해 설명해 주시겠습니까?",
+    "displayPrompt": "4행정 기관과 2행정 기관의 장단점을 비교해 설명해 주시겠습니까?"
+  },
+  "q-08717e67a176f634f199441c": {
+    "spokenPrompt": "윤활유의 기능 두 가지를 설명해 주시겠습니까?",
+    "displayPrompt": "윤활유의 기능 2가지를 설명해 주시겠습니까?"
+  },
+  "q-0bd4fc1e7a50c3890c03b84b": {
+    "spokenPrompt": "사일구 혁명과 오일육 군사정변, 오일팔 민주화운동에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "4.19 혁명과 5.16 군사정변, 5.18 민주화운동에 대해 설명해 주시겠습니까?"
+  },
+  "q-0c435b4ffc2a722ac0f3f385": {
+    "spokenPrompt": "칠급 공무원이 수행하는 업무를 설명해 주시겠습니까?",
+    "displayPrompt": "7급 공무원이 수행하는 업무를 설명해 주시겠습니까?"
+  },
+  "q-23717cdf6e7e6d11c74aa5a9": {
+    "spokenPrompt": "범죄수사의 삼대 원칙인 쓰리에스를 설명해 주시겠습니까?",
+    "displayPrompt": "범죄수사의 3대 원칙인 3S를 설명해 주시겠습니까?"
+  },
+  "q-0bc006558422dc7db4698912": {
+    "spokenPrompt": "항해자료기록장치인 브이디알에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "항해자료기록장치인 VDR에 대해 설명해 주시겠습니까?"
+  },
+  "q-17f1c2a457936fc0d2953a73": {
+    "spokenPrompt": "북방한계선인 엔엘엘에 대해 설명해 주시겠습니까?",
+    "displayPrompt": "북방한계선인 NLL에 대해 설명해 주시겠습니까?"
+  },
   "q-02a6310d338d54cfe8bb2328": {
     "spokenPrompt": "매슬로우의 욕구 오 단계 이론을 설명해 주시겠습니까?",
     "displayPrompt": "매슬로우의 욕구 5단계 이론을 설명해 주시겠습니까?"

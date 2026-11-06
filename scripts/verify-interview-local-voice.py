@@ -13,7 +13,7 @@ parser.add_argument('--output', default='local-qwen')
 parser.add_argument('--require-complete', action='store_true')
 args = parser.parse_args()
 output = folder / args.output
-bank = json.loads((folder / args.bank).read_text())['questions']
+bank = json.loads((folder / args.bank).read_text(encoding='utf-8'))['questions']
 assert len({q['id'] for q in bank}) == len(bank)
 ready, missing, errors = [], [], []
 for q in bank:
@@ -23,7 +23,7 @@ for q in bank:
         missing.append(q['id'])
         continue
     try:
-        entry = json.loads(metadata.read_text())
+        entry = json.loads(metadata.read_text(encoding='utf-8'))
         assert entry['id'] == q['id'] and entry['prompt'] == q['prompt']
         if q.get('spokenPrompt'):
             assert entry['spokenPrompt'] == q['spokenPrompt']
@@ -36,8 +36,8 @@ for q in bank:
     except Exception as exc:
         errors.append({'id': q['id'], 'error': repr(exc)})
 report = {'total': len(bank), 'ready': len(ready), 'missing': len(missing), 'errors': errors, 'complete': not missing and not errors, 'voiceSimilarityHumanVerified': False}
-(output / 'verification.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
-(output / 'catalog.json').write_text(json.dumps({'clips': ready, 'missing': missing, 'verification': report}, ensure_ascii=False, indent=2))
+(output / 'verification.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+(output / 'catalog.json').write_text(json.dumps({'clips': ready, 'missing': missing, 'verification': report}, ensure_ascii=False, indent=2), encoding='utf-8')
 print(json.dumps(report, ensure_ascii=False))
 if errors or (args.require_complete and missing):
     raise SystemExit(1)

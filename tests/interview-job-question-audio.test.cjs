@@ -38,7 +38,7 @@ const server=http.createServer((req,res)=>{
  let browser;
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  try{
-  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:960}}),errors=[];
+  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});const page=await browser.newPage({viewport:{width:1280,height:960}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:'+server.address().port;
   await page.goto(url);await page.waitForFunction(()=>window.ready);
@@ -60,14 +60,17 @@ const server=http.createServer((req,res)=>{
   await page.setViewportSize({width:390,height:844});
   assert(await page.locator('[data-content] audio').evaluate(node=>node.getBoundingClientRect().width>=250));
   assert(await editor.locator('audio').evaluate(node=>node.getBoundingClientRect().width<=node.parentElement.getBoundingClientRect().width));
-  await page.screenshot({path:'/private/tmp/interview-'+category+'-question-audio-mobile.png',fullPage:true});
-  await page.evaluate(section=>window.view.openSection(section),category==='job'?'questions':'job');assert.equal(await page.locator('audio').count(),0);
+  fs.mkdirSync(path.join(root,'.tmp'),{recursive:true});
+  await page.screenshot({path:path.join(root,'.tmp','interview-'+category+'-question-audio-mobile.png'),fullPage:true});
+  await page.evaluate(section=>window.view.openSection(section),category==='job'?'questions':'job');
+  assert.equal(await page.locator('audio').count(),1,'The same ID and exact question retain their recording after reclassification');
+  assert.equal(await page.locator('audio').getAttribute('src'),'./assets/interview-'+category+'-audio/'+sample.file);
   await page.route('**/assets/interview-'+category+'-audio/catalog.json',route=>route.fulfill({status:503,body:'unavailable'}));
   await page.reload();await page.waitForFunction(()=>window.ready);await page.getByText(/질문 음성 목록을 불러오지 못했습니다/).first().waitFor();
   assert.equal(await page.getByRole('button',{name:'검토·수정'}).count(),2);
   await page.unroute('**/assets/interview-'+category+'-audio/catalog.json');
   await page.getByRole('button',{name:'검토·수정'}).first().click();await page.locator('[data-editor]').last().getByText('질문 음성 연결됨',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);
-  console.log('PASS '+catalog.clips.length+' '+category+' audio checksums; browser playback, list/detail linkage, prompt changes, missing audio, mobile sizing, category isolation and catalog failure recovery.');
+  console.log('PASS '+catalog.clips.length+' '+category+' audio checksums; browser playback, list/detail linkage, prompt changes, missing audio, mobile sizing, reclassification retention and catalog failure recovery.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

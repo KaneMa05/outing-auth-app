@@ -1,13 +1,38 @@
-"""Change interviewer endings without letting a model rewrite question meaning."""
+"""Prepare question scripts for review before synthesizing any revised audio."""
+import argparse
 import json
 from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'artifacts/interview-question-audio'
+OVERRIDE_NAMES = ('personality', 'spoken', 'additional', 'public-track', 'wording')
+# These are nouns, not the abbreviated definition question "~(이)란?".
+RAN_NOUNS = ('혼란', '반란', '계란', '산란', '소란', '분란', '곤란', '논란',
+             '배란', '착란', '교란', '어란', '명란', '이란', '테헤란')
+
+
+def definition_topic(text):
+    return (len(text) > 1 and text.endswith('란')
+            and text.rsplit(' ', 1)[-1] not in RAN_NOUNS)
 
 def validate(text):
-    return bool(text and re.search(r'니까\?$', text) and not re.search(r'(?:할거냐|할꺼냐|뭐냐|말해봐라)[?.!]', text))
+    if not text or not re.search(r'니까\?$', text):
+        return False
+    if re.search(r'(?:할거냐|할꺼냐|뭐냐|말해봐라)[?.!]', text):
+        return False
+    # Check grammar as well as the final honorific ending. Keep nouns such as
+    # "혼란에 대해" valid, while rejecting "수상레저기구란에 대해".
+    return not any(definition_topic(match.group(1)) for match in
+                   re.finditer(r'([^?.!]+?)에\s*대해', text))
+
+
+def load_overrides():
+    overrides = {}
+    for name in OVERRIDE_NAMES:
+        path = ROOT / f'scripts/data/interview-audio-{name}-overrides.json'
+        overrides.update(json.loads(path.read_text(encoding='utf-8')))
+    return overrides
 
 def ending(text, category):
     parts = [part.strip() for part in re.split(r'[?？]+', text) if part.strip()]
@@ -20,6 +45,8 @@ def _ending(text, category):
     s = s.replace('하실겁니까', '하시겠습니까')
     if s.endswith('니까'):
         return s + '?'
+    if definition_topic(s):
+        return s + ' 무엇입니까?'
     for pattern, replacement in [
         (r'(?:설명해\s*(?:보세요|봐라|보라|보시오|보아라|주세요)|설명하시오|설명하세요)$', '설명해 주시겠습니까'),
         (r'(?:말씀해\s*(?:보세요|주세요)|말해\s*(?:보세요|봐라|보라|보시오|보아라|주세요)|말하시오|말해라|말하세요|얘기해\s*(?:봐라|보라)|이야기\s*해\s*(?:보세요|보라)|작성하세요|서술하시오)$', '말씀해 주시겠습니까'),
@@ -104,16 +131,20 @@ def _ending(text, category):
     return s + '에 대해 ' + ('설명해' if category == 'job' else '말씀해') + ' 주시겠습니까?'
 
 def main():
-    bank = json.loads((FOLDER / 'questions-20261030.json').read_text())['questions']
-    overrides = {}
-    for name in ['personality', 'spoken']:
-        overrides.update(json.loads((ROOT / f'scripts/data/interview-audio-{name}-overrides.json').read_text()))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--bank', type=Path, default=FOLDER / 'questions-20261030.json')
+    parser.add_argument('--output', type=Path, default=FOLDER / 'questions-interviewer.json')
+    args = parser.parse_args()
+    bank = json.loads(args.bank.read_text(encoding='utf-8'))['questions']
+    overrides = load_overrides()
     rows = []
     for q in bank:
         text = ending(overrides.get(q['prompt'], q['prompt']), q['category'])
-        assert validate(text), (q['id'], text)
-        rows.append({**q, 'spokenPrompt': text, 'editingPolicy': 'preserve-content-formal-endings-v1'})
-    (FOLDER / 'questions-interviewer.json').write_text(json.dumps({'questions': rows}, ensure_ascii=False, indent=2))
+        if not validate(text):
+            raise ValueError(f"Invalid question script: {q['id']}: {text}")
+        rows.append({**q, 'spokenPrompt': text, 'editingPolicy': 'preserve-content-formal-endings-v2'})
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps({'questions': rows}, ensure_ascii=False, indent=2), encoding='utf-8')
     print('Scripts finished: ' + str(len(rows)), flush=True)
 
 if __name__ == '__main__':

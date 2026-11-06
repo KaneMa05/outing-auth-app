@@ -53,6 +53,86 @@ Mac 실행기는 https://github.com/Blaizzy/mlx-audio 이며 설치한 커밋은
 종결 표현을 교체하거나 설명 요청을 붙인다.
 자동 종결 검사는 5,128개 모두의 의미·자연스러움을 사람이 확인했다는 뜻은 아니다.
 
+2026-11-06 점검에서 `수상레저기구란에 대해 설명해 주시겠습니까?`처럼
+정의형 메모 뒤에 설명 요청을 붙인 오류를 직무 76개·인성 17개 확인했다.
+`~(이)란`은 `~(이)란 무엇입니까?`로 처리하고, `혼란`·`이란`처럼
+실제 명사인 표현은 구분한다. 종결 검사에서도 잘못된 조합을 거부한다.
+기존 `additional`·`public-track` 교정문이 종결 교정 과정에서 누락된 문제도 수정했다.
+후기·괄호 메모가 섞인 복합 문항 11개는 `interview-audio-wording-overrides.json`에서
+원문을 기준으로 교정한다.
+
+현재 보유한 2026-10-27 원문 스냅샷으로 교정 대본만 검토하려면 다음을 실행한다.
+이 명령은 음성을 생성하지 않고 앱에 연결된 제목·대본·MP3를 변경하지 않는다.
+
+```sh
+python scripts/prepare-interview-question-endings.py --bank artifacts/interview-question-audio/questions-20261027.json --output artifacts/interview-question-audio/questions-interviewer-wording-review-20261106.json
+python tests/interview-question-endings.test.py
+```
+
+5,128개 원문·ID·유형을 유지한 대본 중 기존 앱 대본과 달라진 것은 187개다.
+위 정의형 오류 93개와 누락된 교정문 등 94개를 포함한다.
+기존 음성 파일의 대본을 새 교정문으로 바꿔 기록하지 않는다.
+교정 대본으로 음성을 재생성·검증한 후 패키징해야 제목과 실제 음성이 함께 바뀐다.
+
+### Windows에서 변경 문항만 교체
+
+`scripts/voice/regenerate-interview-questions.py`는 앱의 두 카탈로그와 교정 대본을
+대조하여 변경 문항만 `requests.json`에 고정한다. 같은 원문·대본으로 이미 보관된
+Fish 녹음은 원본 해시를 검증해 재사용하고, 나머지는 기존 `practice-job-1.mp3`를
+참조해 Qwen 0.6B의 PyTorch 경로로 생성한다. 문항별 출처와 생성 설정을 기록하며,
+파일·대본·설정의 지문이 같은 완료 항목은 재실행 시 건너뛴다.
+출력은 앱 자산과 분리된 `wording-audio-20261106/`에 저장한다.
+
+이번 Windows 실행 환경은 격리된 `.tmp/qwen-tts-local/venv`와
+`.tmp/interview-voice-gpu`의 PyTorch 2.6.0+cu124를 사용한다.
+모델 캐시는 `.tmp/interview-voice-cache/huggingface`다.
+GPU에서는 float32와 SDPA 조합으로 샘플을 확인했다. 모델 리비전과 참조 음성 해시는
+출력 폴더의 `voice.json`에 기록한다. 기존 Mac MLX 결과와 파형·음색이 동일하다는
+검증은 아니며 `voiceSimilarityHumanVerified`는 false를 유지한다.
+
+```powershell
+$env:PYTHONUTF8='1'
+$env:PYTHONPATH=Join-Path (Get-Location) '.tmp/interview-voice-gpu'
+& .tmp/qwen-tts-local/venv/Scripts/python.exe scripts/voice/regenerate-interview-questions.py --device cuda --precision float32
+& .tmp/qwen-tts-local/venv/Scripts/python.exe scripts/verify-interview-local-voice.py --bank wording-audio-20261106/requests.json --output wording-audio-20261106 --require-complete
+```
+
+`scripts/voice/check-interview-revision.py`는 로컬 Whisper로 대본과 발화를 대조한다.
+`--model turbo --flagged-only`로 small 모델이 표시한 항목을 다른 모델로 재확인할 수 있다.
+인식기의 오인식 가능성이 있으므로 이 보고서를 사람의 전체 청취 검증으로 표시하지 않는다.
+
+전체 WAV 검증을 마친 뒤 다음 명령으로 변경 음성을 MP3로 변환하고 앱에 연결한다.
+패키징은 모든 대본·원문·해시 검사를 먼저 수행하며, 기존 MP3를 삭제하지 않는다.
+두 카탈로그의 원문·ID·순서와 대상 외 문항은 유지한다. 새 파일명에 음성 해시를 넣어
+이전 캐시와 구분하며, 앱의 기존 카탈로그 로딩과 제목 표시 경로를 그대로 사용한다.
+
+```powershell
+node scripts/package-interview-revised-audio.cjs artifacts/interview-question-audio/wording-audio-20261106 .tmp/interview-audio-tools/node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe
+node --test tests/interview-revised-audio.test.cjs
+```
+
+이 과정에는 운영 DB 변경·푸시·배포가 포함되지 않는다.
+
+2026-11-06 로컬 반영 결과는 187개(직무 170·인성 17)다. 새로 생성한 149개와
+해시를 검증해 재사용한 보관 음성 38개를 연결했다. 대상 외 4,941개 카탈로그 항목과
+기존 녹음 파일 5,128개를 보존했다. 숫자·약어·띄어쓰기 표시 제목 14개를 추가하여
+기존 41개와 합쳐 55개를 관리한다.
+
+발음 조정은 `scripts/data/interview-audio-pronunciation-overrides.json`에서 대본을
+정확히 대조한 뒤 공백·쉼표·검토한 약어 철자 읽기·생성 시드만 조정한다.
+긴 선행 무음이 발생한 애국 문항은 자동 단어 시작 시각 5.54초를 확인하여
+발화 전 여유 0.3초를 남기고 5.24초를 제거했다. 처리 전 WAV와 메타데이터를
+출력 폴더의 `untrimmed/`에 보관하고 처리 내역과 새 해시를 기록했다.
+
+187개 WAV의 개수·해시·프레임·형식 검사와 전체 5,128개 앱 음성 연결·해시 검사,
+직무·인성 각각의 모바일/브라우저 재생 및 격리 빌드 검증을 통과했다.
+자동 인식 결과가 일치하지 않는 무해통항권·친고죄 관련 3개와 특수폭행죄 등
+복합 정의 문항 1개는 최종 청취 확인 대상으로 남겼다. ASR만으로 실제 발음 오류를
+단정하거나 전체 청취 검증을 완료했다고 표시하지 않는다.
+출력 폴더의 `review.html`에서 4개 확인 대상과 전체 187개 음성을 재생할 수 있다.
+`app-verification.json`은 원문 보존·변경 범위·청취 확인 항목을,
+`release-files.json`은 이 작업에 해당하는 배포 파일만 기록한다.
+
 ```sh
 .tmp/voice-local/venv312/bin/python scripts/run-interview-question-revision.py
 ```
