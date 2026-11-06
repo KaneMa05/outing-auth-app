@@ -14,7 +14,7 @@ function defaults(){
   storage:()=>require('../lib/interview-job-exam-storage.cjs').createJobExamStorage({url:env.SUPABASE_URL,key:env.SUPABASE_SERVICE_ROLE_KEY,prefix:'openai-practice/'}),
   schedule:require('@vercel/functions').waitUntil,secret:env.CRON_SECRET||'',
   provider:()=>{
-   const asr=require('../lib/interview-exam-provider').createProvider({config:{enabled:true,ready:true,key:env.OPENAI_API_KEY,models:{transcriber:models.transcriber}}});
+   const asr=require('../lib/interview-exam-provider').createProvider({config:{enabled:true,ready:true,key:env.OPENAI_API_KEY,models:{transcriber:models.transcriber},transcriptionContext:'한국어 해양경찰 면접 연습 녹음입니다. 들리는 발화를 원문 그대로 전사합니다. 부정 표현, 숫자, 단위, 전문용어, 말의 정정과 반복을 보존하며 들리지 않는 내용은 추측하거나 보충하지 않습니다.'}});
    return {models:{transcriber:models.transcriber,analyzer:models.report},transcribe:(audio,{pass})=>asr.transcribe(audio,pass),
     infer:require('../lib/interview-openai-report.cjs').createOpenAIInference({key:env.OPENAI_API_KEY,model:models.report})};
   }};
@@ -26,8 +26,9 @@ async function cleanup(deps=defaults()){
 }
 async function processClaim(d,{id,token,question,audio}){
  try{
-  const provider=d.provider();
-  const report=await analyzeTask({kind:'practice',question,audio},{...provider});
+  const provider=d.provider(),prepared=require('../lib/interview-practice-audio.cjs').preparePracticeAudio(audio);
+  const report=await analyzeTask({kind:'practice',question,audio},{...provider,transcribe:(_,options)=>provider.transcribe(prepared.audio,options),parallelTranscription:true,practiceReference:true});
+  report.audit.audioPreparation={gain:prepared.gain,quality:prepared.quality};
   await d.invoke('complete',SERVER,{id,token,report});
  }catch{
   // Provider/response uncertainty never creates a second paid execution.

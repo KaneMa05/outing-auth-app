@@ -8,8 +8,11 @@ async function setup(t){
  const f=await fixture();t.after(()=>f.db.close());
  for(const file of ['20261031052127_fix_mock_access_portal_accounts.sql','20261103062648_interview_mock_operations_monitor.sql','20261104053835_iphone_practice_cli.sql','20261104060123_iphone_practice_unlimited_retention.sql'])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+migration,'utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_reference_assessment.sql')),'utf8'));
  // Reproduce production: published questions, only draft rubrics, portal-only owner.
  await f.db.exec("update ip_question_rubrics set status='draft';insert into ip_owners(id,name) values('iw_practice_test','가상 면접 전용 계정');insert into ip_members(student_id,track,exam_number,expires_on,mock_test_enabled) values('iw_practice_test','공채','portal-practice-test','2099-01-01',true);");
+ await f.db.exec("insert into ip_sources(id,filename,sha256,track) values('practice-source','practice-fixture.hwpx','fixture','공채');");
+ await f.db.query("insert into ip_occurrences(id,source_id,question_id,number,locator,original_prompt,answer) values('practice-ref','practice-source',$1,'1','paragraph:1',$2,$3)",[f.detail.question.id,f.detail.question.prompt,'상황을 확인합니다. 동료에게 보고합니다. 조치를 기록합니다.']);
  let identity='iw_practice_test',enabled=true,uploads=0,providers=0,failUpload=false,failInference=false;
  const tasks=[],invoke=f.rpc('ip_openai_practice_service');
  const d={get enabled(){return enabled;},authenticate:async()=>({id:identity}),requireAccess:f.deps('job').requireMockAccess,invoke,
@@ -85,4 +88,29 @@ test('approved enrollment with no end date still practices with bounded private 
  const b=f.body();assert.equal((await f.call(b)).status,200);await f.finish();
  const row=(await f.db.query('select retain_until from ip_openai_practice_attempts where id=$1',[b.id])).rows[0];
  assert.ok(Date.parse(row.retain_until)>Date.now()+30*86400000);assert.ok(Date.parse(row.retain_until)<Date.now()+32*86400000);
+});
+
+test('source-answer criteria are frozen at submission and evidence-backed practice verdict reaches the saved report',async t=>{
+ const f=await setup(t),b=f.body(),spoken='상황을 확인합니다. 동료에게 보고합니다. 조치를 기록합니다.';
+ f.d.provider=()=>({models:f.models,transcribe:async()=>spoken,infer:async(input,options)=>{
+  assert.equal(options.schema.properties.assessment.type,'array');assert.equal(input.criteria.length,3);
+  return {summary:'핵심 내용을 설명했습니다.',strengths:[{turnId:'1',quote:spoken,feedback:'조치 순서를 설명했습니다.'}],improvements:[],nextPractice:[],assessment:input.criteria.map(c=>({index:c.index,status:'O',quote:c.claim,reason:'예시답변의 핵심 내용과 일치합니다.'}))};
+ }});
+ await f.call(b);await f.finish();
+ await f.db.exec("update ip_occurrences set answer='나중에 변경한 예시답변' where id='practice-ref'");
+ const saved=await f.call({action:'get',id:b.id});assert.equal(saved.data.state,'completed');
+ assert.equal(saved.data.report.assessment.length,3);assert.ok(saved.data.report.assessment.every(r=>r.status==='O'));
+ assert.equal(saved.data.report.assessment[0].claim,'상황을 확인합니다.');assert.equal(saved.data.report.assessmentBasis,'source_answer');
+ assert.equal(saved.data.report.grade,null);assert.equal(saved.data.report.score,null);assert.equal(saved.data.report.audit,undefined);
+ assert.equal((await f.db.query("select count(*)::int n from ip_question_rubrics where status='reviewed'")).rows[0].n,0);
+});
+
+test('capacity supports twenty-question sessions for one hundred students without repeated submissions consuming extra entries',async t=>{
+ const f=await setup(t),status=await f.call({action:'status'});
+ assert.equal(status.data.dailyAnswerLimit,100);assert.equal(status.data.dailyServiceAnswerLimit,10000);
+ const b=f.body();await f.call(b);await f.finish();
+ await f.db.exec("insert into ip_openai_practice_attempts(id,owner_id,mode,question,audio_hash,state,created_at,retain_until) select gen_random_uuid(),'iw_practice_test','job','{}','"+'a'.repeat(64)+"','completed',now(),now()+interval '1 day' from generate_series(1,98)");
+ assert.equal((await f.call(b)).status,200);
+ const last=f.body();assert.equal((await f.call(last)).status,200);await f.finish();
+ assert.equal((await f.call(f.body())).status,429);
 });
