@@ -9,6 +9,7 @@ async function setup(t){
  for(const file of ['20261031052127_fix_mock_access_portal_accounts.sql','20261103062648_interview_mock_operations_monitor.sql','20261104053835_iphone_practice_cli.sql','20261104060123_iphone_practice_unlimited_retention.sql'])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+migration,'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_reference_assessment.sql')),'utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_result_reference_answer.sql')),'utf8'));
  // Reproduce production: published questions, only draft rubrics, portal-only owner.
  await f.db.exec("update ip_question_rubrics set status='draft';insert into ip_owners(id,name) values('iw_practice_test','가상 면접 전용 계정');insert into ip_members(student_id,track,exam_number,expires_on,mock_test_enabled) values('iw_practice_test','공채','portal-practice-test','2099-01-01',true);");
  await f.db.exec("insert into ip_sources(id,filename,sha256,track) values('practice-source','practice-fixture.hwpx','fixture','공채');");
@@ -113,4 +114,21 @@ test('capacity supports twenty-question sessions for one hundred students withou
  assert.equal((await f.call(b)).status,200);
  const last=f.body();assert.equal((await f.call(last)).status,200);await f.finish();
  assert.equal((await f.call(f.body())).status,429);
+});
+
+test('example answers are available with the submitted result while analysis is running and on legacy records without new inference',async t=>{
+ const f=await setup(t),b=f.body(),reference='상황을 확인합니다. 동료에게 보고합니다. 조치를 기록합니다.';
+ const submitted=await f.call(b);assert.equal(submitted.data.referenceAnswer,reference);await f.finish();
+ await f.db.exec("update ip_openai_practice_attempts set question=question-'reference'");
+ const legacy=await f.call({action:'get',id:b.id});assert.equal(legacy.data.referenceAnswer,reference);assert.equal(f.providers,1);
+ await f.db.query("update ip_questions set prompt='원문이 바뀐 다른 질문' where id=$1",[b.questionId]);
+ assert.equal((await f.call({action:'get',id:b.id})).data.referenceAnswer,null);assert.equal(f.providers,1);
+ f.identity('ip-b');assert.equal((await f.call({action:'get',id:b.id})).status,404);
+});
+
+test('personality examples can be studied without applying job knowledge verdicts',async t=>{
+ const f=await setup(t),b=f.body('personality'),example='본인의 경험과 행동, 결과를 구체적으로 설명하는 예시입니다.';
+ await f.db.query("insert into ip_occurrences(id,source_id,question_id,number,locator,original_prompt,answer) values('personality-ref','practice-source',$1,'2','paragraph:2',$2,$3)",[b.questionId,b.questionPrompt,example]);
+ const submitted=await f.call(b);assert.equal(submitted.data.referenceAnswer,example);await f.finish();
+ const saved=await f.call({action:'get',id:b.id});assert.equal(saved.data.referenceAnswer,example);assert.deepEqual(saved.data.report.assessment,[]);assert.equal(saved.data.report.grade,null);
 });
