@@ -3,7 +3,9 @@ import XCTest
 final class StudentWebUITests: XCTestCase {
     func testInstalledAppShowsStudentLoginWithoutInstallGate() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        // The screenshot entry uses the same student page as Release. The default
+        // Debug entry intentionally opens the interview portal instead.
+        app.launchArguments = ["--store-screenshots", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.webViews.textFields["예: 18004"].waitForExistence(timeout: 60),
                       "Installed iOS app must show student login, not the browser install gate")
@@ -11,6 +13,13 @@ final class StudentWebUITests: XCTestCase {
         attachment.name = "07-student-login"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+    func testDebugAppShowsInterviewPortalLogin() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.webViews.buttons["카카오 로그인하기"].waitForExistence(timeout: 60),
+                      "Debug interview app must open the interview portal login")
     }
 }
 
