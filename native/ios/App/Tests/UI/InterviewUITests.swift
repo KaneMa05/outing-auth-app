@@ -105,13 +105,27 @@ final class InterviewPracticeUITests: XCTestCase {
     }
 
     func testEndingDuringCountdownCancelsFirstQuestion() {
+        continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
+        app.launchArguments = ["--interview-native-preview", "--interview-offline-testing", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.buttons["practice.mode.ai"].waitForExistence(timeout: 15))
         app.buttons["practice.mode.ai"].tap()
+        // Resolve first-launch microphone authorization before testing the short
+        // countdown. A pending system prompt leaves the app on preparation.
+        let microphone = app.buttons["practice.media"]
+        microphone.tap()
+        let permission = app.alerts.firstMatch
+        if permission.waitForExistence(timeout: 3) {
+            guard let allow = ["허용", "Allow", "OK", "확인"].map({ permission.buttons[$0] }).first(where: { $0.exists }) else {
+                XCTFail("The microphone permission alert must offer Allow"); return
+            }
+            allow.tap()
+        }
+        XCTAssertEqual(microphone.label, "종료", "Preparation microphone test must be active")
+        microphone.tap()
         app.buttons["interview.start"].tap()
-        XCTAssertTrue(app.staticTexts["practice.start-countdown"].exists)
+        XCTAssertTrue(app.staticTexts["practice.start-countdown"].waitForExistence(timeout: 2))
         app.buttons["interview.end"].tap()
         app.buttons["종료하고 기록 보기"].tap()
         XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 5))
@@ -236,11 +250,11 @@ final class InterviewPracticeUITests: XCTestCase {
             answer.tap()
         }
         XCTAssertTrue(app.buttons["practice.job-repeat"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["내 답변 듣기"].firstMatch.exists)
-        let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
-        XCTAssertTrue(example.exists)
-        example.tap()
-        XCTAssertTrue(app.staticTexts["학습 참고용 · 공식 정답이 아닙니다."].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["질문 3개"].exists)
+        XCTAssertEqual(app.buttons["내 답변 듣기"].count, 3, "Every completed answer must remain playable")
+        // This offline bundle has no examples.json. The app must preserve all
+        // recordings without presenting an invented reference answer.
+        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "practice.example.")).firstMatch.exists)
         app.swipeDown()
         app.buttons["practice.job-repeat"].tap()
         XCTAssertTrue(app.buttons["interview.start"].waitForExistence(timeout: 5))
@@ -292,7 +306,7 @@ final class InterviewPracticeUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["practice.mode.job"].waitForExistence(timeout: 15))
         app.buttons["practice.mode.job"].tap()
-        XCTAssertTrue(app.staticTexts["직무 연습 준비"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["전공 연습"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["practice.media"].exists)
         XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.track"].tap()
