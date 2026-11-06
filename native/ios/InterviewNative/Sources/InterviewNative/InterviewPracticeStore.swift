@@ -58,6 +58,9 @@ struct PracticeTurn: Codable, Identifiable {
     var analysis: [String: String]?
     var analysisPending = false
     var analysisError = false
+    var analysisRequestID: String?
+    var analysisState: String?
+    var analysisNotice: String?
 }
 struct PracticeRecord: Codable, Identifiable {
     var id: String
@@ -67,6 +70,7 @@ struct PracticeRecord: Codable, Identifiable {
     var video: String?
     var completed = false
     var turns: [PracticeTurn] = []
+    var accountID: String?
 }
 struct PracticeStore {
     let root: URL

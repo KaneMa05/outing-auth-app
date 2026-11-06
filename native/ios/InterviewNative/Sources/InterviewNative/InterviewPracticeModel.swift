@@ -50,7 +50,10 @@ import CryptoKit
     @Published var videoPlayer: AVPlayer?
     @Published var videoPresented = false
     @Published var bridgeReady = false
-    var usesLocalAI: Bool { bridge.isLocal }
+    var usesLocalAI: Bool { !usesPC && bridge.isLocal }
+    var usesPC: Bool { cliRequest != nil }
+    var cliRequest: PracticeCLI.Request?
+    private var cliTasks: [String: Task<Void, Never>] = [:]
     @Published var needsConsent = false
     let media = InterviewMedia()
     private let bridge = PracticeBridge()
@@ -77,7 +80,7 @@ import CryptoKit
         bank = rows.compactMap { row in
             guard let id = row["id"] as? String, let prompt = row["prompt"] as? String, let tracks = row["tracks"] as? [String] else { return nil }
             let clip = bundled.first { $0.id == id && $0.prompt == prompt }
-            return PracticeQuestion(id: id, prompt: prompt, spokenPrompt: prompt, file: clip?.file ?? "", category: "job", tracks: tracks)
+            return PracticeQuestion(id: id, prompt: prompt, spokenPrompt: prompt, file: clip?.file ?? "", category: row["category"] as? String ?? (mode == "job" ? "job" : "personality"), tracks: tracks)
         }
         refreshQuestions()
     }
@@ -111,9 +114,14 @@ import CryptoKit
         if isPortalPractice { sessionLoading = true }
         defer { sessionLoading = false }
         if isPortalPractice {
-            mode = "job"; screen = .prep; bank = []; questions = []
+            screen = .prep; bank = []; questions = []
             do { try await refreshPortal() }
             catch { notice = "로그인과 테스트 권한을 확인한 뒤 다시 열어주세요."; return }
+        }
+        if let cliRequest, let account = portalAccount {
+            bridgeReady = (try? await PracticeCLI(request: cliRequest).ready(account: account)) == true
+            notice = bridgeReady ? "음성 분석 연결됨 · 답변 후 내 기록에서 피드백을 확인하세요." : "음성 분석 연결을 확인하지 못했습니다. 연결을 다시 확인해주세요."
+            return
         }
         bridgeReady = await bridge.ready()
         if !bridgeReady && bridge.configured {
@@ -165,6 +173,10 @@ import CryptoKit
                 defer { self.sessionLoading = false }
                 do {
                     try await self.refreshPortal()
+                    if let request = self.cliRequest, let account = self.portalAccount {
+                        self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
+                        guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
+                    }
                     guard !self.disposed, self.screen == .prep else { return }
                     self.startVerified(allowAI: allowAI)
                 } catch { self.notice = "연습 권한을 확인하지 못했습니다. 로그인과 연결 상태를 확인해주세요." }
@@ -188,6 +200,7 @@ import CryptoKit
         media.stopMic(); stopPlayback(); generation += 1
         do {
             var record = PracticeRecord(id: UUID().uuidString, mode: mode, track: track)
+            record.accountID = portalAccount
             record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id
             avatarURL = showsInterviewer ? InterviewAvatarVideo.availableURLs.randomElement() : nil
             remaining = InterviewAnswerGate.silenceSeconds
@@ -377,7 +390,7 @@ import CryptoKit
         }
     }
     private func openCaptions(active: Int) {
-        if bridgeReady && consent && bridge.liveCaptions && streamsCaptions {
+        if !usesPC && bridgeReady && consent && bridge.liveCaptions && streamsCaptions {
             captions = bridge.captions(question: question, mode: mode, onText: { [weak self] text, _ in
                 guard let self, self.generation == active, self.screen == .live else { return }
                 self.transcript = self.transcriptPrefix.isEmpty ? text : self.transcriptPrefix + " " + text
@@ -413,6 +426,7 @@ import CryptoKit
                     try? await Task.sleep(nanoseconds: 100_000_000)
                     guard !Task.isCancelled, let self, self.generation == active, self.screen == .live else { return }
                     let now = ProcessInfo.processInfo.systemUptime
+                    if self.usesPC && Date().timeIntervalSince(self.answerStartedAt) >= 85 { self.answer(); return }
                     // Local input sets the silence deadline; network caption latency must not delay it.
                     let state = gate.sample(now: now, speaking: self.speaking)
                     self.remaining = gate.remaining(now: now)
@@ -446,7 +460,16 @@ import CryptoKit
             guard bytes > 44 else { currentCaptions?.close(); return }
             let shouldAnalyze = bridgeReady && consent
             saved.turns.append(PracticeTurn(id: currentNumber, question: question, answer: text, duration: Double(bytes - 44) / 32000, audio: "\(currentNumber).wav", questionID: questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].id : nil, analysisPending: shouldAnalyze))
+            if usesPC && shouldAnalyze {
+                saved.turns[saved.turns.count - 1].analysisRequestID = UUID().uuidString.lowercased()
+                saved.turns[saved.turns.count - 1].analysisState = "submitting"
+            }
             try store.save(saved); record = saved
+            if usesPC {
+                currentCaptions?.close()
+                if shouldAnalyze { runCLI(saved.id, currentNumber, allowSubmission: true) }
+                return
+            }
             let run = saved.id, prompt = question, selectedMode = mode
             let prefix = transcriptPrefix
             let finish: (String, Bool) -> Void = { [weak self] final, confirmed in
@@ -477,8 +500,48 @@ import CryptoKit
             guard let index = saved.turns.firstIndex(where: { $0.id == number }) else { return }
             change(&saved.turns[index]); try store.save(saved)
             if record?.id == run { record = saved }
+            if let row = records.firstIndex(where: { $0.id == run }) { records[row] = saved }
         } catch { notice = "기록을 갱신하지 못했습니다. 저장 공간을 확인해주세요." }
     }
+    private func runCLI(_ run: String, _ number: Int, allowSubmission: Bool) {
+        guard let request = cliRequest, let account = portalAccount, let store,
+              let saved = try? store.load(run), saved.accountID == account,
+              let turn = saved.turns.first(where: { $0.id == number }), let id = turn.analysisRequestID,
+              !["completed", "unknown", "failed", "cancelled"].contains(turn.analysisState ?? ""), cliTasks[id] == nil else { return }
+        cliTasks[id] = Task { [weak self] in
+            guard let self else { return }; defer { self.cliTasks[id] = nil }
+            var submit = allowSubmission
+            do {
+                while !Task.isCancelled && !self.disposed {
+                    let result = try await PracticeCLI(request: request).advance(id: id, account: account, mode: saved.mode,
+                        questionID: turn.questionID ?? "", question: turn.question, audio: try store.audio(run, turn.audio), allowSubmission: submit)
+                    guard !Task.isCancelled, !self.disposed, self.portalAccount == account else { return }
+                    self.updateTurn(run, number) { row in
+                        row.analysisState = result.state; row.analysisPending = result.pending; row.analysisError = ["failed", "unknown", "cancelled"].contains(result.state)
+                        row.analysisNotice = result.notice; row.analysis = result.feedback
+                        if !result.transcript.isEmpty { row.answer = result.transcript }
+                    }
+                    guard result.pending else { return }
+                    submit = false
+                    try await Task.sleep(nanoseconds: 5_000_000_000)
+                }
+            } catch {
+                guard !Task.isCancelled, !self.disposed else { return }
+                self.updateTurn(run, number) { row in
+                    row.analysisPending = false; row.analysisState = "connection_required"
+                    row.analysisNotice = "전송·분석 상태를 확인하지 못했습니다. 녹음은 보관되어 있습니다. 분석 결과 확인을 눌러주세요."
+                }
+            }
+        }
+    }
+    func refreshCLIResults(allowSubmission: Bool = false) {
+        guard usesPC, let store else { return }
+        let saved = (try? store.list()) ?? []
+        for record in saved where record.accountID == portalAccount {
+            for turn in record.turns where turn.analysisRequestID != nil { runCLI(record.id, turn.id, allowSubmission: allowSubmission) }
+        }
+    }
+    func foreground() { refreshCLIResults() }
     func stop(completed: Bool = false, capture: Bool = true) {
         guard screen == .live || screen == .jobReview else { return }
         if capture { captureAnswer() } else { stopTurn() }
@@ -516,17 +579,23 @@ import CryptoKit
     func showRecords() {
         media.stop(); stopPlayback()
         do { records = try store?.list() ?? []; screen = .records } catch { notice = "기록을 불러오지 못했습니다." }
+        refreshCLIResults()
     }
     func delete(_ id: String) {
         // Cancel pending caption work first so it cannot recreate a deleted record.
         stopPlayback()
+        if let saved = try? store?.load(id) { for turn in saved.turns { if let request = turn.analysisRequestID { cliTasks[request]?.cancel() } } }
         do { try store?.delete(id); records.removeAll { $0.id == id }; if record?.id == id { record = nil } }
         catch { notice = "기록을 삭제하지 못했습니다." }
     }
-    func background() { media.stop(); stopPlayback(); if screen == .live || screen == .jobReview { stop() } }
+    func background() {
+        media.stop(); stopPlayback(); if screen == .live || screen == .jobReview { stop() }
+        for task in cliTasks.values { task.cancel() }
+    }
     func dispose() {
         if screen == .live || screen == .jobReview { stop() }
         disposed = true; media.stop(); stopTurn(); ticker?.cancel()
+        for task in cliTasks.values { task.cancel() }; cliTasks = [:]
         for pending in pendingCaptions.values { pending.close() }; pendingCaptions = [:]
         bridge.close()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

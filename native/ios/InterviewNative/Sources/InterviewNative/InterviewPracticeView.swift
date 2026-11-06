@@ -12,9 +12,10 @@ import AVKit
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let teal = Color(red: 8/255, green: 125/255, blue: 114/255)
     private let ink = Color(red: 21/255, green: 44/255, blue: 67/255)
-    public init(loadSession: (() async throws -> [String: Any])? = nil) {
-        let model = PracticeModel(); model.sessionLoader = loadSession
-        if loadSession != nil { model.mode = "job"; model.screen = .prep }
+    public init(mode: String = "job", loadSession: (() async throws -> [String: Any])? = nil,
+                requestAnalysis: ((String, [String: Any]) async throws -> [String: Any])? = nil) {
+        let model = PracticeModel(); model.sessionLoader = loadSession; model.cliRequest = requestAnalysis
+        if loadSession != nil { model.mode = ["job", "personality", "ai"].contains(mode) ? mode : "job"; model.screen = .prep }
         _model = StateObject(wrappedValue: model)
     }
     public var body: some View {
@@ -59,11 +60,11 @@ import AVKit
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }
-            .alert(model.usesLocalAI ? "로컬 AI 피드백" : "무료 AI 테스트", isPresented: $model.needsConsent) {
+            .alert(model.usesPC ? "음성 분석 안내" : model.usesLocalAI ? "로컬 AI 피드백" : "무료 AI 테스트", isPresented: $model.needsConsent) {
                 Button("기기에서만 연습") { model.start(allowAI: false) }
                 Button("동의하고 테스트") { model.start(allowAI: true) }
                 Button("취소", role: .cancel) {}
-            } message: { Text(model.usesLocalAI ? "답변을 같은 Wi-Fi의 Mac에서 분석합니다. 외부 AI 서비스로 전송하지 않습니다. 답변 후 전사문과 피드백을 제공합니다." : "답변 음성이 Mac 서버를 거쳐 Google Gemini로 전송됩니다. 무료 서비스의 제품 개선에 이용될 수 있으므로 개인정보 없는 테스트용 답변만 사용해주세요.") }
+            } message: { Text(model.usesPC ? "답변 음성을 서버에 저장하고 PC에서 음성을 인식합니다. 전사문은 AI 서비스로 전송해 학습 피드백을 만듭니다. 음성은 수강 종료 후 31일(종료일이 없으면 접수 후 31일)까지 보관되며 영상은 기기에만 저장됩니다." : model.usesLocalAI ? "답변을 같은 Wi-Fi의 Mac에서 분석합니다. 외부 AI 서비스로 전송하지 않습니다. 답변 후 전사문과 피드백을 제공합니다." : "답변 음성이 Mac 서버를 거쳐 Google Gemini로 전송됩니다. 무료 서비스의 제품 개선에 이용될 수 있으므로 개인정보 없는 테스트용 답변만 사용해주세요.") }
             .alert("기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
                 Button("삭제", role: .destructive) { if let deleting { model.delete(deleting.id) }; deleting = nil }
                 Button("취소", role: .cancel) { deleting = nil }
@@ -75,7 +76,7 @@ import AVKit
         }
         .interactiveDismissDisabled(model.screen == .live || model.screen == .jobReview)
         .task { await model.load() }
-        .onChange(of: phase) { value in if value == .background { model.background() } }
+        .onChange(of: phase) { value in if value == .background { model.background() } else if value == .active { model.foreground() } }
         .onDisappear { model.dispose() }
     }
     private var compactNotice: String {
@@ -103,6 +104,7 @@ import AVKit
         case .prep:
             Text(model.mode == "job" ? "전공 연습" : "면접 준비").font(.title.bold())
             if model.mode == "job" { Text("질문을 듣고 답변한 뒤, 내 답변과 피드백을 확인하세요.").font(.subheadline).foregroundStyle(.secondary) }
+            if model.usesPC { Text("답변은 문항당 최대 85초이며, 피드백은 답변 후 내 기록에서 확인할 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
             if model.mode == "job" {
                 Text("연습 문항 수").font(.subheadline).foregroundStyle(.secondary)
                 Picker("연습 문항 수", selection: Binding(get: { model.jobQuestionCount }, set: { model.setJobQuestionCount($0) })) {
@@ -116,10 +118,11 @@ import AVKit
             Text("영상은 기기에만 저장됩니다.").font(.caption).foregroundStyle(.secondary)
             }
             if model.questions.isEmpty && !model.sessionLoading { Text(model.isPortalPractice ? "공개 승인된 질문이 없습니다. 관리자 승인 후 다시 열어주세요." : "해당 직렬에 준비된 질문이 없습니다.").font(.subheadline) }
-            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving, id: "interview.start") { model.start() }
+            action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || model.bridgeReady), id: "interview.start") { model.start() }
+            if model.usesPC && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
         case .live:
-            if model.mode == "job" || model.mode == "personality" {
+            if !model.usesPC && (model.mode == "job" || model.mode == "personality") {
                 Toggle("실시간 자막", isOn: Binding(get: { model.liveCaptionsEnabled }, set: { model.setLiveCaptions($0) }))
                     .accessibilityIdentifier("practice.live-captions")
             }
@@ -256,24 +259,25 @@ import AVKit
                                     }
                                 }
                             }
-                        } else if record.mode == "job", turn.analysis != nil {
+                        } else if record.mode == "job", turn.analysis != nil, !model.usesPC {
                             Text("항목별 판정 기준 미등록").font(.caption).foregroundStyle(.secondary)
                         }
                         if let feedback = turn.analysis {
                             Text("AI 연습 피드백").font(.caption).foregroundStyle(teal)
-                            ForEach(["summary", "strength", "improvement"], id: \.self) { key in
+                            ForEach(["summary", "strength", "improvement", "nextPractice"], id: \.self) { key in
                                 if let value = feedback[key], !value.isEmpty { Text(value).font(.subheadline) }
                             }
                         } else {
-                            Text(turn.analysisPending ? "AI 분석 중 · 녹음은 저장되었습니다." : turn.analysisError ? "AI 분석을 완료하지 못했습니다. 녹음은 보관되었습니다." : "AI 평가 미연결").font(.caption).foregroundStyle(.secondary)
+                            Text(turn.analysisNotice ?? (turn.analysisState == "queued" ? "분석 순서를 기다리고 있습니다. 다른 질문을 연습해도 됩니다." : turn.analysisPending ? "답변을 저장하고 피드백을 준비하고 있습니다." : turn.analysisError ? "분석 상태를 확인해야 합니다. 자동으로 다시 실행하지 않습니다." : "AI 평가 미연결")).font(.caption).foregroundStyle(.secondary)
                         }
                     }.padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
                 }
             }
             action("재생 중지") { model.stopPlayback() }
+            if model.usesPC { action("분석 결과 확인") { model.refreshCLIResults(allowSubmission: true) } }
             action("다시 연습하기", primary: true) { model.select(model.mode) }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
-            action("모의면접 메뉴") { model.stopPlayback(); model.screen = .menu }
+            action(model.isPortalPractice ? "면접 준비로" : "모의면접 메뉴") { model.stopPlayback(); model.screen = model.isPortalPractice ? .prep : .menu }
         }.disclosureGroupStyle(PracticeDisclosureStyle())
     }
 }
