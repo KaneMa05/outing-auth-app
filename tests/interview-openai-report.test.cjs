@@ -10,7 +10,7 @@ async function call(handler,body){let status,data;await handler({method:'POST',h
 test('OpenAI reports persist once, validate quotes, protect ownership and never retry uncertain paid work',async t=>{
  const {db,invoke:prep}=await createDb();let paidCalls=0,invalidQuote=false;
  try{
-  for(const file of ['20261021060740_interview_live_sessions.sql','20261103062625_interview_live_result_reports.sql','20261106054452_interview_openai_live_reports.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
+  for(const file of ['20261021060740_interview_live_sessions.sql','20261103062625_interview_live_result_reports.sql','20261106061004_interview_openai_live_reports.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
   await prep('admin_member_save',{type:'admin',id:'qa'},{targetStudentId:'ip-a',track:'공채',examNumber:'QA',enabled:true,expiresOn:'2099-12-01'});await prep('admin_enabled',{type:'admin',id:'qa'},{enabled:true});
   const invoke=async(action,actor,body={})=>(await db.query('select ip_live_openai_report_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
   const insert=async()=>{

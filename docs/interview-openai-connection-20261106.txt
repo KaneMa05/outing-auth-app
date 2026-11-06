@@ -2,7 +2,8 @@
 
 현재 상태
 사용자가 전공·인성·AI 세 모드를 모두 OpenAI로 연결하도록 지정했습니다.
-서버 구현과 로컬 설정을 완료했습니다. 푸시, 운영 환경변수 변경, DB 적용, 배포는 아직 하지 않았습니다.
+사용자가 운영 반영을 최종 승인했으며 실사용자의 기존 준비 중 화면을 유지하도록 지정했습니다.
+서버 커밋 85c0fa3 및 iOS 커밋 fc3d425를 푸시했습니다. 새 DB 항목 적용·권한 검증을 완료했고 서버 배포를 진행합니다.
 기존 서버용 OPENAI_API_KEY를 재사용합니다. 새 키를 발급하거나 키 값을 앱·브라우저·문서에 넣지 않았습니다.
 
 모드별 연결
@@ -30,7 +31,7 @@ INTERVIEW_LIVE_WORKER_SECRET, 기존 Supabase 서버 설정을 안전하게 등�
 
 iOS 변경
 작업 폴더: .tmp/ios-practice-no-modal-20261106
-브랜치: codex/ios-practice-no-modal-20261106 (이번 연결 변경은 아직 미커밋·미푸시)
+브랜치: codex/ios-practice-no-modal-20261106 (fc3d425 푸시 완료)
 변경 파일: RonparkStudyApp.swift, InterviewModel.swift, InterviewView.swift
 Debug 테스트앱은 전공·인성의 기존 녹음 답변 화면과 OpenAI API를 연결하고,
 AI 모드는 인증된 네이티브 실시간 면접 화면을 엽니다. 종합 피드백 생성·조회도 연결했습니다.
@@ -39,7 +40,8 @@ Release 및 일반 수강생 앱의 모의면접 준비 중 표시는 유지합�
 화면 캐시 버전을 갱신했으며 열린 앱의 강제 새로고침이나 자동 전환은 추가하지 않았습니다.
 
 DB 추가 항목
-supabase/migrations/20261106054452_interview_openai_live_reports.sql
+supabase/migrations/20261106061004_interview_openai_live_reports.sql
+운영 적용 버전과 로컬 파일명을 일치시켰습니다. 원래 검토본의 SQL 내용은 같습니다.
 새 비공개 테이블 ip_live_openai_reports 및 서버 전용 SECURITY INVOKER RPC 1개입니다.
 기존 기록의 소유자·학생 상태·보관 기간을 검사하고 원본 면접 삭제 시 함께 삭제합니다.
 학생·관리자 브라우저 역할에는 테이블 및 RPC 권한을 부여하지 않습니다.
