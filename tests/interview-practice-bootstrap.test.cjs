@@ -6,7 +6,8 @@ test('native practice uses verified portal identity and approved server question
  const handler=createHandler({authenticateWeb:async()=>({id:'kakao-owner'}),read:async(method,path)=>{
   assert.equal(method,'GET');const q=new URL('https://local/'+path).searchParams;
   assert.equal(q.get('status'),'eq.published');assert.equal(q.get('category'),'eq.job');assert.match(q.get('or'),/항해/);
-  return [{id:'q-approved',prompt:'질문',tracks:['항해'],category:'job',status:'published',answer:'private'}];
+  return [{id:'q-approved',prompt:'질문',tracks:['항해'],category:'job',status:'published',answer:'private',
+   taxonomy:{primary_field:'navigation',related_fields:[],review_status:'classified',source_prompt:'질문',source_category:'job'}}];
  },invoke:async(action,actor,body)=>{
   calls.push({action,actor,body});assert.equal(actor.id,'kakao-owner');
   if(action==='mock_status')return {allowed};
@@ -15,7 +16,7 @@ test('native practice uses verified portal identity and approved server question
  }});
  const r=await call(handler,{action:'practice_bootstrap',studentId:'forged',actor:{type:'admin'}});
  assert.equal(r.status,200);assert.equal(r.data.accountId,'kakao-owner');assert.equal(r.data.questions[0].answer,undefined);
- assert.equal(r.data.fields.length,12);
+ assert.deepEqual(r.data.fields.map(f=>({id:f.id,label:f.label})),[{id:'navigation',label:'항해학'}]);
  allowed=false;calls.length=0;assert.equal((await call(handler,{action:'practice_bootstrap'})).status,403);assert.equal(calls.length,1);
 });
 test('job filter restoration preserves existing personality and AI preparation paths',async()=>{
