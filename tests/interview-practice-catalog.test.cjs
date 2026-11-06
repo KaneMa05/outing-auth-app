@@ -53,3 +53,21 @@ test('personality scope and unknown modes do not gain job definitions or wider e
  const result=await practiceCatalog(async()=>[],{track:'공채',mode:'personality'});assert.deepEqual(result.fields,[]);
  await assert.rejects(practiceCatalog(async()=>{throw Error('must not read');},{track:'forged',mode:'job'}),/invalid_request/);
 });
+
+test('personality topics are active, track-scoped, used by published questions, and loaded across all pages',async()=>{
+ const p=(id,topic_ids=['failure'],extra={})=>({id,prompt:'실패 경험',category:'personality',status:'published',tracks:[],topic_ids,answer:'private',...extra});
+ const calls=[];
+ const result=await practiceCatalog(async(method,path)=>{
+  assert.equal(method,'GET');const query=new URL('https://local/'+path).searchParams;calls.push(path);assert.equal(query.get('or'),'(tracks.cs.{공채},tracks.eq.{})');
+  if(path.startsWith('ip_topics?'))return [
+   {id:'failure',title:'실패·성장',active:true,tracks:[]},
+   {id:'teamwork',title:'협동심·팀워크',active:true,tracks:['공채']},
+   {id:'unused',title:'연결 문항 없음',active:true,tracks:[]},
+   {id:'inactive',title:'비활성',active:false,tracks:[]},
+   {id:'foreign',title:'다른 직렬',active:true,tracks:['기관']}];
+  assert.equal(query.get('category'),'eq.personality');assert(!query.get('select').includes('answer'));assert(!query.get('select').includes('notes'));
+  return query.get('offset')==='0'?Array.from({length:500},(_,i)=>p('p'+i)):[p('last',['teamwork','teamwork','inactive','foreign','unknown']),p('unclassified',[]),p('draft',['unused'],{status:'draft'}),p('other',['unused'],{tracks:['기관']}),p('job',['unused'],{category:'job'})];
+ },{mode:'personality',track:'공채'});
+ assert.equal(result.questions.length,502);assert.deepEqual(result.fields,[{id:'failure',label:'실패·성장'},{id:'teamwork',label:'협동심·팀워크'}]);
+ assert.deepEqual(result.questions[500].fieldIds,['teamwork']);assert.deepEqual(result.questions[501].fieldIds,[]);assert.equal(calls.length,3);assert(!JSON.stringify(result).includes('private'));
+});
