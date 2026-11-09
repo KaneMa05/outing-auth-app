@@ -32,7 +32,7 @@ workflows:
         certificates:
           - ronpark-ios-distribution
         provisioning_profiles:
-          - ronpark-study-app-store
+          - ronpark-study-app-store-apple
       vars:
         APP_STORE_APPLE_ID: "6827374000"
     scripts:
