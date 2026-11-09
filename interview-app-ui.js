@@ -1,5 +1,5 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-count';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-count';
+import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-menus';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-menus';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'stopwatch',mock:'study-cafe',my:'mypage'};
@@ -54,7 +54,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
     box.innerHTML=assignmentArticle();
     box.querySelector('#ip-assignment-title')?.focus?.({preventScroll:true});
    }else if(route.tab==='aptitude'){
-    const next=await mountAptitude(box,{request:aptitudeRequest});
+    const next=await mountAptitude(box,{request:aptitudeRequest,accountId:account.id||''});
     if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else if(['db','writing'].includes(route.tab)){
     box.classList.add('ip-app-editor',route.tab==='db'?'ip-app-db':'ip-app-writing');
@@ -149,7 +149,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  }
  function saveResume(){if(['db','writing'].includes(route.tab))try{localStorage.setItem('outing-interview-last-editor:'+account.id,JSON.stringify(route));}catch{}}
  const pop=()=>go(readRoute(),{historyChange:true});
- const keyboard=()=>{const v=window.visualViewport;host.classList.toggle('ip-keyboard-open',!!v&&window.innerHeight-v.height>140&&host.contains(document.activeElement)&&document.activeElement.matches('input,textarea,select'));};
+ const keyboard=()=>{const v=window.visualViewport;host.classList.toggle('ip-keyboard-open',!!v&&window.innerHeight-v.height>140&&host.contains(document.activeElement)&&document.activeElement.matches('input:not([type=radio]):not([type=checkbox]),textarea,select:not([data-round-select]):not([data-timer-section-select])'));};
  const rememberClick=()=>saveResume();
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();

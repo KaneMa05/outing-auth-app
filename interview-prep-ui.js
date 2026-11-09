@@ -5,7 +5,7 @@ import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountMockMonitor} from './interview-mock-monitor.js?v=20261104-connection';
 import {mountCLIStatus} from './interview-cli-status.js?v=20261103-manual-status';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-count';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-menus';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
 const kinds={experience:'경험형',value:'가치관형',situation:'인성 상황형'};

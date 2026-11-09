@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v559-interview-aptitude-icon";
+const CACHE_NAME = "outing-auth-app-v560-interview-aptitude-menus";
 const APP_SHELL = [
   "/student-content-safety.js?v=20261028-safety-fallback",
   "/question-board.js?v=20261028-safety-fallback",
