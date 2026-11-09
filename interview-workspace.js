@@ -2,7 +2,7 @@ import {mountInterviewAI} from './interview-ai-ui.js?v=20261104-self-intro-three
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-menus';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-guide';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const areas=[['basic','기본 이력'],['experiences','인생그래프']];
 const menus=[['db','나의 DB 정리하기'],['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기'],['core','핵심 25제 작성하기'],['aptitude','적성 모의고사']];

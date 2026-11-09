@@ -1,5 +1,5 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-menus';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-menus';
+import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-guide';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-guide';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'stopwatch',mock:'study-cafe',my:'mypage'};
