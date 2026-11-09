@@ -1,0 +1,28 @@
+적성 모의고사 타이머 안내 문구 운영 반영
+일시: 2026-11-09 16:35 KST
+승인: 문구와 모바일 화면 검토 후 사용자의 반영 요청
+운영 주소: https://app.ronparkpass.com
+
+변경
+- 타이머 카드 바로 아래에 작은 회색 글씨로 안내를 추가했다.
+- 문구: 타이머를 시작한 뒤, 제한 시간 안에 문제 풀이와 답안 입력을 완료하세요.
+- 연결 모듈/스타일 캐시 버전: 20261109-aptitude-guide. SW 캐시: v563-interview-aptitude-guide.
+- 타이머 동작, 답안 저장/제출, 성적 조회, 기존 로그인 및 DB는 변경하지 않았다.
+
+배포
+- 소스: 0d98341a42c5a50b5a70bbc6becc95751eb71a47.
+- 이전 배포: dpl_4HU9xvqTeoowPcN89xKVBbthyf99.
+- 신규 배포: dpl_EKXyFLeJy34fKfV9ZSWohwPoqSf9 (https://outing-auth-cwzw7tcz2-ronpark.vercel.app).
+- 정상 fast-forward로 main에 푸시했다. 운영 빌드 1회를 만들고 파일 대조 후 같은 빌드를 promote했다.
+- 전환 직전 다른 운영 배포가 없는 것을 확인했고 실제 서비스 도메인의 신규 배포 연결 및 READY 상태를 확인했다.
+- main 자동 배포 비활성화 설정을 유지한다. 후속 문서 푸시는 추가 빌드를 만들지 않는다.
+
+검증
+- 관련 검사 29개 및 격리 빌드 통과.
+- 로컬 브라우저 390px와 320px에서 가로 넘침 없이 표시되며, 타이머 아래 12px 안내 문구를 확인했다. 콘솔 오류/경고 없음.
+- 운영 전환 전 파일 13개, 전환 후 운영 주소 파일 16개의 SHA-256과 MIME 유형이 원본과 일치했다.
+- 운영 공개 로그인 설정은 배포 전과 같았다: enabled=true, Apple=true, Kakao=true.
+- 비로그인 적성 API 401, 로컬 정답 전사 파일 경로 404를 확인했다.
+- 실기기 iPhone 검증 및 실제 Apple 로그인을 새로 수행한 기록은 아니다.
+- DB 변경, 회차 개방, 성적 공개 및 유료 AI 호출 없음.
+- 로컬 검증 증빙: output/interview-aptitude/timer-guide-mobile.png 및 timer-guide-deployment-20261109.json.
