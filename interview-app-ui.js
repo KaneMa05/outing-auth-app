@@ -3,7 +3,7 @@ import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'study-todo',mock:'study-cafe',my:'mypage'};
-const tabs=[['home','홈'],['db','DB 정리'],['writing','작성하기'],['aptitude','적성시험'],['mock','모의면접'],['my','마이']];
+const tabs=[['home','홈'],['aptitude','적성 모의고사'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
 const mockModes={
  job:{title:'직무(전공) 연습모드'},
  personality:{title:'인성 연습모드'},
