@@ -1,0 +1,40 @@
+면접반 마이 · 본인 DB 복사와 AI 역할별 지침 운영 반영
+2026-11-09
+승인: 사용자의 ‘반영 커밋 푸시 배포’ 요청
+
+소스와 배포
+- 구현 커밋: f086e3fb0bfe566f9395b4e8c7d0223736a20b8f
+- 기준 소스: origin/main 9020115. 별도의 관리자 모니터링 변경 f27c7cf는 이번 배포에 포함하지 않았다.
+- 작업 브랜치: codex/interview-db-copy-20261109. 원격 main으로 정상 fast-forward 푸시했다. 강제 푸시는 하지 않았다.
+- 프로젝트: ronpark / outing-auth-app / prj_8UAb0IPc4gGmow5RZ4wEz8vcgVhi
+- 이전 운영 배포: dpl_4iKwPfRBhZxBKc5XYcfDFp3czDPs
+- 새 운영 배포: dpl_HgaxFpbYFbAoBAv9KvVg4jBDxRM4 / READY
+- 배포 주소: https://outing-auth-du7ljhb0v-ronpark.vercel.app
+- 운영 주소: https://app.ronparkpass.com 및 https://outing-auth-app.vercel.app
+- Vercel CLI 59.23.2로 --prod --skip-domain 빌드 한 번을 생성하고, 후보 검사 후 같은 빌드를 promote했다. 별도 미리보기 빌드는 생성하지 않았다.
+- 기존 main 자동 Git 배포 비활성화 설정을 유지했다. 후속 기록 커밋은 추가 운영 빌드를 실행하지 않는다.
+
+기능
+- 앱의 기존 마이에 나의 자료와 AI 역할별 지침을 추가했다. 웹에는 마이 메뉴를 추가했다.
+- DB 복사 버튼을 누를 때만 기존 본인 인증 API의 life_get / diagnosis_get을 조회한다. 마이 진입과 지침 선택·복사는 추가 DB 조회나 AI 호출을 하지 않는다.
+- 본인 DB에는 저장된 이력·경험과 진단 보완 문답만 포함한다. 지침은 별도로 선택·복사한다.
+- 경험 정리 코치 / 답변 구성 코치 / 실전 면접관 / 평가·첨삭 코치 / 사실 확인 도우미의 다섯 역할을 제공한다.
+- 복사 내용을 화면에서 확인하고 전체 선택할 수 있다. Clipboard API 성공 후 완료 안내를 표시하며 차단되면 수동 복사를 안내한다.
+- 신상 항목 제외, 알려진 이름·수험번호·생년월일 및 식별한 소속·연락처 치환을 적용했다. 자유 입력 개인정보 전체의 완전한 익명화는 보장하지 않으며 본문 확인 안내를 표시한다.
+- 화면 종료 시 개인 텍스트를 비우고 늦게 도착한 조회를 무시한다. 복사 자료를 로그·localStorage·별도 DB에 보관하지 않는다.
+
+검증
+- 신규 formatter/role 단위 검사와 기존 내비게이션·출시 안전성 검사 16개 통과.
+- 실제 앱·웹 모듈 브라우저 검사 통과: 요청 시에만 자료 조회, 저장한 질문 원문·답변 연결, 0점 보존, 개인정보 제외, DB 및 다섯 역할의 실제 클립보드 내용 일치, 복사 거부/전체 선택, 인증 실패·빈 자료·조회 중 종료, 320/390/1200px.
+- npm run test:interview 전체 통과. 기존 접근 제어 테스트의 모의 브라우저에 누락된 URL/location 설정을 보완했다.
+- 기존 diagnosis answers DB 검사, 격리 빌드·문법 검사, git diff --check 통과.
+- 후보 배포와 승격 후 두 운영 도메인에서 각 13개 검사 통과: HTML 진입점, 변경 모듈 8개와 서비스 워커 소스 일치, 개인 DB 조회 두 action의 비로그인 차단 및 no-store.
+- 캐시 버전: 20261109-db-copy / outing-auth-app-v565-db-copy.
+- 배포 파일 목록 사전 확인에서 테스트·내부 문서·임시 파일·로컬 시안·환경 파일은 업로드 대상에서 제외됨을 확인했다.
+
+DB와 비용 범위
+- 운영 DB 메타데이터에서 기존 ip_life_profiles / ip_diagnosis_answers 및 두 조회 함수의 존재만 확인했다. 실제 학생 자료를 읽거나 수정하지 않았다.
+- 새 DB 마이그레이션, 운영 환경 변수, 유료 AI 서비스 설정, 앱 스토어 빌드·제출은 필요하지 않았다.
+- 기존 일반 수강생 유형과 교사 화면의 UI·기능 변경은 포함하지 않았다.
+
+구현 상세: docs/interview-db-copy.md
