@@ -1,0 +1,20 @@
+Hello App Review Team,
+
+Thank you for your message. Below are our answers to the business model questions under Guideline 2.1(b).
+
+1. Who are the users that will use the paid content in the app?
+The users are students enrolled at our academy. The app does not contain paid content. Its features are provided to these students free of charge.
+
+2. Where can users purchase the content that can be accessed in the app?
+App content is not sold. Students may pay tuition at our academy or on our online lecture website for separate educational services. Those payments do not unlock content or features in this app.
+
+3. What specific types of previously purchased content can a user access in the app?
+There is no previously purchased paid digital content accessed through the app. The app provides free study-management tools, including the features available for the student's enrollment type.
+
+4. What paid content, subscriptions, or features are unlocked within the app that do not use In-App Purchase?
+None. The app does not offer paid content, paid subscriptions, or paid feature unlocks.
+
+5. What is the maximum number of users that can participate in your app's live, real-time services?
+The app does not provide live classes, live tutoring, or other real-time teaching services with human instructors. The free shared study-room and chat feature supports up to 20 participants per room for shared study and communication.
+
+Thank you for reviewing Ronpark Study.

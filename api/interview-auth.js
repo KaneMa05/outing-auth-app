@@ -1,6 +1,7 @@
 const crypto=require('node:crypto');
 const {readCookie}=require('./teacher-auth-utils');
 const webAuth=require('../lib/interview-web-auth');
+const appleAuth=require('../lib/interview-apple-auth');
 const {notifyApplicationSubmitted}=require('../lib/application-slack');
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 async function readBody(req){
@@ -35,7 +36,7 @@ function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=
   try{
    if(req.method==='GET'&&!callback){
     if(url.searchParams.get('action')!=='session')fail('unsupported_action');
-    const base={ok:true,enabled:cfg.enabled,kakaoEnabled:cfg.enabled&&!!cfg.clientId};
+    const base={ok:true,enabled:cfg.enabled,kakaoEnabled:cfg.enabled&&!!cfg.clientId,appleEnabled:cfg.enabled&&appleAuth.config().enabled};
     if(!cfg.enabled)return res.status(200).json({...base,authenticated:false});
     const data=await invoke('session',{sessionHash:webAuth.sessionHash(req)});
     return res.status(200).json({...data,...base});

@@ -3,12 +3,12 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
-assert.equal(entry,'interview-prep.js?v=20261109-aptitude-count');
+assert.equal(entry,'interview-prep.js?v=20261109-aptitude-menus');
 assert(read('teacher.html').includes('data-interview-section="ai_history"'));
 const routing=read('interview-prep.js'),start=routing.indexOf('const interviewAdminSections='),end=routing.indexOf('function restoreInterviewAdminRoute',start);
 assert.equal(vm.runInNewContext(routing.slice(start,end)+';getInterviewAdminSection()',{URLSearchParams,location:{hash:'#interview-prep-admin?section=ai_history'}}),'ai_history');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
-assert(read('sw.js').includes('v557-interview-aptitude-count'));
+assert(read('sw.js').includes('v562-interview-aptitude-menus'));
 assert(!read('sw.js').includes('/client/interview-aptitude.mjs'), 'Aptitude assets load only when the interview app is used');
 assert.match(read('interview-prep.js'),/admin\?import\('\.\/interview-prep-ui\.js\?v=[^']+'\)/);
 assert.match(read('interview-prep-ui.js'),/import\('\.\/interview-assignment-management\.js\?v=[^']+'\)/);
@@ -17,5 +17,5 @@ assert(read('interview-assignment-overview.js').includes('data-overview-student'
 assert(read('interview-assignment-overview.js').includes('modal:true'));
 console.log('PASS administrator entry: teacher HTML and versioned imports preserve access without interview precaching');
 
-assert(read('interview.html').includes('interview-portal.js?v=20261109-aptitude-count'));
+assert(read('interview.html').includes('interview-portal.js?v=20261109-aptitude-menus'));
 for(const file of ['interview-prep-ui.js','interview-review-ui.js','interview-assignment-overview.js','interview-portal.js'])assert(read(file).includes('./client/interview-tracks.js?v=20261102-source-tracks'));
