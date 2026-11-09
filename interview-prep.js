@@ -28,6 +28,15 @@ async function requestInterviewPrep(action, payload = {}, credentials = null) {
   return data;
 }
 
+async function requestInterviewAptitude(action,payload={},credentials=null){
+  const student=APP_MODE==='teacher'?null:getAuthedStudent(),profile=student?getStudentProfile(student.id):null;
+  if(APP_MODE!=='teacher'&&(!student||credentials&&(credentials.id!==student.id||credentials.token!==profile?.deviceToken)))throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
+  const response=await fetch('/api/interview-aptitude',{method:'POST',credentials:student?'omit':'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action,...(student?{studentId:student.id,deviceToken:profile?.deviceToken,client:{displayMode:isStandaloneStudentApp()?'standalone':'browser',userAgent:navigator.userAgent}}:{})})});
+  const data=await response.json();
+  if(student&&(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==profile?.deviceToken))throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
+  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'aptitude_unavailable'),{code:data.error});return data;
+}
+
 function renderInterviewPrepEntry() {
   if(APP_MODE==='teacher')return null;
   const student=getAuthedStudent(),token=getStudentProfile(student?.id)?.deviceToken;
@@ -120,7 +129,7 @@ async function logoutInterviewStudent(student,token){
 
 function renderInterviewPrep() { return renderInterviewPrepModule(false); }
 function renderInterviewPrepAdmin() { return renderInterviewPrepModule(true); }
-const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
+const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',aptitude:'적성 모의고사 관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',live:'음성 모의면접 기록'};
 function getInterviewAdminSection(){
   const section=new URLSearchParams((location.hash.split('?')[1]||'')).get('section');
   return Object.hasOwn(interviewAdminSections,section)?section:'home';
@@ -222,7 +231,7 @@ function renderInterviewPrepModule(admin) {
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261103-manual-status'):appShell?import('./interview-app-ui.js?v=20261109-apple-login'):import('./interview-workspace.js?v=20261104-self-intro-three'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261109-aptitude-count'):appShell?import('./interview-app-ui.js?v=20261109-apple-login'):import('./interview-workspace.js?v=20261109-aptitude-count'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{
@@ -230,6 +239,7 @@ function renderInterviewPrepModule(admin) {
       onExit:appShell?async()=>{try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}view.controller?.destroy();renderInterviewPrepModule.view=null;history.replaceState(null,'','#home');render();}:undefined,
       onLogout:appShell?()=>logoutInterviewStudent(student,token):undefined,
       request:(action,payload)=>requestInterviewPrep(action,payload,admin?null:{id:student.id,token}),
+      aptitudeRequest:(action,payload)=>requestInterviewAptitude(action,payload,admin?null:{id:student.id,token}),
       aiRequest:admin?undefined:async(url,body)=>{
         if(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==token)
           throw Object.assign(Error('unauthorized'),{code:'unauthorized'});

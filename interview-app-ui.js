@@ -1,8 +1,9 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261104-self-intro-three';
+import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-count';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-count';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
-const icons={home:'home',db:'question-board',writing:'study-todo',mock:'study-cafe',my:'mypage'};
-const tabs=[['home','홈'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
+const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'study-todo',mock:'study-cafe',my:'mypage'};
+const tabs=[['home','홈'],['aptitude','적성 모의고사'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
 const mockModes={
  job:{title:'직무(전공) 연습모드'},
  personality:{title:'인성 연습모드'},
@@ -11,7 +12,7 @@ const mockModes={
 function homeNotices(){
  return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2><div style="line-height:1.8;overflow-wrap:anywhere"><p>(0) 오프반 : 11.9 전까지 사전과제 이행</p><p>(1) 적성 및 면접기출교재 발송일 : <strong>11.9(월)</strong><br>인강생은 인강사이트 주소로 발송, 오프라인은 현장 및 택배수령(신청시 작성 주소)<br><strong>*적성 pdf 비번 : ronpark1234 혹은 RONPARK1234</strong></p><p>(2) 인성검사 온라인검사 실시일 : <strong>11.10(화)</strong><br>인강,오프라인생 검사 문자 발송</p></div></section>`;
 }
-export async function mountInterviewApp(host,{request,aiRequest,account={},onExit,onLogout}){
+export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,account={},onExit,onLogout}){
  const mockTestApp=window.__ronparkMockTestApp===true;
  let destroyed=false,busy=false,child=null,generation=0,route=readRoute();
  let mockAllowed=false;
@@ -45,13 +46,16 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
-  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · 면접반</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div><span class="ip-app-mark" aria-hidden="true">R</span></header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed?5:4},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
+  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · 면접반</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div><span class="ip-app-mark" aria-hidden="true">R</span></header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed?6:5},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
   const box=host.querySelector('[data-app-content]');
   box.classList.toggle('ip-app-mock',route.tab==='mock');
   try{
    if(route.tab==='home'&&route.notice==='preassignments'){
     box.innerHTML=assignmentArticle();
     box.querySelector('#ip-assignment-title')?.focus?.({preventScroll:true});
+   }else if(route.tab==='aptitude'){
+    const next=await mountAptitude(box,{request:aptitudeRequest});
+    if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else if(['db','writing'].includes(route.tab)){
     box.classList.add('ip-app-editor',route.tab==='db'?'ip-app-db':'ip-app-writing');
     const editor=document.createElement('div');box.replaceChildren(editor);

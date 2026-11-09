@@ -10,6 +10,7 @@
     }
   },
   "functions": {
+    "api/interview-aptitude.js": {"regions": ["syd1"], "maxDuration": 60},
     "api/interview-practice-cli.js": {"regions": ["syd1"], "maxDuration": 60},
     "api/interview-mock-worker.js": {"regions": ["syd1"], "maxDuration": 60},
     "api/question-board.js": {

@@ -2,12 +2,13 @@ import {mountInterviewAI} from './interview-ai-ui.js?v=20261104-self-intro-three
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-count';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const areas=[['basic','기본 이력'],['experiences','인생그래프']];
-const menus=[['db','나의 DB 정리하기'],['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기'],['core','핵심 25제 작성하기']];
+const menus=[['db','나의 DB 정리하기'],['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기'],['core','핵심 25제 작성하기'],['aptitude','적성 모의고사']];
 const generationKinds={introduction:'self_intro',motivation:'motivation',public_service:'public_service',core:'core30'};
 export async function mountWorkspace(host,{request,aiRequest,initialPage='db',initialArea='life:basic',compactNavigation=false,onPageChange=()=>{}}){
- const visibleMenus=menus;
+ const visibleMenus=compactNavigation?menus.filter(([id])=>id!=='aptitude'):menus;
  if(initialPage==='preassignments')initialPage='core';
  host.className='ip-root ip-portal ip-workspace';
  host.innerHTML='<div data-workspace-content></div>';
@@ -42,6 +43,9 @@ export async function mountWorkspace(host,{request,aiRequest,initialPage='db',in
     const {mountPreassignments}=await import('./interview-preassignments.js?v=20261026-no-video-reference');
     if(destroyed||ticket!==generation)return;
     next=await mountPreassignments(host.querySelector('[data-writing-host]'),{request:aiRequest?(action,payload={})=>aiRequest('/api/interview-preassignments',{...payload,action}):undefined});
+   }else if(page==='aptitude'){
+    host.querySelector('.ip-workspace-hero').style.display='none';
+    next=await mountAptitude(host.querySelector('[data-writing-host]'),{request:aiRequest?(action,payload={})=>aiRequest('/api/interview-aptitude',{...payload,action}):undefined});
    }else if(page==='mock'){
     host.querySelector('.ip-workspace-hero').style.display='none';
     const {mountLive}=await import('./interview-live-ui.js?v=20261021-flow');

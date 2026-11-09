@@ -5,6 +5,7 @@ import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountMockMonitor} from './interview-mock-monitor.js?v=20261104-connection';
 import {mountCLIStatus} from './interview-cli-status.js?v=20261103-manual-status';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-count';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
 const kinds={experience:'경험형',value:'가치관형',situation:'인성 상황형'};
@@ -197,7 +198,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     });
   }
   function stopQuestionAudio(){host.querySelectorAll('audio[data-question-audio]').forEach(audio=>audio.pause());}
-  const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live','ai_history'];
+  const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live','ai_history','aptitude'];
   function setSection(section){
     category=['job','rubrics'].includes(section)?'job':'personality';
     tab=section==='home'?'dashboard':section==='job'?'questions':section;
@@ -232,6 +233,12 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('AI 생성 기록','tab',`data-tab="ai_history" ${tab==='ai_history'?'aria-current="page"':''}`));
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('적성 모의고사 관리','tab',`data-tab="aptitude" ${tab==='aptitude'?'aria-current="page"':''}`));
+    if(tab==='aptitude'){
+      host.querySelector('.ip-hero')?.remove();
+      host.querySelector('[data-ip=enabled]')?.closest('.ip-row').remove();
+      host.querySelector('.ip-category-tabs').style.display='none';
+    }
     if(tab==='dashboard'){
       host.querySelector('.ip-hero h2').textContent='면접반 운영 현황';
       host.querySelector('.ip-hero>p').textContent='수강 신청과 학생 작성 현황을 확인하고 필요한 업무로 이동하세요.';
@@ -291,6 +298,11 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     stopQuestionAudio();
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
+    if(tab==='aptitude'){
+      const next=await mountAptitude(box,{admin:true,canWrite});
+      if(destroyed||version!==loadVersion)next.destroy();else life=next;
+      return;
+    }
     if(tab==='ai_history'){
       const {mountAIUsage}=await import('./interview-ai-usage.js?v=20261102-ai-answers');
       if(destroyed||version!==loadVersion)return;

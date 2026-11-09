@@ -13,8 +13,8 @@ test("both mobile interview entry points bypass the cached pre-announcement load
     assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261109-apple-login"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
-  for(const [file,module] of [['interview-app-ui.js','interview-workspace.js'],['interview-workspace.js','interview-ai-ui.js'],['interview-ai-ui.js','client/interview-ai-client.js']])
-    assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v=20261104-self-intro-three'),'Refresh the entire cached interview module chain: '+file);
+  for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261109-aptitude-count'],['interview-workspace.js','interview-ai-ui.js','20261104-self-intro-three'],['interview-ai-ui.js','client/interview-ai-client.js','20261104-self-intro-three']])
+    assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh the entire cached interview module chain: '+file);
 });
 
 test("public safety flag defaults off and follows the server build setting without exposing secrets", () => {
