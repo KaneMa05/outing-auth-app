@@ -9,7 +9,7 @@ async function fixture(t){
  await db.exec("create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]); update ip_settings set enabled=true; insert into ip_members(student_id,track,exam_number,enabled,expires_on) values('ip-a','공채','a',true,null),('ip-b','기관','b',true,'2099-12-01'),('ip-c','방제','c',true,null); insert into ip_owners(id,name) values('web-only','웹 면접반'); insert into ip_members(student_id,track,exam_number,enabled) values('web-only','관제','web',true);");
  await db.exec(fs.readFileSync(migration,'utf8'));
  const invoke=async(action,actor,body={})=>(await db.query('select ip_aptitude_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
- const body=(kind='half')=>({id:randomUUID(),revision:0,kind,roundNo:1,title:(kind==='half'?'하프':'본시험')+' 1회',state:'open',resultsReleased:false,opensAt:null,closesAt:null,answerKey:Array(kind==='half'?75:150).fill(1),points:Array(kind==='half'?75:150).fill(1),reason:''});
+ const body=(kind='half')=>({id:randomUUID(),revision:0,kind,roundNo:1,title:(kind==='half'?'하프':'본시험')+' 1회',state:'open',resultsReleased:false,opensAt:null,closesAt:null,answerKey:Array(kind==='half'?75:150).fill(1),reason:''});
  const submit=(id,owner,answers,requestKey=randomUUID())=>invoke('submit',student(owner),{id,revision:0,answers,requestKey});
  return {db,invoke,body,submit};
 }
@@ -23,7 +23,7 @@ test('PDF structures, all interview tracks and web-only members; draft keys and 
  await assert.rejects(f.invoke('list',student('not-enrolled')),/not_enrolled/);
  await f.db.exec("update ip_members set expires_on='2000-01-01' where student_id='ip-a'");await assert.rejects(f.invoke('get',student('ip-a'),{id:half.id}),/not_enrolled/);
  await f.db.exec("update students set is_active=false where id='ip-b'");await assert.rejects(f.invoke('get',student('ip-b'),{id:half.id}),/not_enrolled/);
- for(const role of ['anon','authenticated']){await f.db.exec('set role '+role);await assert.rejects(f.db.query('select * from ip_aptitude_rounds'),/permission denied/);await assert.rejects(f.invoke('admin_list',admin),/permission denied/);await f.db.exec('reset role');}
+ for(const role of ['anon','authenticated']){await f.db.exec('set role '+role);await assert.rejects(f.db.query('select * from ip_aptitude_rounds'),/permission denied/);await assert.rejects(f.invoke('admin_list',admin),/permission denied/);await assert.rejects(f.db.query("select ip_aptitude_score('[1]'::jsonb,'[1]'::jsonb)"),/permission denied/);await f.db.exec('reset role');}
  assert.equal((await f.db.query("select public from storage.buckets where id='interview-aptitude'")).rows[0].public,false);
 });
 test('draft revisions and immutable idempotent submissions; published scores rank ties 1,1,3 and corrections rescore atomically',async t=>{
@@ -37,12 +37,12 @@ test('draft revisions and immutable idempotent submissions; published scores ran
  await f.submit(exam.id,'ip-b',answers);const lower=[...answers];lower[1]=2;await f.submit(exam.id,'ip-c',lower);
  await f.invoke('admin_save',admin,{...exam,revision:1,state:'closed',resultsReleased:true});
  const a=await f.invoke('get',student('ip-a'),{id:exam.id}),b=await f.invoke('get',student('ip-b'),{id:exam.id}),c=await f.invoke('get',student('ip-c'),{id:exam.id});
- assert.equal(a.result.rank,1);assert.equal(b.result.rank,1);assert.equal(c.result.rank,3);assert.equal(a.result.participants,3);assert.equal(Number(a.result.earned),74);assert.equal(Number(a.result.percent),98.67);
+ assert.equal(a.result.rank,1);assert.equal(b.result.rank,1);assert.equal(c.result.rank,3);assert.equal(a.result.participants,3);assert.equal(Number(a.result.correctCount),74);assert.equal(Number(a.result.accuracy),98.67);assert.equal(a.result.totalQuestions,75);const report=await f.invoke('admin_report',admin,{id:exam.id});assert.equal(report.students.find(v=>v.studentId==='ip-a').correctCount,74);assert.equal(report.students.find(v=>v.studentId==='ip-a').accuracy,98.67);
  const changed=[...exam.answerKey];changed[0]=2;
  await assert.rejects(f.invoke('admin_save',admin,{...exam,revision:2,state:'closed',resultsReleased:true,answerKey:changed}),/correction_reason_required/);
- assert.equal(Number((await f.invoke('get',student('ip-a'),{id:exam.id})).result.earned),74);
+ assert.equal(Number((await f.invoke('get',student('ip-a'),{id:exam.id})).result.correctCount),74);
  const corrected=await f.invoke('admin_save',admin,{...exam,revision:2,state:'closed',resultsReleased:true,answerKey:changed,reason:'원문 대조 후 1번 정답을 정정합니다.'});assert.equal(corrected.rescored,3);
- const updated=await f.invoke('get',student('ip-a'),{id:exam.id});assert.equal(Number(updated.result.earned),75);assert.equal(updated.result.keyRevision,2);
+ const updated=await f.invoke('get',student('ip-a'),{id:exam.id});assert.equal(Number(updated.result.correctCount),75);assert.equal(updated.result.keyRevision,2);assert.equal(updated.result.accuracy,100);
  const missing=await f.invoke('get',student('web-only'),{id:exam.id});assert.equal(missing.result,undefined);assert.equal(missing.correctAnswers,undefined);
  await assert.rejects(f.invoke('admin_save',admin,{...exam,revision:3,state:'open'}),/results_already_released/);
  assert.equal((await f.db.query('select count(*)::int n from ip_aptitude_audit')).rows[0].n,3);
@@ -91,13 +91,13 @@ test('API rejects forged actors, unsupported fields and non-PDF payloads before 
  const {validatePdf}=require('../lib/interview-aptitude-storage.cjs');assert.throws(()=>validatePdf(Buffer.from('<script>alert(1)</script>'),25),/invalid_file/);
 });
 
-test('weighted full exams preserve exact ranking, and failed storage cleanup remains retryable',async t=>{
- const f=await fixture(t),exam=f.body('full');exam.points[0]=0.0001;exam.points[1]=0.0002;await f.invoke('admin_save',admin,exam);
+test('full exams count every correct answer equally, reject weights, and retry failed storage cleanup',async t=>{
+ const f=await fixture(t),exam=f.body('full');await assert.rejects(f.invoke('admin_save',admin,{...exam,points:Array(150).fill(10)}),/invalid_request/);assert.throws(()=>validate({action:'admin_save',...exam,points:Array(150).fill(10)}),/invalid_request/);await f.invoke('admin_save',admin,exam);
  const a=Array(150).fill(0),b=[...a];a[1]=1;b[0]=1;
  await f.submit(exam.id,'ip-a',a);await f.submit(exam.id,'ip-b',b);
  await f.invoke('admin_save',admin,{...exam,revision:1,state:'closed',resultsReleased:true});
  const one=await f.invoke('get',student('ip-a'),{id:exam.id}),two=await f.invoke('get',student('ip-b'),{id:exam.id});
- assert.equal(Number(one.result.earned),0.0002);assert.equal(Number(two.result.earned),0.0001);assert.equal(one.result.rank,1);assert.equal(two.result.rank,2);
+ assert.equal(one.result.correctCount,1);assert.equal(two.result.correctCount,1);assert.equal(one.result.totalQuestions,150);assert.equal(one.result.accuracy,0.67);assert.equal(one.result.rank,1);assert.equal(two.result.rank,1);
  const file=await f.invoke('admin_upload_prepare',admin,{id:exam.id,revision:2,name:'업로드 실패.pdf',bytes:100});
  await f.invoke('admin_upload_abort',admin,{id:exam.id,fileId:file.file.id});
  assert.equal((await f.db.query("select state from ip_aptitude_files where id=$1",[file.file.id])).rows[0].state,'deleted');
