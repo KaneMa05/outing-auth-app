@@ -37,6 +37,7 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-icon-question-board::after{content:"";position:absolute;left:7px;top:8px;width:10px;height:2px;border-radius:999px;background:currentColor;box-shadow:0 4px 0 currentColor,0 8px 0 currentColor}
 .ip-app-icon-study-todo::before{content:"";position:absolute;left:4px;top:3px;width:16px;height:18px;border:2px solid currentColor;border-radius:3px}
 .ip-app-icon-study-todo::after{content:"";position:absolute;left:8px;top:7px;width:8px;height:7px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+.ip-app-icon-stopwatch::before{--ip-stopwatch:url("./interview-aptitude-icon.svg?v=20261109-stopwatch");content:"";position:absolute;inset:0;background:currentColor;-webkit-mask:var(--ip-stopwatch) center/contain no-repeat;mask:var(--ip-stopwatch) center/contain no-repeat}
 .ip-app-icon-study-cafe::before{content:"";position:absolute;left:2px;top:15px;width:20px;height:7px;border-top:2px solid currentColor;border-right:2px solid currentColor;border-left:2px solid currentColor;border-radius:2px 2px 1px 1px}
 .ip-app-icon-study-cafe::after{content:"";position:absolute;left:5px;top:4px;width:14px;height:11px;border:2px solid currentColor;border-radius:2px 2px 4px 4px;background:linear-gradient(90deg,transparent calc(50% - 1px),currentColor calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px))}
 .ip-app-icon-mypage::before{content:"";position:absolute;left:8px;top:4px;width:8px;height:8px;border:2px solid currentColor;border-radius:50%}
