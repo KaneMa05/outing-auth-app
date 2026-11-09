@@ -22,14 +22,14 @@ final class InterviewLaunchPolicyTests: XCTestCase {
         XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 8443, isMainFrame: true, topLevelURL: page))
         XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 443, isMainFrame: true, topLevelURL: nil))
     }
-    func testKakaoOAuthNavigationStaysInAppWithoutBridgePrivileges() {
-        for host in ["kauth.kakao.com", "accounts.kakao.com"] {
+    func testSocialOAuthNavigationStaysInAppWithoutBridgePrivileges() {
+        for host in ["kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"] {
             XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + host + "/oauth/authorize")!))
             XCTAssertFalse(InterviewLaunchPolicy.accepts(scheme: "https", host: host, port: 443,
                 isMainFrame: true, payload: ["code": code]))
         }
         XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + InterviewLaunchPolicy.host + "/api/interview-auth?action=callback")!))
-        for url in ["http://accounts.kakao.com", "https://accounts.kakao.com.attacker.example", "https://evil.example", "https://kauth.kakao.com:8443", "https://user@kauth.kakao.com", "kakaotalk://login"] {
+        for url in ["http://appleid.apple.com", "https://appleid.apple.com.attacker.example", "http://accounts.kakao.com", "https://accounts.kakao.com.attacker.example", "https://evil.example", "https://kauth.kakao.com:8443", "https://user@kauth.kakao.com", "kakaotalk://login"] {
             XCTAssertFalse(InterviewLaunchPolicy.allowsWebNavigation(URL(string: url)!))
         }
     }
