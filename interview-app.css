@@ -46,7 +46,7 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-shell .ip-app-mock .ip-mock-button{transition:background-color .12s,transform .12s}
 .ip-app-shell .ip-app-mock .ip-mock-button:active{background:#eaf3f4;transform:scale(.99)}
 @media(prefers-reduced-motion:reduce){.ip-app-shell .ip-app-mock .ip-mock-button{transition:none}}
-.ip-app-shell:has(input:not([type=radio]):not([type=checkbox]):focus,textarea:focus,select:focus) .ip-app-footer{display:none}
+.ip-app-shell:has(input:not([type=radio]):not([type=checkbox]):focus,textarea:focus,select:not([data-round-select]):focus) .ip-app-footer{display:none}
 .ip-app-shell .ip-workspace-hero,.ip-app-db .ip-workspace-tabs{display:none!important}
 .ip-app-writing .ip-workspace-tabs [data-workspace-page=db]{display:none}
 .ip-app-shell .ip-workspace{padding:0!important;max-width:none!important}

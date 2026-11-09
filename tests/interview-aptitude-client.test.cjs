@@ -14,7 +14,7 @@ function harness(){
  const detail=()=>({ok:true,studentId:'account-a',round,attempt:null});
  const request=async(action,body)=>{calls.push({action,body});if(action==='list')return {ok:true,studentId:'account-a',rounds:[round]};if(action==='get')return detail();return handler(action,body);};
  const click=(action,extra={})=>host.listeners.get('click')({target:{closest:()=>({disabled:false,dataset:{iaAction:action,...extra}})}});
- const answer=()=>host.listeners.get('change')({target:{value:'2',dataset:{answer:'0'},matches:()=>false,hasAttribute:k=>k==='data-answer'}});
+ const answer=()=>{click('section',{section:'0'});return click('answer',{answer:'0',choice:'2'});};
  return {c,host,storage,calls,controls,windowListeners,id,detail,click,answer,setHandler:v=>handler=v,mount:()=>c.mountAptitude(host,{request})};
 }
 test('empty submissions stay editable; failed saves retain account-scoped answers and ambiguous final submissions freeze until refresh',async()=>{
@@ -44,4 +44,15 @@ test('bulk answer input accepts all five circled choices and rejects missing or 
  const {parseAnswerKey}=await import('../client/interview-aptitude.mjs');
  assert.deepEqual(parseAnswerKey('① ②,③;④ ⑤',5),[1,2,3,4,5]);
  assert.throws(()=>parseAnswerKey('1 2 3 4',5),/5개/);assert.throws(()=>parseAnswerKey('1 2 3 4 6',5),/1~5/);
+});
+test('subject and ten-question page navigation preserve every answer in a single round submission',async()=>{
+ const h=harness(),view=await h.mount();
+ await h.click('section',{section:'0'});await h.click('answer',{answer:'9',choice:'4'});await h.click('answer',{answer:'9',choice:'4'});
+ await h.click('page',{page:'1'});await h.click('answer',{answer:'14',choice:'5'});
+ await h.click('subjects');await h.click('section',{section:'4'});await h.click('page',{page:'1'});
+ await h.click('answer',{answer:'74',choice:'2'});await h.click('subjects');
+ h.setHandler(async(_a,b)=>({...h.detail(),attempt:{state:'draft',revision:1,answers:b.answers}}));await h.click('save');
+ const saved=h.calls.find(c=>c.action==='save').body;
+ assert.equal(saved.answers.length,75);assert.equal(saved.answers[9],4);assert.equal(saved.answers[14],5);assert.equal(saved.answers[74],2);
+ assert.equal(saved.answers.filter(Boolean).length,3);assert.equal(saved.accountId,'account-a');assert.equal(h.storage.size,0);view.destroy();
 });
