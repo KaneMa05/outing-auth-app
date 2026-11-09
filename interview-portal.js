@@ -1,5 +1,5 @@
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {mountInterviewLogin} from './interview-login.js?v=20261109-apple-login';
+import {mountInterviewLogin} from './interview-login.js?v=20261109-apple-button';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state,controller=null,busy=false,version=0,disposeLogin=null;

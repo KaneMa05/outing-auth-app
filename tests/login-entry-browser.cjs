@@ -21,7 +21,7 @@ const {chromium} = require('C:/Users/W11/.cache/codex-runtimes/codex-primary-run
     if (url.pathname.startsWith('/__qa/') || url.pathname === '/index.html') return res.end('<!doctype html><title>Local login route fixture</title>');
     const file = path.resolve(root, '.' + (url.pathname === '/interview' ? '/interview.html' : url.pathname));
     if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) { res.statusCode = 404; return res.end(); }
-    const ext = path.extname(file); res.setHeader('Content-Type', ({'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2'})[ext] || 'application/octet-stream'); res.end(fs.readFileSync(file));
+    const ext = path.extname(file); res.setHeader('Content-Type', ({'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2'})[ext] || 'application/octet-stream'); res.end(fs.readFileSync(file));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); let browser;
   try {

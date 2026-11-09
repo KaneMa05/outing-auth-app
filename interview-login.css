@@ -36,11 +36,12 @@ body.ip-coast-page #app-startup .app-startup-spinner{border-color:#294052;border
 .ip-coast-entry{padding:28px 0 24px;min-width:0}
 .ip-coast-screen .ip-coast-entry-label{font-size:16px;font-weight:700;margin:0 0 16px}
 .ip-coast-screen .ip-coast-entry-help{font-size:12px;color:#bed8e9;margin:14px 0}
-.ip-coast-screen .ip-coast-apple{display:flex;align-items:center;justify-content:center;width:100%;min-height:57px;margin-top:12px;padding:0;border:0;border-radius:0;background:#fff;overflow:hidden}
-.ip-coast-apple img{display:block;max-width:100%;height:57px;object-fit:contain}
+/* The visible buttons are 36px tall; transparent borders keep each touch target at 44px. */
+.ip-coast-screen .ip-coast-apple{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:4px;padding:0 8%;border:solid transparent;border-width:4px 0;border-radius:0;background:#fff;background-clip:padding-box;color:#000;font:500 15.5px/1.2 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",Arial,sans-serif;letter-spacing:0;white-space:nowrap;text-shadow:none}
+.ip-coast-apple img{display:block;width:auto;height:36px;flex:0 0 auto}
 .ip-coast-screen .ip-coast-apple:disabled{opacity:.55;cursor:not-allowed}
 .ip-coast-screen .ip-coast-student-entry{width:100%;min-height:44px;background:transparent;border:1px solid #9bc3db60;color:#d9edf8;font-size:13px}
-.ip-coast-screen .ip-coast-kakao{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:57px;padding:0 20px;border:0;border-radius:0;background:#fee500;color:#191919;font-size:13px;font-weight:700;transition:background .2s,transform .2s}
+.ip-coast-screen .ip-coast-kakao{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:0 20px;border:solid transparent;border-width:4px 0;border-radius:0;background:#fee500;background-clip:padding-box;color:#191919;font-size:13px;font-weight:700;transition:background .2s,transform .2s}
 .ip-coast-screen .ip-coast-kakao:hover:not(:disabled){background:#ffed52}
 .ip-coast-screen .ip-coast-kakao:active:not(:disabled){transform:translateY(1px)}
 .ip-coast-screen .ip-coast-kakao:disabled{cursor:not-allowed;opacity:.55}
