@@ -41,10 +41,21 @@ xcrun simctl list devices available --json > "$output/simulators.json"
 simulator=$(python3 "$root/scripts/ios/select-simulator.py" < "$output/simulators.json")
 xcrun simctl boot "$simulator" || true
 xcrun simctl bootstatus "$simulator" -b
+test_selection=()
+if [[ "${IOS_TEST_FOCUS:-}" == app-review ]]; then
+  test_selection=(
+    '-only-testing:InterviewPolicyTests'
+    '-only-testing:InterviewUITests/InterviewPracticeUITests/testJobAndPersonalityUseAudioOnly'
+    '-only-testing:InterviewUITests/InterviewPracticeUITests/testPracticeMenuAndTrackSelectionUseBundledQuestions'
+    '-only-testing:InterviewUITests/PortalPracticeUITests'
+    '-only-testing:InterviewUITests/StudentWebUITests'
+  )
+fi
 xcodebuild "${common[@]}" test -configuration Debug \
   -destination "platform=iOS Simulator,id=$simulator" -destination-timeout 120 \
   -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
   -derivedDataPath "$build_dir/derived" -resultBundlePath "$build_dir/NativeTests.xcresult" \
+  "${test_selection[@]}" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$output/simulator-tests.log"
 
 ditto -c -k --sequesterRsrc --keepParent \

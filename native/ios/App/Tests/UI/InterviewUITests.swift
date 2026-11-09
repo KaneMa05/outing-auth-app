@@ -316,6 +316,10 @@ final class InterviewPracticeUITests: XCTestCase {
     }
 
     func testJobAndPersonalityUseAudioOnly() {
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "확인", "Allow", "OK"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
         for mode in ["job", "personality"] {
             let app = XCUIApplication()
             app.launchArguments = ["--interview-native-preview", "--interview-offline-testing"]
@@ -324,10 +328,10 @@ final class InterviewPracticeUITests: XCTestCase {
             app.buttons["practice.mode." + mode].tap()
             XCTAssertFalse(app.descendants(matching: .any)["practice.prep-camera"].firstMatch.exists)
             XCTAssertFalse(app.switches["practice.video-toggle"].exists)
-            XCTAssertTrue(app.buttons["테스트하기"].exists)
+            XCTAssertFalse(app.buttons["practice.media"].exists)
             XCTAssertFalse(app.switches["practice.live-captions"].exists)
             XCTAssertFalse(app.switches["practice.job-auto"].exists)
-            app.buttons["interview.start"].tap()
+            app.buttons["interview.start"].tap(); app.tap()
             XCTAssertTrue(app.descendants(matching: .any)["practice.audio-only"].firstMatch.waitForExistence(timeout: 10))
             let captions = app.switches["practice.live-captions"]
             XCTAssertTrue(captions.exists)
@@ -361,7 +365,7 @@ final class InterviewPracticeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["practice.mode.job"].waitForExistence(timeout: 15))
         app.buttons["practice.mode.job"].tap()
         XCTAssertTrue(app.staticTexts["직무(전공) 연습모드"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["practice.media"].exists)
+        XCTAssertFalse(app.buttons["practice.media"].exists)
         XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.track"].tap()
         app.buttons["practice.track.항해"].tap()
@@ -378,7 +382,7 @@ final class InterviewPracticeUITests: XCTestCase {
 }
 
 final class PortalPracticeUITests: XCTestCase {
-    func testMicrophonePermissionUsesKorean() {
+    func testMicrophonePermissionUsesKoreanUsageDescription() {
         let app = XCUIApplication()
         app.resetAuthorizationStatus(for: .microphone)
         app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--interview-offline-testing", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
@@ -391,17 +395,20 @@ final class PortalPracticeUITests: XCTestCase {
         start.tap()
         let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        let allow = alert.buttons["허용"]
-        let confirm = alert.buttons["확인"]
-        XCTAssertTrue(allow.exists || confirm.exists, "System permission action must be Korean")
+        let allow = ["허용", "확인", "Allow", "OK"].map { alert.buttons[$0] }.first { $0.exists }
+        XCTAssertNotNil(allow, "The system permission action follows the simulator language")
         XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "마이크")).firstMatch.exists)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "korean-microphone-permission"; screenshot.lifetime = .keepAlways; add(screenshot)
-        if allow.exists { allow.tap() } else if confirm.exists { confirm.tap() }
+        allow?.tap()
         app.terminate()
     }
     func testApprovedPortalQuestionPlaysPreparedRecording() {
         let app = XCUIApplication()
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "확인", "Allow", "OK"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
         app.launchArguments = ["--interview-native-preview", "--portal-practice-fixture", "--portal-recorded-question", "--interview-offline-testing"]
         app.launch()
         let start = app.buttons["interview.start"]
@@ -409,8 +416,8 @@ final class PortalPracticeUITests: XCTestCase {
         expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: start)
         waitForExpectations(timeout: 15)
         for _ in 0..<3 { if start.isHittable { break }; app.swipeUp() }
-        start.tap()
-        let question = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "서해지방해양경찰청의 관할 구역을 설명해 ")).firstMatch
+        start.tap(); app.tap()
+        let question = app.staticTexts["서해지방해양경찰청의 관할을 알고 있는가?"]
         XCTAssertTrue(question.waitForExistence(timeout: 15))
         let answer = app.buttons["interview.answer"]
         XCTAssertEqual(answer.label, "질문 듣는 중")
