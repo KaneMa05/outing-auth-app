@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{randomUUID}=require('node:crypto');
 const {createDb}=require('./helpers/interview-db.cjs');
 const {createHandler,validate}=require('../api/interview-aptitude');
-const migration='supabase/migrations/20261109021722_interview_aptitude_exams.sql';
+const migration='supabase/migrations/20261109053559_interview_aptitude_exams.sql';
 const admin={type:'admin',id:'qa'},student=id=>({type:'student',id});
 async function fixture(t){
  const {db}=await createDb();t.after(()=>db.close());
