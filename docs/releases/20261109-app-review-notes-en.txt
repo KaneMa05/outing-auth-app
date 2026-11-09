@@ -1,0 +1,31 @@
+Ronpark Study 1.0.0 (5) - Review information
+
+REVIEW ACCESS
+Use registration number 18120 and the password in the private App Review Information field. This review account has no device-registration limit or device-policy expiry. Password authentication is still required.
+
+1. On the student login screen, enter the registration number and password. The account opens the offline student home with Home, Attendance, Outings, Grades, and My.
+2. To review interview-class features, open My and select "면접반 모드로 전환" (Switch to interview mode). Interview and mock-interview access is enabled for this demo account through December 31, 2026. No registration application or administrator approval is needed for this account.
+3. In interview mode, open My and select "수강생 화면으로 이동" (Go to student screen) to return to the standard student screens.
+
+SIGN IN WITH APPLE
+The interview-class login screen offers Sign in with Apple alongside Kakao. Both options follow the same enrollment rules. Existing students can connect their registration number and password to their authenticated provider account. Accounts are not merged based on matching email addresses, and Apple private-relay email is supported.
+
+Build 5 allows the Apple and Kakao authorization pages to open inside the app and return to the app. Apple sign-in and the in-app return were verified on TestFlight build 1.0.0 (5). The production authorization-start, cancellation-return, and replay-rejection checks also passed.
+
+BUSINESS MODEL - GUIDELINE 2.1(b)
+1. Who are the users that will use the paid content in the app?
+The users are students enrolled at our academy. The app has no paid content; its features are provided to these students free of charge.
+
+2. Where can users purchase the content that can be accessed in the app?
+App content is not sold. Students may pay tuition at our academy or on our online lecture website for separate educational services. These payments do not unlock content or features in this app.
+
+3. What specific types of previously purchased content can a user access in the app?
+There is no previously purchased paid digital content accessed through the app. The app provides free study-management tools for the student's enrollment type.
+
+4. What paid content, subscriptions, or features are unlocked within the app that do not use In-App Purchase?
+None. The app offers no paid content, paid subscriptions, or paid feature unlocks.
+
+5. What is the maximum number of users that can participate in your app's live, real-time services?
+The app provides no live classes, live tutoring, or other real-time teaching services with human instructors. The free shared study-room and chat feature supports up to 20 participants per room for shared study and communication.
+
+Thank you for reviewing Ronpark Study.

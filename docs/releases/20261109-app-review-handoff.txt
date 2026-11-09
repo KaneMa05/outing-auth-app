@@ -1,5 +1,74 @@
 론박스터디 App Review 재개 정보 · 2026-11-09
 
+최종 완료 · 2026-11-09 16:46:19 KST (아래 과거 진행 기록보다 우선)
+- Apple 로그인 전용 설정과 운영 환경변수 등록·웹 배포 완료.
+- 사용자 피드백에 따라 Apple 복귀 화면과 면접반 로딩 화면을 정리해 운영 반영.
+- TestFlight 1.0.0 (5)에서 사용자 “새 빌드에서 로그인·복귀 정상” 확인.
+- 마지막 iOS 검사 42580237631 성공: 정책 32개, 오디오 전용 화면 UI 1개 통과.
+  앞선 검사에서 학생 웹/권한/포털 음성/최신 메뉴 관련 UI 9개 통과. 제품 소스는 6bfa550 이후 동일.
+- 서명 Release 빌드·업로드 성공: 9ed94f29920f325f5b14f5c4b873dea8c8e16eb6 / 실행 42578433382.
+- 제출 버전 1.0.0, 빌드 5, build ID 3e10dfeb-8f5c-45d1-9735-f0f95984b294 (VALID).
+- 기존 반려 항목을 해결 처리한 뒤 동일 App Review 제출을 재제출했으며,
+  제출과 앱 버전 모두 WAITING_FOR_REVIEW 확인. releaseType MANUAL, 공개 출시 미실행.
+- App ID 6827374000, version ID b5561d1f-c55c-4565-a63f-116701fb1efb.
+- submission ID dacecc86-102b-4857-b841-3166cf0b60c0.
+- 심사 접근 안내·Apple 로그인·사업 모델 답변은 20261109-app-review-notes-en.txt와 동일한
+  2792자 Notes로 저장. 기존 비공개 심사 ID/비밀번호/연락처 보존. 별도 Resolution Center 메시지는 보내지 않음.
+- 심사 계정 18120: 기기 수 무제한·기기 정책 만료 없음, 면접반·모의면접 접근 2026-12-31까지.
+  일반 학생 유형 offline과 다른 학생의 기기 2대 정책 유지. 별도 학생 계정/테스터 초대 없음.
+- 운영에는 별도 적성검사 변경도 보존됨: 0d98341a42c5a50b5a70bbc6becc95751eb71a47,
+  READY deployment dpl_EKXyFLeJy34fKfV9ZSWohwPoqSf9.
+  16:44 KST 두 운영 도메인 Apple 시작·취소 복귀·결과 재사용 차단 및 주요 소스 일치 확인.
+- 최종 증빙: .tmp/app-review-login-qa/review-resubmitted.json,
+  ios-github-build-status.json, ios-github-signed-status.json, web-production-verification.json,
+  testflight-physical-verification.json, review-access-verification.json, review-manifest.json.
+- App Review: https://appstoreconnect.apple.com/apps/6827374000/distribution/reviewsubmissions/details/dacecc86-102b-4857-b841-3166cf0b60c0
+- 남은 사용자 작업 없음. Apple 심사 결과 대기. 승인 후 공개 출시는 별도 사용자 결정.
+
+이하 과거 진행 기록 (완료 전 시점의 설명 포함)
+
+최신 확인 · 2026-11-09 16:40 KST
+- 빌드 5 ID 3e10dfeb-8f5c-45d1-9735-f0f95984b294, Apple processingState VALID.
+- 기존 빌드와 동일한 암호화 선언 usesNonExemptEncryption=false 저장. 기존 내부 TestFlight 그룹에 빌드 5 추가, 테스터 수 1 유지, 새 초대 없음.
+- 사용자가 TestFlight 1.0.0 (5)에서 Apple 로그인/앱 복귀 정상을 직접 확인함. 기기 모델과 OS 버전은 미제공.
+- App Store 버전 b5561d1f-c55c-4565-a63f-116701fb1efb의 선택 빌드를 5로 변경했고,
+  docs/releases/20261109-app-review-notes-en.txt의 2792자 답변/접근 경로를 심사 Notes에 저장함.
+  기존 비공개 심사 ID/비밀번호/연락처 보존. releaseType MANUAL. 현재 버전 PREPARE_FOR_SUBMISSION.
+- iOS 재검사 42578717351에서 정책/학생 웹/portal 녹음/권한문구/최신 메뉴 검사는 통과했으나,
+  처음 나타나는 마이크 권한창 대기로 오디오 화면 검사 한 개가 실패. 제품 소스는 변경하지 않음.
+  해당 권한창을 명시적으로 기다리는 검사 수정 c8dbb5d, 실행 42580237631 진행 중.
+  이미 통과한 signed Release archive는 중복 생성하지 않음.
+- 제출 준비 API: .tmp/app-review-login-qa/resubmit-review.cjs (기본 읽기 전용 계획, --submit은 모든 검증 후 실행).
+  정확한 기존 제출/버전/빌드/심사 항목 연결과 Notes hash, MANUAL 보존을 사전 검증 완료.
+  마지막 nativeChecksPassed만 남아 있으며, 아직 --submit을 실행하지 않음.
+
+최신 진행 상태 · 2026-11-09 16:26 KST (아래 과거 단계 기록보다 우선)
+- 웹 로그인 통합 커밋 316e5f9 푸시/배포 완료. 이후 사용자 피드백으로 Apple 복귀/면접반 로딩 화면을 다듬은 a758ff5도 푸시/운영 배포 완료.
+  현재 운영 dpl_3mtcuJ8KkPPEPeX3qr2uuNhMY4BD, 두 운영 도메인 READY.
+- Apple 로그인 사용자 실제 복귀 보고와 운영 DB의 Apple identity/암호화 grant 1개 생성으로 실제 인증 성공 확인.
+  두 도메인의 시작/취소/재사용 차단과 주요 배포 파일 일치도 확인.
+- 18120에 면접반/모의면접 심사용 수강 권한을 2026-12-31까지 추가함. 일반 학생 유형 offline은 유지.
+  기존 18120 기기 무제한/만료 없음 정책과 다른 학생의 2대 정책은 유지. 새 학생 계정은 생성하지 않음.
+  기존 App Store 비공개 심사 비밀번호로 실제 portal 로그인, bootstrap, mock_status 통과. 검증 세션은 로그아웃.
+  학생 화면 마이의 '면접반 모드로 전환' → 면접반 기능, 면접반 마이의 '수강생 화면으로 이동' → 기존 화면.
+- Codemagic 수동 설정을 사용자가 어렵다고 하여 GitHub macOS 서명/업로드 경로를 자동화함.
+  GitHub 저장소는 PUBLIC임. 개인 키는 커밋하지 않고 브랜치 제한 환경의 암호화된 secrets 4개에만 등록.
+  환경 ronpark-app-review-signing-20261109, 허용 브랜치 codex/ios-signed-review-20261109-github.
+  서명 산출 IPA는 공개 GitHub artifact로 보관하지 않고 Apple에 업로드. artifact는 비민감 상태 JSON만.
+- 신규 전용 배포 인증서 W4966G774A, 활성 프로파일 4H7K8Y3D78 (RONPARK Study GitHub App Store 20261109).
+  기존 배포 인증서는 유지. 로컬 비암호화 임시 서명 키 제거 완료. 기존 ASC .p8와 Issuer ID로 API 이용 가능.
+- 서명 빌드 1차는 PKCS#12 MAC 호환성 실패. macOS 호환 형식 변환 후 성공.
+  성공 소스 9ed94f2, GitHub 실행 42578433382. 1.0.0 (5) Apple 업로드 성공 및 builds 목록의 5 수신 확인.
+- 최초 iOS UI 검사 실행 42574939496은 이전 화면을 기대하는 테스트 6개 assertion 실패.
+  앱 소스는 유지하고 최신 화면/질문 문구/OS 언어에 맞게 테스트 수정, 마이크 허용 처리 보강.
+  재검사 소스 38457b1, 실행 42578717351, 현재 진행 중.
+  native 제품 소스는 6bfa550 이후 변경 없음. 로컬 iOS worktree HEAD 38457b1.
+- 브라우저 직접 제어는 URL 검증 보호로 실패하므로 Apple/Codemagic 계정 UI 우회를 시도하지 않음.
+  현재 Apple API는 .tmp/app-review-login-qa/apple-api.cjs, GitHub API는 github-api.cjs 사용 가능.
+  API key 내용/토큰/심사 비밀번호는 출력하지 않음.
+- 다음: UI 재검사 결과와 빌드 5 processingState 확인 → 새 빌드 연결/심사 Notes 완성 → 기존 미해결 제출 재제출.
+  공개 출시는 계속 MANUAL 유지. 아직 재제출하지 않음. 실물 iPhone/iPad 새 빌드 인증 검증은 미실시.
+
 최신 상태 · 2026-11-09 15:42 KST
 - 사용자 확인 후 다운로드에서 신규 론박스터디 전용 .p8 키를 확인하고 P-256 형식 검증 완료.
 - Vercel Production의 Apple 환경변수 6개 등록 완료:
