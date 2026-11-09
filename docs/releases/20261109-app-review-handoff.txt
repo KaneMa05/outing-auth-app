@@ -1,0 +1,109 @@
+론박스터디 App Review 재개 정보 · 2026-11-09
+
+최신 상태 · 2026-11-09 15:42 KST
+- 사용자 확인 후 다운로드에서 신규 론박스터디 전용 .p8 키를 확인하고 P-256 형식 검증 완료.
+- Vercel Production의 Apple 환경변수 6개 등록 완료:
+  APPLE_TEAM_ID, APPLE_SERVICE_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY,
+  APPLE_TOKEN_ENCRYPTION_KEY, INTERVIEW_APPLE_ENABLED.
+  개인 키와 토큰 암호화 키는 sensitive로 보관. 기존 토큰 암호화 키는 변경하지 않음.
+- 두 callback 주소로 Apple token API 음성 사전 점검: 의도적으로 무효인 authorization code에
+  invalid_grant 응답. invalid_client 응답은 없었지만 실제 사용자 로그인 성공을 뜻하지 않음.
+- 증빙: .tmp/app-review-login-qa/apple-environment-completed.json, apple-client-preflight.json.
+- 운영 웹 SHA는 여전히 10d618b. 검증된 통합 코드 SHA는 49cefa3.
+  아직 푸시/배포/새 네이티브 빌드/심사 재제출을 하지 않음. 아래 단계 기록은 과거 상태를 포함함.
+
+재개 검증 업데이트 · 2026-11-09
+- 사용자 확인: com.ronpark.study.web Services ID 등록과 com.ronpark.study 연결,
+  outing-auth-app.vercel.app/app.ronparkpass.com 및 두 callback URL 저장 완료.
+  아직 실제 OAuth 검증이나 Apple 개발자 화면 재검증은 수행하지 않음.
+  현재 다음 단계는 론박스터디 전용 Sign in with Apple 키 발급/다운로드.
+- 사용자가 com.ronpark.study에서 Sign in with Apple 활성화와 primary App ID 저장을 완료했다고 보고함.
+  이 항목은 사용자 확인이며 브라우저에서 저장 상태를 직접 재검증하지 못함.
+  다음 단계는 com.ronpark.study.web Services ID 등록/웹 인증 설정과 론박스터디 전용 키 발급.
+- 사용자가 론박스터디 전용 Apple 설정과 .p8 키 발급을 별도로 승인함.
+- Apple 화면에서 com.ronpark.study의 Sign in with Apple 미활성 상태 확인.
+  Services ID 목록에는 마리너스터디용만 있었음. 아직 Apple 설정을 저장하거나 새 키를 발급하지 않음.
+- 운영 웹이 325bc1b에서 390d76f, 다시 10d618b로 갱신됨. 적성검사와 최신 스톱워치 아이콘 포함.
+- 로그인 배포 worktree에 두 운영 변경을 병합하고 캐시 버전 충돌을 해결함.
+  현재 로컬 커밋 49cefa3 (중간 통합 커밋 e257a51), 브랜치는 기존 codex/app-review-login-20261109.
+  현재 운영의 적성 API/클라이언트/스타일/아이콘/저장소 파일을 그대로 보존한 것을 비교 확인함.
+- 통합본 npm test 전체, test:app-review-login, 적성검사 11개, 관리자 진입, app-startup, 격리 웹 빌드 통과.
+  로그인 브라우저 fixture가 새 적성 모듈의 .mjs를 JavaScript MIME으로 제공하도록 수정함.
+  최종 아이콘 병합 후 release-safety, 관리자 진입, 로그인 브라우저 검사도 다시 통과함.
+- 증빙 로그는 release worktree의 .tmp/app-review-resume-npm-test.log, app-review-resume-auth-test.log.
+- 별도 최신 iOS worktree의 ios-cloud-source, interview-native, diff 검사 통과. Swift 빌드/서명은 미실시.
+- 푸시·운영 배포·새 클라우드 빌드·심사 재제출은 여전히 미실시.
+- 앞선 브라우저 재시도에서 화면 조회는 잠시 동작했으나 현재 URL 검증 보호로 제어가 중단됨.
+  URL 검증 보호를 우회하지 않음. 다음 작업 시 현재 Apple 설정을 다시 확인할 것.
+- 배포 직전 운영 SHA를 다시 읽고, 동시에 반영된 변경이 더 있으면 보존할 것.
+
+목표: Apple 로그인 설정과 운영 반영, 새 iOS 빌드 검증/업로드, 미해결 심사 답변 및 재제출.
+사용자가 운영 반영·푸시·배포·심사 제출을 승인함. 같은 일반 승인을 반복 요청하지 않음.
+실제 개인 키 발급 등 별도 행동 시점 확인이 필요한 도구 정책은 준수.
+
+완료
+- 18120 계정만 기기 무제한·만료 없음. 다른 수강생은 기존 2대 제한.
+- 제공된 심사 비밀번호와 DB 값의 일치 확인. 비밀번호를 이 문서에 저장하지 않음.
+- 실제 운영 /api/student-devices에서 3대 등록과 세 번째 기기 인증 성공.
+- 검증용 3대만 라벨/UA로 한정하여 soft revoke. 실제 사용자 기기는 변경하지 않음.
+- Supabase RONPARK APP: ehzrwkvuarertwvwoyus.
+- 운영 적용 마이그레이션:
+  supabase/migrations/20261109053915_review_device_policy.sql
+  supabase/migrations/20261109054842_interview_apple_login.sql
+- Vercel outing-auth-app Production 환경변수 등록:
+  APPLE_TEAM_ID, APPLE_TOKEN_ENCRYPTION_KEY. 값과 개인 키를 로그/채팅에 출력하지 않음.
+- 로컬 Apple OAuth 코드·계정 연결·로그인 경로와 테스트 준비. 기존 전체 테스트 및 신규 인증 테스트 통과.
+- 웹 배포, 새 네이티브 빌드, 심사 제출은 아직 실행하지 않음.
+
+사용자가 보여준 Apple 설정
+- 현재 발견된 키의 enabled service: Sign in with Apple.
+- Primary 구성: 3A8HPYVQ7M.com.ronpark.marinerstudy.
+- Services ID: com.ronpark.marinerstudy.web / Mariner Study Web Login.
+- 심사 대상 론박스터디 앱의 번들 ID는 com.ronpark.study.
+- 마리너스터디 설정을 론박스터디용으로 임의 변경하거나 로그인 그룹 공유를 가정하지 않음.
+- 론박스터디용 Services ID 제안: com.ronpark.study.web. 아직 실제 등록을 확인하지 못함.
+- Domains: outing-auth-app.vercel.app, app.ronparkpass.com.
+- Return URLs:
+  https://outing-auth-app.vercel.app/api/interview-apple?action=callback
+  https://app.ronparkpass.com/api/interview-apple?action=callback
+
+기존 키 파일의 위치 (내용을 저장소/로그/채팅에 복사하지 않음)
+- C:\Users\W11\Downloads\AuthKey_4P2PD732ZJ.p8 — Developer에서 다운로드.
+- C:\Users\W11\Downloads\AuthKey_7MQQAK26JR.p8 — App Store Connect에서 다운로드.
+- 파일명만으로 SIWA 용도/권한을 확정하지 않음.
+
+소스/빌드 범위
+- 웹 작업 폴더: 현재 프로젝트. HEAD 325bc1b가 마지막 확인 당시 Vercel 운영 SHA와 같았음.
+- 기존 OpenAI 면접 모니터 관련 미커밋 변경을 로그인 배포에 섞지 않음.
+- 로그인 배포 검증 전용 worktree: .tmp/app-review-release-20261109.
+  브랜치 codex/app-review-login-20261109, 기준 325bc1b. 로그인 수정 32개 파일과 설정 문서만 분리.
+  분리본에서 전체 npm test, app-review-login, 웹 빌드 검사, app-startup/ios-cloud-source 통과.
+  로컬 커밋 f93d104: 로그인 수정 33개 파일만 포함. 푸시·웹 배포는 아직 실행하지 않음.
+  전체 checkout 공간 부족으로 필요한 폴더만 sparse checkout함. 배포 시 전체 Git 트리를 사용.
+  Chrome URL을 사용자가 다시 제공해도 탭 목록 외의 DOM/화면 제어는 계속 실패.
+- iOS 전용 최신 소스: .tmp/ios-practice-no-modal-20261106, 기본 커밋 1ced281.
+- 해당 iOS worktree에는 Apple 인증 호스트 허용 및 정책 테스트만 로컬 추가.
+- 현재 웹 브랜치의 오래된 네이티브 소스로 iOS 최신 연습 기능을 덮어쓰지 않음.
+- App Store 앱: 6827374000 / 론박스터디 / 기존 제출 빌드 1.0.0 (4).
+- 기존 제출 ID: dacecc86-102b-4857-b841-3166cf0b60c0.
+- 기존 Codemagic 앱/서명 설정 이력은 native/BUILDING.txt, codemagic.yaml에 있음.
+- 승인 후 공개 출시는 별개이며 기존 수동 출시 설정을 유지.
+
+브라우저 장애
+- Chrome 탭/URL 목록은 조회되지만 페이지 DOM 및 스크린샷은 timeoutMs 오류/selector deadline 오류.
+- Computer Use가 Windows 브라우저의 현재 URL을 확신하지 못한다며 자동 중단.
+- cua_repl 및 node_repl/@oai/sky 경로 모두 동일 중단. 주소 확인 보호를 우회하지 않음.
+- 사용자 Chrome 로그인은 확인되지만 이것이 자동 제어 복구를 의미하지 않음.
+
+추가 문서와 증빙
+- docs/releases/20261109-app-review-login.txt
+- docs/releases/20261109-apple-login-setup.txt
+- docs/releases/20261109-app-review-business-model-en.txt
+- .tmp/app-review-login-qa/review-manifest.json
+- .tmp/app-review-login-qa/production-device-verification.json
+- .tmp/app-review-login-qa/apple-environment-registration.json
+
+연결 복구 후 첫 작업
+Apple Developer에서 com.ronpark.study의 Sign in with Apple 상태를 확인하고,
+론박스터디 전용 Services ID와 키 연결을 검증하여 나머지 서버 설정을 등록.
+그 뒤 검증된 소스만 운영 반영하고 실제 인증/새 iOS 빌드 확인 후 심사에 제출.
