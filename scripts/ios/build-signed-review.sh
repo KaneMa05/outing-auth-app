@@ -49,7 +49,13 @@ keychain_password=$(openssl rand -hex 24)
 security create-keychain -p "$keychain_password" "$keychain"
 security set-keychain-settings -lut 21600 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
-security import "$task/signing.p12" -k "$keychain" -P "$RONPARK_SIGNING_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+# Keychain imports require the legacy PKCS#12 PBE format on the runner image.
+# The source bundle and CI secret remain encrypted; the temporary PEM is removed immediately.
+openssl pkcs12 -in "$task/signing.p12" -passin env:RONPARK_SIGNING_P12_PASSWORD -nodes -out "$task/signing.pem"
+openssl pkcs12 -export -in "$task/signing.pem" -out "$task/keychain-signing.p12" \
+  -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 -passout env:RONPARK_SIGNING_P12_PASSWORD
+rm -f "$task/signing.pem"
+security import "$task/keychain-signing.p12" -k "$keychain" -P "$RONPARK_SIGNING_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
 unset RONPARK_SIGNING_P12_PASSWORD
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
 security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
