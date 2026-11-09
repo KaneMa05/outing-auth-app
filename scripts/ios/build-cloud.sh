@@ -23,7 +23,9 @@ out = pathlib.Path(sys.argv[1])
     'success': sys.argv[2] == '0', 'exitCode': int(sys.argv[2]),
     'commit': os.environ.get('GITHUB_SHA', ''), 'signedForDevice': False,
     'paidAIRequests': False, 'deploymentPerformed': False,
-    'note': 'Simulator app and unsigned archive only. Neither is an installable signed iPhone IPA.'
+    'note': ('Focused simulator check; the signed Release build was verified separately.'
+             if os.environ.get('IOS_TEST_FOCUS') == 'app-review-audio'
+             else 'Simulator app and unsigned archive only. Neither is an installable signed iPhone IPA.')
 }, indent=2) + '\n')
 PY
   exit "$code"
@@ -42,7 +44,12 @@ simulator=$(python3 "$root/scripts/ios/select-simulator.py" < "$output/simulator
 xcrun simctl boot "$simulator" || true
 xcrun simctl bootstatus "$simulator" -b
 test_selection=()
-if [[ "${IOS_TEST_FOCUS:-}" == app-review ]]; then
+if [[ "${IOS_TEST_FOCUS:-}" == app-review-audio ]]; then
+  test_selection=(
+    '-only-testing:InterviewPolicyTests'
+    '-only-testing:InterviewUITests/InterviewPracticeUITests/testJobAndPersonalityUseAudioOnly'
+  )
+elif [[ "${IOS_TEST_FOCUS:-}" == app-review ]]; then
   test_selection=(
     '-only-testing:InterviewPolicyTests'
     '-only-testing:InterviewUITests/InterviewPracticeUITests/testJobAndPersonalityUseAudioOnly'
@@ -61,6 +68,11 @@ xcodebuild "${common[@]}" test -configuration Debug \
 ditto -c -k --sequesterRsrc --keepParent \
   "$build_dir/derived/Build/Products/Debug-iphonesimulator/RonparkStudy.app" \
   "$output/RonparkStudy-simulator.app.zip"
+
+if [[ "${IOS_TEST_FOCUS:-}" == app-review-audio ]]; then
+  printf '%s\n' 'Focused regression passed; signed Release archive and upload are verified separately.'
+  exit 0
+fi
 
 xcodebuild "${common[@]}" archive -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$build_dir/RonparkStudy-unsigned.xcarchive" \

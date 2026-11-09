@@ -316,6 +316,7 @@ final class InterviewPracticeUITests: XCTestCase {
     }
 
     func testJobAndPersonalityUseAudioOnly() {
+        continueAfterFailure = false
         addUIInterruptionMonitor(withDescription: "Microphone") { alert in
             for label in ["허용", "확인", "Allow", "OK"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
             return false
@@ -331,7 +332,14 @@ final class InterviewPracticeUITests: XCTestCase {
             XCTAssertFalse(app.buttons["practice.media"].exists)
             XCTAssertFalse(app.switches["practice.live-captions"].exists)
             XCTAssertFalse(app.switches["practice.job-auto"].exists)
-            app.buttons["interview.start"].tap(); app.tap()
+            app.buttons["interview.start"].tap()
+            let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+            if permission.waitForExistence(timeout: 5) {
+                guard let allow = ["허용", "확인", "Allow", "OK"].map({ permission.buttons[$0] }).first(where: { $0.exists }) else {
+                    XCTFail("Microphone permission action is unavailable"); return
+                }
+                allow.tap()
+            }
             XCTAssertTrue(app.descendants(matching: .any)["practice.audio-only"].firstMatch.waitForExistence(timeout: 10))
             let captions = app.switches["practice.live-captions"]
             XCTAssertTrue(captions.exists)
