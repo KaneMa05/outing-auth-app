@@ -3,6 +3,16 @@ import InterviewNative
 
 final class InterviewLaunchPolicyTests: XCTestCase {
     private let code = String(repeating: "a", count: 43)
+    func testSocialLoginHostsKeepCookiesWithoutNativeBridgeAccess() {
+        for host in ["kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"] {
+            XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + host + "/auth")!))
+            XCTAssertFalse(InterviewLaunchPolicy.accepts(scheme: "https", host: host, port: 443,
+                isMainFrame: true, payload: ["code": code]))
+        }
+        for url in ["http://appleid.apple.com", "https://appleid.apple.com.attacker.example", "https://evil.example", "https://kauth.kakao.com:8443", "https://user@kauth.kakao.com", "kakaotalk://login"] {
+            XCTAssertFalse(InterviewLaunchPolicy.allowsWebNavigation(URL(string: url)!))
+        }
+    }
     func testOwnTopLevelHTTPSCanOpenNativeInterview() {
         for port in [0, 443] {
             XCTAssertTrue(InterviewLaunchPolicy.accepts(scheme: "https", host: InterviewLaunchPolicy.host,

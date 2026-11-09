@@ -1,0 +1,133 @@
+App Review 로그인 수정 · 2026-11-09
+
+대상: 2026-11-06 심사, 버전 1.0.0 (4)
+제출 ID: dacecc86-102b-4857-b841-3166cf0b60c0
+상태: 사용자에게 운영 반영·배포·심사 제출 승인을 받음. 18120 기기 무제한 정책은 운영 DB에 적용하고 실제 로그인 API로 검증 완료.
+Apple 로그인 DB 준비와 서버 환경변수 2개 등록 완료. 나머지 Apple 설정·웹 배포·새 iOS 빌드·심사 제출은 아직 완료하지 않음.
+
+사용자가 확정한 사업 모델
+- 학원 수강생 대상. 수강료는 학원 또는 인강 웹사이트에서 결제.
+- 결제로 해제되는 앱 기능 없음.
+- 사람 강사와 하는 실시간 수업 없음.
+- 무료 스터디룸/채팅의 한 방 정원은 API 및 SQL상 2~20명. 사업 모델 영문 답변에 이를 별도로 설명.
+- 사업 모델만 답변하는 문서: 20261109-app-review-business-model-en.txt.
+  이 문서는 로그인 수정 완료나 실제 기기 검증 완료를 주장하지 않음.
+
+로그인 경로
+1. 앱 실행 → 기존 로그인 상태 확인/복원 → 로그인하지 않았으면 수강생 로그인.
+2. 일반 수강생: 등록번호 조회 → 비밀번호 및 기기 확인 → 등록된 유형의 홈.
+   오프라인: 홈·출석·외출·성적·마이.
+   온라인 관리반: 홈·스터디카페·성적·마이.
+   인터넷 수강생(lecture): 홈·플래너·스터디카페·마이.
+   로그인 버튼에서 수강생 유형이나 권한을 임의로 선택하지 않음.
+3. 면접반: '면접반 로그인' → 같은 화면에서 카카오 또는 Apple → 서버 인증/수강 확인.
+   연결된 계정은 기존 수강 상태와 기록으로 이동.
+   기존 등록번호가 있으면 등록번호·비밀번호를 확인한 뒤 기존 수강 정보 연결.
+   카카오로 이용하던 면접 계정에 Apple을 연결하려면 카카오로 로그인 → 마이 → Apple 계정 연결.
+   Apple 계정에 카카오를 연결하는 반대 방향도 제공.
+   이메일 일치로 계정을 자동 합치거나 다른 계정의 기록을 가져오지 않음.
+   등록번호가 없으면 등록 신청 → 관리자 승인 대기/반려/이용 기간 확인. 신규 로그인만으로 학습 권한 부여 안 함.
+4. 면접반 로그인 화면의 '등록번호로 수강생 로그인', 면접반 마이의 '수강생 화면으로 이동'으로 복귀.
+   명시적 이동은 저장된 면접반 자동 복원을 해제해 되돌아가는 반복을 방지.
+   다른 계정의 로그인 정보·설정·학습 기록은 삭제하지 않음.
+5. 앱 재실행 시 기존 면접반 세션을 복원하는 동작 유지. 세션 만료/오류에는 로그인·다시 시도 경로 제공.
+
+확인한 원인과 변경
+- 운영 DB에서 18120 계정의 활성 기기가 2대임을 읽기 전용으로 확인. 계정은 활성·오프라인 수강생 유형.
+- 기본 최대 2대 정책을 유지. 새 student_review_device_limits에 운영자가 지정한 심사용 계정만 등록.
+  max_devices=NULL은 무제한, expires_at=NULL은 만료 없음. 필요하면 유한 한도/기간도 지정 가능.
+  비밀번호·계정 활성·등록 기기 토큰 검증과 기존 기기/학습 기록은 보존.
+  사용자 명시 요청으로 18120만 기기 무제한·만료 없음 적용 완료. 다른 계정에 대한 정책 레코드는 없음.
+  실제 운영 API에서 3대 연속 등록 및 세 번째 기기의 인증 성공 확인.
+  검증용 3대는 생성 시 붙인 라벨/UA로 한정하여 soft revoke했고, 실제 사용자 기기는 변경하지 않음.
+  증빙: .tmp/app-review-login-qa/production-device-verification.json.
+- 현재 웹/서버 브랜치의 iOS 웹뷰는 카카오 인증 주소 이동을 차단함.
+  별도 iOS 브랜치 a964a76(2026-10-31)에는 카카오 수정이 이미 존재함.
+  제출 빌드 (4)에 포함됐다는 증거는 없으므로 새 빌드에서 검증 필요.
+- iOS 웹뷰의 허용 도메인은 앱 도메인, kauth.kakao.com, accounts.kakao.com, appleid.apple.com.
+  인증 페이지를 같은 웹뷰에서 열어 OAuth 쿠키를 유지. 외부 도메인에 네이티브 브리지 권한을 주지 않음.
+- Apple은 authorization code를 서버에서 교환하고 Apple 공개 키로 서명·issuer·audience·만료·nonce 검증.
+  state는 브라우저에 연결하고 단 한 번 소비. 카카오와 Apple의 state 공간 분리.
+  Apple form_post 응답 뒤 같은 출처 페이지에서 GET으로 이동해 Safari의 SameSite=Lax 쿠키를 복원.
+  갱신 토큰은 서버에서 AES-256-GCM으로 암호화. 웹/앱/로그에 개인 키·갱신 토큰을 전달하지 않음.
+
+Apple 개발자 및 서버 설정
+- 사용자 확인: Apple 개발자 설정과 키는 이미 준비되어 있으며 서버 환경변수로 등록 예정.
+  아래 값의 로컬 부재는 개발자 계정에 설정이 없다는 뜻이 아님.
+- 후속 확인: 사용자는 키 경로를 모름. 다운로드에서 AuthKey_4P2PD732ZJ.p8(Developer 출처),
+  AuthKey_7MQQAK26JR.p8(App Store Connect 출처)를 발견했으나 SIWA 권한/Services ID는 확인되지 않음.
+  키 내용은 로그·채팅·저장소에 노출하지 않음. 확인되지 않은 키를 Apple 로그인 키로 임의 지정하지 않음.
+- 사용자 제공 Enabled Services 화면: Sign in with Apple 활성화 및 primary 구성
+  3A8HPYVQ7M.com.ronpark.marinerstudy 확인. 심사 앱 번들 ID com.ronpark.study와의
+  Sign in with Apple 그룹 관계, 웹 Services ID, 도메인/Return URL 연결은 아직 확인되지 않음.
+  앱 그룹 관계 확인 없이 이 키를 론박스터디용이라고 확정하지 않음. 번들 ID를 변경하지 않음.
+- Primary App ID: 현재 iOS 번들 ID com.ronpark.study에 Sign in with Apple 설정.
+- 해당 App ID에 연결된 웹용 Services ID를 생성/확인. 제안 이름은 com.ronpark.study.web이며 실제 등록값을 사용.
+- Services ID의 웹 인증 도메인 및 Return URL 등록:
+  outing-auth-app.vercel.app
+  https://outing-auth-app.vercel.app/api/interview-apple?action=callback
+  app.ronparkpass.com에서 로그인도 제공하면 추가:
+  app.ronparkpass.com
+  https://app.ronparkpass.com/api/interview-apple?action=callback
+- Sign in with Apple용 .p8 키, Team ID, Key ID 준비. 개인 키는 채팅/저장소에 올리지 않음.
+- 서버 전용 환경변수:
+  APPLE_SERVICE_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY,
+  APPLE_TOKEN_ENCRYPTION_KEY(32바이트 난수를 소문자 16진수 64글자로 저장), INTERVIEW_APPLE_ENABLED=true.
+- 운영 등록 완료: APPLE_TEAM_ID, APPLE_TOKEN_ENCRYPTION_KEY. 암호화 키는 Vercel sensitive 환경변수에만 보관.
+  값 자체를 파일·로그·채팅에 기록하지 않음. Services ID와 SIWA 키 권한 확인 후 나머지를 등록해야 함.
+- 기존 INTERVIEW_PORTAL_ENABLED/INTERVIEW_ORIGIN 설정도 필요. Apple 비밀값을 config.js나 앱 바이너리에 넣지 않음.
+- 현재 로컬 .env.local에는 Apple 값이 모두 없음. 설정이 완성되지 않으면 Apple 버튼은 노출하지 않음.
+  이는 미완성 로그인 버튼 노출을 막는 장치이며, 4.8 해결을 의미하지 않음. 제출 전 실제로 활성화해야 함.
+- Apple 로그인은 웹 OAuth 방식. 이 구현은 네이티브 ASAuthorizationAppleIDProvider 방식이 아님.
+
+운영 적용 순서 (사용자 승인 확보, 완료 항목 구분)
+1. Apple 개발자 설정과 서버 비밀값 준비.
+2. 마이그레이션 두 개만 검토하여 적용:
+   20261109054842_interview_apple_login.sql — 운영 적용 완료
+   20261109053915_review_device_policy.sql — 운영 적용 완료
+   별도 면접 분석 관련 미커밋 마이그레이션을 섞지 않음.
+3. 18120의 무제한·만료 없음 정책 운영 등록 완료. 적용된 값:
+   insert into public.student_review_device_limits(student_id,max_devices,expires_at,reason)
+   values('18120',NULL,NULL,'App Review 전용 데모 계정: 사용자 요청으로 기기 무제한')
+   on conflict(student_id) do update set max_devices=excluded.max_devices,expires_at=excluded.expires_at,reason=excluded.reason;
+4. 이번 로그인 수정 파일만 배포하고 Apple 기능을 활성화. 기존 기기를 임의 해제하지 않음.
+5. iOS 전용 최신 소스에 Apple 인증 허용 변경을 통합하여 새 Release 빌드.
+   현재 웹 브랜치의 오래된 네이티브 소스로 최신 iOS 연습 기능을 덮어쓰지 않음.
+   기준 로컬 iOS worktree: .tmp/ios-practice-no-modal-20261106, 기준 커밋 1ced281.
+   해당 전용 worktree에는 Apple 허용 호스트 및 정책 테스트만 로컬로 추가했으며 기존 연습 기능을 보존.
+6. 새 설치/기존 버전 업데이트, iPhone/iPad, 카카오 앱 설치/미설치, Apple 이메일 가리기,
+   취소·재시도·연결 충돌·세션 만료, 수강생/면접반 전환을 실제 지원 기기에서 확인.
+7. 심사용 계정으로 새 기기에서 로그인·모든 심사 대상 기능 확인. 면접반 등 별도 권한 기능에는 접근 가능한 추가 데모 계정 제공.
+   비밀번호는 App Store Connect의 비공개 계정 입력란에만 등록. 코드·문서·영상에 기록하지 않음.
+8. 실제 검증 후 새 빌드 번호와 시험 기기/OS를 적어 App Store Connect에 답변·재제출.
+   이번 Apple 메시지에 따르면 영상은 유효한 데모 계정/데모 모드를 대체하지 못함.
+
+계정 삭제 시 Apple 연결 해제
+- 기존 전체 개인정보·학습기록·파일 삭제 절차에 Apple 권한 회수도 포함.
+- 운영자가 본인 확인된 삭제 요청을 처리할 때 원본 Apple 서버 설정을 준비한 뒤:
+  node --env-file=.env.local scripts/revoke-interview-apple.cjs --owner OWNER_ID --confirm-revoke
+- 이 명령은 Apple 토큰 권한과 Apple 웹 세션을 회수하며, 전체 계정/학습 데이터 삭제 완료를 뜻하지 않음.
+  권한 회수 실패 시 암호화 토큰과 identity를 보존하고 원인을 해결한 뒤 삭제 절차를 진행.
+  암호화 키를 잃으면 저장된 토큰을 복호화할 수 없으므로 키 변경 시 이관이 필요.
+- 마이그레이션만으로 기존 면접반 계정 삭제 UI의 충족 여부를 보장하지 않음. 제출 범위에서 별도 검증 필요.
+
+검증
+- 별도 배포 검증 worktree: .tmp/app-review-release-20261109, 브랜치 codex/app-review-login-20261109.
+  기준 HEAD 325bc1b에 로그인 수정 파일만 적용. 기존 면접 모니터 미커밋 변경은 포함하지 않음.
+  해당 분리본에서 npm.cmd test(pretest/test/posttest), npm.cmd run test:app-review-login,
+  verify-interview-build, app-startup/ios-cloud-source, git diff --check 통과.
+  회귀 테스트 로그: .tmp/app-review-release-20261109/.tmp/app-review-npm-test.log.
+  디스크 사용량을 줄인 sparse checkout이며, 누락 없이 커밋/배포할 때 Git 전체 트리를 사용해야 함.
+- npm test: 기존 pretest/test/posttest 전체 통과.
+- npm run test:app-review-login: 서명·암호화·실제 로컬 PostgreSQL·OAuth 콜백·중복/잘못된 연결 차단,
+  기본/심사 기기 한도·권한, 로그인 경로·브라우저 화면 테스트.
+- release-safety/app-startup/ios-cloud-source 및 격리된 웹 설정 빌드 확인.
+- 모바일 320x568,375x667,440x956 및 PC 1280x900 확인. .tmp/app-review-login-qa/에 스크린샷.
+- Windows 환경에 Swift/Xcode가 없어 iOS 컴파일·서명·실기기 Apple/Kakao 인증은 수행하지 못함.
+- 모든 OAuth 외부 호출은 로컬 테스트에서 검증된 가짜 응답을 사용. 실제 Apple 인증 성공을 주장하지 않음.
+
+공식 자료
+https://developer.apple.com/app-store/review/guidelines/#login-services
+https://developer.apple.com/documentation/signinwithapplerestapi/generate-and-validate-tokens
+https://developer.apple.com/documentation/signinwithapple/configuring-your-webpage-for-sign-in-with-apple
+https://developers.kakao.com/docs/latest/ko/javascript/hybrid

@@ -1061,8 +1061,8 @@ function renderStudentAuth() {
   const resetRequestArea = el("div", { className: "student-auth-reset-request", hidden: true });
   const profileArea = el("div", { className: "student-auth-profile", hidden: true });
   const studentNameNode = el("strong", { className: "student-auth-name" }, "-");
-  const authTitle = el("h2", {}, "로그인");
-  const authDescription = el("p", {}, compactLogin ? "발급받은 등록번호로 시작하세요." : "고유번호를 입력해 본인 정보를 확인해주세요.");
+  const authTitle = el("h2", {}, compactLogin ? "수강생 로그인" : "로그인");
+  const authDescription = el("p", {}, compactLogin ? "오프라인 · 온라인 관리반 · 인터넷 수강생은 발급받은 등록번호로 로그인해주세요." : "고유번호를 입력해 본인 정보를 확인해주세요.");
   let selectedStudent = null;
 
   const showResetRequestButton = (credentials) => {
@@ -1195,8 +1195,8 @@ function renderStudentAuth() {
       lookupButton.hidden = false;
       lookupResult.textContent = "";
       hideResetRequestButton();
-      authTitle.textContent = "로그인";
-      authDescription.textContent = "발급받은 등록번호로 시작하세요.";
+      authTitle.textContent = "수강생 로그인";
+      authDescription.textContent = "오프라인 · 온라인 관리반 · 인터넷 수강생은 발급받은 등록번호로 로그인해주세요.";
     });
   }
   const form = el("form", { className: "student-auth-card" }, [

@@ -34,7 +34,7 @@ function portalHarness(){
   mountInterviewLogin:(host,options)=>{calls.push(options.retry?'retry':'login');return ()=>{};},
   loadModule:async()=>({mountInterviewApp:async()=>{calls.push('mount');await home.promise;calls.push('home');return {destroy(){}};}})
  });
- vm.runInContext(read('interview-portal.js').replace(/^import .*\r?\n/,'').replace('import(appMode?', 'loadModule(appMode?'),context);
+ vm.runInContext(read('interview-portal.js').replace(/^import .*\r?\n/gm,'').replace('import(appMode?', 'loadModule(appMode?'),context);
  return {session,home,calls,box};
 }
 test('startup waits through session AND home reads before a single reveal',async()=>{

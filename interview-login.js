@@ -1,7 +1,7 @@
 // Presentation only. Authentication continues through interview-portal.js.
-export function mountInterviewLogin(host, {enabled = false, kakaoEnabled = false, retry = false} = {}) {
+export function mountInterviewLogin(host, {enabled = false, kakaoEnabled = false, appleEnabled = false, retry = false} = {}) {
   const ready = enabled && kakaoEnabled && !retry;
-  const message = retry ? '로그인 상태를 확인하지 못했습니다.' : !enabled ? '면접반 웹 로그인을 준비 중입니다.' : !kakaoEnabled ? '카카오 로그인 연결을 준비 중입니다.' : '';
+  const message = retry ? '로그인 상태를 확인하지 못했습니다.' : !enabled ? '면접반 웹 로그인을 준비 중입니다.' : !kakaoEnabled && !appleEnabled ? '로그인 연결을 준비 중입니다.' : '';
   host.innerHTML = `<div class="ip-coast-screen">
     <a class="ip-coast-skip" href="#ip-coast-login">로그인으로 바로 가기</a>
     <div class="ip-coast-scene" aria-hidden="true"><div class="ip-coast-image"></div><div class="ip-coast-shade"></div></div>
@@ -17,11 +17,15 @@ export function mountInterviewLogin(host, {enabled = false, kakaoEnabled = false
           <div class="ip-coast-values"><span>책임감</span><i></i><span>판단력</span><i></i><span>사명감</span></div>
         </div>
       </section>
-      <section class="ip-coast-entry" aria-label="면접반 카카오 로그인">
+      <section class="ip-coast-entry" aria-label="면접반 로그인">
+        <p class="ip-coast-entry-label">면접반 로그인</p>
         <button id="ip-coast-login" class="ip-coast-kakao" type="button" data-kakao="login" ${ready ? '' : 'disabled'} ${message ? 'aria-describedby="ip-coast-message"' : ''}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.8 5.2 4.5 6.6L5.4 21l4.3-2.6c.7.1 1.5.2 2.3.2 5.5 0 10-3.5 10-7.8S17.5 3 12 3Z"/></svg>
           <span>카카오 로그인하기</span><span class="ip-coast-arrow" aria-hidden="true">↗</span>
         </button>
+        ${appleEnabled ? `<button class="ip-coast-apple" type="button" data-apple="login" ${enabled && !retry ? '' : 'disabled'}><img src="/assets/interview-login/apple-signin-ko.png" alt="Apple로 로그인" width="378" height="57"></button>` : ''}
+        <p class="ip-coast-entry-help">로그인 후 면접반 수강 정보를 확인합니다.</p>
+        <button class="ip-coast-student-entry" type="button" data-student-entry>등록번호로 수강생 로그인</button>
         <p id="ip-coast-message" class="ip-auth-message" data-auth-message role="status" ${retry ? 'data-error="true"' : ''}>${message}</p>
         ${retry ? '<button class="ip-coast-retry" type="button" data-refresh>다시 시도</button>' : ''}
       </section>

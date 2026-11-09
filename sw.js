@@ -1,5 +1,6 @@
-const CACHE_NAME = "outing-auth-app-v554-openai-mock-practice-owner-fix";
+const CACHE_NAME = "outing-auth-app-v555-apple-login-entry";
 const APP_SHELL = [
+  "/app.js?v=20261109-login-entry",
   "/student-content-safety.js?v=20261028-safety-fallback",
   "/question-board.js?v=20261028-safety-fallback",
   "/community-guidelines.html",

@@ -61,6 +61,17 @@ function isInterviewStudentMode(){
 }
 function prepareInterviewAppEntry(){
   if(APP_MODE==='teacher'||!isStandaloneStudentApp())return null;
+  const entryUrl=new URL(location.href);
+  if(entryUrl.searchParams.get('entry')==='student'){
+    try{
+      localStorage.removeItem('outing-interview-web-app');
+      const student=getAuthedStudent();if(student)localStorage.setItem('outing-student-mode:'+student.id,'standard');
+      sessionStorage.removeItem('interview-app-return');
+    }catch{}
+    prepareInterviewAppEntry.webChecked=true;
+    entryUrl.searchParams.delete('entry');history.replaceState(null,'',entryUrl.pathname+entryUrl.search+entryUrl.hash);
+    return null;
+  }
   let web=false;try{web=localStorage.getItem('outing-interview-web-app')==='1';}catch{}
   if(web&&!prepareInterviewAppEntry.webChecked){
     let cache=prepareInterviewAppEntry.web;
@@ -211,7 +222,7 @@ function renderInterviewPrepModule(admin) {
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261103-manual-status'):appShell?import('./interview-app-ui.js?v=20261106-openai-practice'):import('./interview-workspace.js?v=20261104-self-intro-three'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261103-manual-status'):appShell?import('./interview-app-ui.js?v=20261109-apple-login'):import('./interview-workspace.js?v=20261104-self-intro-three'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{

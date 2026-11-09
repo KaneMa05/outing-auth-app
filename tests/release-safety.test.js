@@ -6,11 +6,11 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261106-openai-practice"));
+  assert.ok(index.includes("interview-prep.js?v=20261109-login-entry"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261106-openai-practice"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261109-apple-login"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
   for(const [file,module] of [['interview-app-ui.js','interview-workspace.js'],['interview-workspace.js','interview-ai-ui.js'],['interview-ai-ui.js','client/interview-ai-client.js']])
