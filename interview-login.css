@@ -3,7 +3,15 @@
 body.ip-portal.ip-coast-page{background:#050f1c;color:#f6f3ed}
 body.ip-coast-page #interview-portal{display:block;place-items:normal;max-width:none;min-height:100svh;padding:0;color:#f6f3ed}
 .ip-coast-screen{width:100%}
-.ip-coast-loading{display:grid;place-items:center;min-height:100svh;margin:0!important;color:#c6d7e4}
+.ip-coast-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:100svh;margin:0!important;padding:32px 24px;color:#b2c2d2;font:14px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center}
+.ip-coast-loading-mark{display:grid;place-items:center;width:64px;height:64px;margin-bottom:8px;border-radius:20px;background:#f5f8fc;color:#102c46;font-size:40px;font-weight:850;font-style:italic;line-height:1}
+.ip-coast-loading strong{color:#f5f8fc;font-size:22px;letter-spacing:-.6px}
+.ip-coast-loading-spinner{width:24px;height:24px;margin-top:18px;border:2px solid #294052;border-top-color:#f5f8fc;border-radius:50%;animation:ip-coast-loading-spin .85s linear infinite}
+html.app-starting body.ip-coast-page,html.app-starting body.ip-coast-page #app-startup{background:#050f1c!important;color:#f5f8fc}
+body.ip-coast-page #app-startup .app-startup-mark{background:#f5f8fc;color:#102c46;font-size:40px;font-style:italic;box-shadow:none}
+body.ip-coast-page #app-startup p{color:#b2c2d2}
+body.ip-coast-page #app-startup .app-startup-spinner{border-color:#294052;border-top-color:#f5f8fc}
+@keyframes ip-coast-loading-spin{to{transform:rotate(360deg)}}
 .ip-coast-screen{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;min-height:100svh;padding:0 clamp(24px,4.5vw,88px);color:#f6f3ed;font-family:Arial,'Malgun Gothic',sans-serif}
 .ip-coast-screen .ip-coast-skip{position:absolute;left:24px;top:16px;z-index:3;padding:14px;background:#93d8f2;color:#09202d;text-decoration:none}
 .ip-coast-screen .ip-coast-skip:not(:focus){clip-path:inset(50%);width:1px;height:1px;overflow:hidden;padding:0;white-space:nowrap}
@@ -63,4 +71,4 @@ body.ip-coast-page #interview-portal{display:block;place-items:normal;max-width:
  .ip-coast-screen h1{font-size:46px;margin-bottom:12px}.ip-coast-screen .ip-coast-description{font-size:11px}.ip-coast-values{margin-top:16px}
  .ip-coast-entry{padding-top:8px}.ip-coast-screen .ip-coast-entry-label{margin-bottom:10px}
 }
-@media(prefers-reduced-motion:reduce){.ip-coast-image{animation:none}.ip-coast-screen button{transition:none}}
+@media(prefers-reduced-motion:reduce){.ip-coast-image,.ip-coast-loading-spinner{animation:none}.ip-coast-screen button{transition:none}}

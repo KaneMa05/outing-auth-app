@@ -1,9 +1,13 @@
 'use strict';
+const crypto = require('node:crypto');
 const apple = require('../lib/interview-apple-auth');
 const webAuth = require('../lib/interview-web-auth');
 const {readCookie} = require('./teacher-auth-utils');
 const {requestSupabase} = require('./curriculum')._private;
 const BROWSER = 'ip_apple_browser', RESULT = 'ip_apple_result', PATH = '/api/interview-apple';
+const RETURN_STYLE = `:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#050f1c;color:#f5f8fc}*{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:32px 24px;text-align:center}main{width:min(100%,320px)}.mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 20px;border-radius:20px;background:#f5f8fc;color:#102c46;font-size:40px;font-weight:850;font-style:italic}h1{margin:0;font-size:22px;letter-spacing:-.6px}p{margin:12px 0 0;color:#b2c2d2;font-size:14px;line-height:1.7;word-break:keep-all}.spinner{display:block;width:24px;height:24px;margin:30px auto 0;border:2px solid #294052;border-top-color:#f5f8fc;border-radius:50%;animation:spin .85s linear infinite}.fallback{margin-top:32px;visibility:hidden;animation:show .01s 6s forwards}.fallback a{display:inline-block;padding:12px 24px;border:1px solid #53687c;border-radius:12px;color:#e7eef5;text-decoration:none;font-size:14px}.fallback a:focus-visible{outline:2px solid #fff;outline-offset:4px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes show{to{visibility:visible}}@media(prefers-reduced-motion:reduce){.spinner{animation:none}}`;
+const RETURN_CSP = "default-src 'none'; style-src 'sha256-" + crypto.createHash('sha256').update(RETURN_STYLE).digest('base64') + "'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+const RETURN_HTML = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#050f1c"><title>론박스터디</title><style>' + RETURN_STYLE + '</style><meta http-equiv="refresh" content="0;url=/api/interview-apple?action=complete"></head><body><main data-auth-return><div class="mark" aria-hidden="true">R</div><h1>론박스터디</h1><p role="status">론박스터디로 돌아가는 중이에요</p><span class="spinner" aria-hidden="true"></span><div class="fallback"><a href="/api/interview-apple?action=complete">계속하기</a></div></main></body></html>';
 const validState = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 const fail = (message, status = 400) => { throw Object.assign(Error(message), {status}); };
 async function readBody(req, form = false) {
@@ -39,9 +43,9 @@ function createHandler({getConfig = webAuth.config, getAppleConfig = apple.confi
         // Apple sends a cross-site form POST. First return a same-origin page, then
         // navigate with GET so WKWebView/Safari send the original SameSite=Lax cookies.
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Content-Security-Policy', "default-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+        res.setHeader('Content-Security-Policy', RETURN_CSP);
         res.statusCode = 200;
-        return res.end('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=/api/interview-apple?action=complete"><title>Apple 로그인</title><p>로그인을 완료하고 있습니다.</p><a href="/api/interview-apple?action=complete">로그인 계속하기</a></html>');
+        return res.end(RETURN_HTML);
       }
       if (action === 'complete' && req.method === 'GET') {
         const result = apple.unseal(readCookie(req, RESULT), ac, 'callback:' + cfg.origin), browser = readCookie(req, BROWSER);

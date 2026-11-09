@@ -8,7 +8,7 @@ assert(read('teacher.html').includes('data-interview-section="ai_history"'));
 const routing=read('interview-prep.js'),start=routing.indexOf('const interviewAdminSections='),end=routing.indexOf('function restoreInterviewAdminRoute',start);
 assert.equal(vm.runInNewContext(routing.slice(start,end)+';getInterviewAdminSection()',{URLSearchParams,location:{hash:'#interview-prep-admin?section=ai_history'}}),'ai_history');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
-assert(read('sw.js').includes('v560-apple-login-entry'));
+assert(read('sw.js').includes('v561-apple-login-return'));
 assert(!read('sw.js').includes('/client/interview-aptitude.mjs'), 'Aptitude assets load only when the interview app is used');
 assert.match(read('interview-prep.js'),/admin\?import\('\.\/interview-prep-ui\.js\?v=[^']+'\)/);
 assert.match(read('interview-prep-ui.js'),/import\('\.\/interview-assignment-management\.js\?v=[^']+'\)/);
