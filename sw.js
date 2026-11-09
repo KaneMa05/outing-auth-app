@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v564-apple-button";
+const CACHE_NAME = "outing-auth-app-v565-db-copy";
 const APP_SHELL = [
   "/app.js?v=20261109-login-entry",
   "/student-content-safety.js?v=20261028-safety-fallback",

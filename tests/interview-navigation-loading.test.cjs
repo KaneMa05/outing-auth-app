@@ -12,7 +12,7 @@ function element(){
 }
 function load(file,extra={}){
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},
-  location:{hash:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},...extra};
+  location:{hash:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},mountMyResources:()=>({ready:Promise.resolve(),canLeave:()=>true,destroy(){}}),interviewMyProfile:()=>'<section>수강 정보</section>',...extra};
  vm.createContext(context);
  vm.runInContext(fs.readFileSync(file,'utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
  return context;

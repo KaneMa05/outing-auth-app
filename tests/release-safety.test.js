@@ -6,14 +6,14 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261109-aptitude-guide"));
+  assert.ok(index.includes("interview-prep.js?v=20261109-db-copy"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261109-aptitude-guide"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261109-db-copy"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
-  for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261109-aptitude-guide'],['interview-workspace.js','interview-ai-ui.js','20261104-self-intro-three'],['interview-ai-ui.js','client/interview-ai-client.js','20261104-self-intro-three']])
+  for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261109-db-copy'],['interview-workspace.js','interview-ai-ui.js','20261104-self-intro-three'],['interview-ai-ui.js','client/interview-ai-client.js','20261104-self-intro-three']])
     assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh the entire cached interview module chain: '+file);
 });
 

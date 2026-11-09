@@ -97,7 +97,7 @@ function browserContext(id, hashes = getPreviewHashes(), response = { ok: true, 
   };
   const context = vm.createContext({
     APP_MODE: 'student', window: { OUTING_APP_CONFIG: { interviewPreviewStudentHashes: hashes } },
-    crypto: crypto.webcrypto, TextEncoder, Uint8Array, Date,
+    crypto: crypto.webcrypto, TextEncoder, Uint8Array, Date,URL,location:{href:'https://example.test/index.html'},
     localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},render(){},
     getAuthedStudent: () => student, getStudentProfile: () => ({ deviceToken: token }),
     el: node, button: label => node('button', {}, [label]), navigate() {},

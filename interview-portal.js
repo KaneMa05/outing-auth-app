@@ -44,7 +44,7 @@ function render(){
  if(state.available){
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(appMode?'./interview-app-ui.js?v=20261109-aptitude-guide':'./interview-workspace.js?v=20261109-aptitude-guide').then(async module=>{
+  return import(appMode?'./interview-app-ui.js?v=20261109-db-copy':'./interview-workspace.js?v=20261109-db-copy').then(async module=>{
    if(current!==version)return;
    const view=await (appMode?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});

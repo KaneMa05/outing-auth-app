@@ -1,4 +1,5 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261109-aptitude-guide';
+import {mountWorkspace} from './interview-workspace.js?v=20261109-db-copy';
+import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-guide';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
@@ -128,7 +129,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      }
     }else if(route.tab==='my'){
      const m=data.member||{};
-     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><section class="ip-panel">${account.canLinkApple?'<button class="ip-app-link" type="button" data-apple="link">Apple 계정 연결<span aria-hidden="true">›</span></button>':''}${account.canLinkKakao?'<button class="ip-app-link" type="button" data-kakao="link">카카오 계정 연결<span aria-hidden="true">›</span></button>':''}${onExit?'<button class="ip-app-link" type="button" data-app-exit>수강생 화면으로 이동<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
+     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><div data-my-resources></div><section class="ip-panel">${account.canLinkApple?'<button class="ip-app-link" type="button" data-apple="link">Apple 계정 연결<span aria-hidden="true">›</span></button>':''}${account.canLinkKakao?'<button class="ip-app-link" type="button" data-kakao="link">카카오 계정 연결<span aria-hidden="true">›</span></button>':''}${onExit?'<button class="ip-app-link" type="button" data-app-exit>수강생 화면으로 이동<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
+     child=mountMyResources(box.querySelector('[data-my-resources]'),{request});
     }else{
      const notes=data.notes||[],writings=writing.writings||[],topics=data.topics||[];
      const filled=topics.filter(t=>notes.some(n=>n.topic_id===t.id&&Object.values(n.fields||{}).some(v=>String(v).trim()))).length;
