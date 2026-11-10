@@ -17,6 +17,7 @@ const reads = new Set(['admin_mock_monitor','admin_cli_status','admin_draft_work
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
+  if(body.accessProduct!==undefined&&(body.action!=='admin_member_save'||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
   if(body.text!==undefined&&(typeof body.text!=='string'||body.text.length>10000))fail('invalid_request');
   if(body.itemId!==undefined&&(typeof body.itemId!=='string'||body.itemId.length>120))fail('invalid_request');
   for(const key of ['studentId','deviceToken','id','topicId','targetStudentId','search','prompt','title','guidance','feedback','examNumber','track','expiresOn','status','noteStatus','kind','category','elementId','disposition','analysisStatus','answerForm','rationale','coreKind','reviewNote']) {

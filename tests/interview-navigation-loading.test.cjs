@@ -18,6 +18,33 @@ function load(file,extra={}){
  return context;
 }
 
+test('aptitude-only accounts start in aptitude and every other tab shows the package notice without data reads',async()=>{
+ const calls=[],mounted=[],host=element();let canLeave=true,loggedOut=false;
+ const c=load('interview-app-ui.js',{mountAptitude:async()=>{mounted.push('aptitude');return {canLeave:()=>canLeave,destroy(){}};},mountWorkspace:()=>{throw Error('Package editor must not mount');}});
+ const view=await c.mountInterviewApp(host,{account:{id:'unit',accessProduct:'aptitude_only'},onLogout:async()=>{loggedOut=true;},request:async action=>{calls.push(action);return {allowed:false};}});
+ assert.deepEqual(mounted,['aptitude']);assert.match(host.innerHTML,/data-app-logout/);assert.match(host.innerHTML,/data-app-tab="mock"/);
+ const click=tab=>host.listeners.get('click')({target:{closest:()=>({dataset:{appTab:tab},hasAttribute:()=>false})}});
+ calls.length=0;canLeave=false;await click('db');assert.doesNotMatch(host.querySelector('[data-app-content]').innerHTML,/ip-package-required/);
+ canLeave=true;
+ for(const tab of ['home','db','writing','mock','my']){
+  await click(tab);assert.match(host.querySelector('[data-app-content]').innerHTML,/면접 패키지로 구매하셔야 이용가능합니다/);
+  assert.deepEqual(calls,[]);
+ }
+ await click('aptitude');assert.equal(mounted.length,2);
+ await host.listeners.get('click')({target:{closest:()=>({dataset:{},hasAttribute:key=>key==='data-app-logout'})}});
+ assert.equal(loggedOut,true);view.destroy();
+});
+
+test('aptitude-only direct links and browser history cannot mount package pages or assignment notices',async()=>{
+ for(const tab of ['home&notice=preassignments','db','writing&page=core','mock&mockMode=ai','my','preassignments']){
+  const host=element(),events=new Map(),c=load('interview-app-ui.js',{location:{hash:'#interview-prep?tab='+tab},window:{addEventListener:(k,v)=>events.set(k,v),removeEventListener(){},scrollTo(){}}});
+  const view=await c.mountInterviewApp(host,{account:{accessProduct:'aptitude_only'},request:async action=>{assert.equal(action,'mock_status');return {allowed:false};}});
+  assert.match(host.querySelector('[data-app-content]').innerHTML,/면접 패키지로 구매하셔야 이용가능합니다/);
+  c.location.hash='#interview-prep?tab=db';await events.get('popstate')();
+  assert.match(host.querySelector('[data-app-content]').innerHTML,/ip-package-required/);view.destroy();
+ }
+});
+
 test('home checks mock access then starts independent reads together; my loads only membership',async()=>{
  const calls=[],pending=new Map(['mock_status','bootstrap','life_get','writing_list'].map(a=>[a,deferred()]));
  const host=element(),c=load('interview-app-ui.js');

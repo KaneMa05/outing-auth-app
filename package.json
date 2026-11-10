@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test:interview-products": "node --test tests/interview-access-products.test.cjs tests/interview-navigation-loading.test.cjs && node tests/interview-access-products-browser.cjs",
     "test:app-review-login": "node --test tests/interview-apple.test.cjs tests/review-device-policy.test.cjs tests/login-entry.test.cjs && node tests/interview-auth.test.cjs && node tests/login-entry-browser.cjs",
     "test:interview-practice-openai": "node --test tests/interview-practice-openai.test.cjs",
     "check:interview-openai": "node scripts/check-interview-openai.cjs",

@@ -19,6 +19,7 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-app-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:white;border:1px solid #dfe7ed;border-radius:14px;margin-bottom:20px;padding:20px 4px;text-align:center}
 .ip-app-stats>div+div{border-left:1px solid #e7edf0}.ip-app-stats strong{display:block;font-size:25px;color:#235363}.ip-app-stats strong small{font-size:12px;color:#8295a1}.ip-app-stats span{display:block;font-size:11px;color:#6b808d;margin-top:6px}
 .ip-app-profile h2{margin-top:16px!important}.ip-app-profile dl{display:grid;grid-template-columns:90px 1fr;gap:14px;font-size:14px}.ip-app-profile dt{color:#7b8d99}.ip-app-profile dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.ip-package-required{text-align:center;padding:48px 20px!important}.ip-package-required h2{max-width:24ch;margin:20px auto 28px!important;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
 .ip-app-feedback p{font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#607484;margin:0 0 16px}
 /* Match the existing student app's floating footer without changing its menus. */
 @font-face{font-family:"Gong Gothic Light";src:url("./fonts/GongGothicLight.woff") format("woff");font-style:normal;font-weight:300;font-display:swap}

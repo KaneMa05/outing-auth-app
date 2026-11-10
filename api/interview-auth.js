@@ -84,8 +84,9 @@ function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=
    }
    if(body.action==='apply'){
     for(const key of ['name','track','examNumber'])if(typeof body[key]!=='string'||!body[key].trim()||body[key].length>80)fail('invalid_request');
+    if(body.accessProduct!==undefined&&!['interview_package','aptitude_only'].includes(body.accessProduct))fail('invalid_request');
     if(!Number.isInteger(body.revision)||body.revision<0||body.revision>100000)fail('invalid_request');
-    const result=await invoke('apply',{sessionHash,name:body.name,track:body.track,examNumber:body.examNumber,revision:body.revision});
+    const result=await invoke('apply',{sessionHash,name:body.name,track:body.track,examNumber:body.examNumber,revision:body.revision,...(body.accessProduct!==undefined?{accessProduct:body.accessProduct}:{})});
     if(result?.ok)notifyApplicationSubmitted('interview',result.application);
     return res.status(200).json(result);
    }

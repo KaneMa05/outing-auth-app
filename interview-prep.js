@@ -51,7 +51,7 @@ function renderInterviewPrepEntry() {
   renderInterviewPrepEntry.cache={key,promise,expires:Date.now()+60000};
   promise.then(data=>{
     if(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==token)return;
-    if(data.enabled!==true)return;
+    if((data.appEnabled??data.enabled)!==true)return;
     link.replaceChildren(button('면접반 모드로 전환','student-history-button-card student-settings-link','button',()=>{
       try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}
       prepareInterviewAppEntry.cache={key,state:'ready',enabled:true};navigate('interview-prep');
@@ -105,7 +105,7 @@ function prepareInterviewAppEntry(){
     cache={key,state:'loading',enabled:false};prepareInterviewAppEntry.cache=cache;
     isInterviewPreviewCandidate(student.id).then(allowed=>allowed?requestInterviewPrep('status',{}, {id:student.id,token}):{enabled:false}).then(d=>{
       if(prepareInterviewAppEntry.cache!==cache)return;
-      cache.enabled=d.enabled===true;cache.state='ready';
+      cache.enabled=(d.appEnabled??d.enabled)===true;cache.state='ready';
       if(!cache.enabled)try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}
       render();
     }).catch(()=>{if(prepareInterviewAppEntry.cache===cache){cache.state='error';render();}});
@@ -219,23 +219,25 @@ function renderInterviewPrepModule(admin) {
   const host=el('div',{'data-startup-pending':'true'},[el('p',{role:'status'},'이용 권한을 확인하는 중…')]);
   const view={key,element:host,controller:null,section};renderInterviewPrepModule.view=view;
   (async()=>{
+    let accessProduct;
     if(!admin) {
       const allowed=await isInterviewPreviewCandidate(student?.id);
       if(!allowed)throw new Error('forbidden');
       const status=await requestInterviewPrep('status',{}, {id:student.id,token});
-      if(status.enabled!==true)throw new Error('forbidden');
+      if((status.appEnabled??status.enabled)!==true)throw new Error('forbidden');
+      accessProduct=status.accessProduct;
     }
     if(renderInterviewPrepModule.view!==view)return;
     if(!document.querySelector('link[data-interview-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261103-cli-status','data-interview-style':'true'}));
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
-    const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261109-aptitude-guide'):appShell?import('./interview-app-ui.js?v=20261109-db-copy'):import('./interview-workspace.js?v=20261109-db-copy'));
+    const appShell=!admin&&(isStandaloneStudentApp()||accessProduct==='aptitude_only');
+    const module=await (admin?import('./interview-prep-ui.js?v=20261110-products'):appShell?import('./interview-app-ui.js?v=20261110-products'):import('./interview-workspace.js?v=20261109-db-copy'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{
-      account:admin?{}:{id:student.id,name:student.name},
+      account:admin?{}:{id:student.id,name:student.name,accessProduct},
       onExit:appShell?async()=>{try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}view.controller?.destroy();renderInterviewPrepModule.view=null;history.replaceState(null,'','#home');render();}:undefined,
       onLogout:appShell?()=>logoutInterviewStudent(student,token):undefined,
       request:(action,payload)=>requestInterviewPrep(action,payload,admin?null:{id:student.id,token}),
