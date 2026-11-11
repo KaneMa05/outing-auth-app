@@ -15,7 +15,10 @@ private struct StudentApp: View {
     #endif
     var body: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--interview-native-preview") {
+        if let code = ProcessInfo.processInfo.environment["INTERVIEW_LIVE_VERIFICATION_CODE"],
+           code.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil {
+            InterviewView(launchCode: code)
+        } else if ProcessInfo.processInfo.arguments.contains("--interview-native-preview") {
             // UI tests run the real SwiftUI screens without opening a production web page.
             if ProcessInfo.processInfo.arguments.contains("--interview-legacy-fixture") { InterviewView(preview: true) }
             else if ProcessInfo.processInfo.arguments.contains("--portal-practice-filter-fixture") {

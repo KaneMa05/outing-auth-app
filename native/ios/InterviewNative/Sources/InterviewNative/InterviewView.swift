@@ -20,7 +20,7 @@ import SwiftUI
                 VStack(alignment: .leading, spacing: 20) {
                     if model.demo { Text("무료 테스트 · 가상 질문·답변 / iOS 네이티브 화면").font(.caption).foregroundStyle(teal) }
                     content
-                    Text(model.notice).font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(model.notice).accessibilityIdentifier("interview.notice").font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
                         .padding().background(teal.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
                 }.padding(24)
             }
@@ -60,9 +60,13 @@ import SwiftUI
             Text("BEFORE WE BEGIN").font(.caption).tracking(2).foregroundStyle(teal)
             Text("편안하게 앉아 주세요.").font(.largeTitle.bold())
             Text("질문은 한 번에 하나씩, 충분히 듣겠습니다.").font(.subheadline).foregroundStyle(.secondary)
-            InterviewPreparationMedia(media: model.media)
             #if DEBUG
-            Text("메인 질문 3개 · 질문마다 꼬리질문 2개 · 최대 10분").font(.subheadline)
+            PracticePreparationMedia(media: model.media, cameraEnabled: true, combined: true, stopCameraWithMic: false)
+            #else
+            InterviewPreparationMedia(media: model.media)
+            #endif
+            #if DEBUG
+            Text("메인 질문 2개 · 질문마다 꼬리질문 2개 · 총 6문답 · 최대 10분").font(.subheadline)
             #else
             Text("기본 질문 3개 · 꼬리 질문 최대 2개씩 · 최대 10분").font(.subheadline)
             #endif
@@ -81,6 +85,13 @@ import SwiftUI
                         .onChange(of: seconds) { value in if value >= 600 { model.stop() } }
                 }
             }
+            #if DEBUG
+            InterviewTestConversationStage(media: model.media, avatarURL: model.interviewerURL)
+            if ProcessInfo.processInfo.environment["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil {
+                Text(model.verificationAudioOutput).font(.caption).accessibilityIdentifier("interview.audio-output")
+                    .accessibilityValue(model.spoken)
+            }
+            #else
             ZStack(alignment: .bottomTrailing) {
                 InterviewLiveCamera(media: model.media)
                 ZStack {
@@ -88,12 +99,15 @@ import SwiftUI
                     Circle().fill(RadialGradient(colors: [Color(red: 0.84, green: 0.99, blue: 0.95), teal, ink], center: .topLeading, startRadius: 0, endRadius: 65)).frame(width: 48, height: 48)
                 }.background(.ultraThinMaterial, in: Circle()).padding(10).accessibilityLabel("AI 면접관 음성")
             }.frame(maxWidth: 260).frame(maxWidth: .infinity)
+            #endif
             Text(String(format: "진행 질문 %02d", model.questionNumber)).font(.caption).foregroundStyle(teal)
-            Text(model.question).font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+            Text(model.question).accessibilityIdentifier("interview.question").font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
             if showCaptions {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("면접관").font(.caption).foregroundStyle(teal); Text(model.spoken)
-                    Text("내 답변 · 실시간 자막").font(.caption).foregroundStyle(teal); Text(model.transcript)
+                    #if !DEBUG
+                    Text("면접관").font(.caption).foregroundStyle(teal); Text(model.spoken).accessibilityIdentifier("interview.spoken")
+                    #endif
+                    Text("내 답변 · 실시간 자막").font(.caption).foregroundStyle(teal); Text(model.transcript).accessibilityIdentifier("interview.transcript")
                 }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
             }
             action(showCaptions ? "자막 숨기기" : "자막 보기") { showCaptions.toggle() }
@@ -127,6 +141,20 @@ import SwiftUI
                 }
             } else {
                 Text("완료한 답변 \(turns.filter { $0["complete"] as? Bool == true }.count)개").font(.title2).foregroundStyle(teal)
+                #if DEBUG
+                if let usage = model.record?["usage"] as? InterviewJSON {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("이번 면접 API 비용").font(.headline)
+                        if usage["fullyConfirmed"] as? Bool == true, let total = usage["totalUsd"] as? Double {
+                            Text(String(format: "$%.4f", total)).font(.title3)
+                        } else {
+                            Text(String(format: "확인된 비용 $%.4f · 추정 $%.4f", usage["confirmedUsd"] as? Double ?? 0, usage["estimatedUsd"] as? Double ?? 0))
+                            Text("미확정 사용량이 있어 총액은 아직 확정되지 않았습니다.").font(.caption)
+                        }
+                        Text("음성·질문 생성·피드백 API 기준이며 서버·저장 비용은 별도입니다.").font(.caption).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 16))
+                }
+                #endif
                 Text("보관 종료: " + (run["retain_until"] as? String ?? "확인 중")).font(.caption)
                 Text("질문별 기록에서 답변과 녹음을 확인하세요.").font(.subheadline)
                 if model.record?["analysisEnabled"] as? Bool == true { analysis }
@@ -181,6 +209,50 @@ import SwiftUI
         }
     }
 }
+
+#if DEBUG
+/// Keep the test Live call on the same visual layout as the practice modes.
+private struct InterviewTestConversationStage: View {
+    @ObservedObject var media: InterviewMedia
+    let avatarURL: URL?
+    @Environment(\.scenePhase) private var phase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        if let url = avatarURL {
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    InterviewAvatarVideo(url: url, paused: phase != .active || reduceMotion)
+                        .frame(width: geometry.size.width / 2, height: geometry.size.height)
+                        .clipped()
+                        .overlay(alignment: .topLeading) { label("AI 면접관") }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("AI 면접관 동작 영상")
+                        .accessibilityIdentifier("interview.avatar")
+                        .accessibilityValue(url.lastPathComponent)
+                    ZStack {
+                        Color(red: 220/255, green: 229/255, blue: 233/255)
+                        if media.cameraOn { InterviewCameraPreview(media: media) }
+                        else { Button("카메라 켜기") { media.startCamera() }.buttonStyle(.bordered) }
+                    }
+                    .frame(width: geometry.size.width / 2, height: geometry.size.height)
+                    .clipped()
+                    .overlay(alignment: .topLeading) { label("내 모습") }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("내 카메라 미리보기")
+                    .accessibilityIdentifier("interview.live-camera")
+                    .accessibilityValue(media.cameraReady ? "camera-ready" : "camera-pending")
+                }.clipShape(RoundedRectangle(cornerRadius: 20))
+            }.aspectRatio(8.0/7.0, contentMode: .fit)
+        } else {
+            InterviewLiveCamera(media: media).frame(maxWidth: 260).frame(maxWidth: .infinity)
+        }
+    }
+    private func label(_ text: String) -> some View {
+        Text(text).font(.caption2.weight(.medium)).padding(7)
+            .background(.ultraThinMaterial, in: Capsule()).padding(8)
+    }
+}
+#endif
 
 private struct InterviewPreparationMedia: View {
     @ObservedObject var media: InterviewMedia

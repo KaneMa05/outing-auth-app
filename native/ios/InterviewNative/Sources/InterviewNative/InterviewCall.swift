@@ -6,6 +6,9 @@ import WebRTC
 final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDelegate {
     private static let initialized: Void = { RTCInitializeSSL() }()
     let api: InterviewAPI
+    #if DEBUG
+    var interviewer: String?
+    #endif
     var onReady: ((String, String) -> Void)?
     var onEvent: ((InterviewJSON) -> Void)?
     var onEnd: ((String, Bool) -> Void)?
@@ -23,6 +26,9 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
     private var oldCategory: AVAudioSession.Category?
     private var oldMode: AVAudioSession.Mode?
     private var oldOptions: AVAudioSession.CategoryOptions?
+    #if DEBUG
+    private var oldRTCConfiguration: RTCAudioSessionConfiguration?
+    #endif
     private var finishing: InterviewCall?
     init(api: InterviewAPI) { self.api = api; super.init() }
     private func later(_ seconds: Double, _ body: @escaping () -> Void) {
@@ -35,10 +41,17 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
         do {
             let av = AVAudioSession.sharedInstance()
             oldCategory = av.category; oldMode = av.mode; oldOptions = av.categoryOptions
+            #if DEBUG
+            oldRTCConfiguration = InterviewSpeakerAudio.installDefaults()
+            #endif
             let rtcAudio = RTCAudioSession.sharedInstance()
             rtcAudio.lockForConfiguration(); defer { rtcAudio.unlockForConfiguration() }
             try rtcAudio.setCategory(AVAudioSession.Category.playAndRecord, with: [.defaultToSpeaker, .allowBluetooth])
+            #if DEBUG
+            try rtcAudio.setMode(AVAudioSession.Mode.videoChat)
+            #else
             try rtcAudio.setMode(AVAudioSession.Mode.voiceChat)
+            #endif
             try rtcAudio.setActive(true)
             interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification,
                 object: nil, queue: .main) { [weak self] _ in self?.stop(failed: true) }
@@ -68,7 +81,10 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
     private func sendOffer() {
         guard !ended, !closing, !sentOffer, let sdp = peer?.localDescription?.sdp else { return }
         sentOffer = true
-        let fields: InterviewJSON = ["requestKey": UUID().uuidString, "sdp": sdp]
+        var fields: InterviewJSON = ["requestKey": UUID().uuidString, "sdp": sdp]
+        #if DEBUG
+        if let interviewer { fields["interviewer"] = interviewer }
+        #endif
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -176,6 +192,10 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         channel?.delegate = nil; channel?.close(); channel = nil
         peer?.close(); peer = nil; audioTrack = nil; factory = nil
+        #if DEBUG
+        if let oldRTCConfiguration { InterviewSpeakerAudio.restoreDefaults(oldRTCConfiguration) }
+        oldRTCConfiguration = nil
+        #endif
         if let interruption { NotificationCenter.default.removeObserver(interruption) }; interruption = nil
         let rtcAudio = RTCAudioSession.sharedInstance(); rtcAudio.lockForConfiguration()
         try? rtcAudio.setActive(false)

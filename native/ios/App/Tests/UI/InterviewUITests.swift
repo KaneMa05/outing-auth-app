@@ -108,6 +108,37 @@ final class InterviewUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["2 · 꼬리 질문"].waitForExistence(timeout: 5))
         capture("05-records")
     }
+    func testLivePreparationCameraAndInterviewerLayout() {
+        let preparation = app.descendants(matching: .any)["practice.prep-camera"].firstMatch
+        XCTAssertTrue(preparation.exists)
+        XCTAssertEqual(preparation.frame.width / preparation.frame.height, 3.0 / 4.0, accuracy: 0.01)
+        tap("practice.camera-mic-test")
+        #if !targetEnvironment(simulator)
+        let cameraReady = expectation(for: NSPredicate(format: "value == %@", "camera-ready"), evaluatedWith: preparation)
+        wait(for: [cameraReady], timeout: 15)
+        #endif
+        capture("live-restored-preparation-camera")
+        tap("interview.start")
+        let avatar = app.descendants(matching: .any)["interview.avatar"].firstMatch
+        let camera = app.descendants(matching: .any)["interview.live-camera"].firstMatch
+        XCTAssertTrue(avatar.waitForExistence(timeout: 10))
+        XCTAssertTrue(camera.exists)
+        XCTAssertEqual(avatar.frame.width, camera.frame.width, accuracy: 1)
+        XCTAssertEqual(avatar.frame.maxX, camera.frame.minX, accuracy: 1)
+        XCTAssertEqual(avatar.frame.height, camera.frame.height, accuracy: 1)
+        XCTAssertEqual((avatar.frame.width + camera.frame.width) / camera.frame.height, 8.0 / 7.0, accuracy: 0.01)
+        #if !targetEnvironment(simulator)
+        let liveReady = expectation(for: NSPredicate(format: "value == %@", "camera-ready"), evaluatedWith: camera)
+        wait(for: [liveReady], timeout: 15)
+        #endif
+        let assigned = avatar.value as? String
+        XCTAssertTrue(assigned?.hasSuffix(".mp4") == true)
+        capture("live-restored-avatar-and-camera")
+        tap("interview.answer")
+        XCTAssertEqual(avatar.value as? String, assigned, "Keep the assigned interviewer across follow-up questions")
+        tap("interview.end")
+        app.buttons["종료하고 기록 보기"].tap()
+    }
     func testExitCanBeCancelledAndBackgroundEndsInterview() {
         tap("interview.start"); tap("interview.end")
         XCTAssertTrue(app.buttons["계속 면접하기"].waitForExistence(timeout: 5))
@@ -721,5 +752,87 @@ final class PersonalityPreparationTests: XCTestCase {
         XCTAssertFalse(app.buttons["practice.media"].exists)
         XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "personality-settings-fixture"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+}
+
+// Explicit real-provider validation. Never included in normal offline UI test selection.
+final class PaidLiveVerificationTests: XCTestCase {
+    func testActualLiveVoiceInterview() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        guard let code = ProcessInfo.processInfo.environment["LIVE_VERIFICATION_CODE"] else {
+            throw XCTSkip("Real Live verification requires an explicit short-lived handoff code")
+        }
+        app.launchEnvironment["INTERVIEW_LIVE_VERIFICATION_CODE"] = code
+        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        func evidence(_ name: String) {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+        }
+        func tap(_ id: String) {
+            let button = app.buttons[id]
+            for _ in 0..<5 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable, "Control not reachable: " + id); button.tap()
+        }
+        defer {
+            if app.buttons["interview.end"].exists && app.buttons["interview.end"].isEnabled {
+                tap("interview.end")
+                if app.alerts.buttons["종료하고 기록 보기"].waitForExistence(timeout: 3) { app.alerts.buttons["종료하고 기록 보기"].tap() }
+                _ = app.staticTexts["내 답변을 돌아보고,\n다음 연습을 준비해요."].waitForExistence(timeout: 30)
+            }
+        }
+        let start = app.buttons["interview.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 50), "Native credential exchange failed")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: start)], timeout: 25), .completed, "Live readiness failed: " + app.staticTexts["interview.notice"].label)
+        evidence("paid-live-preparation")
+        tap("interview.start")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 4) {
+            let allow = springboard.alerts.buttons["허용"]
+            if allow.exists { allow.tap() }
+        }
+        let question = app.staticTexts["interview.question"]
+        XCTAssertTrue(question.waitForExistence(timeout: 90), "Live transport failed: " + app.staticTexts["interview.notice"].label)
+        for turn in 1...6 {
+            let current = question.label
+            XCTAssertFalse(current.isEmpty)
+            // Let the actual interviewer finish speaking before providing the answer.
+            var previous = "", stableAt = Date(), waited = Date()
+            while Date().timeIntervalSince(waited) < 18 {
+                let spokenElement = app.staticTexts["interview.audio-output"]
+                let spoken = spokenElement.exists ? spokenElement.value as? String ?? "" : ""
+                if spoken != previous { previous = spoken; stableAt = Date() }
+                if !spoken.isEmpty && Date().timeIntervalSince(stableAt) > 2 { break }
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+            let data = try JSONSerialization.data(withJSONObject: ["turn": turn, "question": current], options: [.sortedKeys])
+            let route = app.staticTexts["interview.audio-output"].label
+            XCTAssertTrue(route.contains("Speaker"), "Actual Live audio must use the loudspeaker: " + route)
+            XCTAssertFalse(route.contains("Receiver"))
+            print("LIVE_VERIFY_AUDIO_ROUTE " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "outputs": route]), as: UTF8.self))
+            print("LIVE_VERIFY_TURN " + String(decoding: data, as: UTF8.self))
+            evidence("paid-live-turn-\(turn)")
+            let transcript = app.staticTexts["interview.transcript"]
+            var heardText = ""
+            let heard = NSPredicate { _, _ in
+                guard transcript.exists else { return false }
+                let text = transcript.label
+                if text.replacingOccurrences(of: " ", with: "").contains("이상입니다") { heardText = text; return true }
+                return false
+            }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: heard, object: nil)], timeout: 65), .completed, "No real microphone transcript on turn \(turn)")
+            Thread.sleep(forTimeInterval: 3)
+            print("LIVE_VERIFY_HEARD " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "transcript": heardText]), as: UTF8.self))
+            if question.exists && question.label == current { tap("interview.answer") }
+            let next = NSPredicate { _, _ in
+                if turn == 6 { return app.buttons["다시 연습하기"].exists }
+                return question.exists && question.label != current
+            }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: next, object: nil)], timeout: 65), .completed, "No next question on turn \(turn): " + app.staticTexts["interview.notice"].label)
+        }
+        evidence("paid-live-result")
+        XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout: 30))
+        print("LIVE_VERIFY_COMPLETED six_answers")
     }
 }

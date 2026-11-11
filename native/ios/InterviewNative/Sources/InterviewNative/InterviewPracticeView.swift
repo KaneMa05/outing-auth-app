@@ -374,10 +374,11 @@ private struct PracticePressStyle: ButtonStyle {
     }
 }
 
-private struct PracticePreparationMedia: View {
+struct PracticePreparationMedia: View {
     @ObservedObject var media: InterviewMedia
     let cameraEnabled: Bool
     var combined = false
+    var stopCameraWithMic = true
     @State private var detectedInput = false
     @State private var attempted = false
     @State private var permissionDenied = false
@@ -444,7 +445,7 @@ private struct PracticePreparationMedia: View {
         }
         .onChange(of: media.micOn) { enabled in
             permissionDenied = AVAudioSession.sharedInstance().recordPermission == .denied
-            if !enabled && combined && cameraEnabled { media.stopCamera() }
+            if !enabled && combined && cameraEnabled && stopCameraWithMic { media.stopCamera() }
         }
         .onChange(of: media.level) { value in
             if media.micOn && value > 0.05 && media.message != "주변 소음 확인 중…" { detectedInput = true }

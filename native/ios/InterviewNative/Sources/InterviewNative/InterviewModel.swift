@@ -12,6 +12,13 @@ import AVFoundation
     @Published var spoken = ""
     @Published var notice = "앱 연결을 확인하고 있습니다."
     @Published var questionNumber = 0
+    #if DEBUG
+    @Published var verificationAudioOutput = ""
+    private func refreshVerificationAudioOutput() {
+        guard ProcessInfo.processInfo.environment["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil else { return }
+        verificationAudioOutput = AVAudioSession.sharedInstance().currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
+    }
+    #endif
     @Published var record: InterviewJSON?
     @Published var records: [InterviewJSON] = []
     @Published var hasMore = false
@@ -20,6 +27,16 @@ import AVFoundation
     @Published var analysisLoading = false
     let media = InterviewMedia()
     let api = InterviewAPI()
+    #if DEBUG
+    let interviewerURL: URL? = {
+        let urls = InterviewAvatarVideo.availableURLs
+        let env = ProcessInfo.processInfo.environment
+        if env["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil, let name = env["INTERVIEW_VERIFICATION_AVATAR"] {
+            return urls.first { $0.deletingPathExtension().lastPathComponent == name }
+        }
+        return urls.randomElement()
+    }()
+    #endif
     let demo: Bool
     var startedAt = Date()
     private var call: InterviewCall?
@@ -64,18 +81,30 @@ import AVFoundation
         }}
     }
     private func beginCall() {
+        #if DEBUG
+        media.startCamera()
+        #endif
         questionNumber = 1; transcript = ""; spoken = ""; muted = false; answering = false; record = nil
         UIApplication.shared.isIdleTimerDisabled = true
         if demo { demoTurns = []; question = samples[0]; runID = "demo"; startedAt = Date(); screen = .live; notice = "가상 질문입니다. 답변 완료를 누르면 다음 질문으로 이동합니다."; return }
         let session = InterviewCall(api: api); call = session
+        #if DEBUG
+        session.interviewer = interviewerURL?.deletingPathExtension().lastPathComponent
+        #endif
         session.onReady = { [weak self] id, question in
             guard let self, !self.disposed else { return }
             self.runID = id; self.question = question; self.startedAt = Date(); self.screen = .live
+            #if DEBUG
+            self.refreshVerificationAudioOutput()
+            #endif
             self.notice = "AI 면접관의 질문을 듣고 답해주세요."
         }
         session.onEvent = { [weak self] event in
             guard let self, !self.disposed, self.screen == .live else { return }
             let type = event["type"] as? String
+            #if DEBUG
+            self.refreshVerificationAudioOutput()
+            #endif
             if type == "interview.question", let question = event["question"] as? String, question != self.question {
                 self.question = question; self.questionNumber += 1; self.transcript = ""; self.spoken = ""
             }

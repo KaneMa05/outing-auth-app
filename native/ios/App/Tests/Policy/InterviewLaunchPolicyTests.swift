@@ -2,6 +2,7 @@ import XCTest
 #if DEBUG
 @testable import InterviewNative
 import AVFoundation
+import WebRTC
 #else
 import InterviewNative
 #endif
@@ -54,6 +55,33 @@ final class InterviewLaunchPolicyTests: XCTestCase {
 }
 
 #if DEBUG
+final class LiveSpeakerRoutingTests: XCTestCase {
+    func testWebRTCAudioReconfigurationKeepsSpeakerDefault() throws {
+        let av = AVAudioSession.sharedInstance()
+        let oldCategory = av.category, oldMode = av.mode, oldOptions = av.categoryOptions
+        let previous = InterviewSpeakerAudio.installDefaults()
+        let rtc = RTCAudioSession.sharedInstance()
+        rtc.lockForConfiguration()
+        defer {
+            try? rtc.setActive(false)
+            try? rtc.setCategory(oldCategory, with: oldOptions)
+            try? rtc.setMode(oldMode)
+            InterviewSpeakerAudio.restoreDefaults(previous)
+            rtc.unlockForConfiguration()
+        }
+        let configuration = RTCAudioSessionConfiguration.webRTC()
+        XCTAssertEqual(configuration.mode, AVAudioSession.Mode.videoChat.rawValue)
+        XCTAssertTrue(configuration.categoryOptions.contains(.defaultToSpeaker))
+        // Exercise the configuration WebRTC applies after the app configures audio.
+        try rtc.setConfiguration(configuration, active: true)
+        XCTAssertEqual(av.mode, .videoChat)
+        XCTAssertTrue(av.categoryOptions.contains(.defaultToSpeaker))
+        XCTAssertFalse(av.currentRoute.outputs.isEmpty)
+        XCTAssertFalse(av.currentRoute.outputs.contains { $0.portType == .builtInReceiver })
+        print("Verified Live WebRTC output route: \(av.currentRoute.outputs.map { $0.portType.rawValue })")
+    }
+}
+
 final class PracticeSpeakerRoutingTests: XCTestCase {
     func testOnlyBuiltInReceiverIsOverridden() {
         XCTAssertTrue(PracticeAudioRouting.shouldUseSpeaker(outputs: [.builtInReceiver]))
