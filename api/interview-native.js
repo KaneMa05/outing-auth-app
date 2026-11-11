@@ -28,7 +28,7 @@ function createHandler(deps){return async(req,res)=>{try{
   if(Object.keys(b).some(k=>!['action','command'].includes(k))||!b.command||typeof b.command!=='object'||Array.isArray(b.command))throw Error('invalid_request');
   const student=auth.read((req.headers.authorization||'').replace(/^Bearer /,''),d.secret);
   if(!['ready','start','begin','heartbeat','answer_done','finish','list','get','analysis_request','analysis_get'].includes(b.command.action)||'studentId' in b.command||'deviceToken' in b.command)throw Error('forbidden');
-  return live.createHandler({...d.live,requireMockAccess:d.requireMockAccess||d.live.requireMockAccess,authenticateWeb:async()=>student})({...req,body:b.command},res);
+  return live.createHandler({...d.live,requireMockAccess:d.requireMockAccess||d.live.requireMockAccess,authenticateWeb:async()=>student})({method:req.method,headers:req.headers,body:b.command},res);
  }
  throw Error('unsupported_action');
  }catch(e){sendError(res,e);}};}
