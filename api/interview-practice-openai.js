@@ -24,10 +24,10 @@ async function cleanup(deps=defaults()){
  for(const run of runs){await deps.storage().remove(run.id);await deps.invoke('purge',SERVER,{id:run.id});removed++;}
  return {ok:true,removed};
 }
-async function processClaim(d,{id,token,question,audio}){
+async function processClaim(d,{id,token,question,audio,testApp=false}){
  try{
   const provider=d.provider(),prepared=require('../lib/interview-practice-audio.cjs').preparePracticeAudio(audio);
-  const report=await analyzeTask({kind:'practice',question,audio},{...provider,transcribe:(_,options)=>provider.transcribe(prepared.audio,options),parallelTranscription:true,practiceReference:true});
+  const report=await analyzeTask({kind:'practice',question,audio,testApp},{...provider,transcribe:(_,options)=>provider.transcribe(prepared.audio,options),parallelTranscription:true,practiceReference:true});
   report.audit.audioPreparation={gain:prepared.gain,quality:prepared.quality};
   await d.invoke('complete',SERVER,{id,token,report});
  }catch{
@@ -56,7 +56,7 @@ function createHandler(deps){return async(req,res)=>{
   if(created.audioNeeded){
    await d.storage().put(b.id,audio);
    const token=randomUUID(),claim=await d.invoke('claim',SERVER,{id:b.id,audioHash,token});
-   if(claim.claimed)d.schedule(processClaim(d,{id:b.id,token,question:claim.question,audio}));
+   if(claim.claimed)d.schedule(processClaim(d,{id:b.id,token,question:claim.question,audio,testApp:actor.testApp===true}));
   }
   return res.status(200).json(await d.invoke('get',actor,{id:b.id}));
  }catch(error){

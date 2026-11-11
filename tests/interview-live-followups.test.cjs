@@ -88,3 +88,19 @@ for(const testApp of [true,false])test('opening is spoken once and stays scoped 
   assert.equal(opening[0].content,(testApp?'면접을 시작하겠습니다.\n':'AI 모의면접을 시작합니다. 한 번에 한 질문씩 진행합니다. 첫 질문: ')+'메인 질문 0');
  }finally{await f.stop();}
 });
+
+test('followup optimization preserves the configured model and reasoning for both apps',async()=>{
+ const requests=[],usage=[];
+ const provider=createProvider({key:'synthetic',followupModel:'gpt-6-astra',onUsage:async e=>usage.push(e),fetchImpl:async(_url,options)=>{
+  requests.push(JSON.parse(options.body));return Response.json({id:'test-response',status:'completed',usage:{input_tokens:100,output_tokens:20},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({turnComplete:true,ask:true,question:'팀원들과 어떻게 협력하셨습니까?',evidence:'의견을 들었습니다'})}]}]});
+ }});
+ await provider.followup({testApp:true,answer:'의견을 들었습니다',asked:[],remainingFollowups:2},{runId:'test'});
+ await provider.followup({answer:'의견을 들었습니다',asked:[]},{runId:'ordinary'});
+ assert.equal(requests[0].model,'gpt-6-astra');assert.equal(requests[0].reasoning,undefined);
+ assert.equal(requests[1].model,'gpt-6-astra');assert.equal(requests[1].reasoning,undefined);
+ const reported=usage.filter(e=>e.status==='reported');assert.equal(reported[0].model,'gpt-6-astra');assert(reported[0].usage.generationMs>=0);assert.equal(reported[1].model,'gpt-6-astra');assert.equal(reported[1].usage.generationMs,undefined);
+});
+test('thanks and the validated next question are sent as one utterance after saving',async()=>{
+ const f=await fixture(()=>({turnComplete:true,ask:true,question:'당시 팀원들과 어떻게 협력하셨습니까?',evidence:'의견을 들었습니다'}));
+ try{await f.answer('의견을 들었습니다');assert.equal(f.saved.length,1);assert.equal(f.sent.at(-1).content,'네, 감사합니다. 당시 팀원들과 어떻게 협력하셨습니까?');}finally{await f.stop();}
+});
