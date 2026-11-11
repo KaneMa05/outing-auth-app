@@ -3,7 +3,7 @@ const path=require('node:path');
 const {setTimeout:delay}=require('node:timers/promises');
 const {createProvider}=require('./core25-diagnosis-cli.cjs');
 const {evaluate}=require('../lib/preassignment-diagnosis.cjs');
-const {ENGINE_VERSION}=require('../lib/core25-worker-config.cjs');
+const {MODEL,EFFORT,ENGINE_VERSION}=require('../lib/core25-worker-config.cjs');
 function createClient({origin,token,fetchImpl=fetch,allowLocal=false}){
  const url=new URL('/api/interview-core25-worker',origin);
  if(url.username||url.password||!(url.protocol==='https:'||(allowLocal&&url.protocol==='http:'&&url.hostname==='127.0.0.1')))throw Error('invalid_origin');
@@ -52,7 +52,8 @@ async function main(){
  const provider=createProvider({runtimeDir:path.resolve('.tmp/core25-pc-runtime')});
  const stop=new AbortController();process.once('SIGINT',()=>stop.abort());process.once('SIGTERM',()=>stop.abort());
  const notify=event=>console.log(JSON.stringify({time:new Date().toISOString(),event}));
- notify('worker_started');await run({request,provider,signal:stop.signal,notify});notify('worker_stopped');
+ console.log(JSON.stringify({time:new Date().toISOString(),event:'worker_started',model:MODEL,effort:EFFORT}));
+ await run({request,provider,signal:stop.signal,notify});notify('worker_stopped');
 }
 if(require.main===module)main().catch(()=>{console.error('Worker configuration failed. Check origin and private token file.');process.exitCode=1;});
 module.exports={createClient,processJob,run};
