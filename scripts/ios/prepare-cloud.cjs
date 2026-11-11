@@ -30,6 +30,8 @@ function sourceFiles(sourceRoot=root){
  for(const name of ['interviewer-man-1','interviewer-woman','interviewer-man-2']){
   const avatarFile='native/ios/App/DebugResources/InterviewAvatar/'+name+'.mp4';
   if(fs.existsSync(path.join(sourceRoot,avatarFile)))files.push(avatarFile);
+  const liveAvatarFile='native/ios/App/DebugResources/InterviewLiveAvatar/'+name+'.mp4';
+  if(fs.existsSync(path.join(sourceRoot,liveAvatarFile)))files.push(liveAvatarFile);
  }
  const questionVideoRoot='native/ios/App/DebugResources/InterviewQuestionVideo';
  for(const avatar of ['interviewer-man-1','interviewer-woman','interviewer-man-2']){

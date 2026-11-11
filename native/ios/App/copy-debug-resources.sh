@@ -2,6 +2,7 @@
 set -euo pipefail
 destination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InterviewPracticeAudio"
 avatarDestination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InterviewAvatar"
+liveAvatarDestination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InterviewLiveAvatar"
 questionVideoDestination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InterviewQuestionVideo"
 recordedDestination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InterviewRecordedAudio"
 # Question-bank audio and local bridge credentials never ship in Release.
@@ -26,6 +27,14 @@ if [[ "$CONFIGURATION" == Debug ]]; then
       cp "$source" "$avatarDestination/$avatar.mp4"
     fi
   done
+  rm -rf "$liveAvatarDestination"
+  for avatar in interviewer-man-1 interviewer-woman interviewer-man-2; do
+    source="$SRCROOT/DebugResources/InterviewLiveAvatar/$avatar.mp4"
+    if [[ -f "$source" ]]; then
+      mkdir -p "$liveAvatarDestination"
+      cp "$source" "$liveAvatarDestination/$avatar.mp4"
+    fi
+  done
   rm -rf "$questionVideoDestination"
   if [[ -d "$SRCROOT/DebugResources/InterviewQuestionVideo" ]]; then
     ditto "$SRCROOT/DebugResources/InterviewQuestionVideo" "$questionVideoDestination"
@@ -40,6 +49,6 @@ if [[ "$CONFIGURATION" == Debug ]]; then
     rm -f "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/interview-local-bridge.json"
   fi
 else
-  rm -rf "$destination" "$avatarDestination" "$questionVideoDestination" "$recordedDestination"
+  rm -rf "$destination" "$avatarDestination" "$liveAvatarDestination" "$questionVideoDestination" "$recordedDestination"
   rm -f "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/interview-local-bridge.json"
 fi

@@ -823,6 +823,12 @@ final class PaidLiveVerificationTests: XCTestCase {
                 if !spoken.isEmpty && Date().timeIntervalSince(stableAt) > 2 { break }
                 Thread.sleep(forTimeInterval: 0.5)
             }
+            let spoken = app.staticTexts["interview.audio-output"].value as? String ?? ""
+            print("LIVE_VERIFY_SPOKEN " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "spoken": spoken]), as: UTF8.self))
+            if turn == 1 {
+                XCTAssertTrue(spoken.filter { !$0.isWhitespace }.hasPrefix("면접을시작하겠습니다"), "Unexpected interview opening: " + spoken)
+            }
+            XCTAssertFalse(spoken.contains("확인하겠습니다"), "Use the approved neutral acknowledgement")
             let data = try JSONSerialization.data(withJSONObject: ["turn": turn, "question": current], options: [.sortedKeys])
             let route = app.staticTexts["interview.audio-output"].label
             XCTAssertTrue(route.contains("Speaker"), "Actual Live audio must use the loudspeaker: " + route)

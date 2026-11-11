@@ -37,7 +37,7 @@ import AVFoundation
     let api = InterviewAPI()
     #if DEBUG
     let interviewerURL: URL? = {
-        let urls = InterviewAvatarVideo.availableURLs
+        let urls = InterviewAvatarVideo.liveURLs
         let env = ProcessInfo.processInfo.environment
         if env["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil, let name = env["INTERVIEW_VERIFICATION_AVATAR"] {
             return urls.first { $0.deletingPathExtension().lastPathComponent == name }
