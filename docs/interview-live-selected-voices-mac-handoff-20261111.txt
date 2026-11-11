@@ -1,0 +1,150 @@
+MacBook 인계 — 테스트앱 실전 모의면접 선택 음성 검증
+작성일: 2026-11-11 한국시간
+
+1. 사용자 승인과 현재 범위
+
+사용자는 여성 최초 샘플과 남성 3차 샘플을 청취하고 앱 반영을 승인했다.
+이후 맥북 테스트 인계 문서 작성, 커밋·푸시·서버 배포까지 명시적으로 승인했다.
+아이폰 실기기 테스트는 맥북에서 이어간다. Windows에서 완료했다고 안내하지 않는다.
+
+변경 범위는 테스트앱의 실전 모의면접(Live) 면접관 음성이다.
+직무·인성 연습의 기존 질문 녹음, 일반 배포 앱, App Store/TestFlight 버전은 유지한다.
+새 목소리를 다시 생성하거나 기존 샘플에 피치·속도 변조를 하지 않는다.
+립싱크, 질문 풀, 다른 연습모드 개편으로 작업을 확대하지 않는다.
+
+2. 채택한 음성과 서버 구현
+
+여성 면접관 (interviewer-woman)
+- voice_6af3fd211ea081918dc2e8e94f946587
+- 여성 최초 샘플, 47~49세 느낌을 목표로 생성. 사용자 채택.
+
+남성 면접관 두 명 (interviewer-man-1, interviewer-man-2)
+- voice_6af4003787988191b9708350269ed872
+- 남성 3차 샘플. 53세 느낌, 건조하고 허스키한 중년의 질감. 사용자 채택.
+- 기존 남성 최초/2차 ID는 채택하지 않았으므로 연결하지 않는다.
+
+음성 변경 구현 커밋: e84e9a0c.
+배포 준비 브랜치: codex/test-interview-voices-20261111.
+최신 main의 CLI 모델 변경 1f79e1bd도 병합하여 보존했다.
+실제 푸시 SHA·배포 ID·운영 검증 결과는 이 문서 마지막의 완료 기록을 확인한다.
+
+관련 서버 파일
+- lib/interview-live-test-voices.cjs: 선택 ID와 정확한 원래 생성 프롬프트.
+- lib/interview-live-policy.js: 등록된 {id}만 허용, 원래 음성 설명 + 면접 지침.
+- lib/interview-live-engine.js: 서명된 testApp actor와 면접관 신원으로 선택.
+- tests/interview-live-voices.test.cjs: 세 면접관의 6문답과 음성 고정·위조 차단.
+
+일반 앱의 기본 noeul/meridian 설정과 원래 면접 지침은 원격 기준과 동일하다.
+테스트앱의 면접관 정보가 없는 이전 요청은 채택한 여성 음성을 기본으로 쓴다.
+실제 앱의 질문·답변은 기존 지침으로 진행하며 청취용 샘플 대본을 삽입하지 않는다.
+목소리는 새 세션 시작 시 정한다. 진행 중인 세션은 종료 후 새로 시작해야 한다.
+
+3. 맥북에서 저장소와 iOS 전용 브랜치 확인
+
+기존 iOS 전용 작업 폴더를 사용한다. 공유 웹 작업 폴더의 브랜치를 바꾸지 않는다.
+예전 docs/ios-worktree.md에는 codex/ios-app이 기록되어 있지만 이번 실제 테스트
+대상은 codex/ios-practice-no-modal-20261106 브랜치다.
+Windows 확인 시 원격 iOS 구현 기준: fb3fabd.
+이 기준에는 테스트앱 표식, 아바타 신원 전달, 6문답 안내, 면접관 실시간 자막
+제외가 들어 있다. 소스는 기존 iOS 전용 브랜치에 보존한다.
+
+기존 iOS 전용 작업 폴더에서 먼저 실행:
+  git status --short --branch
+  git fetch origin
+  git log -5 --oneline origin/codex/ios-practice-no-modal-20261106
+  git show origin/main:docs/interview-live-selected-voices-mac-handoff-20261111.txt
+
+현재 브랜치가 해당 iOS 브랜치이고 작업 폴더에 미커밋 변경이 없을 때만:
+  git merge --ff-only origin/codex/ios-practice-no-modal-20261106
+
+기존 로컬 커밋이나 미커밋 변경이 있으면 먼저 차이를 검토한다. reset/강제 덮어쓰기,
+공유 폴더의 checkout, 전체 main을 iOS 브랜치에 무조건 병합하는 작업은 하지 않는다.
+서버 음성 변경은 main에 배포되므로 이 작업 때문에 iOS 브랜치를 main에 합칠 필요는 없다.
+실제 iOS 소스가 위 기준을 포함하는지는 다음 명령으로 확인할 수 있다.
+  git merge-base --is-ancestor fb3fabd HEAD
+
+4. iPhone Debug 빌드와 실행
+
+기존 Xcode·서명 팀·테스트 기기 설정을 유지한다. 새 클라우드 빌드나 스토어
+제출은 필요하지 않다. 연결된 실제 iPhone을 대상으로 Debug 앱을 실행한다.
+프로젝트를 재생성해야 할 때는 iOS 작업 폴더의 native/ios/App에서:
+  xcodegen generate
+  open RonparkStudy.xcodeproj
+
+Scheme: RonparkStudy / Configuration: Debug / Bundle ID: com.ronpark.study.
+Debug 앱 표시 이름은 '론박스터디 앱'이다. 기존 설치와 저장 데이터를 보존하며 갱신한다.
+Release/App Store/TestFlight 업로드는 이번 요청에 포함되지 않는다.
+Debug 기본 진입 주소는 https://outing-auth-app.vercel.app/interview?app=1 이다.
+기존에 허용된 테스트 계정으로 로그인한다. 새 가짜 수강생 계정을 만들지 않는다.
+
+실제 테스트앱 경로의 조건
+- Debug 실행 인수 --ordinary-app-verification이 없어야 한다.
+- Debug 웹뷰는 __ronparkMockTestApp과 X-Interview-Test-App: 1을 설정한다.
+- InterviewAPI.swift의 네이티브 요청도 같은 표식을 보낸다.
+- InterviewModel.swift가 배정된 아바타 파일명(interviewer-woman/man-1/man-2)을
+  InterviewCall.interviewer로 전달한다. 서버 서명 actor에도 신원이 보존된다.
+- API 키를 앱, Xcode 환경변수, URL, 대화나 Git에 복사하지 않는다.
+  iPhone에는 기존 포털에서 발급한 단기 일회용 연결 코드/토큰만 사용한다.
+
+기본 배정은 무작위다. 자동화용 고정 아바타는 원격 iOS 구현에서
+INTERVIEW_VERIFICATION_AVATAR로 지원하지만, 유효한 단기
+INTERVIEW_LIVE_VERIFICATION_CODE가 있는 검증 경로에서만 적용된다.
+없는 코드를 임의 생성하거나 코드/학생 토큰을 문서·로그에 남기지 않는다.
+무료 화면 데모나 기존 기기 내 연습 화면을 실제 Live 음성 검증으로 간주하지 않는다.
+
+5. 실제 기기 확인 순서
+
+가. 준비 화면에서 카메라·마이크를 확인하고 실전 모의면접을 시작한다.
+나. 여성 아바타는 채택한 여성 음성, 두 남성 아바타는 채택한 남성 3차 음성을
+    사용하는지 실제로 듣는다. 연령감과 음색은 청취로 판단한다.
+다. 메인 2개 × (메인 답변 1 + 순차 꼬리질문 2) = 총 6문답을 확인한다.
+    첫 꼬리질문 답변을 실제로 한 뒤 둘째 꼬리질문이 새로 만들어져야 한다.
+라. 메인 질문과 꼬리질문의 면접관 목소리가 같은지 확인한다.
+마. 면접관 실시간 발화 자막은 제외되고 질문 문구·응답자 자막은 유지되는지 확인한다.
+바. 종료 후 음성이 멈추고 카메라·마이크가 해제되며 기록과 재생이 정상인지 확인한다.
+사. 수강생 화면/학생용 API에 사용량·비용이 노출되지 않는지 확인한다.
+아. 관리자 면접 기록에서 최종 사용량·비용·미확정 항목을 확인한다.
+자. 기존 직무·인성 연습의 질문 녹음과 일반 앱 동작이 그대로인지 확인한다.
+
+확인 결과에는 iOS 소스 SHA, 앱 빌드 정보, 아바타, 성공/실패, 문제 재현 순서를 남긴다.
+실제 종료와 최종 사용량 수신이 확인되지 않은 세션을 완료·0원으로 기록하지 않는다.
+유료 요청 결과가 불명확하면 자동 재시도하지 않고 먼저 해당 세션 종료 상태를 확인한다.
+
+6. 비용과 권한
+
+채택 전 Windows 샘플 작업은 최종 사용량 총 62초, API 계산액 $0.05166667이었다.
+이 금액은 최초 남성/여성과 남성 2·3차의 네 세션을 포함한다. 음성 생성은 $0이었다.
+기기에서 진행하는 Live 테스트 비용은 별도로 실제 사용량을 기록한다.
+2026-11-11 확인 단가: GPT-Live 분당 $0.05, 초 단위. 별도 모델·도구 호출 비용은 별도.
+session.usage.updated는 누적 값이므로 합산하지 않는다.
+session.closed.usage.seconds 최종 값을 한 번 사용하고 WebRTC 초기화 15초를 다시 더하지 않는다.
+실제 청구서·세금·환율·서버·저장 비용을 API 계산액과 구분한다.
+
+선택한 voice ID는 Windows에서 생성한 OpenAI 프로젝트에 속한다.
+운영 키가 같은 프로젝트에서 해당 음성을 쓸 권한이 있어야 한다.
+운영 Secret을 추출하거나 보호를 우회하지 않는다. 권한 변경 직후에는 인증
+캐시 전파가 대부분 15분 이내지만 더 걸릴 수 있다. 같은 오류를 연속 재요청하지 않는다.
+
+7. 문제가 있을 때
+
+- 음색이 기존 noeul/meridian이면 Debug 표식·아바타 신원과 서버 배포 SHA부터 확인한다.
+- 음성 401/404는 서버 키의 프로젝트/권한/삭제 여부를 확인한다. iPhone에 키를 넣지 않는다.
+- 첫 질문부터 소리가 없으면 기기 음량·오디오 출력 경로와 실제 session.started 여부를 구분한다.
+- 무료 데모 성공, 로컬 빌드 성공, 준비 화면 성공만으로 실제 음성·꼬리질문 검증을 완료 처리하지 않는다.
+- 립싱크는 보류 상태다. 기존 고정 질문 영상과 Live 음성 교체를 혼동하지 않는다.
+
+8. Windows/서버 완료 기록
+
+음성 코드 e84e9a0c와 최신 main 1f79e1bd를 7ff5b8e6에서 통합했다.
+단위/회귀 검사 50개와 로컬 WebSocket/WebRTC 통합 검사, 운영 설정 모드 빌드를 통과했다.
+이 인계 문서 작성 시 서버 푸시·배포는 승인받아 진행 중이다.
+실제 푸시 SHA·Vercel 배포 URL/ID·운영 검사 결과는 완료 후 이 항목에 추가한다.
+Windows ADB는 재시작 후에도 연결 장치를 찾지 못했다. 사용자가 USB/디버깅 연결을
+확인 중이며 실제 기기 실행 성공으로 기록하지 않았다.
+
+참고
+docs/releases/20261111-interview-selected-voices-preparation.txt
+docs/interview-test-questions-and-answers-20261111.txt
+docs/interview-test-scenarios-20261111.txt
+https://developers.openai.com/api/docs/guides/custom-voices
+https://developers.openai.com/api/docs/guides/voice-latency-cost?api=live

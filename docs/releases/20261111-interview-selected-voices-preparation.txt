@@ -4,11 +4,12 @@
 상태
 여성 최초 샘플과 남성 3차 샘플을 사용자가 청취 후 선택하고 연결을 승인했다.
 서버 코드 반영과 별도 작업 폴더의 관련 검사·빌드를 완료했다.
-푸시·배포는 아직 진행하지 않았다.
-배포 전 사용자의 최종 확인이 필요하다 (AGENTS.md).
-최신 origin/main d86c956 기준 별도 작업 폴더:
+사용자가 맥북 인계 작성과 커밋·푸시·배포를 최종 승인했으며 실행 중이다.
+최신 origin/main 1f79e1bd를 7ff5b8e6에서 병합해 보존했다. 별도 작업 폴더:
 .tmp/interview-voices-release-20261111
 준비 브랜치: codex/test-interview-voices-20261111
+MacBook/iPhone 후속 테스트 인계:
+docs/interview-live-selected-voices-mac-handoff-20261111.txt
 
 적용 범위와 선택
 서버가 testApp=true로 표시하고 서명한 테스트앱 실전 모의면접 세션만 변경한다.
