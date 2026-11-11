@@ -176,3 +176,17 @@ docs/interview-test-questions-and-answers-20261111.txt
 docs/interview-test-scenarios-20261111.txt
 https://developers.openai.com/api/docs/guides/custom-voices
 https://developers.openai.com/api/docs/guides/voice-latency-cost?api=live
+
+9. MacBook 버튼 문구 후속 수정
+
+최신 main 186ef59를 fast-forward로 가져오고 이 인계문서를 확인했다.
+서버 테스트앱 버튼은 이미 '면접 준비하기'로 반영되어 있으나, 사용자 기기에서는
+이전 '앱에서 모의면접 열기'가 계속 보인다는 보고가 있었다.
+iOS 전용 브랜치 48af957에서 Debug 테스트앱 웹뷰의 기존 웹 캐시와
+서비스 워커 캐시를 이 수정 버전에 한해 한 번 갱신하도록 했다.
+쿠키·로컬 스토리지·학생 녹음은 삭제하지 않는다. 일반 앱 검증 인수에서는 실행하지
+않으며 Release에는 캐시 갱신 코드가 포함되지 않는다.
+Debug 실기기 빌드와 Release 빌드 통과, 연결된 iPhone에 업데이트 설치 완료.
+서버 코드/음성/DB 변경이나 추가 Vercel 배포는 필요하지 않았다.
+실제 버튼의 육안 확인은 미완료다. 확인 당시 iPhone 사용 중으로 미러링이 종료되어 있었다.
+실제 음성 면접을 시작하거나 유료 음성 API를 새로 호출하지 않았다.
