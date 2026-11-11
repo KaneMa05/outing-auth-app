@@ -53,9 +53,18 @@ function createHandler(deps){return async(req,res)=>{try{
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}
  if(b.action==='start'&&b.interviewer){if(actor.testApp!==true)fail('forbidden');actor={...actor,interviewer:b.interviewer};}
  const payload={...b};delete payload.studentId;delete payload.deviceToken;
+ async function readiness(){
+  const data=await d.invoke('ready',actor,{});
+  if(actor.testApp!==true||!data.ready)return data;
+  const history=await d.invoke('list',actor,{page:0}),runs=history.runs||[];
+  const quota={...data,unlimited:true,dailyLimit:null,remainingToday:null};
+  if(runs.some(r=>['starting','active','closing','unknown'].includes(r.state)))return {...quota,ready:false,reason:'admission_busy'};
+  return quota;
+ }
+ if(b.action==='ready'&&actor.testApp===true)return res.status(200).json(await readiness());
  if(config.transport==='vercel'){
   if(b.action==='start'){
-   const ready=await d.invoke('ready',actor,{});if(!ready.ready)fail(ready.reason==='questions_unavailable'?'questions_unavailable':'not_enrolled');
+   const ready=await readiness();if(!ready.ready)fail(['daily_limit','admission_busy','questions_unavailable'].includes(ready.reason)?ready.reason:'not_enrolled');
    return res.status(200).json({ok:true,transport:'websocket',url:'/api/interview-live-socket',ticket:require('../lib/interview-live-ticket').issue(actor,b.requestKey,b.sdp,config.secret)});
   }
   if(['begin','answer_done','heartbeat'].includes(b.action))fail('session_expired');

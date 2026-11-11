@@ -110,10 +110,10 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      }
      if(route.mockMode==='ai'){
       if(window.__ronparkOpenAIPractice===true&&window.webkit?.messageHandlers?.interviewNative){
-       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261111-native-connection');
+       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261111-interview-preparation');
        if(destroyed||ticket!==generation)return;
        const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
-       const next=await mountNativeInterview(slot,{platform:'ios',request:async(url,body)=>{
+       const next=await mountNativeInterview(slot,{platform:'ios',testApp:mockTestApp,request:async(url,body)=>{
         if(aiRequest)return aiRequest(url,body);
         const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
