@@ -323,7 +323,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='live'){
-      const {mountLiveHistory}=await import('./interview-live-ui.js?v=20261021-live-vercel');
+      const {mountLiveHistory}=await import('./interview-live-ui.js?v=20261111-live-admin-usage');
       if(destroyed||version!==loadVersion)return;
       life=await mountLiveHistory(box,{admin:true});return;
     }

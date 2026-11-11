@@ -34,6 +34,9 @@ test('ledger totals preserve attempts, update cumulative usage once and enforce 
  await rpc('record',server,backendEvent(id,'backend:2','gpt-6.1-sol',null));
  const report=await rpc('get',owner,{runId:id});assert.equal(report.events.length,3);assert.equal(report.confirmedUsd,0.204);assert.equal(report.estimatedUsd,0);assert.equal(report.unconfirmedEvents,1);assert.equal(report.fullyConfirmed,false);
  await assert.rejects(rpc('get',{type:'student',id:'other'},{runId:id}),/forbidden/);await assert.rejects(rpc('get',{}, {runId:id}),/forbidden/);await assert.rejects(rpc('record',owner,event),/forbidden/);
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261111050000_interview_live_cost_admin_only.sql','utf8'));
+ await assert.rejects(rpc('get',owner,{runId:id}),/forbidden/);
+ assert.equal((await rpc('get',{type:'admin',id:'qa'},{runId:id})).events.length,3);
  await f.db.exec('set role anon');await assert.rejects(f.db.query('select * from ip_live_usage_events'),/permission denied/);await f.db.exec('reset role');
 });
 test('unpriced historical usage can be calculated read-only without rewriting confirmation or ledger values',()=>{
