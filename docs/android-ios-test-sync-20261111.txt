@@ -1,0 +1,86 @@
+Android / iPhone 테스트앱 동기화 — 2026-11-11
+
+원인
+Windows에 설치되어 있던 com.ronpark.study.nativepreview는 2026-10-30 기준의
+로컬 녹음·PC 브리지 미리보기였다. iPhone Debug 앱은 인증된 면접반 포털에서
+최신 네이티브 연습·Live 면접으로 이동한다. 이전 작업에서 Android 실행만 확인하고
+이 버전·진입 경로 차이를 해소하지 않아 두 기기의 동작이 달랐다.
+
+동기화 기준
+iOS: origin/codex/ios-practice-no-modal-20261106 / f881a4bd.
+공유 서버: main 186ef598 기준. 서버·DB·웹 화면은 이번 수정에서 변경하지 않는다.
+Android 작업 브랜치: codex/android-ios-sync-20261111.
+
+적용 내용 (Debug 테스트앱)
+1. 첫 화면: iPhone과 동일한 https://outing-auth-app.vercel.app/interview?app=1.
+   기존 계정으로 로그인하고 서버가 확인한 면접반 권한·지원 직렬·공개 승인 문항을 사용한다.
+   예전 로컬 메뉴와 PC/Gemini 연결 상태로 실제 테스트를 대체하지 않는다.
+2. 직무·인성 연습: iPhone과 동일한 practice_bootstrap 및 interview-practice-openai API.
+   내용/인성 분야, 직무 기출 지역, 3·5·10·15·20문항 선택을 제공한다.
+   iOS와 같은 직렬별 분야 정책 및 분야/지역 동시 필터를 적용한다.
+   질문 음성·카탈로그·아바타 리소스를 iOS f881a4bd와 맞춘다.
+   준비된 음성이 없는 문항은 화면을 읽고 답하도록 안내하며 임의 음성을 생성하지 않는다.
+   직무는 답변 돌아보기 후 다음 질문, 인성은 답변 완료 후 다음 질문으로 진행한다.
+   4초 로컬 침묵, 질문 재생·답변 알림음, 기기 내 WAV 저장과 재생을 유지한다.
+   분석은 같은 UUID로 한 번 제출한 뒤 상태만 조회한다. 불명확한 유료 결과를 재제출하지 않는다.
+   전사·예시답변·피드백·○/△/× 및 판정 보류를 표시한다.
+3. 실전 Live: 로그인 포털의 일회용 코드를 메모리에서 교환한다.
+   테스트앱 표식을 네이티브 API에도 전달해 무제한 이용 안내와 테스트용 질문을 적용한다.
+   선택한 여성/남성 아바타 신원을 서버에 전달한다. 음성 ID·프롬프트는 서버가 소유한다.
+   여성 최초 채택 음성, 남성 3차 채택 음성 및 메인·꼬리질문 간 동일 음성을 사용한다.
+   메인 2개 × (답변 1 + 꼬리질문 2) = 6문답, 최대 10분과 질문 진행 표시를 맞춘다.
+   면접관과 내 카메라를 50:50으로 표시한다. 면접관 실시간 발화 자막은 숨기고,
+   질문 문구·수강생 답변 자막·기록 재생·종합 피드백은 유지한다.
+   시작 전 실패는 결과 화면을 만들지 않고 준비 화면에 구체적인 이유를 표시한다.
+   종료·백그라운드 이동 시 마이크·카메라를 해제하고 기존 서버의 종료/저장 절차를 사용한다.
+   학생 화면에는 사용량·비용을 표시하지 않는다.
+
+범위와 데이터
+새 진입점·화면·WebView 기능은 src/debug에만 있다. 일반 앱 기본 API는 테스트 표식을
+붙이지 않으며 정식 InterviewActivity, 일반 앱 화면, 운영 서버·DB는 유지한다.
+--test-sync 빌드에서만 기존 TWA 런처를 끄고 동기화된 테스트 포털을 기본 아이콘으로 연다.
+WebView 기능은 정확한 HTTPS origin과 main frame에서만 네이티브 경로를 허용한다.
+HTTP·임의 포트·타 도메인·추가 bridge 필드는 거절한다. 인증서는 우회하지 않는다.
+연습 기록은 계정 SHA-256 별 기기 내 폴더로 분리한다. 다른 계정의 녹음을 섞지 않는다.
+예전 무계정 로컬 기록은 삭제하지 않으며 새 계정 기록에 자동으로 편입하지 않는다.
+각 기기의 로컬 연습 녹음 파일이 다른 기기로 자동 전송되는 변경은 포함하지 않는다.
+
+빌드와 기기 설치
+기존 Android SDK/JDK/TWA 프로젝트와 동일한 Debug keystore를 사용한다.
+  node scripts/play-store/prepare-native-interview.cjs --base=<기존 TWA 폴더> --target=<별도 빌드 폴더> --sdk=<SDK 폴더> --debug-key=<기존 Debug keystore> --test-sync
+생성한 폴더에서:
+  gradlew.bat --no-daemon :interview:testDebugUnitTest :interview:assembleRelease :app:assembleDebug :app:assembleDebugAndroidTest
+패키지: com.ronpark.study.nativepreview.
+표시 이름: 론박스터디 테스트앱.
+버전: 1.1.0-test-sync-20261111 / versionCode 2.
+SM_G950N에서 기존 설치본과 서명 SHA-256 일치를 확인하고 adb install -r 업데이트 완료.
+기존 앱 삭제, 데이터 초기화, 정식 앱 덮어쓰기는 하지 않았다.
+로컬 APK: .tmp/android-ios-sync-build/app/build/outputs/apk/debug/app-debug.apk.
+APK SHA-256: a8a8899241279afe11e74f7620fb7e452ada20cf418140dd63344983ec32a08c.
+
+검증
+Android 단위 검사 33개 통과. Debug APK·정식 모듈·화면 검사용 APK 빌드 통과.
+Node 검사 35개 통과 (실제 로컬 인증/DB 통합 검사 포함).
+SM_G950N instrumentation 화면 검사 통과: 기본 런처, 일반/테스트 API 분리,
+6문답·무제한 안내, 꼬리질문 진행, 질문/내 답변 자막, 시작 실패 복구, 분야·지역·문항 수.
+이 기기 화면 검사는 메모리 내 fixture만 사용한다. 유효한 연결 코드, 녹음·업로드,
+가짜 운영 계정·기록 또는 유료 API 호출을 만들지 않는다.
+실제 로그인 후 서버 왕복·스피커 음성 청취·답변 기반 6문답의 최종 확인은 별도다.
+Windows에서 iPhone을 다시 빌드·설치했다고 기록하지 않는다.
+
+푸시·배포
+이 동기화 수정의 푸시는 사용자 최종 확인 후 진행한다.
+Android Debug APK만 바뀌므로 별도 Vercel 배포나 스토어 업로드는 필요하지 않다.
+기존 운영 배포와 iOS 전용 브랜치는 유지한다.
+
+후속 공통 확인
+두 기기에서 같은 면접반 계정·직렬로 로그인한다. 서버 권한과 질문 범위를 먼저 비교한다.
+실전 준비의 6문답·무제한 안내를 확인하고, 사용자가 시작한 한 세션에서 카메라·음성·
+꼬리질문·종료·기록을 확인한다. 유료 테스트가 불명확하면 자동으로 다시 시작하지 않는다.
+공통 동작을 바꾸면 이 문서의 iOS 기준 SHA, Android 버전 및 양 플랫폼 검증 상태를 갱신한다.
+
+참고
+docs/interview-live-selected-voices-mac-handoff-20261111.txt
+docs/releases/20261111-interview-test-unlimited-production.txt
+https://developer.android.com/reference/androidx/webkit/WebViewCompat
+https://developer.android.com/reference/android/webkit/PermissionRequest

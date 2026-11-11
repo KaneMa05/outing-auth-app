@@ -11,6 +11,7 @@ import java.util.*;
 final class InterviewLocalStore {
     private final File root;
     InterviewLocalStore(Context context){root=new File(context.getNoBackupFilesDir(),"interview-practice");root.mkdirs();}
+    InterviewLocalStore(Context context,String accountScope){if(accountScope==null||!accountScope.matches("[a-f0-9]{64}"))throw new IllegalArgumentException();root=new File(context.getNoBackupFilesDir(),"interview-accounts/"+accountScope);root.mkdirs();}
     String create(){String id=UUID.randomUUID().toString();folder(id).mkdirs();return id;}
     private File folder(String id){if(id==null||!id.matches("[a-f0-9-]{36}"))throw new IllegalArgumentException();return new File(root,id);}
     File audio(String id,int question){if(question<1||question>100)throw new IllegalArgumentException();return new File(folder(id),"answer-"+question+".wav");}

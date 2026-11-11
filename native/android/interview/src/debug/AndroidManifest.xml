@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:networkSecurityConfig="@xml/interview_debug_network_security">
     <activity android:name="com.ronpark.interview.InterviewPracticeActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:configChanges="orientation|screenSize|keyboardHidden" />
-    <activity android:name="com.ronpark.interview.InterviewPreviewActivity" android:exported="true" android:label="모의면접 네이티브 테스트" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <activity android:name="com.ronpark.interview.InterviewTestLiveActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:configChanges="orientation|screenSize|keyboardHidden" />
+    <activity android:name="com.ronpark.interview.InterviewPortalPracticeActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:configChanges="orientation|screenSize|keyboardHidden" />
+    <activity android:name="com.ronpark.interview.InterviewPreviewActivity" android:exported="true" android:label="론박스터디 테스트앱" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:configChanges="orientation|screenSize|keyboardHidden">
         <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
     </activity>
 </application></manifest>

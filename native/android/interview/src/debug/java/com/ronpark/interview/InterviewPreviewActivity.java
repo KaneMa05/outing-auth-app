@@ -1,38 +1,88 @@
 package com.ronpark.interview;
-import android.app.Activity;
-import android.content.Intent;
+
+import android.Manifest;
+import android.app.*;
+import android.content.*;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.view.Gravity;
-import android.widget.*;
-/** Debug-only entry menu. Uses app-private recordings without paid APIs. */
+import android.webkit.*;
+import android.widget.TextView;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+import org.json.JSONObject;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/** Installed Debug app: same authenticated portal and native routes as the iPhone Debug app. */
 public final class InterviewPreviewActivity extends Activity {
-    TextView trackLabel;InterviewQuestionAudio audio;
-    String currentTrack(){String value=getSharedPreferences("interview-preview",MODE_PRIVATE).getString("track","공채");return InterviewQuestionPolicy.validTrack(value)?value:"공채";}
-    void selectTrack(){
-        String[] choices=new String[InterviewQuestionPolicy.TRACKS.length];
-        for(int i=0;i<choices.length;i++){String track=InterviewQuestionPolicy.TRACKS[i];choices[i]=track+" · 직무 음성 "+audio.eligible("job",track).size()+"개";}
-        new android.app.AlertDialog.Builder(this).setTitle("직렬 선택").setItems(choices,(dialog,index)->{
-            getSharedPreferences("interview-preview",MODE_PRIVATE).edit().putString("track",InterviewQuestionPolicy.TRACKS[index]).apply();updateTrack();
-        }).show();
+    private WebView web;
+    private PermissionRequest pendingMedia;
+    private ValueCallback<Uri[]> picker;
+    private boolean openingNative;
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        if(android.os.Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::onBackPressed);
+        getWindow().setStatusBarColor(0xfff6f8fa);getWindow().setNavigationBarColor(0xfff6f8fa);
+        getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        web=new WebView(this);setContentView(web);
+        web.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});
+        WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);settings.setMediaPlaybackRequiresUserGesture(true);
+        CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
+        if(!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)||!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)){
+            TextView message=new TextView(this);message.setText("Android System WebView 또는 Chrome을 최신 버전으로 업데이트한 뒤 테스트앱을 다시 열어주세요.");message.setPadding(40,80,40,40);setContentView(message);return;
+        }
+        Set<String> origins=Collections.singleton(InterviewTestPolicy.ORIGIN);
+        WebViewCompat.addWebMessageListener(web,"ronparkTestBridge",origins,(view,message,origin,mainFrame,reply)->{
+            if(!mainFrame||!InterviewTestPolicy.trusted(origin.toString())||!InterviewTestPolicy.trusted(view.getUrl())||openingNative)return;
+            try{
+                JSONObject envelope=new JSONObject(message.getData()),body=envelope.getJSONObject("body");String kind=envelope.getString("kind");
+                if(envelope.length()!=2||body.length()!=1)return;
+                if("live".equals(kind)&&InterviewTestPolicy.code(body.optString("code"))){
+                    openingNative=true;startActivity(new Intent(this,InterviewTestLiveActivity.class).putExtra("launchCode",body.getString("code")));
+                }else if("practice".equals(kind)&&InterviewTestPolicy.mode(body.optString("mode"))){
+                    openingNative=true;String id=InterviewPortalSession.create(body.getString("mode"));
+                    startActivity(new Intent(this,InterviewPortalPracticeActivity.class).putExtra("portalSession",id));
+                }
+            }catch(Exception ignored){}
+        });
+        try{WebViewCompat.addDocumentStartJavaScript(web,asset("interview-test-portal.js"),origins);}catch(Exception error){finish();return;}
+        web.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
+                Uri url=request.getUrl();if(InterviewTestPolicy.trusted(url.toString()))return false;
+                if(request.isForMainFrame()&&request.hasGesture()&&Arrays.asList("https","http","tel","mailto").contains(url.getScheme()))try{startActivity(new Intent(Intent.ACTION_VIEW,url));}catch(Exception ignored){}
+                return true;
+            }
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){denyMedia();if(!InterviewTestPolicy.trusted(url))view.stopLoading();}
+            @Override public void onReceivedSslError(WebView view,android.webkit.SslErrorHandler handler,android.net.http.SslError error){handler.cancel();}
+        });
+        web.setWebChromeClient(new WebChromeClient(){
+            @Override public void onPermissionRequest(PermissionRequest request){runOnUiThread(()->requestMedia(request));}
+            @Override public void onPermissionRequestCanceled(PermissionRequest request){if(pendingMedia==request)pendingMedia=null;}
+            @Override public boolean onJsAlert(WebView v,String url,String message,JsResult result){new AlertDialog.Builder(InterviewPreviewActivity.this).setMessage(message).setPositiveButton("확인",(d,w)->result.confirm()).setOnCancelListener(d->result.cancel()).show();return true;}
+            @Override public boolean onJsConfirm(WebView v,String url,String message,JsResult result){new AlertDialog.Builder(InterviewPreviewActivity.this).setMessage(message).setPositiveButton("확인",(d,w)->result.confirm()).setNegativeButton("취소",(d,w)->result.cancel()).setOnCancelListener(d->result.cancel()).show();return true;}
+            @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){if(!InterviewTestPolicy.trusted(view.getUrl()))return false;if(picker!=null)picker.onReceiveValue(null);picker=callback;try{startActivityForResult(params.createIntent(),72);return true;}catch(Exception e){picker=null;callback.onReceiveValue(null);return true;}}
+        });
+        web.loadUrl(InterviewTestPolicy.ORIGIN+"/interview?app=1");
     }
-    void updateTrack(){if(trackLabel!=null){trackLabel.setText(currentTrack()+" ▾");trackLabel.setContentDescription("직렬 "+currentTrack()+", 변경 가능");}}
-    @Override protected void onResume(){super.onResume();updateTrack();}
-    int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
-    @Override public void onCreate(Bundle state) {
-        super.onCreate(state);int paper=Color.rgb(242,245,247),ink=Color.rgb(23,59,81);
-        getWindow().setStatusBarColor(paper);getWindow().setNavigationBarColor(paper);
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(paper);root.setPadding(dp(18),dp(22),dp(18),dp(24));
-        root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(18)+insets.getSystemWindowInsetLeft(),dp(22)+insets.getSystemWindowInsetTop(),dp(18)+insets.getSystemWindowInsetRight(),dp(24)+insets.getSystemWindowInsetBottom());return insets;});
-        TextView brand=new TextView(this);brand.setText("론박스터디 · 면접반");brand.setTextSize(12);brand.setTextColor(Color.rgb(97,120,137));root.addView(brand);
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);TextView title=new TextView(this);title.setText("모의면접");title.setTextSize(25);title.setTypeface(null,Typeface.BOLD);title.setTextColor(ink);header.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));
-        audio=new InterviewQuestionAudio(this);trackLabel=new TextView(this);trackLabel.setTextSize(16);trackLabel.setTextColor(ink);trackLabel.setTypeface(null,Typeface.BOLD);trackLabel.setGravity(Gravity.CENTER);trackLabel.setMinHeight(dp(48));trackLabel.setOnClickListener(v->selectTrack());trackLabel.setFocusable(true);trackLabel.setBackgroundColor(Color.WHITE);header.addView(trackLabel,new LinearLayout.LayoutParams(dp(98),dp(48)));root.addView(header);updateTrack();
-        String[][] modes={{"job","전공(직무) 시험모드"},{"personality","인성 연습모드"},{"ai","실전 모의면접 (AI)"}};
-        for(String[] mode:modes){Button card=new Button(this);card.setText(mode[1]+"     ›");card.setTextSize(16);card.setTextColor(ink);card.setAllCaps(false);card.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);card.setPadding(dp(20),0,dp(16),0);GradientDrawable bg=new GradientDrawable();bg.setColor(Color.WHITE);bg.setCornerRadius(dp(12));bg.setStroke(dp(1),Color.rgb(217,229,242));card.setBackground(bg);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(80));lp.topMargin=dp(14);root.addView(card,lp);card.setOnClickListener(v->startActivity(new Intent(this,InterviewPracticeActivity.class).putExtra("practiceMode",mode[0])));}
-        TextView note=new TextView(this);note.setText("기기 내 테스트 · USB 또는 같은 Wi-Fi에서 AI 연결");note.setTextColor(Color.rgb(101,119,138));note.setTextSize(12);note.setPadding(0,dp(20),0,dp(12));root.addView(note);
-        Button records=new Button(this);records.setText("내 면접 기록");records.setAllCaps(false);records.setOnClickListener(v->startActivity(new Intent(this,InterviewPracticeActivity.class).putExtra("showRecords",true)));root.addView(records);
-        setContentView(root);root.requestApplyInsets();
+    private String asset(String name)throws IOException{try(InputStream in=getAssets().open(name);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1)out.write(b,0,n);return new String(out.toByteArray(),StandardCharsets.UTF_8);}}
+    private void requestMedia(PermissionRequest request){
+        denyMedia();if(!InterviewTestPolicy.trusted(request.getOrigin().toString())||!InterviewTestPolicy.trusted(web.getUrl())){request.deny();return;}
+        ArrayList<String> permissions=new ArrayList<>();
+        for(String resource:request.getResources()){
+            String permission=PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)?Manifest.permission.RECORD_AUDIO:PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)?Manifest.permission.CAMERA:null;
+            if(permission==null){request.deny();return;}if(checkSelfPermission(permission)!=PackageManager.PERMISSION_GRANTED)permissions.add(permission);
+        }
+        pendingMedia=request;if(!permissions.isEmpty())requestPermissions(permissions.toArray(new String[0]),71);
+        else new AlertDialog.Builder(this).setMessage("카메라·마이크를 모의면접 준비와 답변 녹음에 사용하도록 허용할까요?").setPositiveButton("허용",(d,w)->grantMedia()).setNegativeButton("허용 안 함",(d,w)->denyMedia()).setOnCancelListener(d->denyMedia()).show();
     }
+    private void grantMedia(){PermissionRequest request=pendingMedia;pendingMedia=null;if(request==null)return;if(!InterviewTestPolicy.trusted(web.getUrl())){request.deny();return;}ArrayList<String> allowed=new ArrayList<>();for(String resource:request.getResources()){String permission=PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)?Manifest.permission.RECORD_AUDIO:PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)?Manifest.permission.CAMERA:null;if(permission==null||checkSelfPermission(permission)!=PackageManager.PERMISSION_GRANTED){request.deny();return;}allowed.add(resource);}request.grant(allowed.toArray(new String[0]));}
+    private void denyMedia(){if(pendingMedia!=null){pendingMedia.deny();pendingMedia=null;}}
+    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] grants){super.onRequestPermissionsResult(code,permissions,grants);if(code==71)grantMedia();}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==72&&picker!=null){picker.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));picker=null;}}
+    @Override protected void onResume(){super.onResume();openingNative=false;if(web!=null)web.onResume();}
+    @Override protected void onPause(){denyMedia();if(web!=null)web.onPause();CookieManager.getInstance().flush();super.onPause();}
+    @Override public void onBackPressed(){if(web!=null&&web.canGoBack())web.goBack();else super.onBackPressed();}
+    @Override protected void onDestroy(){denyMedia();if(picker!=null)picker.onReceiveValue(null);if(web!=null){web.stopLoading();web.destroy();web=null;}super.onDestroy();}
 }

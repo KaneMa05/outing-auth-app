@@ -3,6 +3,7 @@ const fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const option=(name,fallback)=>process.argv.find(a=>a.startsWith('--'+name+'='))?.slice(name.length+3)||fallback;
 const base=path.resolve(option('base',path.join(root,'.tmp/play-android'))),target=path.resolve(option('target',path.join(root,'.tmp/play-android-native')));
+const synchronizedTest=process.argv.includes('--test-sync');
 if(!fs.existsSync(path.join(base,'app/src/main/AndroidManifest.xml')))throw Error('Generate the existing TWA Android project first.');
 fs.cpSync(base,target,{recursive:true,filter:p=>!['build','.gradle','.git'].includes(path.basename(p))});
 fs.cpSync(path.join(root,'native/android/interview'),path.join(target,'interview'),{recursive:true});
@@ -20,6 +21,12 @@ edit('app/build.gradle',s=>s.replace("launchUrl: '/index.html#home'","launchUrl:
  .replace('versionCode 1','versionCode 2').replace("versionName \"1.0.0\"","versionName \"1.1.0\"")
  .replace('buildTypes {',"signingConfigs { debug { storeFile file('../debug.keystore') } }\n    buildTypes {\n        debug { applicationIdSuffix '.nativepreview'; versionNameSuffix '-native-preview' }")
  .replace('dependencies {',"dependencies {\n    implementation project(':interview')"));
+if(synchronizedTest){
+ edit('app/build.gradle',s=>s.replace("versionNameSuffix '-native-preview'","versionNameSuffix '-test-sync-20261111'").replace('defaultConfig {','defaultConfig {\n        testInstrumentationRunner "com.ronpark.interview.test.InterviewSyncInstrumentation"'));
+ const debug=path.join(target,'app/src/debug');fs.mkdirSync(debug,{recursive:true});
+ fs.writeFileSync(path.join(debug,'AndroidManifest.xml'),'<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"><application android:label="론박스터디 테스트앱" tools:replace="android:label"><activity android:name="com.ronpark.study.LauncherActivity" android:enabled="false" tools:replace="android:enabled" /></application></manifest>\n');
+ fs.cpSync(path.join(root,'native/android/sync-tests'),path.join(target,'app/src/androidTest/java'),{recursive:true});
+}
 fs.writeFileSync(path.join(target,'local.properties'),'sdk.dir='+path.resolve(option('sdk',path.join(root,'.tmp/play-tools/android-sdk'))).replaceAll('\\','/')+'\n');
 // A local debug-only key; never use the Play upload/release keystore for previews.
 const debugKey=path.join(target,'debug.keystore');

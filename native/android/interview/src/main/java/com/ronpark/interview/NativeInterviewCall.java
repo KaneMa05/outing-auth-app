@@ -56,6 +56,7 @@ final class NativeInterviewCall {
     }catch(Exception e){stop("microphone_unavailable");}}
     void sendOffer(){if(ended||closing||offerSent||peer==null||peer.getLocalDescription()==null)return;offerSent=true;sdp=peer.getLocalDescription().description;String key=UUID.randomUUID().toString();
         JSONObject fields=InterviewApi.json("requestKey",key,"sdp",sdp);
+        if(api.testApp&&Arrays.asList("interviewer-woman","interviewer-man-1","interviewer-man-2").contains(api.interviewer))try{fields.put("interviewer",api.interviewer);}catch(Exception ignored){}
         api.command("start",fields,(result,error)->{
             if(ended||closing)return;if(error!=null){stop(error);return;}
             if(!"websocket".equals(result.optString("transport"))||!"/api/interview-live-socket".equals(result.optString("url"))){stop("unsupported_transport");return;}
