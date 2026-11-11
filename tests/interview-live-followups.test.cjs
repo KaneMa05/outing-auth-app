@@ -78,3 +78,13 @@ test('final voice usage is persisted before the closed session finishes',async()
  await f.live.finishPromise;
  assert.equal(events.length,2);assert.equal(events.at(-1).status,'reported');assert.equal(events.at(-1).usage.seconds,30);
 });
+
+for(const testApp of [true,false])test('opening is spoken once and stays scoped to '+(testApp?'test app':'ordinary app'),async()=>{
+ const f=await fixture(()=>complete,testApp);
+ try{
+  const actor={type:'student',id:'test',...(testApp?{testApp:true}:{})},body={action:'begin',runId:f.live.run.id};
+  await f.engine.command(actor,body);await f.engine.command(actor,body);
+  const opening=f.sent.filter(e=>e.type==='session.commentary.append');assert.equal(opening.length,1);
+  assert.equal(opening[0].content,(testApp?'면접을 시작하겠습니다.\n':'AI 모의면접을 시작합니다. 한 번에 한 질문씩 진행합니다. 첫 질문: ')+'메인 질문 0');
+ }finally{await f.stop();}
+});

@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const {createHandler,validate}=require('../api/interview-live');
 const {read}=require('../lib/interview-live-ticket');
-const {sessionConfig,TEST_INTERVIEWERS,VOICE_INSTRUCTIONS}=require('../lib/interview-live-policy');
+const {sessionConfig,TEST_INTERVIEWERS,VOICE_INSTRUCTIONS,TEST_VOICE_INSTRUCTIONS}=require('../lib/interview-live-policy');
 const {testVoiceProfile}=require('../lib/interview-live-test-voices.cjs');
 const {createProvider}=require('../lib/interview-live-provider');
 const {LiveEngine}=require('../lib/interview-live-engine');
@@ -33,7 +33,7 @@ test('provider keeps ordinary presets unchanged and sends approved custom voice 
  assert.deepEqual(seen.map(x=>x.session.audio.output.voice),['meridian','noeul']);assert(seen.every(x=>x.session.instructions===VOICE_INSTRUCTIONS));
  for(const voice of Object.values(TEST_INTERVIEWERS)){
   await provider.create(sdp,voice);const config=seen.at(-1).session;
-  assert.deepEqual(config.audio.output.voice,voice);assert(config.instructions.includes(testVoiceProfile(voice).description));assert(config.instructions.endsWith(VOICE_INSTRUCTIONS));
+  assert.deepEqual(config.audio.output.voice,voice);assert(config.instructions.includes(testVoiceProfile(voice).description));assert(config.instructions.endsWith(TEST_VOICE_INSTRUCTIONS));
   assert.equal(config.store,false);assert.equal(config.delegation.type,'client');assert.deepEqual(config.client,sessionConfig().client);
   assert(!config.instructions.includes('안녕하세요. 모의면접을 시작하겠습니다.'),'audition script is never inserted into interview sessions');
  }
@@ -64,7 +64,7 @@ for(const interviewer of Object.keys(TEST_INTERVIEWERS))test('all six test inter
   for(let i=0;i<6;i++){clock+=6000;callback({type:'session.input_transcript.delta',delta:'합성 테스트 답변 '+i});await engine.advance(live,null,true);}
   assert(live.completed);assert.deepEqual(live.turns.map(t=>t.kind),['initial','followup','followup','initial','followup','followup']);
   const sessions=requests.filter(r=>r.url.endsWith('/live/sessions'));assert.equal(sessions.length,1);assert.deepEqual(sessions[0].body.session.audio.output.voice,TEST_INTERVIEWERS[interviewer]);
-  assert(sessions[0].body.session.instructions.endsWith(VOICE_INSTRUCTIONS));assert.equal(requests.filter(r=>r.url.endsWith('/responses')).length,6);
+  assert(sessions[0].body.session.instructions.endsWith(TEST_VOICE_INSTRUCTIONS));assert.equal(requests.filter(r=>r.url.endsWith('/responses')).length,6);
   assert(!sent.some(e=>e.type==='session.update'),'follow-up questions never replace the session voice');
  }finally{await engine.finish(live,live.completed?'completed':'interrupted');}
 });
