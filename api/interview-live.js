@@ -16,12 +16,14 @@ function defaults(){const auth=require('./teacher-auth-utils');return {
  config:configuration(),cliEnabled:require('../lib/interview-mock-cli-queue.cjs').enabled('report'),queue:()=>require('../lib/interview-mock-cli-queue.cjs').createQueue(),authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  openaiReportsEnabled:!!process.env.OPENAI_API_KEY&&require('../lib/interview-openai-config.cjs').feature('INTERVIEW_MOCK_REPORT_ENABLED')&&!!require('../lib/interview-openai-config.cjs').models().report,
  reports:()=>require('../lib/interview-openai-report.cjs').createReports({key:process.env.OPENAI_API_KEY,model:require('../lib/interview-openai-config.cjs').models().report,
+  onUsage:body=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_usage_service',{p_action:'record',p_actor:{type:'server',id:'live-worker'},p_body:body}),
   invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_openai_report_service',{p_action:action,p_actor:actor,p_body:body})}),
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
  authenticateAdmin:async req=>{const s=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
   if(!s)fail('unauthorized');if(s.role!=='admin'||!auth.hasPermission(s,'interview.read'))fail('forbidden');return {id:s.username};},fetchImpl:fetch,
  invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_service',{p_action:action,p_actor:actor,p_body:body}),
+ usage:(actor,runId)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_usage_service',{p_action:'get',p_actor:actor,p_body:{runId}}),
  storage:()=>require('../lib/interview-live-cloud-storage').createCloudStorage({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};}
 function validate(b){
  const fields={analysis_request:['runId'],analysis_get:['runId'],ready:[],start:['requestKey','sdp','interviewer'],begin:['runId'],heartbeat:['runId'],answer_done:['runId'],finish:['runId'],list:['page'],get:['runId'],admin_list:['page'],admin_get:['runId']};
@@ -42,7 +44,9 @@ function createHandler(deps){return async(req,res)=>{try{
   if(b.action==='analysis_request')await d.queue().enqueue('report',b.runId,actor);
   return res.status(200).json({ok:true,processing:await d.queue().get('report',b.runId,actor)});
  }
- async function withAnalysis(data){if(b.action==='get'&&(d.cliEnabled||d.openaiReportsEnabled)&&['completed','interrupted'].includes(data.run?.state)){
+ async function withAnalysis(data){
+  if(['get','admin_get'].includes(b.action)&&d.usage){try{data.usage=await d.usage(actor,b.runId);}catch{data.usage={fullyConfirmed:false,status:'unavailable'};}}
+  if(b.action==='get'&&(d.cliEnabled||d.openaiReportsEnabled)&&['completed','interrupted'].includes(data.run?.state)){
   data.analysisEnabled=true;data.processing=d.openaiReportsEnabled?await d.reports().get(actor,b.runId):await d.queue().get('report',b.runId,actor);
  }return data;}
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}

@@ -29,6 +29,7 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  const openai=f.rpc('ip_openai_practice_service'),outside=f.detail.question;
  const oldId=randomUUID();await openai('create',actor,{id:oldId,mode:'job',questionId:outside.id,questionPrompt:outside.prompt,audioHash:'a'.repeat(64)});
  await f.db.exec(fs.readFileSync(migration,'utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261111043000_interview_test_six_turns.sql','utf8'));
  assert.deepEqual((await f.db.query('select id,prompt,status from ip_questions order by id')).rows,snapshot);
  assert.equal((await openai('get',actor,{id:oldId})).id,oldId,'saved non-test attempts remain readable');
  const ordinary={type:'student',id:'ip-a'};
@@ -50,7 +51,9 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
   const start=await rpc('start',actor,{requestKey:randomUUID(),questionId:questionsFor(mode)[0].id});assert.equal(start.ok,true);
  }
  const live=f.rpc('ip_live_service');assert.equal((await live('ready',actor)).ready,true);
- const {run}=await live('reserve',actor,{requestKey:randomUUID()});assert.deepEqual(run.questions.map(q=>q.id),questionsFor('ai').map(q=>q.id));
+ const {run}=await live('reserve',actor,{requestKey:randomUUID()});assert.deepEqual(run.questions.map(q=>q.id),questionsFor('ai').slice(0,2).map(q=>q.id));
+ await f.db.query("update ip_live_runs set state='interrupted' where id=$1",[run.id]);
+ const ordinaryRun=await live('reserve',ordinary,{requestKey:randomUUID()});assert.equal(ordinaryRun.run.questions.length,3);
  const rows=(await f.db.query('select mode,question_id,prompt,position from ip_mock_test_question_scope order by mode,position')).rows;
  assert.equal(rows.length,9);for(const row of rows)assert(questionsFor(row.mode).some(q=>q.id===row.question_id&&q.prompt===row.prompt&&q.order===row.position));
  await f.db.exec('set role anon');await assert.rejects(f.db.query('select * from ip_mock_test_question_scope'),/permission denied/);await f.db.exec('reset role');

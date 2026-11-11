@@ -6,7 +6,7 @@ const {decision,TEST_FOLLOWUP_INSTRUCTIONS:FOLLOWUP_INSTRUCTIONS,FOLLOWUP_INSTRU
 const complete={turnComplete:true,ask:false,question:'',evidence:''};
 async function fixture(generate,testApp=true){
  let event,clock=Date.now();const sent=[],saved=[],contexts=[];
- const run={id:randomUUID(),questions:[0,1,2].map(i=>({id:'main-'+i,prompt:'메인 질문 '+i})),deadline:new Date(clock+600000).toISOString()};
+ const run={id:randomUUID(),questions:(testApp?[0,1]:[0,1,2]).map(i=>({id:'main-'+i,prompt:'메인 질문 '+i})),deadline:new Date(clock+600000).toISOString()};
  const backend=createProvider({key:'synthetic-test-key',followupModel:'test-model',fetchImpl:async(url,options)=>{
   assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);
   assert.equal(body.store,false);assert.equal(body.instructions,JSON.parse(body.input).testApp===true?FOLLOWUP_INSTRUCTIONS:ORDINARY_INSTRUCTIONS);assert(body.text.format.strict);
@@ -22,10 +22,10 @@ async function fixture(generate,testApp=true){
  const live=engine.sessions.get(run.id);
  return {engine,live,sent,saved,contexts,event:e=>event(e),async answer(text,manual=true){clock+=6000;event({type:'session.input_transcript.delta',delta:text});if(!manual)clock+=2000;await engine.advance(live,'delegation-'+contexts.length,manual);},stop:()=>engine.finish(live,live.completed?'completed':'interrupted')};
 }
-test('Live answers create two fresh followups in sequence for each of three main questions',async()=>{
+test('Live answers create two fresh followups in sequence for each of two main questions',async()=>{
  const f=await fixture((context,i)=>context.remainingFollowups===0?complete:{turnComplete:true,ask:true,question:'새 꼬리질문 '+i+'에서 어떤 행동을 했나요?',evidence:'답변 '+i});
  try{
-  for(let i=0;i<9;i++){
+  for(let i=0;i<6;i++){
    assert.equal(f.live.current.kind,i%3===0?'initial':'followup');
    await f.answer('실제 답변 '+i+'에서 저는 의견을 조율했습니다.');
    const context=f.contexts[i];assert.equal(context.answer,'실제 답변 '+i+'에서 저는 의견을 조율했습니다.');
@@ -33,14 +33,14 @@ test('Live answers create two fresh followups in sequence for each of three main
    assert.equal(context.history.length,i%3);assert.equal(context.asked.length,i%3+1);
    if(i%3===2){assert.equal(context.history[0].answer,'실제 답변 '+(i-2)+'에서 저는 의견을 조율했습니다.');assert.equal(context.history[1].answer,'실제 답변 '+(i-1)+'에서 저는 의견을 조율했습니다.');}
   }
-  assert(f.live.completed);assert.equal(f.live.turns.length,9);
-  for(let i=0;i<3;i++){
+  assert(f.live.completed);assert.equal(f.live.turns.length,6);
+  for(let i=0;i<2;i++){
    const group=f.live.turns.filter(t=>t.parentQuestionId==='main-'+i);
    assert.deepEqual(group.map(t=>t.kind),['initial','followup','followup']);
    assert.equal(group[1].evidence,'답변 '+i*3);assert.equal(group[2].evidence,'답변 '+(i*3+1));
    assert.notEqual(group[1].question,group[2].question);
   }
-  assert.equal(f.saved.at(-1).turns.length,9);
+  assert.equal(f.saved.at(-1).turns.length,6);
  }finally{await f.stop();}
 });
 test('a skipped or invalid followup preserves the answer and cannot jump to another main question',async()=>{
@@ -67,4 +67,14 @@ test('ordinary Live retains optional followups and the original provider instruc
  const f=await fixture(()=>complete,false);
  try{await f.answer('저는 역할을 나눴습니다.');assert.equal(f.live.index,1);assert.equal(f.live.followups,0);assert.equal(f.live.turns.length,1);assert.equal(f.contexts[0].testApp,undefined);}
  finally{await f.stop();}
+});
+
+test('final voice usage is persisted before the closed session finishes',async()=>{
+ const events=[],f=await fixture(async()=>complete);
+ f.engine.recordUsage=async event=>{await new Promise(r=>setTimeout(r,2));events.push(event);};
+ f.event({type:'session.usage.updated',event_id:'usage-1',usage:{seconds:20}});
+ f.event({type:'session.usage.updated',event_id:'usage-1',usage:{seconds:20}});
+ f.event({type:'session.closed',usage:{seconds:30}});
+ await f.live.finishPromise;
+ assert.equal(events.length,2);assert.equal(events.at(-1).status,'reported');assert.equal(events.at(-1).usage.seconds,30);
 });
