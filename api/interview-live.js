@@ -45,7 +45,7 @@ function createHandler(deps){return async(req,res)=>{try{
   return res.status(200).json({ok:true,processing:await d.queue().get('report',b.runId,actor)});
  }
  async function withAnalysis(data){
-  if(['get','admin_get'].includes(b.action)&&d.usage){try{data.usage=await d.usage(actor,b.runId);}catch{data.usage={fullyConfirmed:false,status:'unavailable'};}}
+  if(['get','admin_get'].includes(b.action)&&d.usage){try{data.usage=require('../lib/interview-live-usage').calculatedUsage(await d.usage(actor,b.runId));}catch{data.usage={fullyConfirmed:false,status:'unavailable'};}}
   if(b.action==='get'&&(d.cliEnabled||d.openaiReportsEnabled)&&['completed','interrupted'].includes(data.run?.state)){
   data.analysisEnabled=true;data.processing=d.openaiReportsEnabled?await d.reports().get(actor,b.runId):await d.queue().get('report',b.runId,actor);
  }return data;}

@@ -36,3 +36,10 @@ test('ledger totals preserve attempts, update cumulative usage once and enforce 
  await assert.rejects(rpc('get',{type:'student',id:'other'},{runId:id}),/forbidden/);await assert.rejects(rpc('get',{}, {runId:id}),/forbidden/);await assert.rejects(rpc('record',owner,event),/forbidden/);
  await f.db.exec('set role anon');await assert.rejects(f.db.query('select * from ip_live_usage_events'),/permission denied/);await f.db.exec('reset role');
 });
+test('unpriced historical usage can be calculated read-only without rewriting confirmation or ledger values',()=>{
+ const {calculatedUsage}=require('../lib/interview-live-usage');
+ const original={fullyConfirmed:false,totalUsd:null,events:[{kind:'voice',usd:0.2,status:'reported'},{kind:'backend',model:'gpt-6-astra',usd:null,status:'unpriced',usage:{inputTokens:499,outputTokens:61,cachedInputTokens:0}}]};
+ const before=JSON.stringify(original),result=calculatedUsage(original);
+ assert.equal(JSON.stringify(original),before);assert.equal(result.fullyConfirmed,false);assert.equal(result.totalUsd,null);assert.equal(result.calculationOnly,true);assert(Math.abs(result.calculatedTotalUsd-0.20804)<1e-10);
+ assert.equal(calculatedUsage({events:[{status:'unconfirmed',usd:null}]}).calculatedTotalUsd,null);
+});
