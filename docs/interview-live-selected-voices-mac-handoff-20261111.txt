@@ -137,10 +137,27 @@ session.closed.usage.seconds 최종 값을 한 번 사용하고 WebRTC 초기화
 
 음성 코드 e84e9a0c와 최신 main 1f79e1bd를 7ff5b8e6에서 통합했다.
 단위/회귀 검사 50개와 로컬 WebSocket/WebRTC 통합 검사, 운영 설정 모드 빌드를 통과했다.
-이 인계 문서 작성 시 서버 푸시·배포는 승인받아 진행 중이다.
-실제 푸시 SHA·Vercel 배포 URL/ID·운영 검사 결과는 완료 후 이 항목에 추가한다.
-Windows ADB는 재시작 후에도 연결 장치를 찾지 못했다. 사용자가 USB/디버깅 연결을
-확인 중이며 실제 기기 실행 성공으로 기록하지 않았다.
+커밋·main 푸시·서버 운영 배포 완료.
+배포 소스 SHA: 4ded5a564d9b1ca5ddc9545526c1bb6c1c87ef61.
+인계 작성 커밋: dc318cd. 최신 CLI 배포 기록 76026269도 보존했다.
+Vercel: dpl_F6CEFdEJk5sAPVePYk7m7XX6hNhk / READY / production.
+후보 주소: https://outing-auth-mysuytvwy-ronpark.vercel.app
+운영 주소: https://outing-auth-app.vercel.app 및 https://app.ronparkpass.com
+운영 후보 빌드 1회를 검사한 뒤 같은 빌드를 promote했다. main 자동 Git 배포 비활성화를 유지했다.
+두 운영 도메인이 위 동일 배포를 가리키는지 Vercel inspect로 확인했다.
+각 운영 도메인의 기존 화면 10개 + 변경 서버 음성 소스 3개를 배포 소스와 비교했다.
+비로그인 일반/테스트 Live ready는 모두 403, 후보의 임의 voice 입력은 400이었다.
+추가 유료 OpenAI 호출과 가짜 수강생 면접 기록은 생성하지 않았다.
+서버 키의 선택 음성 실제 사용과 iPhone 청취 품질은 맥북 첫 실제 세션에서 확인해야 한다.
+
+Windows Android 실행은 미완료다. 사용자는 USB 연결과 USB 디버깅 활성화를
+확인했으나, ADB 재시작 후에도 devices 목록이 비어 있고 Windows 장치 목록에서
+휴대폰/ADB 인터페이스를 식별하지 못했다. 실제 앱을 열었다고 기록하지 않는다.
+기기 연결이 확인되면 설치된 테스트 패키지와 실제 테스트 경로를 확인한 뒤 실행한다.
+기존 Android '모의면접 네이티브 테스트'의 기기 내 연습/브리지 화면과 실제
+OpenAI Live 경로를 구분한다. 이 작업에서는 Android APK를 새로 빌드하지 않았다.
+
+배포 완료 상세: docs/releases/20261111-interview-selected-voices-production.txt
 
 참고
 docs/releases/20261111-interview-selected-voices-preparation.txt

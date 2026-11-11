@@ -1,0 +1,87 @@
+청취 승인 음성 — 테스트앱 Live 운영 반영 완료
+작성일: 2026-11-11 한국시간
+
+사용자 승인
+여성 최초 샘플과 남성 3차 샘플 채택, 앱 반영, 맥북 인계 작성,
+커밋·푸시·배포를 명시적으로 승인받고 진행했다.
+
+소스와 보존
+- 선택 음성 구현: e84e9a0c.
+- 최신 CLI 모델 변경 1f79e1bd와 배포 기록 76026269를 보존했다.
+- 맥북 테스트 인계: dc318cd.
+- 배포한 main 소스: 4ded5a564d9b1ca5ddc9545526c1bb6c1c87ef61.
+- main 푸시는 강제 갱신 없이 완료했다. 별도 작업 폴더에서 선택 변경만 준비했다.
+- 다른 작업 폴더의 미커밋 작업과 기존 일반 앱·직무/인성 녹음은 변경하지 않았다.
+- 커밋된 소스만 git archive로 추출한 별도 업로드 폴더를 사용했다.
+  로컬 키·비공개 산출물·미커밋 작업은 업로드하지 않았다.
+
+배포
+Vercel 프로젝트: ronpark/outing-auth-app.
+Vercel CLI: 기존 설치 65.4.0과 기존 사용자 로그인.
+단일 운영 후보 빌드: --prod --skip-domain.
+ID: dpl_F6CEFdEJk5sAPVePYk7m7XX6hNhk.
+URL: https://outing-auth-mysuytvwy-ronpark.vercel.app
+상태: READY / production.
+후보 검증 후 같은 배포를 promote하여 두 운영 주소에 연결했다.
+- https://outing-auth-app.vercel.app
+- https://app.ronparkpass.com
+두 주소 모두 Vercel inspect에서 위 동일 배포 ID를 확인했다.
+main 자동 Git 배포 비활성화를 유지했다. 완료 기록의 문서 전용 푸시로 새 빌드를 만들지 않는다.
+
+직전 운영 배포 (기록용)
+dpl_ERd6bLzF7h6vLzBNTNCcja8Vfe51
+https://outing-auth-dk9upfgew-ronpark.vercel.app
+자동 롤백은 실행하지 않았다.
+
+적용 내용
+- 테스트 여성 면접관: voice_6af3fd211ea081918dc2e8e94f946587.
+- 테스트 남성 면접관 두 명: voice_6af4003787988191b9708350269ed872.
+- 서버 소유 ID·원래 생성 프롬프트, 서명된 테스트앱 면접관 분기로 연결한다.
+- 일반 앱은 기존 기본 음성과 원래 지침을 유지한다.
+- 기존 연습 녹음을 바꾸거나 목소리를 다시 생성하지 않는다.
+- 메인 2개와 직전 답변 기반 꼬리 각 2개, 총 6문답을 유지한다.
+- 비용은 관리자 전용으로 유지한다. 클라이언트 임의 voice/prompt 입력은 차단한다.
+- 새 세션부터 적용하며 이미 진행 중인 세션의 음성은 바꾸지 않는다.
+
+검증 결과
+- 최신 main 통합 후 node:test 사례 총 50개 및 실제 로컬 WebSocket/WebRTC 통합 검사 통과.
+- 별도 작업 폴더에서 운영 설정 검증 모드의 실제 build-config.js 빌드 통과.
+- 일반 noeul/meridian sessionConfig의 원격 기준 직렬화 결과 동일 확인.
+- 후보 기존 화면 10개가 소스와 직전 운영본에 모두 일치했다.
+- 후보의 서버 음성 소스 3개가 커밋된 소스와 일치했다.
+- 후보 일반/테스트 비로그인 Live ready와 native launch: 403.
+- 후보 임의 voice 입력: 400 invalid_request.
+- 승격 후 각 운영 주소에서 기존 화면 10개와 서버 소스 3개 일치.
+- 각 운영 주소의 일반/테스트 비로그인 Live ready: 403.
+- 추가 유료 OpenAI 호출 0회, 가짜 수강생 기록 생성 없음.
+- 이 검증은 실제 iPhone/Android 음성 청취 검증을 대체하지 않는다.
+
+남은 기기 작업
+iPhone 실제 테스트는 사용자 계획대로 맥북에서 진행한다.
+docs/interview-live-selected-voices-mac-handoff-20261111.txt 에 Debug 브랜치,
+Xcode 실행, 표식/아바타 신원, 6문답, 종료·비용·비밀정보 처리 순서를 남겼다.
+서버 키의 동일 OpenAI 프로젝트/음성 사용 권한도 맥북 첫 실제 세션에서 확인한다.
+
+Android 앱 실행은 USB/ADB 기기 미인식으로 미완료다.
+사용자가 USB 연결·디버깅 활성화를 확인했지만, 기존 ADB 인증 경로 사용과
+서버 재시작 뒤에도 devices 목록이 비어 있었다. Windows PnP 조회는 정상
+(168개 장치)이나 휴대폰/ADB 인터페이스는 식별하지 못했다.
+장치가 인식되면 실제 설치된 테스트 패키지부터 확인하여 실행해야 한다.
+기기 내 연습/브리지 화면과 실제 OpenAI Live 음성 테스트를 구분한다.
+기존 Debug 진입점 소스 기준은 com.ronpark.study.nativepreview 패키지의
+com.ronpark.interview.InterviewPreviewActivity이다. 기기가 device 상태로 인식되고
+해당 패키지가 실제 설치된 것을 확인했을 때만 이 Activity를 실행한다.
+정식 com.ronpark.study 앱을 지우거나 테스트용 APK로 덮어쓰지 않는다.
+
+로컬 증빙 (Git/배포 제외)
+.tmp/interview-voices-release-20261111/artifacts/voice-release/
+- deploy.log
+- production-before.json
+- candidate-verification.json
+- production-verification.json
+
+보안/비용
+샘플 원본과 voice ID·프롬프트·최종 사용량은 기존 로컬 산출물에 보존했다.
+배포 작업에서 OpenAI 키 또는 Vercel 운영 Secret을 추출하거나 Git에 기록하지 않았다.
+음성 API 샘플 작업 합계는 기존 총 62초/$0.05166667이며 이번 배포 확인에
+추가 음성 API 비용은 발생시키지 않았다. Vercel 등 인프라 비용은 이 금액과 별도다.

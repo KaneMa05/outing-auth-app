@@ -4,7 +4,8 @@
 상태
 여성 최초 샘플과 남성 3차 샘플을 사용자가 청취 후 선택하고 연결을 승인했다.
 서버 코드 반영과 별도 작업 폴더의 관련 검사·빌드를 완료했다.
-사용자가 맥북 인계 작성과 커밋·푸시·배포를 최종 승인했으며 실행 중이다.
+사용자가 맥북 인계 작성과 커밋·푸시·배포를 최종 승인했다. 실행 완료 기록:
+docs/releases/20261111-interview-selected-voices-production.txt
 최신 origin/main 1f79e1bd를 7ff5b8e6에서 병합해 보존했다. 별도 작업 폴더:
 .tmp/interview-voices-release-20261111
 준비 브랜치: codex/test-interview-voices-20261111
