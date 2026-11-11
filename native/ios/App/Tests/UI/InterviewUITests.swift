@@ -871,6 +871,24 @@ final class PaidLiveVerificationTests: XCTestCase {
         }
         XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout: 30))
         evidence("paid-live-result")
+        let retention = app.staticTexts["interview.retention-date"].label
+        XCTAssertNotNil(retention.range(of: "^보관 종료: [0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression))
+        print("LIVE_VERIFY_RETENTION " + retention)
+        if ProcessInfo.processInfo.environment["LIVE_VERIFY_COMPREHENSIVE"] == "1" {
+            tap("interview.analysis"); evidence("paid-live-comprehensive-generating")
+            let disclaimer = app.staticTexts["저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다."]
+            let until = Date().addingTimeInterval(150)
+            while !disclaimer.exists && Date() < until {
+                XCTAssertEqual(app.state, .runningForeground)
+                Thread.sleep(forTimeInterval: 4)
+                if !app.buttons["interview.analysis"].exists || app.buttons["interview.analysis"].isEnabled { tap("기록 다시 확인") }
+            }
+            XCTAssertTrue(disclaimer.exists, "Comprehensive feedback did not finish; never automatically generate again")
+            for _ in 0..<8 { app.swipeDown() }; evidence("paid-live-comprehensive-overview")
+            for page in 1...5 { app.swipeUp(); evidence("paid-live-comprehensive-page-\(page)") }
+            XCTAssertEqual(app.state, .runningForeground)
+            print("FEEDBACK_VERIFY_COMPLETED actual_run_comprehensive_feedback_no_app_exit")
+        }
         print("LIVE_VERIFY_COMPLETED six_answers")
     }
 }
