@@ -263,7 +263,25 @@ private struct StudentWebApp: UIViewRepresentable {
         #else
         let startPath = "/index.html#home"
         #endif
-        view.load(URLRequest(url: URL(string: "https://" + Self.host + startPath)!))
+        let loadPage = { view.load(URLRequest(url: URL(string: "https://" + Self.host + startPath)!)) }
+        #if DEBUG
+        // Refresh old module/service-worker copies once for this test-app update.
+        // Keep cookies, local storage and all student recordings intact.
+        let refreshKey = "interviewPreparationCopyCache.20261111"
+        if !testFlag.isEmpty && !UserDefaults.standard.bool(forKey: refreshKey) {
+            let cacheTypes: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache,
+                WKWebsiteDataTypeFetchCache, WKWebsiteDataTypeServiceWorkerRegistrations]
+            config.websiteDataStore.fetchDataRecords(ofTypes: cacheTypes) { records in
+                let appRecords = records.filter { $0.displayName == Self.host || Self.host.hasSuffix("." + $0.displayName) }
+                config.websiteDataStore.removeData(ofTypes: cacheTypes, for: appRecords) {
+                    UserDefaults.standard.set(true, forKey: refreshKey)
+                    loadPage()
+                }
+            }
+        } else { loadPage() }
+        #else
+        loadPage()
+        #endif
         return view
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
