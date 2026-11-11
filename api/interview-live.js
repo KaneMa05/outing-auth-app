@@ -24,12 +24,13 @@ function defaults(){const auth=require('./teacher-auth-utils');return {
  invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_live_service',{p_action:action,p_actor:actor,p_body:body}),
  storage:()=>require('../lib/interview-live-cloud-storage').createCloudStorage({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})};}
 function validate(b){
- const fields={analysis_request:['runId'],analysis_get:['runId'],ready:[],start:['requestKey','sdp'],begin:['runId'],heartbeat:['runId'],answer_done:['runId'],finish:['runId'],list:['page'],get:['runId'],admin_list:['page'],admin_get:['runId']};
+ const fields={analysis_request:['runId'],analysis_get:['runId'],ready:[],start:['requestKey','sdp','interviewer'],begin:['runId'],heartbeat:['runId'],answer_done:['runId'],finish:['runId'],list:['page'],get:['runId'],admin_list:['page'],admin_get:['runId']};
  if(!fields[b.action])fail('unsupported_action');
  if(Object.keys(b).some(k=>!['action','studentId','deviceToken',...fields[b.action]].includes(k)))fail('invalid_request');
  if(fields[b.action].includes('runId')&&!UUID.test(b.runId||''))fail('invalid_request');
  if('page' in b&&(!Number.isInteger(b.page)||b.page<0||b.page>10000))fail('invalid_request');
  if(b.action==='start'&&(!UUID.test(b.requestKey||'')||typeof b.sdp!=='string'||b.sdp.length>60000||!b.sdp.startsWith('v=0')))fail('invalid_request');
+ if('interviewer' in b&&(typeof b.interviewer!=='string'||!Object.hasOwn(require('../lib/interview-live-policy').TEST_INTERVIEWERS,b.interviewer)))fail('invalid_request');
 }
 function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);sameOrigin(req);const b=await bodyOf(req,66000);validate(b);const d=deps||defaults();let actor;
@@ -45,6 +46,7 @@ function createHandler(deps){return async(req,res)=>{try{
   data.analysisEnabled=true;data.processing=d.openaiReportsEnabled?await d.reports().get(actor,b.runId):await d.queue().get('report',b.runId,actor);
  }return data;}
  const config=d.config;if(!config.enabled){if(b.action==='ready')return res.status(200).json({ok:true,ready:false,reason:'live_not_configured'});if(!config.configured||b.action==='start')fail('automation_disabled');}
+ if(b.action==='start'&&b.interviewer){if(actor.testApp!==true)fail('forbidden');actor={...actor,interviewer:b.interviewer};}
  const payload={...b};delete payload.studentId;delete payload.deviceToken;
  if(config.transport==='vercel'){
   if(b.action==='start'){
