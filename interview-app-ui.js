@@ -121,7 +121,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
        if(destroyed||ticket!==generation)next.destroy();else child=next;
        return;
       }
-      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-windows-cli');
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261111-interview-tests');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
       const next=await mountLive(slot,{request:async(action,body={})=>{
