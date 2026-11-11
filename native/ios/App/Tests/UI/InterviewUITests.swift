@@ -846,6 +846,9 @@ final class PaidLiveVerificationTests: XCTestCase {
             }
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: heard, object: nil)], timeout: 65), .completed, "No real microphone transcript on turn \(turn)")
             Thread.sleep(forTimeInterval: 3)
+            let responseSpeech = app.staticTexts["interview.audio-output"].value as? String ?? ""
+            print("LIVE_VERIFY_ACK " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "spoken": responseSpeech]), as: UTF8.self))
+            XCTAssertFalse(responseSpeech.contains("확인하겠습니다"), "Unexpected acknowledgement during answer completion")
             print("LIVE_VERIFY_HEARD " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "transcript": heardText]), as: UTF8.self))
             if question.exists && question.label == current { tap("interview.answer") }
             let next = NSPredicate { _, _ in
