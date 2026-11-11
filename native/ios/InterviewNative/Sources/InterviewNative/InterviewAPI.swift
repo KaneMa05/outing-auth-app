@@ -42,6 +42,11 @@ final class InterviewAPI: NSObject, URLSessionTaskDelegate {
         var req = URLRequest(url: URL(string: Self.origin + "/api/interview-native")!)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        #if DEBUG
+        if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
+            req.setValue("1", forHTTPHeaderField: "X-Interview-Test-App")
+        }
+        #endif
         if !token.isEmpty { req.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await session.data(for: req)

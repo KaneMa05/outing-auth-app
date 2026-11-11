@@ -101,6 +101,24 @@ private struct StudentWebApp: UIViewRepresentable {
         let practiceFlags = pcPractice ? "window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;" : "window.__ronparkOpenAIPractice=true;window.__ronparkPracticeNative=true;"
         let testFlag = ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") ? "" : "window.__ronparkMockTestApp=true;"
         config.userContentController.addUserScript(WKUserScript(source: "if(location.protocol === 'https:' && location.hostname === '\(Self.host)'){\(practiceFlags)\(testFlag)}", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        if !testFlag.isEmpty {
+            let testRequests = """
+                if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+                    const originalFetch = window.fetch.bind(window);
+                    window.fetch = (input, init = {}) => {
+                        const url = new URL(input instanceof Request ? input.url : input, location.href);
+                        if (url.origin === location.origin && url.pathname.startsWith('/api/interview-')) {
+                            const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+                            headers.set('X-Interview-Test-App', '1');
+                            return originalFetch(input, {...init, headers});
+                        }
+                        return originalFetch(input, init);
+                    };
+                }
+                """
+            config.userContentController.addUserScript(WKUserScript(source: testRequests, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
+
         #endif
         // The installed WKWebView is standalone too. Set this before the existing
         // web app evaluates its install gate; never apply it to third-party pages.
@@ -374,6 +392,9 @@ private struct StudentWebApp: UIViewRepresentable {
         request.httpMethod = "POST"; request.timeoutInterval = 20
         request.setValue(origin, forHTTPHeaderField: "Origin")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
+            request.setValue("1", forHTTPHeaderField: "X-Interview-Test-App")
+        }
         request.setValue(HTTPCookie.requestHeaderFields(with: relevant)["Cookie"], forHTTPHeaderField: "Cookie")
         request.httpBody = try JSONSerialization.data(withJSONObject: fields)
         let config = URLSessionConfiguration.ephemeral; config.httpCookieStorage = nil
