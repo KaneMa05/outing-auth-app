@@ -150,12 +150,23 @@ Vercel: dpl_F6CEFdEJk5sAPVePYk7m7XX6hNhk / READY / production.
 추가 유료 OpenAI 호출과 가짜 수강생 면접 기록은 생성하지 않았다.
 서버 키의 선택 음성 실제 사용과 iPhone 청취 품질은 맥북 첫 실제 세션에서 확인해야 한다.
 
-Windows Android 실행은 미완료다. 사용자는 USB 연결과 USB 디버깅 활성화를
-확인했으나, ADB 재시작 후에도 devices 목록이 비어 있고 Windows 장치 목록에서
-휴대폰/ADB 인터페이스를 식별하지 못했다. 실제 앱을 열었다고 기록하지 않는다.
-기기 연결이 확인되면 설치된 테스트 패키지와 실제 테스트 경로를 확인한 뒤 실행한다.
-기존 Android '모의면접 네이티브 테스트'의 기기 내 연습/브리지 화면과 실제
-OpenAI Live 경로를 구분한다. 이 작업에서는 Android APK를 새로 빌드하지 않았다.
+Windows Android 실행 완료: USB 재연결 후 SM_G950N이 ADB device 상태로 인식됐다.
+설치된 com.ronpark.study.nativepreview 패키지를 확인하고
+com.ronpark.interview.InterviewPreviewActivity를 실행했다. am start -W는 Status: ok,
+전면 Activity도 위 진입점으로 확인했다. 화면 캡처에서 '모의면접' 첫 화면과
+전공(직무) 시험모드·인성 연습모드·실전 모의면접(AI) 메뉴가 보이는 것을 확인했다.
+이전 USB/ADB 미인식 문제는 해결됐다. APK 재빌드·재설치나 기존 앱 데이터 변경은 없었다.
+기기 내 연습/브리지 첫 화면까지 열었으며, 실제 OpenAI Live 면접이나 유료 음성 호출은
+시작하지 않았다. 선택 음성 청취와 6문답 검증 완료로 간주하지 않는다.
+로컬 화면 증빙(Git 제외):
+.tmp/interview-voices-release-20261111/artifacts/voice-release/android-test-app-opened.png
+
+후속 공유 기록: main 16b468a8의
+docs/releases/20261111-interview-test-unlimited-production.txt 에 테스트앱 무제한 반영,
+iOS f881a4b Debug 앱의 iPhone 설치·실행 완료 및 후속 운영 배포를 기록했다.
+따라서 위 4ded5a56 / dpl_F6CEFdEJk5sAPVePYk7m7XX6hNhk는 선택 음성 최초 반영 기록이다.
+후속 배포 ID는 dpl_AptxujsBnKNTQeRx6it65v8bfrTC이며, 자세한 범위·검증은 해당 문서를 따른다.
+최신 iOS 브랜치를 가져와 기존 설치·서명을 보존하고, 실제 음성 청취는 맥북에서 이어간다.
 
 배포 완료 상세: docs/releases/20261111-interview-selected-voices-production.txt
 

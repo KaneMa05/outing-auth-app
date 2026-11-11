@@ -56,22 +56,27 @@ https://outing-auth-dk9upfgew-ronpark.vercel.app
 - 추가 유료 OpenAI 호출 0회, 가짜 수강생 기록 생성 없음.
 - 이 검증은 실제 iPhone/Android 음성 청취 검증을 대체하지 않는다.
 
-남은 기기 작업
+기기 실행 및 남은 청취 검증
 iPhone 실제 테스트는 사용자 계획대로 맥북에서 진행한다.
 docs/interview-live-selected-voices-mac-handoff-20261111.txt 에 Debug 브랜치,
 Xcode 실행, 표식/아바타 신원, 6문답, 종료·비용·비밀정보 처리 순서를 남겼다.
 서버 키의 동일 OpenAI 프로젝트/음성 사용 권한도 맥북 첫 실제 세션에서 확인한다.
 
-Android 앱 실행은 USB/ADB 기기 미인식으로 미완료다.
-사용자가 USB 연결·디버깅 활성화를 확인했지만, 기존 ADB 인증 경로 사용과
-서버 재시작 뒤에도 devices 목록이 비어 있었다. Windows PnP 조회는 정상
-(168개 장치)이나 휴대폰/ADB 인터페이스는 식별하지 못했다.
-장치가 인식되면 실제 설치된 테스트 패키지부터 확인하여 실행해야 한다.
-기기 내 연습/브리지 화면과 실제 OpenAI Live 음성 테스트를 구분한다.
-기존 Debug 진입점 소스 기준은 com.ronpark.study.nativepreview 패키지의
-com.ronpark.interview.InterviewPreviewActivity이다. 기기가 device 상태로 인식되고
-해당 패키지가 실제 설치된 것을 확인했을 때만 이 Activity를 실행한다.
-정식 com.ronpark.study 앱을 지우거나 테스트용 APK로 덮어쓰지 않는다.
+Android 앱 실행 완료: USB 재연결 후 SM_G950N이 ADB device 상태로 인식됐다.
+설치된 com.ronpark.study.nativepreview 패키지를 확인하고
+com.ronpark.interview.InterviewPreviewActivity를 실행했다.
+am start -W Status: ok와 전면 Activity 일치를 확인했다.
+화면 캡처로 '모의면접' 첫 화면과 세 가지 모드 메뉴가 표시됨을 확인했다.
+이전 USB/ADB 미인식 문제는 해결됐다. APK 재빌드·재설치·앱 데이터 변경은 없었다.
+기기 내 연습/브리지 첫 화면까지만 열었다. 실제 Live 면접은 시작하지 않았으며,
+선택 음성 청취·답변 기반 꼬리질문 검증과 추가 음성 API 사용은 진행하지 않았다.
+
+후속 공유 기록
+main 16b468a8의 docs/releases/20261111-interview-test-unlimited-production.txt 에
+테스트앱 무제한 반영과 iOS f881a4b Debug 앱의 iPhone 설치·실행 완료를 기록했다.
+해당 문서의 후속 운영 배포 ID는 dpl_AptxujsBnKNTQeRx6it65v8bfrTC이다.
+이 문서 위쪽의 4ded5a56 / dpl_F6CEFdEJk5sAPVePYk7m7XX6hNhk는 최초 음성 반영 당시 기록이다.
+Android 실행 완료 갱신은 문서 전용이며, 별도의 빌드나 운영 배포를 만들지 않는다.
 
 로컬 증빙 (Git/배포 제외)
 .tmp/interview-voices-release-20261111/artifacts/voice-release/
@@ -79,6 +84,7 @@ com.ronpark.interview.InterviewPreviewActivity이다. 기기가 device 상태로
 - production-before.json
 - candidate-verification.json
 - production-verification.json
+- android-test-app-opened.png
 
 보안/비용
 샘플 원본과 voice ID·프롬프트·최종 사용량은 기존 로컬 산출물에 보존했다.
