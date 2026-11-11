@@ -1,0 +1,175 @@
+테스트앱 실전 모의면접 음성 샘플 Windows 인계
+작성일: 2026-11-11 한국시간
+
+1. 적용 범위 — 반드시 먼저 확인
+
+이번 작업은 ‘테스트앱의 실전 모의면접’ 면접관 음성에만 해당한다.
+직무 연습모드와 인성 연습모드의 기존 질문 녹음·목소리·화면·동작은 변경하지 않는다.
+일반 배포 앱, 앱스토어·TestFlight 버전, 다른 수강생 화면 및 교사 화면은 변경하지 않는다.
+사용량과 비용은 관리자만 확인한다. 수강생 화면이나 학생용 API 응답에 비용을 노출하지 않는다.
+
+현재 요청은 남녀 음성 샘플을 만들어 듣고 비교하는 단계다.
+샘플을 확인하고 선택하기 전에는 앱 음성 교체·운영 설정 변경·푸시·배포를 진행하지 않는다.
+음성 샘플 작업을 립싱크, 질문 풀 변경 또는 다른 연습모드 개편으로 확대하지 않는다.
+
+2. 사용자가 확정한 음성 방향
+
+남성: 50대 초반, 구체적으로 51~54세로 느껴지는 성숙한 남성 음성.
+낮고 울림 있는 중저음, 자연스러운 질감, 또렷한 발음과 차분한 면접관 말투.
+
+여성: 40대 후반, 구체적으로 47~49세로 느껴지는 성숙한 여성 음성.
+따뜻하고 안정적인 중저음, 자연스러운 질감, 또렷한 발음과 절제된 억양.
+
+공통: 자연스러운 표준 한국어, 중립적인 서울 발음, 여유 있는 속도와 편안한 쉼.
+과장된 노인 목소리나 연극적인 발성으로 만들지 않는다.
+특정 실존 인물을 모사하지 않는 가상의 성인 AI 음성이다.
+연령감은 생성 프롬프트의 목표이며 실제 청취로 확인해야 한다.
+
+남성 생성 프롬프트
+An original fictional adult Korean voice with a mature masculine presentation and a perceived age of 51 to 54. Speak natural standard Korean with a neutral Seoul accent. A resonant low-to-middle register, warm substantial timbre, subtle natural vocal texture, and clear precise consonants. Steady measured rhythm, comfortable pauses and restrained neutral intonation. The composed, experienced delivery of a professional interview examiner. Keep the voice natural and healthy rather than exaggerated or theatrical.
+
+여성 생성 프롬프트
+An original fictional adult Korean voice with a mature feminine presentation and a perceived age of 47 to 49. Speak natural standard Korean with a neutral Seoul accent. A comfortable mid-to-low register, rounded warm timbre, subtle natural vocal texture, and clear precise consonants. Steady measured rhythm, comfortable pauses and restrained neutral intonation. The composed, experienced delivery of a professional interview examiner. Keep the voice natural and healthy rather than exaggerated or theatrical.
+
+남녀 공통 샘플 대본
+안녕하세요. 모의면접을 시작하겠습니다. 학창 시절 동아리 활동에서 본인이 맡았던 역할을 말씀해 주세요. 그 과정에서 어려움이 있었다면, 어떻게 해결했는지도 설명해 주세요.
+
+3. 현재 상태와 차단 원인
+
+Mac에서 맞춤 음성 생성 요청을 시도했으나 HTTP 401로 거절됐다.
+확인한 실제 오류:
+You have insufficient permissions for this operation. Missing scopes: api.voices.write.
+
+같은 키를 Windows로 옮기는 것만으로 해결되지 않는다.
+OpenAI 조직·프로젝트 역할과 해당 API 키의 제한 권한을 확인하고,
+api.voices.write가 허용된 키를 안전하게 준비해야 한다.
+커스텀 음성 사용에 필요한 읽기 권한 등도 공식 문서에서 확인한다.
+생성과 샘플 청취는 같은 OpenAI 프로젝트에서 수행한다.
+API 키를 대화, Git, 출력 로그, URL 또는 문서에 기록하지 않는다.
+
+Vercel 운영 키는 서버 밖으로 내려받을 수 없도록 보호된 Secret이다.
+Mac 로컬 환경에는 사용 가능한 OPENAI_API_KEY가 없었다.
+보호된 키를 추출하거나 이 제한을 우회하지 않는다.
+Windows에서 적절한 권한의 키를 환경변수 또는 안전한 비밀 저장소로 준비한다.
+
+현재 생성된 새 voice ID와 재생 가능한 샘플 파일은 없다.
+유료 음성 출력 세션은 시작되지 않았으며, 이번 맞춤 음성 시도의 OpenAI 음성 API 비용은 $0이다.
+비공개 임시 생성 배포 3개와 임시 접근 토큰은 정리했다. 운영 앱의 목소리는 교체하지 않았다.
+이 금액은 OpenAI API 비용이며 Vercel 등 인프라 사용 청구액의 확인을 의미하지 않는다.
+
+4. Windows에서 이어갈 순서
+
+가. 이 문서의 범위를 먼저 확인하고 최신 저장소 상태를 읽는다.
+나. 음성 생성 권한을 확인한다. 권한 오류가 계속되면 같은 요청을 반복하지 않는다.
+다. 남성·여성 목소리를 각각 한 번 생성하고 반환된 ID와 원래 프롬프트를 보관한다.
+라. 동일한 대본으로 짧은 GPT-Live 청취 샘플을 각각 만든다.
+마. 각 세션을 명시적으로 종료하고 최종 사용량을 수집한다.
+바. WAV 또는 MP3와 사용량·비용 보고서를 관리자에게 제공한다.
+사. 샘플 선택과 앱 적용 승인을 받은 뒤에만 테스트앱 실전 모의면접 연결을 별도 작업한다.
+
+음성 생성 API
+POST https://api.openai.com/v1/audio/voices
+Authorization: Bearer [안전하게 준비한 프로젝트 API 키]
+Content-Type: application/json
+
+요청 구조 — 남녀 각각 자신의 name과 위 프롬프트를 사용한다.
+{
+  "type": "prompt",
+  "name": "RONPARK Korean interviewer male early 50s",
+  "prompt": "[위 남성 생성 프롬프트 전체]",
+  "script_hint": "[위 공통 샘플 대본 전체]",
+  "model": "auto"
+}
+여성 name: RONPARK Korean interviewer female late 40s
+여성 prompt에는 위 여성 생성 프롬프트 전체를 사용한다.
+
+반환된 voice_... ID는 음성 메타데이터이며 API 키가 아니다.
+성공한 생성 요청마다 새 목소리가 저장되므로, 받은 ID를 재사용하고 중복 생성하지 않는다.
+생성 요청에는 청취 오디오가 포함되지 않는다. 실제 오디오는 별도 Live 세션에서 출력한다.
+
+청취 세션 설정의 핵심
+{
+  "model": "gpt-live-1",
+  "store": false,
+  "instructions": "[해당 목소리의 원래 생성 프롬프트 + 공통 한국어 대본을 한 번만 읽고 침묵하라는 지시]",
+  "audio": {
+    "output": { "voice": { "id": "voice_반환된_ID" } }
+  },
+  "delegation": { "type": "client" }
+}
+
+프롬프트로 생성한 음성은 GPT-Live에서 사용한다.
+일반 TTS API 또는 Realtime API용 음성으로 임의 대체하지 않는다.
+WebRTC 또는 WebSocket 연결의 정확한 형식은 아래 공식 문서를 다시 확인한다.
+WebSocket을 쓰면 session.audio.format에 PCM16 mono 24kHz 등의 지원 형식을 명시한다.
+session.started 이후 대본 전달·오디오 처리를 시작한다.
+session.close를 보낸 뒤 session.closed를 받을 때까지 연결을 유지한다.
+원 음성에 피치 변조를 가해 연령감을 만든 샘플로 바꾸지 않는다.
+
+5. 비용 기록과 완료 기준
+
+2026-11-11 확인 기준: 프롬프트 기반 맞춤 목소리 생성은 무료다.
+GPT-Live 음성 사용은 분당 $0.05이며 초 단위로 계산된다. 작업 전 현재 단가를 재확인한다.
+
+API 계산액 = 최종 사용 초수 / 60 × 분당 단가 + 실제 발생한 별도 모델·도구 비용
+
+각 샘플에 다음을 남긴다.
+- 샘플 이름, 목표 연령감, 생성 프롬프트, 공통 대본, voice ID, 생성 시각
+- 생성 요청 성공·실패와 재시도 기록
+- Live session ID, 최종 usage.seconds, 최종 사용량 수신 여부
+- 적용 단가·확인 날짜·USD 계산액, 실제 출력 대본, WAV 또는 MP3 파일
+- 별도 모델·도구 호출이 있었다면 해당 사용량과 비용
+
+누적 session.usage.updated 값들을 합산하지 않는다.
+session.closed.usage.seconds의 최종 값을 한 번 사용한다.
+WebRTC 초기화 15초를 최종 사용 초수에 다시 더하지 않는다.
+청취 중 대기·침묵 시간도 연결 비용에 포함된다. 각 샘플은 짧게 출력하고 즉시 종료한다.
+최종 사용량을 못 받았거나 호출 결과가 불명확하면 비용을 0원으로 확정하지 않는다.
+불명확한 유료 요청은 자동 재시도하지 않고 먼저 종료 상태와 기록을 확인한다.
+샘플 작업 때문에 가짜 수강생 면접 기록을 만들거나 기존 비용 원장을 덮어쓰지 않는다.
+서버·저장소·세금·환율 등 확인되지 않은 비용은 API 계산액과 분리한다.
+
+완료 기준: 남녀 재생 파일 2개, 음성 설정·ID, 최종 사용량 및 비용 보고서 제공.
+목소리 채택 여부는 사용자가 청취 후 결정한다. 샘플 생성만으로 앱 적용 완료라고 안내하지 않는다.
+
+6. 향후 앱 연결 시 보존할 실전 모의면접 조건
+
+테스트앱 실전 모의면접은 메인 질문 2개 + 직전 답변 기반 꼬리질문 각 2개, 총 6문답이다.
+첫 꼬리질문 답변을 실제로 들은 뒤 두 번째 꼬리질문을 새로 생성한다.
+메인 질문과 즉석 꼬리질문 모두 배정된 면접관의 같은 목소리를 사용한다.
+면접관 아바타 성별과 음성 성별을 일치시킨다.
+면접관 실시간 발화 자막은 제외하고 질문 문구와 응답자 자막은 유지한다.
+실시간 립싱크는 보류 상태다. 기존 고정 질문용 영상 작업과 혼동하지 않는다.
+기존 직무·인성 연습모드의 질문 녹음은 이번 샘플로 교체하지 않는다.
+
+현재 서버의 테스트 실전 음성은 여성 noeul, 남성 meridian 프리셋이다.
+관련 경로: lib/interview-live-policy.js, lib/interview-live-engine.js, lib/interview-live-provider.js.
+현재 sessionConfig는 프리셋 문자열을 제한하므로, 나중에 새 voice ID를 적용할 때는
+서버가 관리하는 테스트앱 전용 매핑과 {"id":"voice_..."} 형식을 함께 처리해야 한다.
+클라이언트가 임의의 voice ID나 음성 생성 프롬프트를 지정하도록 개방하지 않는다.
+일반 앱의 음성 설정과 접근 권한은 보존한다.
+
+관리자 전용 비용 관련 경로
+lib/interview-live-usage.js
+api/interview-live.js
+interview-live-ui.js
+supabase/migrations/20261111050000_interview_live_cost_admin_only.sql
+
+서버 main의 관련 구현 기준: c385e67.
+iOS 테스트앱 브랜치: codex/ios-practice-no-modal-20261106, 관련 구현 fb3fabd.
+Windows 음성 샘플 작업을 위해 iOS 브랜치를 main에 합칠 필요는 없다.
+
+7. 공식 문서
+
+맞춤 음성 생성·무료 생성·voice ID 사용
+https://developers.openai.com/api/docs/guides/custom-voices
+
+GPT-Live 목소리·행동 프롬프트
+https://developers.openai.com/api/docs/guides/live-prompting
+
+WebSocket 연결·오디오 수신·종료
+https://developers.openai.com/api/docs/guides/voice-websockets?api=live
+
+음성 사용량과 비용
+https://developers.openai.com/api/docs/guides/voice-latency-cost?api=live
+https://developers.openai.com/api/docs/pricing
