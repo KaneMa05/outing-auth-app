@@ -3,7 +3,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),{spawn,spawnSync}
 const {digest}=require('../lib/interview-exam-scoring');
 const {analyzeTask}=require('../lib/interview-mock-analysis.cjs');
 const {createInference,createTranscriber}=require('./interview-mock-cli.cjs');
-const {MODEL}=require('../lib/core25-worker-config.cjs');
+const {MOCK_MODEL:MODEL}=require('../lib/core25-worker-config.cjs');
 const {createHealthProbe}=require('./interview-mock-health.cjs');
 function createReceipts(root,{python=process.env.INTERVIEW_PYTHON||path.join(process.env.USERPROFILE||'','.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe')}={}){
  const file=path.join(root,'receipt.dpapi');

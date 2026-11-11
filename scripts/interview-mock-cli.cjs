@@ -2,7 +2,7 @@
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),{spawn}=require('node:child_process');
 const {createProvider}=require('./core25-diagnosis-cli.cjs');
 const {analyzeTask}=require('../lib/interview-mock-analysis.cjs');
-const {MODEL}=require('../lib/core25-worker-config.cjs');
+const {MOCK_MODEL:MODEL}=require('../lib/core25-worker-config.cjs');
 function createInference({runtimeDir,executable=process.env.INTERVIEW_CODEX||'codex',timeoutMs=300000,spawnProcess}={}){
  return async(input,{instructions,schema,model,signal})=>{
   const root=path.resolve(runtimeDir||os.tmpdir());await fs.mkdir(root,{recursive:true});const directory=await fs.mkdtemp(path.join(root,'mock-inference-'));

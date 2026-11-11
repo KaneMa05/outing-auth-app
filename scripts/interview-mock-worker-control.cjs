@@ -2,7 +2,7 @@
 // Explicit operator commands. Only the newly generated worker token is sent to Vercel.
 // No production credentials are downloaded. Local secrets use current-user DPAPI.
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto'),{spawn,spawnSync}=require('node:child_process');
-const {createHealthProbe}=require('./interview-mock-health.cjs'),{MODEL}=require('../lib/core25-worker-config.cjs');
+const {createHealthProbe}=require('./interview-mock-health.cjs'),{MOCK_MODEL:MODEL}=require('../lib/core25-worker-config.cjs');
 const ROOT=path.resolve(__dirname,'..'),PROJECT='prj_8UAb0IPc4gGmow5RZ4wEz8vcgVhi',SCOPE='ronpark';
 function workerEnvironment(config,token,source=process.env){
  if(!/^[A-Za-z0-9_-]{43}$/.test(token||''))throw Error('invalid_worker_token');
