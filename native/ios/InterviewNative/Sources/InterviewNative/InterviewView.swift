@@ -14,6 +14,26 @@ import SwiftUI
     #if DEBUG
     public init(preview: Bool) { _model = StateObject(wrappedValue: InterviewModel(code: "", demo: preview)) }
     #endif
+
+    #if DEBUG
+    static func retentionDate(_ value: String?) -> String {
+        guard let value else { return "확인 중" }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = parser.date(from: value)
+        if date == nil {
+            parser.formatOptions = [.withInternetDateTime]
+            date = parser.date(from: value)
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.dateFormat = "yyyy-MM-dd"
+        if date == nil { date = formatter.date(from: value) }
+        guard let date else { return "확인 중" }
+        return formatter.string(from: date)
+    }
+    #endif
     public var body: some View {
         NavigationStack {
             ScrollView {
@@ -160,7 +180,12 @@ import SwiftUI
                 }
             } else {
                 Text("완료한 답변 \(turns.filter { $0["complete"] as? Bool == true }.count)개").font(.title2).foregroundStyle(teal)
+                #if DEBUG
+                Text("보관 종료: " + Self.retentionDate(run["retain_until"] as? String)).font(.caption)
+                    .accessibilityIdentifier("interview.retention-date")
+                #else
                 Text("보관 종료: " + (run["retain_until"] as? String ?? "확인 중")).font(.caption)
+                #endif
                 Text("질문별 기록에서 답변과 녹음을 확인하세요.").font(.subheadline)
                 if model.record?["analysisEnabled"] as? Bool == true { analysis }
             }
