@@ -1,0 +1,42 @@
+스터디카페 입장 지연 점검 — 2026-11-11 (KST)
+
+점검 범위
+- 온라인 관리반/인터넷 수강생의 스터디카페·스터디방 입장 경로.
+- 운영 설정/DB 데이터는 변경하지 않았다. 조회 로그와 공개 미인증 요청으로 확인했다.
+- 운영 배포: dpl_3szG9GX12w9qnCQw8Qxz9ERxTXyv / READY.
+
+관측 결과
+1. api/study-cafe와 api/study-cafe-rooms는 지역 설정이 없어 실제 iad1(미국)에서 실행된다.
+   공개 요청의 x-vercel-id에서 icn1::iad1 확인. DB는 ap-southeast-2(시드니)다.
+2. Supabase 로그 구간: 2026-11-11 10:00~10:58 KST.
+   - validate_student_device: IAD 경유 128건, 평균 467.0ms / 95백분위 693.0ms.
+   - 동일 RPC의 SYD 경유: 4건, 평균 15.2ms / 95백분위 18.0ms.
+   - students 조회: IAD 102건 평균 452.6ms, SYD 2건 평균 23.0ms.
+   - get_study_cafe_snapshot_bundle: IAD 69건 평균 416.9ms.
+   origin_time은 Supabase 요청 지표이며 사용자 단말의 전체 입장시간은 아니다.
+   SYD 표본 수가 적으므로 이 비율을 배포 후 개선율로 보장하지 않는다.
+3. DB 누적 쿼리 통계: snapshot_bundle 평균 9.22ms, personal_snapshot 2.28ms,
+   heartbeat 3.77ms, 포인트 정산 2.42ms. 최근 구간 통계와 누적 통계의 범위는 다르다.
+   점검 당시 장기 트랜잭션/활성 잠금 대기는 확인되지 않았다.
+4. 카페 입장 API는 기기 검증 → 학생 확인 → 만료 좌석 정리 → 날짜 전환 확인 →
+   스냅샷/포인트 정산 순으로 동작한다. 정상 full load도 HTTP 요청 6회/약 5단계의
+   순차 왕복이 있어 미국↔시드니 지연이 누적된다.
+5. 홈의 personal_load가 진행 중이면 카페 full load가 그 종료를 기다린다.
+   홈 진입 직후 카페 탭을 누르면 두 조회의 대기시간이 이어질 수 있다.
+6. Vercel 최근 1시간 카페 요청 357건 중 정상 200은 355건이다.
+   400 두 건은 이번 점검의 필수값 없는 요청이다. 해당 표본에 5xx 응답은 없었다.
+   같은 구간 Postgres 로그는 정상 LOG/SQLSTATE 00000만 확인했다.
+
+판단 및 최소 수정
+- 긴 쿼리보다는 서버/DB 간 원격 왕복과 직렬 대기가 우선 개선 대상이다.
+- vercel.json에서 api/study-cafe.js와 api/study-cafe-rooms.js만 syd1로 지정했다.
+- 전역 리전, 다른 API, UI, 타이머/좌석/정산 로직, DB 스키마/데이터는 바꾸지 않는다.
+- 홈 요청 중복 처리 구조는 이번 수정에서 바꾸지 않는다. 리전 변경 후 실제 입장시간을
+  측정하고 남는 지연에 따라 별도 검토한다.
+
+로컬 검증
+- 카페 API, 스터디방 API, 입장 로딩, 세션/좌석 복구, heartbeat, 학생 유형 접근,
+  스냅샷/정산 동등성 및 함수별 리전 회귀 검사 79개 통과.
+- 수정 파일: vercel.json 및 기존 리전 계약 검사 tests/criminal-law-ox-loading.test.cjs.
+- 원본 로그는 .tmp/cafe-loading-diagnostics에 보관하며 Git/배포에 포함하지 않는다.
+- 푸시·배포는 하지 않았다. 운영 반영과 실제 개선 측정은 사용자 최종 확인 후 진행한다.

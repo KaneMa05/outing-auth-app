@@ -108,13 +108,16 @@ test('home summaries, deferred catalogs and full bootstraps never share incompat
   f.respond(0,{ok:true,kind:'full'});f.respond(1,{ok:true,kind:'deferred'});f.respond(2,{ok:true,kind:'home'});
   assert.deepEqual((await Promise.all([full,deferred,summary])).map(data=>data.kind),['full','deferred','home']);
 });
-test('OX keeps its deployment region while unrelated functions retain their defaults',()=>{
+test('OX and study cafe APIs use the database region while unrelated functions retain their defaults',()=>{
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
   assert.deepEqual(config.functions['api/criminal-law-ox.js'],{regions:['syd1']});
   assert.equal(config.regions,undefined);
+  for(const name of ['api/study-cafe.js','api/study-cafe-rooms.js'])assert.deepEqual(config.functions[name],{regions:['syd1']},name);
   const configuredSydney = new Set(['api/question-board.js','api/student-content-safety.js','api/interview-auth.js','api/interview-apple.js','api/interview-prep.js','api/interview-ai.js','api/interview-ai-worker.js','api/interview-life-followup.js','api/interview-exam.js','api/interview-preassignments.js','api/interview-live-socket.js','api/interview-live-cleanup.js','api/interview-live.js','api/interview-native.js','api/interview-core25-worker.js']);
   // Preserve the regions already configured by the current production version.
   configuredSydney.add('api/interview-aptitude.js');
+  configuredSydney.add('api/study-cafe.js');
+  configuredSydney.add('api/study-cafe-rooms.js');
   for(const name of ['interview-practice-cli','interview-mock-worker','interview-draft-worker','interview-personality','interview-job-exam','interview-practice-openai'])configuredSydney.add('api/'+name+'.js');
   for(const [name,options] of Object.entries(config.functions)){
     if(name==='api/criminal-law-ox.js')continue;
