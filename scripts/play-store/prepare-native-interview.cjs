@@ -22,6 +22,7 @@ edit('app/build.gradle',s=>s.replace("launchUrl: '/index.html#home'","launchUrl:
  .replace('buildTypes {',"signingConfigs { debug { storeFile file('../debug.keystore') } }\n    buildTypes {\n        debug { applicationIdSuffix '.nativepreview'; versionNameSuffix '-native-preview' }")
  .replace('dependencies {',"dependencies {\n    implementation project(':interview')"));
 if(synchronizedTest){
+ require('./prepare-test-question-audio.cjs').prepareTestQuestionAudio(root,target);
  edit('app/build.gradle',s=>s.replace("versionNameSuffix '-native-preview'","versionNameSuffix '-test-sync-20261111'").replace('defaultConfig {','defaultConfig {\n        testInstrumentationRunner "com.ronpark.interview.test.InterviewSyncInstrumentation"'));
  const debug=path.join(target,'app/src/debug');fs.mkdirSync(debug,{recursive:true});
  fs.writeFileSync(path.join(debug,'AndroidManifest.xml'),'<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"><application android:label="론박스터디 테스트앱" tools:replace="android:label"><activity android:name="com.ronpark.study.LauncherActivity" android:enabled="false" tools:replace="android:enabled" /></application></manifest>\n');

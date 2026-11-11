@@ -17,13 +17,16 @@ final class PracticeAvatar extends FrameLayout {
     private int active;
     private boolean closed,paused,transitioning;
     PracticeAvatar(Context context,String asset){
+        this(context,"interview-avatar",asset);
+    }
+    PracticeAvatar(Context context,String directory,String asset){
         super(context);setBackgroundColor(0xff182c3e);setContentDescription("AI 면접관 동작 영상");
         for(int i=0;i<2;i++){
             final int index=i;TextureView view=views[i]=new TextureView(context);addView(view,new LayoutParams(-1,-1));view.setAlpha(i==0?1:0);
             view.setSurfaceTextureListener(new TextureView.SurfaceTextureListener(){
                 public void onSurfaceTextureAvailable(SurfaceTexture texture,int w,int h){
                     if(closed)return;
-                    try(AssetFileDescriptor file=context.getAssets().openFd("interview-avatar/"+asset)){
+                    try(AssetFileDescriptor file=context.getAssets().openFd(directory+"/"+asset)){
                         MediaPlayer player=players[index]=new MediaPlayer();Surface surface=new Surface(texture);player.setSurface(surface);surface.release();
                         player.setVolume(0,0);player.setDataSource(file.getFileDescriptor(),file.getStartOffset(),file.getLength());
                         player.setOnPreparedListener(p->{if(closed)return;prepared[index]=true;p.seekTo(0);if(index==active&&!paused)p.start();});

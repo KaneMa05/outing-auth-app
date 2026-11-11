@@ -3,6 +3,15 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class InterviewTestPolicyTest {
+    @Test public void retentionDatesUseKoreaTimeAcrossUtcBoundaries(){
+        assertEquals("2026-11-12",InterviewTestPolicy.retentionDate("2026-11-11T15:00:00Z"));
+        assertEquals("2026-11-11",InterviewTestPolicy.retentionDate("2026-11-11T14:59:59.999Z"));
+        assertEquals("2026-11-12",InterviewTestPolicy.retentionDate("2026-11-11T17:00:00.123456+02:00"));
+        assertEquals("2026-11-11",InterviewTestPolicy.retentionDate("2026-11-11"));
+    }
+    @Test public void missingOrInvalidRetentionDatesNeverExposeRawServerValues(){
+        for(String value:new String[]{null,"","invalid","2026-02-30","2026-11-11T25:00:00Z","2026-11-11 trailing"})assertEquals("확인 중",InterviewTestPolicy.retentionDate(value));
+    }
     @Test public void nativeCapabilitiesRequireTheExactHttpsOrigin(){
         assertTrue(InterviewTestPolicy.trusted("https://outing-auth-app.vercel.app/interview?app=1"));
         assertTrue(InterviewTestPolicy.trusted("https://outing-auth-app.vercel.app:443/"));

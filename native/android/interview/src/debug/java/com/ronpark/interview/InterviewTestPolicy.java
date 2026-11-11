@@ -2,6 +2,10 @@ package com.ronpark.interview;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.text.SimpleDateFormat;
+import java.text.ParsePosition;
 
 /** Shared iPhone/Android test contract. No production actor is inferred from a URL. */
 final class InterviewTestPolicy {
@@ -23,6 +27,18 @@ final class InterviewTestPolicy {
         return "방제".equals(track)&&Arrays.asList("marine_environment","engineering_maintenance").contains(field);
     }
     static String progress(int n){int number=Math.max(1,n);int main=(number-1)/3+1,follow=(number-1)%3;return follow==0?"메인 질문 "+main+"/2":"메인 "+main+"/2 · 꼬리질문 "+follow+"/2";}
+    static String retentionDate(String value){
+        if(value==null)return "확인 중";
+        String normalized=value,pattern="yyyy-MM-dd";
+        if(value.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})")){
+            normalized=value.replaceFirst("Z$","+0000").replaceFirst("([+-]\\d{2}):(\\d{2})$","$1$2");
+            int fraction=normalized.indexOf('.');
+            if(fraction>=0){String digits=normalized.substring(fraction+1,normalized.length()-5);normalized=normalized.substring(0,fraction)+"."+(digits+"000").substring(0,3)+normalized.substring(normalized.length()-5);pattern="yyyy-MM-dd'T'HH:mm:ss.SSSZ";}else pattern="yyyy-MM-dd'T'HH:mm:ssZ";
+        }else if(!value.matches("\\d{4}-\\d{2}-\\d{2}"))return "확인 중";
+        SimpleDateFormat parser=new SimpleDateFormat(pattern,Locale.US);parser.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));parser.setLenient(false);ParsePosition position=new ParsePosition(0);java.util.Date date=parser.parse(normalized,position);
+        if(date==null||position.getIndex()!=normalized.length())return "확인 중";
+        SimpleDateFormat display=new SimpleDateFormat("yyyy-MM-dd",Locale.US);display.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));return display.format(date);
+    }
     static String failure(String code){
         if("daily_limit".equals(code))return "오늘 실전 모의면접 이용 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요.";
         if("admission_busy".equals(code))return "이전 면접이 진행 중이거나 종료 확인 중입니다. 내 면접 기록을 확인한 뒤 다시 시도해주세요.";

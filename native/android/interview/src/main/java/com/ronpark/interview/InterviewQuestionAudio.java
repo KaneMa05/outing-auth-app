@@ -18,6 +18,7 @@ import java.util.Collections;
 /** Local question clips. Catalog and unreleased bank audio are debug assets only. */
 final class InterviewQuestionAudio {
     private final Map<String,JSONObject> clips=new HashMap<>();
+    private final Map<String,JSONObject> clipsById=new HashMap<>();
     private final List<JSONObject> questions=new ArrayList<>();
     InterviewQuestionAudio(Context context) {
         try(InputStream input=context.getAssets().open("interview-question-audio/catalog.json")) {
@@ -31,9 +32,10 @@ final class InterviewQuestionAudio {
                 try(AssetFileDescriptor check=context.getAssets().openFd("interview-question-audio/"+file)){if(check.getLength()<=1000)continue;}catch(Exception missing){continue;}
                 clips.put(row.getString("prompt").trim(),row);
                 clips.put(row.getString("spokenPrompt").trim(),row);
+                clipsById.put(row.getString("id"),row);
                 questions.add(row);
             }
-        }catch(Exception ignored) { clips.clear();questions.clear(); }
+        }catch(Exception ignored) { clips.clear();clipsById.clear();questions.clear(); }
     }
     List<JSONObject> eligible(String mode,String track){
         List<JSONObject> available=new ArrayList<>();
@@ -55,10 +57,18 @@ final class InterviewQuestionAudio {
     }
     MediaPlayer create(Context context,String question) {
         JSONObject row=clips.get(question.trim());if(row==null)return null;
+        return createPlayer(context,row);
+    }
+    MediaPlayer create(Context context,String id,String question) {
+        JSONObject row=clipsById.get(id);
+        if(row==null||!row.optString("prompt").trim().equals(question.trim()))return null;
+        return createPlayer(context,row);
+    }
+    private MediaPlayer createPlayer(Context context,JSONObject row) {
         MediaPlayer player=new MediaPlayer();
         try(AssetFileDescriptor audio=context.getAssets().openFd("interview-question-audio/"+row.getString("file"))) {
             player.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
-            player.setDataSource(audio.getFileDescriptor(),audio.getStartOffset(),audio.getLength());player.prepare();return player;
+            player.setDataSource(audio.getFileDescriptor(),audio.getStartOffset(),audio.getLength());player.setVolume(1f,1f);player.prepare();return player;
         }catch(Exception error) { player.release();return null; }
     }
 }

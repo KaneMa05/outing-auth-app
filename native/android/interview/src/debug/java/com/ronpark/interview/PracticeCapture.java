@@ -66,6 +66,7 @@ final class PracticeCapture {
         return valid;
     }
     void video(Pcm listener){videoPcm=listener;}
+    void awaitStopped(Reply reply){Thread previous=thread;new Thread(()->{try{if(previous!=null)previous.join(2000);}catch(InterruptedException e){Thread.currentThread().interrupt();}boolean stopped=previous==null||!previous.isAlive();main.post(()->reply.done(stopped));},"PracticePlaybackReady").start();}
     void stop(){generation++;running=false;videoPcm=null;finishAnswer();AudioRecord recorder=microphone;if(recorder!=null)try{recorder.stop();}catch(Exception ignored){}}
     private static void le(RandomAccessFile file,long value,int count)throws IOException{for(int i=0;i<count;i++)file.write((int)(value>>(8*i))&255);}
 }

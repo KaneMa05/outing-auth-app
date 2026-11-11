@@ -19,11 +19,13 @@ public final class InterviewSyncInstrumentation extends Instrumentation {
     private Activity activity;
     private static int assertions;
     private boolean verifyAuthenticatedPractice;
-    @Override public void onCreate(Bundle arguments){super.onCreate(arguments);verifyAuthenticatedPractice=arguments!=null&&"true".equals(arguments.getString("verifyPractice"));start();}
+    private boolean verifyAudio;
+    @Override public void onCreate(Bundle arguments){super.onCreate(arguments);verifyAuthenticatedPractice=arguments!=null&&"true".equals(arguments.getString("verifyPractice"));verifyAudio=arguments!=null&&"true".equals(arguments.getString("verifyAudio"));start();}
     @Override public void onStart(){
         Bundle result=new Bundle();
         try{
             if(verifyAuthenticatedPractice){verifyPractice(result);finish(Activity.RESULT_OK,result);return;}
+            if(verifyAudio){result.putString("stream",InterviewParityChecks.audio(this));finish(Activity.RESULT_OK,result);return;}
             String pkg=getTargetContext().getPackageName();PackageManager pm=getTargetContext().getPackageManager();
             ActivityInfo regular=pm.getActivityInfo(new ComponentName(pkg,"com.ronpark.study.LauncherActivity"),PackageManager.MATCH_DISABLED_COMPONENTS);
             check(!regular.enabled,"Debug must use the synchronized portal launcher");
@@ -51,10 +53,10 @@ public final class InterviewSyncInstrumentation extends Instrumentation {
                     JSONArray bank=new JSONArray();for(int i=0;i<10;i++)bank.put(new JSONObject().put("id","fixture-"+i).put("prompt","Local fixture "+i).put("category","job").put("tracks",new JSONArray().put("공채")).put("fieldIds",new JSONArray().put(i<5?"criminal_law_investigation":"domestic_maritime_law")).put("regions",new JSONArray().put(i%2==0?"서해":"중부")));
                     invoke(activity,"render");String failure=text(activity.getWindow().getDecorView());check(failure.contains("문항 목록을 불러오지 못했습니다"),"Catalog failure must offer a retry");check(!failure.contains("선택 조건에 맞는 공개 승인 문항이 없습니다"),"A failed catalog request must never pretend to be an empty result");
                     set(activity,"catalogLoaded",true);set(activity,"bank",bank);set(activity,"fields",new JSONArray().put(new JSONObject().put("id","criminal_law_investigation").put("label","형사법·수사절차")));set(activity,"count",5);set(activity,"field","criminal_law_investigation");set(activity,"region","서해");invoke(activity,"refreshQuestions");invoke(activity,"render");
-                    String prep=text(activity.getWindow().getDecorView());check(prep.contains("형사법·수사절차")&&prep.contains("기출 지역 · 서해"),"Practice filters must match iPhone");check(prep.contains("연습 문항 수 · 5문항"),"Practice must support configurable counts");check(prep.contains("공개 승인 문항 3개"),"Field and region must both restrict questions");activity.finish();
+                    String prep=text(activity.getWindow().getDecorView());check(prep.contains("형사법·수사절차")&&prep.contains("기출 지역")&&prep.contains("서해"),"Practice filters must match iPhone");check(prep.contains("연습 문항 수")&&prep.contains("5문항"),"Practice must support configurable counts");check(((java.util.List<?>)get(activity,"questions")).size()==3,"Field and region must both restrict questions");activity.finish();
                 }catch(Exception e){throw new RuntimeException(e);}
             });
-            waitForIdleSync();result.putString("stream","PASS synchronized Android launcher, API scope, six-turn preparation, unlimited allowance, followup captions, startup failure and practice filters. No paid calls.\n");result.putInt("passed",assertions);finish(Activity.RESULT_OK,result);
+            waitForIdleSync();InterviewParityChecks.screens(this);result.putString("stream","PASS synchronized Android launcher, API scope, six-turn preparation, unlimited allowance, followup captions, startup failure and practice filters. No paid calls.\nPASS iPhone parity: anchored selections, microphone icon, intermediate review, completed/interrupted results and record cards.\n");result.putInt("passed",assertions);finish(Activity.RESULT_OK,result);
         }catch(Throwable error){if(activity!=null)runOnMainSync(()->activity.finish());result.putString("stream","FAIL "+error.toString()+"\n");finish(Activity.RESULT_CANCELED,result);}
     }
     private static void check(boolean condition,String message){assertions++;if(!condition)throw new AssertionError(message);}
@@ -76,6 +78,7 @@ public final class InterviewSyncInstrumentation extends Instrumentation {
                         check(args[1]==null,"Authenticated catalog request failed: "+args[1]);JSONObject data=(JSONObject)args[0];JSONArray rows=data.getJSONArray("questions");String track=data.getString("track");int eligible=0;
                         for(int i=0;i<rows.length();i++){JSONObject row=rows.getJSONObject(i);JSONArray tracks=row.optJSONArray("tracks");if(!"job".equals(row.optString("category"))||tracks==null)continue;for(int j=0;j<tracks.length();j++)if(track.equals(tracks.optString(j))){eligible++;break;}}
                         check(rows.length()>0,"Real account must receive approved job questions");check(eligible>0,"Real account must retain eligible job questions");
+                        Class<?> audioType=Class.forName("com.ronpark.interview.InterviewQuestionAudio");Constructor<?> audioConstructor=audioType.getDeclaredConstructor(Context.class);audioConstructor.setAccessible(true);Object audio=audioConstructor.newInstance(getTargetContext());Method createAudio=audioType.getDeclaredMethod("create",Context.class,String.class,String.class);createAudio.setAccessible(true);for(int i=0;i<rows.length();i++){JSONObject row=rows.getJSONObject(i);android.media.MediaPlayer clip=(android.media.MediaPlayer)createAudio.invoke(audio,getTargetContext(),row.getString("id"),row.getString("prompt"));check(clip!=null,"Every real approved question must retain its source-matched recording");clip.release();}
                         summary[0]="PASS authenticated practice_bootstrap; rootSessionCookie="+rootCookie+"; apiSessionCookie="+apiCookie+"; receivedQuestions="+rows.length()+"; eligibleQuestions="+eligible+". Read-only; no recording, submission or paid calls.\n";
                     }catch(Throwable error){failure[0]=error;}finally{close.invoke(portal);completed.countDown();}return null;
                 });bootstrap.invoke(portal,callback);
