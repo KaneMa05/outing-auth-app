@@ -97,12 +97,15 @@ final class InterviewUITests: XCTestCase {
         capture("01-preparation")
         tap("interview.start")
         XCTAssertTrue(app.staticTexts["협업 중 의견 차이를 해결한 경험을 말씀해주세요."].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["interview.progress"].label, "메인 질문 1/2")
         capture("02-interview")
         tap("interview.answer")
         XCTAssertTrue(app.staticTexts["그 과정에서 본인이 직접 맡은 역할은 무엇이었나요?"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["interview.progress"].label, "메인 1/2 · 꼬리질문 1/2")
         capture("03-followup")
         tap("interview.answer"); tap("interview.answer")
         XCTAssertTrue(app.staticTexts["완료한 답변 3개"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["이번 면접 API 비용"].exists)
         capture("04-result")
         app.segmentedControls.buttons["질문별 기록"].tap()
         XCTAssertTrue(app.staticTexts["2 · 꼬리 질문"].waitForExistence(timeout: 5))
@@ -831,8 +834,8 @@ final class PaidLiveVerificationTests: XCTestCase {
             }
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: next, object: nil)], timeout: 65), .completed, "No next question on turn \(turn): " + app.staticTexts["interview.notice"].label)
         }
-        evidence("paid-live-result")
         XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout: 30))
+        evidence("paid-live-result")
         print("LIVE_VERIFY_COMPLETED six_answers")
     }
 }

@@ -76,6 +76,15 @@ import SwiftUI
             if !model.ready { action("연결 다시 확인") { Task { await model.checkReady() } } }
         }
     }
+    private var questionProgress: String {
+        #if DEBUG
+        let number = max(1, model.questionNumber)
+        let main = (number - 1) / 3 + 1, followup = (number - 1) % 3
+        return followup == 0 ? "메인 질문 \(main)/2" : "메인 \(main)/2 · 꼬리질문 \(followup)/2"
+        #else
+        return String(format: "진행 질문 %02d", model.questionNumber)
+        #endif
+    }
     private var live: some View {
         VStack(spacing: 18) {
             HStack { Text("실전 모의면접").font(.headline); Spacer()
@@ -100,7 +109,7 @@ import SwiftUI
                 }.background(.ultraThinMaterial, in: Circle()).padding(10).accessibilityLabel("AI 면접관 음성")
             }.frame(maxWidth: 260).frame(maxWidth: .infinity)
             #endif
-            Text(String(format: "진행 질문 %02d", model.questionNumber)).font(.caption).foregroundStyle(teal)
+            Text(questionProgress).accessibilityIdentifier("interview.progress").font(.caption).foregroundStyle(teal)
             Text(model.question).accessibilityIdentifier("interview.question").font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
             if showCaptions {
                 VStack(alignment: .leading, spacing: 10) {
@@ -141,20 +150,6 @@ import SwiftUI
                 }
             } else {
                 Text("완료한 답변 \(turns.filter { $0["complete"] as? Bool == true }.count)개").font(.title2).foregroundStyle(teal)
-                #if DEBUG
-                if let usage = model.record?["usage"] as? InterviewJSON {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("이번 면접 API 비용").font(.headline)
-                        if usage["fullyConfirmed"] as? Bool == true, let total = usage["totalUsd"] as? Double {
-                            Text(String(format: "$%.4f", total)).font(.title3)
-                        } else {
-                            Text(String(format: "확인된 비용 $%.4f · 추정 $%.4f", usage["confirmedUsd"] as? Double ?? 0, usage["estimatedUsd"] as? Double ?? 0))
-                            Text("미확정 사용량이 있어 총액은 아직 확정되지 않았습니다.").font(.caption)
-                        }
-                        Text("음성·질문 생성·피드백 API 기준이며 서버·저장 비용은 별도입니다.").font(.caption).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 16))
-                }
-                #endif
                 Text("보관 종료: " + (run["retain_until"] as? String ?? "확인 중")).font(.caption)
                 Text("질문별 기록에서 답변과 녹음을 확인하세요.").font(.subheadline)
                 if model.record?["analysisEnabled"] as? Bool == true { analysis }
