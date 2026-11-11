@@ -1,4 +1,4 @@
-import {createDraftQuestions} from './client/interview-draft-questions.js?v=20261026-content-questions';
+import {createDraftQuestions} from './client/interview-draft-questions.js?v=20261111-limit40';
 import {appendExperiencePrompt} from './client/interview-experience-prompts.js?v=20261026-inline-questions';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261027-label-layout';
 import {basicFields,identityFields,identityGenders,emptyBasic,schoolStatuses,basicFieldText,normalizeBirthDate,validBirthDate} from './client/interview-basic-fields.js?v=20261024-school-status';

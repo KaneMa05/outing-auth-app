@@ -21,3 +21,13 @@ test('requires a click, suppresses empty drafts, ignores stale responses, restor
  editor.update('a',{title:'',content:''});assert.deepEqual(shown.at(-1),['a',[],'',false]);
  editor.update('b',experience);editor.destroy();await delay();assert.equal(calls.length,2);
 });
+
+test('explains the 40-request rolling quota while keeping draft editing available',async()=>{
+ const code=fs.readFileSync('client/interview-draft-questions.js','utf8');const {createDraftQuestions}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+ const shown=[];
+ const editor=createDraftQuestions({request:async()=>{throw Object.assign(Error('daily_limit'),{code:'daily_limit'});},show:(...args)=>shown.push(args)});
+ try{
+  editor.update('a',experience);await editor.generate('a');
+  assert.deepEqual(shown.at(-1),['a',[],'최근 24시간 질문 생성 한도(40회)에 도달했습니다. 내용 작성과 저장은 계속할 수 있습니다.',true]);
+ }finally{editor.destroy();}
+});

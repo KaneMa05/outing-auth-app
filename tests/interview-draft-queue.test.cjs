@@ -30,6 +30,27 @@ const {createDb}=require('./helpers/interview-db.cjs');
  assert.equal((await call('status',a,{id:job.id})).questions.length,2);assert.equal((await call('request',a,{experience})).state,'completed');
  for(let i=1;i<10;i++){await call('request',a,{experience:{...experience,content:experience.content+i}});const next=(await call('poll',worker)).jobs[0];await call('fail',worker,next);}
  await assert.rejects(call('request',a,{experience:{...experience,content:experience.content+'11'}}),/daily_limit/);
+ const before=(await db.query('select * from ip_draft_question_jobs order by id')).rows;
+ const policy=async()=>(await db.query("select pg_get_functiondef(oid) definition,prosecdef,proconfig,proacl::text from pg_proc where oid='public.ip_draft_question_service(text,jsonb,jsonb)'::regprocedure")).rows[0];
+ const oldPolicy=await policy();
+ const migration=fs.readFileSync('supabase/migrations/20261111024340_interview_draft_questions_limit_40.sql','utf8');
+ await db.exec(migration);await db.exec(migration);
+ assert.deepEqual((await db.query('select * from ip_draft_question_jobs order by id')).rows,before,'quota migration preserves all existing jobs and cached results');
+ assert.deepEqual(await policy(),{...oldPolicy,definition:oldPolicy.definition.replace(">=10 then raise exception 'daily_limit'",">=40 then raise exception 'daily_limit'")},'only the student quota changes; grants and function settings remain intact');
+ for(let i=10;i<40;i++){await call('request',a,{experience:{...experience,content:experience.content+i}});const next=(await call('poll',worker)).jobs[0];await call('fail',worker,next);}
+ assert.equal((await db.query("select count(*)::int n from ip_draft_question_jobs where student_id='ip-a'")).rows[0].n,40);
+ await assert.rejects(call('request',a,{experience:{...experience,content:experience.content+'41'}}),/daily_limit/);
+ assert.equal((await call('request',a,{experience})).id,job.id,'cache hits remain available at the quota');
+ const otherJob=await call('request',b,{experience});assert.equal(otherJob.state,'queued','another student retains their own quota');
+ await call('fail',worker,(await call('poll',worker)).jobs[0]);
+ await db.query("update ip_draft_question_jobs set created_at=now()-interval '24 hours 1 second' where id=$1",[job.id]);
+ assert.equal((await call('request',a,{experience:{...experience,content:experience.content+'41'}})).state,'queued','a request older than 24 hours frees one quota slot');
+ await call('fail',worker,(await call('poll',worker)).jobs[0]);
+ await assert.rejects(call('request',a,{experience:{...experience,content:experience.content+'42'}}),/daily_limit/);
+ await db.exec("update ip_draft_question_jobs set created_at=now()-interval '24 hours 1 second' where id=(select id from ip_draft_question_jobs where student_id='ip-a' and created_at>now()-interval '24 hours' order by created_at,id limit 1)");
+ await db.exec("insert into ip_draft_question_jobs(student_id,source_hash,experience,expires_at) select 'ip-b','queue-limit-fixture-'||n,'{}'::jsonb,now()+interval '3 minutes' from generate_series(1,20) n");
+ await assert.rejects(call('request',a,{experience:{...experience,content:experience.content+'42'}}),/queue_full/);
+ await db.exec("delete from ip_draft_question_jobs where source_hash like 'queue-limit-fixture-%'");
  await db.exec('set role anon');await assert.rejects(db.query('select * from ip_draft_question_jobs'),/permission denied/);await assert.rejects(call('poll',worker),/permission denied/);await db.exec('reset role');
- console.log('PASS queue: enrollment, worker offline, ownership, cache/dedup, leases, 2 questions, durable daily limit and anonymous isolation');
+ console.log('PASS queue: enrollment, worker offline, ownership, cache/dedup, leases, 2 questions, safe quota upgrade, 40/41-request boundary, rolling 24 hours, global queue limit and anonymous isolation');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -25,7 +25,7 @@ export function createDraftQuestions({request,show,pollMs=2000}){
    if(result.state==='failed'||!Array.isArray(result.questions)||result.questions.length!==2||result.questions.some(q=>typeof q!=='string'))throw Error('invalid_output');
    cache.set(s.signature,result.questions);s.busy=false;publish(id,s,result.questions,'답변을 적은 뒤 저장해주세요.');
   };
-  const failed=e=>{if(!current())return;s.busy=false;const message={daily_limit:'오늘 질문 생성 한도(10회)에 도달했습니다.',questions_unavailable:'질문 생성기가 연결되지 않았습니다. 잠시 후 다시 시도해주세요.',admission_busy:'앞서 요청한 질문을 준비 중입니다. 잠시 후 다시 시도해주세요.',queue_full:'질문 요청이 많습니다. 잠시 후 다시 시도해주세요.'}[e.code||e.message]||'질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';publish(id,s,[],message+' 내용 작성과 저장은 계속할 수 있습니다.',true);};
+  const failed=e=>{if(!current())return;s.busy=false;const message={daily_limit:'최근 24시간 질문 생성 한도(40회)에 도달했습니다.',questions_unavailable:'질문 생성기가 연결되지 않았습니다. 잠시 후 다시 시도해주세요.',admission_busy:'앞서 요청한 질문을 준비 중입니다. 잠시 후 다시 시도해주세요.',queue_full:'질문 요청이 많습니다. 잠시 후 다시 시도해주세요.'}[e.code||e.message]||'질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';publish(id,s,[],message+' 내용 작성과 저장은 계속할 수 있습니다.',true);};
   try{if(!request)throw Error('questions_unavailable');await accept(await request('draft_questions',{experience:s.experience}));}catch(e){failed(e);}
  }
  return {update,generate,destroy(){dead=true;for(const s of states.values())clearTimeout(s.timer);states.clear();cache.clear();}};
