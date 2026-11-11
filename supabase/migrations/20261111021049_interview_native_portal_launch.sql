@@ -16,7 +16,8 @@ begin
   if p_actor->>'type' is distinct from 'student' then raise exception 'forbidden'; end if;
   if not exists(select 1 from public.ip_student_directory s join public.ip_members m on m.student_id=s.id
     where s.id=v_id and s.is_active and coalesce(s.account_type,'student')='student' and m.enabled
-      and (m.expires_on is null or m.expires_on>=(now() at time zone 'Asia/Seoul')::date)
+      and (coalesce(p_actor->'testApp','false'::jsonb)='true'::jsonb or exists(select 1 from public.students legacy where legacy.id=v_id))
+      and (m.expires_on>=(now() at time zone 'Asia/Seoul')::date or (m.expires_on is null and coalesce(p_actor->'testApp','false'::jsonb)='true'::jsonb))
       and (select enabled from public.ip_settings where id)) then raise exception 'not_enrolled'; end if;
   delete from public.ip_native_launch_codes where expires_at<now();
   insert into public.ip_native_launch_codes values(v_id,v_code,now()+interval '60 seconds')
@@ -28,7 +29,8 @@ begin
   if v_id is null then raise exception 'unauthorized'; end if;
   if not exists(select 1 from public.ip_student_directory s join public.ip_members m on m.student_id=s.id
     where s.id=v_id and s.is_active and coalesce(s.account_type,'student')='student' and m.enabled
-      and (m.expires_on is null or m.expires_on>=(now() at time zone 'Asia/Seoul')::date)
+      and (coalesce(p_actor->'testApp','false'::jsonb)='true'::jsonb or exists(select 1 from public.students legacy where legacy.id=v_id))
+      and (m.expires_on>=(now() at time zone 'Asia/Seoul')::date or (m.expires_on is null and coalesce(p_actor->'testApp','false'::jsonb)='true'::jsonb))
       and (select enabled from public.ip_settings where id)) then raise exception 'not_enrolled'; end if;
   return jsonb_build_object('ok',true,'studentId',v_id);
  end if;
@@ -43,11 +45,11 @@ declare definition text:=pg_get_functiondef('public.ip_live_service(text,jsonb,j
  replacement record;
 begin
  for replacement in select * from (values
-  ('from public.students where id=v_id', 'from public.ip_student_directory where id=v_id'),
+  ('from public.students where id=v_id', 'from public.ip_student_directory where id=v_id and (coalesce(p_actor->''testApp'',''false''::jsonb)=''true''::jsonb or exists(select 1 from public.students legacy where legacy.id=v_id))'),
   ('v_member.enabled and v_member.expires_on>=(now() at time zone ''Asia/Seoul'')::date',
-   'v_member.enabled and (v_member.expires_on is null or v_member.expires_on>=(now() at time zone ''Asia/Seoul'')::date)'),
+   'v_member.enabled and (v_member.expires_on>=(now() at time zone ''Asia/Seoul'')::date or (v_member.expires_on is null and coalesce(p_actor->''testApp'',''false''::jsonb)=''true''::jsonb))'),
   ('when v_member.expires_on is null then ''enrollment_end_required'' when not v_ready then ''not_enrolled''',
-   'when not v_ready then ''not_enrolled'''),
+   'when v_member.expires_on is null and coalesce(p_actor->''testApp'',''false''::jsonb)<>''true''::jsonb then ''enrollment_end_required'' when not v_ready then ''not_enrolled'''),
   ('(v_member.expires_on+31)::timestamp at time zone ''Asia/Seoul'',v_questions',
    'case when v_member.expires_on is null then now()+interval ''31 days'' else (v_member.expires_on+31)::timestamp at time zone ''Asia/Seoul'' end,v_questions')
  ) as changes(old_text,new_text) loop

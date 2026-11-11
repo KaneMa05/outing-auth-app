@@ -26,12 +26,12 @@ do $$ begin
   raise exception 'test_question_source_changed';
  end if;
 end $$;
-create function public.ip_mock_test_question_allowed(p_mode text,p_id text,p_prompt text) returns boolean
+create function public.ip_mock_test_question_allowed(p_mode text,p_id text,p_prompt text,p_actor jsonb) returns boolean
 language sql stable security invoker set search_path='' as $$
- select exists(select 1 from public.ip_mock_test_question_scope where mode=p_mode and question_id=p_id and prompt=p_prompt);
+ select coalesce(p_actor->'testApp','false'::jsonb)<>'true'::jsonb or exists(select 1 from public.ip_mock_test_question_scope where mode=p_mode and question_id=p_id and prompt=p_prompt);
 $$;
-revoke all on function public.ip_mock_test_question_allowed(text,text,text) from public,anon,authenticated;
-grant execute on function public.ip_mock_test_question_allowed(text,text,text) to service_role;
+revoke all on function public.ip_mock_test_question_allowed(text,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.ip_mock_test_question_allowed(text,text,text,jsonb) to service_role;
 
 -- Change only creation/list selection. Existing saved attempts and report sources remain readable.
 do $patch$
@@ -41,22 +41,22 @@ begin
   definition:=pg_get_functiondef(('public.'||signature||'(text,jsonb,jsonb)')::regprocedure);
   if signature='ip_live_service' then
    old_text:='from public.ip_questions where';
-   new_text:='from public.ip_questions where public.ip_mock_test_question_allowed(''ai'',id,prompt) and';
+   new_text:='from public.ip_questions where public.ip_mock_test_question_allowed(''ai'',id,prompt,p_actor) and';
    if (length(definition)-length(replace(definition,old_text,'')))/length(old_text)<>2 or position('order by random() limit 3' in definition)=0 then raise exception 'unexpected_live_question_selection';end if;
    definition:=replace(definition,old_text,new_text);
-   definition:=replace(definition,'order by random() limit 3','order by (select t.position from public.ip_mock_test_question_scope t where t.mode=''ai'' and t.question_id=ip_questions.id) limit 3');
+   definition:=replace(definition,'order by random() limit 3','order by case when coalesce(p_actor->''testApp'',''false''::jsonb)=''true''::jsonb then (select t.position from public.ip_mock_test_question_scope t where t.mode=''ai'' and t.question_id=ip_questions.id) else random() end limit 3');
   elsif signature in ('ip_openai_practice_service','ip_practice_cli_service') then
    old_text:='from public.ip_questions where id=p_body->>''questionId''';
-   new_text:='from public.ip_questions where public.ip_mock_test_question_allowed(k,id,prompt) and id=p_body->>''questionId''';
+   new_text:='from public.ip_questions where public.ip_mock_test_question_allowed(k,id,prompt,p_actor) and id=p_body->>''questionId''';
    if (length(definition)-length(replace(definition,old_text,'')))/length(old_text)<>1 then raise exception 'unexpected_practice_question_selection';end if;
    definition:=replace(definition,old_text,new_text);
   else
    mode:=case when signature='ip_job_exam_service' then 'job' else 'personality' end;
    old_text:='from public.ip_questions qb';
-   new_text:='from (select * from public.ip_questions where public.ip_mock_test_question_allowed('||quote_literal(mode)||',id,prompt)) qb';
+   new_text:='from (select * from public.ip_questions where public.ip_mock_test_question_allowed('||quote_literal(mode)||',id,prompt,p_actor)) qb';
    if position(old_text in definition)=0 or position('from public.ip_questions where id=p_body->>''questionId''' in definition)=0 then raise exception 'unexpected_exam_question_selection';end if;
    definition:=replace(definition,old_text,new_text);
-   definition:=replace(definition,'from public.ip_questions where id=p_body->>''questionId''','from public.ip_questions where public.ip_mock_test_question_allowed('||quote_literal(mode)||',id,prompt) and id=p_body->>''questionId''');
+   definition:=replace(definition,'from public.ip_questions where id=p_body->>''questionId''','from public.ip_questions where public.ip_mock_test_question_allowed('||quote_literal(mode)||',id,prompt,p_actor) and id=p_body->>''questionId''');
   end if;
   execute definition;
  end loop;

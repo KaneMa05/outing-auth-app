@@ -4,8 +4,8 @@ const {createDb}=require('./helpers/interview-db.cjs');
 const {createHandler}=require('../api/interview-native');
 const auth=require('../lib/interview-native-auth');
 const migration='supabase/migrations/20261111021049_interview_native_portal_launch.sql';
-const admin={type:'admin',id:'qa'},server={type:'server',id:'native'},portal={type:'student',id:'portal-only'};
-async function call(handler,body,token){let status,data;await handler({method:'POST',headers:{host:'localhost',...(token?{authorization:'Bearer '+token}:{})},body},
+const admin={type:'admin',id:'qa'},server={type:'server',id:'native',testApp:true},portal={type:'student',id:'portal-only',testApp:true};
+async function call(handler,body,token){let status,data;await handler({method:'POST',headers:{host:'localhost','x-interview-test-app':'1',...(token?{authorization:'Bearer '+token}:{})},body},
  {setHeader(){},status(n){status=n;return this;},json(value){data=value;}});return {status,data};}
 (async()=>{
  const {db,invoke:prep}=await createDb();
@@ -23,6 +23,8 @@ async function call(handler,body,token){let status,data;await handler({method:'P
   await assert.rejects(issue(),/not_enrolled/,'reproduce launch failure for an allowed portal account');
   await assert.rejects(live('ready',portal),/forbidden/,'reproduce the second blocker after native handoff');
   await db.exec(fs.readFileSync(migration,'utf8'));
+  await assert.rejects(native('issue',{type:'student',id:portal.id},{codeHash:'e'.repeat(64)}),/not_enrolled/,'ordinary launch keeps its previous enrollment policy');
+  await assert.rejects(live('ready',{type:'student',id:portal.id}),/forbidden/,'ordinary Live keeps its previous enrollment policy');
   await db.exec('set role service_role');
   const requireMockAccess=async id=>{if(!(await mock('mock_status',{type:'student',id})).allowed)throw Error('forbidden');};
   const secret='n'.repeat(64),handler=createHandler({enabled:true,secret,invoke:native,readTrack:async()=> '공채',requireMockAccess,
@@ -56,7 +58,7 @@ async function call(handler,body,token){let status,data;await handler({method:'P
   await db.exec('set role anon');await assert.rejects(issue(),/permission denied/);await assert.rejects(db.query('select * from ip_native_launch_codes'),/permission denied/);await db.exec('reset role');
   // Existing student accounts can still launch, including open-ended enrollment.
   await mock('admin_member_save',admin,{...member,targetStudentId:'ip-a'});
-  await native('issue',{type:'student',id:'ip-a'},{codeHash:'d'.repeat(64)});
+  await native('issue',{type:'student',id:'ip-a',testApp:true},{codeHash:'d'.repeat(64)});
   assert.equal((await native('consume',server,{codeHash:'d'.repeat(64)})).studentId,'ip-a');
   console.log('PASS portal native launch, token exchange, Live readiness/admission, finite retention, legacy enrollment, revoked access and RLS. No paid calls.');
  }finally{await db.close();}

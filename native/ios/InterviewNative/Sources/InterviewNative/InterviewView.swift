@@ -61,7 +61,11 @@ import SwiftUI
             Text("편안하게 앉아 주세요.").font(.largeTitle.bold())
             Text("질문은 한 번에 하나씩, 충분히 듣겠습니다.").font(.subheadline).foregroundStyle(.secondary)
             InterviewPreparationMedia(media: model.media)
+            #if DEBUG
             Text("메인 질문 3개 · 질문마다 꼬리질문 2개 · 최대 10분").font(.subheadline)
+            #else
+            Text("기본 질문 3개 · 꼬리 질문 최대 2개씩 · 최대 10분").font(.subheadline)
+            #endif
             Text("이어폰 사용을 권장합니다. 음성과 대화 기록은 수강 종료 후 30일까지 보관합니다. 확정 점수는 부여하지 않습니다.").font(.footnote).foregroundStyle(.secondary)
             action("면접 시작하기 →", primary: true, enabled: model.ready) { model.start() }.accessibilityIdentifier("interview.start")
             action("내 면접 기록") { Task { await model.loadRecords() } }

@@ -46,7 +46,7 @@ function createHandler(deps){return async(req,res)=>{
   }
   validate(b);if(b.action==='submit'&&!['job','personality'].includes(b.mode))throw Error('invalid_request');
   const account=await d.authenticate(req);if(!account)throw Error('unauthorized');if(account.id!==b.accountId)throw Error('forbidden');
-  await d.requireAccess(account.id);const actor={type:'student',id:account.id};
+  await d.requireAccess(account.id);const actor={type:'student',id:account.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
   // Saved reports remain readable even if generation is temporarily disabled.
   if(b.action==='get')return res.status(200).json(await d.invoke('get',actor,{id:b.id}));
   if(!d.enabled){if(b.action==='status')return res.status(200).json({ok:true,ready:false,provider:'openai',liveCaptions:false,reason:'practice_not_configured'});throw Error('practice_not_configured');}

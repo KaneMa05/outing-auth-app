@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createHandler}=require('../api/interview-prep');
 const {questionsFor}=require('../lib/interview-test-question-scope.cjs');
 const job=questionsFor('job')[0],personality=questionsFor('personality')[1];
-async function call(handler,body){let status,data;await handler({method:'POST',headers:{host:'localhost'},body},{setHeader(){},status(n){status=n;return this;},json(d){data=d;}});return {status,data};}
+async function call(handler,body){let status,data;await handler({method:'POST',headers:{host:'localhost','x-interview-test-app':'1'},body},{setHeader(){},status(n){status=n;return this;},json(d){data=d;}});return {status,data};}
 test('native practice uses verified portal identity and approved server questions only',async()=>{
  let allowed=true;const calls=[];
  const handler=createHandler({authenticateWeb:async()=>({id:'kakao-owner'}),read:async(method,path)=>{

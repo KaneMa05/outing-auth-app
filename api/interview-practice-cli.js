@@ -19,7 +19,7 @@ function validate(b){
 }
 function createHandler(deps){return async(req,res)=>{try{
  postOnly(req,res);sameOrigin(req);const b=await bodyOf(req,4100000);validate(b);const d=deps||defaults();
- const account=await d.authenticate(req);if(!account)throw Error('unauthorized');if(account.id!==b.accountId)throw Error('forbidden');await d.requireAccess(account.id);const actor={type:'student',id:account.id};
+ const account=await d.authenticate(req);if(!account)throw Error('unauthorized');if(account.id!==b.accountId)throw Error('forbidden');await d.requireAccess(account.id);const actor={type:'student',id:account.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
  if(b.action==='status'&&!d.enabled)return res.status(200).json({ok:true,ready:false,provider:'windows-cli',liveCaptions:false,reason:'cli_not_configured'});
  if(!d.enabled)throw Error('cli_not_configured');
  if(b.action==='status'||b.action==='get')return res.status(200).json(await d.invoke(b.action,actor,b.action==='get'?{id:b.id}:{}));

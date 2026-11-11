@@ -14,12 +14,12 @@ function createHandler(deps){return async(req,res)=>{try{
   let student=await d.live.authenticateWeb(req);
   if(!student){if(!d.live.previewAllowed(b.studentId))throw Error('forbidden');student=await d.live.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student||!d.live.previewAllowed(student.id))throw Error('unauthorized');}
   await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);
-  const code=crypto.randomBytes(32).toString('base64url');await d.invoke('issue',{type:'student',id:student.id},{codeHash:auth.hash(code)});
+  const code=crypto.randomBytes(32).toString('base64url');await d.invoke('issue',{type:'student',id:student.id,...require('../lib/interview-test-app.cjs').testAppFields(req)},{codeHash:auth.hash(code)});
   return res.status(200).json({ok:true,code,expiresIn:60});
  }
  if(b.action==='exchange'){
   if(Object.keys(b).some(k=>!['action','code'].includes(k))||!/^[A-Za-z0-9_-]{43}$/.test(b.code||''))throw Error('invalid_request');
-  const data=await d.invoke('consume',{type:'server',id:'native'},{codeHash:auth.hash(b.code)});
+  const data=await d.invoke('consume',{type:'server',id:'native',...require('../lib/interview-test-app.cjs').testAppFields(req)},{codeHash:auth.hash(b.code)});
   await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(data.studentId);
   const track=d.readTrack?await d.readTrack(data.studentId):'';
   return res.status(200).json({ok:true,token:auth.issue(data.studentId,d.secret),expiresIn:1800,track:interviewTracks.includes(track)?track:''});

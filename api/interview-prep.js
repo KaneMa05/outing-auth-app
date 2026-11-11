@@ -99,7 +99,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       } else {
         const webStudent=await authenticateWeb(req);
         if(webStudent){
-          actor={type:'student',id:webStudent.id};
+          actor={type:'student',id:webStudent.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
         }else{
         // Deny non-test accounts before any device/DB query. Browser hints are
         // never authorization, including on direct URL/API requests.
@@ -110,7 +110,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         const student=await authenticate(body);
         if(!student)fail('unauthorized',401);
         if(!previewAllowed(student.id))fail('forbidden',403);
-        actor={type:'student',id:student.id};
+        actor={type:'student',id:student.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
         }
       }
       if(body.action==='practice_bootstrap') {
@@ -118,7 +118,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         if(access.allowed!==true)fail('forbidden',403);
         const info=await invoke('bootstrap',actor,{});
         const mode=body.mode||'job';if(!['job','personality','ai'].includes(mode))fail('invalid_request',400);
-        const pool=await require('../lib/interview-practice-catalog.cjs').practiceCatalog(read,{track:info.member.track,mode});
+        const pool=mode==='ai'&&actor.testApp!==true?await invoke('questions',actor,{category:'personality',page:0}):await require('../lib/interview-practice-catalog.cjs').practiceCatalog(read,{track:info.member.track,mode,testOnly:actor.testApp===true});
         return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,mode,
           fields:pool.fields||[],questions:['job','personality'].includes(mode)?pool.questions:pool.questions.map(({id,prompt,category,tracks})=>({id,prompt,category,tracks}))});
       }

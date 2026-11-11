@@ -2,14 +2,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const {LiveEngine}=require('../lib/interview-live-engine');
 const {createProvider}=require('../lib/interview-live-provider');
-const {decision,FOLLOWUP_INSTRUCTIONS}=require('../lib/interview-live-policy');
+const {decision,TEST_FOLLOWUP_INSTRUCTIONS:FOLLOWUP_INSTRUCTIONS,FOLLOWUP_INSTRUCTIONS:ORDINARY_INSTRUCTIONS}=require('../lib/interview-live-policy');
 const complete={turnComplete:true,ask:false,question:'',evidence:''};
-async function fixture(generate){
+async function fixture(generate,testApp=true){
  let event,clock=Date.now();const sent=[],saved=[],contexts=[];
  const run={id:randomUUID(),questions:[0,1,2].map(i=>({id:'main-'+i,prompt:'메인 질문 '+i})),deadline:new Date(clock+600000).toISOString()};
  const backend=createProvider({key:'synthetic-test-key',followupModel:'test-model',fetchImpl:async(url,options)=>{
   assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);
-  assert.equal(body.store,false);assert.equal(body.instructions,FOLLOWUP_INSTRUCTIONS);assert(body.text.format.strict);
+  assert.equal(body.store,false);assert.equal(body.instructions,JSON.parse(body.input).testApp===true?FOLLOWUP_INSTRUCTIONS:ORDINARY_INSTRUCTIONS);assert(body.text.format.strict);
   const context=JSON.parse(body.input);contexts.push(context);
   const result=await generate(context,contexts.length-1);
   return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(result)}]}]});
@@ -18,7 +18,7 @@ async function fixture(generate){
   if(action==='reserve')return {run};if(action==='save')saved.push(body);return {ok:true};
  },provider:{create:async()=>({id:'live_test',sdp:'answer'}),attach:async(id,callback)=>{event=callback;return {send:e=>{sent.push(e);if(e.type==='session.close')event({type:'session.closed'});},destroy(){}};},closeSession:async()=>true,followup:backend.followup},
  storage:{upload:async()=>{}},recorder:()=>({sizes:{input:0},append(){},close(){}}),cleanup(){},now:()=>clock});
- await engine.start({type:'student',id:'test'},{requestKey:randomUUID(),sdp:'v=0 test'});
+ await engine.start({type:'student',id:'test',...(testApp?{testApp:true}:{})},{requestKey:randomUUID(),sdp:'v=0 test'});
  const live=engine.sessions.get(run.id);
  return {engine,live,sent,saved,contexts,event:e=>event(e),async answer(text,manual=true){clock+=6000;event({type:'session.input_transcript.delta',delta:text});if(!manual)clock+=2000;await engine.advance(live,'delegation-'+contexts.length,manual);},stop:()=>engine.finish(live,live.completed?'completed':'interrupted')};
 }
@@ -61,4 +61,10 @@ test('followup two cannot cite the main answer or repeat the first followup',()=
  assert.throws(()=>decision({turnComplete:true,ask:true,question,evidence:'직접 연락'},latest,[question],1),/invalid_evidence/);
  assert.throws(()=>decision(complete,latest,[],1),/followup_required/);
  assert.equal(decision(complete,latest,[],0).ask,false);
+});
+
+test('ordinary Live retains optional followups and the original provider instructions',async()=>{
+ const f=await fixture(()=>complete,false);
+ try{await f.answer('저는 역할을 나눴습니다.');assert.equal(f.live.index,1);assert.equal(f.live.followups,0);assert.equal(f.live.turns.length,1);assert.equal(f.contexts[0].testApp,undefined);}
+ finally{await f.stop();}
 });

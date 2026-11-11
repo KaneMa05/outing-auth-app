@@ -4,17 +4,18 @@ const {fixture}=require('./helpers/interview-mock-cli-fixture.cjs');
 const bank=require('../lib/interview-test-question-scope.json');
 const {questionsFor,allows}=require('../lib/interview-test-question-scope.cjs');
 const {practiceCatalog}=require('../lib/interview-practice-catalog.cjs');
-const actor={type:'student',id:'ip-a'},admin={type:'admin',id:'qa'};
+const actor={type:'student',id:'ip-a',testApp:true},admin={type:'admin',id:'qa'};
 const migration='supabase/migrations/20261111021951_interview_mock_test_question_scope.sql';
-test('catalog defaults to the exact server test set while enforcing source prompt, status and enrollment track',async()=>{
+test('marked test-app catalog uses the exact server test set while enforcing source prompt, status and enrollment track',async()=>{
  const seen=[];const rows=bank.questions.map(q=>({...q,status:'published',tracks:[],topic_ids:[]}));
  const read=async(_method,path)=>{seen.push(path);if(path.startsWith('ip_topics?'))return [];return [...rows,{id:'outside',prompt:'범위 밖',category:'job',status:'published',tracks:[]}];};
  for(const mode of ['job','personality','ai']){
-  const result=await practiceCatalog(read,{mode,track:'공채'});assert.deepEqual(result.questions.map(q=>q.id),questionsFor(mode).map(q=>q.id));
+  const result=await practiceCatalog(read,{mode,track:'공채',testOnly:true});assert.deepEqual(result.questions.map(q=>q.id),questionsFor(mode).map(q=>q.id));
   assert(new URL('https://local/'+seen.at(-1)).searchParams.get('id').startsWith('in.('));
  }
+ const ordinary=await practiceCatalog(read,{mode:'job',track:'공채'});assert(ordinary.questions.some(q=>q.id==='outside'),'ordinary requests keep the original catalog');
  assert(!allows('job',{...questionsFor('job')[0],prompt:'변경됨'}));assert(!allows('personality',questionsFor('job')[0]));
- const blocked=await practiceCatalog(async()=>[{...rows[0],tracks:['기관']},{...rows[1],status:'draft'},{...rows[2],prompt:'변경됨'}],{mode:'job',track:'공채'});
+ const blocked=await practiceCatalog(async()=>[{...rows[0],tracks:['기관']},{...rows[1],status:'draft'},{...rows[2],prompt:'변경됨'}],{mode:'job',track:'공채',testOnly:true});
  assert.deepEqual(blocked.questions,[]);
 });
 test('DB allowlist blocks forged questions across every mock path, preserves source data and orders Live main questions',async t=>{
@@ -30,6 +31,8 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  await f.db.exec(fs.readFileSync(migration,'utf8'));
  assert.deepEqual((await f.db.query('select id,prompt,status from ip_questions order by id')).rows,snapshot);
  assert.equal((await openai('get',actor,{id:oldId})).id,oldId,'saved non-test attempts remain readable');
+ const ordinary={type:'student',id:'ip-a'};
+ assert.equal((await openai('create',ordinary,{id:randomUUID(),mode:'job',questionId:outside.id,questionPrompt:outside.prompt,audioHash:'e'.repeat(64)})).ok,true,'ordinary published questions remain valid');
  for(const name of ['ip_openai_practice_service','ip_practice_cli_service']){
   const rpc=f.rpc(name);
   await assert.rejects(rpc('create',actor,{id:randomUUID(),mode:'job',questionId:outside.id,questionPrompt:outside.prompt,audioHash:'b'.repeat(64)}),/question_unavailable/);
@@ -40,6 +43,7 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  }
  for(const [name,mode] of [['ip_job_exam_service','job'],['ip_personality_service','personality']]){
   const rpc=f.rpc(name),listed=await rpc('questions',actor,{});
+  const ordinaryList=await rpc('questions',ordinary,{});assert(ordinaryList.questions.some(q=>q.id===(mode==='job'?outside.id:f.personality.question.id)),'ordinary exam catalog is preserved');
   assert.deepEqual(new Set(listed.questions.map(q=>q.id)),new Set(questionsFor(mode).map(q=>q.id)));
   const other=mode==='job'?outside:f.personality.question;
   await assert.rejects(rpc('start',actor,{requestKey:randomUUID(),questionId:other.id}),/questions_unavailable/);
