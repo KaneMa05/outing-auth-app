@@ -30,6 +30,7 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
     private var oldRTCConfiguration: RTCAudioSessionConfiguration?
     #endif
     private var finishing: InterviewCall?
+    private(set) var failure: Error?
     init(api: InterviewAPI) { self.api = api; super.init() }
     private func later(_ seconds: Double, _ body: @escaping () -> Void) {
         let item = DispatchWorkItem(block: body); timers.append(item)
@@ -98,7 +99,7 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
                 send("start", fields, ticket: ticket) { [weak self] result in
                     guard let self else { return }
                     switch result {
-                    case .failure: self.stop(failed: true)
+                    case .failure(let error): self.stop(failed: true, error: error)
                     case .success(let value):
                         guard let id = value["runId"] as? String, let answer = value["sdp"] as? String else { self.stop(failed: true); return }
                         self.runID = id
@@ -111,7 +112,7 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
                         }}
                     }
                 }
-            } catch { stop(failed: true) }
+            } catch { stop(failed: true, error: error) }
         }
     }
     private func send(_ action: String, _ fields: InterviewJSON = [:], ticket: String? = nil,
@@ -146,7 +147,7 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
                 if let event = value["event"] as? InterviewJSON { if !self.closing { self.onEvent?(event) } }
                 else if let id = value["id"] as? Int, let cb = self.pending.removeValue(forKey: id) {
                     if let response = value["result"] as? InterviewJSON, response["ok"] as? Bool == true { cb(.success(response)) }
-                    else { cb(.failure(InterviewError.connection)) }
+                    else { cb(.failure(InterviewError.server(value["error"] as? String ?? "connection"))) }
                 }
                 if !self.ended { self.receive() }
             }
@@ -170,7 +171,8 @@ final class InterviewCall: NSObject, RTCPeerConnectionDelegate, RTCDataChannelDe
     }
     func answer(_ done: @escaping (Result<InterviewJSON, Error>) -> Void) { send("answer_done", done: done) }
     func mute(_ value: Bool) { audioTrack?.isEnabled = !value }
-    func stop(failed: Bool = false) {
+    func stop(failed: Bool = false, error: Error? = nil) {
+        if let error, failure == nil { failure = error }
         guard !closing, !ended else { return }; closing = true; finishing = self; audioTrack?.isEnabled = false
         if channel?.readyState == .open,
            let data = try? JSONSerialization.data(withJSONObject: ["type": "session.close", "event_id": UUID().uuidString]) {

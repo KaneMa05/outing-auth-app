@@ -10,10 +10,18 @@ import AVFoundation
     @Published var question = ""
     @Published var transcript = ""
     @Published var spoken = ""
+    #if DEBUG
+    @Published var notice = "면접 준비 화면을 불러오고 있습니다."
+    #else
     @Published var notice = "앱 연결을 확인하고 있습니다."
+    #endif
     @Published var questionNumber = 0
     #if DEBUG
     @Published var verificationAudioOutput = ""
+    @Published var unlimited = false
+    @Published var dailyLimit: Int?
+    @Published var usedToday: Int?
+    @Published var remainingToday: Int?
     private func refreshVerificationAudioOutput() {
         guard ProcessInfo.processInfo.environment["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil else { return }
         verificationAudioOutput = AVAudioSession.sharedInstance().currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
@@ -57,7 +65,12 @@ import AVFoundation
     }
     func load() async {
         guard !loaded else { return }; loaded = true
-        if demo { screen = .prep; ready = true; notice = "무료 화면 테스트입니다. AI 음성과 실제 답변 인식은 사용하지 않습니다."; return }
+        if demo {
+            #if DEBUG
+            unlimited = true
+            #endif
+            screen = .prep; ready = true; notice = "무료 화면 테스트입니다. AI 음성과 실제 답변 인식은 사용하지 않습니다."; return
+        }
         do { try await api.exchange(code); code = ""; guard !disposed else { return }; screen = .prep; await checkReady() }
         catch { code = ""; guard !disposed else { return }; screen = .error; notice = "앱 연결이 만료되었습니다. 학생앱의 모의면접 메뉴에서 다시 열어주세요." }
     }
@@ -67,13 +80,34 @@ import AVFoundation
         ready = false
         do { let result = try await api.command("ready"); guard !disposed, screen == .prep else { return }
             ready = result["ready"] as? Bool == true
+            #if DEBUG
+            unlimited = result["unlimited"] as? Bool == true
+            dailyLimit = result["dailyLimit"] as? Int
+            usedToday = result["usedToday"] as? Int
+            remainingToday = result["remainingToday"] as? Int
+            if ready && !unlimited && (dailyLimit == nil || usedToday == nil || remainingToday == nil) {
+                ready = false; notice = "오늘 이용 가능 횟수를 확인하지 못했습니다. 연결 다시 확인을 눌러주세요."; return
+            }
+            if !ready, let reason = result["reason"] as? String, ["daily_limit", "admission_busy"].contains(reason) {
+                notice = InterviewStartFailure.message(reason); return
+            }
+            #endif
+            #if DEBUG
+            notice = ready ? "마이크와 카메라를 확인한 뒤 면접을 시작해주세요." : "지금은 면접을 시작할 수 없습니다. 이용 권한을 확인하거나 잠시 후 다시 시도해주세요."
+            #else
             notice = ready ? "준비되면 면접을 시작해주세요." : "면접 연결을 준비 중입니다. 수강 등록과 서버 설정을 확인해주세요."
+            #endif
         } catch { if !disposed { notice = "연결을 확인하지 못했습니다. 다시 시도해주세요." } }
     }
     func start() {
         guard ready, screen == .prep else { return }
         media.stopMic(); stopPlayback()
         screen = .connecting; notice = "마이크와 AI 면접관을 연결하고 있습니다."
+        #if DEBUG
+        if demo && ProcessInfo.processInfo.arguments.contains("--interview-start-failure-fixture") {
+            handleCallEnd(id: "", failed: true, error: InterviewError.server("queue_full")); return
+        }
+        #endif
         if demo { beginCall(); return }
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] allowed in DispatchQueue.main.async {
             guard let self, !self.disposed, self.screen == .connecting else { return }
@@ -81,6 +115,7 @@ import AVFoundation
         }}
     }
     private func beginCall() {
+        runID = ""
         #if DEBUG
         media.startCamera()
         #endif
@@ -111,15 +146,29 @@ import AVFoundation
             if type == "session.input_transcript.delta" { self.transcript = String((self.transcript + (event["delta"] as? String ?? "")).suffix(4000)) }
             if type == "session.output_transcript.delta" { self.spoken = String((self.spoken + (event["delta"] as? String ?? "")).suffix(2000)) }
         }
-        session.onEnd = { [weak self] id, failed in
-            guard let self else { return }
-            self.call = nil; self.media.stop(); UIApplication.shared.isIdleTimerDisabled = false
-            if self.disposed { self.api.clear(); return }
-            self.runID = id; self.screen = .result; self.answering = false
-            self.notice = failed ? "연결이 종료되었습니다. 기록 저장 상태를 다시 확인해주세요." : "면접이 종료되었습니다. 기록을 확인해주세요."
-            if !id.isEmpty { Task { @MainActor in await self.loadRecord(id) } }
+        session.onEnd = { [weak self, weak session] id, failed in
+            self?.handleCallEnd(id: id, failed: failed, error: session?.failure)
         }
         session.start()
+    }
+    private func handleCallEnd(id: String, failed: Bool, error: Error?) {
+        let errorCode = InterviewStartFailure.code(error)
+        let hadStarted = !id.isEmpty && runID == id
+        call = nil; media.stop(); UIApplication.shared.isIdleTimerDisabled = false
+        if disposed { api.clear(); return }
+        #if DEBUG
+        if !hadStarted {
+            if errorCode == "daily_limit" {
+                dailyLimit = dailyLimit ?? 3; usedToday = max(usedToday ?? 0, dailyLimit ?? 3); remainingToday = 0
+            }
+            runID = ""; record = nil; questionNumber = 0; answering = false
+            screen = .prep; ready = !["daily_limit", "admission_busy", "unauthorized", "session_expired"].contains(errorCode ?? "")
+            notice = InterviewStartFailure.message(errorCode); return
+        }
+        #endif
+        runID = id; screen = .result; answering = false
+        notice = failed ? "연결이 종료되었습니다. 기록 저장 상태를 다시 확인해주세요." : "면접이 종료되었습니다. 기록을 확인해주세요."
+        if !id.isEmpty { Task { @MainActor in await loadRecord(id) } }
     }
     func answer() {
         guard screen == .live, !answering, !muted else { return }; answering = true

@@ -67,6 +67,16 @@ import SwiftUI
             #endif
             #if DEBUG
             Text("메인 질문 2개 · 질문마다 꼬리질문 2개 · 총 6문답 · 최대 10분").font(.subheadline)
+            if model.unlimited {
+                Text("테스트앱 · 이용 횟수 제한 없음").font(.headline).accessibilityIdentifier("interview.remaining")
+            } else if let limit = model.dailyLimit, let used = model.usedToday, let remaining = model.remainingToday {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("오늘 남은 면접 \(remaining)회").font(.headline).accessibilityIdentifier("interview.remaining")
+                    Text("하루 \(limit)회 · 오늘 \(used)회 사용").font(.subheadline)
+                    Text("매일 자정(한국시간)에 초기화됩니다. 시작한 면접은 중단해도 횟수에 포함됩니다.").font(.caption).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding()
+                    .background(.white, in: RoundedRectangle(cornerRadius: 16))
+            }
             #else
             Text("기본 질문 3개 · 꼬리 질문 최대 2개씩 · 최대 10분").font(.subheadline)
             #endif

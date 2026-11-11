@@ -92,7 +92,21 @@ final class InterviewUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    func testStartFailureStaysOnPreparationWithNotice() {
+        app.terminate()
+        app.launchArguments.append("--interview-start-failure-fixture")
+        app.launch()
+        tap("interview.start")
+        XCTAssertTrue(app.staticTexts["interview.notice"].label.contains("현재 면접 연결이 많습니다"))
+        XCTAssertTrue(app.buttons["interview.start"].exists)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+        XCTAssertEqual(app.staticTexts["interview.remaining"].label, "테스트앱 · 이용 횟수 제한 없음")
+        XCTAssertFalse(app.buttons["다시 연습하기"].exists)
+        XCTAssertFalse(app.staticTexts["내 답변을 돌아보고,\n다음 연습을 준비해요."].exists)
+        capture("startup-failure-preparation")
+    }
     func testNativeQuestionFollowupAndRecordFlow() {
+        XCTAssertEqual(app.staticTexts["interview.remaining"].label, "테스트앱 · 이용 횟수 제한 없음")
         XCTAssertEqual(app.webViews.count, 0, "Interview preview must render native views")
         capture("01-preparation")
         tap("interview.start")
@@ -676,7 +690,7 @@ final class PracticeFilterUITests: XCTestCase {
         app.buttons["practice.region"].tap()
         app.buttons["중부"].tap()
         XCTAssertTrue(app.staticTexts["선택 조건에 맞는 공개 승인 문항이 없습니다. 분야나 지역을 변경해주세요."].exists)
-        XCTAssertFalse(app.buttons["interview.start"].isEnabled)
+        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.region"].tap()
         app.buttons["서해"].tap()
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
