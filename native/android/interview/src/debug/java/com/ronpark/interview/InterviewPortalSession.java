@@ -16,7 +16,12 @@ final class InterviewPortalSession {
     final OkHttpClient http=new OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS).callTimeout(30,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
     final String mode;
     private String cookie;
-    private InterviewPortalSession(String mode){this.mode=mode;cookie=CookieManager.getInstance().getCookie(InterviewTestPolicy.ORIGIN);}
+    private InterviewPortalSession(String mode){
+        this.mode=mode;
+        // ip_web_session is HttpOnly and Path=/api. A root URL omits it even
+        // while the portal WebView is logged in. Keep the API-scoped snapshot in memory.
+        cookie=CookieManager.getInstance().getCookie(InterviewTestPolicy.ORIGIN+"/api/interview-prep");
+    }
     static String create(String mode){if(!InterviewTestPolicy.mode(mode))throw new IllegalArgumentException();String id=UUID.randomUUID().toString();sessions.put(id,new InterviewPortalSession(mode));return id;}
     static InterviewPortalSession take(String id){return sessions.remove(id);}
     void bootstrap(InterviewApi.Reply reply){post("/api/interview-prep",InterviewApi.json("action","practice_bootstrap","mode",mode),reply);}

@@ -27,7 +27,7 @@ public final class InterviewPortalPracticeActivity extends InterviewTestScreen {
     private JSONObject record;
     private int count=3,number,generation;
     private long created,started,reviewStarted;
-    private boolean destroyed,loading,analysisReady,talking,answering,recordingReady,counting;
+    private boolean destroyed,loading,catalogLoaded,analysisReady,talking,answering,recordingReady,counting;
     private MediaPlayer player;
     private TextView status,hint,clock;
     private ProgressBar meter;
@@ -37,12 +37,12 @@ public final class InterviewPortalPracticeActivity extends InterviewTestScreen {
         if(portal==null){notice="연결이 만료되었습니다. 돌아간 뒤 연습을 다시 열어주세요.";render();return;}mode=portal.mode;load(false);
     }
     private void load(boolean startAfter){
-        if(portal==null||loading)return;loading=true;analysisReady=false;render();portal.bootstrap((data,error)->{
+        if(portal==null||loading)return;loading=true;catalogLoaded=false;analysisReady=false;render();portal.bootstrap((data,error)->{
             if(destroyed)return;loading=false;
             if(error!=null){notice="연습 권한과 연결 상태를 확인해주세요.";render();return;}
             try{String next=data.getString("accountId");if(next.isEmpty()||!account.isEmpty()&&!account.equals(next))throw new IllegalStateException();account=next;track=data.getString("track");bank=data.getJSONArray("questions");fields=data.optJSONArray("fields");if(fields==null)fields=new JSONArray();
                 StringBuilder scope=new StringBuilder();for(byte b:MessageDigest.getInstance("SHA-256").digest(account.getBytes(StandardCharsets.UTF_8)))scope.append(String.format(Locale.ROOT,"%02x",b&255));store=new InterviewLocalStore(this,scope.toString());
-                refreshQuestions();notice="녹음은 이 기기에 저장됩니다.";
+                refreshQuestions();catalogLoaded=true;notice="녹음은 이 기기에 저장됩니다.";
                 portal.analysis("status",InterviewApi.json("accountId",account),(result,err)->{if(destroyed)return;analysisReady=err==null&&result.optBoolean("ready");notice=analysisReady?"AI 연결됨":"음성 분석 연결을 확인해주세요.";render();if(startAfter&&analysisReady)requestStart();});
             }catch(Exception invalid){notice="연습 정보를 확인하지 못했습니다. 다시 열어주세요.";}render();
         });
@@ -58,6 +58,12 @@ public final class InterviewPortalPracticeActivity extends InterviewTestScreen {
     private void prep(){
         title("면접 준비");add("지원 직렬 · "+(track.isEmpty()?"확인 중":track),15,teal);
         if(portal==null){button("돌아가기",false,this::finish);return;}
+        if(!catalogLoaded){
+            add(loading?"승인된 문항 목록을 불러오고 있습니다.":"문항 목록을 불러오지 못했습니다. 로그인 상태와 연결을 확인한 뒤 다시 시도해주세요.",14,sub);
+            button(loading?"불러오는 중…":"문항 목록 다시 불러오기",true,()->load(false)).setEnabled(!loading);
+            if(store!=null)button("내 면접 기록",false,()->{screen="records";render();});
+            return;
+        }
         List<JSONObject> available=eligible(false);List<String> ids=new ArrayList<>(),labels=new ArrayList<>();ids.add("");labels.add("전체 분야");
         for(int i=0;i<fields.length();i++){JSONObject f=fields.optJSONObject(i);if(f==null)continue;String id=f.optString("id");boolean used=false;for(JSONObject q:available)if(contains(q.optJSONArray("fieldIds"),id))used=true;if(used&&(!mode.equals("job")||InterviewTestPolicy.fieldAllowed(id,track))){ids.add(id);labels.add(f.optString("label",id));}}
         String selected=ids.contains(field)?labels.get(ids.indexOf(field)):"전체 분야";

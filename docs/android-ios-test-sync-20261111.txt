@@ -83,6 +83,25 @@ Android Debug APK만 바뀌므로 별도 Vercel 배포나 스토어 업로드는
 꼬리질문·종료·기록을 확인한다. 유료 테스트가 불명확하면 자동으로 다시 시작하지 않는다.
 공통 동작을 바꾸면 이 문서의 iOS 기준 SHA, Android 버전 및 양 플랫폼 검증 상태를 갱신한다.
 
+직무 문항 0개 표시 후속 수정
+사용자 기기에서 로그인 이후 직무 화면이 '지원 직렬 · 확인 중 / 문항 0개'를 표시했다.
+실제로 문항이 없는 것이 아니라 네이티브 조회에 로그인 쿠키가 전달되지 않은 문제였다.
+서버의 ip_web_session은 HttpOnly, Path=/api이다. Android가 루트 origin으로 쿠키를
+읽어 누락했고, iOS는 해당 도메인의 쿠키 저장소에서 읽으므로 같은 문제가 없었다.
+Android도 /api/interview-prep URL로 API 경로의 쿠키를 읽어 메모리에서 전달하도록 수정했다.
+조회 실패와 정상 빈 결과를 분리했다. 목록을 불러오지 못하면 로그인·연결 안내와
+재시도 버튼을 표시하며, 정상 조회 전에는 '공개 승인 문항 없음'을 표시하지 않는다.
+SM_G950N의 현재 로그인 계정으로 읽기 전용 검증을 수행했다.
+- 루트 URL의 세션 쿠키 없음 / API URL의 세션 쿠키 있음 확인. 쿠키 값은 출력·저장하지 않았다.
+- 실제 practice_bootstrap에서 직무 문항 3개 수신, 직렬 필터 이후 3개 유지 확인.
+- 실제 네이티브 준비 화면에 문항이 표시되고 잘못된 빈 목록 안내가 사라지는 것 확인.
+- 실패 상태가 빈 결과로 표시되지 않는 기기 회귀 검사 추가 및 통과.
+- 정상 기기 화면 검사, Android 단위 검사 34개, Debug APK와 정식 모듈 빌드 통과.
+- 녹음·제출·유료 AI 호출·가짜 운영 기록 생성 없음. 기존 로그인과 기기 기록을 보존했다.
+실제 로그인 검증 명령(검사용 APK 설치 후):
+  adb shell am instrument -w -e verifyPractice true com.ronpark.study.nativepreview.test/com.ronpark.interview.test.InterviewSyncInstrumentation
+검증 결과에는 쿠키 존재 여부와 문항 수만 포함하며 계정·쿠키·토큰 값은 기록하지 않는다.
+
 참고
 docs/interview-live-selected-voices-mac-handoff-20261111.txt
 docs/releases/20261111-interview-test-unlimited-production.txt
