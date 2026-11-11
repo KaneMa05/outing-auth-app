@@ -187,7 +187,7 @@ import AVKit
                 Text("\(countdown)").font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
                     .frame(maxWidth: .infinity).accessibilityIdentifier("practice.start-countdown")
             } else {
-                Text(model.question).font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                Text(model.question).accessibilityIdentifier("practice.question").font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
             }
             if !model.questionAudioNotice.isEmpty {
                 Text(model.questionAudioNotice).font(.footnote).foregroundStyle(.secondary)
@@ -233,7 +233,7 @@ import AVKit
                 if let feedback = turn.analysis {
                     Text("AI 연습 피드백").font(.headline)
                     ForEach(["summary", "strength", "improvement"], id: \.self) { key in
-                        if let value = feedback[key], !value.isEmpty { Text(value).font(.subheadline) }
+                        if let value = feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                     }
                 } else {
                     Text(turn.analysisPending ? "AI 분석 중 · 결과는 자동 저장됩니다." : turn.analysisError ? "AI 분석 실패 · 녹음은 저장됐습니다." : "AI 미연결 · 녹음을 듣고 점검해 보세요.")
@@ -284,20 +284,22 @@ import AVKit
                         }
                         if record.completed, !turn.assessment.isEmpty {
                             let grade = turn.overallAssessment
+                            let confirmedCount = turn.assessment.filter { $0.status != "uncertain" }.count
+                            let mixed = confirmedCount > 0 && confirmedCount < turn.assessment.count
                             HStack(spacing: 12) {
                                 Text(grade == "O" ? "○" : grade == "partial" ? "△" : grade == "X" ? "×" : "—")
                                     .font(.system(size: 40, weight: .semibold))
                                     .foregroundStyle(grade == "O" ? Color.teal : grade == "partial" ? Color.orange : grade == "X" ? Color.red : Color.secondary)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(grade == "O" ? "충족" : grade == "partial" ? "부분 충족" : grade == "X" ? "미충족" : "판정 보류").font(.headline)
-                                    Text("답변 전체 · 예시답변 기준").font(.caption).foregroundStyle(.secondary)
+                                    Text(mixed ? "일부 항목 확인" : grade == "O" ? "충족" : grade == "partial" ? "부분 충족" : grade == "X" ? "미충족" : "판정 보류").font(.headline)
+                                    Text(mixed ? "확인된 항목 \(confirmedCount)/\(turn.assessment.count) · 나머지 항목은 녹음 확인 필요" : "답변 전체 · 예시답변 기준").font(.caption).foregroundStyle(.secondary)
                                 }
                             }.accessibilityIdentifier("practice.overall-grade.\(turn.id)")
                             DisclosureGroup("판정 근거") {
                                 VStack(alignment: .leading, spacing: 12) {
                                     ForEach(turn.assessment) { item in
                                         VStack(alignment: .leading, spacing: 6) {
-                                            Text(item.label).font(.subheadline.weight(.medium))
+                                            Text(item.label + " · " + item.statusLabel).font(.subheadline.weight(.medium))
                                             Text(item.reason).font(.subheadline)
                                             Text(item.claim).font(.caption).foregroundStyle(.secondary)
                                             if !item.quote.isEmpty { Text("나의 답변: “" + item.quote + "”").font(.caption).foregroundStyle(.secondary) }
@@ -309,7 +311,7 @@ import AVKit
                             Text("항목별 판정 기준 미등록").font(.caption).foregroundStyle(.secondary)
                         }
                         if let status = turn.analysisNotice, !status.isEmpty {
-                            Text(status).font(.caption).foregroundStyle(.secondary)
+                            Text(status).accessibilityIdentifier("practice.analysis-notice.\(turn.id)").font(.caption).foregroundStyle(.secondary)
                         }
                         if turn.analysisPending {
                             HStack(spacing: 8) {
@@ -320,7 +322,7 @@ import AVKit
                         if let feedback = turn.analysis {
                             Text("AI 연습 피드백").font(.caption).foregroundStyle(teal)
                             ForEach(["summary", "strength", "improvement", "nextPractice"], id: \.self) { key in
-                                if let value = feedback[key], !value.isEmpty { Text(value).font(.subheadline) }
+                                if let value = feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                             }
                         } else if !turn.analysisPending && turn.analysisNotice == nil {
                             Text(turn.analysisState == "queued" ? "분석 순서를 기다리고 있습니다. 다른 질문을 연습해도 됩니다." : turn.analysisPending ? "답변을 저장하고 피드백을 준비하고 있습니다." : turn.analysisError ? "분석 상태를 확인해야 합니다. 자동으로 다시 실행하지 않습니다." : "AI 평가 미연결").font(.caption).foregroundStyle(.secondary)

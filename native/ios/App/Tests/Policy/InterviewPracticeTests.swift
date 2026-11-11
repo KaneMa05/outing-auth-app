@@ -3,6 +3,15 @@ import CryptoKit
 @testable import InterviewNative
 
 final class InterviewPracticeTests: XCTestCase {
+    #if DEBUG
+    @MainActor func testTestAppRetentionShowsOnlyKoreanCalendarDate() {
+        XCTAssertEqual(InterviewView.retentionDate("2026-11-11T16:30:00.123Z"), "2026-11-12")
+        XCTAssertEqual(InterviewView.retentionDate("2026-11-11T00:00:00+09:00"), "2026-11-11")
+        XCTAssertEqual(InterviewView.retentionDate("2026-11-11"), "2026-11-11")
+        XCTAssertEqual(InterviewView.retentionDate(nil), "확인 중")
+        XCTAssertEqual(InterviewView.retentionDate("invalid"), "확인 중")
+    }
+    #endif
     @MainActor
     func testPCFeedbackIsAutomaticForEveryPracticeMode() {
         let model = PracticeModel()

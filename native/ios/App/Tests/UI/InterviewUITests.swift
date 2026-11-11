@@ -736,6 +736,18 @@ final class PracticeResultPresentationTests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["practice.example.1"].firstMatch.exists)
         XCTAssertFalse(app.descendants(matching: .any)["practice.overall-grade.1"].firstMatch.exists)
     }
+    func testMixedVerdictsShowConfirmedAndUncertainCriteriaSeparately() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--practice-result-ui-fixture", "--practice-mixed-verdict-fixture"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["일부 항목 확인"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["확인된 항목 1/2 · 나머지 항목은 녹음 확인 필요"].exists)
+        let before = XCTAttachment(screenshot: app.screenshot()); before.name = "fixture-job-mixed-verdict-overview"; before.lifetime = .keepAlways; add(before)
+        app.buttons["판정 근거"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["상황 확인 · 충족"].exists)
+        XCTAssertTrue(app.staticTexts["보고 · 판정 보류"].exists)
+        let after = XCTAttachment(screenshot: app.screenshot()); after.name = "fixture-job-confirmed-and-held-criteria"; after.lifetime = .keepAlways; add(after)
+    }
     func testResultsShowReferenceVerdictsAndPendingAnalysisOnTheResultScreen() {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--practice-result-ui-fixture"]
@@ -854,6 +866,9 @@ final class PaidLiveVerificationTests: XCTestCase {
             }
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: heard, object: nil)], timeout: 65), .completed, "No real microphone transcript on turn \(turn)")
             Thread.sleep(forTimeInterval: 3)
+            let responseSpeech = app.staticTexts["interview.audio-output"].value as? String ?? ""
+            print("LIVE_VERIFY_ACK " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "spoken": responseSpeech]), as: UTF8.self))
+            XCTAssertFalse(responseSpeech.contains("확인하겠습니다"), "Unexpected acknowledgement during answer completion")
             print("LIVE_VERIFY_HEARD " + String(decoding: try JSONSerialization.data(withJSONObject: ["turn": turn, "transcript": heardText]), as: UTF8.self))
             if question.exists && question.label == current { tap("interview.answer") }
             let next = NSPredicate { _, _ in
@@ -864,6 +879,136 @@ final class PaidLiveVerificationTests: XCTestCase {
         }
         XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout: 30))
         evidence("paid-live-result")
+        let retention = app.staticTexts["interview.retention-date"].label
+        XCTAssertNotNil(retention.range(of: "^보관 종료: [0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression))
+        print("LIVE_VERIFY_RETENTION " + retention)
+        if ProcessInfo.processInfo.environment["LIVE_VERIFY_COMPREHENSIVE"] == "1" {
+            tap("interview.analysis"); evidence("paid-live-comprehensive-generating")
+            let disclaimer = app.staticTexts["저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다."]
+            let until = Date().addingTimeInterval(150)
+            while !disclaimer.exists && Date() < until {
+                XCTAssertEqual(app.state, .runningForeground)
+                Thread.sleep(forTimeInterval: 4)
+                if !app.buttons["interview.analysis"].exists || app.buttons["interview.analysis"].isEnabled { tap("기록 다시 확인") }
+            }
+            XCTAssertTrue(disclaimer.exists, "Comprehensive feedback did not finish; never automatically generate again")
+            for _ in 0..<8 { app.swipeDown() }; evidence("paid-live-comprehensive-overview")
+            for page in 1...5 { app.swipeUp(); evidence("paid-live-comprehensive-page-\(page)") }
+            XCTAssertEqual(app.state, .runningForeground)
+            print("FEEDBACK_VERIFY_COMPLETED actual_run_comprehensive_feedback_no_app_exit")
+        }
         print("LIVE_VERIFY_COMPLETED six_answers")
+    }
+}
+
+// Explicit on-device verification, including real microphone recordings and paid analysis.
+final class ActualPracticeScreenshotTests: XCTestCase {
+    func testJobAndPersonalityRealAnswersAndFeedbackScreens() throws {
+        guard ProcessInfo.processInfo.environment["RUN_REAL_PRACTICE_VERIFICATION"] == "1" else { throw XCTSkip("Explicit real practice verification only") }
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<8 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        for mode in (ProcessInfo.processInfo.environment["PRACTICE_VERIFY_MODES"] ?? "job,personality").split(separator: ",").map(String.init) {
+            app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+            app.launch()
+            let web = app.webViews.firstMatch
+            XCTAssertTrue(web.buttons["모의면접"].waitForExistence(timeout: 50), "Signed-in test account required")
+            capture(mode + "-01-home")
+            tap(web.buttons["모의면접"]); capture(mode + "-02-mode-menu")
+            let title = mode == "job" ? "직무(전공) 연습모드" : "인성 연습모드"
+            tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch)
+            XCTAssertTrue(web.buttons["연습 시작"].waitForExistence(timeout: 30)); capture(mode + "-03-entry")
+            tap(web.buttons["연습 시작"])
+            let field = app.buttons["practice.content-field"]
+            XCTAssertTrue(field.waitForExistence(timeout: 40))
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: field)], timeout: 30), .completed)
+            capture(mode + "-04-preparation")
+            tap(field); capture(mode + "-05-field-options"); tap(app.buttons["전체 분야"])
+            if mode == "job" { tap(app.buttons["practice.region"]); capture(mode + "-06-region-options"); tap(app.buttons["전체 지역"]) }
+            tap(app.buttons[mode == "job" ? "practice.job-count" : "practice.personality-count"])
+            capture(mode + "-07-question-count"); tap(app.buttons["3문항"])
+            capture(mode + "-08-ready")
+            tap(app.buttons["interview.start"])
+            if app.alerts.buttons["동의하고 테스트"].waitForExistence(timeout: 2) { capture(mode + "-09-analysis-consent"); app.alerts.buttons["동의하고 테스트"].tap() }
+            let question = app.staticTexts["practice.question"]
+            for turn in 1...3 {
+                XCTAssertTrue(question.waitForExistence(timeout: 50))
+                let current = question.label
+                capture(mode + "-10-question-\(turn)-listening")
+                let answer = app.buttons["interview.answer"]
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: answer)], timeout: 60), .completed)
+                XCTAssertTrue(app.descendants(matching: .any)["practice.audio-only"].exists)
+                XCTAssertFalse(app.descendants(matching: .any)["practice.live-camera"].exists)
+                print("PRACTICE_VERIFY_TURN " + String(decoding: try JSONSerialization.data(withJSONObject: ["mode": mode, "turn": turn, "question": current]), as: UTF8.self))
+                Thread.sleep(forTimeInterval: 2)
+                capture(mode + "-11-question-\(turn)-recording")
+                let advanced = NSPredicate { _, _ in
+                    if app.staticTexts["면접 결과"].exists { return true }
+                    return question.exists && question.label != current
+                }
+                let outcome = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: advanced, object: nil)], timeout: 55)
+                if outcome != .completed, question.exists, question.label == current, answer.exists, answer.isEnabled { tap(answer) }
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: advanced, object: nil)], timeout: 30), .completed)
+            }
+            XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 35)); capture(mode + "-12-result-loading")
+            for turn in 1...3 {
+                let feedback = app.staticTexts["practice.feedback.\(turn).summary"]
+                let notice = app.staticTexts["practice.analysis-notice.\(turn)"]
+                let finished = NSPredicate { _, _ in feedback.exists || notice.exists }
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: finished, object: nil)], timeout: 150), .completed, "Analysis did not finish for \(mode) turn \(turn)")
+                print("PRACTICE_VERIFY_RESULT \(mode) turn=\(turn) status=" + (feedback.exists ? "feedback" : "review_required") + " notice=" + (notice.exists ? notice.label : ""))
+            }
+            for _ in 0..<12 { app.swipeDown() }
+            capture(mode + "-13-result-overview")
+            let example = app.descendants(matching: .any)["practice.example.1"].firstMatch
+            if example.exists { tap(example); capture(mode + "-14-reference-answer") }
+            let reasons = app.buttons["판정 근거"].firstMatch
+            if reasons.exists { tap(reasons); capture(mode + "-15-assessment-reasons") }
+            for page in 1...5 { app.swipeUp(); capture(mode + "-16-feedback-page-\(page)") }
+            XCTAssertEqual(app.state, .runningForeground)
+            print("PRACTICE_VERIFY_COMPLETED " + mode + " three_real_answers_results_captured")
+        }
+    }
+}
+
+final class ExistingLiveFeedbackVerificationTests: XCTestCase {
+    func testExistingRunComprehensiveFeedback() throws {
+        guard let code = ProcessInfo.processInfo.environment["LIVE_VERIFICATION_CODE"] else { throw XCTSkip("Explicit short-lived verification credential required") }
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchEnvironment["INTERVIEW_LIVE_VERIFICATION_CODE"] = code
+        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]; app.launch()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<10 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        XCTAssertTrue(app.buttons["interview.start"].waitForExistence(timeout: 50)); capture("mock-feedback-01-preparation")
+        tap(app.buttons["내 면접 기록"]); capture("mock-feedback-02-record-list")
+        let saved = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "08:23:28")).firstMatch
+        tap(saved)
+        XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout: 40)); capture("mock-feedback-03-saved-six-answers")
+        let disclaimer = app.staticTexts["저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다."]
+        if !disclaimer.exists {
+            let generate = app.buttons["interview.analysis"]
+            XCTAssertTrue(generate.waitForExistence(timeout: 20), "Report unavailable or already in uncertain state")
+            tap(generate); capture("mock-feedback-04-generating")
+        }
+        let until = Date().addingTimeInterval(150)
+        while !disclaimer.exists && Date() < until {
+            XCTAssertEqual(app.state, .runningForeground, "App exited while requesting comprehensive feedback")
+            Thread.sleep(forTimeInterval: 4)
+            if !app.buttons["interview.analysis"].exists || app.buttons["interview.analysis"].isEnabled { tap(app.buttons["기록 다시 확인"]) }
+        }
+        XCTAssertTrue(disclaimer.exists, "Comprehensive feedback did not complete; do not automatically generate another paid report")
+        for _ in 0..<10 { app.swipeDown() }; capture("mock-feedback-05-comprehensive-overview")
+        for page in 1...4 { app.swipeUp(); capture("mock-feedback-06-comprehensive-page-\(page)") }
+        XCTAssertEqual(app.state, .runningForeground)
+        print("FEEDBACK_VERIFY_COMPLETED saved_run_comprehensive_feedback_no_app_exit")
     }
 }

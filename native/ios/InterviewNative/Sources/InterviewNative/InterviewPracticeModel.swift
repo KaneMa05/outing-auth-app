@@ -167,6 +167,15 @@ import CryptoKit
             }
             var pending = PracticeTurn(id: 4, question: "분석 중인 가상 질문", audio: "preview.wav")
             pending.analysisPending = true; pending.analysisState = "running"; preview.turns.append(pending)
+            if ProcessInfo.processInfo.arguments.contains("--practice-mixed-verdict-fixture") {
+                let rows: [[String: Any]] = [
+                    ["index": 0, "label": "상황 확인", "claim": "상황을 확인한다.", "status": "O", "quote": "상황을 확인했습니다.", "reason": "두 전사에서 확인됨"],
+                    ["index": 1, "label": "보고", "claim": "동료에게 보고한다.", "status": "uncertain", "quote": "", "reason": "두 전사에서 보고 여부가 달라 녹음 확인 필요"]]
+                let data = try! JSONSerialization.data(withJSONObject: rows)
+                var mixed = PracticeTurn(id: 5, question: "일부 항목 확인용 가상 질문", audio: "preview.wav")
+                mixed.analysis = ["assessment": String(data: data, encoding: .utf8)!, "summary": "두 전사에서 판정이 일치하는 항목만 반영했습니다."]
+                preview.turns.insert(mixed, at: 0)
+            }
             record = preview; screen = .result
             return
         }
