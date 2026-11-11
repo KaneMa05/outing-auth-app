@@ -82,6 +82,7 @@ import CryptoKit
     var portalAccount: String?
     var isPortalPractice: Bool { sessionLoader != nil }
     @Published var sessionLoading = false
+    @Published var catalogLoaded = false
     func refreshPortal() async throws {
         guard let sessionLoader else { return }
         let data = try await sessionLoader()
@@ -112,6 +113,7 @@ import CryptoKit
         contentFields = receivedFields.filter { usedFields.contains($0.id) && (mode != "job" || InterviewPracticePolicy.contentFieldAllowed($0.id, track: track)) }
         if !selectedField.isEmpty && !contentFields.contains(where: { $0.id == selectedField }) { selectedField = "" }
         refreshQuestions()
+        catalogLoaded = true
     }
     private var store: PracticeStore?
     private let recorder = PracticeRecorder()
@@ -153,6 +155,7 @@ import CryptoKit
         if ProcessInfo.processInfo.arguments.contains("--practice-result-ui-fixture"), !isPortalPractice {
             mode = "job"; notice = ""
             var preview = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+            preview.completed = !ProcessInfo.processInfo.arguments.contains("--practice-incomplete-result-fixture")
             for (index, status) in ["O", "partial", "X"].enumerated() {
                 let rows: [[String: Any]] = [["index": 0, "label": "핵심 항목", "claim": "상황을 확인하고 보고한다.", "status": status, "quote": status == "X" ? "" : "상황을 확인합니다.", "reason": "가상 답변 판정 근거"]]
                 let data = try! JSONSerialization.data(withJSONObject: rows)
@@ -167,7 +170,7 @@ import CryptoKit
             record = preview; screen = .result
             return
         }
-        if isPortalPractice { sessionLoading = true }
+        if isPortalPractice { sessionLoading = true; catalogLoaded = false }
         defer { sessionLoading = false }
         if isPortalPractice {
             screen = .prep; bank = []; questions = []
@@ -240,6 +243,7 @@ import CryptoKit
         guard !sessionLoading else { return }
         if isPortalPractice {
             sessionLoading = true
+            catalogLoaded = false
             Task { [weak self] in
                 guard let self else { return }
                 defer { self.sessionLoading = false }

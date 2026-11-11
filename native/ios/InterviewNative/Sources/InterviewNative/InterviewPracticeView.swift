@@ -122,6 +122,10 @@ import AVKit
                         action("내 면접 기록", id: "practice.records") { model.showRecords() }
             if !model.bridgeReady { action("AI 연결 다시 확인") { Task { await model.load() } } }
         case .prep:
+            if model.isPortalPractice && !model.catalogLoaded && !model.sessionLoading {
+                Text("문항 목록을 불러오지 못했습니다. 로그인 상태와 연결을 확인한 뒤 다시 시도해주세요.").font(.subheadline).foregroundStyle(.secondary)
+                action("문항 목록 다시 불러오기", primary: true) { Task { await model.load() } }
+            } else {
             if model.configurableQuestions, model.isPortalPractice {
                 HStack(alignment: .top, spacing: 12) {
                     practiceDropdown(title: model.mode == "personality" ? "인성 분야" : "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
@@ -156,6 +160,7 @@ import AVKit
             action(model.sessionLoading ? "준비 중…" : "연습 시작", primary: true, enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving && (!model.usesPC || model.bridgeReady), id: "interview.start") { model.start() }
             if model.usesPC && !model.bridgeReady { action("음성 분석 연결 다시 확인") { Task { await model.load() } } }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
+            }
         case .live:
             if !model.usesPC && (model.mode == "job" || model.mode == "personality") {
                 Toggle("실시간 자막", isOn: Binding(get: { model.liveCaptionsEnabled }, set: { model.setLiveCaptions($0) }))
@@ -269,7 +274,7 @@ import AVKit
                         } else if !turn.analysisPending {
                             Text("인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
                         }
-                        if let example = model.exampleAnswer(for: turn) {
+                        if record.completed, let example = model.exampleAnswer(for: turn) {
                             DisclosureGroup("예시답변") {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(example).font(.subheadline)
@@ -277,7 +282,7 @@ import AVKit
                                 }.padding(.top, 6)
                             }.accessibilityIdentifier("practice.example.\(turn.id)")
                         }
-                        if !turn.assessment.isEmpty {
+                        if record.completed, !turn.assessment.isEmpty {
                             let grade = turn.overallAssessment
                             HStack(spacing: 12) {
                                 Text(grade == "O" ? "○" : grade == "partial" ? "△" : grade == "X" ? "×" : "—")

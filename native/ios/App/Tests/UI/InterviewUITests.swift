@@ -728,6 +728,14 @@ final class PhysicalReadOnlyDiagnosticTests: XCTestCase {
 }
 
 final class PracticeResultPresentationTests: XCTestCase {
+    func testIncompleteResultKeepsExamplesAndReferenceVerdictsHidden() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--practice-result-ui-fixture", "--practice-incomplete-result-fixture"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.descendants(matching: .any)["practice.example.1"].firstMatch.exists)
+        XCTAssertFalse(app.descendants(matching: .any)["practice.overall-grade.1"].firstMatch.exists)
+    }
     func testResultsShowReferenceVerdictsAndPendingAnalysisOnTheResultScreen() {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--practice-result-ui-fixture"]
