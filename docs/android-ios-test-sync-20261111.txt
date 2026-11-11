@@ -8,6 +8,7 @@ Windows에 설치되어 있던 com.ronpark.study.nativepreview는 2026-10-30 기
 
 동기화 기준
 iOS: origin/codex/ios-practice-no-modal-20261106 / f881a4bd.
+후속 iOS 48af957c는 기존 웹 캐시 갱신만 추가했다. main c1fe2108의 해당 인계 기록을 보존했다.
 공유 서버: main 186ef598 기준. 서버·DB·웹 화면은 이번 수정에서 변경하지 않는다.
 Android 작업 브랜치: codex/android-ios-sync-20261111.
 
@@ -41,6 +42,8 @@ Android 작업 브랜치: codex/android-ios-sync-20261111.
 --test-sync 빌드에서만 기존 TWA 런처를 끄고 동기화된 테스트 포털을 기본 아이콘으로 연다.
 WebView 기능은 정확한 HTTPS origin과 main frame에서만 네이티브 경로를 허용한다.
 HTTP·임의 포트·타 도메인·추가 bridge 필드는 거절한다. 인증서는 우회하지 않는다.
+카카오 로그인은 iPhone과 같은 kauth.kakao.com / accounts.kakao.com만 같은 WebView에서
+이동해 로그인 상태 쿠키를 보존한다. 이 두 외부 origin에는 네이티브·미디어 권한을 부여하지 않는다.
 연습 기록은 계정 SHA-256 별 기기 내 폴더로 분리한다. 다른 계정의 녹음을 섞지 않는다.
 예전 무계정 로컬 기록은 삭제하지 않으며 새 계정 기록에 자동으로 편입하지 않는다.
 각 기기의 로컬 연습 녹음 파일이 다른 기기로 자동 전송되는 변경은 포함하지 않는다.
@@ -56,10 +59,10 @@ HTTP·임의 포트·타 도메인·추가 bridge 필드는 거절한다. 인증
 SM_G950N에서 기존 설치본과 서명 SHA-256 일치를 확인하고 adb install -r 업데이트 완료.
 기존 앱 삭제, 데이터 초기화, 정식 앱 덮어쓰기는 하지 않았다.
 로컬 APK: .tmp/android-ios-sync-build/app/build/outputs/apk/debug/app-debug.apk.
-APK SHA-256: a8a8899241279afe11e74f7620fb7e452ada20cf418140dd63344983ec32a08c.
+최종 APK SHA-256은 로컬 .tmp/android-ios-sync-20261111/.tmp/sync-validation.json 에 기록한다.
 
 검증
-Android 단위 검사 33개 통과. Debug APK·정식 모듈·화면 검사용 APK 빌드 통과.
+Android 단위 검사 34개 통과. Debug APK·정식 모듈·화면 검사용 APK 빌드 통과.
 Node 검사 35개 통과 (실제 로컬 인증/DB 통합 검사 포함).
 SM_G950N instrumentation 화면 검사 통과: 기본 런처, 일반/테스트 API 분리,
 6문답·무제한 안내, 꼬리질문 진행, 질문/내 답변 자막, 시작 실패 복구, 분야·지역·문항 수.
@@ -70,6 +73,7 @@ Windows에서 iPhone을 다시 빌드·설치했다고 기록하지 않는다.
 
 푸시·배포
 이 동기화 수정의 푸시는 사용자 최종 확인 후 진행한다.
+사용자가 '반영'으로 이번 동기화 변경의 main 푸시를 최종 승인했다.
 Android Debug APK만 바뀌므로 별도 Vercel 배포나 스토어 업로드는 필요하지 않다.
 기존 운영 배포와 iOS 전용 브랜치는 유지한다.
 

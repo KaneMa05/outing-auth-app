@@ -22,4 +22,8 @@ public class InterviewTestPolicyTest {
     @Test public void jobFieldsRespectTheIphoneTrackPolicy(){
         assertTrue(InterviewTestPolicy.fieldAllowed("criminal_law_investigation","공채"));assertFalse(InterviewTestPolicy.fieldAllowed("navigation","공채"));assertTrue(InterviewTestPolicy.fieldAllowed("navigation","항해"));assertTrue(InterviewTestPolicy.fieldAllowed("engineering_maintenance","기관"));assertFalse(InterviewTestPolicy.fieldAllowed("marine_environment","기관"));assertTrue(InterviewTestPolicy.fieldAllowed("marine_environment","방제"));
     }
+    @Test public void kakaoLoginKeepsItsCookieJarWithoutGainingNativeCapabilities(){
+        for(String url:new String[]{"https://kauth.kakao.com/oauth/authorize","https://accounts.kakao.com/login"}){assertTrue(InterviewTestPolicy.navigationAllowed(url));assertFalse(InterviewTestPolicy.trusted(url));}
+        for(String url:new String[]{"http://accounts.kakao.com/","https://accounts.kakao.com.evil.test/","https://evil.test@accounts.kakao.com/","https://kauth.kakao.com:8443/"})assertFalse(InterviewTestPolicy.navigationAllowed(url));
+    }
 }

@@ -50,11 +50,11 @@ public final class InterviewPreviewActivity extends Activity {
         try{WebViewCompat.addDocumentStartJavaScript(web,asset("interview-test-portal.js"),origins);}catch(Exception error){finish();return;}
         web.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
-                Uri url=request.getUrl();if(InterviewTestPolicy.trusted(url.toString()))return false;
+                Uri url=request.getUrl();if(InterviewTestPolicy.navigationAllowed(url.toString()))return false;
                 if(request.isForMainFrame()&&request.hasGesture()&&Arrays.asList("https","http","tel","mailto").contains(url.getScheme()))try{startActivity(new Intent(Intent.ACTION_VIEW,url));}catch(Exception ignored){}
                 return true;
             }
-            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){denyMedia();if(!InterviewTestPolicy.trusted(url))view.stopLoading();}
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){denyMedia();if(!InterviewTestPolicy.navigationAllowed(url))view.stopLoading();}
             @Override public void onReceivedSslError(WebView view,android.webkit.SslErrorHandler handler,android.net.http.SslError error){handler.cancel();}
         });
         web.setWebChromeClient(new WebChromeClient(){

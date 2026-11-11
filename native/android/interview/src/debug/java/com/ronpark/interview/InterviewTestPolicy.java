@@ -10,6 +10,10 @@ final class InterviewTestPolicy {
         try{URI u=new URI(url);return "https".equals(u.getScheme())&&"outing-auth-app.vercel.app".equals(u.getHost())&&(u.getPort()==-1||u.getPort()==443)&&u.getRawUserInfo()==null;}catch(Exception e){return false;}
     }
     static boolean code(String code){return code!=null&&code.matches("[A-Za-z0-9_-]{43}");}
+    static boolean navigationAllowed(String url){
+        if(trusted(url))return true;
+        try{URI u=new URI(url);return "https".equals(u.getScheme())&&Arrays.asList("kauth.kakao.com","accounts.kakao.com").contains(u.getHost())&&(u.getPort()==-1||u.getPort()==443)&&u.getRawUserInfo()==null;}catch(Exception e){return false;}
+    }
     static boolean mode(String mode){return Arrays.asList("job","personality").contains(mode);}
     static boolean fieldAllowed(String field,String track){
         if("기타".equals(track))return true;

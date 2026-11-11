@@ -15,7 +15,7 @@ test('test headers accompany only same-origin interview API requests and retain 
  await context.fetch('/api/other');await context.fetch('https://external.test/api/interview-native');assert.equal(calls[1][1].headers,undefined);assert.equal(calls[2][1].headers,undefined);
 });
 test('native test capability is absent on other origins and child frames',()=>{
- for(const config of [{origin:'https://external.test'},{frame:true}]){const {context}=setup(config);assert.equal(context.__ronparkMockTestApp,undefined);assert.equal(context.webkit,undefined);}
+ for(const config of [{origin:'https://external.test'},{origin:'https://kauth.kakao.com'},{origin:'https://accounts.kakao.com'},{frame:true}]){const {context}=setup(config);assert.equal(context.__ronparkMockTestApp,undefined);assert.equal(context.webkit,undefined);}
 });
 test('authenticated portal emits the same native live and practice payloads as iPhone',()=>{
  const {context,messages}=setup();assert.equal(context.__ronparkMockTestApp,true);assert.equal(context.__ronparkOpenAIPractice,true);assert.equal(context.__ronparkPracticeNative,true);assert.equal(context.navigator.standalone,true);
