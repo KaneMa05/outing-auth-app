@@ -1,0 +1,69 @@
+{
+  "version": "20261111-test-only",
+  "phase": "test",
+  "questions": [
+    {
+      "key": "J1",
+      "id": "q-1b0b4b1339e0cba9b893bc93",
+      "prompt": "V-pass",
+      "category": "job",
+      "modes": [
+        "job"
+      ],
+      "order": 1
+    },
+    {
+      "key": "J2",
+      "id": "q-d3a575d9f82bb682bd7014d8",
+      "prompt": "선위통보제도",
+      "category": "job",
+      "modes": [
+        "job"
+      ],
+      "order": 2
+    },
+    {
+      "key": "J3",
+      "id": "q-b77be4bbd97dd0b89bb1d7d4",
+      "prompt": "깨진 유리창 이론에 대해서 아는가?",
+      "category": "job",
+      "modes": [
+        "job"
+      ],
+      "order": 3
+    },
+    {
+      "key": "P1",
+      "id": "q-1a757da6894404dd4e00aaaa",
+      "prompt": "학창시절 동아리 활동은?",
+      "category": "personality",
+      "modes": [
+        "personality",
+        "ai"
+      ],
+      "order": 1
+    },
+    {
+      "key": "P2",
+      "id": "q-220afd909dd6efe1c389fae1",
+      "prompt": "실패했던 경험이 있나요?  / 실패를 통해 무얼 배웠나요?",
+      "category": "personality",
+      "modes": [
+        "personality",
+        "ai"
+      ],
+      "order": 2
+    },
+    {
+      "key": "P3",
+      "id": "q-6b5c347c76f4ac625b16a37d",
+      "prompt": "행사를 해야 하는데 예산과 인력이 부족하다면 어떻게 할 것인가?",
+      "category": "personality",
+      "modes": [
+        "personality",
+        "ai"
+      ],
+      "order": 3
+    }
+  ]
+}

@@ -18,7 +18,13 @@ export async function mountNativeInterview(host,{request,platform=nativeIntervie
    if(platform==='android')open.href=nativeInterviewUrl(code);
    else {open.href='#';open.setAttribute('role','button');}
    status.textContent='아래 버튼을 누르면 마이크와 카메라를 확인할 수 있습니다.';timer=setTimeout(expire,55000);
-  }catch{if(destroyed||current!==generation)return;status.textContent='앱 연결을 준비하지 못했습니다. 수강 등록과 서버 연결 상태를 확인해주세요.';retry.hidden=false;}
+  }catch(error){if(destroyed||current!==generation)return;
+   const messages={unauthorized:'로그인이 만료되었습니다. 다시 로그인한 뒤 모의면접을 열어주세요.',
+    forbidden:'실전 모의면접 이용 권한을 확인해주세요. 관리자에게 문의해주세요.',
+    not_enrolled:'면접반 수강 등록 상태를 확인하지 못했습니다. 관리자에게 문의해주세요.',
+    automation_disabled:'실전 모의면접 서버 연결이 준비되지 않았습니다. 관리자에게 문의해주세요.'};
+   status.textContent=messages[error?.code||error?.message]||'앱 연결을 준비하지 못했습니다. 잠시 후 연결 다시 준비를 눌러주세요.';retry.hidden=false;
+  }
  }
  function launch(e){if(!code){e.preventDefault();return;}if(platform==='ios'){e.preventDefault();globalThis.webkit.messageHandlers.interviewNative.postMessage({code});}clearTimeout(timer);setTimeout(()=>{if(!destroyed)expire();},0);}
  open.addEventListener('click',launch);retry.addEventListener('click',prepare);prepare();

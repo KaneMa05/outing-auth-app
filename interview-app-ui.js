@@ -110,7 +110,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      }
      if(route.mockMode==='ai'){
       if(window.__ronparkOpenAIPractice===true&&window.webkit?.messageHandlers?.interviewNative){
-       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261106-openai');
+       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261111-native-connection');
        if(destroyed||ticket!==generation)return;
        const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
        const next=await mountNativeInterview(slot,{platform:'ios',request:async(url,body)=>{

@@ -31,3 +31,11 @@ test('slow launch does not trap navigation and late credentials cannot revive a 
  let resolve;const h=harness({request:()=>new Promise(r=>resolve=r)}),view=await h.mount();assert(view.canLeave());view.destroy();
  resolve({code});await settle();assert.equal(h.host.innerHTML,'');assert.equal(h.timers.size,0);assert(!h.nodes.get('[data-open]').href);
 });
+
+test('native preparation identifies login, access, enrollment and server failures without exposing server details',async()=>{
+ for(const [code,expected] of [['unauthorized','로그인이 만료'],['forbidden','이용 권한'],['not_enrolled','수강 등록'],['automation_disabled','서버 연결'],['unexpected_private_detail','잠시 후']]){
+  const h=harness({request:async()=>{throw Object.assign(Error('private server detail'),{code});}}),view=await h.mount();await settle();
+  assert(h.nodes.get('[data-status]').textContent.includes(expected));assert(!h.nodes.get('[data-status]').textContent.includes('private'));
+  assert(h.nodes.get('[data-open]').hidden);assert.equal(h.nodes.get('[data-retry]').hidden,false);view.destroy();
+ }
+});

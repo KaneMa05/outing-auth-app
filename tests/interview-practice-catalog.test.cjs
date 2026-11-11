@@ -1,5 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {practiceCatalog}=require('../lib/interview-practice-catalog.cjs');
+const {practiceCatalog:readCatalog}=require('../lib/interview-practice-catalog.cjs');
+const practiceCatalog=(read,options)=>readCatalog(read,{...options,testOnly:false});
 const {fields}=require('../lib/interview-taxonomy.json');
 const question=(id,extra={})=>({id,prompt:'항법을 설명하세요.',category:'job',status:'published',tracks:['공채'],
  taxonomy:{primary_field:'navigation',related_fields:['domestic_maritime_law'],review_status:'classified',source_prompt:'항법을 설명하세요.',source_category:'job'},
