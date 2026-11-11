@@ -1,0 +1,83 @@
+면접 초안 재요청 반복 오류 — 운영 반영 완료
+2026-11-11 한국시간
+
+승인과 범위
+사용자의 “반영” 최종 승인에 따라 DB·웹·PC 처리기에 적용했다.
+“핵심은 사용자들의 불편함은 없어야 합니다”라는 후속 지시에 따라
+기존 화면과 운영 주소를 유지한 상태에서 후보를 검증하고 전환했다.
+다른 음성·Android·모델 설정 작업과 미커밋 화면 변경은 포함하지 않았다.
+
+소스와 배포
+- 기준 main: e311064fcc9024f03eceff9ca5e1539eb3a6da18.
+- 수정 커밋: e56d9c2ce02cbafa69e818d767c06a4697c7d505, 변경 21개 파일.
+- 격리 작업 브랜치: codex/interview-ai-retry-20261111.
+- main에 정상 fast-forward 푸시했다. 강제 푸시는 하지 않았다.
+- 커밋된 소스만 git archive로 추출한 별도 업로드 폴더를 사용했다.
+- Vercel CLI 65.4.0으로 --prod --skip-domain 후보 빌드 1개를 생성했다.
+- 배포 ID: dpl_5wGSJE4FATBr4XCZp5o2ZiGg6RfV / READY / production.
+- 후보 URL: https://outing-auth-4tp9xospb-ronpark.vercel.app
+- 후보 검증 후 같은 빌드를 17:47:32 KST에 승격했다. 추가 빌드는 생성하지 않았다.
+- 두 운영 도메인이 위 동일 배포를 가리키는 것을 확인했다.
+  https://app.ronparkpass.com
+  https://outing-auth-app.vercel.app
+- 직전 운영 배포: dpl_925zvLaFjoVzknDXz16hw1CiCNTM.
+- main의 자동 Git 배포 비활성화 설정을 유지했다.
+
+DB
+- 17:40:06 KST에 interview_ai_retry_eligibility migration을 적용했다.
+- 실제 이력과 로컬 파일명은 20261111084006으로 맞췄다.
+- 상태 조회와 재요청 경로가 동일한 재요청 허용 조건을 사용한다.
+- 재요청 거절은 구조화된 결과로 반환한다. 웹 API는 HTTP 409를 유지한다.
+- 모든 선택 문항을 검사한 뒤에만 접수·변경하므로 일부만 재접수되지 않는다.
+- 실패 사유를 형식 오류·근거 불일치·경험 반영 부족·생성 실패로 구분한다.
+- 대상 함수 3개 모두 SECURITY INVOKER를 유지한다.
+  anon/authenticated 실행은 차단하고 service_role 실행만 허용한 것을 확인했다.
+- 요청 한도·기능 활성 상태·지침 bundle hash는 적용 전후 동일하다.
+- 보안 advisor는 기존 INFO 133개로 동일하며 신규 경고는 없다.
+
+사용 중인 앱 보호와 검증
+- 최신 main 위 별도 작업 폴더에서 이번 변경만 검증·커밋했다.
+- 일반 수강생·교사 핵심 소스와 스터디카페·보상 API는 기존 내용과 같다.
+- 운영 전환 전에 기존 화면 12개, 인증 경계 6개, 비공개 경로 4개를 확인했다.
+- 후보에서는 화면/정적 소스 21개가 준비한 소스와 일치했다.
+  로그인 세션 조회, API 인증 경계 6개, 비공개 경로 4개 검증을 통과했다.
+- 전환 후 두 운영 도메인에서 같은 21개 소스·6개 인증 경계·4개 비공개 경로를 확인했다.
+- 공개 로그인·Apple·Kakao 활성 상태가 유지된다.
+- 열린 화면을 강제로 새로고침하거나 로그인 세션을 초기화하지 않았다.
+- 업로드 입력 5,675개 중 환경파일·내부 문서·DB SQL·PC 처리기·테스트의 실제 업로드는 0개다.
+- 자료 변경 후 재시도, 혼합 선택 원자성, 소유권, 모바일 버튼 차단,
+  상태 경쟁, 기존 준비 조건·이력·폴링·관리자 진입·캐시 검사는 통과했다.
+- Python 처리기 13개와 CLI 결과 복구 검사 8개를 통과했다.
+- 전체 DB 초기화 검사의 기존 테스트 문항 FK 실패는 준비 기록에 명시했다.
+  수정 포함/제외 상태에서 동일하게 재현된 기존 문제이며 운영 DB는 그 문항을 보유한다.
+
+PC 초안 처리기
+- DB 대기/처리/보류 작업 0건을 확인한 후 갱신했다.
+- 로컬 활성 기록 0건, 생성 하위 프로세스 0개를 재확인하고 기존 run 처리기만 재시작했다.
+- 17:48:56 KST에 PID 53144에서 81676으로 전환했다.
+- 실행 소스는 기존 tools/interview-worker/worker.py 경로를 유지한다.
+  의존 파일 6개가 승인된 커밋과 같은 것을 확인했다.
+- 기존 설정·토큰·모델·지침·요청 제한을 유지했다. 다른 PC 처리기는 재시작하지 않았다.
+- 재시작 후 프로세스 생존, idle 상태, 빈 stderr와 DB 접속 신호 갱신을 확인했다.
+- 기존 실패 작업을 자동 재실행하거나 학생 자료를 수정하지 않았다.
+
+초기 모니터링
+- Vercel: 17:47:32~17:49:53 KST, 새 배포 runtime error/fatal 0건, HTTP 5xx 0건.
+  두 조회 모두 추가 페이지와 제외 구간이 없다.
+- Supabase: 17:40:06~17:49:47 KST, 수정 대상 unsafe_retry 0건, HTTP 5xx 0건.
+- 같은 Supabase 구간에 별도 ip_openai_practice_service의 not_found 3건이 있다.
+  발생 시각은 17:44:41~17:45:33 KST로 웹 전환 전이며, 이번에 바꾼 함수가 아니다.
+  전체 Supabase 오류가 0건이라고 주장하지 않는다.
+- 17:50:16 KST 기준 처리기 접속 신호 정상, 대기/처리/보류 0건, 신규 실패 0건.
+- 관측 구간에 신규 학생 초안 완료도 0건이다. 실학생 신규 생성 성공을 검증했다고 주장하지 않는다.
+- 확인을 위한 유료 AI/음성 생성, 가짜 학생·결과·세션 생성은 하지 않았다.
+- PostgREST의 Warp 로그는 이번 앱 수정과 별개다.
+
+증빙 (Git/배포 제외)
+.tmp/interview-ai-retry-qa/approved-release-state.json
+.tmp/interview-ai-retry-qa/candidate-verification.json
+.tmp/interview-ai-retry-qa/app.ronparkpass.com-verification.json
+.tmp/interview-ai-retry-qa/outing-auth-app.vercel.app-verification.json
+.tmp/interview-ai-retry-qa/runtime-post-rollout.json
+.tmp/interview-ai-retry-qa/requests-post-rollout.json
+.tmp/interview-ai-retry-qa/worker-restart-state.json

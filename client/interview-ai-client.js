@@ -100,10 +100,23 @@ export function createInterviewAI({request, onUpdate = () => {}, interval = 5000
         const prep = await call('prepare', {kind});
         if (!prep.ready || !prep.enabled) {onUpdate(prep); return prep;}
         const ordered = [...new Set(itemKeys)].sort();
+        // Recheck after pending edits are saved; cached screen state may be stale.
+        const latest = await call('status', {requestId});
+        onUpdate(latest);
+        const denied = ordered.map(key => latest.items?.find(item => item.key === key))
+          .find(item => item?.canRetry === false);
+        if (denied) throw Object.assign(Error('unsafe_retry'), {code:'unsafe_retry', retryReason:denied.retryReason});
         const keyName = `ip-ai-retry:${requestId}:${prep.sourceHash}:${ordered.join(',')}`;
         let requestKey = pendingKeys.get(keyName);
         if (!requestKey) {requestKey = crypto.randomUUID(); pendingKeys.set(keyName, requestKey);}
-        const result = await call('retry_items', {requestId, itemKeys: ordered, sourceHash: prep.sourceHash, requestKey});
+        let result;
+        try { result = await call('retry_items', {requestId, itemKeys: ordered, sourceHash: prep.sourceHash, requestKey}); }
+        catch (error) {
+          if ((error.code || error.message) === 'unsafe_retry') {
+            try { onUpdate(await call('status', {requestId})); } catch { /* Keep the original rejection. */ }
+          }
+          throw error;
+        }
         if (!result.requestId) {onUpdate(result); return result;}
         pendingKeys.delete(keyName);
         currentRequest = requestId; stopped = false; ++pollVersion; clearTimer(); reset(); await poll();

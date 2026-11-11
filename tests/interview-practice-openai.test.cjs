@@ -132,3 +132,19 @@ test('personality examples can be studied without applying job knowledge verdict
  const submitted=await f.call(b);assert.equal(submitted.data.referenceAnswer,example);await f.finish();
  const saved=await f.call({action:'get',id:b.id});assert.equal(saved.data.referenceAnswer,example);assert.deepEqual(saved.data.report.assessment,[]);assert.equal(saved.data.report.grade,null);
 });
+
+test('only authenticated test-app practice can retain agreed criteria across transcription differences',async t=>{
+ const f=await setup(t);let calls=0;
+ f.d.provider=()=>({models:f.models,transcribe:async(_audio,{pass})=>pass?'V-PASS로 상황을 확인하고 보고했습니다.':'브이패스로 상황을 확인하고 보고했습니다.',infer:async input=>{
+  calls++;return {summary:'상황 확인 및 보고를 설명했습니다.',strengths:[],improvements:[],nextPractice:[],assessment:input.criteria.map(c=>({index:c.index,status:'O',quote:'상황을 확인하고 보고했습니다.',reason:'전사에 직접 근거가 있습니다.'}))};
+ }});
+ for(const testApp of [false,true]){
+  const body=f.body(),headers=testApp?{'x-interview-test-app':'1'}:{};
+  assert.equal((await f.call(body,headers)).status,200);await f.finish();
+  const saved=await f.call({action:'get',id:body.id},headers);
+  assert.equal(saved.data.report.status,testApp?'practice_feedback':'review_required');
+  assert.equal(saved.data.report.audit,undefined);
+  assert(saved.data.report.assessment.every(r=>r.status===(testApp?'O':'uncertain')));
+ }
+ assert.equal(calls,2);
+});
