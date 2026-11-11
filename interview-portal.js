@@ -46,14 +46,14 @@ function render(){
   const useApp=appMode||state.member?.access_product==='aptitude_only';
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(useApp?'./interview-app-ui.js?v=20261110-products':'./interview-workspace.js?v=20261109-db-copy').then(async module=>{
+  return import(useApp?'./interview-app-ui.js?v=20261111-ai-retry':'./interview-workspace.js?v=20261111-ai-retry').then(async module=>{
    if(current!==version)return;
    const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
     const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;
    },aiRequest:async(url,body)=>{
     const r=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;
+    const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error,retryReason:d.retryReason});return d;
    }});
    if(current!==version)view.destroy();else controller=view;
   }).catch(()=>{if(current===version)box.innerHTML='<p role="alert">화면을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-refresh>다시 시도</button>';});

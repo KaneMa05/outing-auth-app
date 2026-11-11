@@ -36,6 +36,7 @@ class FakeApi:
         self.uploads = 0
         self.fail_upload_once = False
         self.lose_response_once = False
+        self.reports = []
 
     def call(self, action, **body):
         if action == "claim":
@@ -57,7 +58,9 @@ class FakeApi:
             if self.lose_response_once:
                 self.lose_response_once = False
                 raise ApiError("network_unavailable")
-        if action == "report": self.status = "BLOCKED" if body["reason"] == "dispatch_unknown" else "FAILED"
+        if action == "report":
+            self.reports.append(body["reason"])
+            self.status = "BLOCKED" if body["reason"] == "dispatch_unknown" else "FAILED"
         return {"ok": True}
 
 
@@ -136,6 +139,37 @@ class WorkerTests(unittest.TestCase):
         self.store.close()
         self.store = Store(self.tmp / "state.db", Protector(test_plain=True))
         Worker(self.api, self.bridge, self.store, GUIDES).tick()
+        self.assertEqual(self.bridge.starts, 1)
+    def test_failure_codes_survive_without_student_content(self):
+        for reason in ("invalid_output", "invalid_evidence", "experience_required", "generation_failed"):
+            with self.subTest(reason=reason):
+                j = job(); api = FakeApi(j); bridge = FakeBridge()
+                def fail(*args, **kwargs):
+                    raise WorkerError(reason)
+                bridge.collect = fail
+                worker = Worker(api, bridge, self.store, GUIDES)
+                self.assertFalse(worker.tick())
+                self.assertEqual(api.reports, [reason])
+                self.assertEqual(worker.last_status, reason)
+                state, sealed = self.store.db.execute("select state,payload from runs where job_id=?", (j["id"],)).fetchone()
+                receipt = self.store.protector.open(sealed)
+                self.assertEqual(state, "DONE")
+                self.assertEqual(set(receipt), {"failed", "failure_reason"})
+                self.assertEqual(receipt["failure_reason"], reason)
+                self.assertEqual(bridge.starts, 1)
+    def test_failed_report_retries_keep_original_code(self):
+        self.bridge.output["source_refs"][0]["source_id"] = "other-student"
+        original_call = self.api.call
+        def unavailable_report(action, **body):
+            if action == "report":
+                raise ApiError("network_unavailable")
+            return original_call(action, **body)
+        self.api.call = unavailable_report
+        self.assertFalse(self.worker.tick())
+        self.assertEqual(self.store.active()[0][2]["failure_reason"], "invalid_evidence")
+        self.api.call = original_call
+        self.worker.recover()
+        self.assertEqual(self.api.reports, ["invalid_evidence"])
         self.assertEqual(self.bridge.starts, 1)
     def test_self_intro_requires_three_grounded_body_experiences(self):
         j = job(); j["kind"] = "self_intro"

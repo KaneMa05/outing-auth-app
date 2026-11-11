@@ -1,4 +1,4 @@
-import {mountInterviewAI} from './interview-ai-ui.js?v=20261104-self-intro-three';
+import {mountInterviewAI} from './interview-ai-ui.js?v=20261111-ai-retry';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';

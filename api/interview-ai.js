@@ -100,6 +100,7 @@ function createHandler(deps) {
         payload.tokenHash = hash(token);
       }
       const result = await d.invoke(body.action, actor, payload);
+      if (result?.ok === false) throw Object.assign(Error(result.error || 'automation_unavailable'), {retryReason: result.retryReason});
       res.status(200).json(token ? {...result, token} : result);
     } catch (error) { sendError(res, error); }
   };

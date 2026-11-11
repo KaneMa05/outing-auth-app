@@ -1,4 +1,4 @@
-import {createInterviewAI} from './client/interview-ai-client.js?v=20261104-self-intro-three';
+import {createInterviewAI} from './client/interview-ai-client.js?v=20261111-ai-retry';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kinds={self_intro:'자기소개',motivation:'지원동기',public_service:'공직관',core30:'핵심 30제'};
 const labels={QUEUED:'대기 중',PROCESSING:'생성 중',COMPLETED:'완료',NEEDS_INPUT:'자료 보완 필요',FAILED:'오류',BLOCKED:'처리 확인 필요',CANCELED:'중단됨'};
@@ -13,6 +13,13 @@ const messages={
  request_limit:'오늘 요청 한도에 도달했습니다. 다음 날 다시 요청해주세요.',
  daily_limit:'오늘 생성 한도에 도달했습니다. 다음 날 다시 요청해주세요.',
  unsafe_retry:'아직 재요청할 수 없는 문항이 있습니다. 자료 보완 여부와 처리 상태를 새로 확인해주세요.',
+ retry_limit:'같은 자료로 두 차례 시도했습니다. DB 자료를 보완하고 저장한 뒤 다시 요청해주세요. 같은 자료로 계속 실패하면 관리자에게 문의해주세요.',
+ source_update_required:'나의 DB에서 부족한 자료를 보완하고 저장한 뒤 다시 요청해주세요.',
+ job_not_retryable:'현재 상태에서는 재요청할 수 없습니다. 최신 처리 결과를 확인해주세요.',
+ invalid_output:'초안 결과의 형식을 확인하지 못했습니다. 가능한 문항만 다시 요청해주세요.',
+ invalid_evidence:'초안의 근거가 저장된 자료와 일치하지 않아 완료하지 못했습니다. 반복되면 관리자에게 문의해주세요.',
+ experience_required:'자기소개 본문에 서로 다른 실제 경험 3개가 충분히 반영되지 않아 완료하지 못했습니다. 저장한 경험을 확인해주세요.',
+ generation_failed:'초안 생성이 완료되지 않았습니다. 가능한 문항만 다시 요청해주세요.',
  unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.',forbidden:'이 요청을 볼 권한이 없습니다.',
  not_enrolled:'면접반 이용 등록과 기간을 확인해주세요.',not_found:'본인 계정에서 확인할 수 없는 요청입니다.',
  bundle_unconfigured:'초안 작성 지침 설정을 준비 중입니다.',dispatch_unknown:'실제 실행 여부를 관리자가 확인 중입니다. 중복 생성을 요청하지 않습니다.',
@@ -31,11 +38,12 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   const response=await fetch(url,{method:'POST',credentials:'same-origin',cache:'no-store',signal:abort.signal,
    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await response.json();
-  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'automation_unavailable'),{code:data.error||'automation_unavailable'});
+  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'automation_unavailable'),{code:data.error||'automation_unavailable',retryReason:data.retryReason});
   return data;
  });
  const ai=createInterviewAI({request:transport,interval,onUpdate:update});
- const retryable=i=>['FAILED','NEEDS_INPUT'].includes(i.status)||(i.status==='CANCELED'&&i.reason==='operator_resolved');
+ const retryable=i=>typeof i.canRetry==='boolean'?i.canRetry:
+  ['FAILED','NEEDS_INPUT'].includes(i.status)||(i.status==='CANCELED'&&i.reason==='operator_resolved');
  const running=()=>current?.items?.some(i=>['QUEUED','PROCESSING','BLOCKED'].includes(i.status));
  const dbRequirement=()=>lifeDraft?'초안에 필요한 자료를 확인해주세요. DB에서 찾지 못한 내용은 아래 보완 질문에 짧게 답하고 저장해주세요.':'자료 보완 필요: 나의 DB 입력을 확인해주세요.';
  function availability(data){
@@ -94,6 +102,7 @@ ${lifeDraft?`<div class="ip-feedback ip-ai-requirements" aria-label="${kinds[kin
     ${current.stale?'<p class="ip-help">DB 자료가 변경되었습니다. 아래 초안은 이전 자료를 포함할 수 있습니다.</p>':''}
     <div class="ip-ai-items">${items.map((i,index)=>`<article class="ip-ai-item"><div class="ip-row"><h4>${i.position}. ${esc(i.question)}</h4><span class="ip-badge">${esc(labels[i.status]||'상태 확인 필요')}</span></div>
      ${retryable(i)?`<label class="ip-ai-retry-check"><input type="checkbox" data-ai-item="${esc(i.key)}" ${selected.has(i.key)?'checked':''} ${busy?'disabled':''}> 이 문항 재요청 선택</label>`:''}
+     ${i.canRetry===false&&['FAILED','NEEDS_INPUT','CANCELED'].includes(i.status)?`<p class="ip-help" data-ai-retry-reason>${esc(messages[i.retryReason]||messages.job_not_retryable)}</p>`:''}
      ${i.status==='NEEDS_INPUT'?`<ul>${(i.result?.missing||[]).map(text=>`<li>${esc(text)}</li>`).join('')}</ul><p class="ip-help">나의 DB에서 보완한 내용을 저장한 뒤 이 문항만 선택해 재요청하세요.</p>`:''}
      ${i.reason?`<p class="ip-help">${esc(messages[i.reason]||(['FAILED','BLOCKED'].includes(i.status)?'처리를 완료하지 못했습니다. 상태를 확인한 뒤 가능한 문항만 다시 요청해주세요.':'요청 처리가 중단되었습니다.'))}</p>`:''}
      ${i.status==='COMPLETED'&&i.result?.answer?`<p class="ip-ai-answer" data-ai-answer="${index}"></p><div class="ip-toolbar">
@@ -110,7 +119,7 @@ ${lifeDraft?`<div class="ip-feedback ip-ai-requirements" aria-label="${kinds[kin
   if(busy||destroyed)return;
   busy=true;if(lockEditor)onBusy(true);render();
   try{await task();}
-  catch(e){if(!destroyed){notice=messages[e.code||e.message]||'요청을 처리하지 못했습니다. 작성 내용은 유지됩니다. 상태를 확인한 뒤 다시 시도해주세요.';failed=true;}}
+  catch(e){if(!destroyed){notice=messages[e.retryReason]||messages[e.code||e.message]||'요청을 처리하지 못했습니다. 작성 내용은 유지됩니다. 상태를 확인한 뒤 다시 시도해주세요.';failed=true;}}
   finally{busy=false;if(!destroyed){if(lockEditor)onBusy(false);render();}}
  }
  async function refresh(){
@@ -132,6 +141,7 @@ ${lifeDraft?`<div class="ip-feedback ip-ai-requirements" aria-label="${kinds[kin
   if(!Object.keys(fields).length){materialDirty=false;return;}
   try{const data=await ai.saveMaterials(kind,{revision:materials.revision,topicRevision:materials.topicRevision,fields});
    materialDirty=false;materialBlocked=false;update(data);
+   if(current)await ai.resume(current.requestId);
   }catch(error){if(['revision_conflict','topic_changed','unauthorized'].includes(error.code||error.message))materialBlocked=true;throw error;}
  }
  const saveAllPending=async()=>{if(savePending)await savePending();await saveMaterials();};
@@ -186,7 +196,7 @@ ${lifeDraft?`<div class="ip-feedback ip-ai-requirements" aria-label="${kinds[kin
    ++availabilityVersion;dbReady=false;pendingDB=true;render();
   },async refreshAvailability(){
    const version=++availabilityVersion;
-   try{const prep=await ai.prepare(kind);if(destroyed||version!==availabilityVersion)return;availability(prep);}
+   try{const prep=await ai.prepare(kind);if(destroyed||version!==availabilityVersion)return;availability(prep);if(current)await ai.resume(current.requestId);}
    catch{if(destroyed||version!==availabilityVersion)return;dbReady=false;notice='저장했지만 생성 조건을 확인하지 못했습니다. 상태를 다시 확인해주세요.';failed=true;}
    render();
   },destroy(){destroyed=true;++availabilityVersion;abort.abort();ai.destroy();selected.clear();history=[];current=null;window.removeEventListener('beforeunload',beforeUnload);host.replaceChildren();host.onclick=null;host.onchange=null;host.oninput=null;}};
