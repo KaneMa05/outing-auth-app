@@ -78,6 +78,16 @@ struct PracticeTurn: Codable, Identifiable {
         return (try? JSONDecoder().decode([PracticeAssessment].self, from: data)) ?? []
     }
 
+    var feedbackSummary: String? {
+        guard let summary = analysis?["summary"] else { return nil }
+        let rows = assessment
+        if !rows.isEmpty, rows.allSatisfy({ ["O", "partial", "X"].contains($0.status) }),
+           summary.hasPrefix("음성 인식 결과가 일부 달라 근거와 판정이 일치하는 ") {
+            return "음성 인식에 일부 차이가 있지만 \(rows.count)개 항목 모두의 근거와 판정을 확인했습니다."
+        }
+        return summary
+    }
+
     var overallAssessment: String {
         let rows = assessment
         guard !rows.isEmpty, !rows.contains(where: { !["O", "partial", "X"].contains($0.status) }) else { return "uncertain" }

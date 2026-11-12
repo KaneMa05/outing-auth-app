@@ -3,6 +3,20 @@ import CryptoKit
 @testable import InterviewNative
 
 final class InterviewPracticeTests: XCTestCase {
+    func testCachedVerifiedJobSummaryDoesNotMentionNonexistentHolds() throws {
+        var turn = PracticeTurn(id: 1, question: "질문", audio: "fixture.wav")
+        let prefix = "음성 인식 결과가 일부 달라 근거와 판정이 일치하는 1개 항목만 반영했습니다. 보류된 항목은 녹음을 확인해 주세요."
+        func rows(_ status: String) throws -> String {
+            let value: [[String: Any]] = [["index": 0, "label": "항목", "claim": "기준", "status": status, "quote": "근거", "reason": "설명"]]
+            return String(data: try JSONSerialization.data(withJSONObject: value), encoding: .utf8)!
+        }
+        turn.analysis = ["summary": prefix, "assessment": try rows("partial")]
+        XCTAssertFalse(turn.feedbackSummary!.contains("보류"))
+        turn.analysis?["assessment"] = try rows("uncertain")
+        XCTAssertEqual(turn.feedbackSummary, prefix)
+        turn.analysis = ["summary": "원래의 답변 피드백", "assessment": try rows("O")]
+        XCTAssertEqual(turn.feedbackSummary, "원래의 답변 피드백")
+    }
     #if DEBUG
     @MainActor func testTestAppRetentionShowsOnlyKoreanCalendarDate() {
         XCTAssertEqual(InterviewView.retentionDate("2026-11-11T16:30:00.123Z"), "2026-11-12")

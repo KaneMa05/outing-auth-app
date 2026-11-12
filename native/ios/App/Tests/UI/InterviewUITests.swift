@@ -1012,3 +1012,40 @@ final class ExistingLiveFeedbackVerificationTests: XCTestCase {
         print("FEEDBACK_VERIFY_COMPLETED saved_run_comprehensive_feedback_no_app_exit")
     }
 }
+
+final class SavedJobVerdictVerificationTests: XCTestCase {
+    func testSavedRealJobVerdictsAndFeedback() throws {
+        guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved real practice review only") }
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]; app.launch()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<12 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        let web = app.webViews.firstMatch
+        tap(web.buttons["모의면접"])
+        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "직무(전공) 연습모드")).firstMatch)
+        tap(web.buttons["연습 시작"])
+        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 40))
+        tap(app.buttons["practice.records"]); capture("saved-job-01-record-list")
+        tap(app.buttons["기록 보기"].firstMatch)
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 20)); capture("saved-job-02-overview")
+        for turn in 1...3 {
+            let grade = app.descendants(matching: .any)["practice.overall-grade.\(turn)"].firstMatch
+            for _ in 0..<15 { if grade.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(grade.exists)
+            XCTAssertTrue(app.staticTexts["practice.feedback.\(turn).summary"].exists)
+            capture("saved-job-03-turn-\(turn)-verdict")
+            let reasons = app.buttons.matching(identifier: "판정 근거").allElementsBoundByIndex
+            if reasons.count >= turn { tap(reasons[turn-1]) }
+            capture("saved-job-04-turn-\(turn)-evidence")
+            let example = app.descendants(matching: .any)["practice.example.\(turn)"].firstMatch
+            if example.exists { tap(example); capture("saved-job-05-turn-\(turn)-example"); tap(example) }
+        }
+        for page in 1...3 { app.swipeUp(); capture("saved-job-06-feedback-page-\(page)") }
+        XCTAssertEqual(app.state, .runningForeground)
+        print("SAVED_JOB_VERIFY_COMPLETED three_real_verdicts_and_feedback_no_new_inference")
+    }
+}

@@ -233,7 +233,7 @@ import AVKit
                 if let feedback = turn.analysis {
                     Text("AI 연습 피드백").font(.headline)
                     ForEach(["summary", "strength", "improvement"], id: \.self) { key in
-                        if let value = feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
+                        if let value = key == "summary" ? turn.feedbackSummary : feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                     }
                 } else {
                     Text(turn.analysisPending ? "AI 분석 중 · 결과는 자동 저장됩니다." : turn.analysisError ? "AI 분석 실패 · 녹음은 저장됐습니다." : "AI 미연결 · 녹음을 듣고 점검해 보세요.")
@@ -322,7 +322,7 @@ import AVKit
                         if let feedback = turn.analysis {
                             Text("AI 연습 피드백").font(.caption).foregroundStyle(teal)
                             ForEach(["summary", "strength", "improvement", "nextPractice"], id: \.self) { key in
-                                if let value = feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
+                                if let value = key == "summary" ? turn.feedbackSummary : feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                             }
                         } else if !turn.analysisPending && turn.analysisNotice == nil {
                             Text(turn.analysisState == "queued" ? "분석 순서를 기다리고 있습니다. 다른 질문을 연습해도 됩니다." : turn.analysisPending ? "답변을 저장하고 피드백을 준비하고 있습니다." : turn.analysisError ? "분석 상태를 확인해야 합니다. 자동으로 다시 실행하지 않습니다." : "AI 평가 미연결").font(.caption).foregroundStyle(.secondary)
