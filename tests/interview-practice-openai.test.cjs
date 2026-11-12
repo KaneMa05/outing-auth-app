@@ -10,6 +10,7 @@ async function setup(t){
  await f.db.exec(fs.readFileSync('supabase/migrations/'+migration,'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_reference_assessment.sql')),'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_result_reference_answer.sql')),'utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261112025510_interview_personality_test_usage.sql','utf8'));
  // Reproduce production: published questions, only draft rubrics, portal-only owner.
  await f.db.exec("update ip_question_rubrics set status='draft';insert into ip_owners(id,name) values('iw_practice_test','가상 면접 전용 계정');insert into ip_members(student_id,track,exam_number,expires_on,mock_test_enabled) values('iw_practice_test','공채','portal-practice-test','2099-01-01',true);");
  await f.db.exec("insert into ip_sources(id,filename,sha256,track) values('practice-source','practice-fixture.hwpx','fixture','공채');");
@@ -147,4 +148,55 @@ test('only authenticated test-app practice can retain agreed criteria across tra
   assert(saved.data.report.assessment.every(r=>r.status===(testApp?'O':'uncertain')));
  }
  assert.equal(calls,2);
+});
+
+async function trackedPersonality(f,{fail=false}={}){
+ const {createProvider}=require('../lib/interview-exam-provider');
+ const {createOpenAIInference}=require('../lib/interview-openai-report.cjs');
+ let asrCalls=0,analysisCalls=0;
+ f.d.recordUsage=body=>f.rpc('ip_practice_usage_service')('record',{type:'server',id:'fixture'},body);
+ const common='제가 역할을 나누고 진행 상황을 확인했습니다.';
+ f.d.provider=({onUsage})=>({models:{transcriber:'gpt-transcribe',analyzer:'gpt-6.1-sol'},
+  transcribe:async(audio,{pass})=>createProvider({config:{enabled:true,ready:true,key:'fixture',models:{transcriber:'gpt-transcribe'}},onTranscriptionUsage:onUsage,fetchImpl:async()=>{
+   asrCalls++;return {ok:true,text:async()=>JSON.stringify({text:(pass?'행사를 준비했습니다. ':'행사 준비를 맡았습니다. ')+common,usage:{type:'duration',seconds:10}})};
+  }}).transcribe(audio,pass),
+  infer:createOpenAIInference({key:'fixture',model:'gpt-6.1-sol',onMetrics:onUsage,fetchImpl:async()=>{
+   analysisCalls++;if(fail)throw Error('lost response');
+   const value={strengths:[{quote:common,verificationQuote:common,feedback:'직접 한 행동을 설명했습니다.',agreement:'supported'}],improvements:[],nextPractice:[]};
+   return {ok:true,text:async()=>JSON.stringify({id:'fixture-response',status:'completed',usage:{input_tokens:100,output_tokens:50,input_tokens_details:{cached_tokens:20}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]})};
+  }})});
+ return ()=>({asrCalls,analysisCalls});
+}
+test('test personality feedback and every paid call usage are saved privately once',async t=>{
+ const f=await setup(t),counts=await trackedPersonality(f),body=f.body('personality'),headers={'x-interview-test-app':'1'};
+ assert.equal((await f.call(body,headers)).status,200);await f.finish();
+ const saved=(await f.call({action:'get',id:body.id},headers)).data;
+ assert.equal(saved.state,'completed');assert.equal(saved.report.status,'practice_feedback');assert.equal(saved.report.analysis.strengths.length,1);
+ assert(!JSON.stringify(saved).includes('usageEvents'));assert(!JSON.stringify(saved).includes('usd'));
+ const events=Object.values((await f.db.query('select report from ip_openai_practice_attempts where id=$1',[body.id])).rows[0].report.audit.usageEvents);
+ assert.equal(events.length,3);assert(events.every(e=>e.status==='reported'));assert(Math.abs(events.reduce((n,e)=>n+e.usd,0)-.002162)<1e-10);
+ await f.call(body,headers);await f.finish();assert.deepEqual(counts(),{asrCalls:2,analysisCalls:1});
+ await assert.rejects(f.rpc('ip_practice_usage_service')('record',{type:'student',id:'iw_practice_test'},{testApp:true}),/forbidden/);
+});
+test('lost test personality inference keeps unconfirmed cost and never automatically retries',async t=>{
+ const f=await setup(t),counts=await trackedPersonality(f,{fail:true}),body=f.body('personality'),headers={'x-interview-test-app':'1'};
+ await f.call(body,headers);await f.finish();const saved=(await f.call({action:'get',id:body.id},headers)).data;
+ assert.equal(saved.state,'unknown');assert.equal(saved.report,null);
+ const events=Object.values((await f.db.query('select report from ip_openai_practice_attempts where id=$1',[body.id])).rows[0].report.audit.usageEvents);
+ assert.equal(events.length,3);assert.equal(events.filter(e=>e.status==='unconfirmed').length,1);assert.equal(events.find(e=>e.kind==='backend').usd,null);
+ await f.call(body,headers);await f.finish();assert.deepEqual(counts(),{asrCalls:2,analysisCalls:1});
+});
+
+test('practice cost audit requires the execution lease and cannot downgrade confirmed usage',async t=>{
+ const f=await setup(t),body=f.body('personality'),token=randomUUID(),server={type:'server',id:'test'};
+ const created=await f.invoke('create',{type:'student',id:'iw_practice_test'},{id:body.id,mode:body.mode,questionId:body.questionId,questionPrompt:body.questionPrompt,audioHash:'a'.repeat(64)});
+ await f.invoke('claim',server,{id:body.id,audioHash:'a'.repeat(64),token});
+ const usage=f.rpc('ip_practice_usage_service'),event={eventKey:'report:'+randomUUID(),kind:'backend',model:'gpt-6.1-sol',status:'reported',usage:{inputTokens:100},rates:{version:'fixture'},usd:.001};
+ const payload={id:body.id,token,testApp:true,event};
+ await usage('record',server,payload);await usage('record',server,{...payload,event:{...event,status:'unconfirmed',usd:null}});
+ const stored=(await f.db.query('select report from ip_openai_practice_attempts where id=$1',[body.id])).rows[0].report.audit.usageEvents[event.eventKey];assert.equal(stored.status,'reported');assert.equal(stored.usd,.001);
+ await assert.rejects(usage('record',server,{...payload,token:randomUUID()}),/lease_lost/);
+ await assert.rejects(usage('record',server,{...payload,testApp:false}),/forbidden/);
+ for(const change of [{status:null},{kind:null},{usd:-1},{model:3}])await assert.rejects(usage('record',server,{...payload,event:{...event,...change}}),/invalid_usage/);
+ const flags=(await f.db.query("select prosecdef,has_function_privilege('anon',oid,'execute') as anon from pg_proc where oid='ip_practice_usage_service(text,jsonb,jsonb)'::regprocedure")).rows[0];assert.equal(flags.prosecdef,false);assert.equal(flags.anon,false);
 });
