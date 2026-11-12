@@ -962,6 +962,10 @@ final class ActualPracticeScreenshotTests: XCTestCase {
                 let finished = NSPredicate { _, _ in feedback.exists || notice.exists }
                 XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: finished, object: nil)], timeout: 150), .completed, "Analysis did not finish for \(mode) turn \(turn)")
                 print("PRACTICE_VERIFY_RESULT \(mode) turn=\(turn) status=" + (feedback.exists ? "feedback" : "review_required") + " notice=" + (notice.exists ? notice.label : ""))
+                if ProcessInfo.processInfo.environment["PRACTICE_REQUIRE_FEEDBACK"] == "1" {
+                    capture(mode + "-result-turn-\(turn)-feedback-check")
+                    XCTAssertTrue(feedback.exists, "Real answer was still held: " + (notice.exists ? notice.label : "unknown"))
+                }
             }
             for _ in 0..<12 { app.swipeDown() }
             capture(mode + "-13-result-overview")
