@@ -1,0 +1,68 @@
+2026-11-12 테스트앱 인성 피드백 개선 — 기기 테스트 제외 우선 반영
+
+사용자 승인과 범위
+사용자: '인성모드 판정 보류 문제도 개선하고, 테스트앱에만 반영하고 화면 캡처와 비용도 확인해주세요.'
+최종 승인: '테스트앱 적용·실제 검증 승인'. 이후 점심시간 대기를 요청했다.
+재개 범위: '기기테스트를 제외한 부분 우선 반영'. 이번 단계는 소스·DB·서버 배포와 기기 없는 검사만 수행했다.
+새 음성 녹음, 실제 모델 분석, 아이폰 설치·실행, 화면 캡처는 진행하지 않았다.
+일반앱·직무 모드·실전 Live의 기존 동작과 모델·음성 설정은 유지한다.
+
+인성 보류 개선
+기존 테스트앱 인성 답변은 두 전사가 전체 문자열로 일치해야 피드백이 생성됐다.
+이제 테스트앱의 실제 인성 녹음에 한해, 두 전사가 달라도 공통으로 확인되는 전체 문장에만 근거해 피드백을 만들 수 있다.
+한 전사의 일부 문장을 잘라 다른 문장과 합치지 않는다. 질문·예시답변·외부 지식으로 전사를 보정하지 않는다.
+각 피드백은 첫 전사의 정확한 인용과 두 번째 전사의 대응 인용을 검증한다.
+문장부호·대소문자·반복 공백을 제외한 단어·부정·조건·숫자·정정이 다른 근거는 허용하지 않는다.
+모델은 두 전사의 전체 맥락에서 모순·철회·정정도 확인하며 uncertain 항목을 제외한다.
+공통 문장이 없으면 추가 피드백 모델 호출을 생략하고 보류한다. 근거가 부족하거나 음질이 나빠도 보류를 유지한다.
+점수, O/△/X, 성격·진실성·합격 전망 판정을 추가하지 않는다.
+새로 제출하는 인성 답변부터 적용한다. 기존 보류 결과를 유료로 자동 재분석하거나 운영 기록을 고쳐 쓰지 않는다.
+일반앱은 기존 전체 전사 일치 정책을 유지한다.
+
+관리자 전용 비용 기록
+테스트앱 인성 모드에서 두 음성 인식 요청과 피드백 생성 요청의 호출 전·후 사용량을 기록한다.
+기존 비공개 ip_openai_practice_attempts.report.audit.usageEvents에 저장하며 학생 응답에서는 audit을 제거한다.
+새 DB 함수 ip_practice_usage_service는 server actor·testApp=true·실행 token·running 상태·personality 종류를 요구한다.
+새 테이블이나 학생 접근 권한은 만들지 않았다. security invoker·빈 search_path·service_role 실행만 허용한다.
+anon 및 authenticated 역할은 실행할 수 없다. 확인된 reported 이벤트를 미확정 이벤트로 덮어쓰지 않는다.
+응답의 과금 음성 길이는 reported, 제출 파일 길이만으로 계산한 값은 estimated, 응답 유실은 unconfirmed로 구분한다.
+알 수 없는 모델 가격은 unpriced로 남긴다. 누락 비용을 0원으로 간주하지 않는다.
+실패·응답 유실의 미확정 기록을 남기고 자동으로 유료 요청을 반복하지 않는다.
+관리자 전용 DB 감사 기록이며 별도 학생 비용 UI는 없다.
+DB migration: 20261112025510_interview_personality_test_usage.sql / 운영 적용 완료.
+
+검증
+Node 회귀 검사 39개 통과.
+- 공통 문장 근거, 부정·숫자·불일치·부분 인용 거절, 근거 부족 시 보류.
+- 일반앱·직무 모드·저음량의 기존 처리 유지.
+- 요청별 사용량 저장, 학생 비용 비노출, 실행 token 검사, 확인 이벤트 보존.
+- 유실 응답의 미확정 비용 보존 및 유료 요청 자동 반복 방지.
+실제 OpenAI 호출 대신 로컬 모의 응답으로 검사했다. 이번 검증에서 모델 API 비용은 발생시키지 않았다.
+Vercel 배포·DB·호스팅 비용을 포함한 전체 청구 금액이 0원이라는 의미는 아니다.
+주요 웹 파일 9개가 커밋된 후보 소스와 동일함을 확인했다.
+비인증 상태 요청은 HTTP 401 unauthorized로 차단됐다. 상태 확인에서는 분석을 생성하지 않았다.
+DB 함수 권한도 운영에서 읽기 검사했다.
+
+소스와 배포
+서버 소스: d967c90 (main 푸시).
+iOS 향후 검증 절차: c8f9ca8 (codex/ios-practice-no-modal-20261106 푸시).
+iOS 변경은 실제 3답변 모두 피드백이 표시돼야 통과하는 선택적 검증 조건이며, 이번에는 실행하지 않았다.
+Vercel 후보 1회 생성 후 같은 빌드를 promote했다.
+배포 ID: dpl_D9sXzvcvby1wxPS3iaMV5KSoMzcg
+배포 URL: https://outing-auth-5hv6h2vbm-ronpark.vercel.app
+운영 주소: https://app.ronparkpass.com / https://outing-auth-app.vercel.app
+두 주소가 위 동일 READY 배포에 연결되는지 최종 확인했다.
+기존 테스트앱의 서버 요청 분기에 적용되며 이번 단계에서 App Store/TestFlight/Android 신규 배포는 하지 않았다.
+
+보류한 후속 작업
+사용자가 기기 검증을 재개할 때 조용한 환경에서 테스트앱 인성 3문답을 녹음한다.
+PRACTICE_VERIFY_MODES=personality, PRACTICE_REQUIRE_FEEDBACK=1로 엄격한 실제 검사와 화면별 캡처를 진행한다.
+배포 후 실제 사용량 2개 음성 인식+필요한 피드백 요청의 비용 상태와 합계를 확인한다.
+실제 음성 개선 결과·새 화면 캡처·실사용 비용은 이번 단계에서 검증 완료로 주장하지 않는다.
+
+근거 자료
+회귀 검사 로그: /private/tmp/ronpark-personality-final-regression.log
+후보 웹 파일 확인: /private/tmp/ronpark-personality-candidate/checks.json
+음성 인식 과금·사용량 문서: https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create
+가격: https://developers.openai.com/api/docs/pricing (2026-11-12 확인)
+이전 직무·실전 종합 피드백 검증: docs/releases/20261112-interview-job-verdict-live-feedback-verification.txt
