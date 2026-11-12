@@ -75,6 +75,7 @@ import CryptoKit
     var cliRequest: PracticeCLI.Request?
     private var cliTasks: [String: Task<Void, Never>] = [:]
     @Published var needsConsent = false
+    let answerPlayback = PracticeAnswerPlayback()
     let media = InterviewMedia()
     private let bridge = PracticeBridge()
     private var bank = PracticeQuestion.load()
@@ -644,7 +645,7 @@ import CryptoKit
         generation += 1; answerTicker?.cancel(); playbackMeter?.cancel(); recorder.stop(); player?.stop(); player = nil
         captions?.close(); captions = nil; speaking = false; meter.level = 0; recordingReady = false
     }
-    func stopPlayback() { player?.stop(); player = nil; videoPlayer?.pause(); videoPlayer = nil; videoPresented = false }
+    func stopPlayback() { answerPlayback.stop(); player?.stop(); player = nil; videoPlayer?.pause(); videoPlayer = nil; videoPresented = false }
     func playVideo() {
         stopPlayback()
         do {
@@ -655,7 +656,27 @@ import CryptoKit
     private func configurePlayback() throws {
         try PracticeAudioRouting.configurePlayback()
     }
+    func answerPlaybackKey(_ turn: PracticeTurn) -> String { (record?.id ?? "") + "/" + String(turn.id) }
+    private func answerPlaybackURL(_ turn: PracticeTurn) throws -> URL {
+        guard let id = record?.id, let store else { throw InterviewError.invalidResponse }
+        return try store.audio(id, turn.audio)
+    }
+    func prepareAnswerPlayback(_ turn: PracticeTurn) {
+        let key = answerPlaybackKey(turn)
+        do { _ = answerPlayback.prepare(key: key, url: try answerPlaybackURL(turn)) }
+        catch { answerPlayback.fail(key: key) }
+    }
+    func seekAnswerPlayback(_ turn: PracticeTurn, to value: TimeInterval) {
+        prepareAnswerPlayback(turn); answerPlayback.seek(to: value)
+    }
     func play(_ turn: PracticeTurn) {
+        if record?.mode == "personality" {
+            player?.stop(); player = nil
+            let key = answerPlaybackKey(turn)
+            do { answerPlayback.toggle(key: key, url: try answerPlaybackURL(turn)) }
+            catch { answerPlayback.fail(key: key) }
+            return
+        }
         stopPlayback()
         do {
             guard let id = record?.id, let url = try store?.audio(id, turn.audio) else { return }
@@ -680,7 +701,7 @@ import CryptoKit
     }
     func dispose() {
         if screen == .live || screen == .jobReview { stop() }
-        disposed = true; media.stop(); stopTurn(); ticker?.cancel()
+        disposed = true; answerPlayback.stop(); media.stop(); stopTurn(); ticker?.cancel()
         for task in cliTasks.values { task.cancel() }; cliTasks = [:]
         if let audioRouteObserver { NotificationCenter.default.removeObserver(audioRouteObserver) }
         audioRouteObserver = nil

@@ -268,7 +268,11 @@ import AVKit
                     VStack(alignment: .leading, spacing: 10) {
                         Text("\(turn.id). " + turn.question).font(.headline)
                         Text("\(Int(turn.duration))초").font(.caption).foregroundStyle(.secondary)
-                        action("내 답변 듣기") { model.play(turn) }
+                        if record.mode == "personality" {
+                            PracticeRecordedAnswerPlayer(model: model, turn: turn, tint: teal)
+                        } else {
+                            action("내 답변 듣기") { model.play(turn) }
+                        }
                         if !turn.answer.isEmpty {
                             DisclosureGroup("나의 답변") { Text(turn.answer).font(.subheadline) }
                         } else if !turn.analysisPending {
@@ -589,6 +593,55 @@ private struct PracticeRecordingStatus: View {
             }.padding(.horizontal, 7).padding(.vertical, 5)
                 .background(.ultraThinMaterial, in: Capsule())
                 .accessibilityElement(children: .combine).accessibilityIdentifier("practice.video-recording")
+        }
+    }
+}
+
+private struct PracticeRecordedAnswerPlayer: View {
+    let model: PracticeModel
+    let turn: PracticeTurn
+    let tint: Color
+    @ObservedObject var playback: PracticeAnswerPlayback
+    init(model: PracticeModel, turn: PracticeTurn, tint: Color) {
+        self.model = model; self.turn = turn; self.tint = tint
+        self.playback = model.answerPlayback
+    }
+    private func time(_ seconds: TimeInterval) -> String {
+        let value = seconds.isFinite ? Int(max(0, seconds)) : 0
+        return String(format: "%d:%02d", value / 60, value % 60)
+    }
+    var body: some View {
+        let active = playback.key == model.answerPlaybackKey(turn)
+        let total = active ? playback.duration : max(0, turn.duration)
+        let playing = active && playback.isPlaying
+        let finished = active && total > 0 && playback.position >= total
+        VStack(spacing: 10) {
+            Button { model.play(turn) } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: playing ? "pause.fill" : "play.fill")
+                    Text(playing ? "일시정지" : finished ? "다시 듣기" : active && playback.position > 0 ? "이어 듣기" : "내 답변 듣기")
+                }.font(.body.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12)
+            }.foregroundStyle(tint).buttonStyle(PracticePressStyle(primary: false, tint: tint))
+                .disabled(active && playback.isSeeking)
+                .accessibilityIdentifier("practice.playback.toggle.\(turn.id)")
+                .accessibilityValue(playing ? "재생 중" : finished ? "재생 완료" : active && playback.position > 0 ? "일시정지" : "재생 대기")
+            Slider(value: Binding(get: { active ? min(total, max(0, playback.position)) : 0 },
+                                  set: { model.seekAnswerPlayback(turn, to: $0) }),
+                   in: 0...max(0.01, total), onEditingChanged: { editing in
+                if editing { model.prepareAnswerPlayback(turn); playback.beginSeeking() }
+                else { playback.endSeeking() }
+            }).tint(tint).disabled(total <= 0)
+                .accessibilityLabel("답변 재생 위치")
+                .accessibilityIdentifier("practice.playback.seek.\(turn.id)")
+            HStack {
+                Text(time(active ? playback.position : 0)); Spacer(); Text(time(total))
+            }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("practice.playback.time.\(turn.id)")
+            if active, let error = playback.error {
+                Text(error).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("practice.playback.error.\(turn.id)")
+            }
         }
     }
 }

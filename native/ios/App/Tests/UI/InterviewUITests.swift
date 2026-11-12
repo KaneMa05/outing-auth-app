@@ -1053,3 +1053,89 @@ final class SavedJobVerdictVerificationTests: XCTestCase {
         print("SAVED_JOB_VERIFY_COMPLETED three_real_verdicts_and_feedback_no_new_inference")
     }
 }
+
+final class SavedPersonalityFeedbackVerificationTests: XCTestCase {
+    func testSavedRealPersonalityFeedback() throws {
+        guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved real personality review only") }
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]; app.launch()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<10 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        let web = app.webViews.firstMatch
+        tap(web.buttons["모의면접"])
+        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "인성 연습모드")).firstMatch)
+        tap(web.buttons["연습 시작"])
+        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 40))
+        tap(app.buttons["practice.records"]); capture("saved-personality-01-record-list")
+        tap(app.buttons["기록 보기"].firstMatch)
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 20))
+        for turn in 1...3 {
+            let feedback = app.staticTexts["practice.feedback.\(turn).summary"]
+            XCTAssertTrue(feedback.waitForExistence(timeout: 20))
+            XCTAssertTrue(feedback.label.contains("공통으로 확인된"))
+            XCTAssertFalse(app.staticTexts["practice.analysis-notice.\(turn)"].exists)
+        }
+        capture("saved-personality-02-result-overview")
+        let footer = app.buttons["practice.records"]
+        for page in 1...14 {
+            if footer.isHittable { break }
+            app.swipeUp(); capture("saved-personality-03-feedback-page-\(page)")
+        }
+        XCTAssertTrue(footer.isHittable, "Capture all feedback through the result footer")
+        XCTAssertEqual(app.state, .runningForeground)
+        print("SAVED_PERSONALITY_VERIFY_COMPLETED three_real_feedbacks_all_pages_no_new_analysis")
+    }
+}
+
+final class SavedPersonalityPlaybackVerificationTests: XCTestCase {
+    func testSavedRecordingPlayPauseAndSeekWithoutAnalysis() throws {
+        guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved recording review only") }
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]; app.launch()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<12 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        func waitState(_ button: XCUIElement, _ state: String) {
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", state), object: button)], timeout: 6), .completed)
+        }
+        func seconds(_ turn: Int) -> Int {
+            let label = app.descendants(matching: .any)["practice.playback.time.\(turn)"].firstMatch.label
+            let pattern = try! NSRegularExpression(pattern: "([0-9]+):([0-9]{2})")
+            guard let m = pattern.firstMatch(in: label, range: NSRange(label.startIndex..., in: label)),
+                  let minutes = Range(m.range(at: 1), in: label), let seconds = Range(m.range(at: 2), in: label) else { XCTFail("Missing playback time: " + label); return -1 }
+            return (Int(label[minutes]) ?? 0) * 60 + (Int(label[seconds]) ?? 0)
+        }
+        let web = app.webViews.firstMatch
+        tap(web.buttons["모의면접"])
+        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "인성 연습모드")).firstMatch)
+        tap(web.buttons["연습 시작"])
+        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 40))
+        tap(app.buttons["practice.records"]); tap(app.buttons["기록 보기"].firstMatch)
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 20)); capture("playback-01-ready")
+        let play = app.buttons["practice.playback.toggle.1"]
+        tap(play); waitState(play, "재생 중")
+        Thread.sleep(forTimeInterval: 1.2); XCTAssertGreaterThanOrEqual(seconds(1), 1); capture("playback-02-playing")
+        let slider = app.sliders["practice.playback.seek.1"]
+        XCTAssertTrue(slider.isHittable); slider.adjust(toNormalizedSliderPosition: 0.5)
+        waitState(play, "재생 중"); XCTAssertGreaterThanOrEqual(seconds(1), 10); XCTAssertLessThan(seconds(1), 22); capture("playback-03-seek-half")
+        tap(play); waitState(play, "일시정지"); let paused = seconds(1)
+        Thread.sleep(forTimeInterval: 1); XCTAssertEqual(seconds(1), paused); capture("playback-04-paused")
+        slider.adjust(toNormalizedSliderPosition: 0.2); waitState(play, "일시정지")
+        XCTAssertGreaterThanOrEqual(seconds(1), 3); XCTAssertLessThan(seconds(1), 10); capture("playback-05-seek-while-paused")
+        tap(play); waitState(play, "재생 중"); capture("playback-06-resumed")
+        let next = app.buttons["practice.playback.toggle.2"]
+        tap(next); waitState(next, "재생 중"); XCTAssertEqual(play.value as? String, "재생 대기"); capture("playback-07-switch-answer")
+        tap(next); waitState(next, "일시정지")
+        XCTAssertFalse(app.staticTexts["practice.playback.error.1"].exists)
+        XCTAssertFalse(app.staticTexts["practice.playback.error.2"].exists)
+        XCTAssertEqual(app.state, .runningForeground)
+        print("PLAYBACK_VERIFY_COMPLETED real_audio_play_pause_seek_resume_switch_no_analysis")
+    }
+}

@@ -333,3 +333,57 @@ final class InterviewPracticeTests: XCTestCase {
     }
     #endif
 }
+
+#if DEBUG
+@MainActor private final class MockPracticeAnswerSound: PracticeAnswerSound {
+    var duration: TimeInterval = 30
+    var currentTime: TimeInterval = 0
+    var onFinish: ((Bool) -> Void)?
+    var playSucceeds = true
+    var playCalls = 0
+    var stopCalls = 0
+    func play() -> Bool { playCalls += 1; return playSucceeds }
+    func pause() {}
+    func stop() { stopCalls += 1 }
+}
+final class PracticeAnswerPlaybackTests: XCTestCase {
+    @MainActor func testSeekingResumesOnlyWhenPreviouslyPlayingAndClampsToRecording() {
+        let sound = MockPracticeAnswerSound()
+        let player = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        defer { player.stop() }
+        let url = URL(fileURLWithPath: "/fixture.wav")
+        player.toggle(key: "first", url: url); XCTAssertTrue(player.isPlaying)
+        player.beginSeeking(); XCTAssertTrue(player.isSeeking); XCTAssertFalse(player.isPlaying)
+        player.seek(to: 14); player.endSeeking(); XCTAssertTrue(player.isPlaying); XCTAssertEqual(sound.currentTime, 14)
+        player.toggle(key: "first", url: url); XCTAssertFalse(player.isPlaying)
+        player.beginSeeking(); player.seek(to: 8); player.endSeeking(); XCTAssertFalse(player.isPlaying)
+        player.seek(to: -1); XCTAssertEqual(player.position, 0)
+        player.seek(to: 100); XCTAssertEqual(player.position, 30)
+        player.seek(to: .nan); XCTAssertEqual(player.position, 30)
+        player.toggle(key: "first", url: url); XCTAssertEqual(player.position, 0); XCTAssertTrue(player.isPlaying)
+    }
+    @MainActor func testSwitchingAnswersStopsOldAudioAndIgnoresItsCompletion() {
+        let first = MockPracticeAnswerSound(), second = MockPracticeAnswerSound()
+        let player = PracticeAnswerPlayback(makeSound: { $0.lastPathComponent == "one.wav" ? first : second }, configure: {})
+        defer { player.stop() }
+        player.toggle(key: "one", url: URL(fileURLWithPath: "/one.wav"))
+        player.toggle(key: "two", url: URL(fileURLWithPath: "/two.wav"))
+        XCTAssertEqual(first.stopCalls, 1); XCTAssertEqual(player.key, "two")
+        first.onFinish?(true); XCTAssertTrue(player.isPlaying); XCTAssertEqual(player.key, "two")
+        second.onFinish?(true); XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.position, 30)
+        player.stop(); XCTAssertNil(player.key); XCTAssertEqual(player.duration, 0)
+    }
+    @MainActor func testFileAndPlaybackFailuresAreVisibleAndRetryable() {
+        let url = URL(fileURLWithPath: "/missing.wav")
+        let missing = PracticeAnswerPlayback(makeSound: { _ in throw InterviewError.connection }, configure: {})
+        missing.toggle(key: "missing", url: url); XCTAssertNotNil(missing.error); XCTAssertFalse(missing.isPlaying)
+        let sound = MockPracticeAnswerSound(); sound.playSucceeds = false
+        let player = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        defer { player.stop() }
+        player.toggle(key: "answer", url: url); XCTAssertNotNil(player.error); XCTAssertFalse(player.isPlaying)
+        sound.playSucceeds = true; player.toggle(key: "answer", url: url)
+        XCTAssertNil(player.error); XCTAssertTrue(player.isPlaying)
+        sound.onFinish?(false); XCTAssertNotNil(player.error); XCTAssertFalse(player.isPlaying)
+    }
+}
+#endif
