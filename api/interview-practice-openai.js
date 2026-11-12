@@ -52,7 +52,7 @@ function createHandler(deps){return async(req,res)=>{
   const account=await d.authenticate(req);if(!account)throw Error('unauthorized');if(account.id!==b.accountId)throw Error('forbidden');
   await d.requireAccess(account.id);const actor={type:'student',id:account.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
   // Saved reports remain readable even if generation is temporarily disabled.
-  if(b.action==='get')return res.status(200).json(await d.invoke('get',actor,{id:b.id}));
+  if(b.action==='get')return res.status(200).json(require('../lib/interview-practice-hold-reasons.cjs').decorateSaved(await d.invoke('get',actor,{id:b.id}),actor.testApp===true));
   if(!d.enabled){if(b.action==='status')return res.status(200).json({ok:true,ready:false,provider:'openai',liveCaptions:false,reason:'practice_not_configured'});throw Error('practice_not_configured');}
   if(b.action==='status')return res.status(200).json(await d.invoke('status',actor,{}));
   const audio=Buffer.from(b.audioBase64,'base64');if(audio.toString('base64')!==b.audioBase64)throw Error('invalid_audio');inspectWav(audio);
@@ -62,7 +62,7 @@ function createHandler(deps){return async(req,res)=>{
    const token=randomUUID(),claim=await d.invoke('claim',SERVER,{id:b.id,audioHash,token});
    if(claim.claimed)d.schedule(processClaim(d,{id:b.id,token,question:claim.question,audio,testApp:actor.testApp===true}));
   }
-  return res.status(200).json(await d.invoke('get',actor,{id:b.id}));
+  return res.status(200).json(require('../lib/interview-practice-hold-reasons.cjs').decorateSaved(await d.invoke('get',actor,{id:b.id}),actor.testApp===true));
  }catch(error){
   const statuses={unauthorized:401,forbidden:403,method_not_allowed:405,request_too_large:413,invalid_request:400,invalid_audio:400,not_found:404,practice_not_configured:409,question_unavailable:409,idempotency_conflict:409,queue_full:429,daily_limit:429,recording_unavailable:503};
   const code=Object.keys(statuses).find(k=>error.message===k||error.code===k||error.message?.includes('"message":"'+k+'"'))||'practice_unavailable';
