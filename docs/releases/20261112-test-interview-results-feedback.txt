@@ -39,8 +39,19 @@
 - 캡처는 원본 작업 폴더 artifacts/qa/20261112-test-interview-results-feedback/index.html (Git 제외).
 
 배포 상태
-최종 사용자 확인 전 로컬 구현·테스트앱 설치 상태.
-의견 접수 API와 관리자 조회의 실제 연결 검증에는 새 DB 마이그레이션 적용과 서버 배포가 필요하다.
-마이그레이션: supabase/migrations/20261112092304_interview_test_app_feedback.sql.
-서버 작업 브랜치: codex/fix-ios-mock-connection (main 기반).
-iOS 테스트앱 브랜치: codex/ios-practice-no-modal-20261106.
+Approved rollout and end-to-end verification completed.
+DB migration: 20261112092304 / interview_test_app_feedback. RLS enabled; anon/authenticated table reads and RPC execution denied; security invoker with empty search_path.
+Security advisors: INFO only. The new service-only table adds one intended RLS-without-policy INFO; no WARN/ERROR.
+Production deployment: dpl_2CDWeu1USux9n9nbnKDQy4eA6qSz
+URL: https://outing-auth-j8mgra626-ronpark.vercel.app
+Source: 4dcc50f853c3357ec0214b9a08a60397c240465f
+Production domains: outing-auth-app.vercel.app / app.ronparkpass.com. Both teacher pages return 200 with the feedback menu; ordinary-app create requests return 403. Candidate anonymous test-app create returns 401.
+Vercel inspect: build 25s; post-build 9s; billable duration 1m; 4 vCPU => 4 CPU minutes. Actual hosting charges depend on plan/included usage; no guessed dollar total.
+Additional AI calls/inference cost: zero.
+Server source pushed: d5eb5d1, 4dcc50f. iOS feature source pushed: 8da6185.
+Real iPhone feedback submission PASSED (20.317s). The first runner initialization failed before submission; an empty marker lookup was confirmed before retry.
+QA marker: qa-20261112-8da6185
+Receipt: 0faed292-f94a-478d-ab91-f58d8a9ea2bf
+Exactly one matching report persisted.
+The authenticated production admin site displayed the same report, screen and version. The admin UI saved it as completed; DB confirms status=resolved, revision=1.
+Actual admin screenshots were captured via CUA and attached in chat. Gallery admin-local images are separate synthetic layout checks.
