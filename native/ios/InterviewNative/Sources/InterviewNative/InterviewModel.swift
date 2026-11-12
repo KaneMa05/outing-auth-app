@@ -71,7 +71,16 @@ import AVFoundation
             #endif
             screen = .prep; ready = true; notice = "무료 화면 테스트입니다. AI 음성과 실제 답변 인식은 사용하지 않습니다."; return
         }
-        do { try await api.exchange(code); code = ""; guard !disposed else { return }; screen = .prep; await checkReady() }
+        do {
+            try await api.exchange(code); code = ""; guard !disposed else { return }; screen = .prep; await checkReady()
+            #if DEBUG
+            // A read-only developer launch can leave the saved result visible after XCTest exits.
+            if ProcessInfo.processInfo.environment["INTERVIEW_LIVE_VERIFICATION_CODE"] != nil,
+               let savedID = ProcessInfo.processInfo.environment["INTERVIEW_VERIFICATION_RESULT"], UUID(uuidString: savedID) != nil {
+                await loadRecord(savedID)
+            }
+            #endif
+        }
         catch { code = ""; guard !disposed else { return }; screen = .error; notice = "앱 연결이 만료되었습니다. 학생앱의 모의면접 메뉴에서 다시 열어주세요." }
     }
     func checkReady() async {
