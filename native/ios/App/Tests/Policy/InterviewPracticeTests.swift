@@ -1,5 +1,6 @@
 import XCTest
 import CryptoKit
+import AVFoundation
 @testable import InterviewNative
 
 final class InterviewPracticeTests: XCTestCase {
@@ -437,6 +438,123 @@ final class RemoteAnswerPlaybackTests: XCTestCase {
         for _ in 0..<1000 { if !FileManager.default.fileExists(atPath: file.path) { break }; await Task.yield() }
         XCTAssertNil(local.key); XCTAssertFalse(local.isPlaying)
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+}
+
+final class RecordingResumeLifecycleTests: XCTestCase {
+    @MainActor func testSystemInterruptionAndHeadphoneDisconnectPreservePositionAndNeverAutoResume() async {
+        let sound = MockPracticeAnswerSound()
+        let player = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        defer { player.stop() }
+        let url = URL(fileURLWithPath: "/fixture.wav")
+        player.toggle(key: "input", url: url); sound.currentTime = 9
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+                                       userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+        for _ in 0..<1000 { if !player.isPlaying { break }; await Task.yield() }
+        XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.position, 9)
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+                                       userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
+                                                  AVAudioSessionInterruptionOptionKey: AVAudioSession.InterruptionOptions.shouldResume.rawValue])
+        await Task.yield(); XCTAssertFalse(player.isPlaying)
+        player.toggle(key: "input", url: url); XCTAssertTrue(player.isPlaying); XCTAssertEqual(sound.currentTime, 9)
+        player.beginSeeking(); player.seek(to: 15); player.interrupt(); player.endSeeking()
+        XCTAssertFalse(player.isSeeking); XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.position, 15)
+        player.toggle(key: "input", url: url)
+        NotificationCenter.default.post(name: AVAudioSession.routeChangeNotification, object: nil,
+                                       userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue])
+        for _ in 0..<1000 { if !player.isPlaying { break }; await Task.yield() }
+        XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.position, 15)
+    }
+    @MainActor func testRewindReusesFileAndFreshLinkIsFetchedOnlyForDownload() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to: file)
+        let sound = MockPracticeAnswerSound()
+        let local = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        var refreshes = 0, downloads = 0
+        let remote = RemoteAnswerPlayback(playback: local, download: { url in
+            XCTAssertEqual(url.lastPathComponent, "fresh"); downloads += 1; return file
+        })
+        defer { remote.stop(); try? FileManager.default.removeItem(at: file) }
+        func play() { remote.toggle(key: "run/input", rawURL: "https://example.com/expired", refreshURL: {
+            refreshes += 1; return "https://example.com/fresh"
+        }) {} }
+        play()
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertTrue(local.isPlaying); XCTAssertEqual(refreshes, 1); XCTAssertEqual(downloads, 1)
+        sound.currentTime = 12; remote.pause(); XCTAssertEqual(local.position, 12)
+        play(); XCTAssertEqual(sound.currentTime, 12)
+        remote.rewind(); XCTAssertFalse(local.isPlaying); XCTAssertEqual(local.position, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        play(); XCTAssertTrue(local.isPlaying); XCTAssertEqual(refreshes, 1); XCTAssertEqual(downloads, 1)
+        remote.stop(); XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+    @MainActor func testExpiredLinkRetriesOnceButNetworkFailuresDoNotRetry() async {
+        var downloads = 0, refreshes = 0
+        let local = PracticeAnswerPlayback(makeSound: { _ in MockPracticeAnswerSound() }, configure: {})
+        let remote = RemoteAnswerPlayback(playback: local, download: { _ in downloads += 1; throw RecordingDownloadError.expiredLink })
+        defer { remote.stop() }
+        remote.toggle(key: "input", rawURL: nil, refreshURL: { refreshes += 1; return "https://example.com/fresh" }) {}
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertEqual(downloads, 2); XCTAssertEqual(refreshes, 2); XCTAssertNotNil(remote.error)
+        downloads = 0; refreshes = 0
+        let network = RemoteAnswerPlayback(playback: local, download: { _ in downloads += 1; throw URLError(.notConnectedToInternet) })
+        defer { network.stop() }
+        network.toggle(key: "input", rawURL: nil, refreshURL: { refreshes += 1; return "https://example.com/fresh" }) {}
+        for _ in 0..<1000 { if !network.loading { break }; await Task.yield() }
+        XCTAssertEqual(downloads, 1); XCTAssertEqual(refreshes, 1); XCTAssertNotNil(network.error)
+    }
+}
+
+final class PendingRecordingInterruptionTests: XCTestCase {
+    @MainActor func testInterruptionCancelsPendingDownloadAndPreventsLateAutoplay() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to: file)
+        var complete: CheckedContinuation<URL, Never>?
+        let local = PracticeAnswerPlayback(makeSound: { _ in MockPracticeAnswerSound() }, configure: {})
+        let remote = RemoteAnswerPlayback(playback: local, download: { _ in await withCheckedContinuation { complete = $0 } })
+        defer { remote.stop(); try? FileManager.default.removeItem(at: file) }
+        remote.toggle(key: "input", rawURL: "https://example.com/file") {}
+        for _ in 0..<1000 { if complete != nil { break }; await Task.yield() }
+        XCTAssertNotNil(complete)
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+                                       userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertFalse(remote.loading); complete?.resume(returning: file)
+        for _ in 0..<1000 { if !FileManager.default.fileExists(atPath: file.path) { break }; await Task.yield() }
+        XCTAssertFalse(local.isPlaying); XCTAssertNil(local.key)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+}
+
+final class QuestionRecordingSegmentTests: XCTestCase {
+    @MainActor func testQuestionRangeUsesRelativeTimeAndStopsAtItsOwnEnd() async {
+        let sound = MockPracticeAnswerSound()
+        let player = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        defer { player.stop() }
+        let url=URL(fileURLWithPath: "/fixture.wav")
+        XCTAssertTrue(player.prepare(key: "question-2", url: url))
+        let segment=RecordingSegment(startBytes: 480_000, endBytes: 960_000)!
+        XCTAssertTrue(player.selectSegment(segment)); XCTAssertEqual(player.duration,10); XCTAssertEqual(sound.currentTime,10)
+        player.toggle(key: "question-2",url:url); player.seek(to:4)
+        XCTAssertEqual(sound.currentTime,14); XCTAssertEqual(player.position,4)
+        sound.currentTime=20.2
+        try? await Task.sleep(nanoseconds:200_000_000)
+        XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.position,10)
+        player.toggle(key:"question-2",url:url);XCTAssertEqual(sound.currentTime,10)
+        XCTAssertNil(RecordingSegment(startBytes:960_000,endBytes:480_000))
+    }
+    @MainActor func testSwitchingQuestionsReusesOneRecordingFile() async throws {
+        let file=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to:file)
+        let player=PracticeAnswerPlayback(makeSound:{_ in MockPracticeAnswerSound()},configure:{})
+        var downloads=0,refreshes=0
+        let remote=RemoteAnswerPlayback(playback:player,download:{_ in downloads+=1;return file})
+        defer{remote.stop();try? FileManager.default.removeItem(at:file)}
+        remote.toggle(key:"run/0",rawURL:nil,fileKey:"run/input",segment:RecordingSegment(startBytes:0,endBytes:480_000),refreshURL:{refreshes+=1;return "https://example.com/file"}){}
+        for _ in 0..<1000{if !remote.loading{break};await Task.yield()}
+        remote.toggle(key:"run/1",rawURL:nil,fileKey:"run/input",segment:RecordingSegment(startBytes:480_000,endBytes:960_000),refreshURL:{refreshes+=1;return "https://example.com/file"}){}
+        XCTAssertEqual(player.key,"run/1");XCTAssertEqual(player.duration,10);XCTAssertTrue(player.isPlaying)
+        XCTAssertEqual(downloads,1);XCTAssertEqual(refreshes,1)
     }
 }
 #endif

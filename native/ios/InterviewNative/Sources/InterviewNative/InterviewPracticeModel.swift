@@ -689,7 +689,9 @@ import CryptoKit
         catch { notice = "기록을 삭제하지 못했습니다." }
     }
     func background() {
-        media.stop(); stopPlayback(); if screen == .live || screen == .jobReview { stop() }
+        media.stop()
+        if screen == .result { answerPlayback.interrupt() } else { stopPlayback() }
+        if screen == .live || screen == .jobReview { stop() }
         for task in cliTasks.values { task.cancel() }
     }
     func dispose() {

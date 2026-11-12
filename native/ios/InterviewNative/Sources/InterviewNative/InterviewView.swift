@@ -54,6 +54,9 @@ import SwiftUI
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }
         }
+        #if DEBUG
+        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: "live." + String(describing: model.screen)) }
+        #endif
         .interactiveDismissDisabled(model.active)
         .task { await model.load() }
         .onChange(of: phase) { value in if value == .background { model.background() } }
@@ -159,27 +162,36 @@ import SwiftUI
         let run = model.record?["run"] as? InterviewJSON ?? [:]
         let turns = run["turns"] as? [InterviewJSON] ?? []
         return VStack(alignment: .leading, spacing: 18) {
+            #if DEBUG
+            Text("모의면접 결과").font(.title.bold())
+            #else
             Text("INTERVIEW RECORD").font(.caption).tracking(2).foregroundStyle(teal)
             Text("내 답변을 돌아보고,\n다음 연습을 준비해요.").font(.title.bold())
+            #endif
             Text("실제 기록 기반 · 확정 채점 결과 아님").font(.caption).foregroundStyle(.secondary)
             Picker("결과 보기", selection: $details) { Text("종합").tag(false); Text("질문별 기록").tag(true) }.pickerStyle(.segmented)
             if model.record == nil { Text("기록을 확인하고 있습니다. 잠시 후 다시 확인해주세요.") }
             else if details {
                 if run["recording_partial"] as? Bool == true { Text("중단 후 복구한 음성으로 일부 구간이 누락될 수 있습니다.").font(.footnote) }
+                #if !DEBUG
                 if model.record?["recordings"] != nil {
-                    #if DEBUG
-                    LiveRecordedAnswerPlayer(model: model, tint: teal)
-                    #else
                     action("학생 음성 재생") { model.play("input") }
-                    #endif
                     action("면접관 음성 재생") { model.play("output") }
                     action("재생 중지") { model.stopPlayback() }
                 }
+                #endif
                 ForEach(turns.indices, id: \.self) { i in
                     VStack(alignment: .leading, spacing: 10) {
                         Text("\(i + 1) · " + (turns[i]["kind"] as? String == "followup" ? "꼬리 질문" : "기본 질문")).font(.caption).foregroundStyle(teal)
                         Text(turns[i]["question"] as? String ?? "").font(.headline)
+                        #if DEBUG
+                        if let segment = RecordingSegment(startBytes: turns[i]["audioStartBytes"], endBytes: turns[i]["audioEndBytes"]), model.record?["recordings"] != nil {
+                            LiveRecordedAnswerPlayer(model: model, tint: teal, index: i, segment: segment)
+                        } else { Text("이 질문의 녹음 구간 정보가 없습니다.").font(.caption).foregroundStyle(.secondary) }
+                        DisclosureGroup("내 답변 보기") { Text(turns[i]["answer"] as? String ?? "인식한 답변 없음").font(.subheadline) }
+                        #else
                         Text(turns[i]["answer"] as? String ?? "인식한 답변 없음").font(.subheadline)
+                        #endif
                     }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
                 }
             } else {
@@ -204,8 +216,30 @@ import SwiftUI
         let feedback = report?["analysis"] as? InterviewJSON
         Text("종합 피드백").font(.headline)
         if let feedback {
-            Text(feedback["summary"] as? String ?? "").font(.subheadline)
-            ForEach(["strengths", "improvements", "nextPractice"], id: \.self) { key in
+            #if DEBUG
+            Text(feedback["summary"] as? String ?? "").font(.subheadline).lineLimit(2)
+            ForEach(["strengths", "nextPractice"], id: \.self) { key in
+                if let row = (feedback[key] as? [InterviewJSON])?.first {
+                    Text(key == "strengths" ? "잘한 점" : "다음 연습").font(.subheadline.bold())
+                    Text(row["feedback"] as? String ?? "").font(.subheadline).lineLimit(2)
+                }
+            }
+            DisclosureGroup("상세 피드백 보기") { detailedFeedback(feedback) }
+            #else
+            detailedFeedback(feedback)
+            #endif
+        } else if processing?["state"] as? String == "running" {
+            Text("저장된 답변을 분석하고 있습니다. 기록 다시 확인으로 결과를 확인해주세요.").font(.subheadline)
+        } else if processing != nil {
+            Text("분석 완료 여부를 확인해야 합니다. 자동으로 다시 실행하지 않습니다.").font(.subheadline)
+        } else {
+            action(model.analysisLoading ? "분석 중…" : "종합 피드백 받기", enabled: !model.analysisLoading) { Task { await model.requestAnalysis() } }
+                .accessibilityIdentifier("interview.analysis")
+        }
+    }
+    @ViewBuilder private func detailedFeedback(_ feedback: InterviewJSON) -> some View {
+        Text(feedback["summary"] as? String ?? "").font(.subheadline)
+        ForEach(["strengths", "improvements", "nextPractice"], id: \.self) { key in
                 let rows = feedback[key] as? [InterviewJSON] ?? []
                 if !rows.isEmpty {
                     Text(key == "strengths" ? "잘한 점" : key == "improvements" ? "보완할 점" : "다음 연습").font(.subheadline.bold())
@@ -216,14 +250,6 @@ import SwiftUI
                 }
             }
             Text("저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다.").font(.caption).foregroundStyle(.secondary)
-        } else if processing?["state"] as? String == "running" {
-            Text("저장된 답변을 분석하고 있습니다. 기록 다시 확인으로 결과를 확인해주세요.").font(.subheadline)
-        } else if processing != nil {
-            Text("분석 완료 여부를 확인해야 합니다. 자동으로 다시 실행하지 않습니다.").font(.subheadline)
-        } else {
-            action(model.analysisLoading ? "분석 중…" : "종합 피드백 받기", enabled: !model.analysisLoading) { Task { await model.requestAnalysis() } }
-                .accessibilityIdentifier("interview.analysis")
-        }
     }
     private var records: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -319,19 +345,24 @@ private struct InterviewLiveCamera: View {
 private struct LiveRecordedAnswerPlayer: View {
     let model: InterviewModel
     let tint: Color
+    let index: Int
+    let segment: RecordingSegment
     @ObservedObject private var remote: RemoteAnswerPlayback
-    init(model: InterviewModel, tint: Color) {
-        self.model = model; self.tint = tint; self.remote = model.answerPlayback
+    init(model: InterviewModel, tint: Color, index: Int, segment: RecordingSegment) {
+        self.model = model; self.tint = tint; self.index = index; self.segment = segment; self.remote = model.answerPlayback
     }
     var body: some View {
-        let run = model.record?["run"] as? InterviewJSON ?? [:]
-        let key = (run["id"] as? String ?? "record") + "/input"
-        RecordedAnswerPlayer(playback: remote.playback, key: key, tint: tint,
-                             identifier: "interview.playback", suffix: "input",
-                             loading: remote.loading, loadError: remote.error,
+        let runID = model.playbackRecordID
+        let fileKey = runID + "/input"
+        let key = fileKey + "/" + String(index)
+        RecordedAnswerPlayer(playback: remote.playback, key: key, fallbackDuration: segment.duration, tint: tint,
+                             identifier: "interview.playback", suffix: String(index), canSeekBeforePrepare: false,
+                             loading: remote.loading && remote.requestedKey == key, loadError: remote.requestedKey == key ? remote.error : nil,
                              toggle: {
             let files = model.record?["recordings"] as? [String: String] ?? [:]
-            remote.toggle(key: key, rawURL: files["input"]) { model.stopPlayback() }
+            remote.toggle(key: key, rawURL: files["input"], fileKey: fileKey, segment: segment, refreshURL: {
+                try await model.recordingURL("input", for: runID)
+            }) { model.stopOtherPlayback() }
         }, prepare: {})
     }
 }

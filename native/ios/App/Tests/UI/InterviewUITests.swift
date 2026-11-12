@@ -1141,3 +1141,109 @@ final class SavedPersonalityPlaybackVerificationTests: XCTestCase {
         print("PLAYBACK_VERIFY_COMPLETED real_audio_play_pause_seek_resume_switch_no_analysis")
     }
 }
+
+final class SavedLivePlaybackCompletenessTests: XCTestCase {
+    func testExistingLiveRecordingWithoutNewInterviewOrAnalysis() throws {
+        guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved recording review only") }
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]; app.launch()
+        func capture(_ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+        func tap(_ button: XCUIElement) {
+            XCTAssertTrue(button.waitForExistence(timeout: 40))
+            for _ in 0..<10 { if button.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(button.isHittable); button.tap()
+        }
+        func state(_ button: XCUIElement, _ expected: String) {
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", expected), object: button)], timeout: 40), .completed)
+        }
+        let web = app.webViews.firstMatch
+        tap(web.buttons["모의면접"])
+        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "실전 모의면접")).firstMatch)
+        capture("live-playback-01-portal")
+        tap(web.buttons["면접 준비하기"])
+        XCTAssertTrue(app.buttons["내 면접 기록"].waitForExistence(timeout: 45)); capture("live-playback-02-preparation")
+        tap(app.buttons["내 면접 기록"])
+        let saved = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "08:23:28")).firstMatch
+        tap(saved)
+        XCTAssertTrue(app.staticTexts["모의면접 결과"].waitForExistence(timeout: 40))
+        tap(app.buttons["질문별 기록"]); capture("live-playback-03-record")
+        // Let the originally displayed signed links expire before the first download.
+        print("LIVE_RESUME_VERIFY waiting_for_original_link_expiry")
+        let expiryWait = Double(ProcessInfo.processInfo.environment["LIVE_EXPIRY_WAIT_SECONDS"] ?? "65") ?? 65
+        Thread.sleep(forTimeInterval: min(33, expiryWait)); Thread.sleep(forTimeInterval: max(0, expiryWait - 33))
+        let play = app.buttons["interview.playback.toggle.0"]
+        tap(play); state(play, "재생 중"); capture("live-playback-04-playing")
+        let slider = app.sliders["interview.playback.seek.0"]
+        XCTAssertTrue(slider.isHittable); slider.adjust(toNormalizedSliderPosition: 0.5)
+        state(play, "재생 중"); capture("live-playback-05-seek")
+        tap(play); state(play, "일시정지"); capture("live-playback-06-paused")
+        slider.adjust(toNormalizedSliderPosition: 0.2); state(play, "일시정지")
+        tap(play); state(play, "재생 중"); capture("live-playback-07-resumed")
+        let beforeBackground = app.descendants(matching: .any)["interview.playback.time.0"].firstMatch.label
+        XCUIApplication(bundleIdentifier: "com.apple.calculator").activate()
+        let backgrounded = app.wait(for: .runningBackground, timeout: 8)
+        print("LIVE_RESUME_APP_BACKGROUND " + String(backgrounded) + " state=" + String(app.state.rawValue))
+        XCTAssertTrue(backgrounded, "Switching apps did not actually background the interview app")
+        Thread.sleep(forTimeInterval: 2); app.activate()
+        capture("live-resume-08-return-state")
+        print("LIVE_RESUME_RETURN_STATE " + String(describing: play.value))
+        state(play, "일시정지"); capture("live-resume-08-background-paused")
+        let paused = app.descendants(matching: .any)["interview.playback.time.0"].firstMatch.label
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertEqual(app.descendants(matching: .any)["interview.playback.time.0"].firstMatch.label, paused)
+        XCTAssertFalse(beforeBackground.isEmpty)
+        tap(play); state(play, "재생 중"); capture("live-resume-09-after-background")
+        // Switch to another question and back; each card must own its playback state.
+        let next = app.buttons["interview.playback.toggle.1"]
+        tap(next); state(next, "재생 중")
+        XCTAssertEqual(play.value as? String, "재생 대기")
+        for _ in 0..<8 { app.swipeDown() }
+        tap(play); state(play, "재생 중")
+        tap(play); state(play, "일시정지")
+        tap(play); state(play, "재생 중"); capture("live-resume-10-replay-cached")
+        tap(play); state(play, "일시정지")
+        XCTAssertFalse(app.staticTexts["interview.playback.error.0"].exists)
+        XCTAssertEqual(app.state, .runningForeground)
+        print("LIVE_PLAYBACK_VERIFIED saved_real_recording_no_new_interview_or_analysis")
+    }
+}
+
+final class TestAppFeedbackFormUITests: XCTestCase {
+    func testSmallFooterOpensPrivateFeedbackFormWithoutSending() {
+        let app=XCUIApplication();app.launchArguments=["--interview-native-preview","--portal-practice-fixture","-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
+        let footer=app.buttons["test.feedback.open"];XCTAssertTrue(footer.waitForExistence(timeout:20));footer.tap()
+        let submit=app.buttons["test.feedback.submit"];XCTAssertTrue(submit.waitForExistence(timeout:10));XCTAssertFalse(submit.isEnabled)
+        let content=app.textViews["test.feedback.content"];content.tap();content.typeText("질문별 재생 화면 개선 의견입니다.")
+        XCTAssertTrue(submit.isEnabled)
+        let attachment=XCTAttachment(screenshot:app.screenshot());attachment.name="test-app-private-feedback-form";attachment.lifetime = .keepAlways;add(attachment)
+        app.buttons["취소"].tap();XCTAssertTrue(footer.exists)
+    }
+}
+
+final class SavedLiveResultLayoutTests: XCTestCase {
+    func testCompactSummaryAndFeedbackFooterWithoutNewAnalysis() throws {
+        guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved recording review only") }
+        continueAfterFailure=false
+        let app=XCUIApplication();app.launchArguments=["-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
+        func tap(_ b:XCUIElement){XCTAssertTrue(b.waitForExistence(timeout:40));for _ in 0..<10{if b.isHittable{break};app.swipeUp()};XCTAssertTrue(b.isHittable);b.tap()}
+        func capture(_ name:String){let a=XCTAttachment(screenshot:app.screenshot());a.name=name;a.lifetime = .keepAlways;add(a)}
+        let web=app.webViews.firstMatch
+        tap(web.buttons["모의면접"]);tap(web.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","실전 모의면접")).firstMatch)
+        tap(web.buttons["면접 준비하기"]);tap(app.buttons["내 면접 기록"])
+        tap(app.buttons.matching(NSPredicate(format:"label CONTAINS %@","08:23:28")).firstMatch)
+        XCTAssertTrue(app.staticTexts["모의면접 결과"].waitForExistence(timeout:40))
+        XCTAssertTrue(app.staticTexts["완료한 답변 6개"].waitForExistence(timeout:40))
+        XCTAssertTrue(app.buttons["상세 피드백 보기"].waitForExistence(timeout:15))
+        capture("compact-summary-01-overview")
+        tap(app.buttons["상세 피드백 보기"]);capture("compact-summary-02-expanded")
+        let footers = app.buttons.matching(identifier: "test.feedback.open").allElementsBoundByIndex
+        print("FEEDBACK_FOOTERS " + String(footers.count))
+        for footer in footers { print("FEEDBACK_FOOTER_FRAME " + String(describing: footer.frame) + " hittable=" + String(footer.isHittable)) }
+        capture("feedback-actual-device-footer-before-tap")
+        guard let footer = footers.first(where: { $0.isHittable }) else { XCTFail("No visible feedback footer"); return }
+        footer.tap()
+        XCTAssertTrue(app.buttons["test.feedback.submit"].waitForExistence(timeout:10));capture("feedback-actual-device-03-form")
+        tap(app.buttons["취소"])
+        print("COMPACT_SUMMARY_VERIFIED saved_feedback_and_footer_no_new_analysis")
+    }
+}

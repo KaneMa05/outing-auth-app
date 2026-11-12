@@ -70,6 +70,7 @@ private struct StudentApp: View {
 
         }
         #if DEBUG
+        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: "portal") }
         .fullScreenCover(item: $practice) { session in
             InterviewPracticeView(mode: session.mode, loadSession: { try await session.load() },
                 requestAnalysis: { action, fields in try await session.analysis(action, fields) })
@@ -255,6 +256,23 @@ private struct StudentWebApp: UIViewRepresentable {
         }
         #endif
         let view = WKWebView(frame: .zero, configuration: config)
+        #if DEBUG
+        if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
+            TestAppFeedbackTransport.send = { [weak view] payload in
+                guard let view, view.url?.scheme == "https", view.url?.host == Self.host else { throw TestAppFeedbackError(code: "unavailable") }
+                let result = try await view.callAsyncJavaScript("""
+                    const response = await fetch('/api/interview-app-feedback', {
+                      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-Interview-Test-App':'1'},
+                      body:JSON.stringify(payload)
+                    });
+                    return await response.json();
+                    """, arguments: ["payload": payload], in: nil, contentWorld: .page)
+                guard let data = result as? [String: Any], data["ok"] as? Bool == true else {
+                    throw TestAppFeedbackError(code: (result as? [String: Any])?["error"] as? String ?? "unavailable")
+                }
+            }
+        }
+        #endif
         view.navigationDelegate = context.coordinator; view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
         #if DEBUG

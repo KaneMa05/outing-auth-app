@@ -77,6 +77,7 @@ import AVKit
             }
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: model.mode + "." + String(describing: model.screen)) }
         .interactiveDismissDisabled(model.screen == .live || model.screen == .jobReview)
         .task { await model.load() }
         .onChange(of: phase) { value in if value == .background { model.background() } else if value == .active { model.foreground() } }
@@ -615,6 +616,7 @@ struct RecordedAnswerPlayer: View {
     let tint: Color
     let identifier: String
     let suffix: String
+    var canSeekBeforePrepare = true
     var loading = false
     var loadError: String? = nil
     let toggle: () -> Void
@@ -643,7 +645,7 @@ struct RecordedAnswerPlayer: View {
                    in: 0...max(0.01, total), onEditingChanged: { editing in
                 if editing { prepare(); playback.beginSeeking() }
                 else { playback.endSeeking() }
-            }).tint(tint).disabled(total <= 0)
+            }).tint(tint).disabled(total <= 0 || (!active && !canSeekBeforePrepare))
                 .accessibilityLabel("답변 재생 위치")
                 .accessibilityIdentifier("\(identifier).seek.\(suffix)")
             HStack {

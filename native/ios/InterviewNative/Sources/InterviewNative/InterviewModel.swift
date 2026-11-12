@@ -236,18 +236,42 @@ import AVFoundation
         } catch { if !disposed { notice = "분석 상태를 확인하지 못했습니다. 기록 다시 확인을 눌러주세요." } }
     }
     func play(_ key: String) {
+        #if DEBUG
+        answerPlayback.pause(); stopOtherPlayback()
+        #else
         stopPlayback()
+        #endif
         guard let files = record?["recordings"] as? [String: String], let raw = files[key], let url = URL(string: raw), url.scheme == "https" else { notice = "재생 링크를 다시 확인해주세요."; return }
         do { try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true)
             playback = AVPlayer(url: url); playback?.play()
         } catch { notice = "음성을 재생하지 못했습니다." }
     }
+    #if DEBUG
+    func recordingURL(_ channel: String, for requestedID: String) async throws -> String {
+        guard !disposed, screen == .result, runID == requestedID else { throw CancellationError() }
+        let data = try await api.command("get", ["runId": requestedID])
+        guard !disposed, screen == .result, runID == requestedID,
+              let files = data["recordings"] as? [String: String], let raw = files[channel] else { throw InterviewError.invalidResponse }
+        return raw
+    }
+    var playbackRecordID: String { runID }
+    func stopOtherPlayback() { playback?.pause(); playback = nil }
+    func rewindPlayback() { answerPlayback.rewind(); stopOtherPlayback() }
+    #endif
     func stopPlayback() {
         #if DEBUG
         answerPlayback.stop()
         #endif
         if playback != nil { playback?.pause(); playback = nil; try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) } }
-    func background() { media.stop(); stopPlayback(); if active { stop() } }
+    func background() {
+        media.stop()
+        #if DEBUG
+        if screen == .result { answerPlayback.pause(); stopOtherPlayback() } else { stopPlayback() }
+        #else
+        stopPlayback()
+        #endif
+        if active { stop() }
+    }
     func dispose() {
         guard !disposed else { return }; disposed = true; media.stop(); stopPlayback(); UIApplication.shared.isIdleTimerDisabled = false
         if let call {
