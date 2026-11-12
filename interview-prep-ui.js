@@ -23,6 +23,7 @@ const errors={unauthorized:'로그인이 만료되었습니다. 다시 로그인
   incomplete_note:'모든 항목에 10자 이상 입력해주세요. 글자 수는 내용 품질을 보장하지 않으며 강사가 별도로 확인합니다.',
   help_reason_required:'어떤 부분이 막히는지 5자 이상 적어주세요.',not_submitted:'학생이 작성 완료로 제출한 내용만 확인 완료할 수 있습니다.',
   forbidden:'이 작업을 수행할 권한이 없습니다.',student_unavailable:'사용 가능한 수강생을 찾을 수 없습니다.',
+  invalid_roster_data:'수강 명단을 확인하지 못했습니다. 명단이 변경되었을 수 있으니 다시 다운로드해주세요.',
   invalid_topic:'연결할 항목은 사용 중인 인성 준비 항목으로 선택하거나 선택을 해제해주세요.',invalid_request:'입력 항목을 확인해주세요.',
   interview_unavailable:'면접 준비 기능에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'};
 const message = e=>errors[e.code] || errors[e.message] || '처리하지 못했습니다. 입력 내용을 유지하고 다시 시도해주세요.';
@@ -223,6 +224,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const approvalBadge=q=>`<span class="ip-badge ${q.status==='published'?'approved':''}" data-question-approval="${esc(q.status)}">${publicationLabels[q.status]}</span>`;
   const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
+  const rosterDownload=()=>`<div class="ip-toolbar">${btn('수강 명단 엑셀 다운로드','roster-export')}</div><p class="ip-help">이름·직렬·수험번호·과정이 포함됩니다. 검색 조건과 관계없이 등록된 전체 수강생을 다운로드합니다(이용 중지·기간 만료 포함).</p>`;
   function shell(){
     stopQuestionAudio();
     life?.destroy();life=null;
@@ -364,7 +366,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       if(!r.summary)notify(host,'전체 현황을 불러오지 못했습니다. 신청 목록은 아래에서 확인할 수 있습니다.',true);
       list=r.applications;
       const labels={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
-      box.innerHTML=`<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
+      box.innerHTML=`${rosterDownload()}<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
       <form data-filter class="ip-toolbar"><label>이름·수험번호 검색<input name="search" maxlength="200" value="${esc(filter.search||'')}"></label><label>상태<select name="status">${options([['pending','승인 대기'],['approved','승인 완료'],['rejected','반려'],['','전체']],filter.status??'pending')}</select></label><button class="ip-btn ip-primary">검색</button></form>
       <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p><strong>${esc(interviewProductLabel(a.access_product))}</strong><br>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`)+btn('반려','application-reject',`data-id="${esc(a.id)}" ${canWrite?'':'disabled'}`):''}</article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
       <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
@@ -509,6 +511,17 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       else if(a==='tab'){tab=target.dataset.tab;page=0;filter={};shell();await load();}
       else if(a==='enabled'){if(confirm(catalog.enabled?'면접 준비 기능 이용을 중지할까요?':'검토한 항목을 등록 학생에게 개방할까요?')){await request('admin_enabled',{enabled:!catalog.enabled});await refresh();}}
       else if(a==='prev'||a==='next'){page+=a==='next'?1:-1;await load();}
+      else if(a==='roster-export'){
+        const version=loadVersion;
+        const isCurrent=()=>!destroyed&&version===loadVersion;
+        notify(host,'수강 명단을 불러오는 중…');
+        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261112-roster');
+        const members=await loadInterviewRoster(request,{isCurrent,onProgress:count=>notify(host,`수강 명단 ${count.toLocaleString('ko-KR')}명 확인 중…`)});
+        if(!members||!isCurrent())return;
+        if(!members.length){notify(host,'다운로드할 등록 수강생이 없습니다.');return;}
+        downloadInterviewRoster(members);
+        notify(host,`수강 명단 ${members.length.toLocaleString('ko-KR')}명의 엑셀 파일을 다운로드했습니다.`);
+      }
       else if(a==='taxonomy-edit'){const r=await request('admin_question_detail',{id:target.dataset.id});if(destroyed)return;selected=r.question;editor(taxonomyEditor(selected,r.sources));}
       else if(a==='question-new'||a==='question-edit')await editQuestion(target.dataset.id);
       else if(a==='analysis-edit')await editAnalysis(target.dataset.id);
