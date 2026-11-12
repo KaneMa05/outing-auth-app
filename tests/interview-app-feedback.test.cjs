@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{randomUUID}=require('node:crypto');
 const {createHandler}=require('../api/interview-app-feedback');
 const {feedback,validate}=require('../lib/interview-app-feedback.cjs');
-const migration=fs.readFileSync('supabase/migrations/20261112084631_interview_test_app_feedback.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261112092304_interview_test_app_feedback.sql','utf8');
 async function setup(t){
  const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
  const db=new PGlite();t.after(()=>db.close());
