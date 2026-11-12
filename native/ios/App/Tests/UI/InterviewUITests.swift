@@ -1247,3 +1247,22 @@ final class SavedLiveResultLayoutTests: XCTestCase {
         print("COMPACT_SUMMARY_VERIFIED saved_feedback_and_footer_no_new_analysis")
     }
 }
+
+final class TestAppFeedbackSubmissionVerificationTests: XCTestCase {
+    func testSendOneExplicitQAReportToAdmin() throws {
+        guard let marker=ProcessInfo.processInfo.environment["FEEDBACK_QA_MARKER"],marker.hasPrefix("qa-20261112-") else {throw XCTSkip("Explicit QA report marker required")}
+        continueAfterFailure=false
+        let app=XCUIApplication();app.launchArguments=["-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
+        XCTAssertTrue(app.webViews.buttons["모의면접"].waitForExistence(timeout:40))
+        guard let footer=app.buttons.matching(identifier:"test.feedback.open").allElementsBoundByIndex.first(where:{$0.isHittable}) else{XCTFail("Visible footer unavailable");return}
+        footer.tap()
+        let content=app.textViews["test.feedback.content"];XCTAssertTrue(content.waitForExistence(timeout:15));content.tap()
+        content.typeText("QA 검증용 오류 신고입니다. 질문별 재생과 종합 요약 개선 후 앱 접수·관리자 조회 연결을 확인합니다. ["+marker+"]")
+        let submit=app.buttons["test.feedback.submit"];XCTAssertTrue(submit.isEnabled);submit.tap()
+        let success=app.staticTexts["test.feedback.success"]
+        let completed=success.waitForExistence(timeout:45)
+        let screenshot=XCTAttachment(screenshot:app.screenshot());screenshot.name="real-feedback-submission-result";screenshot.lifetime = .keepAlways;add(screenshot)
+        XCTAssertTrue(completed,"Do not resubmit automatically; first check persisted QA marker")
+        print("REAL_FEEDBACK_SUBMITTED "+marker)
+    }
+}
