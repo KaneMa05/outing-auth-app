@@ -51,6 +51,9 @@ import AVFoundation
     private var runID = "", code: String
     private var loaded = false, disposed = false
     private var requestGeneration = 0
+    #if DEBUG
+    let answerPlayback = RemoteAnswerPlayback()
+    #endif
     private var playback: AVPlayer?
     private var demoTurns: [InterviewJSON] = []
     private let samples = ["협업 중 의견 차이를 해결한 경험을 말씀해주세요.", "그 과정에서 본인이 직접 맡은 역할은 무엇이었나요?", "그 경험에서 배운 점을 말씀해주세요."]
@@ -239,7 +242,11 @@ import AVFoundation
             playback = AVPlayer(url: url); playback?.play()
         } catch { notice = "음성을 재생하지 못했습니다." }
     }
-    func stopPlayback() { if playback != nil { playback?.pause(); playback = nil; try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) } }
+    func stopPlayback() {
+        #if DEBUG
+        answerPlayback.stop()
+        #endif
+        if playback != nil { playback?.pause(); playback = nil; try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) } }
     func background() { media.stop(); stopPlayback(); if active { stop() } }
     func dispose() {
         guard !disposed else { return }; disposed = true; media.stop(); stopPlayback(); UIApplication.shared.isIdleTimerDisabled = false

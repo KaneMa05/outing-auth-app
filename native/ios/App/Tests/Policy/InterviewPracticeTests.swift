@@ -386,4 +386,57 @@ final class PracticeAnswerPlaybackTests: XCTestCase {
         sound.onFinish?(false); XCTAssertNotNil(player.error); XCTAssertFalse(player.isPlaying)
     }
 }
+
+final class RemoteAnswerPlaybackTests: XCTestCase {
+    @MainActor func testDownloadIsReusedForSeekingAndDeletedOnStop() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to: file)
+        let sound = MockPracticeAnswerSound()
+        let local = PracticeAnswerPlayback(makeSound: { _ in sound }, configure: {})
+        var downloads = 0
+        let remote = RemoteAnswerPlayback(playback: local, download: { _ in downloads += 1; return file })
+        defer { remote.stop(); try? FileManager.default.removeItem(at: file) }
+        remote.toggle(key: "run/input", rawURL: "https://example.com/signed") {}
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertFalse(remote.loading); XCTAssertTrue(local.isPlaying); XCTAssertEqual(downloads, 1)
+        remote.toggle(key: "run/input", rawURL: "https://example.com/signed") {}
+        XCTAssertFalse(local.isPlaying)
+        local.beginSeeking(); local.seek(to: 12); local.endSeeking()
+        XCTAssertEqual(local.position, 12); XCTAssertFalse(local.isPlaying)
+        remote.toggle(key: "run/input", rawURL: nil) {}
+        XCTAssertTrue(local.isPlaying); XCTAssertEqual(downloads, 1)
+        remote.stop(); XCTAssertFalse(FileManager.default.fileExists(atPath: file.path)); XCTAssertNil(local.key)
+    }
+    @MainActor func testInvalidLinksAndDownloadFailureAreVisibleAndRetryable() async {
+        let local = PracticeAnswerPlayback(makeSound: { _ in MockPracticeAnswerSound() }, configure: {})
+        var requests = 0
+        let remote = RemoteAnswerPlayback(playback: local, download: { _ in requests += 1; throw InterviewError.connection })
+        defer { remote.stop() }
+        remote.toggle(key: "input", rawURL: "http://example.com/file") {}
+        XCTAssertNotNil(remote.error); XCTAssertEqual(requests, 0)
+        remote.toggle(key: "input", rawURL: "https://example.com/file") {}
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertNotNil(remote.error); XCTAssertEqual(requests, 1); XCTAssertFalse(local.isPlaying)
+        remote.toggle(key: "input", rawURL: "https://example.com/retry") {}
+        for _ in 0..<1000 { if !remote.loading { break }; await Task.yield() }
+        XCTAssertEqual(requests, 2); XCTAssertNotNil(remote.error)
+    }
+    @MainActor func testCancelledDownloadCannotStartPlaybackAndCleansItsFile() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data([1]).write(to: file)
+        var complete: CheckedContinuation<URL, Never>?
+        let local = PracticeAnswerPlayback(makeSound: { _ in MockPracticeAnswerSound() }, configure: {})
+        let remote = RemoteAnswerPlayback(playback: local, download: { _ in
+            await withCheckedContinuation { complete = $0 }
+        })
+        defer { remote.stop(); try? FileManager.default.removeItem(at: file) }
+        remote.toggle(key: "old/input", rawURL: "https://example.com/file") {}
+        for _ in 0..<1000 { if complete != nil { break }; await Task.yield() }
+        XCTAssertNotNil(complete)
+        remote.stop(); complete?.resume(returning: file)
+        for _ in 0..<1000 { if !FileManager.default.fileExists(atPath: file.path) { break }; await Task.yield() }
+        XCTAssertNil(local.key); XCTAssertFalse(local.isPlaying)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+}
 #endif

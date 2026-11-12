@@ -670,19 +670,12 @@ import CryptoKit
         prepareAnswerPlayback(turn); answerPlayback.seek(to: value)
     }
     func play(_ turn: PracticeTurn) {
-        if record?.mode == "personality" {
-            player?.stop(); player = nil
-            let key = answerPlaybackKey(turn)
-            do { answerPlayback.toggle(key: key, url: try answerPlaybackURL(turn)) }
-            catch { answerPlayback.fail(key: key) }
-            return
-        }
-        stopPlayback()
-        do {
-            guard let id = record?.id, let url = try store?.audio(id, turn.audio) else { return }
-            try configurePlayback(); player = try AVAudioPlayer(contentsOf: url); guard player?.play() == true else { throw InterviewError.connection }
-        } catch { notice = "저장된 음성을 재생하지 못했습니다." }
+        player?.stop(); player = nil
+        let key = answerPlaybackKey(turn)
+        do { answerPlayback.toggle(key: key, url: try answerPlaybackURL(turn)) }
+        catch { answerPlayback.fail(key: key) }
     }
+
     func showRecords() {
         media.stop(); stopPlayback()
         do { records = try store?.list() ?? []; screen = .records } catch { notice = "기록을 불러오지 못했습니다." }

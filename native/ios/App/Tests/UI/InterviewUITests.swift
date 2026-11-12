@@ -1105,16 +1105,18 @@ final class SavedPersonalityPlaybackVerificationTests: XCTestCase {
         func waitState(_ button: XCUIElement, _ state: String) {
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", state), object: button)], timeout: 6), .completed)
         }
-        func seconds(_ turn: Int) -> Int {
+        func seconds(_ turn: Int, total: Bool = false) -> Int {
             let label = app.descendants(matching: .any)["practice.playback.time.\(turn)"].firstMatch.label
             let pattern = try! NSRegularExpression(pattern: "([0-9]+):([0-9]{2})")
-            guard let m = pattern.firstMatch(in: label, range: NSRange(label.startIndex..., in: label)),
+            let matches = pattern.matches(in: label, range: NSRange(label.startIndex..., in: label))
+            guard let m = total ? matches.last : matches.first,
                   let minutes = Range(m.range(at: 1), in: label), let seconds = Range(m.range(at: 2), in: label) else { XCTFail("Missing playback time: " + label); return -1 }
             return (Int(label[minutes]) ?? 0) * 60 + (Int(label[seconds]) ?? 0)
         }
+        let mode = ProcessInfo.processInfo.environment["SAVED_PLAYBACK_MODE"] == "job" ? "직무(전공) 연습모드" : "인성 연습모드"
         let web = app.webViews.firstMatch
         tap(web.buttons["모의면접"])
-        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "인성 연습모드")).firstMatch)
+        tap(web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", mode)).firstMatch)
         tap(web.buttons["연습 시작"])
         XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 40))
         tap(app.buttons["practice.records"]); tap(app.buttons["기록 보기"].firstMatch)
@@ -1124,11 +1126,11 @@ final class SavedPersonalityPlaybackVerificationTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.2); XCTAssertGreaterThanOrEqual(seconds(1), 1); capture("playback-02-playing")
         let slider = app.sliders["practice.playback.seek.1"]
         XCTAssertTrue(slider.isHittable); slider.adjust(toNormalizedSliderPosition: 0.5)
-        waitState(play, "재생 중"); XCTAssertGreaterThanOrEqual(seconds(1), 10); XCTAssertLessThan(seconds(1), 22); capture("playback-03-seek-half")
+        waitState(play, "재생 중"); XCTAssertEqual(Double(seconds(1)), Double(seconds(1, total: true)) * 0.5, accuracy: 4); capture("playback-03-seek-half")
         tap(play); waitState(play, "일시정지"); let paused = seconds(1)
         Thread.sleep(forTimeInterval: 1); XCTAssertEqual(seconds(1), paused); capture("playback-04-paused")
         slider.adjust(toNormalizedSliderPosition: 0.2); waitState(play, "일시정지")
-        XCTAssertGreaterThanOrEqual(seconds(1), 3); XCTAssertLessThan(seconds(1), 10); capture("playback-05-seek-while-paused")
+        XCTAssertEqual(Double(seconds(1)), Double(seconds(1, total: true)) * 0.2, accuracy: 3); capture("playback-05-seek-while-paused")
         tap(play); waitState(play, "재생 중"); capture("playback-06-resumed")
         let next = app.buttons["practice.playback.toggle.2"]
         tap(next); waitState(next, "재생 중"); XCTAssertEqual(play.value as? String, "재생 대기"); capture("playback-07-switch-answer")

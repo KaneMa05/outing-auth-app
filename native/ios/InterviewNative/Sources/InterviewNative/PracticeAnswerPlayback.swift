@@ -108,4 +108,61 @@ import Combine
         key = nil; position = 0; duration = 0; isPlaying = false; isSeeking = false; resumeAfterSeek = false; error = nil
     }
 }
+/// Downloads a signed recording for local seeking; never submits audio for analysis.
+@MainActor final class RemoteAnswerPlayback: ObservableObject {
+    let playback: PracticeAnswerPlayback
+    @Published private(set) var loading = false
+    @Published private(set) var error: String?
+    private var task: Task<Void, Never>?
+    private var generation = UUID()
+    private var localURL: URL?
+    private let download: (URL) async throws -> URL
+    init(playback: PracticeAnswerPlayback? = nil, download: ((URL) async throws -> URL)? = nil) {
+        self.playback = playback ?? PracticeAnswerPlayback(configure: {
+            try AVAudioSession.sharedInstance().setCategory(.playback)
+            try AVAudioSession.sharedInstance().setActive(true)
+        })
+        self.download = download ?? { url in
+            let (temporary, response) = try await URLSession.shared.download(from: url)
+            guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+                try? FileManager.default.removeItem(at: temporary)
+                throw InterviewError.connection
+            }
+            let saved = FileManager.default.temporaryDirectory.appendingPathComponent("interview-playback-" + UUID().uuidString + ".audio")
+            try FileManager.default.moveItem(at: temporary, to: saved)
+            return saved
+        }
+    }
+    func toggle(key: String, rawURL: String?, stopOtherPlayback: () -> Void) {
+        if playback.key == key, let localURL {
+            playback.toggle(key: key, url: localURL); return
+        }
+        stopOtherPlayback(); stop()
+        guard let rawURL, let url = URL(string: rawURL), url.scheme == "https", url.host != nil else {
+            error = "녹음 링크를 불러오지 못했습니다. 기록을 다시 확인해주세요."; return
+        }
+        loading = true
+        let token = generation, download = self.download
+        task = Task { [weak self] in
+            do {
+                let file = try await download(url)
+                guard let self, !Task.isCancelled, self.generation == token else {
+                    try? FileManager.default.removeItem(at: file); return
+                }
+                self.localURL = file; self.loading = false
+                self.playback.toggle(key: key, url: file)
+            } catch {
+                guard let self, !Task.isCancelled, self.generation == token else { return }
+                self.loading = false
+                self.error = "녹음을 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해주세요."
+            }
+        }
+    }
+    func stop() {
+        generation = UUID(); task?.cancel(); task = nil
+        playback.stop(); loading = false; error = nil
+        if let localURL { try? FileManager.default.removeItem(at: localURL) }
+        localURL = nil
+    }
+}
 #endif

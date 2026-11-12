@@ -167,7 +167,11 @@ import SwiftUI
             else if details {
                 if run["recording_partial"] as? Bool == true { Text("중단 후 복구한 음성으로 일부 구간이 누락될 수 있습니다.").font(.footnote) }
                 if model.record?["recordings"] != nil {
+                    #if DEBUG
+                    LiveRecordedAnswerPlayer(model: model, tint: teal)
+                    #else
                     action("학생 음성 재생") { model.play("input") }
+                    #endif
                     action("면접관 음성 재생") { model.play("output") }
                     action("재생 중지") { model.stopPlayback() }
                 }
@@ -310,3 +314,25 @@ private struct InterviewLiveCamera: View {
         }.aspectRatio(3/4, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 24)).accessibilityLabel("내 카메라 미리보기")
     }
 }
+
+#if DEBUG
+private struct LiveRecordedAnswerPlayer: View {
+    let model: InterviewModel
+    let tint: Color
+    @ObservedObject private var remote: RemoteAnswerPlayback
+    init(model: InterviewModel, tint: Color) {
+        self.model = model; self.tint = tint; self.remote = model.answerPlayback
+    }
+    var body: some View {
+        let run = model.record?["run"] as? InterviewJSON ?? [:]
+        let key = (run["id"] as? String ?? "record") + "/input"
+        RecordedAnswerPlayer(playback: remote.playback, key: key, tint: tint,
+                             identifier: "interview.playback", suffix: "input",
+                             loading: remote.loading, loadError: remote.error,
+                             toggle: {
+            let files = model.record?["recordings"] as? [String: String] ?? [:]
+            remote.toggle(key: key, rawURL: files["input"]) { model.stopPlayback() }
+        }, prepare: {})
+    }
+}
+#endif
