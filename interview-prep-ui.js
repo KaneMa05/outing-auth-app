@@ -200,7 +200,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     });
   }
   function stopQuestionAudio(){host.querySelectorAll('audio[data-question-audio]').forEach(audio=>audio.pause());}
-  const validSections=['home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live','ai_history','aptitude'];
+  const validSections=['app_feedback','home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','live','ai_history','aptitude'];
   function setSection(section){
     category=['job','rubrics'].includes(section)?'job':'personality';
     tab=section==='home'?'dashboard':section==='job'?'questions':section;
@@ -235,6 +235,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('앱 오류·개선 의견','tab',`data-tab="app_feedback" ${tab==='app_feedback'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('AI 생성 기록','tab',`data-tab="ai_history" ${tab==='ai_history'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('적성 모의고사 관리','tab',`data-tab="aptitude" ${tab==='aptitude'?'aria-current="page"':''}`));
     if(tab==='aptitude'){
@@ -260,6 +261,12 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       host.querySelector('.ip-hero>p').textContent='핵심 25제, 기본이력, 인생그래프, 자기소개, 지원동기, 공직관의 작성 내용과 상태를 확인합니다.';
       host.querySelector('.ip-hero .ip-summary').remove();
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
+    }
+    if(tab==='app_feedback'){
+      host.querySelector('.ip-hero h2').textContent='앱 오류·개선 의견';
+      host.querySelector('.ip-hero>p').textContent='테스트앱에서 접수한 오류와 개선 의견을 확인하고 처리 상태를 관리합니다.';
+      host.querySelector('.ip-hero .ip-summary')?.remove();
+      host.querySelector('[data-ip=enabled]')?.closest('.ip-row')?.remove();
     }
     if(tab==='ai_history'){
       host.querySelector('.ip-hero h2').textContent='AI 생성 기록';
@@ -303,6 +310,13 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     const box=host.querySelector('[data-content]');
     if(tab==='aptitude'){
       const next=await mountAptitude(box,{admin:true,canWrite});
+      if(destroyed||version!==loadVersion)next.destroy();else life=next;
+      return;
+    }
+    if(tab==='app_feedback'){
+      const {mountAppFeedback}=await import('./interview-app-feedback-admin.js?v=20261112-feedback');
+      if(destroyed||version!==loadVersion)return;
+      const next=mountAppFeedback(box,{request,canWrite});await next.ready;
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
       return;
     }
