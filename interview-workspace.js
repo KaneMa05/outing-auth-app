@@ -2,7 +2,7 @@ import {mountInterviewAI} from './interview-ai-ui.js?v=20261111-ai-retry';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountWriting} from './interview-writing-ui.js?v=20261024-colors';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261109-aptitude-guide';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261113-aptitude-results';
 import {mountMyResources,interviewMyProfile} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const areas=[['basic','기본 이력'],['experiences','인생그래프']];

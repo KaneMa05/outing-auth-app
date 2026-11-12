@@ -4,10 +4,11 @@ const {createDb}=require('./helpers/interview-db.cjs');
 const {createHandler,validate}=require('../api/interview-aptitude');
 const migration='supabase/migrations/20261109053559_interview_aptitude_exams.sql';
 const admin={type:'admin',id:'qa'},student=id=>({type:'student',id});
-async function fixture(t){
+async function fixture(t,{resultsOnSubmission=true}={}){
  const {db}=await createDb();t.after(()=>db.close());
  await db.exec("create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]); update ip_settings set enabled=true; insert into ip_members(student_id,track,exam_number,enabled,expires_on) values('ip-a','공채','a',true,null),('ip-b','기관','b',true,'2099-12-01'),('ip-c','방제','c',true,null); insert into ip_owners(id,name) values('web-only','웹 면접반'); insert into ip_members(student_id,track,exam_number,enabled) values('web-only','관제','web',true);");
  await db.exec(fs.readFileSync(migration,'utf8'));
+ if(resultsOnSubmission)await db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8'));
  const invoke=async(action,actor,body={})=>(await db.query('select ip_aptitude_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  const body=(kind='half')=>({id:randomUUID(),revision:0,kind,roundNo:1,title:(kind==='half'?'하프':'본시험')+' 1회',state:'open',resultsReleased:false,opensAt:null,closesAt:null,answerKey:Array(kind==='half'?75:150).fill(1),reason:''});
  const submit=(id,owner,answers,requestKey=randomUUID())=>invoke('submit',student(owner),{id,revision:0,answers,requestKey});
@@ -81,6 +82,54 @@ test('private PDF upload, verification, results/submission gates and deletion us
  await f.db.exec("update ip_aptitude_file_gc set available_at=now()-interval '1 second'");
  await http(handler,{action:'admin_upload_abort',id:exam.id,fileId});assert.deepEqual(removed,[objectPath]);
 });
+test('upgrading existing open and closed rounds preserves answer keys, submissions and already published results',async t=>{
+ const f=await fixture(t,{resultsOnSubmission:false}),open=f.body(),closed=f.body('full');
+ await f.invoke('admin_save',admin,open);await f.submit(open.id,'ip-a',open.answerKey);
+ await f.invoke('admin_save',admin,closed);await f.submit(closed.id,'ip-b',closed.answerKey);
+ await f.invoke('admin_save',admin,{...closed,revision:1,state:'closed',resultsReleased:true});
+ const beforeRounds=(await f.db.query('select * from ip_aptitude_rounds order by id')).rows,beforeAttempts=(await f.db.query('select * from ip_aptitude_attempts order by round_id,student_id')).rows;
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8'));
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_rounds order by id')).rows,beforeRounds);
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_attempts order by round_id,student_id')).rows,beforeAttempts);
+ assert.equal((await f.invoke('get',student('ip-b'),{id:closed.id})).result.correctCount,150);
+ assert.equal((await f.invoke('get',student('ip-a'),{id:open.id})).result,undefined,'Waiting results stay hidden through the migration');
+ await f.invoke('admin_save',admin,{...open,revision:1,resultsReleased:true});
+ const released=await f.invoke('get',student('ip-a'),{id:open.id});assert.equal(released.result.correctCount,75);assert.equal(released.round.accepting,true);
+});
+
+test('published results and private PDFs become available after each final submission while half and full rounds remain open',async t=>{
+ for(const kind of ['half','full'])await t.test(kind,async t=>{
+  const f=await fixture(t),exam={...f.body(kind),resultsReleased:true};let owner='ip-a';
+  const handler=createHandler({invoke:f.invoke,storage:()=>({signed:async objectPath=>'https://storage.invalid/'+objectPath}),authenticateWeb:async()=>({id:owner}),authenticateDevice:async()=>null,authenticateAdmin:async()=>({id:'qa'})});
+  assert.throws(()=>validate({action:'admin_save',...exam,state:'draft'}),/invalid_request/);
+  assert.equal((await http(handler,{action:'admin_save',...exam})).status,200,'API accepts open + public');
+  const prepared=await f.invoke('admin_upload_prepare',admin,{id:exam.id,revision:1,name:'제출 후 해설.pdf',bytes:100}),fileId=prepared.file.id;
+  await f.invoke('admin_upload_commit',admin,{id:exam.id,fileId,bytes:100,sha256:'a'.repeat(64)});
+  const hidden=async()=>{
+   const response=await http(handler,{action:'get',accountId:owner,id:exam.id});assert.equal(response.status,200);
+   for(const key of ['answerKey','correctAnswers','result','files'])assert.equal(response.data[key],undefined,key+' stays private before final submission');
+   assert.equal((await http(handler,{action:'file',accountId:owner,id:exam.id,fileId})).status,403);
+  };
+  await hidden();
+  const ownAnswers=Array(exam.answerKey.length).fill(1);ownAnswers[0]=2;
+  await f.invoke('save',student(owner),{id:exam.id,revision:0,answers:ownAnswers});await hidden();
+  const submitted=await http(handler,{action:'submit',id:exam.id,revision:1,answers:ownAnswers,requestKey:randomUUID()});
+  assert.equal(submitted.status,200);assert.equal(submitted.data.round.state,'open');assert.equal(submitted.data.round.accepting,true);
+  assert.equal(submitted.data.result.correctCount,ownAnswers.length-1);assert.deepEqual(submitted.data.correctAnswers,exam.answerKey);assert.equal(submitted.data.files[0].id,fileId);
+  assert.equal((await http(handler,{action:'file',id:exam.id,fileId})).status,200);
+  await assert.rejects(f.submit(exam.id,owner,exam.answerKey),/already_submitted/);
+  owner='ip-b';await hidden();
+  const second=await f.submit(exam.id,owner,exam.answerKey);assert.equal(second.round.accepting,true);assert.equal(second.result.correctCount,exam.answerKey.length);
+  assert.equal((await f.invoke('get',student('ip-a'),{id:exam.id})).result.rank,2,'Rank updates as other students submit');
+  const edit={...exam,revision:2,title:'응시 중 공개 회차 수정'};
+  assert.equal((await http(handler,{action:'admin_save',...edit})).status,200,'Published open rounds remain editable');
+  await f.invoke('admin_save',admin,{...edit,revision:3,resultsReleased:false});owner='ip-a';await hidden();
+  await f.invoke('admin_save',admin,{...edit,revision:4});assert.equal((await f.invoke('get',student(owner),{id:exam.id})).result.rank,2);
+  await f.invoke('admin_save',admin,{...edit,revision:5,state:'closed'});
+  await assert.rejects(f.invoke('admin_save',admin,{...edit,revision:6}),/results_already_released/);
+ });
+});
+
 test('API rejects forged actors, unsupported fields and non-PDF payloads before they can reach data',async()=>{
  assert.throws(()=>validate({action:'get',id:randomUUID(),actor:admin}),/invalid_request/);
  let invoked=0;const handler=createHandler({authenticateWeb:async()=>null,authenticateDevice:async()=>null,authenticateAdmin:async()=>{throw Error('unauthorized');},invoke:async()=>{invoked++;}});
