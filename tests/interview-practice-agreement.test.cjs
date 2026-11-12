@@ -43,3 +43,8 @@ test('ordinary practice, bad audio and personality differences retain the existi
  const held=await analyzeTask({kind:'practice',testApp:true,question:{...question,category:'personality'},audio:wav()},{models,practiceReference:true,transcribe:async(_,{pass})=>pass?'의견을 듣지 않았습니다.':'의견을 들었습니다.',infer:()=>{throw Error('must not infer');}});
  assert.equal(held.status,'review_required');
 });
+
+test('fully confirmed practice never tells the student to review held criteria',async()=>{
+ const {result}=await analyze(['브이패스로 상황을 확인했습니다.','V-PASS로 상황을 확인했습니다.']);
+ assert(result.assessment.every(r=>r.status==='O'));assert(!result.analysis.summary.includes('보류'));assert(result.analysis.summary.includes('3개 항목 모두'));
+});
