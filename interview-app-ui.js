@@ -16,12 +16,12 @@ function homeNotices(){
 export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,account={},onExit,onLogout}){
  const mockTestApp=window.__ronparkMockTestApp===true;
  const aptitudeOnly=account.accessProduct==='aptitude_only';
- let destroyed=false,busy=false,child=null,generation=0,route=readRoute();
+ let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
  let mockAllowed=false;
  try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
  if(route.tab==='mock'&&!mockAllowed&&!aptitudeOnly)route={...route,tab:'home',mockMode:''};
  host.className='ip-root ip-portal ip-app-shell'+(mockTestApp?' ip-test-app-shell':'');
- const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave());
+ const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave())&&(!feedbackDialog?.canLeave||feedbackDialog.canLeave());
  function readRoute(){
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
@@ -133,7 +133,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      }
     }else if(route.tab==='my'){
      const m=data.member||{};
-     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><div data-my-resources></div><section class="ip-panel">${account.canLinkApple?'<button class="ip-app-link" type="button" data-apple="link">Apple 계정 연결<span aria-hidden="true">›</span></button>':''}${account.canLinkKakao?'<button class="ip-app-link" type="button" data-kakao="link">카카오 계정 연결<span aria-hidden="true">›</span></button>':''}${onExit?'<button class="ip-app-link" type="button" data-app-exit>수강생 화면으로 이동<span aria-hidden="true">›</span></button>':''}${mockTestApp&&window.webkit?.messageHandlers?.interviewFeedback?'<button class="ip-app-link" type="button" data-app-feedback>의견 보내기<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
+     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><div data-my-resources></div><section class="ip-panel">${account.canLinkApple?'<button class="ip-app-link" type="button" data-apple="link">Apple 계정 연결<span aria-hidden="true">›</span></button>':''}${account.canLinkKakao?'<button class="ip-app-link" type="button" data-kakao="link">카카오 계정 연결<span aria-hidden="true">›</span></button>':''}${onExit?'<button class="ip-app-link" type="button" data-app-exit>수강생 화면으로 이동<span aria-hidden="true">›</span></button>':''}<button class="ip-app-link" type="button" data-app-feedback>의견 보내기<span aria-hidden="true">›</span></button>${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
      child=mountMyResources(box.querySelector('[data-my-resources]'),{request});
     }else{
      const notes=data.notes||[],writings=writing.writings||[],topics=data.topics||[];
@@ -147,7 +147,14 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  }
  async function click(e){
   const n=e.target.closest('[data-app-notice],[data-app-tab],[data-app-mock],[data-app-exit],[data-app-logout],[data-app-reload],[data-app-feedback]');if(!n||n.disabled||destroyed)return;
-  if(n.hasAttribute('data-app-feedback')){if(canLeave()&&mockTestApp)window.webkit?.messageHandlers?.interviewFeedback?.postMessage({action:'open'});}
+  if(n.hasAttribute('data-app-feedback')){
+   if(!canLeave())return;
+   if(mockTestApp&&window.webkit?.messageHandlers?.interviewFeedback){window.webkit.messageHandlers.interviewFeedback.postMessage({action:'open'});return;}
+   busy=true;
+   try{const {openStudentFeedback}=await import('./client/interview-student-feedback.mjs?v=20261113-production');if(!destroyed){feedbackDialog?.destroy();feedbackDialog=openStudentFeedback({screen:'portal.my'});}}
+   catch{if(!destroyed){const message=document.createElement('p');message.setAttribute('role','alert');message.textContent='의견 화면을 열지 못했습니다. 잠시 후 다시 시도해주세요.';n.after(message);}}
+   finally{busy=false;}
+  }
   else if(n.dataset.appNotice==='preassignments')await go({tab:'home',notice:'preassignments'});
   else if(n.hasAttribute('data-app-mock')){const mode=n.dataset.appMock;if(mode&&!Object.hasOwn(mockModes,mode))return;await go({tab:'mock',notice:'',mockMode:mode});}
   else if(n.dataset.appTab){const next={tab:n.dataset.appTab,notice:'',mockMode:'',...(n.dataset.page?{page:n.dataset.page}:{}),...(n.dataset.area?{area:n.dataset.area}:{})};await go(next);}
@@ -160,5 +167,5 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const rememberClick=()=>saveResume();
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();
- return {canLeave,destroy(){destroyed=true;++generation;saveResume();child?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
+ return {canLeave,destroy(){destroyed=true;++generation;saveResume();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
 }

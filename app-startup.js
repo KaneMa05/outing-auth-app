@@ -6,7 +6,7 @@
   const enabled = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone || document.referrer.startsWith('android-app://') || (portal && new URLSearchParams(location.search).get('app') === '1') || returning);
   if (!enabled) return;
   const root = document.documentElement;
-  if (portal && window.__ronparkMockTestApp === true) root.classList.add('interview-test-startup');
+  if (portal) root.classList.add('interview-stable-startup');
   // iOS chooses the installed app's edge colors during launch. Restore the
   // lecture appearance before painting, rather than after the roster loads.
   if (document.currentScript?.dataset.startupPage === 'student' && navigator.standalone === true &&
