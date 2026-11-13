@@ -20,7 +20,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  let mockAllowed=false;
  try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
  if(route.tab==='mock'&&!mockAllowed&&!aptitudeOnly)route={...route,tab:'home',mockMode:''};
- host.className='ip-root ip-portal ip-app-shell';
+ host.className='ip-root ip-portal ip-app-shell'+(mockTestApp?' ip-test-app-shell':'');
  const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave());
  function readRoute(){
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
