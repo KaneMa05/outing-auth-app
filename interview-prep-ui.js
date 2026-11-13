@@ -224,6 +224,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const approvalBadge=q=>`<span class="ip-badge ${q.status==='published'?'approved':''}" data-question-approval="${esc(q.status)}">${publicationLabels[q.status]}</span>`;
   const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
+  const applicationProduct=application=>application.current_access_product||application.access_product||'interview_package';
   const rosterDownload=()=>`<div class="ip-toolbar">${btn('수강 명단 엑셀 다운로드','roster-export')}</div><p class="ip-help">이름·직렬·수험번호·과정이 포함됩니다. 검색 조건과 관계없이 등록된 전체 수강생을 다운로드합니다(이용 중지·기간 만료 포함).</p>`;
   function shell(){
     stopQuestionAudio();
@@ -382,7 +383,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       const labels={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
       box.innerHTML=`${rosterDownload()}<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
       <form data-filter class="ip-toolbar"><label>이름·수험번호 검색<input name="search" maxlength="200" value="${esc(filter.search||'')}"></label><label>상태<select name="status">${options([['pending','승인 대기'],['approved','승인 완료'],['rejected','반려'],['','전체']],filter.status??'pending')}</select></label><button class="ip-btn ip-primary">검색</button></form>
-      <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p><strong>${esc(interviewProductLabel(a.access_product))}</strong><br>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`)+btn('반려','application-reject',`data-id="${esc(a.id)}" ${canWrite?'':'disabled'}`):''}</article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
+      <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p><strong>${esc(interviewProductLabel(applicationProduct(a)))}</strong><br>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}<div class="ip-toolbar">${btn('수강 과정 변경','application-product',`data-id="${esc(a.id)}" data-write ${canWrite?'':'disabled'}`)}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`)+btn('반려','application-reject',`data-id="${esc(a.id)}" ${canWrite?'':'disabled'}`):''}</div></article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
       <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
       return;
     }
@@ -518,7 +519,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     busy=true;target.disabled=true;
     try{
       const a=target.dataset.ip;
-      if(['category','tab','section','prev','next','question-new','question-edit','taxonomy-edit','analysis-edit','application-reject','application-edit','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled'].includes(a)&&!canLeave())return;
+      if(['category','tab','section','prev','next','question-new','question-edit','taxonomy-edit','analysis-edit','application-reject','application-edit','application-product','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled'].includes(a)&&!canLeave())return;
       if(['category','tab','section','close'].includes(a))dirty=false;
       if(a==='section'){if(onSection)onSection(target.dataset.section);else await openSection(target.dataset.section);}
       else if(a==='category'){category=target.dataset.category;tab='questions';page=0;filter={};shell();await load();}
@@ -563,12 +564,18 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       }
       else if(a==='topic-new'||a==='topic-edit')editTopic(target.dataset.id);
       else if(a==='member-edit')editMember(target.dataset.id);
+      else if(a==='application-product'){
+        if(!canWrite)return;
+        selected=list.find(x=>x.id===target.dataset.id);
+        editor(`<h3>수강 과정 변경</h3><p>${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p>
+        <form data-application-product><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><p class="ip-help">${selected.status==='approved'?'저장하면 선택한 과정의 이용 권한이 바로 적용됩니다. 기존 작성 내용과 응시 기록은 유지됩니다.':'신청 과정만 변경합니다. 수강 승인은 별도로 진행해주세요.'}</p><button class="ip-btn ip-primary" data-write>변경 저장</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+      }
       else if(a==='application-edit'||a==='application-reject'){
         if(!canWrite)return;
         const reject=a==='application-reject';
         selected=list.find(x=>x.id===target.dataset.id);
-        editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 신청한 상품의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+        editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 아래에서 선택한 과정의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
+        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);
@@ -599,10 +606,11 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       else if(form.matches('[data-member-form]'))await request('admin_member_save',{targetStudentId:selected.id,accessProduct:f.get('accessProduct'),track:f.get('track'),examNumber:f.get('examNumber'),expiresOn:f.get('expiresOn'),enabled:f.has('enabled'),mockTestEnabled:f.has('mockTestEnabled')});
       else if(form.matches('[data-feedback-form]'))await request('admin_feedback',{targetStudentId:selected.student.id,topicId:selected.t.id,revision:selected.n.revision,status:f.get('status'),feedback:f.get('feedback')});
       else if(form.matches('[data-analysis-form]'))await request('admin_analysis_save',{id:selected.question.id,questionRevision:selected.question.revision,revision:selected.analysis?.revision||0,elementIds:f.getAll('elementIds'),disposition:f.get('disposition'),answerForm:f.get('answerForm'),rationale:f.get('rationale'),status:f.get('status')});
+      else if(form.matches('[data-application-product]'))await request('admin_application_product_save',{id:selected.id,revision:selected.revision,accessProduct:f.get('accessProduct'),expectedProduct:applicationProduct(selected)});
       else if(form.matches('[data-application-review]')){
         const note=String(f.get('reviewNote')||'').trim();
         if(f.get('status')==='rejected'&&!note){notify(host,'반려 사유를 입력해주세요.',true);form.querySelector('[name=reviewNote]').focus();return;}
-        await request('admin_application_decide',{id:selected.id,revision:selected.revision,status:f.get('status'),reviewNote:note,expiresOn:f.get('expiresOn')});
+        await request('admin_application_decide',{id:selected.id,revision:selected.revision,accessProduct:f.get('accessProduct'),status:f.get('status'),reviewNote:note,expiresOn:f.get('expiresOn')});
       }
       dirty=false;await refresh();notify(host,'저장했습니다.');
     }catch(e){notify(host,message(e),true);}finally{busy=false;submit.disabled=false;}

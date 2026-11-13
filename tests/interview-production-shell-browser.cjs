@@ -5,7 +5,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const root=path.resolve(__dirname,'..');const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://local').pathname;
   if(p==='/qa'){res.setHeader('Content-Type','text/html');return res.end('<meta charset="utf-8"><link rel="stylesheet" href="/interview-app.css"><link rel="stylesheet" href="/interview-prep.css"><div id="host"></div>');}
-  const f=path.resolve(root,'.'+p);if(!f.startsWith(root+'/')||!fs.existsSync(f)||!fs.statSync(f).isFile()){res.statusCode=404;return res.end();}
+  const f=path.resolve(root,'.'+p);if(!f.startsWith(root+path.sep)||!fs.existsSync(f)||!fs.statSync(f).isFile()){res.statusCode=404;return res.end();}
   res.setHeader('Content-Type',p.endsWith('.css')?'text/css':/\.m?js$/.test(p)?'text/javascript':'application/octet-stream');res.end(fs.readFileSync(f));
  });await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
