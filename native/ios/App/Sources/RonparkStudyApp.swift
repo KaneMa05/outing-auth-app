@@ -264,6 +264,14 @@ private struct StudentWebApp: UIViewRepresentable {
         let view = WKWebView(frame: .zero, configuration: config)
         #if DEBUG
         if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
+            let startupBackground = UIColor(red: 242.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1)
+            view.backgroundColor = startupBackground
+            view.scrollView.backgroundColor = startupBackground
+            view.underPageBackgroundColor = startupBackground
+        }
+        #endif
+        #if DEBUG
+        if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
             TestAppFeedbackTransport.send = { [weak view] payload in
                 guard let view, view.url?.scheme == "https", view.url?.host == Self.host else { throw TestAppFeedbackError(code: "unavailable") }
                 let result = try await view.callAsyncJavaScript("""
@@ -291,7 +299,7 @@ private struct StudentWebApp: UIViewRepresentable {
         #if DEBUG
         // Refresh old module/service-worker copies once for this test-app update.
         // Keep cookies, local storage and all student recordings intact.
-        let refreshKey = "interviewFeedbackMenuCache.20261113"
+        let refreshKey = "interviewStartupDockCache.20261113"
         if !testFlag.isEmpty && !UserDefaults.standard.bool(forKey: refreshKey) {
             let cacheTypes: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache,
                 WKWebsiteDataTypeFetchCache, WKWebsiteDataTypeServiceWorkerRegistrations]
