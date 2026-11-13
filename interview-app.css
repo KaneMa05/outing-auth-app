@@ -87,3 +87,6 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 .ip-assignment-article .ip-app-link{color:#235b63;font-weight:700}
 .ip-assignment-check{margin-top:28px;padding:20px;border-radius:12px;background:#edf4f8}
 .ip-assignment-check p:last-child{margin-bottom:0}
+
+/* Test app: dock the menu so content cannot show beneath a floating gap. */
+.ip-test-app-shell .ip-app-footer{bottom:0;left:0;transform:none;width:100%;max-width:none;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-width:1px 0 0;border-radius:16px 16px 0 0;background:#fff;box-shadow:0 -4px 18px rgba(10,41,78,.06)}
