@@ -12,9 +12,9 @@ async function fixture(t){
  const {db,invoke}=await createDb();t.after(()=>db.close());
  await db.exec("create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]); update ip_settings set enabled=true;");
  await invoke('admin_member_save',admin,{targetStudentId:'ip-a',track:'공채',examNumber:'existing',enabled:true,expiresOn:''});
- for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
- await db.exec(fs.readFileSync(migration,'utf8'));
- await db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8'));
+ for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
+ await db.exec(fs.readFileSync(migration,'utf8').replace(/\r\n/g,'\n'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8').replace(/\r\n/g,'\n'));
  const call=async(fn,action,actor,body={})=>(await db.query('select '+fn+'($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  return {db,invoke,portal:(action,body)=>call('ip_portal_service',action,{type:'server'},body),mock:(action,actor,body)=>call('ip_mock_access_service',action,actor,body),aptitude:(action,actor,body)=>call('ip_aptitude_service',action,actor,body)};
 }

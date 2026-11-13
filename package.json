@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test:interview-application-products": "node --test tests/interview-application-products.test.cjs && node tests/interview-application-products-browser.cjs",
     "test:interview-aptitude": "node --test tests/interview-aptitude.test.cjs tests/interview-aptitude-client.test.cjs tests/interview-aptitude-timer.test.cjs && node tests/interview-aptitude-results-browser.cjs",
     "test:interview-app-feedback": "node --test tests/interview-app-feedback.test.cjs && node tests/interview-app-feedback-browser.cjs",
     "test:interview-roster-export": "node --test tests/interview-roster-export.test.cjs && node tests/interview-roster-export-browser.cjs",

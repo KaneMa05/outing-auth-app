@@ -9,7 +9,7 @@ const actions = new Set(['admin_app_feedback_list','admin_app_feedback_update','
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
-  'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide',
+  'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide','admin_application_product_save',
   'admin_writing_board','writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
   'admin_rubric_list','admin_rubric_detail','admin_rubric_save']);
 const reads = new Set(['admin_app_feedback_list','admin_mock_monitor','admin_cli_status','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
@@ -17,7 +17,9 @@ const reads = new Set(['admin_app_feedback_list','admin_mock_monitor','admin_cli
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
-  if(body.accessProduct!==undefined&&(body.action!=='admin_member_save'||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
+  if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
+  if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
+  if(body.action==='admin_application_product_save'&&(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.id)||!Number.isInteger(body.revision)))fail('invalid_request');
   if(body.text!==undefined&&(typeof body.text!=='string'||body.text.length>10000))fail('invalid_request');
   if(body.itemId!==undefined&&(typeof body.itemId!=='string'||body.itemId.length>120))fail('invalid_request');
   for(const key of ['studentId','deviceToken','id','topicId','targetStudentId','search','prompt','title','guidance','feedback','examNumber','track','expiresOn','status','noteStatus','kind','category','elementId','disposition','analysisStatus','answerForm','rationale','coreKind','reviewNote']) {
@@ -35,6 +37,7 @@ function validate(body) {
     writing_save:['kind','itemId','text','status','revision'],admin_writing_list:['targetStudentId'],
     admin_writing_feedback:['targetStudentId','kind','itemId','revision','status','feedback'],
     admin_application_decide:['id','revision','status','reviewNote'],
+    admin_application_product_save:['id','revision','accessProduct','expectedProduct'],
     life_save:['revision','content','status'],admin_life_get:['targetStudentId'],
     diagnosis_save:['topicId','revision','prompts','answers'],
     admin_life_feedback:['targetStudentId','revision','status','feedback'],
