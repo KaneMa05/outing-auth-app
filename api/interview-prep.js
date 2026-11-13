@@ -5,7 +5,7 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
-const actions = new Set(['admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_reference','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
@@ -117,6 +117,13 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         if(!previewAllowed(student.id))fail('forbidden',403);
         actor={type:'student',id:student.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
         }
+      }
+      if(body.action==='practice_reference') {
+        if(actor.testApp!==true)fail('forbidden',403);
+        if(Object.keys(body).some(k=>!['action','mode','questionId','questionPrompt'].includes(k)))fail('invalid_request');
+        const access=await invoke('mock_status',actor,{});if(access.allowed!==true)fail('forbidden',403);
+        const info=await invoke('bootstrap',actor,{});
+        return res.status(200).json(await require('../lib/interview-practice-example.cjs').practiceExample(read,{actor,track:info.member.track,mode:body.mode,questionId:body.questionId,questionPrompt:body.questionPrompt}));
       }
       if(body.action==='practice_bootstrap') {
         const access=await invoke('mock_status',actor,{});
