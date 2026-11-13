@@ -6,7 +6,7 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261113-production-shell"));
+  assert.ok(index.includes("interview-prep.js?v=20261113-application-products"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
