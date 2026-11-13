@@ -16,10 +16,10 @@ html.app-starting.app-startup-leaving #app-startup{opacity:0;pointer-events:none
 @keyframes app-startup-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){html.app-starting #app-startup{transition:none}#app-startup .app-startup-spinner{animation:none}}
 
-/* Keep test-app authentication checks from flipping the launch palette. */
-html.interview-test-startup.app-starting,
-html.interview-test-startup.app-starting body,
-html.interview-test-startup.app-starting body #app-startup{background:#f2f5f7!important;color:#223347}
-html.interview-test-startup body #app-startup .app-startup-mark{background:#173b51;color:#fff;font-size:32px;font-style:normal;box-shadow:none}
-html.interview-test-startup body #app-startup p{color:#63788e}
-html.interview-test-startup body #app-startup .app-startup-spinner{border-color:#dbe5f0;border-top-color:#173b51}
+/* Keep interview authentication checks from flipping the launch palette. */
+html.interview-stable-startup.app-starting,
+html.interview-stable-startup.app-starting body,
+html.interview-stable-startup.app-starting body #app-startup{background:#f2f5f7!important;color:#223347}
+html.interview-stable-startup body #app-startup .app-startup-mark{background:#173b51;color:#fff;font-size:32px;font-style:normal;box-shadow:none}
+html.interview-stable-startup body #app-startup p{color:#63788e}
+html.interview-stable-startup body #app-startup .app-startup-spinner{border-color:#dbe5f0;border-top-color:#173b51}

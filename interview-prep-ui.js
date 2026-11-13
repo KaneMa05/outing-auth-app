@@ -265,7 +265,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     }
     if(tab==='app_feedback'){
       host.querySelector('.ip-hero h2').textContent='앱 오류·개선 의견';
-      host.querySelector('.ip-hero>p').textContent='테스트앱에서 접수한 오류와 개선 의견을 확인하고 처리 상태를 관리합니다.';
+      host.querySelector('.ip-hero>p').textContent='일반앱과 테스트앱에서 접수한 오류·개선 의견을 확인하고 처리 상태를 관리합니다.';
       host.querySelector('.ip-hero .ip-summary')?.remove();
       host.querySelector('[data-ip=enabled]')?.closest('.ip-row')?.remove();
     }
@@ -315,7 +315,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='app_feedback'){
-      const {mountAppFeedback}=await import('./interview-app-feedback-admin.js?v=20261112-feedback');
+      const {mountAppFeedback}=await import('./interview-app-feedback-admin.js?v=20261113-production');
       if(destroyed||version!==loadVersion)return;
       const next=mountAppFeedback(box,{request,canWrite});await next.ready;
       if(destroyed||version!==loadVersion)next.destroy();else life=next;

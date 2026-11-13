@@ -46,7 +46,7 @@ function render(){
   const useApp=appMode||state.member?.access_product==='aptitude_only';
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(useApp?'./interview-app-ui.js?v=20261113-docked-footer':'./interview-workspace.js?v=20261113-aptitude-results').then(async module=>{
+  return import(useApp?'./interview-app-ui.js?v=20261113-production-shell':'./interview-workspace.js?v=20261113-aptitude-results').then(async module=>{
    if(current!==version)return;
    const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
