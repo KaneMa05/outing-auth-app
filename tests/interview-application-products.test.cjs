@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {randomUUID}=require('node:crypto');
 const {createDb}=require('./helpers/interview-db.cjs');
 const admin={type:'admin',id:'application-product-qa'},action='admin_application_product_save';
-const migration='supabase/migrations/20261113065149_interview_application_product_changes.sql';
+const migration='supabase/migrations/20261113073836_interview_application_product_changes.sql';
 
 async function fixture(t){
  const {db,invoke}=await createDb();t.after(()=>db.close());

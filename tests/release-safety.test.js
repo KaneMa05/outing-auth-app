@@ -10,7 +10,7 @@ test("both mobile interview entry points bypass the cached pre-announcement load
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261113-aptitude-results"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261113-docked-footer"));
   }
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
   for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261113-aptitude-results'],['interview-workspace.js','interview-ai-ui.js','20261111-ai-retry'],['interview-ai-ui.js','client/interview-ai-client.js','20261111-ai-retry']])
