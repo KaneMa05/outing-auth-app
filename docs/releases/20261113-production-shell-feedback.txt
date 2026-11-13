@@ -36,4 +36,17 @@ service_role 경로의 인증된 student actor만 등록, admin actor만 조회/
 배포 전 변경 JS 문법 검사 및 diff 공백 검사 통과.
 
 배포 상태
-일반앱 서버 후보 준비 중. 이후 실제 배포 ID와 운영 전환 검증 결과를 추가한다.
+일반앱 production 전환 완료.
+
+최종 반영
+소스: fb58fb0, bf80ff4 / codex/fix-ios-mock-connection 푸시.
+최종 배포: dpl_9yCgKLgGK8SeYmLL5TLwrSQo2bW7 / READY / production.
+URL: https://outing-auth-kfw98y1qm-ronpark.vercel.app
+양쪽 운영 주소 outing-auth-app.vercel.app / app.ronparkpass.com이 위 동일 배포를 가리킴을 확인.
+첫 후보는 관리자 HTML 캐시 갱신 참조 누락으로 전환하지 않았고 최종 후보에 보완했다.
+전환 후 두 주소의 실제 파일 24건과 익명 의견 접수 차단 2건, 총 26건 확인.
+index.html은 정규 URL / 로 검증. /index.html의 308 리디렉션은 정상 경로 정규화이다.
+기존 운영으로부터 직무·인성·실전 모의면접 코드 diff 없음.
+테스트 질문, 테스트 무제한 정책, 음성·평가·실전 프롬프트는 일반앱에 확장하지 않았다.
+일반앱은 새 화면을 로드하면 서버 UI가 반영되며 App Store 업로드/심사/출시를 실행하지 않았다.
+추가 분석 API 비용 0원. Vercel 빌드·호스팅 청구를 0원으로 단정하지 않음.
