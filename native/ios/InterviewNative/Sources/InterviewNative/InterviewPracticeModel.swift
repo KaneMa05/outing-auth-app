@@ -41,6 +41,7 @@ import CryptoKit
     private var reviewStartedAt: Date?
     private var activePracticeRecordID: String?
     var canAutomaticallySubmitCurrentAnswers: Bool {
+        if usesOnDemandFeedback { return false }
         guard let activePracticeRecordID else { return false }
         return record?.id == activePracticeRecordID
     }
@@ -71,9 +72,14 @@ import CryptoKit
     @Published var bridgeReady = false
     var usesLocalAI: Bool { !usesPC && bridge.isLocal }
     var usesPC: Bool { cliRequest != nil }
-    var analyzesAnswers: Bool { bridgeReady && (usesPC || consent) }
+    var usesOnDemandFeedback: Bool {
+        let selected = screen == .result ? record?.mode ?? mode : mode
+        return usesPC && isPortalPractice && ["job", "personality"].contains(selected)
+    }
+    var analyzesAnswers: Bool { bridgeReady && (usesPC || consent) && !usesOnDemandFeedback }
     var cliRequest: PracticeCLI.Request?
     private var cliTasks: [String: Task<Void, Never>] = [:]
+    private var exampleTasks: [String: Task<Void, Never>] = [:]
     @Published var needsConsent = false
     let answerPlayback = PracticeAnswerPlayback()
     let media = InterviewMedia()
@@ -189,7 +195,7 @@ import CryptoKit
         }
         if let cliRequest, let account = portalAccount {
             bridgeReady = (try? await PracticeCLI(request: cliRequest).ready(account: account)) == true
-            notice = bridgeReady ? "" : "음성 분석 연결을 확인하지 못했습니다. 연결을 다시 확인해주세요."
+            notice = usesOnDemandFeedback ? "" : bridgeReady ? "" : "음성 분석 연결을 확인하지 못했습니다. 연결을 다시 확인해주세요."
             return
         }
         bridgeReady = await bridge.ready()
@@ -259,7 +265,7 @@ import CryptoKit
                 defer { self.sessionLoading = false }
                 do {
                     try await self.refreshPortal()
-                    if let request = self.cliRequest, let account = self.portalAccount {
+                    if !self.usesOnDemandFeedback, let request = self.cliRequest, let account = self.portalAccount {
                         self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
                         guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
                     }
@@ -547,6 +553,7 @@ import CryptoKit
             let shouldAnalyze = analyzesAnswers
             saved.turns.append(PracticeTurn(id: currentNumber, question: question, answer: text, duration: Double(bytes - 44) / 32000, audio: "\(currentNumber).wav", questionID: questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].id : nil, analysisPending: shouldAnalyze))
             saved.turns[saved.turns.count - 1].analysisQuestionPrompt = questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].prompt : nil
+            if usesOnDemandFeedback { saved.turns[saved.turns.count - 1].analysisState = "not_requested" }
             if usesPC && shouldAnalyze {
                 saved.turns[saved.turns.count - 1].analysisRequestID = UUID().uuidString.lowercased()
                 saved.turns[saved.turns.count - 1].analysisState = "submitting"
@@ -590,6 +597,42 @@ import CryptoKit
             if let row = records.firstIndex(where: { $0.id == run }) { records[row] = saved }
         } catch { notice = "기록을 갱신하지 못했습니다. 저장 공간을 확인해주세요." }
     }
+    func canRequestFeedback(for turn: PracticeTurn) -> Bool {
+        usesOnDemandFeedback && record?.accountID == portalAccount && turn.analysis == nil &&
+        !turn.analysisPending && turn.analysisRequestID == nil
+    }
+    func requestFeedback(_ number: Int) {
+        guard screen == .result, let saved = record, let turn = saved.turns.first(where: { $0.id == number }),
+              canRequestFeedback(for: turn) else { return }
+        // Persist identity before starting any request; repeated taps and resumes reuse it.
+        updateTurn(saved.id, number) { row in
+            row.analysisRequestID = UUID().uuidString.lowercased()
+            row.analysisState = "submitting"; row.analysisPending = true; row.analysisError = false; row.analysisNotice = nil
+        }
+        runCLI(saved.id, number, allowSubmission: true)
+    }
+    func refreshPracticeExamples() {
+        guard usesOnDemandFeedback, screen == .result, let saved = record, saved.completed,
+              let account = portalAccount, saved.accountID == account, let request = cliRequest else { return }
+        for turn in saved.turns where turn.exampleAnswer == nil && turn.exampleChecked != true {
+            guard let questionID = turn.questionID else { continue }
+            let key = saved.id + ":" + String(turn.id)
+            guard exampleTasks[key] == nil else { continue }
+            exampleTasks[key] = Task { [weak self] in
+                guard let self else { return }; defer { self.exampleTasks[key] = nil }
+                do {
+                    let result = try await request("reference", ["accountId": account, "mode": saved.mode, "questionId": questionID,
+                        "questionPrompt": turn.analysisQuestionPrompt ?? turn.remoteQuestionPrompt ?? turn.question])
+                    guard !Task.isCancelled, !self.disposed, self.portalAccount == account,
+                          result["ok"] as? Bool == true, result["accountId"] as? String == account else { return }
+                    self.updateTurn(saved.id, turn.id) { row in
+                        row.exampleChecked = true
+                        if let example = result["referenceAnswer"] as? String, !example.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { row.exampleAnswer = example }
+                    }
+                } catch { /* A read failure never starts analysis or removes a saved example. */ }
+            }
+        }
+    }
     private func runCLI(_ run: String, _ number: Int, allowSubmission: Bool, includeCompletedReference: Bool = false) {
         guard let request = cliRequest, let account = portalAccount, let store,
               let saved = try? store.load(run), saved.accountID == account,
@@ -630,7 +673,7 @@ import CryptoKit
             for turn in record.turns where turn.analysisRequestID != nil { runCLI(record.id, turn.id, allowSubmission: allowSubmission, includeCompletedReference: currentOnly) }
         }
     }
-    func foreground() { refreshCLIResults() }
+    func foreground() { refreshCLIResults(); refreshPracticeExamples() }
     func stop(completed: Bool = false, capture: Bool = true) {
         guard screen == .live || screen == .jobReview else { return }
         if capture { captureAnswer() } else { stopTurn() }
@@ -698,6 +741,7 @@ import CryptoKit
         if screen == .live || screen == .jobReview { stop() }
         disposed = true; answerPlayback.stop(); media.stop(); stopTurn(); ticker?.cancel()
         for task in cliTasks.values { task.cancel() }; cliTasks = [:]
+        for task in exampleTasks.values { task.cancel() }; exampleTasks = [:]
         if let audioRouteObserver { NotificationCenter.default.removeObserver(audioRouteObserver) }
         audioRouteObserver = nil
         for pending in pendingCaptions.values { pending.close() }; pendingCaptions = [:]

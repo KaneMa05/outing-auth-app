@@ -432,6 +432,11 @@ private struct StudentWebApp: UIViewRepresentable {
         return body
     }
     func analysis(_ action: String, _ fields: [String: Any]) async throws -> [String: Any] {
+        if action == "reference" {
+            guard fields["action"] == nil else { throw URLError(.badURL) }
+            var body = fields; body.removeValue(forKey: "accountId"); body["action"] = "practice_reference"
+            return try await post("/api/interview-prep", body)
+        }
         guard ["status", "submit", "get"].contains(action), fields["action"] == nil else { throw URLError(.badURL) }
         var body = fields; body["action"] = action
         let path = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice") ? "/api/interview-practice-cli" : "/api/interview-practice-openai"

@@ -102,6 +102,7 @@ struct PracticeTurn: Codable, Identifiable {
     var questionID: String?
     var analysis: [String: String]?
     var exampleAnswer: String?
+    var exampleChecked: Bool?
     var analysisPending = false
     var analysisError = false
     var remoteRequestID: String?

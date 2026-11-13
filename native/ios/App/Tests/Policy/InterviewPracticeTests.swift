@@ -332,6 +332,51 @@ final class InterviewPracticeTests: XCTestCase {
         XCTAssertEqual(try reopened.list().map(\.id), [other.id])
         XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path))
     }
+    @MainActor func testPracticeFeedbackIsExplicitAndCachedWhileExamplesStayFree() async throws {
+        for mode in ["job", "personality"] {
+            let account = "on-demand-" + UUID().uuidString
+            let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+            let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("InterviewAccounts/" + scope)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let model = PracticeModel(); defer { model.dispose() }
+            model.mode = mode; model.sessionLoader = { ["accountId": account, "track": "공채", "mode": mode, "questions": []] }
+            var calls: [String] = [], requestIDs: [String] = [], completed = false
+            model.cliRequest = { action, fields in
+                if action == "status" { return ["ok": true, "ready": true] }
+                calls.append(action)
+                if action == "reference" { return ["ok": true, "accountId": account, "referenceAnswer": "상황을 먼저 확인하고 동료에게 보고한 뒤 조치를 기록합니다."] }
+                let id = fields["id"] as! String; requestIDs.append(id)
+                if action == "get" && !completed { return ["ok": false, "error": "not_found"] }
+                if action == "submit" { completed = true }
+                return ["ok": true, "id": id, "state": "completed", "report": ["analysis": ["summary": "저장된 모의 피드백", "strengths": [], "improvements": [], "nextPractice": []], "transcripts": ["저장 답변"]]]
+            }
+            await model.load(); XCTAssertTrue(model.usesOnDemandFeedback); XCTAssertFalse(model.analyzesAnswers)
+            let store = try PracticeStore(root: root)
+            var saved = PracticeRecord(id: UUID().uuidString, mode: mode, track: "공채"); saved.accountID = account; saved.completed = true
+            var turn = PracticeTurn(id: 1, question: "질문", duration: 1, audio: "1.wav", questionID: "fixture-question")
+            turn.analysisState = "not_requested"; turn.analysisQuestionPrompt = "질문"; saved.turns = [turn]
+            try store.save(saved); try Data(repeating: 0, count: 64).write(to: store.audio(saved.id, "1.wav"))
+            model.record = saved; model.screen = .result
+            model.foreground();model.refreshCLIResults(allowSubmission: true, currentOnly: true)
+            for _ in 0..<100 { if model.record?.turns[0].exampleAnswer != nil { break }; try await Task.sleep(nanoseconds: 1_000_000) }
+            XCTAssertEqual(calls, ["reference"]); XCTAssertNil(model.record?.turns[0].analysisRequestID); XCTAssertNotNil(model.record?.turns[0].exampleAnswer)
+            XCTAssertTrue(model.canRequestFeedback(for: model.record!.turns[0])); XCTAssertFalse(model.canAutomaticallySubmitCurrentAnswers)
+            model.requestFeedback(1);model.requestFeedback(1)
+            for _ in 0..<100 { if model.record?.turns[0].analysis != nil { break }; try await Task.sleep(nanoseconds: 1_000_000) }
+            XCTAssertEqual(calls.filter { $0 == "submit" }.count, 1);XCTAssertEqual(Set(requestIDs).count, 1)
+            XCTAssertEqual(model.record?.turns[0].analysis?["summary"], "저장된 모의 피드백")
+            model.requestFeedback(1);model.foreground()
+            for _ in 0..<10 { await Task.yield() }
+            XCTAssertEqual(calls.filter { $0 == "submit" }.count, 1);XCTAssertFalse(model.canRequestFeedback(for: model.record!.turns[0]))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: try store.audio(saved.id, "1.wav").path))
+        }
+        let live = PracticeModel();defer { live.dispose() };live.sessionLoader = { [:] };live.cliRequest = { _, _ in [:] };live.mode = "ai";live.bridgeReady = true
+        XCTAssertFalse(live.usesOnDemandFeedback);XCTAssertTrue(live.analyzesAnswers)
+        live.record = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채"); live.screen = .prep
+        XCTAssertFalse(live.usesOnDemandFeedback);XCTAssertTrue(live.analyzesAnswers)
+        live.mode = "job"; live.record = PracticeRecord(id: UUID().uuidString, mode: "ai", track: "공채")
+        XCTAssertTrue(live.usesOnDemandFeedback);XCTAssertFalse(live.analyzesAnswers)
+    }
     #endif
 }
 
