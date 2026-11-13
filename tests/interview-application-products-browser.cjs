@@ -23,6 +23,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
     calls.push({action,body});
     if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};
     if(action==='admin_applications')return {applications:structuredClone(applicants.filter(a=>!body.status||a.status===body.status)),summary:{students:1,pending:1,approved:1,rejected:1}};
+    if(action==='admin_application_decide'){
+     const application=applicants.find(a=>a.id===body.id);if(application.revision!==body.revision||application.status!=='pending')throw Error('revision_conflict');
+     Object.assign(application,{status:body.status,access_product:body.accessProduct,current_access_product:body.accessProduct,revision:application.revision+1});return {ok:true,application};
+    }
     if(action==='admin_application_product_save'){
      if(mode==='failure')throw Error('interview_unavailable');if(mode==='conflict')throw Error('revision_conflict');
      const application=applicants.find(a=>a.id===body.id);if(application.revision!==body.revision||application.current_access_product!==body.expectedProduct)throw Error('revision_conflict');
@@ -55,7 +59,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await page.locator('[data-application-product] [data-ip=close]').click();await change('rejected').click();await product().selectOption('aptitude_only');await page.getByRole('button',{name:'변경 저장',exact:true}).click();await page.waitForFunction(()=>applicants[2].revision===2);
   assert.equal(await page.evaluate(()=>applicants[2].status),'rejected');
   assert.equal(await page.evaluate(()=>calls.some(c=>['admin_application_decide','admin_member_save'].includes(c.action))),false,'Editing a product does not approve or overwrite other member settings');
-  await page.evaluate(()=>remount(false));assert.equal(await change('pending').isDisabled(),true);
-  assert.deepEqual(errors,[]);console.log('PASS browser: pending/approved/rejected course changes, current enrollment, save/reopen, failures/conflicts preserve input, unsaved-change guard, read-only access and desktop/mobile layout.');
+  await page.evaluate(()=>view.openSection('applications'));await page.locator('[data-ip=application-edit]').click();
+  const review=page.locator('[data-application-review]');assert.equal(await review.locator('[name=accessProduct]').inputValue(),'aptitude_only');
+  await review.locator('[name=accessProduct]').selectOption('interview_package');await review.locator('[name=expiresOn]').fill('2099-12-31');
+  await page.locator('[data-editor]').screenshot({path:path.join(output,'review-mobile.png')});await page.setViewportSize({width:1280,height:900});await page.locator('[data-editor]').screenshot({path:path.join(output,'review-desktop.png')});
+  await review.locator('[data-write]').click();await page.waitForFunction(()=>applicants[0].status==='approved');
+  const approval=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);assert.equal(approval.accessProduct,'interview_package');assert.equal(approval.status,'approved');assert.equal(approval.expiresOn,'2099-12-31');assert.equal(approval.revision,2);
+  await page.evaluate(()=>remount(false));await page.locator('[data-filter] [name=status]').selectOption('');await page.locator('[data-filter] button').click();await change('approved').waitFor();assert.equal(await change('approved').isDisabled(),true);
+  assert.deepEqual(errors,[]);console.log('PASS browser: standalone course changes and selection during approval, atomic approval payload, save/reopen, failures/conflicts preserve input, unsaved-change guard, read-only access and desktop/mobile layout.');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

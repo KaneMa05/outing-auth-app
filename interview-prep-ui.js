@@ -574,8 +574,8 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         if(!canWrite)return;
         const reject=a==='application-reject';
         selected=list.find(x=>x.id===target.dataset.id);
-        editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 신청한 상품의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+        editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 아래에서 선택한 과정의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
+        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);
@@ -610,7 +610,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       else if(form.matches('[data-application-review]')){
         const note=String(f.get('reviewNote')||'').trim();
         if(f.get('status')==='rejected'&&!note){notify(host,'반려 사유를 입력해주세요.',true);form.querySelector('[name=reviewNote]').focus();return;}
-        await request('admin_application_decide',{id:selected.id,revision:selected.revision,status:f.get('status'),reviewNote:note,expiresOn:f.get('expiresOn')});
+        await request('admin_application_decide',{id:selected.id,revision:selected.revision,accessProduct:f.get('accessProduct'),status:f.get('status'),reviewNote:note,expiresOn:f.get('expiresOn')});
       }
       dirty=false;await refresh();notify(host,'저장했습니다.');
     }catch(e){notify(host,message(e),true);}finally{busy=false;submit.disabled=false;}

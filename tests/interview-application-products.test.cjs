@@ -10,6 +10,7 @@ async function fixture(t){
  await db.exec("create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);update ip_settings set enabled=true;");
  for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql','20261110074450_interview_access_products.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync(migration,'utf8').replace(/\r\n/g,'\n'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261113075252_interview_application_review_products.sql','utf8').replace(/\r\n/g,'\n'));
  await db.exec("insert into ip_owners(id,legacy_student_id,name) values('ip-a','ip-a','신청 학생')");
  const application=(await db.query("insert into ip_applications(owner_id,name,track,exam_number) values('ip-a','신청 학생','공채','0001') returning *")).rows[0];
  const save=(accessProduct,revision,expectedProduct='interview_package')=>invoke(action,admin,{id:application.id,revision,accessProduct,expectedProduct});
@@ -93,7 +94,22 @@ test('administrator write permission, valid products, origin and existing RPC pr
   const wrapped=require('../api/interview-prep').createHandler({invoke:async()=>{throw Object.assign(Error(message),{status:502,storeStatus:400});}});
   let status;await wrapped({method:'POST',body,headers:{host:'qa.local',...cookie(['interview.write'])}},{setHeader(){},status(n){status=n;return this;},json(){}});assert.equal(status,expected,message);
  }
+ const review={action:'admin_application_decide',id:f.application.id,revision:2,status:'approved',reviewNote:'수강 확인',accessProduct:'interview_package',expiresOn:'2099-12-31'};
+ assert.equal((await call(review,cookie(['interview.read']))).status,403);
+ assert.equal((await call({...review,accessProduct:'invalid'},cookie(['interview.write']))).status,400);
+ const approved=await call(review,cookie(['interview.write']));assert.equal(approved.status,200);assert.equal(approved.data.application.access_product,'interview_package');
+ assert.equal((await f.db.query("select access_product from ip_members where student_id='ip-a'")).rows[0].access_product,'interview_package');
+ assert.equal((await call(review,cookie(['interview.write']))).status,409);
  for(const role of ['anon','authenticated']){await f.db.exec('set role '+role);await assert.rejects(f.invoke(action,admin,body),/permission denied/);await f.db.exec('reset role');}
  const functionInfo=(await f.db.query("select prosecdef,proconfig from pg_proc where oid='ip_portal_service(text,jsonb,jsonb)'::regprocedure")).rows[0];
  assert.equal(functionInfo.prosecdef,false);assert(functionInfo.proconfig.includes('search_path=public, pg_temp'));
+});
+
+test('review rejection can correct the requested course without enrolling or partially approving',async t=>{
+ const f=await fixture(t),body={id:f.application.id,revision:1,status:'rejected',reviewNote:'구매 내역 확인 필요',accessProduct:'aptitude_only'};
+ await assert.rejects(f.invoke('admin_application_decide',admin,{...body,accessProduct:'invalid'}),/invalid_request/);
+ await assert.rejects(f.invoke('admin_application_decide',admin,{...body,reviewNote:''}),/review_note_required/);
+ assert.equal((await f.current()).revision,1);assert.equal((await f.current()).access_product,'interview_package');
+ const result=await f.invoke('admin_application_decide',admin,body);assert.equal(result.application.status,'rejected');assert.equal(result.application.access_product,'aptitude_only');
+ assert.equal((await f.db.query("select count(*)::int n from ip_members where student_id='ip-a'")).rows[0].n,0);
 });

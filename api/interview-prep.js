@@ -17,7 +17,7 @@ const reads = new Set(['admin_app_feedback_list','admin_mock_monitor','admin_cli
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
-  if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
+  if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save','admin_application_decide'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
   if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
   if(body.action==='admin_application_product_save'&&(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.id)||!Number.isInteger(body.revision)))fail('invalid_request');
   if(body.text!==undefined&&(typeof body.text!=='string'||body.text.length>10000))fail('invalid_request');
@@ -152,7 +152,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
       const logicalStatus=['revision_conflict','topic_changed','topic_in_use'].includes(code)?409:
         ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code==='not_found'?404:code?400:503;
-      const status=action==='admin_application_product_save'&&code?logicalStatus:error.status||logicalStatus;
+      const status=['admin_application_product_save','admin_application_decide'].includes(action)&&code?logicalStatus:error.status||logicalStatus;
       res.status(status).json({ok:false,error:code||'interview_unavailable'});
     }
   };
