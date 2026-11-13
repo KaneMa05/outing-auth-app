@@ -26,7 +26,7 @@ function validate(b){
   const n=b.kind==='full'?150:75;
   if(!['half','full'].includes(b.kind)||!['draft','open','closed'].includes(b.state)||!Number.isInteger(b.roundNo)||b.roundNo<1||b.roundNo>9999||typeof b.title!=='string'||!b.title.trim()||b.title.length>120||typeof b.resultsReleased!=='boolean'||
    !Array.isArray(b.answerKey)||b.answerKey.length!==n||b.answerKey.some(x=>x!==null&&(!Number.isInteger(x)||x<1||x>5))||
-   b.reason!==undefined&&(typeof b.reason!=='string'||b.reason.length>1000)||['opensAt','closesAt'].some(k=>b[k]!==null&&b[k]!==''&&(typeof b[k]!=='string'||!Number.isFinite(Date.parse(b[k]))))||b.resultsReleased&&b.state!=='closed')throw Error('invalid_request');
+   b.reason!==undefined&&(typeof b.reason!=='string'||b.reason.length>1000)||['opensAt','closesAt'].some(k=>b[k]!==null&&b[k]!==''&&(typeof b[k]!=='string'||!Number.isFinite(Date.parse(b[k]))))||b.resultsReleased&&b.state==='draft')throw Error('invalid_request');
  }
  if(b.action==='admin_upload_prepare'&&(typeof b.name!=='string'||b.name.length>160||!b.name.toLowerCase().endsWith('.pdf')||!Number.isSafeInteger(b.bytes)||b.bytes<10||b.bytes>MAX))throw Error('invalid_file');
 }
