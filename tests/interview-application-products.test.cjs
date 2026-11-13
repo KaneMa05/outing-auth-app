@@ -87,6 +87,12 @@ test('administrator write permission, valid products, origin and existing RPC pr
  assert.equal((await call({...body,id:randomUUID()},cookie(['interview.write']))).status,404);
  const result=await call(body,cookie(['interview.write']));assert.equal(result.status,200);assert.equal(result.data.application.access_product,'aptitude_only');
  assert.equal((await call(body,cookie(['interview.write']))).status,409);
+ // The shared HTTP adapter wraps RPC business errors as 502. This action must
+ // still report a conflict/not-found without presenting them as server failures.
+ for(const [message,expected] of [['revision_conflict',409],['not_found',404],['student_unavailable',400],['upstream_unavailable',502]]){
+  const wrapped=require('../api/interview-prep').createHandler({invoke:async()=>{throw Object.assign(Error(message),{status:502,storeStatus:400});}});
+  let status;await wrapped({method:'POST',body,headers:{host:'qa.local',...cookie(['interview.write'])}},{setHeader(){},status(n){status=n;return this;},json(){}});assert.equal(status,expected,message);
+ }
  for(const role of ['anon','authenticated']){await f.db.exec('set role '+role);await assert.rejects(f.invoke(action,admin,body),/permission denied/);await f.db.exec('reset role');}
  const functionInfo=(await f.db.query("select prosecdef,proconfig from pg_proc where oid='ip_portal_service(text,jsonb,jsonb)'::regprocedure")).rows[0];
  assert.equal(functionInfo.prosecdef,false);assert(functionInfo.proconfig.includes('search_path=public, pg_temp'));

@@ -85,6 +85,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
   invoke=(action,actor,body)=>requestSupabase('POST',['admin_questions','admin_question_detail','admin_question_taxonomy_save'].includes(action)?'rpc/ip_taxonomy_service':['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
+    let action;
     try {
       if(req.method!=='POST'){res.setHeader('Allow','POST');fail('method_not_allowed',405);}
       if(req.headers.origin && new URL(req.headers.origin).host!==req.headers.host) fail('forbidden',403);
@@ -93,6 +94,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       if(typeof body==='string')body=JSON.parse(body);
       if(Buffer.byteLength(JSON.stringify(body))>(body?.action==='admin_writing_feedback'?400000:body?.action==='life_save'?180000:body?.action==='admin_rubric_save'?200000:40000))fail('request_too_large',413);
       validate(body);
+      action=body.action;
       let actor;
       if(body.action.startsWith('admin_')) {
         const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
@@ -148,8 +150,9 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
-      const status=error.status || (['revision_conflict','topic_changed','topic_in_use'].includes(code)?409:
-        ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code==='not_found'?404:code?400:503);
+      const logicalStatus=['revision_conflict','topic_changed','topic_in_use'].includes(code)?409:
+        ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code==='not_found'?404:code?400:503;
+      const status=action==='admin_application_product_save'&&code?logicalStatus:error.status||logicalStatus;
       res.status(status).json({ok:false,error:code||'interview_unavailable'});
     }
   };
