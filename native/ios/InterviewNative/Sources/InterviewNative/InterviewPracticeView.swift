@@ -77,7 +77,6 @@ import AVKit
             }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: model.mode + "." + String(describing: model.screen)) }
         .interactiveDismissDisabled(model.screen == .live || model.screen == .jobReview)
         .task { await model.load() }
         .onChange(of: phase) { value in if value == .background { model.background() } else if value == .active { model.foreground() } }

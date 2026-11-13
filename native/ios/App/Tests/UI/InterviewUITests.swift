@@ -1209,19 +1209,15 @@ final class SavedLivePlaybackCompletenessTests: XCTestCase {
 }
 
 final class TestAppFeedbackFormUITests: XCTestCase {
-    func testSmallFooterOpensPrivateFeedbackFormWithoutSending() {
+    func testPracticeScreenHasNoPersistentFeedbackFooter() {
         let app=XCUIApplication();app.launchArguments=["--interview-native-preview","--portal-practice-fixture","-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
-        let footer=app.buttons["test.feedback.open"];XCTAssertTrue(footer.waitForExistence(timeout:20));footer.tap()
-        let submit=app.buttons["test.feedback.submit"];XCTAssertTrue(submit.waitForExistence(timeout:10));XCTAssertFalse(submit.isEnabled)
-        let content=app.textViews["test.feedback.content"];content.tap();content.typeText("질문별 재생 화면 개선 의견입니다.")
-        XCTAssertTrue(submit.isEnabled)
-        let attachment=XCTAttachment(screenshot:app.screenshot());attachment.name="test-app-private-feedback-form";attachment.lifetime = .keepAlways;add(attachment)
-        app.buttons["취소"].tap();XCTAssertTrue(footer.exists)
+        XCTAssertTrue(app.buttons["test.feedback.open"].waitForNonExistence(timeout:5))
+        XCTAssertFalse(app.buttons["test.feedback.submit"].exists)
     }
 }
 
 final class SavedLiveResultLayoutTests: XCTestCase {
-    func testCompactSummaryAndFeedbackFooterWithoutNewAnalysis() throws {
+    func testCompactSummaryWithoutPersistentFeedbackFooterOrNewAnalysis() throws {
         guard ProcessInfo.processInfo.environment["RUN_SAVED_PRACTICE_REVIEW"] == "1" else { throw XCTSkip("Explicit saved recording review only") }
         continueAfterFailure=false
         let app=XCUIApplication();app.launchArguments=["-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
@@ -1236,15 +1232,8 @@ final class SavedLiveResultLayoutTests: XCTestCase {
         XCTAssertTrue(app.buttons["상세 피드백 보기"].waitForExistence(timeout:15))
         capture("compact-summary-01-overview")
         tap(app.buttons["상세 피드백 보기"]);capture("compact-summary-02-expanded")
-        let footers = app.buttons.matching(identifier: "test.feedback.open").allElementsBoundByIndex
-        print("FEEDBACK_FOOTERS " + String(footers.count))
-        for footer in footers { print("FEEDBACK_FOOTER_FRAME " + String(describing: footer.frame) + " hittable=" + String(footer.isHittable)) }
-        capture("feedback-actual-device-footer-before-tap")
-        guard let footer = footers.first(where: { $0.isHittable }) else { XCTFail("No visible feedback footer"); return }
-        footer.tap()
-        XCTAssertTrue(app.buttons["test.feedback.submit"].waitForExistence(timeout:10));capture("feedback-actual-device-03-form")
-        tap(app.buttons["취소"])
-        print("COMPACT_SUMMARY_VERIFIED saved_feedback_and_footer_no_new_analysis")
+        XCTAssertFalse(app.buttons["test.feedback.open"].exists)
+        print("COMPACT_SUMMARY_VERIFIED no_persistent_feedback_footer_no_new_analysis")
     }
 }
 
@@ -1254,8 +1243,11 @@ final class TestAppFeedbackSubmissionVerificationTests: XCTestCase {
         continueAfterFailure=false
         let app=XCUIApplication();app.launchArguments=["-AppleLanguages","(ko)","-AppleLocale","ko_KR"];app.launch()
         XCTAssertTrue(app.webViews.buttons["모의면접"].waitForExistence(timeout:40))
-        guard let footer=app.buttons.matching(identifier:"test.feedback.open").allElementsBoundByIndex.first(where:{$0.isHittable}) else{XCTFail("Visible footer unavailable");return}
-        footer.tap()
+        app.webViews.buttons["마이"].tap()
+        let feedback=app.webViews.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","의견 보내기")).firstMatch
+        XCTAssertTrue(feedback.waitForExistence(timeout:20))
+        for _ in 0..<10 { if feedback.isHittable { break }; app.swipeUp() }
+        feedback.tap()
         let content=app.textViews["test.feedback.content"];XCTAssertTrue(content.waitForExistence(timeout:15));content.tap()
         content.typeText("QA 검증용 오류 신고입니다. 질문별 재생과 종합 요약 개선 후 앱 접수·관리자 조회 연결을 확인합니다. ["+marker+"]")
         let submit=app.buttons["test.feedback.submit"];XCTAssertTrue(submit.isEnabled);submit.tap()

@@ -10,21 +10,9 @@ public struct TestAppFeedbackError: Error {
     public static var send: (([String: Any]) async throws -> Void)?
 }
 
-@MainActor public struct TestAppFeedbackFooter: View {
+@MainActor public struct TestAppFeedbackForm: View {
     let screen: String
-    @State private var showing = false
     public init(screen: String) { self.screen = screen }
-    public var body: some View {
-        Button("오류 신고·개선 의견") { showing = true }
-            .font(.caption2).foregroundStyle(.secondary).padding(.vertical, 7)
-            .frame(maxWidth: .infinity).background(.ultraThinMaterial)
-            .accessibilityIdentifier("test.feedback.open")
-            .sheet(isPresented: $showing) { TestAppFeedbackForm(screen: screen) }
-    }
-}
-
-@MainActor private struct TestAppFeedbackForm: View {
-    let screen: String
     @Environment(\.dismiss) private var dismiss
     @State private var kind = "bug"
     @State private var content = ""
@@ -32,7 +20,7 @@ public struct TestAppFeedbackError: Error {
     @State private var sending = false
     @State private var sent = false
     @State private var error = ""
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 if sent {
@@ -51,7 +39,7 @@ public struct TestAppFeedbackError: Error {
                         .disabled(sending || content.trimmingCharacters(in: .whitespacesAndNewlines).count < 2 || content.utf16.count > 2000)
                         .accessibilityIdentifier("test.feedback.submit")
                 }
-            }.navigationTitle("오류 신고·개선 의견").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("의견 보내기").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button(sent ? "닫기" : "취소") { dismiss() }.disabled(sending) } }
                 .interactiveDismissDisabled(sending)
                 .onChange(of: content) { _ in requestID = UUID().uuidString; error = "" }

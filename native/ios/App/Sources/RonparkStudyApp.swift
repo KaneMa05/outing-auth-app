@@ -12,6 +12,7 @@ private struct StudentApp: View {
     @State private var launch: InterviewLaunch?
     #if DEBUG
     @State private var practice: PracticePortalSession?
+    @State private var showingFeedback = false
     #endif
     var body: some View {
         #if DEBUG
@@ -63,14 +64,15 @@ private struct StudentApp: View {
         ZStack(alignment: .bottomTrailing) {
             #if DEBUG
             StudentWebApp(onInterview: { code in launch = InterviewLaunch(code: code, preview: false) },
-                onPractice: { view, mode in practice = PracticePortalSession(webView: view, mode: mode) })
+                onPractice: { view, mode in practice = PracticePortalSession(webView: view, mode: mode) },
+                onFeedback: { showingFeedback = true })
             #else
             StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
             #endif
 
         }
         #if DEBUG
-        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: "portal") }
+        .sheet(isPresented: $showingFeedback) { TestAppFeedbackForm(screen: "portal.my") }
         .fullScreenCover(item: $practice) { session in
             InterviewPracticeView(mode: session.mode, loadSession: { try await session.load() },
                 requestAnalysis: { action, fields in try await session.analysis(action, fields) })
@@ -92,8 +94,9 @@ private struct StudentApp: View {
 private struct StudentWebApp: UIViewRepresentable {
     let onInterview: (String) -> Void
     var onPractice: ((WKWebView, String) -> Void)? = nil
+    var onFeedback: (() -> Void)? = nil
     static let host = InterviewLaunchPolicy.host
-    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview, onPractice: onPractice) }
+    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview, onPractice: onPractice, onFeedback: onFeedback) }
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
@@ -101,6 +104,9 @@ private struct StudentWebApp: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "interviewNative")
         #if DEBUG
         config.userContentController.add(context.coordinator, name: "interviewPractice")
+        if !ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") {
+            config.userContentController.add(context.coordinator, name: "interviewFeedback")
+        }
         let pcPractice = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice")
         let practiceFlags = pcPractice ? "window.__ronparkPracticeNative=true;window.__ronparkWindowsPractice=true;" : "window.__ronparkOpenAIPractice=true;window.__ronparkPracticeNative=true;"
         let testFlag = ProcessInfo.processInfo.arguments.contains("--ordinary-app-verification") ? "" : "window.__ronparkMockTestApp=true;"
@@ -285,7 +291,7 @@ private struct StudentWebApp: UIViewRepresentable {
         #if DEBUG
         // Refresh old module/service-worker copies once for this test-app update.
         // Keep cookies, local storage and all student recordings intact.
-        let refreshKey = "interviewPreparationCopyCache.20261111"
+        let refreshKey = "interviewFeedbackMenuCache.20261113"
         if !testFlag.isEmpty && !UserDefaults.standard.bool(forKey: refreshKey) {
             let cacheTypes: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache,
                 WKWebsiteDataTypeFetchCache, WKWebsiteDataTypeServiceWorkerRegistrations]
@@ -307,16 +313,23 @@ private struct StudentWebApp: UIViewRepresentable {
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewNative")
         #if DEBUG
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewPractice")
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewFeedback")
         #endif
         uiView.stopLoading(); uiView.navigationDelegate = nil; uiView.uiDelegate = nil
     }
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         let onInterview: (String) -> Void
         let onPractice: ((WKWebView, String) -> Void)?
-        init(onInterview: @escaping (String) -> Void, onPractice: ((WKWebView, String) -> Void)? = nil) { self.onInterview = onInterview; self.onPractice = onPractice }
+        let onFeedback: (() -> Void)?
+        init(onInterview: @escaping (String) -> Void, onPractice: ((WKWebView, String) -> Void)? = nil, onFeedback: (() -> Void)? = nil) { self.onInterview = onInterview; self.onPractice = onPractice; self.onFeedback = onFeedback }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             let origin = message.frameInfo.securityOrigin
             #if DEBUG
+            if message.name == "interviewFeedback", origin.protocol == "https", origin.host == StudentWebApp.host,
+               origin.port == 0 || origin.port == 443, message.frameInfo.isMainFrame,
+               let data = message.body as? [String: String], data == ["action": "open"] {
+                onFeedback?(); return
+            }
             if message.name == "interviewPractice", origin.protocol == "https", origin.host == StudentWebApp.host,
                origin.port == 0 || origin.port == 443, message.frameInfo.isMainFrame,
                let data = message.body as? [String: String], data.count == 1,

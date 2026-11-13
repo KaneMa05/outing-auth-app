@@ -54,9 +54,6 @@ import SwiftUI
                 Button("계속 면접하기", role: .cancel) {}
             } message: { Text("마이크와 카메라를 끄고 지금까지의 답변을 저장합니다.") }
         }
-        #if DEBUG
-        .safeAreaInset(edge: .bottom, spacing: 0) { TestAppFeedbackFooter(screen: "live." + String(describing: model.screen)) }
-        #endif
         .interactiveDismissDisabled(model.active)
         .task { await model.load() }
         .onChange(of: phase) { value in if value == .background { model.background() } }
