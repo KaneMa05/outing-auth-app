@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v568-interview-draft-limit40";
+const CACHE_NAME = "outing-auth-app-v569-pwa-cold-start";
 const APP_SHELL = [
   "/app.js?v=20261109-login-entry",
   "/student-content-safety.js?v=20261028-safety-fallback",
@@ -8,8 +8,8 @@ const APP_SHELL = [
   "/inquiry-board.js?v=20261028-safety-fallback",
   "/styles.css?v=20261028-ios-lecture-edges",
   "/styles.css?v=20261028-deletion-request",
-  "/app-startup.css?v=20261028-ios-lecture-edges",
-  "/app-startup.js?v=20261028-ios-lecture-edges",
+  "/app-startup.css?v=20261113-pwa-cold-start",
+  "/app-startup.js?v=20261113-pwa-cold-start",
   "/app.js?v=20261024-startup",
   "/app.js?v=20261027-student-login",
   "/styles.css?v=20261027-student-login",
@@ -99,6 +99,16 @@ self.addEventListener("fetch", (event) => {
   ) return;
   if (url.pathname === "/config.js" || url.pathname === "/sw.js") {
     event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
+
+  // Startup code must not remain pinned to a pre-fix cached palette.
+  // Keep cached startup files usable when the installed web app is offline.
+  if (url.pathname === "/app-startup.js" || url.pathname === "/app-startup.css") {
+    event.respondWith(fetch(event.request, { cache: "no-cache" }).then(async response => {
+      if (response.ok) { const cache = await caches.open(CACHE_NAME); await cache.put(event.request, response.clone()); }
+      return response;
+    }).catch(() => caches.match(event.request)));
     return;
   }
 

@@ -23,3 +23,5 @@ html.interview-stable-startup.app-starting body #app-startup{background:#f2f5f7!
 html.interview-stable-startup body #app-startup .app-startup-mark{background:#173b51;color:#fff;font-size:32px;font-style:normal;box-shadow:none}
 html.interview-stable-startup body #app-startup p{color:#63788e}
 html.interview-stable-startup body #app-startup .app-startup-spinner{border-color:#dbe5f0;border-top-color:#173b51}
+
+html.interview-stable-startup.app-starting{color-scheme:light}

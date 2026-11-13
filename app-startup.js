@@ -6,7 +6,17 @@
   const enabled = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone || document.referrer.startsWith('android-app://') || (portal && new URLSearchParams(location.search).get('app') === '1') || returning);
   if (!enabled) return;
   const root = document.documentElement;
-  if (portal) root.classList.add('interview-stable-startup');
+  let interviewReturn = false;
+  try { interviewReturn = document.currentScript?.dataset.startupPage === 'student' && new URLSearchParams(location.search).get('entry') !== 'student' && localStorage.getItem('outing-interview-web-app') === '1'; } catch {}
+  if (portal || interviewReturn) {
+    root.classList.add('interview-stable-startup');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f2f5f7');
+    // Only returning interview users activate these launch images on the shared start URL.
+    if (interviewReturn) {
+      const images = document.getElementById?.('interview-startup-images');
+      if (images?.content) document.head?.appendChild(images.content.cloneNode(true));
+    }
+  }
   // iOS chooses the installed app's edge colors during launch. Restore the
   // lecture appearance before painting, rather than after the roster loads.
   if (document.currentScript?.dataset.startupPage === 'student' && navigator.standalone === true &&
@@ -32,7 +42,7 @@
       const explicit = student?.studentCategory || student?.student_category;
       const category = ['offline', 'online_managed', 'lecture'].includes(explicit) ? explicit :
         student && (/^2/.test(String(id)) || /^9\d{5}$/.test(String(id))) ? 'lecture' : 'offline';
-      window.__studentViewport.update(student && profile?.passwordHash && profile?.deviceToken ? category : 'offline');
+      window.__studentViewport.update(!interviewReturn && student && profile?.passwordHash && profile?.deviceToken ? category : 'offline');
     } catch { window.__studentViewport.update('offline'); }
   }
   root.classList.add('app-starting');

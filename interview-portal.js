@@ -32,7 +32,7 @@ function render(){
  disposeLogin?.();disposeLogin=null;
  document.body.classList.toggle('ip-login-page',!state.authenticated);
  document.body.classList.toggle('ip-coast-page',!state.authenticated);
- document.querySelector('meta[name="theme-color"]')?.setAttribute('content',state.authenticated?'#234e83':'#050f1c');
+ document.querySelector('meta[name="theme-color"]')?.setAttribute('content',state.authenticated?(appMode?'#f2f5f7':'#234e83'):'#050f1c');
  document.body.classList.toggle('ip-portal-app',appMode&&state.available===true);
  if(appMode&&state.authenticated)try{localStorage.setItem('outing-interview-web-app','1');}catch{}
  actions.innerHTML=state.authenticated?`${state.account?.ownerId&&state.appleEnabled&&!state.account.appleLinked?'<button type="button" data-apple="link">Apple 계정 연결</button>':''}${state.account?.ownerId&&state.kakaoEnabled&&!state.account.kakaoLinked?'<button type="button" data-kakao="link">카카오 계정 연결</button>':''}<button type="button" data-student-entry>수강생 화면</button><button type="button" data-logout>로그아웃</button>`:'';
