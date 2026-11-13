@@ -1,0 +1,18 @@
+네이티브 테스트앱 하단 탭 중복 여백 보정 — 2026-11-13
+사용자 공용 서버 푸시·배포 최종 확인 후 '반영' 승인.
+일반 PWA를 위해 올린 하단 여백과 SwiftUI가 이미 확보한 안전 영역이 테스트앱에서 겹침.
+.ip-test-app-shell에만 footer padding-bottom:8px, shell padding-bottom:104px 적용.
+일반 PWA는 기존 최소 24px/safe-area+12px 및 120px 본문 여백 유지.
+불투명 하단 배경은 bottom:0 유지. 모의면접·로딩·DB 변경 없음.
+현재 설치된 테스트앱의 DEBUG 전용 플래그가 root 클래스를 부여하므로 새 바이너리는 불필요.
+앱을 완전히 종료 후 다시 열 때 새 CSS 참조 로드.
+소스: 1e36c7b, 최신 main 기록 보존 병합 8d4918e. 작업 브랜치 푸시, main 직접 푸시 없음.
+시작·PWA·배포 안전 검사 13개 통과.
+로컬 393x852 브라우저에서 PWA 버튼 하단 여백 24px, native-test 8px로 분리됨 확인.
+두 경우 모두 메뉴 하단=뷰포트 하단, 배경 불투명 rgb(255,255,255) 유지.
+물리 아이폰의 변경 후 위치 관찰은 이번 단계에서 별도 실행하지 않음.
+배포: dpl_7KzumD4XTy1huML1bBQymote3Uhb / READY / production.
+URL: https://outing-auth-cfxfr86d8-ronpark.vercel.app
+승인 후 공용 도메인 promote 성공. 후보 CSS 소스 일치 확인.
+기존 PWA 배포 dpl_aUaNtnGEgw1YBfuQUpU6cMWjymUJ 보존 후 이번 보정만 추가.
+새 녹음·실제 분석 API·유료 재분석 없음.
