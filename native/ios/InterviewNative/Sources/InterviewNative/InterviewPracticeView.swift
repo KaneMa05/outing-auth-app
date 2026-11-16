@@ -9,12 +9,17 @@ import AVKit
     @Environment(\.scenePhase) private var phase
     @State private var showExit = false
     @State private var deleting: PracticeRecord?
+    @State private var showQuestionCatalog = false
+    @State private var favoritesOnly = false
+    @State private var showPracticeSettings = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let teal = Color(red: 8/255, green: 125/255, blue: 114/255)
     private let ink = Color(red: 21/255, green: 44/255, blue: 67/255)
     public init(mode: String = "job", loadSession: (() async throws -> [String: Any])? = nil,
-                requestAnalysis: ((String, [String: Any]) async throws -> [String: Any])? = nil) {
+                requestAnalysis: ((String, [String: Any]) async throws -> [String: Any])? = nil,
+                syncRecords: (([String: Any], [Int: URL]) async throws -> Void)? = nil) {
         let model = PracticeModel(); model.sessionLoader = loadSession; model.cliRequest = requestAnalysis
+        model.archive.transport = syncRecords
         if loadSession != nil { model.mode = ["job", "personality", "ai"].contains(mode) ? mode : "job"; model.screen = .prep }
         _model = StateObject(wrappedValue: model)
     }
@@ -47,7 +52,12 @@ import AVKit
             .background(Color(red: 246/255, green: 248/255, blue: 250/255)).foregroundStyle(ink)
             .navigationTitle("모의면접").navigationBarTitleDisplayMode(.inline).tint(teal)
             .toolbar { ToolbarItem(placement: .cancellationAction) {
-                Button("돌아가기") { if model.screen == .live || model.screen == .jobReview { showExit = true } else if model.screen == .menu || model.isPortalPractice { dismiss() } else { model.media.stop(); model.stopPlayback(); model.screen = .menu } }
+                Button {
+                    if model.screen == .live || model.screen == .jobReview { showExit = true }
+                    else if model.navigateBack() { dismiss() }
+                } label: {
+                    Label(model.isNavigationRoot ? "닫기" : "뒤로", systemImage: model.isNavigationRoot ? "xmark" : "chevron.left")
+                }.accessibilityIdentifier("practice.back")
             } }
             .sheet(isPresented: $model.videoPresented, onDismiss: { model.stopPlayback() }) {
                 if let player = model.videoPlayer {
@@ -58,6 +68,8 @@ import AVKit
                     }
                 }
             }
+            .sheet(isPresented: $showQuestionCatalog) { questionCatalog }
+            .sheet(isPresented: $showPracticeSettings) { practiceSettings }
             .alert("면접을 마칠까요?", isPresented: $showExit) {
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
@@ -70,7 +82,7 @@ import AVKit
             .alert("기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
                 Button("삭제", role: .destructive) { if let deleting { model.delete(deleting.id) }; deleting = nil }
                 Button("취소", role: .cancel) { deleting = nil }
-            } message: { Text("이 기기에 저장된 답변 음성과 영상도 삭제됩니다.") }
+            } message: { Text(model.archive.transport != nil ? "이 기기에 저장된 답변 음성과 영상이 삭제됩니다. 관리자에게 전송된 연습 기록은 유지됩니다." : "이 기기에 저장된 답변 음성과 영상도 삭제됩니다.") }
             .onChange(of: model.screen) { screen in
                 DispatchQueue.main.async { scroll.scrollTo("practice.top", anchor: .top) }
                 if screen == .result { model.refreshCLIResults(allowSubmission: model.canAutomaticallySubmitCurrentAnswers, currentOnly: true); model.refreshPracticeExamples() }
@@ -125,32 +137,10 @@ import AVKit
             if model.isPortalPractice && !model.catalogLoaded && !model.sessionLoading {
                 Text("문항 목록을 불러오지 못했습니다. 로그인 상태와 연결을 확인한 뒤 다시 시도해주세요.").font(.subheadline).foregroundStyle(.secondary)
                 action("문항 목록 다시 불러오기", primary: true) { Task { await model.load() } }
+            } else if isBetaPreparation {
+                betaPreparation
             } else {
-            if model.configurableQuestions, model.isPortalPractice {
-                HStack(alignment: .top, spacing: 12) {
-                    practiceDropdown(title: model.mode == "personality" ? "인성 분야" : "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
-                        Button("전체 분야") { model.changeField("") }
-                        ForEach(model.contentFields) { field in
-                            Button(field.label) { model.changeField(field.id) }
-                        }
-                    }
-                    if model.mode == "job" {
-                        practiceDropdown(title: "기출 지역", value: model.selectedRegion.isEmpty ? "전체 지역" : model.selectedRegion, id: "practice.region") {
-                            Button("전체 지역") { model.changeRegion("") }
-                            ForEach(model.availableRegions, id: \.self) { region in
-                                Button(region) { model.changeRegion(region) }
-                            }
-                        }
-                    }
-                }
-            }
-            if model.configurableQuestions {
-                practiceDropdown(title: "연습 문항 수", value: "\(model.selectedQuestionCount)문항", id: model.mode == "personality" ? "practice.personality-count" : "practice.job-count") {
-                    ForEach([3, 5, 10, 15, 20], id: \.self) { count in
-                        Button("\(count)문항") { model.setPracticeQuestionCount(count) }
-                    }
-                }
-            }
+                practiceSelectionControls
             if model.showsInterviewer {
             PracticePreparationMedia(media: model.media, cameraEnabled: true, combined: true)
             Toggle("내 모습과 답변 영상 녹화", isOn: $model.recordVideo).accessibilityIdentifier("practice.video-toggle")
@@ -206,7 +196,10 @@ import AVKit
             result
         case .records:
             Text("내 면접 기록").font(.title.bold())
-            action("면접 준비로") { model.select(model.mode) }
+            action("연습 홈으로", id: "practice.records-home") { model.select(model.mode) }
+            if !model.archiveNotice.isEmpty {
+                Text(model.archiveNotice).font(.caption).foregroundStyle(.secondary)
+            }
             if model.visibleRecords.isEmpty { Text("아직 저장된 기록이 없습니다.").font(.subheadline) }
             ForEach(model.visibleRecords) { record in
                 VStack(alignment: .leading, spacing: 10) {
@@ -214,10 +207,149 @@ import AVKit
                     Text(record.track + " · 질문 \(record.turns.count)개").font(.caption)
                     if let field = record.fieldLabel { Text(field).font(.caption) }
                     if let region = record.region { Text(region).font(.caption) }
-                    action("기록 보기") { model.record = record; model.screen = .result }
+                    action("기록 보기", id: "practice.record-open.\(record.id)") { model.showRecord(record) }
                     Button("기록 삭제", role: .destructive) { deleting = record }
                 }.padding().background(.white, in: RoundedRectangle(cornerRadius: 16))
             }
+        }
+    }
+    private var isBetaPreparation: Bool { model.isPortalPractice && model.configurableQuestions }
+    private var selectedFieldLabel: String { model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야" }
+    private var selectionSummary: String {
+        selectedFieldLabel + (model.mode == "job" && !model.selectedRegion.isEmpty ? " · " + model.selectedRegion : "")
+    }
+    private func preparationRow(_ title: String, subtitle: String, icon: String, id: String, run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            HStack(spacing: 14) {
+                Image(systemName: icon).font(.title3).foregroundStyle(teal).frame(width: 28)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.body.weight(.semibold)).foregroundStyle(ink)
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, minHeight: 58, alignment: .leading).padding(.horizontal, 18).padding(.vertical, 8)
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier(id)
+    }
+    private var betaPreparation: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("빠른 연습", systemImage: "mic.fill").font(.headline).foregroundStyle(teal)
+                Text(model.sessionLoading ? "질문을 불러오는 중입니다." : "무작위 최대 3문항 · " + selectionSummary)
+                    .font(.subheadline).foregroundStyle(.secondary)
+                action(model.sessionLoading ? "준비 중…" : "바로 연습하기", primary: true,
+                       enabled: !model.sessionLoading && !model.catalogQuestions.isEmpty && !model.videoSaving,
+                       id: "practice.quick-start") { model.startQuickPractice() }
+            }.padding(20).background(.white, in: RoundedRectangle(cornerRadius: 20))
+            VStack(spacing: 0) {
+                preparationRow("질문 골라 연습", subtitle: "분야별 질문 · 즐겨찾기", icon: "list.bullet", id: "practice.question-catalog") {
+                    favoritesOnly = false; showQuestionCatalog = true
+                }.disabled(model.sessionLoading)
+                Divider().padding(.leading, 60)
+                preparationRow("연습 설정", subtitle: "\(model.selectedQuestionCount)문항 · " + selectionSummary, icon: "slider.horizontal.3", id: "practice.settings") {
+                    showPracticeSettings = true
+                }.disabled(model.sessionLoading)
+                Divider().padding(.leading, 60)
+                preparationRow("내 면접 기록", subtitle: "지난 답변 다시 듣기", icon: "clock.arrow.circlepath", id: "practice.records") { model.showRecords() }
+            }.background(.white, in: RoundedRectangle(cornerRadius: 20))
+        }
+    }
+    @ViewBuilder private var practiceSelectionControls: some View {
+            if model.configurableQuestions, model.isPortalPractice {
+                HStack(alignment: .top, spacing: 12) {
+                    practiceDropdown(title: model.mode == "personality" ? "인성 분야" : "내용 분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.content-field") {
+                        Button("전체 분야") { model.changeField("") }
+                        ForEach(model.contentFields) { field in
+                            Button(field.label) { model.changeField(field.id) }
+                        }
+                    }
+                    if model.mode == "job" {
+                        practiceDropdown(title: "기출 지역", value: model.selectedRegion.isEmpty ? "전체 지역" : model.selectedRegion, id: "practice.region") {
+                            Button("전체 지역") { model.changeRegion("") }
+                            ForEach(model.availableRegions, id: \.self) { region in
+                                Button(region) { model.changeRegion(region) }
+                            }
+                        }
+                    }
+                }
+            }
+            if model.configurableQuestions {
+                practiceDropdown(title: "연습 문항 수", value: "\(model.selectedQuestionCount)문항", id: model.mode == "personality" ? "practice.personality-count" : "practice.job-count") {
+                    ForEach([3, 5, 10, 15, 20], id: \.self) { count in
+                        Button("\(count)문항") { model.setPracticeQuestionCount(count) }
+                    }
+                }
+            }
+    }
+    private var practiceSettings: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    practiceSelectionControls
+                    if model.questions.isEmpty && !model.sessionLoading {
+                        Text("선택한 조건에 맞는 질문이 없습니다. 분야나 지역을 변경해주세요.").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    action(model.sessionLoading ? "준비 중…" : "이 설정으로 연습하기", primary: true,
+                           enabled: !model.sessionLoading && !model.questions.isEmpty && !model.videoSaving,
+                           id: "interview.start") { showPracticeSettings = false; model.start() }
+                }.padding(24)
+            }
+            .background(Color(red: 246/255, green: 248/255, blue: 250/255))
+            .navigationTitle("연습 설정").navigationBarTitleDisplayMode(.inline).tint(teal)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("완료") { showPracticeSettings = false } } }
+        }
+    }
+    private var listedQuestions: [PracticeQuestion] {
+        model.catalogQuestions.filter { !favoritesOnly || model.favoriteQuestionIDs.contains($0.id) }
+    }
+    private var questionCatalog: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                practiceDropdown(title: "분야", value: model.contentFields.first { $0.id == model.selectedField }?.label ?? "전체 분야", id: "practice.catalog-field") {
+                    Button("전체 분야") { model.changeField("") }
+                    ForEach(model.contentFields) { field in
+                        Button(field.label) { model.changeField(field.id) }
+                    }
+                }
+                Picker("질문 보기", selection: $favoritesOnly) {
+                    Text("전체 질문").tag(false)
+                    Text("즐겨찾기").tag(true)
+                }.pickerStyle(.segmented).accessibilityIdentifier("practice.catalog-favorites-only")
+                Text("질문 \(listedQuestions.count)개" + (model.mode == "job" && !model.selectedRegion.isEmpty ? " · \(model.selectedRegion)" : ""))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        if listedQuestions.isEmpty {
+                            Text(favoritesOnly ? "선택한 조건에 즐겨찾기한 질문이 없습니다. 질문 목록에서 별을 눌러 저장해 보세요." : "선택한 조건에 맞는 질문이 없습니다. 분야나 지역을 변경해주세요.")
+                                .font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 24)
+                        }
+                        ForEach(listedQuestions, id: \.id) { question in
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Text(question.displayPrompt).font(.body).frame(maxWidth: .infinity, alignment: .leading)
+                                    Button { model.toggleFavorite(question.id) } label: {
+                                        Image(systemName: model.favoriteQuestionIDs.contains(question.id) ? "star.fill" : "star")
+                                            .font(.title3).foregroundStyle(teal).frame(width: 44, height: 44)
+                                    }
+                                    .accessibilityLabel(model.favoriteQuestionIDs.contains(question.id) ? "즐겨찾기 해제" : "즐겨찾기 추가")
+                                    .accessibilityIdentifier("practice.favorite.\(question.id)")
+                                }
+                                let labels = model.contentFields.filter { question.fieldIDs?.contains($0.id) == true }.map(\.label)
+                                if !labels.isEmpty { Text(labels.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
+                                action("이 질문 연습하기", enabled: !model.sessionLoading && !model.videoSaving, id: "practice.question-start.\(question.id)") {
+                                    showQuestionCatalog = false
+                                    model.start(questionIDs: [question.id])
+                                }
+                            }.padding(16).background(.white, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                }
+            }
+            .padding(20).background(Color(red: 246/255, green: 248/255, blue: 250/255))
+            .navigationTitle("질문 골라 연습").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("닫기") { showQuestionCatalog = false } } }
+            .tint(teal)
         }
     }
     private var jobReview: some View {
@@ -234,6 +366,9 @@ import AVKit
                     ForEach(["summary", "strength", "improvement"], id: \.self) { key in
                         if let value = key == "summary" ? turn.feedbackSummary : feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                     }
+                } else if model.feedbackDeferred {
+                    Text("답변을 저장했습니다. 녹음을 듣고 답변을 점검해 보세요.")
+                        .font(.subheadline).foregroundStyle(.secondary)
                 } else {
                     Text(model.usesOnDemandFeedback && turn.analysisRequestID == nil ? "답변을 저장했습니다. 연습을 마친 뒤 결과에서 피드백을 요청할 수 있습니다." : turn.analysisPending ? "AI 분석 중 · 결과는 자동 저장됩니다." : turn.analysisError ? "AI 분석 실패 · 녹음은 저장됐습니다." : "AI 미연결 · 녹음을 듣고 점검해 보세요.")
                         .font(.subheadline).foregroundStyle(.secondary)
@@ -307,7 +442,6 @@ import AVKit
             }
             if let record = model.record {
                 Text("질문 \(record.turns.count)개").font(.subheadline).foregroundStyle(teal)
-                Text(model.usesOnDemandFeedback ? "녹음은 기기에 저장됩니다. 피드백을 요청한 답변만 분석을 위해 전송됩니다." : "음성·영상은 이 기기에만 저장됩니다.").font(.caption).foregroundStyle(.secondary)
                 if model.videoSaving { Text("영상 저장 중…").accessibilityIdentifier("practice.video-saving") }
                 if record.video != nil { action("면접 영상 보기", id: "practice.video-play") { model.playVideo() } }
                 ForEach(record.turns) { turn in
@@ -317,7 +451,7 @@ import AVKit
                         PracticeRecordedAnswerPlayer(model: model, turn: turn, tint: teal)
                         if !turn.answer.isEmpty {
                             DisclosureGroup("나의 답변") { Text(turn.answer).font(.subheadline) }
-                        } else if !turn.analysisPending && !model.usesOnDemandFeedback {
+                        } else if !turn.analysisPending && !model.usesOnDemandFeedback && !model.feedbackDeferred {
                             Text("인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
                         }
                         if record.completed, let example = model.exampleAnswer(for: turn) {
@@ -331,7 +465,7 @@ import AVKit
                         if model.usesOnDemandFeedback, turn.analysis != nil {
                             DisclosureGroup("피드백 보기") { analysisContent(turn: turn, record: record) }
                                 .accessibilityIdentifier("practice.feedback-view.\(turn.id)")
-                        } else {
+                        } else if !model.feedbackDeferred {
                             if model.canRequestFeedback(for: turn) {
                                 action("피드백 받기", id: "practice.feedback-request.\(turn.id)") { model.requestFeedback(turn.id) }
                             }
@@ -341,12 +475,12 @@ import AVKit
                 }
             }
             action("재생 중지") { model.stopPlayback() }
-            if model.usesPC && model.record?.turns.contains(where: { $0.analysisState == "connection_required" }) == true {
+            if !model.feedbackDeferred && model.usesPC && model.record?.turns.contains(where: { $0.analysisState == "connection_required" }) == true {
                 action("연결 다시 확인") { model.refreshCLIResults(allowSubmission: true, currentOnly: true) }
             }
             action("다시 연습하기", primary: true) { model.select(model.mode) }
             action("내 면접 기록", id: "practice.records") { model.showRecords() }
-            action(model.isPortalPractice ? "면접 준비로" : "모의면접 메뉴") { model.stopPlayback(); model.screen = model.isPortalPractice ? .prep : .menu }
+            action(model.isPortalPractice ? "연습 홈으로" : "모의면접 메뉴", id: "practice.home") { model.stopPlayback(); model.screen = model.isPortalPractice ? .prep : .menu }
         }.disclosureGroupStyle(PracticeDisclosureStyle())
     }
 }

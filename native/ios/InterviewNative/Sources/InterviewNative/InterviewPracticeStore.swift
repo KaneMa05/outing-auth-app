@@ -125,6 +125,9 @@ struct PracticeRecord: Codable, Identifiable {
     var completed = false
     var turns: [PracticeTurn] = []
     var accountID: String?
+    var questionCount: Int?
+    var finished: Bool?
+    var adminSyncFingerprint: String?
 }
 struct PracticeStore {
     let root: URL

@@ -75,7 +75,8 @@ private struct StudentApp: View {
         .sheet(isPresented: $showingFeedback) { TestAppFeedbackForm(screen: "portal.my") }
         .fullScreenCover(item: $practice) { session in
             InterviewPracticeView(mode: session.mode, loadSession: { try await session.load() },
-                requestAnalysis: { action, fields in try await session.analysis(action, fields) })
+                requestAnalysis: { action, fields in try await session.analysis(action, fields) },
+                syncRecords: { body, files in try await session.syncRecords(body, files: files) })
         }
         #endif
         .fullScreenCover(item: $launch) { entry in
@@ -441,6 +442,32 @@ private struct StudentWebApp: UIViewRepresentable {
         var body = fields; body["action"] = action
         let path = ProcessInfo.processInfo.arguments.contains("--interview-pc-practice") ? "/api/interview-practice-cli" : "/api/interview-practice-openai"
         return try await post(path, body)
+    }
+    func syncRecords(_ fields: [String: Any], files: [Int: URL]) async throws {
+        var body = fields; body["action"] = "sync"
+        let plan = try await post("/api/interview-practice-records", body)
+        guard plan["ok"] as? Bool == true, let uploads = plan["uploads"] as? [[String: Any]],
+              let runID = fields["runId"] as? String else { throw URLError(.badServerResponse) }
+        let config = URLSessionConfiguration.ephemeral; config.httpCookieStorage = nil
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        for upload in uploads {
+            guard let number = upload["number"] as? Int, let file = files[number],
+                  let hash = upload["audioHash"] as? String,
+                  let rawURL = upload["url"] as? String, let url = URL(string: rawURL),
+                  url.scheme == "https", url.host?.hasSuffix(".supabase.co") == true,
+                  url.user == nil, url.password == nil, url.port == nil || url.port == 443,
+                  url.path == "/storage/v1/object/upload/sign/interview-practice/\(runID)/\(number)-\(hash).m4a" else {
+                throw URLError(.badServerResponse)
+            }
+            var request = URLRequest(url: url); request.httpMethod = "PUT"; request.timeoutInterval = 120
+            request.setValue("audio/mp4", forHTTPHeaderField: "Content-Type")
+            request.setValue("true", forHTTPHeaderField: "x-upsert")
+            let (_, response) = try await session.upload(for: request, fromFile: file)
+            guard let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) else { throw URLError(.cannotWriteToFile) }
+            let result = try await post("/api/interview-practice-records", ["action": "uploaded", "runId": runID, "number": number, "audioHash": hash])
+            guard result["ok"] as? Bool == true else { throw URLError(.badServerResponse) }
+        }
     }
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
         willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,

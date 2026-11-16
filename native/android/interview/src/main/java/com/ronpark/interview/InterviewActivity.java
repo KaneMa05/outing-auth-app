@@ -305,6 +305,7 @@ public final class InterviewActivity extends Activity implements NativeInterview
     void checkMedia(){if(checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED||checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},14);return;}if(!cameraOn)startCamera();testMic();}
     void startCamera(){try{camera.start(this,cameraBox);cameraOn=true;render();}catch(Exception e){camera.stop();cameraOn=false;setNotice("카메라를 열지 못했습니다. 카메라 없이도 면접할 수 있습니다.");}}
     void testMic(){
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){setNotice("마이크 권한과 연결을 확인해주세요.");return;}
         stopMic();
         try{
             int size=Math.max(4096,AudioRecord.getMinBufferSize(16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT));

@@ -89,6 +89,12 @@
       "regions": [
         "syd1"
       ]
+    },
+    "api/interview-practice-records.js": {
+      "maxDuration": 60,
+      "regions": [
+        "syd1"
+      ]
     }
   },
   "headers": [

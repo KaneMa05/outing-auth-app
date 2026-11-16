@@ -2,4 +2,13 @@
     <activity android:name="com.ronpark.interview.InterviewPreviewActivity" android:exported="true" android:label="모의면접 네이티브 테스트" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
     </activity>
+    <activity android:name="com.ronpark.interview.InterviewPracticeActivity" android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" android:enableOnBackInvokedCallback="true" android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ronpark-study" android:host="interview" android:path="/practice" />
+            </intent-filter>
+    </activity>
 </application></manifest>

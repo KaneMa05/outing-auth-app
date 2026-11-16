@@ -504,6 +504,11 @@ final class PhysicalPortalEndToEndTests: XCTestCase {
         XCTAssertTrue(job.waitForExistence(timeout: 15)); job.tap()
         let start = web.buttons["연습 시작"]
         XCTAssertTrue(start.waitForExistence(timeout: 15)); start.tap()
+        XCTAssertTrue(app.buttons["practice.settings"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["practice.quick-start"].exists)
+        XCTAssertFalse(app.buttons["practice.archive-retry"].exists)
+        let home = XCTAttachment(screenshot: app.screenshot()); home.name = "clean-actual-beta-preparation"; home.lifetime = .keepAlways; add(home)
+        app.buttons["practice.settings"].tap()
         let field = app.buttons["practice.content-field"]
         XCTAssertTrue(field.waitForExistence(timeout: 30))
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: field)], timeout: 30), .completed)
@@ -514,9 +519,10 @@ final class PhysicalPortalEndToEndTests: XCTestCase {
         for label in ["구조·잠수", "관제·해상통신", "기관학·함정정비", "해양환경·방제", "특공·대테러", "전산·정보보안", "항해학"] {
             XCTAssertFalse(app.buttons[label].exists, label)
         }
-        let navigation = app.buttons["형사법·수사절차"]
-        XCTAssertTrue(navigation.waitForExistence(timeout: 10)); navigation.tap()
-        XCTAssertTrue((field.label + " " + String(describing: field.value)).contains("형사법·수사절차"))
+        let available = ["형사법·수사절차", "해양경찰 직무·경찰학", "해사법규", "국제해양법"].first { app.buttons[$0].exists }
+        let chosen = try XCTUnwrap(available, "At least one approved common field should be available")
+        app.buttons[chosen].tap()
+        XCTAssertTrue((field.label + " " + String(describing: field.value)).contains(chosen))
         let region = app.buttons["practice.region"]
         XCTAssertTrue(region.waitForExistence(timeout: 10)); region.tap()
         let west = app.buttons["서해"]
@@ -679,18 +685,138 @@ final class PhysicalPortalEndToEndTests: XCTestCase {
 }
 
 final class PracticeFilterUITests: XCTestCase {
+    func testBetaResultKeepsPlaybackAndHidesFeedbackRequestsAndWaitingMessages() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-filter-fixture"]
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "Allow", "OK", "확인"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.question-catalog"].waitForExistence(timeout: 15))
+        app.buttons["practice.question-catalog"].tap()
+        app.buttons["practice.question-start.nav"].tap(); app.tap()
+        let answer = app.buttons["interview.answer"]
+        XCTAssertTrue(answer.waitForExistence(timeout: 10))
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: answer)
+        waitForExpectations(timeout: 10)
+        answer.tap()
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["practice.playback.toggle.1"].exists)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "practice.feedback-request.")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["AI 평가 미연결"].exists)
+        XCTAssertFalse(app.staticTexts["피드백은 요청한 답변에만 제공됩니다."].exists)
+        XCTAssertFalse(app.otherElements["practice.analysis-progress.1"].exists)
+        XCTAssertEqual(app.buttons["practice.home"].label, "연습 홈으로")
+        XCTAssertEqual(app.buttons["practice.back"].label, "뒤로")
+        app.buttons["practice.back"].tap()
+        XCTAssertTrue(app.buttons["practice.quick-start"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["practice.back"].label, "닫기")
+        app.buttons["practice.records"].tap()
+        let savedRecord = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "practice.record-open.")).firstMatch
+        XCTAssertTrue(savedRecord.waitForExistence(timeout: 5)); savedRecord.tap()
+        XCTAssertTrue(app.staticTexts["면접 결과"].waitForExistence(timeout: 5))
+        app.buttons["practice.back"].tap()
+        XCTAssertTrue(app.buttons["practice.records-home"].waitForExistence(timeout: 5))
+        app.buttons["practice.back"].tap()
+        XCTAssertTrue(app.buttons["practice.quick-start"].waitForExistence(timeout: 5))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "beta-result-feedback-deferred"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+
+    func testPreparationHasOnePrimaryActionAndSettingsStaySeparate() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-personality-filter-fixture"]
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.quick-start"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["practice.question-catalog"].exists)
+        XCTAssertTrue(app.buttons["practice.records"].exists)
+        XCTAssertFalse(app.buttons["practice.personality-count"].exists)
+        XCTAssertFalse(app.buttons["interview.start"].exists)
+        XCTAssertFalse(app.buttons["practice.archive-retry"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "답변 녹음은 관리자에게 전송")).firstMatch.exists)
+        XCTAssertEqual(app.buttons["practice.back"].label, "닫기")
+        app.buttons["practice.records"].tap()
+        XCTAssertEqual(app.buttons["practice.back"].label, "뒤로")
+        app.buttons["practice.back"].tap()
+        XCTAssertTrue(app.buttons["practice.quick-start"].waitForExistence(timeout: 5))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "clean-beta-preparation"; screenshot.lifetime = .keepAlways; add(screenshot)
+        app.buttons["practice.settings"].tap()
+        XCTAssertTrue(app.buttons["practice.personality-count"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["interview.start"].exists)
+        app.buttons["완료"].tap()
+        XCTAssertTrue(app.buttons["practice.quick-start"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["interview.start"].exists)
+    }
+
+    func testBetaCatalogFavoritesPersistAndSelectedQuestionStarts() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-practice-filter-fixture", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "Allow", "OK", "확인"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.question-catalog"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["practice.quick-start"].exists)
+        XCTAssertFalse(app.buttons["interview.start"].exists)
+        XCTAssertTrue(app.buttons["practice.settings"].exists)
+        XCTAssertFalse(app.buttons["practice.archive-retry"].exists)
+        app.buttons["practice.question-catalog"].tap()
+        let favorite = app.buttons["practice.favorite.nav"]
+        XCTAssertTrue(favorite.waitForExistence(timeout: 5))
+        if favorite.label == "즐겨찾기 해제" { favorite.tap() }
+        favorite.tap()
+        app.buttons["practice.catalog-field"].tap(); app.buttons["해사법규"].tap()
+        XCTAssertTrue(app.staticTexts["법규 질문"].exists)
+        XCTAssertFalse(app.buttons["practice.favorite.nav"].exists)
+        app.buttons["practice.catalog-field"].tap(); app.buttons["전체 분야"].tap()
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.buttons["practice.question-catalog"].waitForExistence(timeout: 15))
+        app.buttons["practice.question-catalog"].tap()
+        app.buttons["즐겨찾기"].tap()
+        XCTAssertTrue(app.buttons["practice.favorite.nav"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["practice.favorite.nav"].label, "즐겨찾기 해제")
+        app.buttons["practice.question-start.nav"].tap(); app.tap()
+        XCTAssertTrue(app.staticTexts["질문 1 / 1"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["항법 질문"].waitForExistence(timeout: 10))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "beta-selected-question"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
+
+    func testBetaQuickPracticeStartsThreeQuestionsWithoutChangingCountSetting() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-native-preview", "--portal-personality-filter-fixture"]
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["허용", "Allow", "OK", "확인"] { if alert.buttons[label].exists { alert.buttons[label].tap(); return true } }
+            return false
+        }
+        app.launch()
+        XCTAssertTrue(app.buttons["practice.settings"].waitForExistence(timeout: 15))
+        app.buttons["practice.settings"].tap()
+        XCTAssertTrue(app.buttons["practice.personality-count"].waitForExistence(timeout: 5))
+        app.buttons["practice.personality-count"].tap(); app.buttons["10문항"].tap()
+        XCTAssertEqual(app.buttons["practice.personality-count"].value as? String, "10문항")
+        app.buttons["완료"].tap()
+        app.buttons["practice.quick-start"].tap(); app.tap()
+        XCTAssertTrue(app.staticTexts["질문 1 / 3"].waitForExistence(timeout: 15))
+    }
+
     func testContentFieldAndRegionIntersectWithoutFallingBackToOtherQuestions() {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--portal-practice-filter-fixture"]
         app.launch()
-        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["practice.settings"].waitForExistence(timeout: 15))
+        app.buttons["practice.settings"].tap()
+        XCTAssertTrue(app.buttons["practice.content-field"].waitForExistence(timeout: 5))
         app.buttons["practice.content-field"].tap()
         app.buttons["형사법·수사절차"].tap()
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
         app.buttons["practice.region"].tap()
         app.buttons["중부"].tap()
-        XCTAssertTrue(app.staticTexts["선택 조건에 맞는 공개 승인 문항이 없습니다. 분야나 지역을 변경해주세요."].exists)
-        XCTAssertTrue(app.buttons["interview.start"].isEnabled)
+        XCTAssertTrue(app.staticTexts["선택한 조건에 맞는 질문이 없습니다. 분야나 지역을 변경해주세요."].exists)
+        XCTAssertFalse(app.buttons["interview.start"].isEnabled)
         app.buttons["practice.region"].tap()
         app.buttons["서해"].tap()
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "선택 조건에 맞는")).firstMatch.exists)
@@ -775,6 +901,8 @@ final class PersonalityPreparationTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--interview-native-preview", "--portal-personality-filter-fixture"]
         app.launch()
+        XCTAssertTrue(app.buttons["practice.settings"].waitForExistence(timeout: 15))
+        app.buttons["practice.settings"].tap()
         let field = app.buttons["practice.content-field"]
         XCTAssertTrue(field.waitForExistence(timeout: 15))
         field.tap(); app.buttons["실패·성장"].tap()

@@ -46,3 +46,7 @@ config.js
 !.env.example
 __pycache__/
 *.pyc
+
+# Generated Android build output
+/native/android/**/build/
+/native/android/**/.gradle/

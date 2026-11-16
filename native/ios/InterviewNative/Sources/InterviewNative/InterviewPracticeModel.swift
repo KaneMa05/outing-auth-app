@@ -25,6 +25,31 @@ import CryptoKit
     @Published var contentFields: [PracticeContentField] = []
     @Published var selectedField = ""
     @Published var selectedRegion = ""
+    @Published private(set) var favoriteQuestionIDs: Set<String> = []
+    private var favoritesKey: String? {
+        guard let portalAccount else { return nil }
+        let scope = SHA256.hash(data: Data(portalAccount.utf8)).map { String(format: "%02x", $0) }.joined()
+        return "interview.practice.favorites." + scope
+    }
+    var catalogQuestions: [PracticeQuestion] {
+        bank.filter {
+            InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) &&
+            InterviewPracticePolicy.matchesSelection(fields: $0.fieldIDs ?? [], regions: $0.regions ?? [], field: selectedField, region: mode == "job" ? selectedRegion : "")
+        }
+    }
+    func toggleFavorite(_ id: String) {
+        guard isPortalPractice, configurableQuestions, !sessionLoading, let favoritesKey,
+              catalogQuestions.contains(where: { $0.id == id }) else { return }
+        if favoriteQuestionIDs.contains(id) { favoriteQuestionIDs.remove(id) }
+        else { favoriteQuestionIDs.insert(id) }
+        UserDefaults.standard.set(favoriteQuestionIDs.sorted(), forKey: favoritesKey)
+    }
+    func startQuickPractice() {
+        guard screen == .prep, isPortalPractice, configurableQuestions else { return }
+        let ids = Array(catalogQuestions.shuffled().prefix(3)).map(\.id)
+        guard !ids.isEmpty else { return }
+        start(questionIDs: ids)
+    }
     var availableRegions: [String] {
         Array(Set(bank.filter { InterviewPracticePolicy.eligible(category: $0.category, tracks: $0.tracks, mode: mode, track: track) }.flatMap { $0.regions ?? [] })).sorted()
     }
@@ -40,8 +65,25 @@ import CryptoKit
     var streamsCaptions: Bool { mode == "ai" || liveCaptionsEnabled }
     private var reviewStartedAt: Date?
     private var activePracticeRecordID: String?
+    private var resultCameFromRecords = false
+    var isNavigationRoot: Bool { screen == .menu || (isPortalPractice && screen == .prep) }
+    /// Only the outermost screen dismisses the native practice flow.
+    func navigateBack() -> Bool {
+        guard screen != .live && screen != .jobReview else { return false }
+        if isNavigationRoot { return true }
+        media.stop(); stopPlayback(); notice = ""
+        if screen == .result && resultCameFromRecords {
+            showRecords()
+        } else {
+            screen = isPortalPractice ? .prep : .menu
+        }
+        return false
+    }
+    func showRecord(_ saved: PracticeRecord) {
+        stopPlayback(); resultCameFromRecords = true; record = saved; screen = .result
+    }
     var canAutomaticallySubmitCurrentAnswers: Bool {
-        if usesOnDemandFeedback { return false }
+        if feedbackDeferred || usesOnDemandFeedback { return false }
         guard let activePracticeRecordID else { return false }
         return record?.id == activePracticeRecordID
     }
@@ -76,7 +118,12 @@ import CryptoKit
         let selected = screen == .result ? record?.mode ?? mode : mode
         return usesPC && isPortalPractice && ["job", "personality"].contains(selected)
     }
-    var analyzesAnswers: Bool { bridgeReady && (usesPC || consent) && !usesOnDemandFeedback }
+    // The first student beta focuses on recording and self-review.
+    func defersFeedback(in practiceMode: String) -> Bool {
+        isPortalPractice && ["job", "personality"].contains(practiceMode)
+    }
+    var feedbackDeferred: Bool { defersFeedback(in: screen == .result ? record?.mode ?? mode : mode) }
+    var analyzesAnswers: Bool { !feedbackDeferred && bridgeReady && (usesPC || consent) && !usesOnDemandFeedback }
     var cliRequest: PracticeCLI.Request?
     private var cliTasks: [String: Task<Void, Never>] = [:]
     private var exampleTasks: [String: Task<Void, Never>] = [:]
@@ -98,12 +145,14 @@ import CryptoKit
               let rows = data["questions"] as? [[String: Any]] else { throw InterviewError.invalidResponse }
         if let portalAccount, portalAccount != account { throw InterviewError.connection }
         portalAccount = account; track = newTrack
+        if let favoritesKey { favoriteQuestionIDs = Set(UserDefaults.standard.stringArray(forKey: favoritesKey) ?? []) }
         if let selected = data["mode"] as? String, ["job", "personality", "ai"].contains(selected) { mode = selected }
         let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
         let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("InterviewAccounts/" + scope, isDirectory: true)
         store = try PracticeStore(root: root)
         try store?.migrateLegacyCLI(account: account)
+        syncPracticeRecords()
         let receivedFields: [PracticeContentField] = (data["fields"] as? [[String: Any]] ?? []).compactMap { row in
             guard let id = row["id"] as? String, let label = row["label"] as? String else { return nil }
             return PracticeContentField(id: id, label: label)
@@ -123,6 +172,18 @@ import CryptoKit
         catalogLoaded = true
     }
     private var store: PracticeStore?
+    let archive = PracticeArchiveSync()
+    @Published var archiveNotice = ""
+    func syncPracticeRecords() {
+        archive.store = store; archive.account = portalAccount
+        archive.onStatus = { [weak self] in self?.archiveNotice = $0 }
+        archive.onSynced = { [weak self] saved in
+            guard let self else { return }
+            if self.record?.id == saved.id { self.record = saved }
+            if let index = self.records.firstIndex(where: { $0.id == saved.id }) { self.records[index] = saved }
+        }
+        archive.schedule()
+    }
     private let recorder = PracticeRecorder()
     private var player: AVAudioPlayer?
     private var audioRouteObserver: NSObjectProtocol?
@@ -255,7 +316,7 @@ import CryptoKit
         guard canRepeatJobQuestions, screen == .result else { return }
         stopPlayback(); screen = .prep
     }
-    func start(allowAI: Bool? = nil) {
+    func start(allowAI: Bool? = nil, questionIDs: [String]? = nil) {
         guard !sessionLoading else { return }
         if isPortalPractice {
             sessionLoading = true
@@ -265,6 +326,15 @@ import CryptoKit
                 defer { self.sessionLoading = false }
                 do {
                     try await self.refreshPortal()
+                    if let questionIDs {
+                        // Recheck the current approved catalog before opening the microphone.
+                        let selected = questionIDs.compactMap { id in self.catalogQuestions.first { $0.id == id } }
+                        guard !selected.isEmpty, selected.count == questionIDs.count else {
+                            self.notice = "선택한 질문이 변경되었거나 공개가 종료되었습니다. 질문 목록에서 다시 선택해주세요."
+                            return
+                        }
+                        self.questions = selected
+                    }
                     if !self.usesOnDemandFeedback, let request = self.cliRequest, let account = self.portalAccount {
                         self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
                         guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
@@ -277,7 +347,7 @@ import CryptoKit
     }
     private func startVerified(allowAI: Bool? = nil) {
         guard screen == .prep, !questions.isEmpty, store != nil, !videoSaving else { return }
-        if !usesPC {
+        if !usesPC && !feedbackDeferred {
             if bridgeReady && !consent && allowAI == nil { needsConsent = true; return }
             if let allowAI { consent = allowAI }
         }
@@ -292,9 +362,11 @@ import CryptoKit
     }
     private func begin() {
         media.stopMic(); stopPlayback(); generation += 1
+        resultCameFromRecords = false
         do {
             var record = PracticeRecord(id: UUID().uuidString, mode: mode, track: track)
             record.accountID = portalAccount
+            record.questionCount = questions.count; record.finished = false
             if configurableQuestions {
                 record.fieldID = selectedField.isEmpty ? nil : selectedField
                 record.fieldLabel = contentFields.first { $0.id == selectedField }?.label
@@ -302,6 +374,7 @@ import CryptoKit
             }
 
             record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id
+            syncPracticeRecords()
             avatarURL = showsInterviewer ? InterviewAvatarVideo.availableURLs.randomElement() : nil
             remaining = InterviewAnswerGate.silenceSeconds
             number = 1; elapsed = 0; countdown = 3; talking = false; hint = "3초 후 시작"; transcript = ""; transcriptPrefix = ""; screen = .live; startedAt = Date(); UIApplication.shared.isIdleTimerDisabled = true
@@ -559,6 +632,7 @@ import CryptoKit
                 saved.turns[saved.turns.count - 1].analysisState = "submitting"
             }
             try store.save(saved); record = saved
+            syncPracticeRecords()
             if usesPC {
                 currentCaptions?.close()
                 if shouldAnalyze { runCLI(saved.id, currentNumber, allowSubmission: true) }
@@ -598,7 +672,7 @@ import CryptoKit
         } catch { notice = "기록을 갱신하지 못했습니다. 저장 공간을 확인해주세요." }
     }
     func canRequestFeedback(for turn: PracticeTurn) -> Bool {
-        usesOnDemandFeedback && record?.accountID == portalAccount && turn.analysis == nil &&
+        !feedbackDeferred && usesOnDemandFeedback && record?.accountID == portalAccount && turn.analysis == nil &&
         !turn.analysisPending && turn.analysisRequestID == nil
     }
     func requestFeedback(_ number: Int) {
@@ -641,7 +715,7 @@ import CryptoKit
         cliTasks[id] = Task { [weak self] in
             guard let self else { return }; defer { self.cliTasks[id] = nil }
             let referenceOnly = turn.analysisState == "completed"
-            var submit = allowSubmission && !referenceOnly
+            var submit = allowSubmission && !referenceOnly && !self.defersFeedback(in: saved.mode)
             do {
                 while !Task.isCancelled && !self.disposed {
                     let result = try await PracticeCLI(request: request).advance(id: id, account: account, mode: saved.mode,
@@ -673,12 +747,12 @@ import CryptoKit
             for turn in record.turns where turn.analysisRequestID != nil { runCLI(record.id, turn.id, allowSubmission: allowSubmission, includeCompletedReference: currentOnly) }
         }
     }
-    func foreground() { refreshCLIResults(); refreshPracticeExamples() }
+    func foreground() { refreshCLIResults(); refreshPracticeExamples(); syncPracticeRecords() }
     func stop(completed: Bool = false, capture: Bool = true) {
         guard screen == .live || screen == .jobReview else { return }
         if capture { captureAnswer() } else { stopTurn() }
         media.stop(); ticker?.cancel(); UIApplication.shared.isIdleTimerDisabled = false
-        if var saved = record { saved.completed = completed; do { try store?.save(saved); record = saved } catch { notice = "기록을 저장하지 못했습니다." } }
+        if var saved = record { saved.completed = completed; saved.finished = true; do { try store?.save(saved); record = saved; syncPracticeRecords() } catch { notice = "기록을 저장하지 못했습니다." } }
         screen = .result; answering = false; notice = "음성은 이 기기에 저장되었습니다."
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
@@ -725,6 +799,11 @@ import CryptoKit
         refreshCLIResults()
     }
     func delete(_ id: String) {
+        if archive.transport != nil, let saved = try? store?.load(id), !archive.isSynced(saved) {
+            syncPracticeRecords()
+            notice = "관리자 기록 전송이 완료된 뒤 기기 기록을 삭제할 수 있습니다."
+            return
+        }
         // Cancel pending caption work first so it cannot recreate a deleted record.
         stopPlayback()
         if let saved = try? store?.load(id) { for turn in saved.turns { if let request = turn.analysisRequestID { cliTasks[request]?.cancel() } } }

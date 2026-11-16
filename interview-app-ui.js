@@ -56,6 +56,16 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
      box.innerHTML=mockScreen();
+     if(route.mockMode&&typeof navigator!=='undefined'&&/Android/i.test(navigator.userAgent)&&new URLSearchParams(location.search).get('nativePractice')==='1'){
+      const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261116-android-practice');
+      if(destroyed||ticket!==generation)return;
+      const next=await mountNativeInterview(box,{platform:'android',practiceMode:route.mockMode,request:async(url,body)=>{
+       const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+       const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
+      }});
+      if(destroyed||ticket!==generation)next.destroy();else child=next;
+     }
+
     }else if(route.tab==='my'){
      const m=data.member||{};
      box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><section class="ip-panel">${onExit?'<button class="ip-app-link" type="button" data-app-exit>기존 반으로 전환<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;

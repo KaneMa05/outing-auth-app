@@ -22,7 +22,11 @@ public final class InterviewPreviewActivity extends Activity {
     @Override protected void onResume(){super.onResume();updateTrack();}
     int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
     @Override public void onCreate(Bundle state) {
-        super.onCreate(state);int paper=Color.rgb(242,245,247),ink=Color.rgb(23,59,81);
+        super.onCreate(state);
+        if(!getIntent().getBooleanExtra("legacyDemo",false)){
+            startActivity(new Intent(this,InterviewPracticeActivity.class));finish();return;
+        }
+        int paper=Color.rgb(242,245,247),ink=Color.rgb(23,59,81);
         getWindow().setStatusBarColor(paper);getWindow().setNavigationBarColor(paper);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(paper);root.setPadding(dp(18),dp(22),dp(18),dp(24));
         root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(18)+insets.getSystemWindowInsetLeft(),dp(22)+insets.getSystemWindowInsetTop(),dp(18)+insets.getSystemWindowInsetRight(),dp(24)+insets.getSystemWindowInsetBottom());return insets;});

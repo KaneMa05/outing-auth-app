@@ -31,6 +31,7 @@ final class InterviewVoiceLevel {
             output.setEnabled(true);
         }catch(Exception ignored){stop();}
     }
+    boolean isRecording(){return input!=null;}
     void microphone(){microphone(null,null);}
     void microphone(File recording){microphone(recording,null);}
     void microphone(File recording,PcmListener listener) {
@@ -56,7 +57,8 @@ final class InterviewVoiceLevel {
                 }}catch(Exception ignored){}
                 finally{if(wav!=null)try{long length=wav.length()-44;wav.seek(0);wav.writeBytes("RIFF");le(wav,length+36,4);wav.writeBytes("WAVEfmt ");le(wav,16,4);le(wav,1,2);le(wav,1,2);le(wav,16000,4);le(wav,32000,4);le(wav,2,2);le(wav,16,2);wav.writeBytes("data");le(wav,length,4);wav.close();}catch(Exception ignored){}}
             },"InterviewVoiceLevel");reader.start();
-        }catch(Exception ignored){stop();}
+        }catch(SecurityException denied){stop();}
+        catch(Exception ignored){stop();}
     }
     private static void le(RandomAccessFile f,long value,int bytes)throws java.io.IOException{for(int i=0;i<bytes;i++)f.write((int)(value>>(8*i))&255);}
     void stop(){

@@ -101,6 +101,204 @@ final class InterviewPracticeTests: XCTestCase {
         XCTAssertFalse(signal.speaking)
     }
     #if DEBUG
+    @MainActor func testBackNavigationOnlyDismissesTheRootAndRemembersRecordHistory() {
+        let model = PracticeModel(); defer { model.dispose() }
+        model.sessionLoader = { [:] }; model.screen = .prep
+        XCTAssertTrue(model.isNavigationRoot); XCTAssertTrue(model.navigateBack())
+        model.screen = .records
+        XCTAssertFalse(model.isNavigationRoot); XCTAssertFalse(model.navigateBack())
+        XCTAssertEqual(model.screen, .prep)
+        model.screen = .result
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .prep)
+        let saved = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        model.showRecord(saved)
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .records)
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .prep)
+        model.screen = .live
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .live)
+        model.screen = .jobReview
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .jobReview)
+        model.screen = .prep; model.sessionLoader = nil
+        XCTAssertFalse(model.navigateBack()); XCTAssertEqual(model.screen, .menu)
+        XCTAssertTrue(model.navigateBack())
+    }
+
+    private func archiveTestWAV(seconds: Int) -> Data {
+        let frames = 16000 * seconds
+        var header = Data()
+        func value(_ n: UInt32, _ count: Int = 4) { var little = n.littleEndian; withUnsafeBytes(of: &little) { header.append(contentsOf: $0.prefix(count)) } }
+        header.append(Data("RIFF".utf8)); value(UInt32(frames * 2 + 36)); header.append(Data("WAVEfmt ".utf8))
+        value(16); value(1, 2); value(1, 2); value(16000); value(32000); value(2, 2); value(16, 2)
+        header.append(Data("data".utf8)); value(UInt32(frames * 2))
+        let samples = (0..<frames).map { Int16(sin(Double($0) * 2 * .pi * 440 / 16000) * 12000).littleEndian }
+        samples.withUnsafeBytes { header.append(contentsOf: $0) }
+        return header
+    }
+
+    @MainActor func testArchiveAACCompressionPreservesOriginalAndDuration() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try PracticeStore(root: root)
+        var saved = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        saved.accountID = "account-a"; saved.questionCount = 1; saved.finished = true
+        saved.turns = [PracticeTurn(id: 1, question: "압축 검증", duration: 120, audio: "1.wav")]
+        try store.save(saved)
+        let raw = archiveTestWAV(seconds: 120), source = try store.audio(saved.id, "1.wav")
+        try raw.write(to: source)
+        let sync = PracticeArchiveSync(); sync.store = store; sync.account = "account-a"
+        let first = try await sync.payload(saved)
+        let compressed = try XCTUnwrap(first.files[1])
+        let bytes = try Data(contentsOf: compressed)
+        let file = try AVAudioFile(forReading: compressed)
+        let duration = Double(file.length) / file.processingFormat.sampleRate
+        XCTAssertEqual(compressed.pathExtension, "m4a")
+        XCTAssertEqual(duration, 120, accuracy: 0.2)
+        XCTAssertLessThan(bytes.count, raw.count / 5)
+        XCTAssertEqual(try Data(contentsOf: source), raw)
+        let second = try await sync.payload(saved)
+        XCTAssertEqual(second.files[1], compressed)
+        XCTAssertEqual(try Data(contentsOf: compressed), bytes, "Retries must reuse exactly the same archived bytes")
+        print("ARCHIVE_COMPRESSION source=\(raw.count) compressed=\(bytes.count) seconds=\(duration)")
+    }
+
+    @MainActor func testArchiveRetriesEveryAnswerWithoutLosingLocalAudioOrCrossingAccounts() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try PracticeStore(root: root)
+        var saved = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        saved.accountID = "account-a"; saved.questionCount = 2; saved.finished = true
+        saved.turns = [PracticeTurn(id: 1, question: "첫 질문", duration: 1, audio: "1.wav"), PracticeTurn(id: 2, question: "다음 질문", duration: 2, audio: "2.wav")]
+        try store.save(saved)
+        for turn in saved.turns { try archiveTestWAV(seconds: turn.id).write(to: store.audio(saved.id, turn.audio)) }
+        var foreign = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채"); foreign.accountID = "account-b"
+        try store.save(foreign)
+        let sync = PracticeArchiveSync(); sync.store = store; sync.account = "account-a"
+        var calls = 0, fail = true, status = ""
+        sync.onStatus = { status = $0 }
+        sync.transport = { body, files in
+            calls += 1
+            XCTAssertEqual(body["runId"] as? String, saved.id.lowercased())
+            XCTAssertEqual(Set(files.keys), [1, 2])
+            let turns = try XCTUnwrap(body["turns"] as? [[String: Any]])
+            XCTAssertEqual(turns.count, 2)
+            XCTAssertTrue(turns.allSatisfy { ($0["audioHash"] as? String)?.count == 64 })
+            XCTAssertNil(body["audioBase64"])
+            if fail { throw URLError(.notConnectedToInternet) }
+        }
+        sync.schedule(); await sync.wait()
+        XCTAssertEqual(calls, 1); XCTAssertFalse(status.isEmpty)
+        XCTAssertNil(try store.load(saved.id).adminSyncFingerprint)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.audio(saved.id, "2.wav").path))
+        fail = false; sync.schedule(); await sync.wait()
+        XCTAssertEqual(calls, 2); XCTAssertTrue(status.isEmpty)
+        XCTAssertTrue(sync.isSynced(try store.load(saved.id)))
+        sync.schedule(); await sync.wait(); XCTAssertEqual(calls, 2)
+        XCTAssertNil(try store.load(foreign.id).adminSyncFingerprint)
+    }
+
+    @MainActor func testArchiveKeepsNewAnswersWrittenDuringAnUpload() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try PracticeStore(root: root)
+        var saved = PracticeRecord(id: UUID().uuidString, mode: "personality", track: "공채")
+        saved.accountID = "account-a"; saved.questionCount = 2; saved.finished = false
+        saved.turns = [PracticeTurn(id: 1, question: "첫 질문", duration: 1, audio: "1.wav")]
+        try store.save(saved); try archiveTestWAV(seconds: 1).write(to: store.audio(saved.id, "1.wav"))
+        let sync = PracticeArchiveSync(); sync.store = store; sync.account = "account-a"
+        var counts: [Int] = []
+        sync.transport = { body, files in
+            counts.append(files.count)
+            if counts.count == 1 {
+                var latest = try store.load(saved.id)
+                latest.turns.append(PracticeTurn(id: 2, question: "새 답변", duration: 1, audio: "2.wav"))
+                latest.completed = true; latest.finished = true
+                try store.save(latest); try self.archiveTestWAV(seconds: 1).write(to: store.audio(saved.id, "2.wav"))
+                sync.schedule()
+            }
+        }
+        sync.schedule(); await sync.wait()
+        let latest = try store.load(saved.id)
+        XCTAssertEqual(counts, [1, 2]); XCTAssertEqual(latest.turns.count, 2)
+        XCTAssertTrue(latest.completed); XCTAssertTrue(latest.finished == true); XCTAssertTrue(sync.isSynced(latest))
+        try FileManager.default.removeItem(at: store.audio(saved.id, "2.wav"))
+        let missingPayload = try await sync.payload(latest)
+        let missing = try XCTUnwrap((missingPayload.body["turns"] as? [[String: Any]])?.last)
+        XCTAssertEqual(missing["audioBytes"] as? Int, 0)
+        XCTAssertEqual(missing["audioHash"] as? String, "")
+    }
+
+    @MainActor func testBetaCatalogFiltersAndPersistsFavoritesPerAccount() async throws {
+        let account = "beta-catalog-" + UUID().uuidString
+        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("InterviewAccounts/" + scope)
+        defer {
+            UserDefaults.standard.removeObject(forKey: "interview.practice.favorites." + scope)
+            try? FileManager.default.removeItem(at: root)
+        }
+        let rows: [[String: Any]] = [
+            ["id": "west-law", "prompt": "서해 법규 질문", "category": "job", "tracks": ["공채"], "fieldIds": ["domestic_maritime_law"], "regions": ["서해"]],
+            ["id": "central-law", "prompt": "중부 법규 질문", "category": "job", "tracks": ["공채"], "fieldIds": ["domestic_maritime_law"], "regions": ["중부"]],
+            ["id": "other-track", "prompt": "다른 직렬", "category": "job", "tracks": ["기관"]],
+            ["id": "personality", "prompt": "인성 질문", "category": "personality", "tracks": []]
+        ]
+        let loader: () async throws -> [String: Any] = {
+            ["accountId": account, "track": "공채", "mode": "job", "questions": rows,
+             "fields": [["id": "domestic_maritime_law", "label": "해사법규"]]]
+        }
+        let model = PracticeModel(); defer { model.dispose() }
+        model.sessionLoader = loader; model.screen = .prep
+        try await model.refreshPortal()
+        XCTAssertEqual(Set(model.catalogQuestions.map(\.id)), ["west-law", "central-law"])
+        model.toggleFavorite("west-law")
+        model.toggleFavorite("other-track")
+        XCTAssertEqual(model.favoriteQuestionIDs, ["west-law"])
+        model.changeField("domestic_maritime_law"); model.changeRegion("중부")
+        XCTAssertEqual(model.catalogQuestions.map(\.id), ["central-law"])
+        XCTAssertEqual(model.favoriteQuestionIDs, ["west-law"], "Filtering must not delete saved favorites")
+        let reopened = PracticeModel(); defer { reopened.dispose() }
+        reopened.sessionLoader = loader
+        try await reopened.refreshPortal()
+        XCTAssertEqual(reopened.favoriteQuestionIDs, ["west-law"])
+        reopened.toggleFavorite("west-law")
+        try await model.refreshPortal()
+        XCTAssertTrue(model.favoriteQuestionIDs.isEmpty)
+        let other = PracticeModel(); defer { other.dispose() }
+        let otherAccount = account + "-other"
+        let otherScope = SHA256.hash(data: Data(otherAccount.utf8)).map { String(format: "%02x", $0) }.joined()
+        defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent().appendingPathComponent(otherScope)) }
+        other.sessionLoader = { ["accountId": otherAccount, "track": "공채", "mode": "job", "questions": rows] }
+        reopened.toggleFavorite("west-law")
+        try await other.refreshPortal()
+        XCTAssertTrue(other.favoriteQuestionIDs.isEmpty)
+    }
+
+    @MainActor func testBetaSelectedQuestionCannotStartAfterCatalogRevocation() async throws {
+        let account = "beta-revoked-" + UUID().uuidString
+        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("InterviewAccounts/" + scope)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = PracticeModel(); defer { model.dispose() }
+        var revoked = false
+        model.sessionLoader = {
+            ["accountId": account, "track": "공채", "mode": "job", "questions": revoked ? [] : [
+                ["id": "approved", "prompt": "승인 질문", "category": "job", "tracks": ["공채"]]
+            ]]
+        }
+        model.screen = .prep
+        try await model.refreshPortal()
+        XCTAssertEqual(model.catalogQuestions.map(\.id), ["approved"])
+        revoked = true
+        model.start(questionIDs: ["approved"])
+        for _ in 0..<100 {
+            if !model.sessionLoading { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertFalse(model.sessionLoading)
+        XCTAssertEqual(model.screen, .prep)
+        XCTAssertNil(model.record)
+        XCTAssertTrue(model.notice.contains("공개가 종료"))
+    }
+
     @MainActor func testPCAnalysisUsesOriginalQuestionAndDoesNotRepeatCompletedWork() async throws {
         let account = "original-prompt-" + UUID().uuidString
         let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -120,7 +318,7 @@ final class InterviewPracticeTests: XCTestCase {
         }
         await model.load()
         let store = try PracticeStore(root: root)
-        var record = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        var record = PracticeRecord(id: UUID().uuidString, mode: "ai", track: "공채")
         record.accountID = account
         var turn = PracticeTurn(id: 1, question: "녹음과 일치하는 표시 문구", audio: "1.wav", questionID: "q-test")
         turn.analysisRequestID = id; turn.analysisQuestionPrompt = "분석용 원본 질문"
@@ -332,7 +530,7 @@ final class InterviewPracticeTests: XCTestCase {
         XCTAssertEqual(try reopened.list().map(\.id), [other.id])
         XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path))
     }
-    @MainActor func testPracticeFeedbackIsExplicitAndCachedWhileExamplesStayFree() async throws {
+    @MainActor func testBetaDefersFeedbackAndUploadsWhileExamplesStayFree() async throws {
         for mode in ["job", "personality"] {
             let account = "on-demand-" + UUID().uuidString
             let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -340,15 +538,12 @@ final class InterviewPracticeTests: XCTestCase {
             defer { try? FileManager.default.removeItem(at: root) }
             let model = PracticeModel(); defer { model.dispose() }
             model.mode = mode; model.sessionLoader = { ["accountId": account, "track": "공채", "mode": mode, "questions": []] }
-            var calls: [String] = [], requestIDs: [String] = [], completed = false
+            var calls: [String] = []
             model.cliRequest = { action, fields in
                 if action == "status" { return ["ok": true, "ready": true] }
                 calls.append(action)
                 if action == "reference" { return ["ok": true, "accountId": account, "referenceAnswer": "상황을 먼저 확인하고 동료에게 보고한 뒤 조치를 기록합니다."] }
-                let id = fields["id"] as! String; requestIDs.append(id)
-                if action == "get" && !completed { return ["ok": false, "error": "not_found"] }
-                if action == "submit" { completed = true }
-                return ["ok": true, "id": id, "state": "completed", "report": ["analysis": ["summary": "저장된 모의 피드백", "strengths": [], "improvements": [], "nextPractice": []], "transcripts": ["저장 답변"]]]
+                return ["ok": false, "error": "not_found"]
             }
             await model.load(); XCTAssertTrue(model.usesOnDemandFeedback); XCTAssertFalse(model.analyzesAnswers)
             let store = try PracticeStore(root: root)
@@ -360,14 +555,26 @@ final class InterviewPracticeTests: XCTestCase {
             model.foreground();model.refreshCLIResults(allowSubmission: true, currentOnly: true)
             for _ in 0..<100 { if model.record?.turns[0].exampleAnswer != nil { break }; try await Task.sleep(nanoseconds: 1_000_000) }
             XCTAssertEqual(calls, ["reference"]); XCTAssertNil(model.record?.turns[0].analysisRequestID); XCTAssertNotNil(model.record?.turns[0].exampleAnswer)
-            XCTAssertTrue(model.canRequestFeedback(for: model.record!.turns[0])); XCTAssertFalse(model.canAutomaticallySubmitCurrentAnswers)
-            model.requestFeedback(1);model.requestFeedback(1)
-            for _ in 0..<100 { if model.record?.turns[0].analysis != nil { break }; try await Task.sleep(nanoseconds: 1_000_000) }
-            XCTAssertEqual(calls.filter { $0 == "submit" }.count, 1);XCTAssertEqual(Set(requestIDs).count, 1)
-            XCTAssertEqual(model.record?.turns[0].analysis?["summary"], "저장된 모의 피드백")
-            model.requestFeedback(1);model.foreground()
+            XCTAssertTrue(model.feedbackDeferred)
+            XCTAssertFalse(model.canRequestFeedback(for: model.record!.turns[0]))
+            XCTAssertFalse(model.canAutomaticallySubmitCurrentAnswers)
+            model.requestFeedback(1); model.requestFeedback(1)
             for _ in 0..<10 { await Task.yield() }
-            XCTAssertEqual(calls.filter { $0 == "submit" }.count, 1);XCTAssertFalse(model.canRequestFeedback(for: model.record!.turns[0]))
+            XCTAssertEqual(calls, ["reference"])
+            XCTAssertNil(model.record?.turns[0].analysisRequestID)
+            // An old interrupted request must never upload audio when reopened or retried.
+            var interrupted = try store.load(saved.id)
+            interrupted.turns[0].analysisRequestID = UUID().uuidString.lowercased()
+            interrupted.turns[0].analysisState = "connection_required"
+            try store.save(interrupted); model.record = interrupted
+            model.refreshCLIResults(allowSubmission: true, currentOnly: true)
+            for _ in 0..<100 {
+                if calls.contains("get") { break }
+                try await Task.sleep(nanoseconds: 1_000_000)
+            }
+            for _ in 0..<10 { await Task.yield() }
+            XCTAssertEqual(calls, ["reference", "get"])
+            XCTAssertFalse(calls.contains("submit"))
             XCTAssertTrue(FileManager.default.fileExists(atPath: try store.audio(saved.id, "1.wav").path))
         }
         let live = PracticeModel();defer { live.dispose() };live.sessionLoader = { [:] };live.cliRequest = { _, _ in [:] };live.mode = "ai";live.bridgeReady = true

@@ -31,3 +31,14 @@ test('slow launch does not trap navigation and late credentials cannot revive a 
  let resolve;const h=harness({request:()=>new Promise(r=>resolve=r)}),view=await h.mount();assert(view.canLeave());view.destroy();
  resolve({code});await settle();assert.equal(h.host.innerHTML,'');assert.equal(h.timers.size,0);assert(!h.nodes.get('[data-open]').href);
 });
+test('beta practice links target the preview package and retain selected mode',()=>{
+ const h=harness();
+ for(const mode of ['job','personality']){
+  const url=h.c.nativeInterviewUrl(code,mode);
+  assert(url.includes('interview/practice?code='+code+'&mode='+mode));
+  assert(url.includes('package=com.ronpark.study.nativepreview;'));
+ }
+ assert(h.c.nativeInterviewUrl(code,'ai').includes('interview/start?code='+code));
+ assert(h.c.nativeInterviewUrl(code,'ai').includes('package=com.ronpark.study.nativepreview;'));
+ assert.throws(()=>h.c.nativeInterviewUrl(code,'invalid'),/invalid/);
+});
