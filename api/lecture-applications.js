@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const webPush = require("web-push");
+const { notifyApplicationSubmitted } = require("../lib/application-slack");
 const {
   COOKIE_NAME,
   getConfig,
@@ -119,6 +120,7 @@ module.exports = async function handler(req, res) {
         const rows = await requestSupabase("POST", TABLE, application, {
           Prefer: "return=representation",
         });
+        notifyApplicationSubmitted("written", { ...application, ...rows?.[0] });
         res.status(201).json({
           ok: true,
           applicationId: rows?.[0]?.id || "",

@@ -1,21 +1,31 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261024-school-status';
+import {mountWorkspace} from './interview-workspace.js?v=20261116-aptitude-percentile';
+import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
-const icons={home:'home',db:'question-board',writing:'study-todo',mock:'study-cafe',my:'mypage'};
-const tabs=[['home','홈'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
+const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'stopwatch',mock:'study-cafe',my:'mypage'};
+const tabs=[['home','홈'],['aptitude','적성 모의고사'],['db','DB 정리'],['writing','작성하기'],['mock','모의면접'],['my','마이']];
 const mockModes={
- job:{title:'전공(직무) 시험모드'},
+ job:{title:'직무(전공) 연습모드'},
  personality:{title:'인성 연습모드'},
  ai:{title:'실전 모의면접 (AI)'}
 };
-export async function mountInterviewApp(host,{request,aiRequest,account={},onExit,onLogout}){
- let destroyed=false,busy=false,child=null,generation=0,route=readRoute();
- host.className='ip-root ip-portal ip-app-shell';
- const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave());
+function homeNotices(){
+ return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2><div style="line-height:1.8;overflow-wrap:anywhere"><p>(0) 오프반 : 11.9 전까지 사전과제 이행</p><p>(1) 적성 및 면접기출교재 발송일 : <strong>11.9(월)</strong><br>인강생은 인강사이트 주소로 발송, 오프라인은 현장 및 택배수령(신청시 작성 주소)<br><strong>*적성 pdf 비번 : ronpark1234 혹은 RONPARK1234</strong></p><p>(2) 인성검사 온라인검사 실시일 : <strong>11.10(화)</strong><br>인강,오프라인생 검사 문자 발송</p></div></section>`;
+}
+export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,account={},onExit,onLogout}){
+ const mockTestApp=window.__ronparkMockTestApp===true;
+ const aptitudeOnly=account.accessProduct==='aptitude_only';
+ let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
+ let mockAllowed=false;
+ try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
+ if(route.tab==='mock'&&!mockAllowed&&!aptitudeOnly)route={...route,tab:'home',mockMode:''};
+ host.className='ip-root ip-portal ip-app-shell'+(mockTestApp?' ip-test-app-shell':'');
+ const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave())&&(!feedbackDialog?.canLeave||feedbackDialog.canLeave());
  function readRoute(){
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
-  const tab=tabs.some(([id])=>id===p.get('tab'))?p.get('tab'):'home';
+  const tab=tabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
   return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))?p.get('mockMode'):''};
  }
  function url(){return '#interview-prep?'+new URLSearchParams(route);}
@@ -23,6 +33,7 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  function setUrl(replace=false){history[replace?'replaceState':'pushState'](null,'',url());remember();}
  async function go(next,{historyChange=false}={}){
   if(destroyed||!canLeave()){if(historyChange)setUrl(true);return;}
+  if(next.tab==='mock'&&!mockAllowed&&!aptitudeOnly)return;
   route={...route,...next};if(!historyChange)setUrl();else remember();await render();window.scrollTo({top:0,behavior:'auto'});
  }
  const link=(label,tab,page='',area='')=>`<button type="button" class="ip-app-link" data-app-tab="${tab}" ${page?`data-page="${esc(page)}"`:''} ${area?`data-area="${esc(area)}"`:''}>${esc(label)}<span aria-hidden="true">›</span></button>`;
@@ -37,24 +48,32 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
-  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · 면접반</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div><span class="ip-app-mark" aria-hidden="true">R</span></header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" aria-label="면접반 하단 메뉴">${tabs.map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
+  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · ${aptitudeOnly?'인적성 단과':'면접반'}</small><h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div>${aptitudeOnly&&onLogout?'<button type="button" class="ip-btn" data-app-logout>로그아웃</button>':'<span class="ip-app-mark" aria-hidden="true">R</span>'}</header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed||aptitudeOnly?6:5},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed||aptitudeOnly).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
   const box=host.querySelector('[data-app-content]');
   box.classList.toggle('ip-app-mock',route.tab==='mock');
   try{
-   if(route.tab==='home'&&route.notice==='preassignments'){
+   if(aptitudeOnly&&route.tab!=='aptitude'){
+    box.innerHTML='<section class="ip-panel ip-package-required" aria-labelledby="ip-package-required-title"><span class="ip-badge">면접 패키지 전용</span><h2 id="ip-package-required-title" tabindex="-1">면접 패키지로 구매하셔야 이용가능합니다</h2><button type="button" class="ip-btn ip-primary" data-app-tab="aptitude">적성 모의고사로 이동</button></section>';
+    box.querySelector('#ip-package-required-title')?.focus?.({preventScroll:true});
+   }else if(route.tab==='home'&&route.notice==='preassignments'){
     box.innerHTML=assignmentArticle();
     box.querySelector('#ip-assignment-title')?.focus?.({preventScroll:true});
+   }else if(route.tab==='aptitude'){
+    const next=await mountAptitude(box,{request:aptitudeRequest,accountId:account.id||''});
+    if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else if(['db','writing'].includes(route.tab)){
     box.classList.add('ip-app-editor',route.tab==='db'?'ip-app-db':'ip-app-writing');
     const editor=document.createElement('div');box.replaceChildren(editor);
     const next=await mountWorkspace(editor,{request,aiRequest,compactNavigation:true,initialPage:route.tab==='db'?'db':Object.hasOwn(pages,route.page)?route.page:'introduction',initialArea:route.area,onPageChange(page,area){route={...route,...(Object.hasOwn(pages,page)?{page}:{}),area};setUrl(true);}});
     if(destroyed||ticket!==generation)next.destroy();else child=next;
    }else{
-    // Mock modes show a static notice without starting interviews or requesting microphone access.
+    // Each mode mounts only its own controller and authenticated API.
     const [data,life,writing]=route.tab==='mock'?[]:await Promise.all(
      route.tab==='home'?[request('bootstrap'),request('life_get'),request('writing_list')]:[request('bootstrap')]);
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
+     const access=await request('mock_status');if(destroyed||ticket!==generation)return;
+     if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
      if(route.mockMode&&typeof navigator!=='undefined'&&/Android/i.test(navigator.userAgent)&&new URLSearchParams(location.search).get('nativePractice')==='1'){
       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261116-android-practice');
@@ -64,24 +83,90 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
        const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
       }});
       if(destroyed||ticket!==generation)next.destroy();else child=next;
+      return;
      }
 
+     // Approved accounts still see only the notice in the ordinary released app.
+     if(!mockTestApp)return;
+     if(window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
+      const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
+      slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
+      slot.querySelector('[data-native-practice]').onclick=async e=>{
+       const button=e.currentTarget;button.disabled=true;
+       try{const access=await request('mock_status');if(access.allowed!==true)throw Error('forbidden');window.webkit.messageHandlers.interviewPractice.postMessage({mode:route.mockMode});}
+       catch{slot.querySelector('[data-native-status]').textContent='테스트 권한과 연결 상태를 확인해주세요.';}
+       finally{button.disabled=false;}
+      };
+      return;
+     }
+     if(route.mockMode==='job'){
+      const {mountJobExam}=await import('./client/interview-job-exam.mjs?v=20261106-status');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="job"]').replaceWith(slot);
+      child=mountJobExam(slot,{accountId:account.id,request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-job-exam',{action,...body});
+       const response=await fetch('/api/interview-job-exam',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+     }
+     if(route.mockMode==='personality'){
+      const {mountPersonalityPractice}=await import('./client/interview-personality.mjs?v=20261106-status');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="personality"]').replaceWith(slot);
+      child=mountPersonalityPractice(slot,{accountId:account.id,request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-personality',{action,...body});
+       const response=await fetch('/api/interview-personality',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+     }
+     if(route.mockMode==='ai'){
+      if(window.__ronparkOpenAIPractice===true&&window.webkit?.messageHandlers?.interviewNative){
+       const {mountNativeInterview}=await import('./client/interview-native-launcher.js?v=20261111-interview-preparation');
+       if(destroyed||ticket!==generation)return;
+       const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
+       const next=await mountNativeInterview(slot,{platform:'ios',testApp:mockTestApp,request:async(url,body)=>{
+        if(aiRequest)return aiRequest(url,body);
+        const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+       }});
+       if(destroyed||ticket!==generation)next.destroy();else child=next;
+       return;
+      }
+      const {mountLive}=await import('./client/interview-live-view.js?v=20261104-windows-cli');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="ai"]').replaceWith(slot);
+      const next=await mountLive(slot,{request:async(action,body={})=>{
+       if(aiRequest)return aiRequest('/api/interview-live',{action,...body});
+       const response=await fetch('/api/interview-live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+       const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
+      }});
+      if(destroyed||ticket!==generation)next.destroy();else child=next;
+     }
     }else if(route.tab==='my'){
      const m=data.member||{};
-     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><section class="ip-panel">${onExit?'<button class="ip-app-link" type="button" data-app-exit>기존 반으로 전환<span aria-hidden="true">›</span></button>':''}${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
+     box.innerHTML=`<section class="ip-panel ip-app-profile"><span class="ip-badge">면접반 수강 중</span><h2>${esc(account.name||'수강생')} 님</h2><dl><dt>지원 직렬</dt><dd>${esc(m.track||'—')}</dd><dt>수험번호</dt><dd>${esc(m.exam_number||'—')}</dd><dt>이용 기간</dt><dd>${esc(m.expires_on||'별도 종료일 없음')}</dd></dl></section><div data-my-resources></div><section class="ip-panel">${account.canLinkApple?'<button class="ip-app-link" type="button" data-apple="link">Apple 계정 연결<span aria-hidden="true">›</span></button>':''}${account.canLinkKakao?'<button class="ip-app-link" type="button" data-kakao="link">카카오 계정 연결<span aria-hidden="true">›</span></button>':''}${onExit?'<button class="ip-app-link" type="button" data-app-exit>수강생 화면으로 이동<span aria-hidden="true">›</span></button>':''}<button class="ip-app-link" type="button" data-app-feedback>의견 보내기<span aria-hidden="true">›</span></button>${onLogout?'<button class="ip-app-link" type="button" data-app-logout>로그아웃<span aria-hidden="true">›</span></button>':''}</section>`;
+     child=mountMyResources(box.querySelector('[data-my-resources]'),{request});
     }else{
      const notes=data.notes||[],writings=writing.writings||[],topics=data.topics||[];
      const filled=topics.filter(t=>notes.some(n=>n.topic_id===t.id&&Object.values(n.fields||{}).some(v=>String(v).trim()))).length;
      const feedback=[...(life.profile?.feedback?[{label:'기본 이력',tab:'db',area:'life:basic',text:life.profile.feedback}]:[]),...notes.filter(n=>n.feedback&&topics.some(t=>t.id===n.topic_id)).map(n=>({label:topics.find(t=>t.id===n.topic_id).title,tab:'db',area:'note:'+n.topic_id,text:n.feedback})),...writings.filter(w=>w.feedback).map(w=>({label:pages[w.kind]||'작성 답변',tab:'writing',page:w.kind,text:w.feedback}))];
-     box.innerHTML=`<button type="button" class="ip-app-banner" data-app-notice="preassignments" aria-label="면접반 사전과제 안내 게시글 보기"><img src="./assets/interview-preassignment-banner-20261026.png" width="1024" height="572" fetchpriority="high" alt="론박스터디 면접반 사전과제 안내. 1. 인생그래프 인강듣고 DB 작성하기. 2. 자기소개, 지원동기, 공직관 초안받고 다듬기. 3. 핵심25제 인강듣고 답변 작성 후 진단받기."></button><section class="ip-app-stats" aria-label="저장 현황"><div><strong>${filled}<small> / ${topics.length}</small></strong><span>인성 항목 입력</span></div><div><strong>${writings.filter(w=>w.body?.trim()).length}</strong><span>저장한 답변</span></div><div><strong>${feedback.length}</strong><span>강사 피드백</span></div></section><section class="ip-panel"><h2>나의 면접 준비</h2>${link('기본 이력과 인성 경험 정리','db')}${Object.entries(pages).map(([id,label])=>link(label+' 작성하기','writing',id)).join('')}</section><section class="ip-panel"><h2>강사 피드백</h2>${feedback.length?feedback.map(f=>`<article class="ip-app-feedback">${link(f.label,f.tab,f.page,f.area)}<p>${esc(f.text)}</p></article>`).join(''):'<p class="ip-help">아직 등록된 피드백이 없습니다.</p>'}</section>`;
+     box.innerHTML=`<button type="button" class="ip-app-banner" data-app-notice="preassignments" aria-label="면접반 사전과제 안내 게시글 보기"><img src="./assets/interview-preassignment-banner-20261026.png" width="1024" height="572" fetchpriority="high" alt="론박스터디 면접반 사전과제 안내. 1. 인생그래프 인강듣고 DB 작성하기. 2. 자기소개, 지원동기, 공직관 초안받고 다듬기. 3. 핵심25제 인강듣고 답변 작성 후 진단받기."></button>${homeNotices()}<section class="ip-app-stats" aria-label="저장 현황"><div><strong>${filled}<small> / ${topics.length}</small></strong><span>인성 항목 입력</span></div><div><strong>${writings.filter(w=>w.body?.trim()).length}</strong><span>저장한 답변</span></div><div><strong>${feedback.length}</strong><span>강사 피드백</span></div></section><section class="ip-panel"><h2>나의 면접 준비</h2>${link('기본 이력과 인성 경험 정리','db')}${Object.entries(pages).map(([id,label])=>link(label+' 작성하기','writing',id)).join('')}</section><section class="ip-panel"><h2>강사 피드백</h2>${feedback.length?feedback.map(f=>`<article class="ip-app-feedback">${link(f.label,f.tab,f.page,f.area)}<p>${esc(f.text)}</p></article>`).join(''):'<p class="ip-help">아직 등록된 피드백이 없습니다.</p>'}</section>`;
     }
    }
   }catch{if(!destroyed&&ticket===generation)box.innerHTML='<section class="ip-panel"><p role="alert">자료를 불러오지 못했습니다. 연결과 수강 등록 상태를 확인해주세요.</p><button type="button" class="ip-btn" data-app-reload>다시 시도</button></section>';}
   finally{if(ticket===generation)busy=false;}
  }
  async function click(e){
-  const n=e.target.closest('[data-app-notice],[data-app-tab],[data-app-mock],[data-app-exit],[data-app-logout],[data-app-reload]');if(!n||n.disabled||destroyed)return;
-  if(n.dataset.appNotice==='preassignments')await go({tab:'home',notice:'preassignments'});
+  const n=e.target.closest('[data-app-notice],[data-app-tab],[data-app-mock],[data-app-exit],[data-app-logout],[data-app-reload],[data-app-feedback]');if(!n||n.disabled||destroyed)return;
+  if(n.hasAttribute('data-app-feedback')){
+   if(!canLeave())return;
+   if(mockTestApp&&window.webkit?.messageHandlers?.interviewFeedback){window.webkit.messageHandlers.interviewFeedback.postMessage({action:'open'});return;}
+   busy=true;
+   try{const {openStudentFeedback}=await import('./client/interview-student-feedback.mjs?v=20261113-production');if(!destroyed){feedbackDialog?.destroy();feedbackDialog=openStudentFeedback({screen:'portal.my'});}}
+   catch{if(!destroyed){const message=document.createElement('p');message.setAttribute('role','alert');message.textContent='의견 화면을 열지 못했습니다. 잠시 후 다시 시도해주세요.';n.after(message);}}
+   finally{busy=false;}
+  }
+  else if(n.dataset.appNotice==='preassignments')await go({tab:'home',notice:'preassignments'});
   else if(n.hasAttribute('data-app-mock')){const mode=n.dataset.appMock;if(mode&&!Object.hasOwn(mockModes,mode))return;await go({tab:'mock',notice:'',mockMode:mode});}
   else if(n.dataset.appTab){const next={tab:n.dataset.appTab,notice:'',mockMode:'',...(n.dataset.page?{page:n.dataset.page}:{}),...(n.dataset.area?{area:n.dataset.area}:{})};await go(next);}
   else if(n.hasAttribute('data-app-reload')){if(canLeave())await render();}
@@ -89,9 +174,9 @@ export async function mountInterviewApp(host,{request,aiRequest,account={},onExi
  }
  function saveResume(){if(['db','writing'].includes(route.tab))try{localStorage.setItem('outing-interview-last-editor:'+account.id,JSON.stringify(route));}catch{}}
  const pop=()=>go(readRoute(),{historyChange:true});
- const keyboard=()=>{const v=window.visualViewport;host.classList.toggle('ip-keyboard-open',!!v&&window.innerHeight-v.height>140&&host.contains(document.activeElement)&&document.activeElement.matches('input,textarea,select'));};
+ const keyboard=()=>{const v=window.visualViewport;host.classList.toggle('ip-keyboard-open',!!v&&window.innerHeight-v.height>140&&host.contains(document.activeElement)&&document.activeElement.matches('input:not([type=radio]):not([type=checkbox]),textarea,select:not([data-round-select]):not([data-timer-section-select])'));};
  const rememberClick=()=>saveResume();
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();
- return {canLeave,destroy(){destroyed=true;++generation;saveResume();child?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
+ return {canLeave,destroy(){destroyed=true;++generation;saveResume();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
 }

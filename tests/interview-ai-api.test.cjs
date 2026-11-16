@@ -33,6 +33,11 @@ const call = async (handler, body, headers = {}) => {
   assert.equal((await call(handler, {action: 'admin_configure', enabled: true})).status, 401);
   assert.equal((await call(handler, '{invalid')).status, 400);
   assert.equal((await call(handler, {action: 'prepare', kind: 'anything'})).status, 400);
+  const denial = studentHandler({authenticateWeb:async()=>({id:'true-owner'}),
+    invoke:async()=>({ok:false,error:'unsafe_retry',retryReason:'retry_limit'})});
+  const rejected = await call(denial,{action:'retry_items',requestId:crypto.randomUUID(),
+    itemKeys:['self_intro'],sourceHash:'a'.repeat(64),requestKey:'denied-retry'});
+  assert.deepEqual(rejected,{status:409,data:{ok:false,error:'unsafe_retry',retryReason:'retry_limit'}});
   const workerCalls = [];
   const wh = workerHandler({invoke: async (...args) => {workerCalls.push(args); return {ok: true};}});
   const token = 'a'.repeat(43), auth = {authorization: 'Bearer ' + token};

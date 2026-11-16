@@ -1,13 +1,21 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const vm=require('node:vm');
 const read=p=>fs.readFileSync(p,'utf8');
 const entry=read('teacher.html').match(/src="\.\/(interview-prep\.js\?v=[^"]+)"/)[1];
-assert.equal(entry,'interview-prep.js?v=20261027-admin-overview-modal');
+assert.equal(entry,'interview-prep.js?v=20261116-admin-monitor-cleanup');
+assert(read('teacher.html').includes('data-interview-section="ai_history"'));
+const routing=read('interview-prep.js'),start=routing.indexOf('const interviewAdminSections='),end=routing.indexOf('function restoreInterviewAdminRoute',start);
+assert.equal(vm.runInNewContext(routing.slice(start,end)+';getInterviewAdminSection()',{URLSearchParams,location:{hash:'#interview-prep-admin?section=ai_history'}}),'ai_history');
 assert(!read('sw.js').includes('"/'+entry+'"'), 'Interview modules load on demand instead of being precached for every student');
-assert(read('sw.js').includes('v549-private-interview'));
-assert(read('interview-prep.js').includes("admin?import('./interview-prep-ui.js?v=20261027-overview-modal')"));
-assert(read('interview-prep-ui.js').includes("import('./interview-assignment-management.js?v=20261027-overview-modal')"));
-assert(read('interview-assignment-management.js').includes("./interview-assignment-overview.js?v=20261027-overview-modal"));
+assert.match(read('sw.js'),/CACHE_NAME = "outing-auth-app-v\d+-interview-/);
+assert(!read('sw.js').includes('/client/interview-aptitude.mjs'), 'Aptitude assets load only when the interview app is used');
+assert.match(read('interview-prep.js'),/admin\?import\('\.\/interview-prep-ui\.js\?v=20261116-admin-monitor-cleanup'\)/);
+assert.match(read('interview-prep-ui.js'),/import\('\.\/interview-assignment-management\.js\?v=[^']+'\)/);
+assert.match(read('interview-assignment-management.js'),/\.\/interview-assignment-overview\.js\?v=[^']+/);
 assert(read('interview-assignment-overview.js').includes('data-overview-student'));
 assert(read('interview-assignment-overview.js').includes('modal:true'));
 console.log('PASS administrator entry: teacher HTML and versioned imports preserve access without interview precaching');
+
+assert(read('interview.html').includes('interview-portal.js?v=20261116-aptitude-percentile'));
+for(const file of ['interview-prep-ui.js','interview-review-ui.js','interview-assignment-overview.js','interview-portal.js'])assert(read(file).includes('./client/interview-tracks.js?v=20261102-source-tracks'));

@@ -1,0 +1,52 @@
+면접 테스트앱 전용 반영 — 2026-11-11
+
+범위
+사용자 승인: 적용·푸시·배포. 이후 ‘테스트앱에만’이라는 범위 확인을 반영했다.
+일반 앱은 기존 모의면접 준비 중 화면, 질문 풀, 등록 조건, 선택적 꼬리질문 정책을 유지한다.
+테스트앱 요청 표식(X-Interview-Test-App: 1)에만 다음을 적용한다.
+- 면접반 전용 계정과 종료일 없는 등록의 네이티브 연결 수정.
+- 직무 J1~J3, 인성 P1~P3로 문항 제한. 원문 ID·문구·공개 상태·직렬 조건을 함께 확인.
+- 실전 P1→P2→P3 순서, 각 답변에 근거한 꼬리질문 2개씩. 정상 완료 시 총 9문답.
+표식은 권한이 아니다. 기존 로그인·수강 등록·mock_test_enabled 확인은 계속 필요하다.
+네이티브 발급/교환/명령과 Live WebSocket의 서명된 actor까지 테스트 분기를 전달한다.
+
+소스와 배포
+서버 최종 구현: d22ed2b, 원격 main 푸시 완료.
+기존 스터디카페 리전 변경(2495b9d까지)을 보존했다.
+일반 앱 전체 캐시 변경 커밋은 최종 구현에서 철회했다.
+서버 배포: dpl_BkMMmEhYj9ovBsrUsUmcNAYbmtTG / READY.
+검증 후보 주소: https://outing-auth-flxa86osw-ronpark.vercel.app
+두 운영 도메인에 위 동일 빌드를 승격했다. 기존 일반 앱 파일은 그대로다.
+초기 범위의 미승격 후보 dpl_4PxxcEi9CFC2bmUEsCTghCCq5HoN은 삭제했다.
+
+DB
+interview_native_portal_launch, interview_mock_test_question_scope 적용 완료.
+함수 변경 전 백업: /private/tmp/ronpark-interview-db-before-deploy.json (Git/배포 제외).
+일반 요청에서 테스트 allowlist를 적용하지 않는다는 DB 회귀 검증을 포함했다.
+운영 DB의 테스트 문항 수는 job=3, personality=3, ai=3이다.
+현재 허용된 테스트 계정 2개 모두 Live ready=true다.
+면접반 전용 계정의 코드 issue/consume을 트랜잭션 안에서 검증하고 ROLLBACK했다.
+실제 유료 Live 세션이나 답변 생성은 실행하지 않았다.
+
+아이폰 테스트앱
+기존 codex/ios-practice-no-modal-20261106 브랜치에만 Debug 요청 표식을 추가했다.
+테스트앱 소스: 81cc19a, b5ab4cc 푸시 완료.
+Debug WKWebView의 면접 요청과 네이티브 연습/Live 요청에만 표식이 붙는다.
+Release 및 --ordinary-app-verification 실행은 표식을 보내지 않는다.
+연결된 실제 아이폰의 기존 ‘론박스터디 앱’(com.ronpark.study)을 동일 서명으로 갱신·실행했다.
+Debug 빌드 성공. Release/앱스토어/TestFlight 제출은 하지 않았다.
+테스트앱 준비 화면은 질문마다 꼬리질문 2개라는 문구를 표시한다. Release 문구는 유지한다.
+
+검증
+테스트 문항 제한, 일반 질문 풀 보존, 범위 밖 ID·문구 위조 차단, 기존 기록 조회,
+네이티브 교환·RLS·만료·권한 해제, Live 9문답·직전 답변 근거·중복/생략 방지,
+일반 Live 선택적 꼬리질문 정책, 기존 서비스 배포 안전성 검사를 통과했다.
+후보 5개 파일의 SHA-256이 소스와 일치했다.
+두 운영 도메인의 interview.html, interview-portal.js, sw.js, student.js, teacher.js 일치 확인.
+테스트 표식 유무 모두 비로그인 native launch 요청은 403으로 차단됐다.
+운영 보안 점검은 기존과 같은 INFO(RLS enabled/no policy) 항목만 있었다.
+실제 음성·마이크·동적 꼬리질문 품질은 아이폰에서 대본을 이용해 추가 확인해야 한다.
+
+테스트 자료
+- docs/interview-test-questions-and-answers-20261111.txt
+- docs/interview-test-scenarios-20261111.txt

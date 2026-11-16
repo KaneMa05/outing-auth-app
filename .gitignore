@@ -50,3 +50,5 @@ __pycache__/
 # Generated Android build output
 /native/android/**/build/
 /native/android/**/.gradle/
+/tools/interview-worker/config.json
+.env*

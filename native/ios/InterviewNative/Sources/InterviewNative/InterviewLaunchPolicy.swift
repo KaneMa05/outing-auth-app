@@ -16,7 +16,7 @@ public enum InterviewLaunchPolicy {
     public static func allowsWebNavigation(_ url: URL) -> Bool {
         guard url.scheme == "https", url.user == nil, url.password == nil,
               url.port == nil || url.port == 443 else { return false }
-        return [host, "kauth.kakao.com", "accounts.kakao.com"].contains(url.host ?? "")
+        return [host, "kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"].contains(url.host ?? "")
     }
     public static func accepts(scheme: String, host: String, port: Int,
                                isMainFrame: Bool, payload: [String: String]) -> Bool {

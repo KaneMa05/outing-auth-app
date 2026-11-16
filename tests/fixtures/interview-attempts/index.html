@@ -1,0 +1,5 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>공통 응시 기반 격리 검증</title>
+<style>body{font:16px system-ui;max-width:850px;margin:40px auto;background:#f4f6fa}button{padding:14px;margin:6px}pre{white-space:pre-wrap}audio{display:block}</style>
+<h1>공통 응시 기반 격리 검증</h1><p>자동 검증은 합성 시험음을 사용합니다. 마이크 버튼은 별도 수동 검증용이며, 학생 자료·외부 API는 사용하지 않습니다.</p>
+<button id="run">브라우저 녹음·저장 검증</button><button id="recover">새로고침 후 복구·서버 저장 검증</button><button id="mic">마이크 녹음 시작</button><button id="stop" disabled>마이크 녹음 종료</button><audio controls id="player"></audio><pre id="result" role="status">대기</pre>
+<script type="module" src="/tests/fixtures/interview-attempts/verify.mjs"></script>

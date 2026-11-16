@@ -1,5 +1,6 @@
-import {mountAIUsage} from './interview-ai-usage.js?v=20261027';
-import {mountWritingBoard} from './interview-writing-board.js?v=20261027-ai-usage';
+import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
+import {mountAIUsage} from './interview-ai-usage.js?v=20261102-ai-answers';
+import {mountWritingBoard} from './interview-writing-board.js?v=20261102-ai-answers';
 import {writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
 import {getTopicQuestions} from './interview-prep-prompts.js';
 import {basicFields,basicFieldText} from './client/interview-basic-fields.js?v=20261024-school-status';
@@ -49,7 +50,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
  function listShell(){
   host.innerHTML=`<section class="ip-panel"><h3>학생 찾기</h3><p>${assignmentArea?'학생을 선택하면 선택한 과제의 기존 작성 내용과 상태를 확인합니다. 아래 목록의 건수와 상태 필터는 학생의 전체 작성 기록 기준입니다.':'학생별로 나의 DB와 모든 작성 답변을 모아봅니다.'} 임시저장과 이용 중지·기간 만료 계정의 기록도 포함합니다.</p>
    <form data-review-filter class="ip-toolbar"><label>수강생 검색<input name="search" maxlength="200" placeholder="이름 · 수험번호 · 학생 ID" value="${esc(filter.search)}"></label>
-   <label>직렬<select name="track">${options([['','전체 직렬'],...['공채','항해','기관','방제','관제','기타'].map(t=>[t,t])],filter.track)}</select></label>
+   <label>직렬<select name="track">${options([['','전체 직렬'],...interviewTracks.map(t=>[t,t])],filter.track)}</select></label>
    <label>작성 상태<select name="status">${options([['','전체'],['pending','확인 대기'],['revision','보완·도움 요청'],['draft','임시저장 있음'],['empty','저장 내역 없음']],filter.status)}</select></label>
    <button class="ip-btn ip-primary">검색</button>${button('초기화','reset')}</form></section>
    <div data-review-roster></div>${assignmentArea||modal?'<dialog class="ip-life-dialog ip-assignment-dialog" aria-label="학생 과제 내용" style="width:min(1100px,calc(100% - 32px));max-height:88dvh;overflow:auto"><div data-review-detail></div></dialog>':'<div data-review-detail></div>'}`;
@@ -143,7 +144,7 @@ export function mountStudentReview(host,{request,templates,canWrite=false,assign
    <div class="ip-toolbar">${button('모두 펼치기','expand')}${button('모두 접기','collapse')}</div>
    <div data-review-records>${['all','db','basic','life'].includes(area)?`<h4>${assignmentArea==='basic'?'기본이력':assignmentArea==='life'?'인생그래프':'나의 DB · 인생그래프·경험·준비 노트'}</h4>${['basic','life'].includes(assignmentArea)?'<p class="ip-help">기본이력과 인생그래프의 저장·확인 상태는 함께 관리됩니다.</p>':''}${dbRecords()}`:''}
     ${Object.entries(writingKinds).filter(([id])=>area==='all'||area===id).map(([id,title])=>`<section class="ip-review-group" data-review-writing-kind="${esc(id)}"><h4>${esc(title)}</h4>${writingRecords(id)}</section>`).join('')}</div><div data-review-feedback-editor></div></section>`;
-  if(!['basic','life','db'].includes(area))aiUsage=mountAIUsage(host.querySelector('[data-review-ai-usage]'),{request,studentId:selected,kind:area==='all'?null:area});
+  aiUsage=mountAIUsage(host.querySelector('[data-review-ai-usage]'),{request,studentId:selected});
   mountHistories();
  }
  async function loadDetail(id){

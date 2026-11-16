@@ -42,3 +42,11 @@ test('beta practice links target the preview package and retain selected mode',(
  assert(h.c.nativeInterviewUrl(code,'ai').includes('package=com.ronpark.study.nativepreview;'));
  assert.throws(()=>h.c.nativeInterviewUrl(code,'invalid'),/invalid/);
 });
+
+test('native preparation identifies login, access, enrollment and server failures without exposing server details',async()=>{
+ for(const [code,expected] of [['unauthorized','로그인이 만료'],['forbidden','이용 권한'],['not_enrolled','수강 등록'],['automation_disabled','서버 연결'],['unexpected_private_detail','잠시 후']]){
+  const h=harness({request:async()=>{throw Object.assign(Error('private server detail'),{code});}}),view=await h.mount();await settle();
+  assert(h.nodes.get('[data-status]').textContent.includes(expected));assert(!h.nodes.get('[data-status]').textContent.includes('private'));
+  assert(h.nodes.get('[data-open]').hidden);assert.equal(h.nodes.get('[data-retry]').hidden,false);view.destroy();
+ }
+});

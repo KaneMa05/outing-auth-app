@@ -1,0 +1,5 @@
+{
+  "executable": "C:/path/to/local-transcription-engine.exe",
+  "args": ["--audio", "{audio}", "--pass", "{pass}", "--language", "ko", "--json"],
+  "timeoutMs": 180000
+}

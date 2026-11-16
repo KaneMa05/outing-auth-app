@@ -85,7 +85,9 @@ async function main(){
     assert(modelResult.experience_coverage.length>=3);
     const report={test:'synthetic-local-cli',created_at:new Date().toISOString(),...observation,
       job:{kind:claimedJob.kind,question:claimedJob.question,sources:claimedJob.sources},result:modelResult};
-    fs.writeFileSync(path.join(root,'tests/fixtures/cli-generation.json'),JSON.stringify(report,null,2)+'\n');
+    const reportPath=process.env.INTERVIEW_CLI_REPORT_PATH?path.resolve(process.env.INTERVIEW_CLI_REPORT_PATH):path.join(root,'tests/fixtures/cli-generation.json');
+    fs.mkdirSync(path.dirname(reportPath),{recursive:true});
+    fs.writeFileSync(reportPath,JSON.stringify(report,null,2)+'\n');
     console.log(`PASS button adapter → local HTTP API → DB queue → Codex CLI → result upload → student status; ${observation.seconds}s, ${modelResult.answer.length} chars, ${modelResult.experience_coverage.length} experiences, no tools`);
   }finally{
     if(child&&child.exitCode===null)child.kill();

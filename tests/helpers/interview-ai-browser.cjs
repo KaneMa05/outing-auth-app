@@ -20,7 +20,7 @@ module.exports=async({db,invoke,admin,aiInvoke,aiWorker,aiCalls,ev,wait,click,li
  await aiInvoke('admin_configure',admin,{enabled:true,bundleHash:'b'.repeat(64),dailyCallLimit:100,requestsPerMinute:60});
  for(const page of Object.keys(tabs)){
   await selectTab(page);
-  assert.equal(await ev("document.querySelector('[data-ai-generate]').disabled"),true,'Every generator requires all source data');
+  assert.equal(await ev("document.querySelector('[data-ai-generate]').disabled"),true,'Each generator requires its source data');
   assert((await ev("document.querySelector('.ip-ai-missing').textContent")).includes('입력'));
  }
  let prep=await aiInvoke('prepare',student,{kind:'motivation'});

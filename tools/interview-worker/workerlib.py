@@ -366,12 +366,14 @@ class Worker:
         self._acknowledge(record)
         self.last_status = "completed"
 
-    def _failed_output(self, record):
+    def _failed_output(self, record, reason="invalid_output"):
+        # Persist only a finite diagnostic code; never copy student material into logs.
+        record["failure_reason"] = reason
         self._save("FAILED", record)
-        self.api.call("report", **self.lease(record["job"]), reason="invalid_output")
-        self.store.save(record["job"]["id"], "DONE", {"failed": time.time()})
+        self.api.call("report", **self.lease(record["job"]), reason=reason)
+        self.store.save(record["job"]["id"], "DONE", {"failed": time.time(), "failure_reason": reason})
         self._acknowledge(record)
-        self.last_status = "invalid_output"
+        self.last_status = reason
 
     def recover(self):
         for job_id, state, record in self.store.active():
@@ -404,7 +406,7 @@ class Worker:
                         if str(error) not in ("invalid_output", "invalid_evidence", "experience_required", "generation_failed"):
                             self._save("UNCERTAIN", record)
                             return False
-                        self._failed_output(record)
+                        self._failed_output(record, str(error))
                     continue
                 # A dropped turn/start response must never trigger another turn/start.
                 self._save("UNCERTAIN", record)
@@ -422,7 +424,7 @@ class Worker:
                 server = self.api.call("inspect", jobId=job_id)
                 if server["status"] == "PROCESSING":
                     self.api.call("report", **self.lease(job), reason=record.get("failure_reason", "invalid_output"))
-                self.store.save(job_id, "DONE", {"failed": time.time()})
+                self.store.save(job_id, "DONE", {"failed": time.time(), "failure_reason": record.get("failure_reason", "invalid_output")})
                 self._acknowledge(record)
         return True
 
@@ -489,8 +491,9 @@ class Worker:
             self.last_status = "dispatch_unknown"
             return False
         except WorkerError as error:
-            reason = "invalid_output" if str(error) in ("invalid_output", "invalid_evidence", "experience_required", "generation_failed") else "connection_unavailable"
-            if record.get("dispatched") and reason != "invalid_output":
+            definite_failure = str(error) in ("invalid_output", "invalid_evidence", "experience_required", "generation_failed")
+            reason = str(error) if definite_failure else "connection_unavailable"
+            if record.get("dispatched") and not definite_failure:
                 self._save("UNCERTAIN", record)
                 try: self.api.call("report", **self.lease(job), reason="dispatch_unknown")
                 except ApiError: pass
@@ -500,7 +503,7 @@ class Worker:
             self._save("FAILED", record)
             try:
                 self.api.call("report", **self.lease(job), reason=reason)
-                self.store.save(job["id"], "DONE", {"failed": time.time()})
+                self.store.save(job["id"], "DONE", {"failed": time.time(), "failure_reason": reason})
                 self._acknowledge(record)
             except ApiError: pass
             self.last_status = reason

@@ -8,6 +8,7 @@ if(process.argv.includes('--help')){
 const sdk=process.env.ANDROID_SDK_ROOT||process.env.ANDROID_HOME||path.join(root,'.tmp/android-tools/sdk');
 fs.mkdirSync(path.join(output,'app/src/main'),{recursive:true});
 const write=(file,value)=>fs.writeFileSync(path.join(output,file),value);
+write('gradle.properties','android.useAndroidX=true\n');
 write('settings.gradle',`pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name='RonparkBeta'
@@ -33,7 +34,7 @@ androidComponents { beforeVariants(selector().withBuildType('release')) { varian
 write('app/src/main/AndroidManifest.xml',`<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
  <application android:label="론박 면접 테스트" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false">
   <activity android:name="com.ronpark.interview.InterviewPreviewActivity" tools:node="remove" />
-  <activity android:name="com.ronpark.interview.InterviewPracticeActivity" android:exported="true">
+  <activity android:name="com.ronpark.interview.InterviewBetaPracticeActivity" android:exported="true">
    <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
   </activity>
  </application>

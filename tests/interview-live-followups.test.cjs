@@ -1,0 +1,106 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+const {LiveEngine}=require('../lib/interview-live-engine');
+const {createProvider}=require('../lib/interview-live-provider');
+const {decision,TEST_FOLLOWUP_INSTRUCTIONS:FOLLOWUP_INSTRUCTIONS,FOLLOWUP_INSTRUCTIONS:ORDINARY_INSTRUCTIONS}=require('../lib/interview-live-policy');
+const complete={turnComplete:true,ask:false,question:'',evidence:''};
+async function fixture(generate,testApp=true){
+ let event,clock=Date.now();const sent=[],saved=[],contexts=[];
+ const run={id:randomUUID(),questions:(testApp?[0,1]:[0,1,2]).map(i=>({id:'main-'+i,prompt:'메인 질문 '+i})),deadline:new Date(clock+600000).toISOString()};
+ const backend=createProvider({key:'synthetic-test-key',followupModel:'test-model',fetchImpl:async(url,options)=>{
+  assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);
+  assert.equal(body.store,false);assert.equal(body.instructions,JSON.parse(body.input).testApp===true?FOLLOWUP_INSTRUCTIONS:ORDINARY_INSTRUCTIONS);assert(body.text.format.strict);
+  const context=JSON.parse(body.input);contexts.push(context);
+  const result=await generate(context,contexts.length-1);
+  return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(result)}]}]});
+ }});
+ const engine=new LiveEngine({invoke:async(action,actor,body)=>{
+  if(action==='reserve')return {run};if(action==='save')saved.push(body);return {ok:true};
+ },provider:{create:async()=>({id:'live_test',sdp:'answer'}),attach:async(id,callback)=>{event=callback;return {send:e=>{sent.push(e);if(e.type==='session.close')event({type:'session.closed'});},destroy(){}};},closeSession:async()=>true,followup:backend.followup},
+ storage:{upload:async()=>{}},recorder:()=>({sizes:{input:0},append(){},close(){}}),cleanup(){},now:()=>clock});
+ await engine.start({type:'student',id:'test',...(testApp?{testApp:true}:{})},{requestKey:randomUUID(),sdp:'v=0 test'});
+ const live=engine.sessions.get(run.id);
+ return {engine,live,sent,saved,contexts,event:e=>event(e),async answer(text,manual=true){clock+=6000;event({type:'session.input_transcript.delta',delta:text});if(!manual)clock+=2000;await engine.advance(live,'delegation-'+contexts.length,manual);},stop:()=>engine.finish(live,live.completed?'completed':'interrupted')};
+}
+test('Live answers create two fresh followups in sequence for each of two main questions',async()=>{
+ const f=await fixture((context,i)=>context.remainingFollowups===0?complete:{turnComplete:true,ask:true,question:'새 꼬리질문 '+i+'에서 어떤 행동을 했나요?',evidence:'답변 '+i});
+ try{
+  for(let i=0;i<6;i++){
+   assert.equal(f.live.current.kind,i%3===0?'initial':'followup');
+   await f.answer('실제 답변 '+i+'에서 저는 의견을 조율했습니다.');
+   const context=f.contexts[i];assert.equal(context.answer,'실제 답변 '+i+'에서 저는 의견을 조율했습니다.');
+   assert.equal(context.originalQuestion,'메인 질문 '+Math.floor(i/3));assert.equal(context.remainingFollowups,2-i%3);
+   assert.equal(context.history.length,i%3);assert.equal(context.asked.length,i%3+1);
+   if(i%3===2){assert.equal(context.history[0].answer,'실제 답변 '+(i-2)+'에서 저는 의견을 조율했습니다.');assert.equal(context.history[1].answer,'실제 답변 '+(i-1)+'에서 저는 의견을 조율했습니다.');}
+  }
+  assert(f.live.completed);assert.equal(f.live.turns.length,6);
+  for(let i=0;i<2;i++){
+   const group=f.live.turns.filter(t=>t.parentQuestionId==='main-'+i);
+   assert.deepEqual(group.map(t=>t.kind),['initial','followup','followup']);
+   assert.equal(group[1].evidence,'답변 '+i*3);assert.equal(group[2].evidence,'답변 '+(i*3+1));
+   assert.notEqual(group[1].question,group[2].question);
+  }
+  assert.equal(f.saved.at(-1).turns.length,6);
+ }finally{await f.stop();}
+});
+test('a skipped or invalid followup preserves the answer and cannot jump to another main question',async()=>{
+ for(const result of [complete,{turnComplete:true,ask:true,question:'답변에 없는 사실은 무엇인가요?',evidence:'없는 근거'}]){
+  const f=await fixture(()=>result);
+  try{await f.answer('직접 업무를 나눴습니다.');assert.equal(f.live.turns.length,0);assert.equal(f.live.index,0);assert.equal(f.live.followups,0);assert.equal(f.live.answer,'직접 업무를 나눴습니다.');assert.equal(f.live.lastError,'followup_unavailable');}
+  finally{await f.stop();}
+ }
+});
+test('incomplete speech and repeat requests cannot skip a required question even with answer-done',async()=>{
+ const f=await fixture(()=>({turnComplete:false,ask:false,question:'',evidence:''}));
+ try{await f.answer('질문을 다시 말해주세요.');assert.equal(f.live.turns.length,0);assert.equal(f.live.index,0);assert.equal(f.live.followups,0);assert.equal(f.live.lastError,undefined);}
+ finally{await f.stop();}
+});
+test('followup two cannot cite the main answer or repeat the first followup',()=>{
+ const previous='팀워크를 통해 해결했습니다.',latest='제가 직접 연락했습니다.',question='직접 연락한 이유는 무엇인가요?';
+ assert.throws(()=>decision({turnComplete:true,ask:true,question,evidence:previous},latest,[],1),/invalid_evidence/);
+ assert.throws(()=>decision({turnComplete:true,ask:true,question,evidence:'직접 연락'},latest,[question],1),/invalid_evidence/);
+ assert.throws(()=>decision(complete,latest,[],1),/followup_required/);
+ assert.equal(decision(complete,latest,[],0).ask,false);
+});
+
+test('ordinary Live retains optional followups and the original provider instructions',async()=>{
+ const f=await fixture(()=>complete,false);
+ try{await f.answer('저는 역할을 나눴습니다.');assert.equal(f.live.index,1);assert.equal(f.live.followups,0);assert.equal(f.live.turns.length,1);assert.equal(f.contexts[0].testApp,undefined);}
+ finally{await f.stop();}
+});
+
+test('final voice usage is persisted before the closed session finishes',async()=>{
+ const events=[],f=await fixture(async()=>complete);
+ f.engine.recordUsage=async event=>{await new Promise(r=>setTimeout(r,2));events.push(event);};
+ f.event({type:'session.usage.updated',event_id:'usage-1',usage:{seconds:20}});
+ f.event({type:'session.usage.updated',event_id:'usage-1',usage:{seconds:20}});
+ f.event({type:'session.closed',usage:{seconds:30}});
+ await f.live.finishPromise;
+ assert.equal(events.length,2);assert.equal(events.at(-1).status,'reported');assert.equal(events.at(-1).usage.seconds,30);
+});
+
+for(const testApp of [true,false])test('opening is spoken once and stays scoped to '+(testApp?'test app':'ordinary app'),async()=>{
+ const f=await fixture(()=>complete,testApp);
+ try{
+  const actor={type:'student',id:'test',...(testApp?{testApp:true}:{})},body={action:'begin',runId:f.live.run.id};
+  await f.engine.command(actor,body);await f.engine.command(actor,body);
+  const opening=f.sent.filter(e=>e.type==='session.commentary.append');assert.equal(opening.length,1);
+  assert.equal(opening[0].content,(testApp?'면접을 시작하겠습니다.\n':'AI 모의면접을 시작합니다. 한 번에 한 질문씩 진행합니다. 첫 질문: ')+'메인 질문 0');
+ }finally{await f.stop();}
+});
+
+test('followup optimization preserves the configured model and reasoning for both apps',async()=>{
+ const requests=[],usage=[];
+ const provider=createProvider({key:'synthetic',followupModel:'gpt-6-astra',onUsage:async e=>usage.push(e),fetchImpl:async(_url,options)=>{
+  requests.push(JSON.parse(options.body));return Response.json({id:'test-response',status:'completed',usage:{input_tokens:100,output_tokens:20},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({turnComplete:true,ask:true,question:'팀원들과 어떻게 협력하셨습니까?',evidence:'의견을 들었습니다'})}]}]});
+ }});
+ await provider.followup({testApp:true,answer:'의견을 들었습니다',asked:[],remainingFollowups:2},{runId:'test'});
+ await provider.followup({answer:'의견을 들었습니다',asked:[]},{runId:'ordinary'});
+ assert.equal(requests[0].model,'gpt-6-astra');assert.equal(requests[0].reasoning,undefined);
+ assert.equal(requests[1].model,'gpt-6-astra');assert.equal(requests[1].reasoning,undefined);
+ const reported=usage.filter(e=>e.status==='reported');assert.equal(reported[0].model,'gpt-6-astra');assert(reported[0].usage.generationMs>=0);assert.equal(reported[1].model,'gpt-6-astra');assert.equal(reported[1].usage.generationMs,undefined);
+});
+test('thanks and the validated next question are sent as one utterance after saving',async()=>{
+ const f=await fixture(()=>({turnComplete:true,ask:true,question:'당시 팀원들과 어떻게 협력하셨습니까?',evidence:'의견을 들었습니다'}));
+ try{await f.answer('의견을 들었습니다');assert.equal(f.saved.length,1);assert.equal(f.sent.at(-1).content,'네, 감사합니다. 당시 팀원들과 어떻게 협력하셨습니까?');}finally{await f.stop();}
+});

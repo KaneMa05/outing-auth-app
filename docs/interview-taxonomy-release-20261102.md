@@ -1,0 +1,13 @@
+# Approved question classification
+
+The user approved the reviewed classifications on 2026-11-02 ("판단 근거가 대부분 맞아보입니다. 반영해주세요"). Review SHA-256: `e6c9480044d1950b4ede2f40f5518093d13359cfe03a3dc17b717e462d593da6`.
+
+All 1,775 reviewed job questions now have separate content taxonomy: 1,676 classified job questions, 48 moved to personality, and 51 held for additional context. Twelve content fields, four answer formats, and two optional material tags are independent of original recruitment tracks. Public-recruitment navigation is an intersection view with 15 reviewed questions.
+
+Administrators can filter these dimensions and inspect/edit the rationale and original source answers in a separate classification editor. Metadata saves preserve publication status and question revision. Prompt/category edits mark taxonomy stale. Existing student interfaces remain unchanged.
+
+Migration `20261102073138_interview_question_taxonomy` was applied to production. Import run `20261102-question-taxonomy-v1` completed atomically and recorded before/after snapshots for every question. Concurrent approval activity caused the first guarded attempt to roll back completely; the final importer locks questions, verifies unchanged reviewed content and source digests, and preserves current publication decisions. At commit, the 48 category moves comprised 27 published, 20 draft, and one archived question. No publication state changed through this import. Unselected questions, original sources/answers, student data and unrelated rubrics/analysis were preserved by transaction assertions. Only moved questions' old category-dependent rubrics/analysis were invalidated and their previous versions audited.
+
+Validation passed: full 1,775-row database simulation; source/content conflict rollback; optimistic editor concurrency; publication preservation including intervening approvals; audit and repeat execution; API/database ownership and permission tests; publication UI; all 5,128 existing question audio matches; administrator entry; navigation/loading; desktop/mobile browser filters/editor/read-only permissions; build and diff checks. Local build has no production secrets and emits empty local config; Vercel uses the existing production environment.
+
+Production verification: 1,775 taxonomy records, 1,724 classified, 51 needs-context, zero stale records, 48 category moves, zero publication changes. Anonymous/authenticated direct table and RPC access are revoked; RLS is enabled and access is through the existing authorized server API. The security advisor's informational RLS-without-policy notice is intentional for this server-only table (https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).

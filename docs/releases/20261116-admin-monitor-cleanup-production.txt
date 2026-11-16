@@ -1,0 +1,45 @@
+관리자 모의면접 모니터링 정리 — 운영 반영
+2026-11-16 (한국 시간)
+
+승인
+- 사용자가 API 연동으로 사용 중인 점을 설명하고 관리자 홈의 기존 모니터링 4개 항목을 정리한 뒤 '반영'으로 푸시·배포를 승인했다.
+
+변경
+- 관리자 홈에서 기존 모의면접 모니터링 패널의 전공·직무 시험, 인성 연습, 실전 AI 면접, 종합 분석 카드를 제거했다.
+- 패널 모듈·스타일을 불러오지 않고 admin_mock_monitor 조회도 요청하지 않는다.
+- 핵심 25제 진단·경험 질문 생성·답변 초안 생성 CLI 상태와 수강·작성 현황을 유지한다.
+- 관리자 진입 스크립트와 관리자 모듈 버전만 20261116-admin-monitor-cleanup으로 갱신했다.
+- 학생 화면, 모의면접 API·설정·분석 기능 및 DB는 변경하지 않았다. 서비스워커 캐시 전체 갱신이나 열린 화면의 강제 새로고침은 추가하지 않았다.
+
+소스와 배포
+- 기준 main: 537c812e6d2208f6dd44da63f57bfcbe2652dfb3.
+- 소스 커밋: a590b7838c5a5bfd6be65ce3c92fcc34fc6b9f87.
+- 승인 범위의 5개 파일만 정상 fast-forward로 main에 푸시했다.
+- Vercel CLI 65.4.0의 --prod --skip-domain으로 운영 환경 후보 빌드 1개를 생성하고, 검증 후 같은 배포를 promote했다. 추가 미리보기 빌드는 생성하지 않았다.
+- 배포: dpl_8V4AxGekkDXq8DLUbx7xLQXNed1D / READY.
+- 배포 주소: https://outing-auth-kjpma05r9-ronpark.vercel.app.
+- 운영 주소: https://app.ronparkpass.com 및 https://outing-auth-app.vercel.app.
+- 이전 배포: dpl_7fn8aH3HncMaSUwRiidoMzztrWJc.
+- main 자동 배포 비활성화 설정을 유지한다. 이 결과 기록의 후속 푸시는 웹 빌드를 추가하지 않는다.
+
+검증
+- 관련 자동 검사 30개, 기존 관리자 홈 브라우저 검사, 격리 빌드·구문 검사 및 git diff --check를 통과했다.
+- 브라우저 검증 서버가 기존 적성 모듈의 .mjs를 JavaScript로 제공하도록 MIME 처리를 바로잡았다.
+- 배포 전 서비스의 주요 파일 18개가 기준 main과 같고 두 운영 주소가 같은 기존 배포를 가리키는 것을 확인했다.
+- 업로드 사전 검사 목록 5,712개에서 내부 문서·DB SQL·테스트·PC 도구·개인 자료가 실제 파일로 포함되지 않는 것을 확인했다. 로컬 빌드용 임시 config.js는 배포 입력에서 제거했다.
+- 후보에서 주요 파일 18개의 내용이 검증 소스와 일치했다. Windows 줄바꿈 차이는 정규화해 비교했다.
+- 후보와 두 운영 주소에서 비로그인 관리자 조회, 적성 조회, 음성 면접 기록 조회가 모두 HTTP 401로 차단됐다.
+- 운영 전환 직전 두 서비스 주소가 백업한 이전 배포를 가리키는 것을 재확인했다.
+- 전환 후 두 운영 주소에서 각각 18개, 총 36개 파일 내용 일치 및 새 배포 연결·READY 상태를 확인했다.
+- 실제 운영 JS·CSS와 가상 현황 데이터를 사용한 브라우저 검사에서 1280px·390px 가로 넘침 없음, 모니터링 카드 없음, CLI 카드 3개 유지, 수동 새로고침·메뉴 이동·복귀를 확인했다. 콘솔 오류와 이전 모니터 조회·모듈 로드는 0건이다.
+- 브라우저 화면 검사에는 운영 API·실학생 자료를 사용하지 않았다. 유료 AI 호출과 DB 변경은 없다.
+
+로컬 증빙 (Git·배포 제외)
+- output/admin-monitor-cleanup-release/production-before.json
+- output/admin-monitor-cleanup-release/candidate-verification.json
+- output/admin-monitor-cleanup-release/production-app.ronparkpass.com.json
+- output/admin-monitor-cleanup-release/production-outing-auth-app.vercel.app.json
+- output/admin-monitor-cleanup-release/production-after.json
+- output/admin-monitor-cleanup-release/production-browser-verification.json
+- output/admin-monitor-cleanup-release/production-admin-1280.png
+- output/admin-monitor-cleanup-release/production-admin-390.png

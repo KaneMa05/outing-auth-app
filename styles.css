@@ -48,6 +48,16 @@ html.student-online-mode {
   background: #0b2746;
 }
 
+/* Only the installed iOS lecture screen extends behind the system bars. */
+html.student-lecture-ios-standalone {
+  background-color: #0b2746;
+}
+
+html.student-lecture-ios-standalone body:not([data-app-mode="teacher"]) .main-shell {
+  padding-left: max(18px, env(safe-area-inset-left, 0px));
+  padding-right: max(18px, env(safe-area-inset-right, 0px));
+}
+
 /* Private study rooms */
 .study-room-open-button,
 .study-room-manage-button,

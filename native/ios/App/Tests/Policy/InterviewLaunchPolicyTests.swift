@@ -24,7 +24,7 @@ final class InterviewLaunchPolicyTests: XCTestCase {
         XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 443, isMainFrame: true, topLevelURL: nil))
     }
     func testKakaoOAuthNavigationStaysInAppWithoutBridgePrivileges() {
-        for host in ["kauth.kakao.com", "accounts.kakao.com"] {
+        for host in ["kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"] {
             XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + host + "/oauth/authorize")!))
             XCTAssertFalse(InterviewLaunchPolicy.accepts(scheme: "https", host: host, port: 443,
                 isMainFrame: true, payload: ["code": code]))

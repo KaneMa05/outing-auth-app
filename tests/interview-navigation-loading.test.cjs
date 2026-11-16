@@ -12,17 +12,47 @@ function element(){
 }
 function load(file,extra={}){
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},
-  location:{hash:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},...extra};
+  location:{hash:''},history:{replaceState(){},pushState(){}},localStorage:{getItem(){return null;},setItem(){}},mountMyResources:()=>({ready:Promise.resolve(),canLeave:()=>true,destroy(){}}),interviewMyProfile:()=>'<section>수강 정보</section>',...extra};
  vm.createContext(context);
  vm.runInContext(fs.readFileSync(file,'utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
  return context;
 }
 
-test('home starts all independent reads before any response, and my loads only membership',async()=>{
- const calls=[],pending=new Map(['bootstrap','life_get','writing_list'].map(a=>[a,deferred()]));
+test('aptitude-only accounts start in aptitude and every other tab shows the package notice without data reads',async()=>{
+ const calls=[],mounted=[],host=element();let canLeave=true,loggedOut=false;
+ const c=load('interview-app-ui.js',{mountAptitude:async()=>{mounted.push('aptitude');return {canLeave:()=>canLeave,destroy(){}};},mountWorkspace:()=>{throw Error('Package editor must not mount');}});
+ const view=await c.mountInterviewApp(host,{account:{id:'unit',accessProduct:'aptitude_only'},onLogout:async()=>{loggedOut=true;},request:async action=>{calls.push(action);return {allowed:false};}});
+ assert.deepEqual(mounted,['aptitude']);assert.match(host.innerHTML,/data-app-logout/);assert.match(host.innerHTML,/data-app-tab="mock"/);
+ const click=tab=>host.listeners.get('click')({target:{closest:()=>({dataset:{appTab:tab},hasAttribute:()=>false})}});
+ calls.length=0;canLeave=false;await click('db');assert.doesNotMatch(host.querySelector('[data-app-content]').innerHTML,/ip-package-required/);
+ canLeave=true;
+ for(const tab of ['home','db','writing','mock','my']){
+  await click(tab);assert.match(host.querySelector('[data-app-content]').innerHTML,/면접 패키지로 구매하셔야 이용가능합니다/);
+  assert.deepEqual(calls,[]);
+ }
+ await click('aptitude');assert.equal(mounted.length,2);
+ await host.listeners.get('click')({target:{closest:()=>({dataset:{},hasAttribute:key=>key==='data-app-logout'})}});
+ assert.equal(loggedOut,true);view.destroy();
+});
+
+test('aptitude-only direct links and browser history cannot mount package pages or assignment notices',async()=>{
+ for(const tab of ['home&notice=preassignments','db','writing&page=core','mock&mockMode=ai','my','preassignments']){
+  const host=element(),events=new Map(),c=load('interview-app-ui.js',{location:{hash:'#interview-prep?tab='+tab},window:{addEventListener:(k,v)=>events.set(k,v),removeEventListener(){},scrollTo(){}}});
+  const view=await c.mountInterviewApp(host,{account:{accessProduct:'aptitude_only'},request:async action=>{assert.equal(action,'mock_status');return {allowed:false};}});
+  assert.match(host.querySelector('[data-app-content]').innerHTML,/면접 패키지로 구매하셔야 이용가능합니다/);
+  c.location.hash='#interview-prep?tab=db';await events.get('popstate')();
+  assert.match(host.querySelector('[data-app-content]').innerHTML,/ip-package-required/);view.destroy();
+ }
+});
+
+test('home checks mock access then starts independent reads together; my loads only membership',async()=>{
+ const calls=[],pending=new Map(['mock_status','bootstrap','life_get','writing_list'].map(a=>[a,deferred()]));
  const host=element(),c=load('interview-app-ui.js');
  const mounted=c.mountInterviewApp(host,{request:action=>{calls.push(action);return pending.get(action).promise;}});
- assert.deepEqual(calls,['bootstrap','life_get','writing_list']);
+ assert.deepEqual(calls,['mock_status']);
+ pending.get('mock_status').resolve({enabled:false});
+ await settle();
+ assert.deepEqual(calls,['mock_status','bootstrap','life_get','writing_list']);
  pending.get('bootstrap').resolve({notes:[],topics:[],member:{}});
  pending.get('life_get').resolve({profile:null});pending.get('writing_list').resolve({writings:[]});
  const view=await mounted;
@@ -86,6 +116,12 @@ test('banner opens the assignment article without API reads and home returns to 
  const view=await c.mountInterviewApp(host,{request:async action=>{calls.push(action);return {};}});
  const box=host.querySelector('[data-app-content]');
  assert.match(box.innerHTML,/data-app-notice="preassignments"/);
+ assert.match(box.innerHTML,/aria-labelledby="ip-app-notices-title"/);
+ assert.match(box.innerHTML,/11\.9/);
+ assert.match(box.innerHTML,/11\.10/);
+ assert.match(box.innerHTML,/ronpark1234/);
+ assert.match(box.innerHTML,/RONPARK1234/);
+ assert.equal((box.innerHTML.match(/data-app-notice="preassignments"/g)||[]).length,1);
  assert.doesNotMatch(box.innerHTML,/ip-app-welcome|이어서 작성하기/);
  calls.length=0;
  await host.listeners.get('click')({target:{closest:()=>({dataset:{appNotice:'preassignments'},hasAttribute:()=>false})}});

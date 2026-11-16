@@ -1,8 +1,9 @@
 'use strict';
+const interviewTracks=require('../lib/interview-tracks.json');
 const crypto=require('node:crypto');
 const {bodyOf,postOnly,sameOrigin,sendError}=require('../lib/interview-ai-http');
 const auth=require('../lib/interview-native-auth'),live=require('./interview-live');
-function defaults(){return {enabled:process.env.INTERVIEW_NATIVE_ENABLED==='true',secret:process.env.INTERVIEW_LIVE_WORKER_SECRET||'',
+function defaults(){return {enabled:require('../lib/interview-openai-config.cjs').feature('INTERVIEW_NATIVE_ENABLED'),secret:process.env.INTERVIEW_LIVE_WORKER_SECRET||'',
  readTrack:async id=>{const rows=await require('./curriculum')._private.requestSupabase('GET','ip_members?select=track&student_id=eq.'+encodeURIComponent(id));return rows[0]?.track||'';},
  practiceBootstrap:async(student,mode)=>{
  const rpc=require('./curriculum')._private.requestSupabase;
@@ -20,15 +21,17 @@ function createHandler(deps){return async(req,res)=>{try{
   if(Object.keys(b).some(k=>!['action','studentId','deviceToken'].includes(k)))throw Error('invalid_request');
   let student=await d.live.authenticateWeb(req);
   if(!student){if(!d.live.previewAllowed(b.studentId))throw Error('forbidden');student=await d.live.authenticateDevice({studentId:b.studentId,deviceToken:b.deviceToken});if(!student||!d.live.previewAllowed(student.id))throw Error('unauthorized');}
-  const code=crypto.randomBytes(32).toString('base64url');await d.invoke('issue',{type:'student',id:student.id},{codeHash:auth.hash(code)});
+  await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(student.id);
+  const code=crypto.randomBytes(32).toString('base64url');await d.invoke('issue',{type:'student',id:student.id,...require('../lib/interview-test-app.cjs').testAppFields(req)},{codeHash:auth.hash(code)});
   return res.status(200).json({ok:true,code,expiresIn:60});
  }
  if(b.action==='exchange'){
   if(Object.keys(b).some(k=>!['action','code','practice'].includes(k))||!/^[A-Za-z0-9_-]{43}$/.test(b.code||''))throw Error('invalid_request');
   if(b.practice!==undefined&&(b.practice!==true||req.headers['x-interview-test-app']!=='1'))throw Error('forbidden');
-  const data=await d.invoke('consume',{type:'server',id:'native'},{codeHash:auth.hash(b.code)});
+  const data=await d.invoke('consume',{type:'server',id:'native',...require('../lib/interview-test-app.cjs').testAppFields(req)},{codeHash:auth.hash(b.code)});
+  await (d.requireMockAccess||require('../lib/interview-mock-access').requireMockAccess)(data.studentId);
   const track=d.readTrack?await d.readTrack(data.studentId):'';
-  return res.status(200).json({ok:true,token:b.practice===true?auth.issuePractice(data.studentId,d.secret):auth.issue(data.studentId,d.secret),accountId:data.studentId,expiresIn:b.practice===true?7200:1800,track:['공채','항해','기관','방제','관제','기타'].includes(track)?track:''});
+  return res.status(200).json({ok:true,token:b.practice===true?auth.issuePractice(data.studentId,d.secret):auth.issue(data.studentId,d.secret),accountId:data.studentId,expiresIn:b.practice===true?7200:1800,track:interviewTracks.includes(track)?track:''});
  }
  if(b.action==='practice_bootstrap'){
   if(req.headers['x-interview-test-app']!=='1'||Object.keys(b).some(k=>!['action','mode'].includes(k))||!['job','personality','ai'].includes(b.mode))throw Error('forbidden');
@@ -38,8 +41,8 @@ function createHandler(deps){return async(req,res)=>{try{
  if(b.action==='command'){
   if(Object.keys(b).some(k=>!['action','command'].includes(k))||!b.command||typeof b.command!=='object'||Array.isArray(b.command))throw Error('invalid_request');
   const student=auth.read((req.headers.authorization||'').replace(/^Bearer /,''),d.secret);
-  if(!['ready','start','begin','heartbeat','answer_done','finish','list','get'].includes(b.command.action)||'studentId' in b.command||'deviceToken' in b.command)throw Error('forbidden');
-  return live.createHandler({...d.live,authenticateWeb:async()=>student})({...req,body:b.command},res);
+  if(!['ready','start','begin','heartbeat','answer_done','finish','list','get','analysis_request','analysis_get'].includes(b.command.action)||'studentId' in b.command||'deviceToken' in b.command)throw Error('forbidden');
+  return live.createHandler({...d.live,requireMockAccess:d.requireMockAccess||d.live.requireMockAccess,authenticateWeb:async()=>student})({method:req.method,headers:req.headers,body:b.command},res);
  }
  throw Error('unsupported_action');
  }catch(e){sendError(res,e);}};}

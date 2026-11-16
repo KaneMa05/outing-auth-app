@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('node:fs/promises'),path=require('node:path'),{pathToFileURL}=require('node:url');
+const {detail,judgment}=require('../tests/interview-exam.test.cjs');
+const p=require('../tests/helpers/interview-personality-fixture.cjs');
+const {analyzeTask}=require('../lib/interview-mock-analysis.cjs');
+async function main(){
+ const root=path.resolve('output/interview-mock-cli'),base=path.resolve('client');
+ const {renderJobReport}=await import(pathToFileURL(path.join(base,'interview-job-exam.mjs'))),{renderPersonalityReport}=await import(pathToFileURL(path.join(base,'interview-personality.mjs'))),{summaryMarkup}=await import(pathToFileURL(path.join(base,'interview-mock-summary.mjs')));
+ const personality=JSON.parse(await fs.readFile(path.join(root,'personality-result.json'),'utf8')),report=JSON.parse(await fs.readFile(path.join(root,'report-result.json'),'utf8'));
+ const answer='VHF를 사용하고 위치 정보를 교환합니다.';let job,jobSource;
+ try{job=JSON.parse(await fs.readFile(path.join(root,'job-result.json'),'utf8'));jobSource='실제 CLI 분석 · 가상 전사문';}catch{
+  job=await analyzeTask({kind:'job',detail:detail(),transcripts:[answer,answer],transcriptSource:'fixture'},{models:{judge:'fixture-a',verifier:'fixture-b'},infer:async()=>judgment()});jobSource='모의 판정 · 실제 CLI 교차 실행 추가 확인 필요';
+ }
+ const data={job:{title:'전공 답변 분석',question:detail().question.prompt,answer,source:jobSource,html:renderJobReport(job)},
+  personality:{title:'인성 답변 분석',question:p.question.prompt,answer:p.transcript,source:'실제 CLI 분석 · 가상 전사문',html:renderPersonalityReport(personality)},
+  report:{title:'종합 분석',question:p.question.prompt,answer:p.transcript,source:'실제 CLI 분석 · 가상 전사문',html:summaryMarkup(report)}};
+ const css=await fs.readFile('tests/fixtures/interview-mock-cli/style.css','utf8'),json=JSON.stringify(data).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+ const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>모의면접 CLI 분석 검토 결과</title><style>${css}</style></head><body><main><header><p class="eyebrow">RONPARK STUDY · INTERVIEW</p><h1>나의 면접 답변 분석</h1><p class="lead">답변의 근거를 확인하고, 잘한 점과 보완할 점을 살펴보세요.</p></header><aside class="review-note">2026년 11월 2일 저장본입니다. 가상 전사문으로 생성한 검토용 결과이며 실제 학생 자료가 아닙니다. 인성·종합은 실제 CLI 결과, 전공은 추가 검증 전 모의 결과입니다. 네트워크 요청 없이 볼 수 있습니다.</aside><nav aria-label="분석 모드"><button data-kind="job">01 <strong>전공 답변</strong><span>개념과 문맥 확인</span></button><button data-kind="personality">02 <strong>인성 답변</strong><span>답변 구조와 연결성</span></button><button data-kind="report">03 <strong>종합 분석</strong><span>강점과 다음 연습</span></button></nav><div class="workspace"><details class="source-card" open><summary>질문과 답변 원문</summary><span class="tag">나의 답변</span><h2 id="question"></h2><p id="answer"></p><div class="source-meta"><span id="source"></span><span>가상 자료 · 공식 성적 없음</span></div></details><section class="result-card"><div class="result-header"><div><span class="tag">답변 분석</span><h2 id="title"></h2></div><span class="state">검토용 결과</span></div><div id="result" data-result></div></section></div><footer>음성 전사와 실기기 품질은 추가 연결·검증이 필요합니다. 공식 성적과 합격 가능성을 확정하지 않습니다.</footer></main><script>const data=${json};function show(kind){const value=data[kind];for(const id of ['question','answer','source'])document.getElementById(id).textContent=value[id];document.getElementById('title').textContent=value.title;document.getElementById('result').innerHTML=value.html;document.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===kind)));}document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>show(b.dataset.kind));show('personality');if(matchMedia('(max-width:720px)').matches)document.querySelector('.source-card').open=false;</script></body></html>`;
+ const out=path.resolve('output/interview-mock-cli-review.html');await fs.writeFile(out,html);console.log(JSON.stringify({saved:out,networkRequests:0,realStudentData:false}));
+}
+if(require.main===module)main().catch(e=>{console.error(e.message);process.exitCode=1;});

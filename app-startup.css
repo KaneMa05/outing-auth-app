@@ -1,4 +1,6 @@
 #app-startup{display:none}
+html.student-lecture-ios-standalone.app-starting,html.student-lecture-ios-standalone.app-starting body,html.student-lecture-ios-standalone.app-starting #app-startup{background:#0b2746!important;color:#fff}
+html.student-lecture-ios-standalone #app-startup p{color:#dce7f4}
 html.app-starting,html.app-starting body{background:#f3f7fb!important}
 html.app-starting body{overflow:hidden!important}
 html.app-starting:not(.app-startup-leaving) body>:not(#app-startup):not(noscript){visibility:hidden!important}
@@ -13,3 +15,13 @@ html.app-starting #app-startup{position:fixed;inset:0;z-index:2147483647;display
 html.app-starting.app-startup-leaving #app-startup{opacity:0;pointer-events:none}
 @keyframes app-startup-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){html.app-starting #app-startup{transition:none}#app-startup .app-startup-spinner{animation:none}}
+
+/* Keep interview authentication checks from flipping the launch palette. */
+html.interview-stable-startup.app-starting,
+html.interview-stable-startup.app-starting body,
+html.interview-stable-startup.app-starting body #app-startup{background:#f2f5f7!important;color:#223347}
+html.interview-stable-startup body #app-startup .app-startup-mark{background:#173b51;color:#fff;font-size:32px;font-style:normal;box-shadow:none}
+html.interview-stable-startup body #app-startup p{color:#63788e}
+html.interview-stable-startup body #app-startup .app-startup-spinner{border-color:#dbe5f0;border-top-color:#173b51}
+
+html.interview-stable-startup.app-starting{color-scheme:light}

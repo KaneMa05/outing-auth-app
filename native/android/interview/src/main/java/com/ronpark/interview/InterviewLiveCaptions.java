@@ -19,8 +19,11 @@ final class InterviewLiveCaptions {
     private WebSocket socket;private volatile boolean closed;private boolean ready,finishing;private int queuedBytes;private FinalReply reply;
     private final Runnable finishTimeout=()->complete(state.text(),false);
     InterviewLiveCaptions(OkHttpClient http,String token,String question,String mode,String prefix,Listener listener){
+        this(http,token,question,mode,prefix,listener,"ws://127.0.0.1:8787/live");
+    }
+    InterviewLiveCaptions(OkHttpClient http,String token,String question,String mode,String prefix,Listener listener,String endpoint){
         this.listener=listener;this.prefix=prefix.trim();
-        socket=http.newWebSocket(new Request.Builder().url("ws://127.0.0.1:8787/live").header("Authorization","Bearer "+token).build(),new WebSocketListener(){
+        socket=http.newWebSocket(new Request.Builder().url(endpoint).header("Authorization","Bearer "+token).build(),new WebSocketListener(){
             @Override public void onOpen(WebSocket ws,Response response){ws.send(InterviewApi.json("type","configure","question",question,"mode",mode).toString());}
             @Override public void onMessage(WebSocket ws,String raw){try{
                 JSONObject message=new JSONObject(raw);

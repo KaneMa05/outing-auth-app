@@ -52,6 +52,32 @@ const source = fs.readFileSync(path.join(__dirname, '../client/interview-ai-clie
   await assert.rejects(failedSave.generate('core30',{savePending:async()=>{throw Error('save_failed');}}),/save_failed/);
   assert.deepEqual(failedSaveCalls,[]);
   failedSave.destroy();
+  const retryCalls=[],retryUpdates=[];
+  let allowed=false;
+  const eligibility=createInterviewAI({request:async(_,body)=>{
+    retryCalls.push(body.action);
+    if(body.action==='prepare')return {ok:true,ready:true,enabled:true,sourceHash:'c'.repeat(64)};
+    if(body.action==='status')return {ok:true,requestId:'retry-request',items:[{key:'self_intro',status:'FAILED',canRetry:allowed,retryReason:allowed?null:'retry_limit'}]};
+    return {ok:true,requestId:'retry-request'};
+  },onUpdate:data=>retryUpdates.push(data)});
+  await assert.rejects(eligibility.retryItems('retry-request','self_intro',['self_intro']),error=>error.code==='unsafe_retry'&&error.retryReason==='retry_limit');
+  assert.deepEqual(retryCalls,['prepare','status'],'No retry RPC is sent for an exhausted job');
+  assert.equal(retryUpdates.at(-1).items[0].canRetry,false);
+  retryCalls.length=0;
+  await eligibility.retryItems('retry-request','self_intro',['self_intro'],{savePending:async()=>{allowed=true;}});
+  assert.deepEqual(retryCalls,['prepare','status','retry_items','status'],'Saved source changes are checked before retry');
+  eligibility.destroy();
+  const racedCalls=[],racedUpdates=[];
+  let raced=false;
+  const racingRetry=createInterviewAI({request:async(_,body)=>{
+    racedCalls.push(body.action);
+    if(body.action==='prepare')return {ok:true,enabled:true,ready:true,sourceHash:'d'.repeat(64)};
+    if(body.action==='retry_items'){raced=true;throw Object.assign(Error('unsafe_retry'),{code:'unsafe_retry',retryReason:'job_not_retryable'});}
+    return {ok:true,items:[{key:'self_intro',status:raced?'PROCESSING':'FAILED',canRetry:!raced}]};
+  },onUpdate:data=>racedUpdates.push(data)});
+  await assert.rejects(racingRetry.retryItems('raced-request','self_intro',['self_intro']),error=>error.retryReason==='job_not_retryable');
+  assert.deepEqual(racedCalls,['prepare','status','retry_items','status']);
+  assert.equal(racedUpdates.at(-1).items[0].status,'PROCESSING');racingRetry.destroy();
   // An older response must not replace a newly selected request (even the same ID).
   const reads=[],raceUpdates=[];
   const race=createInterviewAI({request:(_,body)=>new Promise(resolve=>reads.push({body,resolve})),onUpdate:x=>raceUpdates.push(x)});

@@ -1,0 +1,29 @@
+최신 원격 코드 통합 및 테스트 브랜치 보존
+
+브랜치: codex/beta-practice-sync-20261116
+통합 기준: origin/main fe64d24 (2026-11-16 fetch)
+기존 작업 보존 커밋: 4b9d4c1
+
+범위 및 배포 분리
+- 기존 iOS 테스트 브랜치의 이력과 이번 베타 연습·관리자 녹음 작업을 보존하고 최신 main을 병합.
+- main으로 푸시하지 않음. Vercel git.deploymentEnabled=false 유지.
+- GitHub iOS 자동 빌드 브랜치 패턴(codex/ios-native-build-*)과 다른 브랜치 사용.
+- 운영 서버 배포, 운영 DB 마이그레이션, 앱 스토어 업로드 및 기기 설치는 실행하지 않음.
+- 관리자 기록 API/DB 파일은 소스로 보존하며 실제 운영 연결은 아직 적용하지 않음.
+
+충돌 정리
+- 최신 mock 권한 확인·testApp 전달·직렬 목록을 유지하면서 Android 전용 연습 토큰 교환/카탈로그를 통합.
+- 최신 적성 전용 계정·관리자 메뉴·로그인 및 iOS Apple OAuth 지원 보존.
+- 최신 Android InterviewPracticeActivity/인증 WebView/실시간 테스트 화면을 보존.
+- 이번 단순화된 베타 화면은 Debug 전용 InterviewBetaPracticeActivity로 분리해 기존 클래스 충돌을 방지.
+- 독립 Debug 호스트의 시작 화면은 InterviewBetaPracticeActivity, 패키지는 com.ronpark.study.nativepreview.
+- Debug 전용 AndroidX 구성 및 최신 Debug 화면의 마이크 권한 점검 누락 보완.
+
+통합 후 검증
+- 서버·웹·Android 포털/로컬 TLS·일반 앱 진입 보호 검사: 49개 통과.
+- Android 단위 검사: 41개 통과, 실패/스킵 0.
+- 최신 Debug APK 및 Release 라이브러리 빌드 성공.
+- Android Debug Lint 오류 0 (기존 경고는 남아 있음).
+- Release 라이브러리의 classes.jar에 InterviewPractice*/InterviewBetaPractice* 클래스 없음.
+- iOS Debug 및 Release 시뮬레이터 빌드 성공. 기기 설치 또는 실제 녹음 재검증을 의미하지 않음.
+- Android 에뮬레이터/실기기 녹음·압축·재생 및 운영 서버 종단 간 검증은 남아 있음.

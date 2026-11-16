@@ -1,6 +1,8 @@
 const crypto=require('node:crypto');
 const {readCookie}=require('./teacher-auth-utils');
 const webAuth=require('../lib/interview-web-auth');
+const appleAuth=require('../lib/interview-apple-auth');
+const {notifyApplicationSubmitted}=require('../lib/application-slack');
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 async function readBody(req){
  let body=req.body;
@@ -34,7 +36,7 @@ function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=
   try{
    if(req.method==='GET'&&!callback){
     if(url.searchParams.get('action')!=='session')fail('unsupported_action');
-    const base={ok:true,enabled:cfg.enabled,kakaoEnabled:cfg.enabled&&!!cfg.clientId};
+    const base={ok:true,enabled:cfg.enabled,kakaoEnabled:cfg.enabled&&!!cfg.clientId,appleEnabled:cfg.enabled&&appleAuth.config().enabled};
     if(!cfg.enabled)return res.status(200).json({...base,authenticated:false});
     const data=await invoke('session',{sessionHash:webAuth.sessionHash(req)});
     return res.status(200).json({...data,...base});
@@ -82,8 +84,11 @@ function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=
    }
    if(body.action==='apply'){
     for(const key of ['name','track','examNumber'])if(typeof body[key]!=='string'||!body[key].trim()||body[key].length>80)fail('invalid_request');
+    if(body.accessProduct!==undefined&&!['interview_package','aptitude_only'].includes(body.accessProduct))fail('invalid_request');
     if(!Number.isInteger(body.revision)||body.revision<0||body.revision>100000)fail('invalid_request');
-    return res.status(200).json(await invoke('apply',{sessionHash,name:body.name,track:body.track,examNumber:body.examNumber,revision:body.revision}));
+    const result=await invoke('apply',{sessionHash,name:body.name,track:body.track,examNumber:body.examNumber,revision:body.revision,...(body.accessProduct!==undefined?{accessProduct:body.accessProduct}:{})});
+    if(result?.ok)notifyApplicationSubmitted('interview',result.application);
+    return res.status(200).json(result);
    }
    await invoke('logout',{sessionHash});
    res.setHeader('Set-Cookie',[webAuth.cookie(webAuth.COOKIE,'',0,cfg),clearState()]);

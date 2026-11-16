@@ -28,6 +28,15 @@ async function requestInterviewPrep(action, payload = {}, credentials = null) {
   return data;
 }
 
+async function requestInterviewAptitude(action,payload={},credentials=null){
+  const student=APP_MODE==='teacher'?null:getAuthedStudent(),profile=student?getStudentProfile(student.id):null;
+  if(APP_MODE!=='teacher'&&(!student||credentials&&(credentials.id!==student.id||credentials.token!==profile?.deviceToken)))throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
+  const response=await fetch('/api/interview-aptitude',{method:'POST',credentials:student?'omit':'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action,...(student?{studentId:student.id,deviceToken:profile?.deviceToken,client:{displayMode:isStandaloneStudentApp()?'standalone':'browser',userAgent:navigator.userAgent}}:{})})});
+  const data=await response.json();
+  if(student&&(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==profile?.deviceToken))throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
+  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'aptitude_unavailable'),{code:data.error});return data;
+}
+
 function renderInterviewPrepEntry() {
   if(APP_MODE==='teacher')return null;
   const student=getAuthedStudent(),token=getStudentProfile(student?.id)?.deviceToken;
@@ -42,7 +51,7 @@ function renderInterviewPrepEntry() {
   renderInterviewPrepEntry.cache={key,promise,expires:Date.now()+60000};
   promise.then(data=>{
     if(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==token)return;
-    if(data.enabled!==true)return;
+    if((data.appEnabled??data.enabled)!==true)return;
     link.replaceChildren(button('면접반 모드로 전환','student-history-button-card student-settings-link','button',()=>{
       try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}
       prepareInterviewAppEntry.cache={key,state:'ready',enabled:true};navigate('interview-prep');
@@ -61,6 +70,17 @@ function isInterviewStudentMode(){
 }
 function prepareInterviewAppEntry(){
   if(APP_MODE==='teacher'||!isStandaloneStudentApp())return null;
+  const entryUrl=new URL(location.href);
+  if(entryUrl.searchParams.get('entry')==='student'){
+    try{
+      localStorage.removeItem('outing-interview-web-app');
+      const student=getAuthedStudent();if(student)localStorage.setItem('outing-student-mode:'+student.id,'standard');
+      sessionStorage.removeItem('interview-app-return');
+    }catch{}
+    prepareInterviewAppEntry.webChecked=true;
+    entryUrl.searchParams.delete('entry');history.replaceState(null,'',entryUrl.pathname+entryUrl.search+entryUrl.hash);
+    return null;
+  }
   let web=false;try{web=localStorage.getItem('outing-interview-web-app')==='1';}catch{}
   if(web&&!prepareInterviewAppEntry.webChecked){
     let cache=prepareInterviewAppEntry.web;
@@ -85,7 +105,7 @@ function prepareInterviewAppEntry(){
     cache={key,state:'loading',enabled:false};prepareInterviewAppEntry.cache=cache;
     isInterviewPreviewCandidate(student.id).then(allowed=>allowed?requestInterviewPrep('status',{}, {id:student.id,token}):{enabled:false}).then(d=>{
       if(prepareInterviewAppEntry.cache!==cache)return;
-      cache.enabled=d.enabled===true;cache.state='ready';
+      cache.enabled=(d.appEnabled??d.enabled)===true;cache.state='ready';
       if(!cache.enabled)try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}
       render();
     }).catch(()=>{if(prepareInterviewAppEntry.cache===cache){cache.state='error';render();}});
@@ -109,7 +129,7 @@ async function logoutInterviewStudent(student,token){
 
 function renderInterviewPrep() { return renderInterviewPrepModule(false); }
 function renderInterviewPrepAdmin() { return renderInterviewPrepModule(true); }
-const interviewAdminSections={home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',practice:'베타 연습 현황',live:'음성 모의면접 기록'};
+const interviewAdminSections={app_feedback:'앱 오류·개선 의견',home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',aptitude:'적성 모의고사 관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',practice:'베타 연습 현황',live:'음성 모의면접 기록'};
 function getInterviewAdminSection(){
   const section=new URLSearchParams((location.hash.split('?')[1]||'')).get('section');
   return Object.hasOwn(interviewAdminSections,section)?section:'home';
@@ -199,26 +219,29 @@ function renderInterviewPrepModule(admin) {
   const host=el('div',{'data-startup-pending':'true'},[el('p',{role:'status'},'이용 권한을 확인하는 중…')]);
   const view={key,element:host,controller:null,section};renderInterviewPrepModule.view=view;
   (async()=>{
+    let accessProduct;
     if(!admin) {
       const allowed=await isInterviewPreviewCandidate(student?.id);
       if(!allowed)throw new Error('forbidden');
       const status=await requestInterviewPrep('status',{}, {id:student.id,token});
-      if(status.enabled!==true)throw new Error('forbidden');
+      if((status.appEnabled??status.enabled)!==true)throw new Error('forbidden');
+      accessProduct=status.accessProduct;
     }
     if(renderInterviewPrepModule.view!==view)return;
     if(!document.querySelector('link[data-interview-style]'))
-      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261024-school-status','data-interview-style':'true'}));
+      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261103-cli-status','data-interview-style':'true'}));
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
-    const appShell=!admin&&isStandaloneStudentApp();
-    const module=await (admin?import('./interview-prep-ui.js?v=20261116-practice-archive'):appShell?import('./interview-app-ui.js?v=20261116-android-beta'):import('./interview-workspace.js?v=20261024-school-status'));
+    const appShell=!admin&&(isStandaloneStudentApp()||accessProduct==='aptitude_only');
+    const module=await (admin?import('./interview-prep-ui.js?v=20261116-beta-sync'):appShell?import('./interview-app-ui.js?v=20261116-beta-sync'):import('./interview-workspace.js?v=20261116-aptitude-percentile'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{
-      account:admin?{}:{id:student.id,name:student.name},
+      account:admin?{}:{id:student.id,name:student.name,accessProduct},
       onExit:appShell?async()=>{try{localStorage.setItem('outing-student-mode:'+student.id,'standard');}catch{}view.controller?.destroy();renderInterviewPrepModule.view=null;history.replaceState(null,'','#home');render();}:undefined,
       onLogout:appShell?()=>logoutInterviewStudent(student,token):undefined,
       request:(action,payload)=>requestInterviewPrep(action,payload,admin?null:{id:student.id,token}),
+      aptitudeRequest:(action,payload)=>requestInterviewAptitude(action,payload,admin?null:{id:student.id,token}),
       aiRequest:admin?undefined:async(url,body)=>{
         if(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==token)
           throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
@@ -227,7 +250,7 @@ function renderInterviewPrepModule(admin) {
         const result=await response.json();
         if(getAuthedStudent()?.id!==student.id||getStudentProfile(student.id)?.deviceToken!==token)
           throw Object.assign(Error('unauthorized'),{code:'unauthorized'});
-        if(!response.ok||!result.ok)throw Object.assign(Error(result.error),{code:result.error});
+        if(!response.ok||!result.ok)throw Object.assign(Error(result.error),{code:result.error,retryReason:result.retryReason});
         return result;
       },
       canWrite:admin&&hasTeacherPermission('interview.write'),

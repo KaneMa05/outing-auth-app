@@ -8,6 +8,9 @@ import time
 import uuid
 from workerlib import Protector, WorkerError, Uncertain
 
+DEFAULT_MODEL = "gpt-6.1-sol"
+DEFAULT_EFFORT = "medium"
+
 
 def cli_environment():
     env = os.environ.copy()
@@ -31,8 +34,12 @@ def command(config, guidelines, cwd):
         'memories.use_memories=false', 'memories.generate_memories=false',
     ):
         args += ["-c", setting]
-    if config.get("model"):
-        args += ["--model", config["model"]]
+    model = config.get("model") or DEFAULT_MODEL
+    effort = config.get("reasoning_effort") or DEFAULT_EFFORT
+    if (not isinstance(model, str) or not model.strip() or
+            effort not in ("none", "low", "medium", "high", "xhigh", "max")):
+        raise WorkerError("invalid_config")
+    args += ["--model", model, "-c", 'model_reasoning_effort="' + effort + '"']
     return args + ["-"]
 
 

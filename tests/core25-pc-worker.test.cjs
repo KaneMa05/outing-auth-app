@@ -4,6 +4,7 @@ const {setup}=require('./interview-preassignments.test.cjs');
 const {createHandler:studentHandler}=require('../api/interview-preassignments');
 const {createHandler:workerHandler}=require('../api/interview-core25-worker');
 const {ENGINE_VERSION}=require('../lib/core25-worker-config.cjs');
+const {VERSION}=require('../lib/preassignment-diagnosis.cjs');
 const {processJob,createClient}=require('../scripts/core25-pc-worker.cjs');
 const migration='supabase/migrations/20261024111313_interview_core25_pc_worker.sql';
 async function send(handler,body,headers={}){const res={setHeader(){},status(n){this.statusCode=n;return this;},json(data){this.data=data;}};await handler({method:'POST',headers:{host:'app.test',...headers},body},res);return res;}
@@ -33,6 +34,10 @@ async function test(){
   assert.deepEqual((await request('poll',{capacity:3})).jobs,[]);
   assert.equal((await send(student,{action:'bootstrap'})).data.diagnosisEnabled,true);
   const queued=(await send(student,command)).data;assert.equal(queued.diagnosis.status,'running');assert(!JSON.stringify(queued).includes('snapshot'));
+  // A request already queued by the deployed Astra worker must still be claimed
+  // after the inference model changes, without a new admission or generation.
+  const legacyVersion=VERSION+':pc-v1:gpt-6-astra:high';
+  await db.query('update ip_pa_diagnoses set engine_version=$1 where id=$2',[legacyVersion,queued.diagnosis.id]);
   assert.equal((await send(student,command)).data.diagnosis.id,queued.diagnosis.id);
   const jobs=(await request('poll',{capacity:3})).jobs;assert.equal(jobs.length,1);assert(!('studentId'in jobs[0]));
   assert.deepEqual((await request('poll',{capacity:3})).jobs,[],'Never deliver a job twice');
@@ -44,8 +49,10 @@ async function test(){
   assert.equal(calls,1);assert.equal(deliveries,2);
   const result=(await send(student,{action:'diagnosis_status',unitId:'core-01'})).data.diagnosis;
   assert.equal(result.status,'completed');assert.equal(result.stale,false);assert.equal(result.report.criteria.length,4);
+  assert.equal((await db.query('select engine_version from ip_pa_diagnoses where id=$1',[result.id])).rows[0].engine_version,legacyVersion);
   assert.equal((await call('diagnosis_get',b,{unitId:'core-01'})).diagnosis,null);
   assert.equal((await send(student,command)).data.diagnosis.id,result.id,'Completed diagnosis reused');
+  assert.equal((await db.query('select count(*) as n from ip_pa_diagnoses')).rows[0].n,1,'Model-only switch preserves the old result without another AI request');
   await call('save',a,{unitId:'core-01',revision:1,fields:{f1:'답변을 수정했습니다.'},requestId:crypto.randomUUID()});
   assert.equal((await send(student,{action:'diagnosis_status',unitId:'core-01'})).data.diagnosis.stale,true);
   const queued2=(await send(student,{...command,revision:2})).data;

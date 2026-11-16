@@ -1,0 +1,58 @@
+{
+  "q-0b23cfaeec9dedbab2f02273": {
+    "spokenPrompt": "항해 중 우현에 빨간 등부표가 보인다면 어떻게 항해하겠습니까?",
+    "synthesisText": "항해 중 우 현에 빨간 등부표가 보인다면 어떻게 항해하겠습니까?",
+    "seed": 44
+  },
+  "q-0b6209718d18424538315dec": {
+    "spokenPrompt": "무해통항권이란 무엇입니까?",
+    "synthesisText": "무해 통항권이란 무엇입니까?",
+    "seed": 44
+  },
+  "q-0be2e923d30b48dce62cee73": {
+    "spokenPrompt": "국제법상 공해란 무엇입니까?",
+    "synthesisText": "국제법상, 공해란 무엇입니까?",
+    "seed": 44
+  },
+  "q-2798f262117356fd41545948": {
+    "spokenPrompt": "친고죄와 반의사불벌죄는 어떻게 다릅니까?",
+    "synthesisText": "친 고 죄와 반의사 불벌죄는 어떻게 다릅니까?",
+    "seed": 44
+  },
+  "q-be30bb67fd86a1b0cf678560": {
+    "spokenPrompt": "옴의법칙이란 무엇입니까?",
+    "synthesisText": "옴의 법칙이란 무엇입니까?"
+  },
+  "q-fc2e1434190f032d466a9ecf": {
+    "spokenPrompt": "불완전연소란 무엇입니까?",
+    "synthesisText": "불 완전 연소란 무엇입니까?",
+    "seed": 44
+  },
+  "q-30140af0ce02b7719958da87": {
+    "spokenPrompt": "지원자가 생각하는 애국이란 무엇입니까?",
+    "synthesisText": "지원자가 생각하는 애국이란 무엇입니까?",
+    "seed": 43
+  },
+  "q-a4addd821cd2d8dd451a2c90": {
+    "spokenPrompt": "SCR이란 무엇입니까?",
+    "synthesisText": "에스 씨 알이란 무엇입니까?"
+  },
+  "q-be2d94831feeb35ff1a10c6e": {
+    "spokenPrompt": "EEZ란 무엇입니까?",
+    "synthesisText": "이 이 제트란 무엇입니까?"
+  },
+  "q-356aa0e4bf1d5ff2c3a4eea3": {
+    "spokenPrompt": "하인리히 효과란 무엇입니까?",
+    "synthesisText": "하인 리 히 효과란 무엇입니까?",
+    "seed": 44
+  },
+  "q-45007114bdd071c27899c354": {
+    "spokenPrompt": "친고죄란 무엇입니까?",
+    "synthesisText": "친 고 죄란 무엇입니까?",
+    "seed": 44
+  },
+  "q-72803fca64c3a540ddb323ef": {
+    "spokenPrompt": "리그넘바이티란 무엇입니까?",
+    "synthesisText": "리그넘 바이티란 무엇입니까?"
+  }
+}

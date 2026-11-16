@@ -18,7 +18,7 @@ test('practice credentials expire, reject tampering and cannot be used as live c
 });
 test('practice exchange and catalog use signed identity and require the test-app header',async()=>{
  let consumed=0,received;
- const handler=createHandler({enabled:true,secret:key,readTrack:async()=> '항해',invoke:async()=>{consumed++;return {studentId:'student-a'};},
+ const handler=createHandler({enabled:true,secret:key,requireMockAccess:async()=>{},readTrack:async()=> '항해',invoke:async()=>{consumed++;return {studentId:'student-a'};},
   practiceBootstrap:async(actor,mode)=>{received={actor,mode};return {ok:true,questions:[]};}});
  const body={action:'exchange',code:'a'.repeat(43),practice:true};
  assert.equal((await call(handler,body)).status,403);assert.equal(consumed,0);

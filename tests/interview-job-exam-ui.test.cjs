@@ -1,0 +1,81 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
+async function harness({microphone,requestOverride,waitReady=true,submitError=false}={}){
+ const {audioBase64}=await import('../client/interview-job-exam-audio.mjs');
+ const {createAttempts}=await import('../client/interview-attempts/core.mjs'),{withAttemptLease,recoverAttempts}=await import('../client/interview-attempts/recovery.mjs');
+ const nodes=new Map(),host={innerHTML:'',querySelector(s){if(!nodes.has(s))nodes.set(s,{textContent:'',value:'q1'});return nodes.get(s);}};
+ const records=new Map(),chunks=new Map();let closed=false,released=0,starts=0;
+ const store={create:async r=>{records.set(r.id,structuredClone(r));chunks.set(r.id,[]);},get:async id=>structuredClone(records.get(id)),list:async owner=>[...records.values()].filter(r=>r.accountId===owner),append:async(r,b)=>{records.set(r.id,structuredClone(r));chunks.get(r.id).push(b);},update:async r=>records.set(r.id,structuredClone(r)),chunks:async id=>chunks.get(id)||[],remove:async id=>{records.delete(id);chunks.delete(id);},close(){closed=true;}};
+ const locks={request:async(_,__,fn)=>fn({})},stream={getTracks:()=>[{stop(){released++;}}]};
+ let run={id:'17fd429e-5298-4a4b-9384-82c24047e4f0',question:{id:'q1',prompt:'가상 질문'},state:'started',retainUntil:'2099-01-01',deadline:'2099-01-01'};
+ const request=async(action,b)=>{
+  if(requestOverride)return requestOverride(action,b);
+  if(action==='status')return {ready:true};if(action==='questions')return {questions:[{id:'q1',prompt:'가상 질문'}]};if(action==='list')return {runs:[]};
+  if(action==='start'){starts++;return {run};}if(action==='get')return {run};if(action==='cancel')return {ok:true};if(action==='submit'){if(submitError)throw Error('network');run={...run,state:'completed'};return {run};}throw Error(action);
+ };
+ const timers=new Map();const document={hidden:false};
+ const context={document,setTimeout:fn=>{const id=Symbol();timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob,URL,crypto:require('node:crypto').webcrypto,console,audioBase64,createAttempts,withAttemptLease,recoverAttempts,window:{addEventListener(){},removeEventListener(){}},setInterval:()=>1,clearInterval(){},confirm:()=>true};vm.createContext(context);
+ vm.runInContext(fs.readFileSync('client/interview-job-exam.mjs','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ',''),context);
+ const view=context.mountJobExam(host,{request,accountId:'a',mediaDevices:{getUserMedia:microphone||(async()=>stream)},openStore:async()=>store,openPrepared:async()=>({get:async()=>undefined,put:async(a,id,b)=>b,remove:async()=>{},close(){}}),locks,createRecorder:({attempts,accountId,id})=>({stop:async()=>{await attempts.append(accountId,id,new Blob(['test'],{type:'audio/webm'}));return attempts.finish(accountId,id);},interrupt:async()=>attempts.finish(accountId,id,{interrupted:true})}),convert:async b=>b});
+ if(waitReady)await view.ready;
+ const click=action=>host.onclick({target:{closest:()=>({disabled:false,dataset:{jobAction:action}})},stopPropagation(){}});
+ return {timers,document,tick:async()=>{const tasks=[...timers.values()];timers.clear();for(const fn of tasks)await fn();},host,view,click,stream,get released(){return released;},get starts(){return starts;},get closed(){return closed;},records};
+}
+test('microphone permission resolving after leaving releases capture and never starts an exam',async()=>{
+ const microphone=deferred(),h=await harness({microphone:()=>microphone.promise});const starting=h.click('start');assert.equal(h.view.canLeave(),false);h.view.destroy();microphone.resolve(h.stream);await starting;
+ assert.equal(h.starts,0);assert.ok(h.released>0);
+});
+
+test('queued PC analysis refreshes to completion, pauses while hidden, and releases its timer',async()=>{
+ let gets=0;const run={id:'17fd429e-5298-4a4b-9384-82c24047e4f0',question:{id:'q1',prompt:'가상 질문'},state:'started',retainUntil:'2099-01-01'};
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')return {ready:true};if(action==='questions')return {questions:[run.question]};if(action==='list')return {runs:[]};if(action==='start')return {run};
+  if(action==='submit')return {run:{...run,state:'evaluating'},processing:{mode:'pc',state:'queued'}};
+  if(action==='get'){gets++;return {run:{...run,state:'completed'},processing:{mode:'pc',state:'completed'}};}throw Error(action);
+ }});
+ await h.click('start');await h.click('stop');await h.click('submit');assert.equal(h.timers.size,1);assert.equal(h.view.canLeave(),true);
+ const before=gets;h.document.hidden=true;await h.tick();assert.equal(gets,before);assert.equal(h.timers.size,1);h.document.hidden=false;await h.tick();assert.equal(gets,before+1);assert.equal(h.timers.size,0);assert.match(h.host.innerHTML,/분석이 완료/);h.view.destroy();assert.equal(h.timers.size,0);
+});
+test('recording blocks navigation; stop preserves the local answer and releases the lease',async()=>{
+ const h=await harness();await h.click('start');assert.equal(h.view.canLeave(),false);assert.equal(h.starts,1);
+ await h.click('stop');assert.equal(h.view.canLeave(),true);assert.equal([...h.records.values()][0].state,'recorded');assert.ok(h.released>0);assert.match(h.host.innerHTML,/답변 제출/);h.view.destroy();
+});
+test('late initial responses cannot reopen a destroyed student screen',async()=>{
+ const status=deferred();const h=await harness({waitReady:false,requestOverride:async action=>action==='status'?status.promise:action==='list'?{runs:[]}:Promise.reject(Error('unexpected'))});
+ const before=h.host.innerHTML;h.view.destroy();status.resolve({ready:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.host.innerHTML,before);
+});
+
+test('submission failure keeps the locally recorded answer available',async()=>{
+ const h=await harness({submitError:true});await h.click('start');await h.click('stop');await h.click('submit');
+ assert.equal([...h.records.values()][0].state,'recorded');assert.match(h.host.innerHTML,/기기 녹음은 보존/);assert.equal(h.view.canLeave(),true);h.view.destroy();
+});
+test('destroy during recording releases capture and records an interruption before closing storage',async()=>{
+ const h=await harness();await h.click('start');h.view.destroy();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal([...h.records.values()][0].state,'interrupted');assert.ok(h.released>0);assert.equal(h.closed,true);
+});
+
+test('first screen is concise and recording controls appear only during an attempt',async()=>{
+ const h=await harness();
+ assert.match(h.host.innerHTML,/연습 시작/);assert.match(h.host.innerHTML,/내 기록/);
+ assert.doesNotMatch(h.host.innerHTML,/data-job-action="stop"|data-job-action="submit"|저장된 응시 기록이 없습니다|data-job-action="qnext"/);
+ await h.click('history');assert.match(h.host.innerHTML,/저장된 응시 기록이 없습니다/);
+ await h.click('start');assert.match(h.host.innerHTML,/data-job-action="stop"/);h.view.destroy();
+});
+
+test('initial authorization failures display the actual access problem without starting a recording',async()=>{
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')throw Object.assign(Error('forbidden'),{code:'forbidden'});
+  if(action==='list')return {runs:[]};throw Error('unexpected action');
+ }});
+ assert.match(h.host.innerHTML,/면접반 이용 권한을 확인하지 못했습니다/);
+ assert.equal(h.starts,0);h.view.destroy();
+});
+test('missing approved questions are distinguished from server preparation',async()=>{
+ const h=await harness({requestOverride:async action=>{
+  if(action==='status')return {ready:false,reason:'questions_unavailable'};
+  if(action==='list')return {runs:[]};throw Error('unexpected action');
+ }});
+ assert.match(h.host.innerHTML,/승인 문항이 없습니다/);
+ assert.equal(h.starts,0);h.view.destroy();
+});

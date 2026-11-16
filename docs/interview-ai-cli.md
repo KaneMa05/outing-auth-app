@@ -43,7 +43,7 @@ PC 창은 닫으면 새 작업 접수를 멈춘다. 이미 시작된 독립 실�
 
 - 문항마다 독립 `codex exec --ephemeral`을 실행한다. 이전 대화 이어쓰기는 하지 않는다.
 - 입력은 학생 본인 DB에서 고정한 자료와 질문, 버전 관리된 작성 지침뿐이다.
-- 개인 config는 읽지 않고 기본 모델을 사용한다. 모델 고정이 필요하면 PC `config.json`의 `model`을 명시한다. 개인 설정의 모델을 자동 계승하지 않는다.
+- 개인 Codex config는 읽지 않는다. 답변 초안의 기본 모델은 `gpt-6.1-sol`, 추론 수준은 `medium`이다. PC `config.json`의 `model`, `reasoning_effort`로 명시할 수 있으며, 개인 설정의 모델을 자동 계승하지 않는다.
 - 로그인은 기존 ChatGPT 계정을 사용한다. 프로세스에서 API 키 환경변수를 제거하고 ChatGPT 인증 방식을 강제한다.
 - 읽기 전용 샌드박스를 유지한다. 셸, 코드 실행, 웹, 앱, 다중 에이전트, 메모리 사용·생성을 비활성화한다. 예상 밖 도구 실행 항목은 결과 게시를 차단한다.
 - 생성 지침은 `guidelines/instructions.txt`, 출력 계약은 `guidelines/output.schema.json`이다.

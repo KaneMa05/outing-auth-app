@@ -1,0 +1,90 @@
+테스트앱 실전 모의면접 — 실제 음성 검증·멘트·정면 아바타 반영
+2026-11-11 한국시간
+
+최종 승인 및 범위
+사용자가 이번 시작/응답 멘트, 자연스러운 꼬리질문, 정면 아바타 3종의
+푸시·서버 배포·아이폰 업데이트와 남성 6문답 재검증을 명시적으로 승인했다.
+테스트앱의 실전 모의면접에만 적용한다. 직무·인성 연습의 영상/녹음과 일반 앱
+음성 설정·일일 한도는 유지한다. App Store/TestFlight 업로드는 하지 않았다.
+립싱크는 보류 상태로 유지한다.
+
+반영
+서버 소스 10b5f2f681b0e6633140dfdd8fc11ce6f0ecdf0f / main.
+iOS 정면 리소스·연결 57cb7a1, 실제 응답 멘트 검증 보강 6553618 /
+codex/ios-practice-no-modal-20261106.
+최신 공유 Android 작업 b4554ce를 보존했다. 전체 main을 iOS 전용 브랜치에
+병합하지 않았다.
+Vercel dpl_925zvLaFjoVzknDXz16hw1CiCNTM / READY.
+https://outing-auth-djdgjol3x-ronpark.vercel.app 후보 1회 빌드 후 같은 빌드를 promote.
+outing-auth-app.vercel.app 및 app.ronparkpass.com 모두 동일 배포 연결 확인.
+일반 앱·학생·교사·직무·인성 웹 파일 9개는 기존 운영본과 내용 동일 확인.
+일반 앱 noeul/meridian sessionConfig는 변경 전 기준과 완전히 동일함을 비교했다.
+
+멘트와 질문
+실제 음성 전사에서 시작 문장 '면접을 시작하겠습니다.' 확인.
+답변 6개마다 '네, 감사합니다.' 확인. '확인하겠습니다' 출력 없음.
+꼬리질문은 최신 답변의 정확한 인용 근거를 유지하면서 지원자 본인의 기여,
+판단, 협업, 책임, 결과와 성찰을 묻도록 테스트 전용 지침을 개선했다.
+재작성용 추가 유료 모델 호출을 붙이지 않았다.
+최종 남성 세션의 실제 생성 꼬리질문:
+1-1 공유 체크리스트를 활용하는 과정에서 팀원들과 어떻게 협력하셨습니까?
+1-2 팀원들이 맡을 일을 직접 제안하고 함께 조정하는 과정에서 협력에 대해 배운 점을 말씀해 주시겠습니까?
+2-1 출처 대조표 작성과 교차 검토를 함께 선택한 이유를 말씀해 주시겠습니까?
+2-2 실수를 인정하고 다른 팀원의 검토를 받은 뒤, 팀원들의 반응은 어떠했는지 말씀해 주시겠습니까?
+각 두 번째 꼬리질문은 첫 꼬리질문에 실제로 답한 다음 새로 생성됐다.
+
+정면 아바타
+기존 artifacts/interview-avatars/sources의 정면 원본 3종으로 로컬 무음 대기
+영상을 렌더링했다. 새 외부 이미지/영상/음성 생성 API 호출은 없었다.
+6초·12fps·72프레임·512x896, 눈 깜빡임과 작은 고개 움직임, 정면 시선 유지.
+InterviewLiveAvatar 전용 폴더로 분리하여 InterviewModel만 사용한다.
+기존 직무·인성의 InterviewAvatar 리소스와 선택 경로는 유지했다.
+Debug 앱에는 정면 클립 3개, Release 앱에는 0개임을 실제 빌드 산출물에서 확인.
+실제 iPhone 질문 화면의 정면 영상 표시와 화면 간 얼굴 영역 변화도 확인.
+
+실제 기기 검증 방법과 결과
+'면접 준비하기' 버튼을 iPhone 미러링 화면에서 직접 확인했다.
+음성 검증 시에는 미러링을 종료하고 잠금 해제한 실제 아이폰을 사용했다.
+Mac에서 재생한 가상의 테스트 답변을 실제 iPhone 마이크로 인식했다.
+서버에 텍스트 답변을 직접 주입한 테스트가 아니다.
+채택한 여성 voice_6af3fd211ea081918dc2e8e94f946587와 남성 3차
+voice_6af4003787988191b9708350269ed872 ID를 재사용한다.
+남성 두 아바타는 같은 채택 남성 음성을 사용한다. 목소리를 새로 생성하지 않았다.
+
+A. 초기 남성: 76a78566-c1b4-47dd-9539-0a8e35c57f43
+5번째 답변 뒤 주변 대화가 계속 인식돼 마지막 꼬리질문으로 전환되지 않았다.
+세션을 종료했고 interrupted / recording ready. 6문답 성공으로 처리하지 않았다.
+
+B. 여성: 295d278f-1c4f-48e4-a363-44d5ebfda255
+주변 소음을 정리한 뒤 실제 6문답 완료. completed / recording ready.
+여성 아바타 및 6개 질문의 Speaker 출력 확인. 이번 최종 질문 지침 변경 전 검증이다.
+
+C. 최종 변경 후 남성: 5a7598b6-390b-492f-81df-df3aa0de94bb
+메인 2개 각각 initial, followup, followup 순서로 실제 답변 6개 모두 complete.
+completed / recording ready. 모든 질문 Speaker, Receiver 출력 없음.
+정면 아바타, 실제 시작/응답 멘트 및 최신 답변을 반영한 자연스러운 꼬리질문 확인.
+PaidLiveVerificationTests 통과. 종료 화면 '완료한 답변 6개' 확인.
+
+최종 API 사용량 및 비용(USD)
+A 초기 남성: GPT-Live 278초 $0.231666667 + GPT-6 Astra 5호출 $0.047040000 = $0.278706667
+B 여성: GPT-Live 247초 $0.205833333 + GPT-6 Astra 6호출 $0.064680000 = $0.270513333
+C 최종 남성: GPT-Live 299초 $0.249166667 + GPT-6 Astra 6호출 $0.111000000 = $0.360166667
+이번 검증 3세션 합계: $0.909386667.
+음성 합계 824초, backend 17호출, 입력 12,547 / 출력 1,945 토큰.
+모든 비용 원장 항목 reported / 금액 확정. 미확정·미가격 항목 없음.
+누적 중간 사용량은 합산하지 않고 session.closed의 최종 초수를 사용했다.
+초기 연결 15초를 최종 사용량에 더하지 않았다.
+원장은 관리자용으로 유지하고 수강생 화면에 비용을 추가하지 않았다.
+위 금액은 API 사용량 기준 계산액이며 호스팅·저장소·환율·세금 청구액과 구분한다.
+공식 단가(2026-11-11 확인): GPT-Live 분당 $0.05, 초 단위;
+GPT-6 Astra 백만 토큰당 입력 $10 / 출력 $50 / 캐시 입력 $1.
+https://developers.openai.com/api/docs/models/gpt-live-1
+https://developers.openai.com/api/docs/models/gpt-6-astra
+
+로컬 증빙(Git에 이미지·실제 음성·일회용 인증 값은 포함하지 않음)
+A /private/tmp/ronpark-paid-live-run-1794380230
+B /private/tmp/ronpark-paid-live-run-1794383855
+C /private/tmp/ronpark-paid-live-run-1794385390
+최종 화면 /private/tmp/ronpark-natural-male-final-evidence
+무료 화면 테스트 /private/tmp/ronpark-natural-frontal-simulator.xcresult
+전체 Live 회귀 검사, source snapshot 검사, Debug/Release 빌드 통과.

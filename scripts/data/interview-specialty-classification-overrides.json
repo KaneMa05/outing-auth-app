@@ -1,0 +1,3369 @@
+{
+  "version": "specialty-law-v3",
+  "confirmed_rule": "전공 기술·법령·형사절차·전문 현장 대응 지식은 직무, 경험·태도·가치·시사·정책 견해·기관 및 일반 상식 등 전공 외 질문은 인성.",
+  "records": [
+    {
+      "question_id": "q-006467a0e9db5bffa9b0596b",
+      "source_prompt": "해양경찰 함정이 외국 파견나가는 것에 대해 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-016605579c9768e56ea76cc1",
+      "source_prompt": "세월호 사건 이후로 국민의 질타를 받고 있는데 어떻게 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-027e18581bff4dbb79f40fa2",
+      "source_prompt": "사회적기업이 뭐라고 생각하느냐",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-02badc98f771bd0f257abe99",
+      "source_prompt": "메타버스,VR에 대해 (시사)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-05d9f90d861f02fa226c2481",
+      "source_prompt": "친환경 연료를 사용하는 선박에 대해 어떻게 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-06b1d777fdcb9ae814f52cd4",
+      "source_prompt": "해양경찰 핵심가치?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0757bb5f1729c507b1598fa7",
+      "source_prompt": "해양경찰의 소관 업무는 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-080ea55a3f1603b7e0c94ed5",
+      "source_prompt": "서울의 경도는 몇 도인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-09127f38e2909967991025e7",
+      "source_prompt": "MB사건 어떻게 생각하냐 아는 대로 말해라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0bd4fc1e7a50c3890c03b84b",
+      "source_prompt": "4.19에 대해 아는가? 5.16, 5.18 다 물어봄",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0be08841d0db554f0bd1bd4b",
+      "source_prompt": "해경에서도 공무원 성과상여금제도를 도입하고 있는데 그것에 대한 생각과 장단점은?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0d6102f96558318ea9c275a0",
+      "source_prompt": "적폐청산이란 무엇이며, 그 이유는 무엇이라 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0df191fe258c1650f33c3126",
+      "source_prompt": "해경역사",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0e8fe18ac5439e2fe11d7671",
+      "source_prompt": "가짜뉴스에 대해 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-0fa348fe2f8ae8159efcfb1f",
+      "source_prompt": "해양경찰이 상선이랑 비교 해봤을 때 어떠한 특징(강점)?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-10bfa0a4421639ec952371cb",
+      "source_prompt": "사드배치에 대한 견해는?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-11586aa18b874c16fdfeb0b1",
+      "source_prompt": "스텔라데이지호 사건에 대한 견해?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-11af3af713f17b6b7fbae2ed",
+      "source_prompt": "음주로 인한 범죄 감형에 대해 본인 생각",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-11f4eb5fbff58f4e73bb1311",
+      "source_prompt": "임금피크제",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-128be01e97d954cfaeed0d97",
+      "source_prompt": "임금피크제란",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-13a9dcb188c4da90f0758fea",
+      "source_prompt": "함정에서 가장 중요한 게 뭐라고 생각하죠?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-14162bd9ae83365ad398d2a1",
+      "source_prompt": "사자성어 불치하문",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-14b56bc777899d0d19a38d11",
+      "source_prompt": "1·2·3·4차 산업혁명을 설명하고, 4차 산업혁명을 해양경찰과 관제 업무에 어떻게 적용할지 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-15a96fb4145d6f9f5362ec0a",
+      "source_prompt": "해군과 해경의 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-15beef538bf26c93b5a088a2",
+      "source_prompt": "대한민국 정부수립일? (몇년 몇월 몇일인지?)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-168b0ec76c3a846ebefac735",
+      "source_prompt": "해경의 업무와 중요하게 생각 하는거",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-17940219ae9adb4037942238",
+      "source_prompt": "최근 성관련 뉴스 생각",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-18111c5c515da05765dec9bf",
+      "source_prompt": "문재인정부에서 12만명의 일자리를 창출할려고 한다 어떻게 생각하세요",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-182f48a5cbb84c5d2aab90f0",
+      "source_prompt": "현재 국민의 신뢰를 얻고 있는 해경 정책은 어떤 게 있는 것 같은지?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-1839b9282f79e7a31da6979c",
+      "source_prompt": "해양경찰의 날은 언제이며, 그 날짜로 지정한 이유는 무엇입니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-185838b94789080d9405d980",
+      "source_prompt": "파킨스?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-19d4338a450480d684c01b90",
+      "source_prompt": "우리나라바다에 대한 정책(신라,고려,해방이후)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1b04096f53f1acc4fb66719b",
+      "source_prompt": "경찰관의 불법촬영 사건은 어떻게 처벌해야 한다고 생각합니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1bec7ef8550339ca8119c557",
+      "source_prompt": "육경은 여경 무릎 떼고 팔굽혀펴기 한다는데 해경은 어떤 식으로 하냐",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-1d3451d0714f1ee70931d57b",
+      "source_prompt": "해경의 임무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1eab944bff32a09d3489fc04",
+      "source_prompt": "검⦁경 수사권 분리에 대해 찬/반 의견과 그 이유는?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1eb592637f366c9dfb919ff1",
+      "source_prompt": "해경에서 펼치고 있는 정책 중에 기억에 남는것",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1f80c4bb152a4876c73df2a4",
+      "source_prompt": "해양경찰 창립 기념일, 해양경찰의날 언제이고 왜 그날인지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-1fad4dfc74b003c3f3dbce0d",
+      "source_prompt": "해양경찰의 역사",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-20ac3c7a54d367689c4741f4",
+      "source_prompt": "VTS 개선점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-216d8532bf6829deac7d5e00",
+      "source_prompt": "4차 산업혁명이 무엇이냐?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-262c36a5f3112bb757bf3853",
+      "source_prompt": "최근에 인상깊었던 해양경찰 관련 뉴스",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-2641dad947a53835e30aeb62",
+      "source_prompt": "해양경찰 정책 보안할 점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-2b28a0bd6a426fa7d194e5e2",
+      "source_prompt": "해양오염에 대해 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-2b81740edce4beac79ea5cbd",
+      "source_prompt": "자신이 해양경찰이면 가장 중요하게 생각하는 업무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-2e670fbac546e8296d17476c",
+      "source_prompt": "해양경찰의 기억나는 홍보와 그 이유",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-2f52edde74f7b7d56519c7eb",
+      "source_prompt": "해양경찰의 업무 중 가장 중요한 것은 무엇이라 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-30253adbc1566b2a301f12c7",
+      "source_prompt": "일반직이 경찰직으로 전환되는 거에 대해 어떻게 생각하느냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3040b82f59d606c587fc50f8",
+      "source_prompt": "최근에 본 시사 뉴스를 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-315828c9d2db72e8d4e6ed4a",
+      "source_prompt": "현충일이 언제냐? 무슨 날입니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-316fe9cbd8542f39a9deb207",
+      "source_prompt": "해경청장이 되었을 때 하고 싶은 정책",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-316feefbb5dd414f6b515788",
+      "source_prompt": "육경과 소방의 차이?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-31bf049a7eeca1f4e16d3603",
+      "source_prompt": "해경이 현재 국민들에게 신뢰가 낮은데 국민들의 신뢰를 얻을 수 있는 어떤 방법이 있겠는가?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-3236c1ada60d8d12350c48e7",
+      "source_prompt": "임진왜란은 왜 일어났는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-33cd1914af8f453a63c06bc5",
+      "source_prompt": "4차 산업",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-34b297cee21845f1c1eef4c3",
+      "source_prompt": "성범죄가 발생하는 이유가 무엇이고 해결방안에는 무엇이 있겠는가?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-353eac2f8892c0de952cf0f2",
+      "source_prompt": "해양경찰이 하는 일은?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3595312b5257090b99a3f504",
+      "source_prompt": "복수승조원제에 대한 본인의 생각을 말해보시오.",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-360f1d825e5fba188f4a1e45",
+      "source_prompt": "을사조약?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3655f047f78838f722b9ef85",
+      "source_prompt": "당신이 생각하는 민주주의는?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-379caa7b3481304a4506cf03",
+      "source_prompt": "대한민국 경제발전에 대해 어떻게 생각하냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-38aef59fbebcf22891320155",
+      "source_prompt": "해경임무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-39ceb8cf5e95f2c73d0895a5",
+      "source_prompt": "2020년은 무슨 해인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3a1d14903bf538b17325bb23",
+      "source_prompt": "작년 정보통신 예산 삭감이 있었는데, 해양경찰을 어떻게 홍보하여 예산을 확보할 수 있는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3afd6788e80b4a0a2dd82908",
+      "source_prompt": "최근 해양경찰 관련 기사를 본 적이 있는가? 그 기사에 대한 생각은?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3b4d7293e405d61b34b35d35",
+      "source_prompt": "해경과 해군의 임무 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3bb3efc549e90e89235f4d09",
+      "source_prompt": "SNS를 활용한 해양경찰 홍보방안을 설명해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3c001e8c3a1894c6bfcdac3e",
+      "source_prompt": "1, 2, 3, 4차 산업혁명에 대해 설명하고, 4차 산업혁명을 해양경찰에서 어떻게 활용할 수 있는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3dd2fbf9c9690a26a8076426",
+      "source_prompt": "우리나라가 선진국 선열에 올라갔는데 그 이유가 뭐라고 생각하십니까?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3e9fbe65f055b3cee45263b9",
+      "source_prompt": "해양경찰의 좋은 점과 나쁜 점이 있다면 어떻게 개선하면 좋을지.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-3ef971014d9c895437ca14fd",
+      "source_prompt": "블라인드 채용의 기본적인 정의와 장단점은 무엇이 있겠는가?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-40a94f3811658a50ad2e7fdc",
+      "source_prompt": "AI 관해 아는대로",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4143d02aff7aa3f5b40e43cb",
+      "source_prompt": "헌법개헌에 대해 어떻게 생각하냐?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4166f36f1bddf949f1174960",
+      "source_prompt": "해경 음주 범죄로 인한 처벌에 대한 생각 / 이유",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-418afa6d426e0faf2f3180fe",
+      "source_prompt": "해양경찰이 하는 일",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-420ac00673e6cc26baf4bf62",
+      "source_prompt": "4차 산업 혁명에서 해경에 쓰이는 방안",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-421b0eb5d260185f891461eb",
+      "source_prompt": "제헌절, 광복절?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-43e026fd4beb6184dce248ef",
+      "source_prompt": "공무원은 국민에 봉사해야 한다는 내용은 어느 법에 근거하는가?",
+      "source_category": "personality",
+      "category": "job",
+      "subtype": "law_policy_current_affairs",
+      "topic_ids": [],
+      "rationale": "공직의 법률상 근거 또는 민원 처리 매뉴얼·법령 지식의 설명을 명시적으로 요구합니다. 법령 지식도 전공에 포함한다는 사용자 기준에 따라 직무로 분류합니다."
+    },
+    {
+      "question_id": "q-44d3e854a3cc29aa8046b9c5",
+      "source_prompt": "헝가리 유람선 사고 파견에 관해 어떻게 생각하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-44db928e71f11c365524141b",
+      "source_prompt": "4.19 혁명에 대해 말하시오.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-45b12120cfa51d3984782e7a",
+      "source_prompt": "엠바고 뭔지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4620003b2af885b2e820c4e7",
+      "source_prompt": "해양경찰이 발전해야 하는 방향",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-46243389bd01ba11e7cd58a4",
+      "source_prompt": "최근에 본 시사는 어떤 것이 있는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-462ebac2118cc3d60f5d000f",
+      "source_prompt": "해양경찰의날? -9월10일",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-465e6435b2acc4f0fdb5a951",
+      "source_prompt": "인천여경 사건 해임처리에 대해 적절한 징계였다고 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4722de3fabd9b255bc444c27",
+      "source_prompt": "공무원증원에대해 어떻게 생각하냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4764c118f3293a04af3991e6",
+      "source_prompt": "내가 가고 싶은 과의 문제점?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-47c65b7d7c012f7fee3bd1d3",
+      "source_prompt": "해양경찰 업무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-49903d43b73169090d045a24",
+      "source_prompt": "해경최근 시사 및 보도 자료에 대해서 아는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-499a06ff8f42de8ded6c26bd",
+      "source_prompt": "4차 산업혁명이란?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-49b8ad06ed842770fd091cb5",
+      "source_prompt": "본청 이동에 대해-다른 기관들은 세종시에 있는데 그래도 옮겨야 하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4aa81b03d631a1fa06cc06cd",
+      "source_prompt": "셧다운 될때까지 몰랏나요? 알람이랑 다 올텐데 모를수가 없는데 100도까 안올라가요(의심)",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-4c18de8d6b46f03cbe96b6ed",
+      "source_prompt": "파킨슨법칙이란?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4c37d3d12c51cc87ece14a17",
+      "source_prompt": "집중호우로 인한 사고 발생시 인재라는 평가과 공무원들의 업무태만이라는 평가가 갈린다. 본인이 공무원이라면 피해 어떻게 대처할건지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4d3abe19f69f17391b08e616",
+      "source_prompt": "해경이 순환근무(함정, 파출소, 경찰서) 때문에 전문성이 떨어진다는 말이 있는데 이에 대해 어떻게 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4e1b1dcf14f952b85e671871",
+      "source_prompt": "세월호 사건에 관한 정부의 포퓰리즘에 대한 정의와 견해는?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4e589f2f2d1a6cc6baa3b98d",
+      "source_prompt": "현재 AI시대인데 이에 따른 해양경찰의 문제점이나 개선방안",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-4f966a7b49b66d1bf778dd6c",
+      "source_prompt": "최저임금",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-50aac260eb841e61d72e1ef6",
+      "source_prompt": "해경이 하는 일에 대해서 말해봐라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-50b914d80da6a81350dac2ca",
+      "source_prompt": "최근 해경뉴스 제외 뉴스 말해봐라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-50d99e00424a67cbe9ab7305",
+      "source_prompt": "해양경찰 임무가 뭐가 있냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-50ea4b5c71002edc3c1b9f7a",
+      "source_prompt": "공무원 5대 신조",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-5117dc33c015232123c404ae",
+      "source_prompt": "게임 이론에 대해서 아는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5154b98732c9042c3a4e8f8f",
+      "source_prompt": "해양경찰이 하는 일은 무엇입니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5212ba0fec86c2da7e985422",
+      "source_prompt": "해경청장이 되어서 가장 먼저 해야할일은 무엇이라고 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5381d37de3ed67559885ed61",
+      "source_prompt": "(사고관련) 안전사고는 왜 일어난다고 생각합니까?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5423243a2aedb623f94a2c06",
+      "source_prompt": "구하라, 설리 예시를 들면서 이 효과가 무슨 효과인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-548e8d74383c3d3234153cb3",
+      "source_prompt": "5.18민주화운동?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5607b83cc1f9c6d3ec399c70",
+      "source_prompt": "해양경찰에 입직하여 홍보를 맡으면 어떻게 하겠습니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5660b7257ef4091d178e68c8",
+      "source_prompt": "세월호 이후 작년에도 사고가 많이 났는데 그에 대한 자기 생각과 지식",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-56b9e81eb9f9427ab2e37dea",
+      "source_prompt": "해경학과가 생긴 이유가 무엇이라고 생각하느냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-56f0b40019eef221af42d580",
+      "source_prompt": "저출산 문제 해결방법",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-5bc9c54566256577a24e4592",
+      "source_prompt": "수사권조정에 대한 견해",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5c620e9a3fa8e200725bea8f",
+      "source_prompt": "해경 이미지, 개선할 점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5c6260bddfc4eca055765826",
+      "source_prompt": "과거 사건 중(태안 기름유출 세월호 등) 가장 기억에 남는 사건이 무엇이 있는가? 그리고 거기서 해경이 무슨 일 했는가, 또 본인은 거기서 뭘 할 수 있을 것 같은가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5cf907ae652db7f5bf68cfe2",
+      "source_prompt": "해경 업무 아는 대로 다 말해봐라.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5d4e42fa41a05a15c4bdf88b",
+      "source_prompt": "국가유공자 전형에 대해 아는가",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-5e42af047a0b7743f2798f74",
+      "source_prompt": "중국어선에 대해서 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-5f86fa097c80225c19bc8105",
+      "source_prompt": "해양경찰의 날, 왜 그 날인지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6038f5c804fc8a68576e5a02",
+      "source_prompt": "문재인 대통령 해양관련 일자리 13만개 한다는데 어떻게 생각하냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6095a93a7443abdd5041dc5e",
+      "source_prompt": "해양경찰의 필요한 전문성은?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-62943f4a94ea2a9b3541d7b9",
+      "source_prompt": "해양경찰이 앞으로 나아가야 할 방향은 무엇인지 구체적으로 말해보라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-62d65226b972a8b96beb232c",
+      "source_prompt": "해양경찰의 인재상(헌신 용기 정의)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-686af3ce260186d6be0c679c",
+      "source_prompt": "현재 면접관들이 외국인이라 생각해보고 한국을 소개해봐라",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-69804080d5773819cdc155a8",
+      "source_prompt": "정책과 디지털 소통 뭐가 다른 점인지와 연령대는 어떻게 된다고 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6997b93748814f3e9d1a144e",
+      "source_prompt": "오염방제를 하다보면 자원봉사자들이 있다. 그분들이 장비를 착용하지 않고 작업을 하려고 한다. 그거에 대해선 어떻게 생각하냐?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6bb1215dd0b4be38883356c0",
+      "source_prompt": "권리에 대해 어떻게 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6dac8929c1c160c1b886180f",
+      "source_prompt": "해양경찰청이 국민안전처와 해양수산부 어디에 있는게 맞다고 생각하느냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6dd9a0382bcb1c511fd53000",
+      "source_prompt": "중국 어선불법조업 단속에 해양경찰이 어떻게 개선해야 하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6efd07b6b4e9dd070e4f239a",
+      "source_prompt": "공무원 자살의 원인은 무엇이 있고 어떻게 생각하는지",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-6f58472f183b70439c6da278",
+      "source_prompt": "타임즈가 선정한 올해의 인물은 누구인지 아는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-711219dcbdde439dc16ad9b5",
+      "source_prompt": "해경의 핵심가치?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-71eafc12c65255d762a9213d",
+      "source_prompt": "SOC가 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-730c5b06706d216f05380a8a",
+      "source_prompt": "명량대첩 어떻게 생각하나",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-74c0abedff7df99f6e0aa6c2",
+      "source_prompt": "5.18 민주화운동?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-75474213e96161d66674ac69",
+      "source_prompt": "해양경찰조직도",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-75f0e1689cf31196c9d47d34",
+      "source_prompt": "경찰의 강압된 수사로 잘못 처벌받은 사람에 대한 국가적 보상에 대해서 어떻게 생각?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-770cf710169d0b1dd9439507",
+      "source_prompt": "당신이 청장이라면 어떤 정책을 할 것인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-77b063368df4d5ee6574e5ea",
+      "source_prompt": "해경하는 일 중 가장 중요하다고 생각",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-788c9bd8e85ed4558468cd33",
+      "source_prompt": "해경정책 중 국민들에게 가장 공감할만한 정책",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-7a445b5ce039508410275bff",
+      "source_prompt": "요즘 시사에 우리나라가 개발도상국에서 선진국 되었다고 나오는데 어떤 부분에서 그렇게 되었다",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-7aedf0815ebe4d3ddc21ab6c",
+      "source_prompt": "해양경찰의 주요 업무와 해양주권 수호 업무를 설명하고, 가장 중요하다고 생각하는 업무와 이유를 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-7b4232087a4b4a585640833b",
+      "source_prompt": "해양경찰이 무슨 일 하는지 소개",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-7c3dbd91fd9f8297e6d8b1e1",
+      "source_prompt": "워라벨이라며 요즘 사회에 낚시등 하는 사람들이 많은데 어떻게 하면 더 안전하게 할 수 있나?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-7cce0bde1c03cdc3898251e9",
+      "source_prompt": "해양경찰의 조직",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-7e993d88eee4ab98f1d1d13d",
+      "source_prompt": "해양경찰의 함정이란 뭐라고 생각합니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-832980d09c44fc88a0ca51bf",
+      "source_prompt": "해양경찰 업무에 대해 말해보세요?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8540bfb8cb2c3f969b903745",
+      "source_prompt": "한국이 선진국으로 진입했다고 생각하는 뉴스 들어보았나-G7회의 관련으로 대답",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8558a1f490aeffc7fec89d73",
+      "source_prompt": "해양경찰 인재상",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8566e1c5ff1d6389e5e77f59",
+      "source_prompt": "공무원 비리에 대한 원인과 대책이 무엇이냐",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-856c67e16fd7c8c39763d758",
+      "source_prompt": "대림동 여경사건에 대해서 아는지?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-85aacb1b57aaa6b742e2a6c0",
+      "source_prompt": "AI 산업이 앞으로 선박관제에 어떻게 적용될까",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-85e65b615a9d93d57de1cd51",
+      "source_prompt": "인천 경찰사건 어떻게 생각하고 대책방안",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8767db7b055104c38a2025b1",
+      "source_prompt": "해양경찰이 미래로 나아가야 할 방향",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-88cd9e360db1bec4beea0345",
+      "source_prompt": "파킨슨의 법칙이 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-89da47ac277fb5fa5cf86ea6",
+      "source_prompt": "해양경찰의 개선점은?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8a02b8461d94927312168e27",
+      "source_prompt": "해경 홈페이지 개선사항 인상깊게 본 부분",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8bb3390329b063df896a7cdd",
+      "source_prompt": "최근 국민을 위한 정책이 많이 나오고 있는데 뭐가 중요하다고 생각하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8c561c74e3c03970d82b29c8",
+      "source_prompt": "요새 해양경찰에서 LNG 선박을 도입하고 있다. 그거에 대해서 어떻게 생각하냐?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-8c83fd08cb392902ce255a4e",
+      "source_prompt": "해양경찰 4대 덕목",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-8db15d84df6c99de5074a3d9",
+      "source_prompt": "29 사태 (이태원 이걸 물어보네) 에 대해 어떻게 생각함",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-9019d159d9e7c93b67313424",
+      "source_prompt": "엠바고?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-90670c91056ea1923b2708c2",
+      "source_prompt": "해경업무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-908c8caef2ee7b64c299e5d9",
+      "source_prompt": "육경과 해경 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-92028e7d19d31cbf1dec09d3",
+      "source_prompt": "최근 기사 설명해봐라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-98fe03c07f9d66e40dde832f",
+      "source_prompt": "효율성과 효과성이 뭔가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-990db115b27acf424164bda7",
+      "source_prompt": "공유경제에 대해서 아는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-992a5f2b999828b616b9a22b",
+      "source_prompt": "해경과 육경의 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-9cd789b429e3e8bfdf539718",
+      "source_prompt": "해군에서 국방만 해 보았는데, 바다에서의 경찰과 소방관으로서 업무는 어떻게 해 나가겠는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-9dbdd5e5eb2caffe3afa9842",
+      "source_prompt": "1212군사쿠데타?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-9e5073bdfea914f97e127704",
+      "source_prompt": "당신이 생각하는 사회적 문제들",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-9e7ccf0f786cb46d880edf7f",
+      "source_prompt": "일본 방사선물질 배출관련 자기생각",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a3d9f855451917b19f7d60ca",
+      "source_prompt": "이번 여경 사건에 대해서 어떻게 생각하냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a60e33aa51e3de96ca121b6a",
+      "source_prompt": "엠바고란? (선박용어말고)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a706b95ec02a777ecd27708f",
+      "source_prompt": "해경이 하는 업무가 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a7629834eb3ca6feb8975f00",
+      "source_prompt": "해양경찰 핵심가치에 대해서 아는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a79d94dad11d072551413fc4",
+      "source_prompt": "감정노동자의 문제와 해결책을 말해보세요.",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a8a081def038131e0a514769",
+      "source_prompt": "검언유착과 관련된 본인의 생각을 말해보시오.",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a8ae142c66dac8a3d96fdf30",
+      "source_prompt": "국가예산",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a906792efa514b900f6de168",
+      "source_prompt": "해경관련된 뉴스, 시사 아는 것있냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a955a74f934b0e6646460a27",
+      "source_prompt": "현재 내항어선은 관제대상선박에서 제외 중인데 최근 어선 사고율은 65퍼입니다. 이러한 상황에 대해 어떻게 생각하십니까.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-a99368a3157c25e54ac228c3",
+      "source_prompt": "미투운동이란?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-aad51011740ca8078cf31d5f",
+      "source_prompt": "우리나라 역사 중 선조들의 바다에 대한 인식",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ab4daa47e9d14cc87bb2bcbf",
+      "source_prompt": "해경 법 중에 가장 중요하다고 생각하는 거",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-adc817be280f0d1833da6971",
+      "source_prompt": "해양경찰의 업무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b158d86da56947cff6a41ab8",
+      "source_prompt": "사회적 문제 본인이 아는 것(예: 청년실업, 저출산 등)",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-b3793bcf7ae65a661b7bbae0",
+      "source_prompt": "해경 육경 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b3cded2f38f70a90dd33211c",
+      "source_prompt": "범죄자의 공무원채용에 대해 어떻게 생각하냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b537a04207bd728efb48fdf8",
+      "source_prompt": "6자회담 나라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b5a8171985156778d56f8e0b",
+      "source_prompt": "ICT IOT는 아냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b612d62acc318d58509975a9",
+      "source_prompt": "해경과 육상소방의 차이점과 해경으로서 덕목",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b614643a627d7309eb966260",
+      "source_prompt": "해양경찰에서 VR활용 방법",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b6a41937c5c8a76b5d78c0c7",
+      "source_prompt": "해양경찰을 홍보해 보아라. 영어, 중국어, 일본어로 편한대로 해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b794d4047b9f59db89f99d1f",
+      "source_prompt": "해경함정과 학교실습선 차이가 무엇인지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b7a4eb18e0440072197437f3",
+      "source_prompt": "세월호 이후 나아갈 방향",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b7fa724eaa6664c6647acbca",
+      "source_prompt": "피그말리온 효과가 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-b80b7ecef05aadfc7aee5e69",
+      "source_prompt": "학교폭력 문제 되고 있는데 그걸 SNS에 올리고 대학에서도 이거 검토해서 취소하고 있는데 어떻게 생각하는지",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ba81258c7f4aa0acf43a1b1b",
+      "source_prompt": "비정규직 정규직 전환 어떻게 생각하는지?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-bdb1e2fce6e7d8ac1d94e7ba",
+      "source_prompt": "상선과 방제선의 차이가 무엇인가",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-bfd68f1836b1cede7163439a",
+      "source_prompt": "최근에 기억남은 해경시사",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c0cc2947769afc3abc096e72",
+      "source_prompt": "공무원 학폭 문제에 대해 논란이 되고 있는데 이에 대해 어떻게 생각하는지?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c0d55fe696e68df9e1b04bbb",
+      "source_prompt": "최근 성관련 이슈?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-c1c95110875a17ba70f23c89",
+      "source_prompt": "상선타는 거랑 방제정 타는거랑 무슨 차이가 있다고 생각하느냐",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c4e4c448da47aacb9606f230",
+      "source_prompt": "임금피크제 찬성반대, 근거?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c62460c481ad7ba546dd0375",
+      "source_prompt": "해경 관련 뉴스 본 거 있는가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c63dcc6a0163eb09a9659121",
+      "source_prompt": "수니파?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c6568d0e6514b87aa69db169",
+      "source_prompt": "해외로 경비함정이 파견되는데 이것에 대해 어떻게 생각하는가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-c7f5d64411524ceed96fd975",
+      "source_prompt": "해양경찰 VTS의 개선방안을 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cad6447fe069cee6096ab8f0",
+      "source_prompt": "공무원 5대신조",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-cb67c582d3aceaea278a2a20",
+      "source_prompt": "해양경찰이 잘하고 있다고 생각하는 점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cbd06b151f48de78be02f0b8",
+      "source_prompt": "해경 신뢰 잃은 사건 있는데도 불구하고 본인의 생각과 홍보방법?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cccc6d7920ef3c0c5c1a50b9",
+      "source_prompt": "검경수사권에 대해서 본인 생각",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cccd04b2886df211d5d3df02",
+      "source_prompt": "해경조직구조에 대해서 설명해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cd17d0dccc643daa02d956f9",
+      "source_prompt": "본청이동에 대해서 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cd31826155e56335adbe7507",
+      "source_prompt": "최근 여경관련 시사(층간소음 흉기)",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ce04d6248480e4e51331a57f",
+      "source_prompt": "항해사로서 세월호 사건에 관한 언론보도에 대해 무엇이 잘못되었다고 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ce1b7568c8aad6de67cb17a1",
+      "source_prompt": "헌법 등에 공무원은 봉사를 해야 한다고 나와있는데 민원인이 불법적인 일을 요구한다면 어떻게 할거냐 + 민원 매뉴얼이나 법률 등 아는 거 있냐",
+      "source_category": "job",
+      "category": "job",
+      "subtype": "law_policy_current_affairs",
+      "topic_ids": [],
+      "rationale": "공직의 법률상 근거 또는 민원 처리 매뉴얼·법령 지식의 설명을 명시적으로 요구합니다. 법령 지식도 전공에 포함한다는 사용자 기준에 따라 직무로 분류합니다."
+    },
+    {
+      "question_id": "q-ce890b804c727540f7fdf34e",
+      "source_prompt": "해경이 하는 업무에 대해 알고 계십니까?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cf65466f1cf7ec1e9e9588c1",
+      "source_prompt": "단묘박/이묘박, 단묘박보다 이묘박의 장점 및 단점",
+      "source_category": "personality",
+      "category": "job",
+      "subtype": "technical_practice",
+      "topic_ids": [],
+      "rationale": "단묘박·이묘박의 원리와 장단점을 설명해야 하는 항해 전공 지식 질문입니다. 개인의 성향이나 가치 판단을 요구하지 않습니다."
+    },
+    {
+      "question_id": "q-cfc6b32d8a47335eb35cff13",
+      "source_prompt": "당신이 고위공직자가 된다면 청년들을 위해 하고싶은 정책",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-cfd59b107ca37af2913c9e1f",
+      "source_prompt": "시사 아는 거 비판적으로 얘기해봐라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d1de5ac0d46f18f503d4e550",
+      "source_prompt": "최근 본 성범죄 뉴스 및 느낀 점",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d2bc010898145fc412802c38",
+      "source_prompt": "세월호 사건 개인적 견해가 아닌 해경이 뭐가 부족했나 (객관적인것)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d2deb7b005bb103f513c48c5",
+      "source_prompt": "검경수사권에 독립에 관하여 어떻게 생각하냐?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d3c5107486572ac379596876",
+      "source_prompt": "해양경찰의 미션과 비전을 아냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d473d56b1419f05ff4e3cb5e",
+      "source_prompt": "해경해군 차이점이 뭔지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d6465bc4aff074868d1c2d0a",
+      "source_prompt": "해양경찰의 장단점",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-d65cb3100ac6c8e9a327fc2d",
+      "source_prompt": "육상경찰과 해양경찰에 대해서 차이점이 무엇인지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d67421f9c322855ce6d67c95",
+      "source_prompt": "해양경찰이 타 부처와 함께 하는 일이 무엇이고 어떤 부처가 있는지 다 말해보라",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d761e828595cec2a0e35ab13",
+      "source_prompt": "문재인 대통령 소득주도성장 찬반 입장 그리고 본인의 생각, 반대 입장은 이러이러한게 있는데   이 부분에 대해서 어떻게 방안을 할건지 그리고 꼬리질문으로 문재인 소득주도 성장에서 반대 입장의 의견으로 자영업하시는 분들이 일을 그만두고 할 때 고용도 못하고 그만두고 있는분들이 많은데 이럴 때 어떤 방안이 있겠냐",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d7757e4dadf93678f4b9a1d6",
+      "source_prompt": "NGO란?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d8a6e2b375bf960eb3e2a8a8",
+      "source_prompt": "육상경찰과 해양경찰의 차이는 무엇입니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d8f70c3c2efb5a9f94fb640a",
+      "source_prompt": "이어도 등의 분쟁이 일어나는 이유는 무엇이라 생각하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-d9100a8909bb705865b0684c",
+      "source_prompt": "요즘 청년들이 정책에 대하여 많이 힘들어 하는데 본인은 어떻게 생각하느냐?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-daa86ed55a6e762f5dfb334c",
+      "source_prompt": "해양경찰이 하는 업무",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-db25cc11b21cf41cca98e6ec",
+      "source_prompt": "최근에 본 해양경찰 관련 기사나 뉴스를 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-dbed72e75a280cbdf05d365c",
+      "source_prompt": "국민들이 해양경찰에 대한 인식이 어떤거 같냐?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-dc4109002378edbc951c9998",
+      "source_prompt": "음주 운전 줄일 방법 3가지",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-dd6435e6fe0645767985ff39",
+      "source_prompt": "방역패스 의무화 (시사)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ddf31f5147485c1494d5ad0a",
+      "source_prompt": "해양경찰에서 대한 느낀 점 그리고 개선해야 할 점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-dfdcca2e30d2bb8046a18048",
+      "source_prompt": "해양경찰에서 중요하다고 생각하는 업무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e085c7dbb43ff2550a9275ea",
+      "source_prompt": "4차 산업혁명이 시작되는데 무인기, 무인 선박등이 많이 나올 것 같다. 근데 이제 이런 무인선박이 바다에 많이 떠다닐텐데 앞으로 해경은 어떻게 활동을 해야 하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e09fe98bd59ac7840a87079d",
+      "source_prompt": "최근 성범죄 아는 거",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-e10f68521548e0f3ae2897a5",
+      "source_prompt": "여가부 폐지 어떻게 생각하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e111b22e6f252ec87f3262c6",
+      "source_prompt": "해경예산과 조직원수에 대해 아는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e216138d9006f0d153a90520",
+      "source_prompt": "헝가리여객선 침몰사고 관련 골든타임이 지났지만 국가에서 구조대를 보내는 것에 대해 어떻게 생각하는가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e28d9708b805f4cffab478b5",
+      "source_prompt": "해양경찰이 저지른 범죄기사 본 거 말해봐라(음주운전 대답함)",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e29462bdd26112d4c745bdb0",
+      "source_prompt": "대한민국 사회의 문제점, 개선방안",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e29d7419a52ad33ea41ee1e4",
+      "source_prompt": "해경과 육경의 차이점?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e2bfad9f62dbd1bee7b6c14a",
+      "source_prompt": "관심있는 시사",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e380d3da686afd806d7abaee",
+      "source_prompt": "해경의 날",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e3a57457d1deea1e598bf1a5",
+      "source_prompt": "해경과 육경의 차이점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e4348126505a89eed5bed92e",
+      "source_prompt": "AI 빅데이터를 사용함으로써 생기는 윤리적인 문제와 그것에 대한 방지법",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e510e401097a78fc7afcc616",
+      "source_prompt": "왜 여경뉴스가 더 이슈가 되는 거 같은가?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e517fe01b9c0fe2860b58279",
+      "source_prompt": "해양경찰의 청렴도는 몇 등급인가요?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-e5238c919a8f8fcf7917e3cf",
+      "source_prompt": "해양경찰과 육상경찰의 차이점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e625c22128d082211fc31610",
+      "source_prompt": "해양경찰의 임무",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-e9019a8327bd783d28860015",
+      "source_prompt": "예능을 통한 해경홍보에 대해 어떻게 생각하는지?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ea77a36034707994850c88f2",
+      "source_prompt": "해양경찰 채용과정에서 비판할 것이 있나?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-eb7d53fa0ecfbf3cbe6a67a3",
+      "source_prompt": "해경 구급대와 소방구급대 차이점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-eba17a85a99372a55530a23d",
+      "source_prompt": "수상레저 해경과 국민들의 의견이 상충되는데 어떻게 생각하고 해결할 수 있는가",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ebf7da172a4852bc4733c6fc",
+      "source_prompt": "태극기 의미에 대해 알고 있습니까?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ec5789f63dedf11d742a6ccf",
+      "source_prompt": "관제법이 만들어졌는데 어떻게 생각하는지",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ecb5e00f56d6ba274338ab44",
+      "source_prompt": "해양수산부와 해양경찰이 어떤 방향으로 나아가야 하는지 본인의 생각",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-eda2db3e81176be5362a034a",
+      "source_prompt": "최근 해양경찰 뉴스 본적 있나요?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ee019af422bcef6cdd4f59a5",
+      "source_prompt": "해양경찰이 국민들에게 할 수 있는 차별화 된 업무가 무엇이 있습니까?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-eef309aaebcd79f6002aaccd",
+      "source_prompt": "육경과 해경의 차이",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f4f741e246279be3c4483614",
+      "source_prompt": "해경이 가장 시급하게 개선해야 될 점",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f58207f66a8620ae6c7aff5e",
+      "source_prompt": "최근에 새롭게 바뀐 공무원 인재상 아는 거 있는지? 그 중 중요하게 생각하는거?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f5cb7249eb335a36d4e143f2",
+      "source_prompt": "조선건국 과정에 대해 설명해보라.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "전공 기술·법령의 설명이나 업무 절차가 아닌 일반 역사·시사·사회·행정 상식입니다. 전공 외 질문은 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f617da7fad7a0d9c61e39043",
+      "source_prompt": "최근 해경시사",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f6d415beff26b248f832117d",
+      "source_prompt": "해양경찰의 날 – 지정 이유",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-f77becb2f5512087c1f6ac7e",
+      "source_prompt": "우리 조직의 홍보 방법에 대해서 말해 보세요.",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-f796e3190f841a98b41c9ea2",
+      "source_prompt": "항일운동이 머냐?",
+      "source_category": "personality",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 구체적인 내용·구성요건·수사절차나 항해·기관 등의 전문 기술을 설명하는 요구가 없습니다. 기관 이해·공직 윤리·시사 및 정책 견해·개인 배경을 확인하는 전공 외 질문으로 인성을 유지합니다."
+    },
+    {
+      "question_id": "q-f98bb2b80c68ba5157074e2f",
+      "source_prompt": "브렉시트아냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-fa835f35e730016c99c96836",
+      "source_prompt": "보완수사 폐지에 대한 본인의 생각을 말해보세요.",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-fb0dab0ac5ba6b170e436e60",
+      "source_prompt": "한일어업협정 최근 회의 한거 뉴스 봤냐",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-fb9fe7e6569918af92bcfdfa",
+      "source_prompt": "해양경찰 비젼과 미션",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-fc0d2d6b7bf4676588cf2f0e",
+      "source_prompt": "4차 산업혁명은 무엇인가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "general_awareness",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "특정 직렬의 전공 기술·법령 지식보다 일반 시사·상식·사회 현상의 이해를 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-fccc4b9abcab73ae4a473c7c",
+      "source_prompt": "해양경찰 업무 무엇?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "organization_awareness",
+      "topic_ids": [
+        "motivation",
+        "public"
+      ],
+      "rationale": "전공 기술·법령의 해석을 요구하지 않는 기관 일반 이해와 관심·지원 준비를 확인합니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    },
+    {
+      "question_id": "q-ff10e8e18a8a584edb36b951",
+      "source_prompt": "수사권 독립에 대해서 어떻게 생각 하는가?",
+      "source_category": "job",
+      "category": "personality",
+      "subtype": "values_fit",
+      "topic_ids": [
+        "public",
+        "judgement"
+      ],
+      "rationale": "법령의 내용이나 전공 기술의 정답보다 지원자의 관점·우선순위·조직 운영 및 시사에 대한 생각을 묻습니다. 전공 외 질문을 인성으로 구분하는 사용자 기준을 적용합니다."
+    }
+  ]
+}

@@ -8,6 +8,34 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
+    "api/study-cafe.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/study-cafe-rooms.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-aptitude.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 60
+    },
+    "api/interview-practice-cli.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 60
+    },
+    "api/interview-mock-worker.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 60
+    },
     "api/question-board.js": {
       "regions": [
         "syd1"
@@ -22,6 +50,17 @@
       "regions": [
         "syd1"
       ]
+    },
+    "api/interview-apple.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-app-feedback.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 60
     },
     "api/interview-prep.js": {
       "regions": [
@@ -38,7 +77,24 @@
         "syd1"
       ]
     },
+    "api/interview-draft-worker.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
     "api/interview-life-followup.js": {
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-personality.js": {
+      "maxDuration": 240,
+      "regions": [
+        "syd1"
+      ]
+    },
+    "api/interview-job-exam.js": {
+      "maxDuration": 240,
       "regions": [
         "syd1"
       ]
@@ -95,6 +151,12 @@
       "regions": [
         "syd1"
       ]
+    },
+    "api/interview-practice-openai.js": {
+      "regions": [
+        "syd1"
+      ],
+      "maxDuration": 240
     }
   },
   "headers": [

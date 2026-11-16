@@ -47,6 +47,15 @@ class CliTests(unittest.TestCase):
                       "memories.use_memories=false", 'web_search="disabled"'):
             self.assertIn(value, args)
         self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
+        self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
+        self.assertIn('model_reasoning_effort="medium"', args)
+    def test_explicit_model_configuration_is_respected(self):
+        config = {**self.config, "model": "gpt-6-astra", "reasoning_effort": "high"}
+        args = command(config, GUIDES, self.tmp)
+        self.assertEqual(args[args.index("--model") + 1], "gpt-6-astra")
+        self.assertIn('model_reasoning_effort="high"', args)
+        with self.assertRaisesRegex(Exception, "invalid_config"):
+            command({**self.config, "reasoning_effort": "unsupported"}, GUIDES, self.tmp)
     def test_receipt_survives_bridge_restart_without_new_process(self):
         session = self.bridge.prepare()
         path = self.bridge.directory(session)/"result.dpapi"

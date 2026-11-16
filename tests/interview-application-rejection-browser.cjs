@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'..');
   if(pathname==='/qa'){res.setHeader('Content-Type','text/html');return res.end('<link rel="stylesheet" href="/interview-prep.css"><main id="host"></main>');}
   const file=path.join(root,pathname==='/'?'interview.html':pathname);
   if(!fs.existsSync(file)){res.statusCode=404;return res.end();}
-  res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(file));
+  res.setHeader('Content-Type',/\.m?js$/.test(file)?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(file));
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
  try{

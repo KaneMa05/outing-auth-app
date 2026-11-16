@@ -15,7 +15,7 @@ async function call(handler,body,headers={}){let status,data;await handler({meth
   await prep('admin_enabled',{type:'admin',id:'qa'},{enabled:true});
   const invoke=async(action,a,body)=>(await db.query('select ip_native_launch_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(a),JSON.stringify(body)])).rows[0].result;
   let delegated;
-  const deps={enabled:true,secret,invoke,readTrack:async id=>{assert.equal(id,'ip-a');return '기관';},live:{authenticateWeb:async()=>actor,previewAllowed:()=>false,
+  const deps={requireMockAccess:async()=>{},enabled:true,secret,invoke,readTrack:async id=>{assert.equal(id,'ip-a');return '기관';},live:{authenticateWeb:async()=>actor,previewAllowed:()=>false,
    config:{enabled:true,configured:true,transport:'vercel'},invoke:async(action,a,b)=>{delegated={action,actor:a,body:b};return {ok:true,runs:[]};}}};
   const handler=createHandler(deps);
   const launched=await call(handler,{action:'launch'});assert.equal(launched.status,200);assert.match(launched.data.code,/^[A-Za-z0-9_-]{43}$/);

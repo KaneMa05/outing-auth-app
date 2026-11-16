@@ -1,4 +1,4 @@
-import {createInterviewAI} from './client/interview-ai-client.js?v=20261020-single';
+import {createInterviewAI} from './client/interview-ai-client.js?v=20261111-ai-retry';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kinds={self_intro:'자기소개',motivation:'지원동기',public_service:'공직관',core30:'핵심 30제'};
 const labels={QUEUED:'대기 중',PROCESSING:'생성 중',COMPLETED:'완료',NEEDS_INPUT:'자료 보완 필요',FAILED:'오류',BLOCKED:'처리 확인 필요',CANCELED:'중단됨'};
@@ -13,28 +13,45 @@ const messages={
  request_limit:'오늘 요청 한도에 도달했습니다. 다음 날 다시 요청해주세요.',
  daily_limit:'오늘 생성 한도에 도달했습니다. 다음 날 다시 요청해주세요.',
  unsafe_retry:'아직 재요청할 수 없는 문항이 있습니다. 자료 보완 여부와 처리 상태를 새로 확인해주세요.',
+ retry_limit:'같은 자료로 두 차례 시도했습니다. DB 자료를 보완하고 저장한 뒤 다시 요청해주세요. 같은 자료로 계속 실패하면 관리자에게 문의해주세요.',
+ source_update_required:'나의 DB에서 부족한 자료를 보완하고 저장한 뒤 다시 요청해주세요.',
+ job_not_retryable:'현재 상태에서는 재요청할 수 없습니다. 최신 처리 결과를 확인해주세요.',
+ invalid_output:'초안 결과의 형식을 확인하지 못했습니다. 가능한 문항만 다시 요청해주세요.',
+ invalid_evidence:'초안의 근거가 저장된 자료와 일치하지 않아 완료하지 못했습니다. 반복되면 관리자에게 문의해주세요.',
+ experience_required:'자기소개 본문에 서로 다른 실제 경험 3개가 충분히 반영되지 않아 완료하지 못했습니다. 저장한 경험을 확인해주세요.',
+ generation_failed:'초안 생성이 완료되지 않았습니다. 가능한 문항만 다시 요청해주세요.',
  unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.',forbidden:'이 요청을 볼 권한이 없습니다.',
  not_enrolled:'면접반 이용 등록과 기간을 확인해주세요.',not_found:'본인 계정에서 확인할 수 없는 요청입니다.',
  bundle_unconfigured:'초안 작성 지침 설정을 준비 중입니다.',dispatch_unknown:'실제 실행 여부를 관리자가 확인 중입니다. 중복 생성을 요청하지 않습니다.',
  automation_unavailable:'생성 서버에 연결할 수 없습니다. 잠시 후 상태를 다시 확인해주세요.',
  connection_error:'상태 조회 연결이 끊겼습니다. 다시 연결되면 조회를 이어갑니다.',
+ revision_conflict:'다른 화면에서 보완 답변이 수정되었습니다. 입력한 내용을 보관한 뒤 저장된 답변을 다시 불러와주세요.',
+ topic_changed:'보완 질문이 변경되었습니다. 입력한 내용을 보관한 뒤 저장된 답변을 다시 불러와주세요.',
+ invalid_topic:'보완 질문을 사용할 수 없습니다. 관리자에게 확인해주세요.',
 };
 export function mountInterviewAI(host,{request,kind='self_intro',savePending,onAdopt=async()=>false,onQuestionChange=async()=>true,onBusy=()=>{},interval}){
  let destroyed=false,busy=false,enabled=null,dbReady=false,experienceCount=0,missing=[],pendingDB=false,availabilityVersion=0,history=[],current=null,selected=new Set(),activeKind='',notice='생성 기능 상태를 확인하고 있습니다.',failed=false;
  const abort=new AbortController();
- let questions=[],questionId='',allHistory=[];
+ let questions=[],questionId='',allHistory=[],readinessVersion='',minimum=3,materials=null,materialDraft={},materialDirty=false,materialBlocked=false;
+ const lifeDraft=['self_intro','motivation','public_service'].includes(kind);
  const transport=request||(async(url,body)=>{
   const response=await fetch(url,{method:'POST',credentials:'same-origin',cache:'no-store',signal:abort.signal,
    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await response.json();
-  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'automation_unavailable'),{code:data.error||'automation_unavailable'});
+  if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'automation_unavailable'),{code:data.error||'automation_unavailable',retryReason:data.retryReason});
   return data;
  });
  const ai=createInterviewAI({request:transport,interval,onUpdate:update});
- const retryable=i=>['FAILED','NEEDS_INPUT'].includes(i.status)||(i.status==='CANCELED'&&i.reason==='operator_resolved');
+ const retryable=i=>typeof i.canRetry==='boolean'?i.canRetry:
+  ['FAILED','NEEDS_INPUT'].includes(i.status)||(i.status==='CANCELED'&&i.reason==='operator_resolved');
  const running=()=>current?.items?.some(i=>['QUEUED','PROCESSING','BLOCKED'].includes(i.status));
+ const dbRequirement=()=>lifeDraft?'초안에 필요한 자료를 확인해주세요. DB에서 찾지 못한 내용은 아래 보완 질문에 짧게 답하고 저장해주세요.':'자료 보완 필요: 나의 DB 입력을 확인해주세요.';
  function availability(data){
   enabled=data.enabled===true;dbReady=data.dbReady===true;experienceCount=data.experienceCount||0;
+  readinessVersion=data.readinessVersion||'';
+  minimum=data.minExperienceCount??(kind==='self_intro'?3:1);
+  materials=data.materials||null;
+  if(!materialDirty)materialDraft=Object.fromEntries((materials?.fields||[]).map(f=>[f.key,f.value||'']));
   missing=Array.isArray(data.missing)?data.missing:[];
   if(kind==='core30'){
    questions=Array.isArray(data.questions)?data.questions:[];
@@ -47,8 +64,8 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   if(data.ok===false){notice=messages[data.error]||messages.connection_error;failed=true;render();return;}
   if(Object.hasOwn(data,'enabled')){
    availability(data);
-   notice=!enabled?messages.automation_disabled:!dbReady?'자료 보완 필요: 기본 이력과 인성 경험·가치관의 모든 항목을 입력하고 저장해주세요.':activeKind==='self_intro'&&!data.ready?
-    `자료 보완 필요: 상황·본인이 한 행동·실제 결과가 모두 있는 서로 다른 경험이 3개 이상 필요합니다. 현재 ${data.experienceCount||0}개입니다. ‘나의 DB 정리하기 → 경험·인생그래프’에서 ${Math.max(0,3-(data.experienceCount||0))}개 이상 보완해주세요. 같은 경험을 복사한 항목은 중복으로 계산합니다.`:
+   notice=!enabled?messages.automation_disabled:!dbReady?dbRequirement():kind==='self_intro'&&!data.ready?
+    '인생그래프에 서로 다른 경험 3개 이상을 작성하고 저장해주세요.':
     !data.ready?'자료 보완 필요: 나의 DB에 실제 경험이나 생각을 입력해주세요. 지원동기는 지원 계기·이유·준비 노력, 공직관은 중요하게 여기는 가치·이유·실천 사례를 구체적으로 적어주세요.':'저장된 자료를 확인했습니다.';
    failed=!enabled||!data.ready;
   }
@@ -69,17 +86,23 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
  function render(){
   if(destroyed)return;
   const items=current?.items||[];
+  const needsFollowup=items.some(i=>i.status==='NEEDS_INPUT');
+  const missingFields=(materials?.fields||[]).filter(f=>!f.ready);
+  const editableFields=materialDirty||!missingFields.length?(materials?.fields||[]):missingFields;
+  const materialForm=materials?`<div class="ip-ai-materials"><p class="ip-help">${missingFields.length?'DB에서 아직 확인하지 못한 내용만 질문합니다. 각 답변은 10자 이상으로 구체적으로 적어주세요.':'DB에서 관련 자료를 찾았습니다. 직접 보완한 답변이 있으면 우선 활용합니다.'}</p>${editableFields.map(f=>`<label>${esc(f.question)}<textarea data-ai-material="${esc(f.key)}" maxlength="2000" rows="2" ${busy?'disabled':''} placeholder="${f.source==='db'?'DB 내용을 활용할 수 있습니다. 추가로 전하고 싶은 내용을 적어주세요.':'본인의 실제 생각과 경험을 적어주세요.'}">${esc(materialDraft[f.key]||'')}</textarea></label>`).join('')}<div class="ip-toolbar"><button type="button" class="ip-btn" data-ai-materials-save ${busy||!materialDirty||materialBlocked?'disabled':''}>보완 답변 저장</button><button type="button" class="ip-btn" data-ai-materials-reload ${busy?'disabled':''}>저장된 답변 다시 불러오기</button></div><p class="ip-help">${materialDirty?'저장하지 않은 보완 답변이 있습니다.':'보완 답변은 본인 DB에 저장됩니다.'}</p></div>`:'';
   host.innerHTML=`<section class="ip-panel ip-ai-panel" aria-label="AI 초안" aria-busy="${busy}">
    <div class="ip-row"><h3>${kinds[kind]} 초안</h3><span class="ip-badge">${enabled===true?'AI 초안':enabled===false?'기능 준비 중':'연결 확인 중'}</span></div>
    ${kind==='core30'?`<label class="ip-writing-picker">질문 선택<select data-ai-question ${busy||!questions.length?'disabled':''}>${questions.length?questions.map(q=>`<option value="${esc(q.key)}" ${q.key===questionId?'selected':''}>${q.position}. ${esc(q.question)}</option>`).join(''):'<option>설정된 질문이 없습니다.</option>'}</select></label>`:''}
+${lifeDraft?`<div class="ip-feedback ip-ai-requirements" aria-label="${kinds[kind]} 초안 준비 안내"><strong>${kind==='self_intro'?'기본 이력과 강점을 보여주는 경험을 준비해주세요.':kind==='motivation'?'지원 계기·선택 이유·준비 노력을 확인합니다.':'중요한 공직 가치·그 이유·실천 경험을 확인합니다.'}</strong><p data-ai-experience-count>${enabled===null?'준비된 경험 수를 확인하고 있습니다.':`현재 준비된 서로 다른 경험 <strong>${experienceCount}개</strong> / 자료로 최소 ${minimum}개${experienceCount<minimum?` · ${minimum-experienceCount}개 더 필요합니다.`:' · 경험 수 조건을 충족했습니다.'}`}</p><p class="ip-help">‘DB 정리 → 인생그래프’에 나이·키워드·내용·어필할 점을 저장해주세요. 같은 내용을 복사한 경험은 1개로 계산합니다.${kind==='self_intro'&&readinessVersion==='draft_materials_v1'?' 자기소개 본문에는 서로 다른 실제 경험을 최소 3개 포함하고, 각 경험의 맥락·본인 행동·결과를 담습니다.':''}</p><p class="ip-help" data-ai-diagnosis-guide>경험 보완이 필요하면 ‘DB 정리 → 진단하기’의 질문을 참고해 인생그래프에 저장해주세요.${['self_intro_life_v1','draft_materials_v1'].includes(readinessVersion)?' 13개 항목 전체 작성이나 4/4는 필수가 아닙니다.':''}</p></div>`:''}
+   ${materials?(missingFields.length||materialDirty||needsFollowup?`<section class="ip-ai-materials-panel"><h4>${kinds[kind]} 보완 질문 ${missingFields.length?missingFields.length+'개':''}</h4>${materialForm}</section>`:`<details><summary>${kinds[kind]} 자료 확인·추가 보완</summary>${materialForm}</details>`):''}
    <div class="ip-ai-buttons"><button type="button" class="ip-btn" data-ai-generate="${kind}" ${busy||enabled!==true||!dbReady||kind==='core30'&&!questionId||kind==='self_intro'&&experienceCount<3||running()?'disabled':''}>${kind==='core30'?'이 질문 초안 만들기':kinds[kind]+' 초안 만들기'}</button></div>
-   ${missing.length?`<details class="ip-ai-missing"><summary>보완할 입력 항목 ${missing.length}개</summary><ul>${missing.map(text=>`<li>${esc(text)}</li>`).join('')}</ul></details>`:''}
-   ${kind==='self_intro'&&dbReady&&experienceCount<3?`<p class="ip-help">자기소개는 상황·행동·결과가 있는 서로 다른 경험 3개가 필요합니다. 현재 ${experienceCount}개입니다. 경험·인생그래프를 보완해주세요.</p>`:''}
+   ${missing.length?`<details class="ip-ai-missing"><summary>초안 생성 전 확인할 내용 ${missing.length}개</summary><ul>${missing.map(text=>`<li>${esc(text)}</li>`).join('')}</ul></details>`:''}
    ${notice!==messages.automation_disabled?`<p class="ip-message" data-ai-message role="status" ${failed?'data-error="true"':''}>${esc(notice)}</p>`:''}
    ${current?`<details class="ip-ai-results" open><summary>${esc(kinds[current.kind])} 초안 · ${items.filter(i=>i.status==='COMPLETED').length}/${items.length} 완료</summary>
     ${current.stale?'<p class="ip-help">DB 자료가 변경되었습니다. 아래 초안은 이전 자료를 포함할 수 있습니다.</p>':''}
     <div class="ip-ai-items">${items.map((i,index)=>`<article class="ip-ai-item"><div class="ip-row"><h4>${i.position}. ${esc(i.question)}</h4><span class="ip-badge">${esc(labels[i.status]||'상태 확인 필요')}</span></div>
      ${retryable(i)?`<label class="ip-ai-retry-check"><input type="checkbox" data-ai-item="${esc(i.key)}" ${selected.has(i.key)?'checked':''} ${busy?'disabled':''}> 이 문항 재요청 선택</label>`:''}
+     ${i.canRetry===false&&['FAILED','NEEDS_INPUT','CANCELED'].includes(i.status)?`<p class="ip-help" data-ai-retry-reason>${esc(messages[i.retryReason]||messages.job_not_retryable)}</p>`:''}
      ${i.status==='NEEDS_INPUT'?`<ul>${(i.result?.missing||[]).map(text=>`<li>${esc(text)}</li>`).join('')}</ul><p class="ip-help">나의 DB에서 보완한 내용을 저장한 뒤 이 문항만 선택해 재요청하세요.</p>`:''}
      ${i.reason?`<p class="ip-help">${esc(messages[i.reason]||(['FAILED','BLOCKED'].includes(i.status)?'처리를 완료하지 못했습니다. 상태를 확인한 뒤 가능한 문항만 다시 요청해주세요.':'요청 처리가 중단되었습니다.'))}</p>`:''}
      ${i.status==='COMPLETED'&&i.result?.answer?`<p class="ip-ai-answer" data-ai-answer="${index}"></p><div class="ip-toolbar">
@@ -96,7 +119,7 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   if(busy||destroyed)return;
   busy=true;if(lockEditor)onBusy(true);render();
   try{await task();}
-  catch(e){if(!destroyed){notice=messages[e.code||e.message]||'요청을 처리하지 못했습니다. 작성 내용은 유지됩니다. 상태를 확인한 뒤 다시 시도해주세요.';failed=true;}}
+  catch(e){if(!destroyed){notice=messages[e.retryReason]||messages[e.code||e.message]||'요청을 처리하지 못했습니다. 작성 내용은 유지됩니다. 상태를 확인한 뒤 다시 시도해주세요.';failed=true;}}
   finally{busy=false;if(!destroyed){if(lockEditor)onBusy(false);render();}}
  }
  async function refresh(){
@@ -107,19 +130,41 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
   history=allHistory.filter(r=>r.kind===kind&&(kind!=='core30'||r.questionId===questionId));
   if(destroyed)return;
   if(current||history.length)await ai.resume(current?.requestId||history[0].id);
-  else notice=enabled?(dbReady?'':'기본 이력과 인성 경험·가치관 입력을 완료해주세요.'):messages.automation_disabled;
+  else notice=enabled?(dbReady?'':dbRequirement()):messages.automation_disabled;
   if(!enabled)notice=messages.automation_disabled;
   else if(kind==='core30'&&!questions.length)notice=messages.invalid_core30;
  }
+ async function saveMaterials(){
+  if(!materialDirty)return;
+  if(materialBlocked||!materials)throw Error('save_failed');
+  const fields=Object.fromEntries(Object.entries(materialDraft).filter(([key,value])=>value!==(materials.fields.find(f=>f.key===key)?.value||'')));
+  if(!Object.keys(fields).length){materialDirty=false;return;}
+  try{const data=await ai.saveMaterials(kind,{revision:materials.revision,topicRevision:materials.topicRevision,fields});
+   materialDirty=false;materialBlocked=false;update(data);
+   if(current)await ai.resume(current.requestId);
+  }catch(error){if(['revision_conflict','topic_changed','unauthorized'].includes(error.code||error.message))materialBlocked=true;throw error;}
+ }
+ const saveAllPending=async()=>{if(savePending)await savePending();await saveMaterials();};
+ const canLeave=()=>!busy&&(!materialDirty||confirm('저장하지 않은 보완 답변이 있습니다. 버리고 이동할까요?'));
+ const beforeUnload=e=>{if(materialDirty){e.preventDefault();e.returnValue='';}};
+ window.addEventListener('beforeunload',beforeUnload);
+ host.oninput=e=>{
+  if(busy||!e.target.hasAttribute('data-ai-material'))return;
+  materialDraft[e.target.dataset.aiMaterial]=e.target.value;
+  materialDirty=Object.entries(materialDraft).some(([key,value])=>value!==(materials?.fields.find(f=>f.key===key)?.value||''));
+  const button=host.querySelector('[data-ai-materials-save]');if(button)button.disabled=!materialDirty||materialBlocked;
+ };
  host.onclick=e=>{
   const n=e.target.closest('button');if(!n||n.disabled||busy)return;
-  if(n.hasAttribute('data-ai-generate')||n.hasAttribute('data-ai-regenerate'))run(async()=>{
+  if(n.hasAttribute('data-ai-materials-save'))run(async()=>{await saveMaterials();notice=dbReady?'보완 답변을 저장했습니다. 초안을 만들 수 있습니다.':'보완 답변을 저장했습니다. 남은 안내를 확인해주세요.';});
+  else if(n.hasAttribute('data-ai-materials-reload')){if(materialDirty&&!confirm('저장하지 않은 보완 답변을 버리고 다시 불러올까요?'))return;run(async()=>{const prep=await ai.prepare(kind);materialDirty=false;materialBlocked=false;availability(prep);notice='저장된 답변을 불러왔습니다.';});}
+  else if(n.hasAttribute('data-ai-generate')||n.hasAttribute('data-ai-regenerate'))run(async()=>{
    const regenerate=n.hasAttribute('data-ai-regenerate');
    activeKind=kind;ai.pause();notice='작성 내용 저장 및 생성 가능 여부 확인 중…';failed=false;render();
-   await ai.generate(activeKind,{savePending,regenerate,questionId:kind==='core30'?questionId:undefined});
+   await ai.generate(activeKind,{savePending:saveAllPending,regenerate,questionId:kind==='core30'?questionId:undefined});
   });
   else if(n.hasAttribute('data-ai-retry'))run(async()=>{
-   activeKind=current.kind;ai.pause();await ai.retryItems(current.requestId,current.kind,[...selected],{savePending});
+   activeKind=current.kind;ai.pause();await ai.retryItems(current.requestId,current.kind,[...selected],{savePending:saveAllPending});
   });
   else if(n.hasAttribute('data-ai-copy'))run(async()=>{
    await navigator.clipboard.writeText(current.items[Number(n.dataset.aiCopy)].result.answer);
@@ -147,12 +192,12 @@ export function mountInterviewAI(host,{request,kind='self_intro',savePending,onA
  // Reading AI status must not block typing or navigation. The legacy core30
  // picker still locks because refresh may select a different writing question.
  render();const ready=run(refresh,{lockEditor:kind==='core30'});
- return {ready,invalidate(){
+ return {ready,canLeave,invalidate(){
    ++availabilityVersion;dbReady=false;pendingDB=true;render();
   },async refreshAvailability(){
    const version=++availabilityVersion;
-   try{const prep=await ai.prepare(kind);if(destroyed||version!==availabilityVersion)return;availability(prep);}
+   try{const prep=await ai.prepare(kind);if(destroyed||version!==availabilityVersion)return;availability(prep);if(current)await ai.resume(current.requestId);}
    catch{if(destroyed||version!==availabilityVersion)return;dbReady=false;notice='저장했지만 생성 조건을 확인하지 못했습니다. 상태를 다시 확인해주세요.';failed=true;}
    render();
-  },destroy(){destroyed=true;++availabilityVersion;abort.abort();ai.destroy();selected.clear();history=[];current=null;host.replaceChildren();host.onclick=null;host.onchange=null;}};
+  },destroy(){destroyed=true;++availabilityVersion;abort.abort();ai.destroy();selected.clear();history=[];current=null;window.removeEventListener('beforeunload',beforeUnload);host.replaceChildren();host.onclick=null;host.onchange=null;host.oninput=null;}};
 }
