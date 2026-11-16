@@ -1,6 +1,6 @@
 적성 모의고사 상위 비율 표시 준비 (2026-11-16)
 
-상태: 로컬 구현/검증 완료, 운영 웹 배포 전.
+상태: 사용자 최종 승인 후 운영 웹 배포 및 서비스 주소 검증 완료.
 사용자 요청: 등수 아래에 백분위 표시. 1·2등급 합산 기준은 상위 33% 이내.
 
 표시
@@ -21,10 +21,22 @@
 - 320/375/390/430px에서 가로 넘침 및 상위 비율 글자 잘림 없음. 데스크톱도 캡처했다. 브라우저 콘솔 오류 없음.
 - 결과 공개 전 자료 숨김, 답안 보존, 타이머/메뉴 이동 및 출시 캐시 안전성 검사도 통과했다.
 - 스크린샷: output/aptitude-rank-percentage-20261116/student-results-mobile.png 및 rank-percentage-detail.png.
-- 개인 데이터는 .tmp 아래에만 보관한다. 운영 DB/푸시/웹 배포는 이번 준비 단계에서 실행하지 않았다.
+- 개인 데이터는 .tmp 아래에만 보관한다. 상위 비율 UI 변경에는 DB 스키마/성적 변경이 없다. 성적 자료 반영은 별도 등록 기록을 참조한다.
 
 최신 운영 소스 통합
 - origin/main 3f4a9124의 수강 상품 변경·실서비스 공통 화면·피드백 변경을 보존했다.
 - 현재 운영 배포 dpl_3s7MGJSjSpfeRmH7jW6i8gWm1MAy에는 main에 기록되지 않은 PWA 시작 화면/이미지 및 하단 메뉴 여백 개선이 있었다. 운영 정적 파일의 실제 바이트를 확인하고 동일한 동작과 24개 시작 이미지를 보존한 뒤 상위 비율 표시만 통합했다.
 - 최신 코드의 관련 검사 45개와 격리 빌드, 모바일 4개 크기 및 데스크톱 캡처가 통과했다.
 - 실제 Vercel 업로드 목록 5712개를 검사해 원본 성적표/SQL/백업/테스트/내부 문서가 포함되지 않는 것을 확인했다.
+
+운영 적용 결과
+- 사용자의 '반영' 최종 승인에 따라 Git main에 정상 fast-forward로 반영했다. 배포 소스 커밋은 33bcab9b721572b11130ee6d0452b9fc795da593이다.
+- Vercel CLI 65.4.0으로 --prod --skip-domain 후보 빌드 1개를 만들었다. 추가 미리보기 빌드는 생성하지 않았다.
+- 후보 배포: dpl_7fn8aH3HncMaSUwRiidoMzztrWJc / https://outing-auth-kzx3qlkn5-ronpark.vercel.app.
+- 후보의 15개 파일 바이트가 검증 소스와 같고, 비로그인 성적 API는 401로 차단되는 것을 확인했다.
+- 전환 직전 서비스 주소가 백업된 기존 배포를 가리키는 것을 다시 확인한 뒤 동일 후보 빌드를 promote했다.
+- 운영 주소 https://app.ronparkpass.com 에서 15개 파일 해시 일치, 신규 캐시 v570-interview-aptitude-percentage, 성적 API 인증 경계 및 READY 상태를 확인했다.
+- 실제 운영 모듈과 읽기 전용 운영 성적을 사용한 브라우저 검증에서 하프 2회 46/75개 정답, 정답률 61.33%, 17/40명, 상위 42.50%, 기준 밖 표시를 확인했다. 브라우저 콘솔 오류는 없다.
+- 기존 PWA 시작 화면 및 하단 메뉴 여백 파일과 24개 시작 이미지를 보존했다. 성적 자료와 개인 데이터는 정적 사이트에 게시하지 않았다.
+- 검증 증빙: output/aptitude-rank-percentage-release/candidate-verification.json, production-verification.json, production-browser-verification.json 및 production-half2-mobile.png. 로컬 생성물이며 Git/배포에서 제외한다.
+- 이 결과 기록의 후속 문서 푸시는 추가 웹 빌드를 생성하지 않는다. main 자동 배포 비활성화 설정을 유지했다.
