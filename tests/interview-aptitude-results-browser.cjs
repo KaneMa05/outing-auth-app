@@ -34,7 +34,7 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   const context=await browser.newContext({serviceWorkers:'block',viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/qa');
-  await page.evaluate(async()=>{const {mountAdmin}=await import('/interview-prep-ui.js?v=20261113-aptitude-results');window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'aptitude',canWrite:true,request:async action=>{if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};throw Error(action);}});});
+  await page.evaluate(async()=>{const {mountAdmin}=await import('/interview-prep-ui.js?v=20261116-aptitude-percentile');window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'aptitude',canWrite:true,request:async action=>{if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};throw Error(action);}});});
   await page.locator('[data-ia-action="open"][data-id="'+id+'"]').click();await page.locator('.ia-settings summary').click();
   await page.locator('[name=resultsReleased]').selectOption('true');await page.locator('[name=title]').fill('하프 1회 · 제출 후 결과 공개');
   await page.locator('[data-ia-action="admin-save"]').click();await page.getByText('저장했습니다.',{exact:true}).waitFor();
@@ -43,7 +43,7 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   // Publishing an already open round must not end another student's exam.
   const studentContext=await browser.newContext({serviceWorkers:'block',viewport:{width:390,height:844},extraHTTPHeaders:{'x-qa-owner':'ip-a'}}),student=await studentContext.newPage();student.on('pageerror',e=>errors.push(e.message));
   await student.goto(base+'/qa');
-  await student.evaluate(async()=>{const {mountAptitude}=await import('/client/interview-aptitude.mjs?v=20261113-aptitude-results');window.view=await mountAptitude(document.querySelector('#host'),{accountId:'ip-a'});});
+  await student.evaluate(async()=>{const {mountAptitude}=await import('/client/interview-aptitude.mjs?v=20261116-aptitude-percentile');window.view=await mountAptitude(document.querySelector('#host'),{accountId:'ip-a'});});
   await student.locator('.ia-menus [data-menu="results"]').click();await student.getByText('아직 제출한 답안이 없습니다.').waitFor();assert.equal(await student.locator('.ia-score,.ia-files').count(),0);
   for(const width of [390,1280]){
    await student.setViewportSize({width,height:900});

@@ -111,6 +111,25 @@ test('a full-exam timer opens full-exam answers when no answer round has been lo
  view.destroy();
 });
 
+test('rank percentage uses the combined population and the unrounded top-33 boundary',async()=>{
+ const h=harness(),view=await h.mount('timer');
+ const check=(rank,participants)=>h.c.rankPercentage(rank,participants);
+ assert.equal(check(18,61).percentage.toFixed(2),'29.51');assert.equal(check(18,61).withinTop33,true);
+ assert.equal(check(33,100).withinTop33,true);assert.equal(check(34,100).withinTop33,false);
+ assert.equal(check(1,3).withinTop33,false,'One third is greater than 33%');
+ assert.equal(check(33001,100000).percentage.toFixed(2),'33.00');assert.equal(check(33001,100000).withinTop33,false,'Rounding must not classify a score outside the boundary as inside');
+ assert.equal(check(61,61).percentage,100);assert.equal(check(1,1).percentage,100);
+ for(const [rank,total] of [[0,61],[1,0],[62,61],[null,61],[1,null],[1.5,61],[1,NaN]])assert.equal(check(rank,total),null);
+ const submitted={state:'submitted',revision:1,answers:Array(75).fill(2)};
+ h.setDetail({attempt:submitted,result:{correctCount:48,totalQuestions:75,accuracy:64,rank:18,participants:61,historicalParticipants:59},correctAnswers:Array(75).fill(2),files:[]});
+ await h.click('menu',{menu:'results'});
+ let html=h.host.querySelector('[data-ia-body]').innerHTML;
+ assert.match(html,/18 \/ 61명<\/strong><small[^>]*ia-rank-percentage/);assert.match(html,/상위 29\.51%/);assert.match(html,/1·2등급 기준: 상위 33% 이내/);assert.match(html,/ia-within-band/);assert.match(html,/이전 기수를 포함/);
+ h.setDetail({attempt:submitted,result:{correctCount:48,totalQuestions:75,accuracy:64,rank:21,participants:61},correctAnswers:Array(75).fill(2),files:[]});
+ await h.click('reload');html=h.host.querySelector('[data-ia-body]').innerHTML;assert.match(html,/상위 34\.43%/);assert.match(html,/기준 밖/);assert.doesNotMatch(html,/class="ia-within-band"/);
+ view.destroy();
+});
+
 test('changing the subject picker preserves a running timer when reset is declined',async()=>{
  const h=harness(),view=await h.mount('timer');await h.click('timer-toggle');h.advance(5000);
  h.c.confirm=()=>false;assert.equal(h.timerSection(2),'0');
