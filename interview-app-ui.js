@@ -47,7 +47,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   if(mode){
    const parent=mode.practiceMode||'';
    const back=parent?(parent==='job'?'‹ 직무 연습':'‹ 인성 연습'):'‹ 모의면접 목록';
-   const extra=['job','personality'].includes(route.mockMode)?`<section class="ip-panel ip-mock-extra"><h2>질문별 연습</h2><button type="button" class="ip-app-link" data-app-mock="${route.mockMode}_questions">질문 골라 연습 · 즐겨찾기<span aria-hidden="true">›</span></button></section>`:'';
+   const nativeJob=route.mockMode==='job'&&window.__ronparkPracticeNative===true&&!!window.webkit?.messageHandlers?.interviewPractice&&!/Android/i.test(globalThis.navigator?.userAgent||'');
+   const extra=['job','personality'].includes(route.mockMode)&&!nativeJob?`<section class="ip-panel ip-mock-extra"><h2>질문별 연습</h2><button type="button" class="ip-app-link" data-app-mock="${route.mockMode}_questions">질문 골라 연습 · 즐겨찾기<span aria-hidden="true">›</span></button></section>`:'';
    return `<button type="button" class="ip-btn ip-mock-back" data-app-mock="${parent}">${back}</button><section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>${extra}`;
   }
   return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${Object.entries(mockModes).filter(([,mode])=>!mode.practiceMode).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('')}</nav>`;

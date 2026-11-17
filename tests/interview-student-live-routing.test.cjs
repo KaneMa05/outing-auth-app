@@ -39,6 +39,7 @@ for(const mode of ['job','personality','ai'])test('test iPhone opens authorized 
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  let allowed=true;const view=await context.mountInterviewApp(host,{request:async()=>({allowed})});
+ if(mode==='job')assert(!host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
  const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
  const button=slot.querySelector('[data-native-practice]');assert.match(slot.innerHTML,/연습 시작/);
  await button.onclick({currentTarget:button});assert.equal(sent[0].mode,mode);assert.equal(imports.length,0);
@@ -73,6 +74,7 @@ for(const mode of ['job','personality'])test('approved released app restores the
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountJobExam:controller,mountPersonalityPractice:controller,mountPracticePilot:()=>assert.fail('must keep original controller')};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
+ assert(host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
  assert.equal(imports.length,1);assert(imports[0].includes(mode==='job'?'interview-job-exam.mjs':'interview-personality.mjs'));assert.equal(calls[0].url,mode==='job'?'/api/interview-job-exam':'/api/interview-personality');view.destroy();
 });
 for(const mode of ['job_questions','personality_questions'])test('unapproved accounts cannot deep-link into new question menus: '+mode,async()=>{
