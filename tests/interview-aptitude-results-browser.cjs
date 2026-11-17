@@ -8,7 +8,7 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
  const {db}=await createDb();let browser,server;
  try{
   await db.exec("create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]); update ip_settings set enabled=true; insert into ip_members(student_id,track,exam_number,enabled) values('ip-a','공채','a',true),('ip-b','공채','b',true);");
-  for(const file of ['20261109053559_interview_aptitude_exams.sql','20261112152643_interview_aptitude_results_on_submission.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'));
+  for(const file of ['20261109053559_interview_aptitude_exams.sql','20261112152643_interview_aptitude_results_on_submission.sql','20261116072310_interview_aptitude_historical_attempts.sql','20261117122611_interview_aptitude_subject_scores.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8').replace(/\r\n/g,'\n'));
   const invoke=async(action,actor,body={})=>(await db.query('select ip_aptitude_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
   const admin={type:'admin',id:'browser-qa'},id=randomUUID(),answerKey=Array(75).fill(1);
   await invoke('admin_save',admin,{id,revision:0,kind:'half',roundNo:1,title:'하프 1회',state:'open',resultsReleased:false,opensAt:null,closesAt:null,answerKey});
@@ -34,7 +34,7 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   const context=await browser.newContext({serviceWorkers:'block',viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/qa');
-  await page.evaluate(async()=>{const {mountAdmin}=await import('/interview-prep-ui.js?v=20261116-aptitude-percentile');window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'aptitude',canWrite:true,request:async action=>{if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};throw Error(action);}});});
+  await page.evaluate(async()=>{const {mountAdmin}=await import('/interview-prep-ui.js?v=20261113-aptitude-results');window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'aptitude',canWrite:true,request:async action=>{if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};throw Error(action);}});});
   await page.locator('[data-ia-action="open"][data-id="'+id+'"]').click();await page.locator('.ia-settings summary').click();
   await page.locator('[name=resultsReleased]').selectOption('true');await page.locator('[name=title]').fill('하프 1회 · 제출 후 결과 공개');
   await page.locator('[data-ia-action="admin-save"]').click();await page.getByText('저장했습니다.',{exact:true}).waitFor();
@@ -43,7 +43,7 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   // Publishing an already open round must not end another student's exam.
   const studentContext=await browser.newContext({serviceWorkers:'block',viewport:{width:390,height:844},extraHTTPHeaders:{'x-qa-owner':'ip-a'}}),student=await studentContext.newPage();student.on('pageerror',e=>errors.push(e.message));
   await student.goto(base+'/qa');
-  await student.evaluate(async()=>{const {mountAptitude}=await import('/client/interview-aptitude.mjs?v=20261116-aptitude-percentile');window.view=await mountAptitude(document.querySelector('#host'),{accountId:'ip-a'});});
+  await student.evaluate(async()=>{const {mountAptitude}=await import('/client/interview-aptitude.mjs?v=20261113-aptitude-results');window.view=await mountAptitude(document.querySelector('#host'),{accountId:'ip-a'});});
   await student.locator('.ia-menus [data-menu="results"]').click();await student.getByText('아직 제출한 답안이 없습니다.').waitFor();assert.equal(await student.locator('.ia-score,.ia-files').count(),0);
   for(const width of [390,1280]){
    await student.setViewportSize({width,height:900});
@@ -66,6 +66,52 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   const current=await invoke('admin_get',admin,{id});assert.equal(current.round.state,'open');assert.equal(current.round.accepting,true);
   const unsubmitted=await invoke('get',{type:'student',id:'ip-b'},{id});for(const key of ['result','correctAnswers','files'])assert.equal(unsubmitted[key],undefined);
   await assert.rejects(invoke('file',{type:'student',id:'ip-b'},{id,fileId:file.id}),/forbidden/);assert.deepEqual(errors,[]);
+  // The separate administrator grade page reads the existing report, including private results.
+  await invoke('save',{type:'student',id:'ip-b'},{id,revision:0,answers:Array(75).fill(2)});
+  await db.exec("insert into ip_members(student_id,track,exam_number,enabled) values('ip-c','공채','c',true)");
+  await invoke('submit',{type:'student',id:'ip-a'},{id:roundIds.full3,revision:0,answers:Array(150).fill(1),requestKey:randomUUID()});
+  const subjects=['언어이해','언어비판','수열추리','도형추리','문제해결'];
+  await page.locator('[data-ia-action="report"]').click();await page.getByRole('heading',{name:'응시·성적 현황',exact:true}).waitFor();
+  assert.deepEqual(await page.locator('.ia-table thead th').allTextContents(),['학생','제출 상태',...subjects,'정답 수','정답률','등수']);
+  const reportRow=page.locator('.ia-table tbody tr').filter({hasText:'면접학생 A'});
+  assert.deepEqual((await reportRow.locator('td').allTextContents()).slice(2,8),['1 / 15','0 / 15','0 / 15','0 / 15','0 / 15','1/75']);
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(out,'subject-report-'+width+'.png'),fullPage:true});}
+  const gradeReads=[];page.on('request',req=>{if(req.url().endsWith('/api/interview-aptitude'))gradeReads.push(req.postDataJSON()?.action);});
+  await page.evaluate(async()=>{window.view.destroy();const {mountAdmin}=await import('/interview-prep-ui.js?v=20261113-aptitude-grades');window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'aptitude_grades',canWrite:false,request:async action=>{if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};throw Error(action);}});});
+  await page.locator('[data-ag-round]').selectOption(id);await page.locator('[data-ag-rows] tr').filter({hasText:'면접학생 A'}).waitFor();
+  assert.equal(await page.locator('[data-ag-rows] tr').count(),3);
+  assert.deepEqual(await page.locator('.ag-table thead th').allTextContents(),['학생','학생 ID','제출 상태',...subjects,'정답 수','정답률','등수','제출 시각 (한국시간)']);
+  assert.deepEqual((await page.locator('[data-ag-rows] tr').filter({hasText:'ip-a'}).locator('td').allTextContents()).slice(3,9),['1 / 15','0 / 15','0 / 15','0 / 15','0 / 15','1 / 75']);
+  for(const owner of ['ip-b','ip-c'])assert.deepEqual((await page.locator('[data-ag-rows] tr').filter({hasText:owner}).locator('td').allTextContents()).slice(3,8),Array(5).fill('—'));
+  assert.match(await page.locator('.ag-summary').innerText(),/전체 인원\s*3명/);assert.match(await page.locator('.ag-summary').innerText(),/제출\s*1명/);
+  assert.match(await page.locator('.ag-summary').innerText(),/임시저장\s*1명/);assert.match(await page.locator('.ag-summary').innerText(),/미제출\s*1명/);
+  assert.equal(await page.locator('[data-ag-query]').isEnabled(),true,'read-only admins can search');
+  await page.locator('[data-ag-query]').fill('ip-a');assert.equal(await page.locator('[data-ag-rows] tr').count(),1);
+  assert.match(await page.locator('[data-ag-rows]').innerText(),/1 \/ 75/);
+  const csvDownload=page.waitForEvent('download');await page.locator('[data-ag-action="export"]').click();const downloaded=await csvDownload;
+  assert.match(downloaded.suggestedFilename(),/적성모의고사_하프_1회_성적\.csv/);
+  const exported=fs.readFileSync(await downloaded.path(),'utf8');assert(exported.includes('ip-a'));assert(!exported.includes('ip-b'));assert(exported.startsWith('\uFEFF'));
+  assert(exported.includes(subjects.map(label=>'"'+label+' 정답 수"').join(',')));assert(exported.includes('"1","0","0","0","0","1","75"'));
+  await page.locator('[data-ag-query]').fill('');await page.locator('[data-ag-state]').selectOption('draft');
+  assert.match(await page.locator('[data-ag-rows]').innerText(),/ip-b/);assert(!((await page.locator('[data-ag-rows]').innerText()).includes('0 / 75')));
+  await page.locator('[data-ag-state]').selectOption('not_submitted');assert.match(await page.locator('[data-ag-rows]').innerText(),/ip-c/);
+  await page.locator('[data-ag-state]').selectOption('all');
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(out,'grades-'+width+'.png'),fullPage:true});}
+  await page.locator('[data-ag-action="kind"][data-kind="full"]').click();await page.waitForFunction(()=>document.querySelector('[data-ag-round]')?.options.length===3);await page.locator('[data-ag-query]:enabled').waitFor();
+  assert.match(await page.locator('.ag-heading').innerText(),/150문항/);
+  assert.deepEqual((await page.locator('[data-ag-rows] tr').filter({hasText:'ip-a'}).locator('td').allTextContents()).slice(3,9),['30 / 30','30 / 30','30 / 30','30 / 30','30 / 30','150 / 150']);
+  await page.setViewportSize({width:1440,height:900});await page.screenshot({path:path.join(out,'grades-full-subjects-1440.png'),fullPage:true});
+  await page.locator('[data-ag-query]').fill('no-match');assert.equal(await page.locator('[data-ag-action="export"]').isDisabled(),true);await page.locator('[data-ag-query]').fill('');
+  await page.locator('[data-ag-action="kind"][data-kind="half"]').click();await page.locator('[data-ag-query]:enabled').waitFor();await page.locator('[data-ag-round]').selectOption(id);await page.locator('[data-ag-query]:enabled').waitFor();
+  // A failed refresh removes the prior grades and export; retry restores current data.
+  let failNextReport=true;
+  await page.route('**/api/interview-aptitude',route=>{if(failNextReport&&route.request().postDataJSON()?.action==='admin_report'){failNextReport=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,error:'aptitude_unavailable'})});}return route.continue();});
+  await page.locator('[data-ag-action="refresh"]').click();await page.locator('[data-ag-message][role="alert"]').waitFor();assert.equal(await page.locator('[data-ag-rows],[data-ag-action="export"]').count(),0);
+  await page.unroute('**/api/interview-aptitude');
+  await page.locator('[data-ag-action="refresh"]').click();await page.locator('[data-ag-query]:enabled').waitFor();assert.equal(await page.locator('[data-ag-rows] tr').count(),3);
+  assert(gradeReads.length>0&&gradeReads.every(action=>['admin_list','admin_report'].includes(action)),'grade management never writes exam or student data');
+  await page.evaluate(()=>window.view.destroy());assert.deepEqual(errors,[]);
+  console.log('PASS grade management browser: dedicated read-only admin entry, half/full rounds, submission counts, search/status filters, filtered CSV, refresh recovery, and 320/390/1440px layouts.');
   console.log('PASS browser: half/full default to round 1 with ascending dropdowns and later rounds selectable; open + public saves; submitted results visible; unsubmitted/draft results private; ongoing exams stay open; desktop/mobile layouts fit.');
  }finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

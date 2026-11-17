@@ -19,7 +19,7 @@ test('migration preserves current attempts; historical ties contribute to studen
  const f=await fixture(t),a=[2,...Array(74).fill(1)];
  await f.submit('ip-a',a);await f.submit('ip-b',a);
  const before=(await f.db.query('select * from ip_aptitude_attempts order by student_id')).rows;
- await f.db.exec(fs.readFileSync(historyMigration,'utf8'));
+ await f.db.exec(fs.readFileSync(historyMigration,'utf8').replace(/\r\n/g,'\n'));
  assert.deepEqual((await f.db.query('select * from ip_aptitude_attempts order by student_id')).rows,before);
  assert.equal((await f.invoke('get',student('ip-a'),{id:f.exam.id})).result.participants,2);
  await f.historical(Array(75).fill(1),'best');await f.historical(a,'tie');await f.historical([2,2,...Array(73).fill(1)],'lower');
@@ -45,8 +45,29 @@ test('migration preserves current attempts; historical ties contribute to studen
  await f.invoke('admin_save',admin,other);await f.submit('ip-c',other.answerKey,other.id);
  assert.equal((await f.invoke('get',student('ip-c'),{id:other.id})).result.participants,1);
 });
+test('subject counts include historical answers, preserve existing results and refresh after corrections',async t=>{
+ const f=await fixture(t);await f.db.exec(fs.readFileSync(historyMigration,'utf8').replace(/\r\n/g,'\n'));
+ const answers=[2,...Array(14).fill(1),...Array(15).fill(0),...Array(45).fill(1)];
+ await f.historical(answers);await f.submit('ip-a',answers);
+ const before=await f.invoke('get',student('ip-a'),{id:f.exam.id});
+ const stored=(await f.db.query('select * from ip_aptitude_historical_attempts')).rows;
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117122611_interview_aptitude_subject_scores.sql','utf8'));
+ assert.deepEqual(await f.invoke('get',student('ip-a'),{id:f.exam.id}),before);
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_historical_attempts')).rows,stored);
+ let report=await f.invoke('admin_report',admin,{id:f.exam.id});
+ for(const s of report.students){
+  if(s.state==='submitted'){assert.deepEqual(s.subjectCorrectCounts,[14,0,15,15,15]);assert.equal(s.correctCount,59);assert.equal(s.rank,1);}
+  else assert.equal(s.subjectCorrectCounts,null);
+  assert.equal(s.answers,undefined);
+ }
+ await f.invoke('admin_save',admin,{...f.exam,revision:1,answerKey:[2,...Array(74).fill(1)],reason:'원문 대조 후 첫 문항 정답 수정'});
+ report=await f.invoke('admin_report',admin,{id:f.exam.id});
+ for(const s of report.students.filter(s=>s.state==='submitted')){assert.deepEqual(s.subjectCorrectCounts,[15,0,15,15,15]);assert.equal(s.correctCount,60);}
+ assert.equal(report.students.filter(s=>s.historical).length,1);
+});
+
 test('answer corrections regrade both populations atomically and preserve original historical totals',async t=>{
- const f=await fixture(t);await f.db.exec(fs.readFileSync(historyMigration,'utf8'));
+ const f=await fixture(t);await f.db.exec(fs.readFileSync(historyMigration,'utf8').replace(/\r\n/g,'\n'));
  const old=[2,...Array(74).fill(1)];await f.historical(old);await f.submit('ip-a',Array(75).fill(1));
  const answerKey=[2,...Array(74).fill(1)];
  await assert.rejects(f.invoke('admin_save',admin,{...f.exam,revision:1,answerKey}),/correction_reason_required/);
@@ -61,7 +82,7 @@ test('answer corrections regrade both populations atomically and preserve origin
 });
 test('prepared imports are repeatable, safely quote names, and roll back conflicting reimports',async t=>{
  const {prepare}=require('../scripts/prepare-aptitude-history-import.cjs');
- const f=await fixture(t);await f.db.exec(fs.readFileSync(historyMigration,'utf8'));
+ const f=await fixture(t);await f.db.exec(fs.readFileSync(historyMigration,'utf8').replace(/\r\n/g,'\n'));
  await f.submit('ip-a',f.exam.answerKey);
  const before=(await f.db.query('select * from ip_aptitude_attempts')).rows;
  const payload={roundId:f.exam.id,answerKey:f.exam.answerKey,sourceFilename:"student's grades.xlsx",sourceSha256:'a'.repeat(64),records:[

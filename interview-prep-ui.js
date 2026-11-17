@@ -5,7 +5,7 @@ import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-pre
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
 import {mountCLIStatus} from './interview-cli-status.js?v=20261103-manual-status';
-import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
+import {mountAptitude} from './client/interview-aptitude.mjs?v=20261117-aptitude-subject-scores';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
 const kinds={experience:'경험형',value:'가치관형',situation:'인성 상황형'};
@@ -199,7 +199,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     });
   }
   function stopQuestionAudio(){host.querySelectorAll('audio[data-question-audio]').forEach(audio=>audio.pause());}
-  const validSections=['app_feedback','home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','practice','live','ai_history','aptitude'];
+  const validSections=['app_feedback','home','applications','preassignments','review','members','topics','core','questions','analysis','job','rubrics','practice','live','ai_history','aptitude','aptitude_grades'];
   function setSection(section){
     category=['job','rubrics'].includes(section)?'job':'personality';
     tab=section==='home'?'dashboard':section==='job'?'questions':section;
@@ -239,7 +239,8 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('앱 오류·개선 의견','tab',`data-tab="app_feedback" ${tab==='app_feedback'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('AI 생성 기록','tab',`data-tab="ai_history" ${tab==='ai_history'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('적성 모의고사 관리','tab',`data-tab="aptitude" ${tab==='aptitude'?'aria-current="page"':''}`));
-    if(tab==='aptitude'){
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('적성 모의고사 성적관리','tab',`data-tab="aptitude_grades" ${tab==='aptitude_grades'?'aria-current="page"':''}`));
+    if(tab==='aptitude'||tab==='aptitude_grades'){
       host.querySelector('.ip-hero')?.remove();
       host.querySelector('[data-ip=enabled]')?.closest('.ip-row').remove();
       host.querySelector('.ip-category-tabs').style.display='none';
@@ -314,6 +315,13 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     stopQuestionAudio();
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
+    if(tab==='aptitude_grades'){
+      const {mountAptitudeGrades}=await import('./client/interview-aptitude-grades.mjs?v=20261117-aptitude-subject-scores');
+      if(destroyed||version!==loadVersion)return;
+      const next=await mountAptitudeGrades(box);
+      if(destroyed||version!==loadVersion)next.destroy();else life=next;
+      return;
+    }
     if(tab==='aptitude'){
       const next=await mountAptitude(box,{admin:true,canWrite});
       if(destroyed||version!==loadVersion)next.destroy();else life=next;

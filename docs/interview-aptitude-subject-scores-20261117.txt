@@ -1,0 +1,46 @@
+적성 모의고사 관리자 과목별 정답 수 (2026-11-17)
+
+적용 범위
+- 관리자 회차 관리의 응시·성적 현황과 별도 적성 모의고사 성적관리 표에만 적용한다.
+- 기존 정답 수 왼쪽에 언어이해, 언어비판, 수열추리, 도형추리, 문제해결을 배치한다.
+- 각 칸은 정답 수 / 과목 문항 수로 표시한다. 하프는 15문항, 본시험은 30문항이다.
+- 임시저장·미제출과 집계 정보가 없는 이전 API 응답은 과목별 값을 —로 표시한다.
+- 성적관리 CSV에도 같은 순서의 과목별 정답 수 5개 열을 추가한다.
+
+DB 변경
+- 20261117122611_interview_aptitude_subject_scores.sql은 기존 admin_report 응답에
+  subjectCorrectCounts 배열만 추가한다. 저장된 답안과 현재 정답표로 조회 시 집계한다.
+- 기존 제출 기록도 즉시 집계되며 정답 정정 후에는 최신 정답표를 반영한다.
+- 학생 응답, 결과 공개 조건, 저장 데이터, 등수, 함수 권한 및 RLS는 변경하지 않는다.
+- 운영 반영 시 SQL을 먼저 적용한 뒤 관리자 클라이언트를 배포한다.
+
+검증 명령
+npm run test:interview-aptitude
+node tests/interview-release-migrations.test.cjs
+node --test tests/interview-navigation-loading.test.cjs tests/release-safety.test.js
+node tests/interview-admin-entry.test.cjs
+node scripts/verify-interview-build.cjs
+git diff --check
+
+검증은 로컬 DB와 로컬 브라우저에서 수행한다. 푸시·운영 DB 적용·배포는
+사용자의 최종 확인 후에만 진행한다.
+
+검증 결과
+- 적성 관련 34개 테스트, 관리자·학생 브라우저 검증, 탐색·배포 안전성
+  15개 테스트, 관리자 진입 및 기존 config.js를 보존한 격리 빌드가 통과했다.
+- 관리자 표는 320 / 390 / 1440px에서 페이지 가로 넘침이 없음을 확인했다.
+- 전체 면접 DB 마이그레이션 검증은 이번 변경 이전 파일인
+  20261110074450_interview_access_products.sql의 기존 함수 정의 불일치로
+  중단된다. 이번 마이그레이션에 도달하기 전 발생하며 해당 파일은 수정하지 않았다.
+- 검증 코드에서 CRLF를 임시 정규화하면 위 단계를 통과하지만, 다음 기존
+  20261111021951_interview_mock_test_question_scope.sql에서 질문 seed 부재로
+  외래키 검증이 실패한다. 임시 검증 코드 변경은 되돌렸으며 운영 파일은 보존했다.
+- 새 마이그레이션은 기존 제출 데이터가 있는 하프·본시험 로컬 DB에 각각
+  적용하여 과목별 경계, 0개 정답, 합계, 정답 정정, 학생 응답과 권한 보존을 검증했다.
+
+화면 증적 (Git 제외)
+output/aptitude-results/subject-report-1440.png
+output/aptitude-results/subject-report-390.png
+output/aptitude-results/subject-report-320.png
+output/aptitude-results/grades-1440.png
+output/aptitude-results/grades-full-subjects-1440.png
