@@ -1,0 +1,29 @@
+기존 웹 모의면접 화면 복원 및 질문별 연습 분리
+
+사용자 범위
+- 기존 화면 교체 원인 설명 후 사용자가 복원 진행 요청.
+- 기존 화면은 '질문 선택·연습 시작·내 기록이 있는 기존 웹 화면'이라고 명시 확인.
+
+변경
+- 기존 job/personality 메뉴를 원래 mountJobExam/mountPersonalityPractice로 다시 연결.
+- 원래 직무/인성 모듈 자체의 소스·질문 선택·녹음·내 기록·분석 흐름 변경 없음.
+- 새 질문 목록/즐겨찾기/바로 연습/횟수/최근 날짜는 모의면접 목록 하단의 '질문별 연습' 별도 섹션에 배치.
+- 직무 질문별 연습: mockMode=job_questions, 인성 질문별 연습: mockMode=personality_questions.
+- 새 화면도 기존 IndexedDB/계정/모드 저장 키를 유지하므로 기존에 저장한 기록과 즐겨찾기는 그대로 연결.
+- 서버 mock_status 확인 및 현재 테스트 승인 계정 제한 유지. 일반 계정의 새 메뉴 직접 진입도 차단.
+- 실전 AI 공개 범위, 관리자 페이지, DB, 녹음 파일, 계정 승인 변경 없음.
+
+검증
+- 라우팅·일반 계정 차단·기존 화면·아카이브 관련 검사 48개 통과.
+- 실제 브라우저에서 원래 직무 질문 선택/연습 시작, 원래 인성 녹음 화면, 두 별도 질문 메뉴, 뒤로 이동 및 390px 레이아웃 확인.
+- 원래 client/interview-job-exam.mjs / client/interview-personality.mjs 내용은 이전 배포 546a589와 동일함을 대조.
+- 후보의 실제 interview-app-ui.js 내용이 검토 소스와 일치하는지 확인 후 promote.
+- 두 운영 주소에서 분리된 메뉴 및 기존 두 연습 모듈과 새 질문 모듈 내용 일치 확인.
+- iPhone UI 테스트 소스도 기존 화면과 새 메뉴를 별도로 검증하도록 갱신. 연결 기기 대상이 unavailable 상태여서 이 수정의 실기기 검사는 추가 실행하지 못함. 런타임 변경은 웹 메뉴 라우팅/화면 제목이며 앱 재설치는 필요하지 않음.
+
+배포
+- 구현 커밋 7f319d1, main 정상 푸시.
+- 배포 dpl_Fc2NrJRBfiWxpQuHNFZZwE5X3ZoW / READY.
+- 후보 https://outing-auth-rjoxqzgqh-ronpark.vercel.app 검증 후 동일 배포 승격.
+- 운영 https://app.ronparkpass.com 및 https://outing-auth-app.vercel.app.
+- main 자동 배포 비활성화 유지. 이 기록과 UI 테스트 첨부 갱신은 추가 웹 빌드를 생성하지 않음.
