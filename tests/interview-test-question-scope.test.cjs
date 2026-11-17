@@ -30,7 +30,7 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  const oldId=randomUUID();await openai('create',actor,{id:oldId,mode:'job',questionId:outside.id,questionPrompt:outside.prompt,audioHash:'a'.repeat(64)});
  await f.db.exec(fs.readFileSync(migration,'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/20261111043000_interview_test_six_turns.sql','utf8'));
- await f.db.exec(fs.readFileSync('supabase/migrations/20261117022510_interview_practice_missing_result_response.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117024501_interview_practice_missing_result_response.sql','utf8'));
  assert.deepEqual((await f.db.query('select id,prompt,status from ip_questions order by id')).rows,snapshot);
  assert.equal((await openai('get',actor,{id:oldId})).id,oldId,'saved non-test attempts remain readable');
  const ordinary={type:'student',id:'ip-a'};

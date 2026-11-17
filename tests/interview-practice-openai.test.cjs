@@ -11,7 +11,7 @@ async function setup(t){
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_reference_assessment.sql')),'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_result_reference_answer.sql')),'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/20261112025510_interview_personality_test_usage.sql','utf8'));
- await f.db.exec(fs.readFileSync('supabase/migrations/20261117022510_interview_practice_missing_result_response.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117024501_interview_practice_missing_result_response.sql','utf8'));
  // Reproduce production: published questions, only draft rubrics, portal-only owner.
  await f.db.exec("update ip_question_rubrics set status='draft';insert into ip_owners(id,name) values('iw_practice_test','가상 면접 전용 계정');insert into ip_members(student_id,track,exam_number,expires_on,mock_test_enabled) values('iw_practice_test','공채','portal-practice-test','2099-01-01',true);");
  await f.db.exec("insert into ip_sources(id,filename,sha256,track) values('practice-source','practice-fixture.hwpx','fixture','공채');");
