@@ -1,4 +1,4 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261117-writing-draft-bottom';
+import {mountWorkspace} from './interview-workspace.js?v=20261117-writing-submit-disabled';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
