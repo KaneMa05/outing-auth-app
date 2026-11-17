@@ -58,7 +58,7 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  const rows=(await f.db.query('select mode,question_id,prompt,position from ip_mock_test_question_scope order by mode,position')).rows;
  assert.equal(rows.length,9);for(const row of rows)assert(questionsFor(row.mode).some(q=>q.id===row.question_id&&q.prompt===row.prompt&&q.order===row.position));
  // Full-pool rollout preserves historical records, source data and service access checks.
- await f.db.exec(fs.readFileSync('supabase/migrations/20261117071500_interview_full_published_practice_pool.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117072015_interview_full_published_practice_pool.sql','utf8'));
  assert.deepEqual((await f.db.query('select id,prompt,status from ip_questions order by id')).rows,snapshot);
  for(const name of ['ip_openai_practice_service','ip_practice_cli_service']){
   for(const [mode,q] of [['job',outside],['personality',f.personality.question]]){
