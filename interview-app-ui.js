@@ -8,7 +8,9 @@ const tabs=[['home','홈'],['aptitude','적성 모의고사'],['db','DB 정리']
 const mockModes={
  job:{title:'직무(전공) 연습모드'},
  personality:{title:'인성 연습모드'},
- ai:{title:'실전 모의면접 (AI)'}
+ ai:{title:'실전 모의면접 (AI)'},
+ job_questions:{title:'직무 질문별 연습',practiceMode:'job'},
+ personality_questions:{title:'인성 질문별 연습',practiceMode:'personality'}
 };
 function homeNotices(){
  return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2><div style="line-height:1.8;overflow-wrap:anywhere"><p>(0) 오프반 : 11.9 전까지 사전과제 이행</p><p>(1) 적성 및 면접기출교재 발송일 : <strong>11.9(월)</strong><br>인강생은 인강사이트 주소로 발송, 오프라인은 현장 및 택배수령(신청시 작성 주소)<br><strong>*적성 pdf 비번 : ronpark1234 혹은 RONPARK1234</strong></p><p>(2) 인성검사 온라인검사 실시일 : <strong>11.10(화)</strong><br>인강,오프라인생 검사 문자 발송</p></div></section>`;
@@ -43,7 +45,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  function mockScreen(){
   const mode=mockModes[route.mockMode];
   if(mode)return `<button type="button" class="ip-btn ip-mock-back" data-app-mock="">‹ 모의면접 목록</button><section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>`;
-  return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${Object.entries(mockModes).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('')}</nav>`;
+  const menu=practice=>Object.entries(mockModes).filter(([,mode])=>!!mode.practiceMode===practice).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('');
+  return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${menu(false)}</nav><section class="ip-panel"><h2>질문별 연습</h2><nav class="ip-mock-menu" aria-label="질문별 연습 선택">${menu(true)}</nav></section>`;
  }
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
@@ -75,11 +78,11 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
-     if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
-      const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-pilot');
+     if(mockModes[route.mockMode]?.practiceMode){
+      const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-separate-practice');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="'+route.mockMode+'"]').replaceWith(slot);
-      const next=await mountPracticePilot(slot,{mode:route.mockMode,accountId:account.id,request:async(url,body)=>{
+      const next=await mountPracticePilot(slot,{mode:mockModes[route.mockMode].practiceMode,accountId:account.id,request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);
        const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
        const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
@@ -88,7 +91,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
       return;
      }
      // Real-time AI remains restricted to its existing test-app route.
-     if(!mockTestApp)return;
+     if(!mockTestApp&&route.mockMode==='ai')return;
      if(window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
       const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
       slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';

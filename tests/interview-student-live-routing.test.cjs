@@ -60,10 +60,24 @@ for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes onl
  view.destroy();
 });
 
-for(const mode of ['job','personality'])test('approved real app mounts local beta practice only: '+mode,async()=>{
+for(const mode of ['job','personality'])test('separate question menu mounts beta practice only: '+mode,async()=>{
  const host=element(),imports=[],calls=[];
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountPracticePilot:async(_host,options)=>{assert.equal(options.mode,mode);assert.equal(options.accountId,'ip-a');await options.request('/api/interview-prep',{action:'practice_bootstrap',mode,pilot:true});return {canLeave:()=>true,destroy(){}};}};}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode+'_questions'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountPracticePilot:async(_host,options)=>{assert.equal(options.mode,mode);assert.equal(options.accountId,'ip-a');await options.request('/api/interview-prep',{action:'practice_bootstrap',mode,pilot:true});return {canLeave:()=>true,destroy(){}};}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
  assert.equal(imports.length,1);assert(imports[0].includes('practice-pilot'));assert.equal(calls[0].action,'practice_bootstrap');assert.equal(calls[0].pilot,true);view.destroy();
+});
+for(const mode of ['job','personality'])test('approved released app restores the existing controller: '+mode,async()=>{
+ const host=element(),imports=[],calls=[];
+ const controller=(_host,options)=>{void options.request('status');return {canLeave:()=>true,destroy(){}};};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountJobExam:controller,mountPersonalityPractice:controller,mountPracticePilot:()=>assert.fail('must keep original controller')};}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
+ const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
+ assert.equal(imports.length,1);assert(imports[0].includes(mode==='job'?'interview-job-exam.mjs':'interview-personality.mjs'));assert.equal(calls[0].url,mode==='job'?'/api/interview-job-exam':'/api/interview-personality');view.destroy();
+});
+for(const mode of ['job_questions','personality_questions'])test('unapproved accounts cannot deep-link into new question menus: '+mode,async()=>{
+ const host=element();let imported=false;
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async()=>{imported=true;throw Error('must not load');}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
+ const view=await context.mountInterviewApp(host,{request:async action=>action==='mock_status'?{allowed:false}:{}});assert.equal(imported,false);assert(!host.innerHTML.includes('data-app-tab="mock"'));view.destroy();
 });
