@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v570-interview-aptitude-percentage";
+const CACHE_NAME = "outing-auth-app-v571-writing-draft-bottom";
 const APP_SHELL = [
   "/app.js?v=20261109-login-entry",
   "/student-content-safety.js?v=20261028-safety-fallback",
