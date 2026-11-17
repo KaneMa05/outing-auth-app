@@ -40,7 +40,14 @@ for(const mode of ['job','personality','ai'])test('test iPhone opens authorized 
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  let allowed=true;const view=await context.mountInterviewApp(host,{request:async()=>({allowed})});
- if(mode==='job')assert(!host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
+ if(mode==='job'){
+  const box=host.querySelector('[data-app-content]');
+  assert.match(box.innerHTML,/ip-mock-menu/);assert(!box.innerHTML.includes('data-native-practice'));assert.equal(sent.length,1);
+  await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:'job'},hasAttribute:n=>n==='data-app-mock'})}});
+  assert.equal(sent.length,2);assert.match(box.innerHTML,/ip-mock-menu/);
+  allowed=false;await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:'job'},hasAttribute:n=>n==='data-app-mock'})}});
+  assert.equal(sent.length,2);assert.equal(imports.length,0);view.destroy();return;
+ }
  const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
  const button=slot.querySelector('[data-native-practice]');assert.match(slot.innerHTML,/연습 시작/);
  await button.onclick({currentTarget:button});assert.equal(sent[0].mode,mode);assert.equal(imports.length,0);
@@ -54,7 +61,10 @@ for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes onl
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkOpenAIPractice:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewNative:{},interviewPractice:{postMessage:v=>calls.push({nativePractice:v.mode})}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountNativeInterview:native,mountJobExam:exam,mountPersonalityPractice:exam,mountLive:()=>{throw Error('native AI must use its handoff');}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
- if(mode!=='ai'){
+ if(mode==='job'){
+  assert.match(host.querySelector('[data-app-content]').innerHTML,/ip-mock-menu/);
+  assert.deepEqual(calls,[{nativePractice:'job'}]);assert.equal(imports.length,0);
+ }else if(mode!=='ai'){
   const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
   const button=slot.querySelector('[data-native-practice]');await button.onclick({currentTarget:button});
   assert.equal(imports.length,0);assert.equal(mounts.length,0);assert.deepEqual(calls,[{nativePractice:mode}]);

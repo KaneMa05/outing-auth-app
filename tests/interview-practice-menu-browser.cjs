@@ -9,6 +9,16 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await page.locator('[data-app-mock=""]').click();await page.locator('[data-app-mock="personality"]').click();await page.locator('[data-personality-action=start]').waitFor();assert.equal(await page.locator('[data-pilot=quick]').count(),0);
  await page.locator('[data-app-mock=""]').click();await page.locator('[data-app-mock="job"]').click();await page.locator('[data-app-mock="job_questions"]').click();await page.locator('[data-pilot=quick]').waitFor();assert.equal(await page.locator('[data-job-action=start]').count(),0);await page.locator('[data-pilot=catalog]').click();await page.locator('[data-progress]').waitFor();
  await page.locator('[data-app-mock="job"]').click();await page.locator('[data-app-mock=""]').click();await page.locator('[data-app-mock="personality"]').click();await page.locator('[data-app-mock="personality_questions"]').click();await page.locator('[data-pilot=quick]').waitFor();assert.equal(await page.locator('[data-personality-action=start]').count(),0);
- assert.equal(errors.length,0,errors.join('\n'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'/tmp/ronpark-separated-practice.png',fullPage:true});console.log('PASS menu browser: exactly three top-level modes; question practice inside each original mode; parent back, mobile layout and original controllers preserved.');
+ await page.locator('[data-app-mock="personality"]').click();await page.locator('[data-app-mock=""]').click();
+ await page.evaluate(()=>{window.nativeCalls=[];window.__ronparkPracticeNative=true;window.webkit={messageHandlers:{interviewPractice:{postMessage:body=>window.nativeCalls.push(body)}}};});
+ await page.locator('[data-app-mock="job"]').click();await page.waitForFunction(()=>window.nativeCalls.length===1);
+ assert.equal(await page.locator('.ip-mock-menu [data-app-mock]').count(),3);assert.equal(await page.locator('[data-native-practice]').count(),0);
+ assert.equal(await page.evaluate(()=>new URLSearchParams(location.hash.split('?')[1]).get('mockMode')),'');
+ await page.locator('[data-app-mock="job"]').click();await page.waitForFunction(()=>window.nativeCalls.length===2);
+ // A released app must stay on coming-soon even if a practice bridge is present.
+ await page.evaluate(async()=>{window.view.destroy();window.__ronparkMockTestApp=false;location.hash='#interview-prep?tab=mock&mockMode=job';const {mountInterviewApp}=await import('/interview-app-ui.js');window.view=await mountInterviewApp(document.querySelector('#host'),{request:async()=>({allowed:true})});});
+ assert.equal(await page.locator('[data-mock-mode="job"] h2').textContent(),'준비 중입니다.');
+ assert.equal(await page.evaluate(()=>window.nativeCalls.length),2);assert.equal(await page.locator('.ip-mock-extra').count(),0);
+ assert.equal(errors.length,0,errors.join('\n'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'/tmp/ronpark-separated-practice.png',fullPage:true});console.log('PASS menu browser: native job opens directly with mode list and URL behind it; repeated entry works; released app stays coming-soon; web routes and layout preserved.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

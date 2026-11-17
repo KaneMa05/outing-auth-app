@@ -82,6 +82,12 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
     if(route.tab==='mock'){
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
+     if(mockTestApp&&route.mockMode==='job'&&window.__ronparkPracticeNative===true&&window.webkit?.messageHandlers?.interviewPractice&&!/Android/i.test(globalThis.navigator?.userAgent||'')){
+      // Leave the mode list behind the native screen so dismissing it returns there.
+      route={...route,mockMode:''};setUrl(true);box.innerHTML=mockScreen();
+      window.webkit.messageHandlers.interviewPractice.postMessage({mode:'job'});
+      return;
+     }
      box.innerHTML=mockScreen();
      if(!mockTestApp&&['job','job_questions'].includes(route.mockMode))return;
      if(mockModes[route.mockMode]?.practiceMode){
