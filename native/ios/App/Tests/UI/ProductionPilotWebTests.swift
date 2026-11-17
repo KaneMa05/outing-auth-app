@@ -17,9 +17,8 @@ final class ProductionPilotWebTests: XCTestCase {
         XCTAssertTrue(web.buttons["연습 시작"].waitForExistence(timeout: 25))
         XCTAssertFalse(web.buttons["바로 연습하기"].exists)
         let original = XCTAttachment(screenshot: app.screenshot()); original.name = "released-original-job-restored"; original.lifetime = .keepAlways; add(original)
-        web.buttons["‹ 모의면접 목록"].tap()
-        let menu = XCTAttachment(screenshot: app.screenshot()); menu.name = "released-separated-question-menu"; menu.lifetime = .keepAlways; add(menu)
-        XCTAssertTrue(web.buttons["직무 질문별 연습"].waitForExistence(timeout: 15)); web.buttons["직무 질문별 연습"].tap()
+        let menu = XCTAttachment(screenshot: app.screenshot()); menu.name = "released-nested-question-entry"; menu.lifetime = .keepAlways; add(menu)
+        XCTAssertTrue(web.buttons["질문 골라 연습 · 즐겨찾기"].waitForExistence(timeout: 15)); web.buttons["질문 골라 연습 · 즐겨찾기"].tap()
         XCTAssertTrue(web.buttons["바로 연습하기"].waitForExistence(timeout: 25))
         web.buttons["질문 골라 연습"].tap()
         XCTAssertTrue(web.buttons["이 질문 연습하기"].firstMatch.waitForExistence(timeout: 15))
@@ -38,8 +37,9 @@ final class ProductionPilotWebTests: XCTestCase {
         let app = XCUIApplication(); app.launch()
         let web = app.webViews.firstMatch
         XCTAssertTrue(web.buttons["모의면접"].waitForExistence(timeout: 30)); web.buttons["모의면접"].tap()
-        let job = web.buttons["직무 질문별 연습"]
+        let job = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "직무(전공) 연습모드")).firstMatch
         XCTAssertTrue(job.waitForExistence(timeout: 15)); job.tap()
+        XCTAssertTrue(web.buttons["질문 골라 연습 · 즐겨찾기"].waitForExistence(timeout: 15)); web.buttons["질문 골라 연습 · 즐겨찾기"].tap()
         XCTAssertTrue(web.buttons["질문 골라 연습"].waitForExistence(timeout: 25)); web.buttons["질문 골라 연습"].tap()
         XCTAssertTrue(web.buttons["이 질문 연습하기"].firstMatch.waitForExistence(timeout: 15)); web.buttons["이 질문 연습하기"].firstMatch.tap(); app.tap()
         let allow = app.alerts.buttons["허용"]

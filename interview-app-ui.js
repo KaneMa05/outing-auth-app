@@ -44,9 +44,13 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  }
  function mockScreen(){
   const mode=mockModes[route.mockMode];
-  if(mode)return `<button type="button" class="ip-btn ip-mock-back" data-app-mock="">‹ 모의면접 목록</button><section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>`;
-  const menu=practice=>Object.entries(mockModes).filter(([,mode])=>!!mode.practiceMode===practice).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('');
-  return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${menu(false)}</nav><section class="ip-panel"><h2>질문별 연습</h2><nav class="ip-mock-menu" aria-label="질문별 연습 선택">${menu(true)}</nav></section>`;
+  if(mode){
+   const parent=mode.practiceMode||'';
+   const back=parent?(parent==='job'?'‹ 직무 연습':'‹ 인성 연습'):'‹ 모의면접 목록';
+   const extra=['job','personality'].includes(route.mockMode)?`<section class="ip-panel ip-mock-extra"><h2>질문별 연습</h2><button type="button" class="ip-app-link" data-app-mock="${route.mockMode}_questions">질문 골라 연습 · 즐겨찾기<span aria-hidden="true">›</span></button></section>`:'';
+   return `<button type="button" class="ip-btn ip-mock-back" data-app-mock="${parent}">${back}</button><section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>${extra}`;
+  }
+  return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${Object.entries(mockModes).filter(([,mode])=>!mode.practiceMode).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('')}</nav>`;
  }
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
@@ -79,7 +83,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
      if(mockModes[route.mockMode]?.practiceMode){
-      const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-separate-practice');
+      const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-original-menu');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="'+route.mockMode+'"]').replaceWith(slot);
       const next=await mountPracticePilot(slot,{mode:mockModes[route.mockMode].practiceMode,accountId:account.id,request:async(url,body)=>{
