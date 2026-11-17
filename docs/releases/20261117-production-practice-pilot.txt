@@ -1,0 +1,55 @@
+정식 앱·웹 테스트 승인 계정 전용 연습 기능 운영 반영
+
+승인
+- 사용자가 실제 앱과 관리자 페이지 반영을 요청하고, '정식 앱·웹에서도 테스트 승인 계정만 사용' 범위를 명시했다.
+- 신규 일반 수강생 공개나 테스트 승인 계정 추가는 하지 않음.
+
+범위
+- 기존 mock_status의 서버 검증을 통과한 테스트 승인 계정만 직무/인성 웹 연습을 사용.
+- 현재 승인된 계정: 테스트(18120), 마테스. 기존 enabled/mock_test_enabled/이용 기간/면접 패키지/전체 활성화 확인을 유지.
+- 기존 회원·적성·스터디카페 등 일반 학생 기능의 소스는 보존. 일반 계정은 메뉴와 직접 아카이브 API/DB 접근 모두 차단.
+- 실전 AI 면접의 기존 공개 범위를 확대하거나 유료 분석을 자동 실행하지 않음.
+
+학생 기능
+- 분야/지역별 승인 질문, 즐겨찾기, 바로 연습(최대 3문항), 문항 수 설정, 단일 질문 연습, 기기 기록/재생.
+- 저장된 답변이 있는 문항만 답변 완료·횟수·최근 연습일 표시. 기기의 계정/모드별 IndexedDB 기록 기준.
+- 질문 목록을 시작 직전에 서버에서 다시 확인. 녹음 시작 준비 중 취소/백그라운드/계정 전환 후 늦은 녹음 시작 차단.
+- 브라우저 지원에 따라 목표 32kbps AAC/MP4 또는 Opus/WebM/OGG 사용. 원본 Blob은 기기에 유지하고 비공개 저장소에 모든 답변을 전송.
+- 전송 완료 전 기기 기록 삭제 차단, 재진입 시 계정별 미전송 답변 자동 재시도. 학생 수동 재전송 버튼/전송 안내 푸터 없음.
+- 기존 네이티브 M4A 업로드 프로토콜은 audioMime 미지정 시 audio/mp4 기본값으로 유지.
+
+관리자
+- 실제 관리자 사이트의 면접반 > 베타 연습 현황에 학생 검색·유형·완료/중단·질문/시간·모든 답변 녹음 조회/재생 추가.
+- 관리자 세션 + admin 역할 + interview.read 필수. 재생 링크는 5분 제한.
+
+DB
+- 운영 ref ehzrwkvuarertwvwoyus에 interview_practice_admin_records 적용.
+- 실제 적용 버전 20261117023716과 로컬 마이그레이션 파일 이름을 일치시킴.
+- ip_practice_runs/ip_practice_turns RLS 활성화, public/anon/authenticated 접근 권한 없음, 서비스 전용 RPC.
+- RPC에서도 mock_test_enabled가 없는 학생은 쓰기 거절. 일반 등록 학생을 조회해 쓰기 시도 차단을 실제 운영에서 확인(데이터 변경 없음).
+- interview-practice 비공개 버킷, 단일 파일 16MiB, audio/mp4/audio/webm/audio/ogg만 허용.
+- 새 데이터·버킷만 추가. 기존 학생/수강/문항/계정 승인 설정 변경 없음.
+
+소스·배포
+- 최신 운영 기준 fe64d24에서 별도 작업 공간으로 준비.
+- 작업 중 main에 추가된 94e7d6f/7dc9142의 결과 조회 오류 수정과 마이그레이션 버전 조정을 모두 병합해 보존.
+- 구현 26b5796, 마이그레이션 정합성 470142b, 최신 main 통합 b6cf67f. main 정상 fast-forward 푸시 완료.
+- 최종 배포 dpl_8jUZFBJvKb57XFDLorbBPphMoJ3N / READY.
+- 후보 https://outing-auth-a7z7ucdcb-ronpark.vercel.app 검증 후 동일 배포를 promote.
+- 운영 https://app.ronparkpass.com 및 https://outing-auth-app.vercel.app 반영.
+- 이전 작업 중 후보 dpl_Gf9K3XTf2akJNPrtsQixds1B2uSs도 잠시 연결되었으나 새 운영 수정까지 포함한 최종 배포로 교체 완료.
+- Vercel main 자동 배포 비활성화 유지. App Store/TestFlight 제출은 하지 않음.
+
+검증
+- 초기 권한/DB/라우팅/기존 화면 검사 47개 통과. 최신 결과 조회 수정까지 합친 관련 검사 54개 통과.
+- 실제 Chrome 테스트 마이크: 압축 녹음 저장·모든 답변 재생/업로드·즐겨찾기·계정별 기록/횟수 분리·390px 레이아웃 검사 통과.
+- 두 실제 운영 도메인에서 신규 연습/관리자 파일과 기존 student.js 내용 일치, 비로그인 관리자 API 401 확인.
+- 후보에서 app.js/student.js/shared.js 및 변경 화면들의 내용 일치 확인.
+- 실제 iPhone의 정식 Release 앱 동작으로 기존 운영 로그인 계정의 모의면접/직무/질문 목록 표시 검사 통과.
+- 실제 아이폰 녹음 검증도 통과. 최초 자동화는 늦게 뜨는 웹뷰 마이크 허용 창을 처리하지 못해 실패했으며, 명시적으로 허용 후 정식 Release 앱에서 녹음·결과·운영 업로드까지 확인.
+- 운영 테스트 계정 마테스: e9e8d228-2f0c-472d-a537-fc6e9ee7a2f2 회차, 답변 1개/업로드 1개/완료, AAC audio/mp4 8,279 bytes. 관리자가 실제 베타 연습 현황에서 조회 가능.
+
+접속
+- 학생: https://app.ronparkpass.com/interview?app=1
+- 관리자: https://app.ronparkpass.com/teacher.html#interview-prep-admin?section=practice
+- 실제 사이트의 기존 학생/관리자 로그인을 사용. 별도 가상 계정·테스트 접속 코드는 사용하지 않음.
