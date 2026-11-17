@@ -41,6 +41,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
 
   await page.getByRole('button',{name:'제출하기',exact:true}).click();await page.getByText('제출 접수 완료',{exact:false}).waitFor();
   await shot('submitted-student');await page.goto(server.origin+'/admin');await page.waitForFunction(()=>window.ready);
+  await page.locator('[data-assignment-area=core]').click();
   await page.getByText('제출 운영 설정',{exact:true}).click();await page.locator('[data-setting=dueAt]').fill('2026-11-09T23:59');await page.locator('[data-setting=revisionDueAt]').fill('2026-11-09T23:59');await page.getByRole('button',{name:'운영 설정 저장',exact:true}).click();await page.getByText('운영 설정을 저장했습니다.',{exact:true}).waitFor();
   const cfg=(await server.call('admin_list',{type:'admin',id:'qa'},{})).settings;assert.equal(Date.parse(cfg.due_at),Date.parse('2026-11-10T00:00:00+09:00'));
   await page.getByText('제출 운영 설정',{exact:true}).click();assert.equal(await page.locator('[data-setting=dueAt]').inputValue(),'2026-11-09T23:59');
@@ -60,7 +61,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await page.locator('[data-unit="core-01"]').click();await page.locator('[data-field="f1"]').waitFor();await shot('editor-mobile');assert.equal(await page.locator('textarea').count(),1);await page.getByRole('button',{name:'제출하기',exact:true}).click();await page.getByText('내 답변을 작성해주세요.',{exact:true}).waitFor();
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));
   await page.goto(server.origin+'/desktop');await page.waitForFunction(()=>window.ready);await page.locator('[data-unit=core-25]').waitFor();assert.equal(await page.locator('[data-workspace-page=core]').count(),1);
-  assert.equal(await page.locator('[data-workspace-page=preassignments]').count(),0);assert.equal(await page.locator('[data-workspace-page]').last().getAttribute('data-workspace-page'),'core');
+  assert.equal(await page.locator('[data-workspace-page=preassignments]').count(),0);assert.deepEqual(await page.locator('[data-workspace-page]').evaluateAll(nodes=>nodes.map(node=>node.dataset.workspacePage)),['db','introduction','motivation','public_service','core','aptitude','my']);
   await page.route('**/api/interview-preassignments',route=>route.abort(),{times:1});await page.reload();await page.getByText('과제를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',{exact:true}).waitFor();assert.equal(await page.getByText('사전과제를 불러오는 중…',{exact:true}).count(),0);await page.getByRole('button',{name:'다시 시도',exact:true}).click();await page.locator('[data-unit=core-25]').waitFor();assert.equal(await page.locator('[data-guidance]').count(),0);assert.doesNotMatch(await page.locator('.pa-root').innerText(),/두 번째 수정/);
   assert.deepEqual(errors,[]);console.log('PASS browser: separate student/admin menus, online save, failed-save recovery, submit, student diagnosis with save, saved criteria results, no teacher review, resubmit/history, single-answer requirement and mobile layout.');
  }finally{await browser?.close();await server.close();}

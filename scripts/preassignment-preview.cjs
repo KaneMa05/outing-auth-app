@@ -27,7 +27,7 @@ async function start({diagnosisProvider=null}={}){
   }
   if(['/','/admin','/desktop'].includes(u.pathname)){res.setHeader('Set-Cookie',`qa_admin=${u.pathname==='/admin'?'1':'0'}; Path=/; SameSite=Lax`);res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html(u.pathname==='/admin',u.pathname==='/desktop'));return;}
   const target=path.resolve(root,'.'+decodeURIComponent(u.pathname));
-  if(!target.startsWith(root+path.sep)||!['.js','.css','.png'].includes(path.extname(target))||!fs.existsSync(target)){res.statusCode=404;res.end();return;}
+  if(!target.startsWith(root+path.sep)||!['.js','.mjs','.css','.png'].includes(path.extname(target))||!fs.existsSync(target)){res.statusCode=404;res.end();return;}
   res.setHeader('Content-Type',target.endsWith('.css')?'text/css':target.endsWith('.png')?'image/png':'text/javascript');res.end(fs.readFileSync(target));
  }catch(e){res.statusCode=500;res.end(JSON.stringify({ok:false,error:e.message}));}});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));origin='http://127.0.0.1:'+server.address().port;
