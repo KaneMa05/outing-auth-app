@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function element(){const nodes=new Map(),listeners=new Map();return {nodes,listeners,innerHTML:'',style:{},classList:{add(){},toggle(){},contains(){return false;}},querySelector(s){if(!nodes.has(s))nodes.set(s,element());return nodes.get(s);},querySelectorAll(){return [];},replaceWith(){},replaceChildren(){this.innerHTML='';},addEventListener(k,v){listeners.set(k,v);},removeEventListener(k){listeners.delete(k);}};}
-for(const mode of ['ai','job','job_questions'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
+for(const mode of ['ai','job','job_questions','personality','personality_questions'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
  const host=element(),calls=[],imports=[];
  const window={addEventListener(){},removeEventListener(){},scrollTo(){}};
  if(installed)window.webkit={messageHandlers:{interviewNative:{}}};
@@ -40,12 +40,12 @@ for(const mode of ['job','personality','ai'])test('test iPhone opens authorized 
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewPractice:{postMessage:v=>sent.push(v)}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('must not load cloud exam');}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  let allowed=true;const view=await context.mountInterviewApp(host,{request:async()=>({allowed})});
- if(mode==='job'){
+ if(['job','personality'].includes(mode)){
   const box=host.querySelector('[data-app-content]');
   assert.match(box.innerHTML,/ip-mock-menu/);assert(!box.innerHTML.includes('data-native-practice'));assert.equal(sent.length,1);
-  await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:'job'},hasAttribute:n=>n==='data-app-mock'})}});
-  assert.equal(sent.length,2);assert.match(box.innerHTML,/ip-mock-menu/);
-  allowed=false;await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:'job'},hasAttribute:n=>n==='data-app-mock'})}});
+  await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:mode},hasAttribute:n=>n==='data-app-mock'})}});
+  assert.equal(sent.length,2);assert.equal(sent[1].mode,mode);assert.match(box.innerHTML,/ip-mock-menu/);
+  allowed=false;await host.listeners.get('click')({target:{closest:()=>({dataset:{appMock:mode},hasAttribute:n=>n==='data-app-mock'})}});
   assert.equal(sent.length,2);assert.equal(imports.length,0);view.destroy();return;
  }
  const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
@@ -61,9 +61,9 @@ for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes onl
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,__ronparkOpenAIPractice:true,__ronparkPracticeNative:true,__ronparkWindowsPractice:true,webkit:{messageHandlers:{interviewNative:{},interviewPractice:{postMessage:v=>calls.push({nativePractice:v.mode})}}},addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountNativeInterview:native,mountJobExam:exam,mountPersonalityPractice:exam,mountLive:()=>{throw Error('native AI must use its handoff');}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
- if(mode==='job'){
+ if(['job','personality'].includes(mode)){
   assert.match(host.querySelector('[data-app-content]').innerHTML,/ip-mock-menu/);
-  assert.deepEqual(calls,[{nativePractice:'job'}]);assert.equal(imports.length,0);
+  assert.deepEqual(calls,[{nativePractice:mode}]);assert.equal(imports.length,0);
  }else if(mode!=='ai'){
   const slot=host.querySelector('[data-app-content]').querySelector('[data-mock-mode="'+mode+'"]');
   const button=slot.querySelector('[data-native-practice]');await button.onclick({currentTarget:button});
@@ -78,15 +78,6 @@ for(const mode of ['job','personality'])test('test-app question menu mounts beta
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
  assert.equal(imports.length,1);assert(imports[0].includes('practice-pilot'));assert.equal(calls[0].action,'practice_bootstrap');assert.equal(calls[0].pilot,true);view.destroy();
-});
-for(const mode of ['personality'])test('approved released app restores the existing controller: '+mode,async()=>{
- const host=element(),imports=[],calls=[];
- const controller=(_host,options)=>{void options.request('status');return {canLeave:()=>true,destroy(){}};};
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountJobExam:controller,mountPersonalityPractice:controller,mountPracticePilot:()=>assert.fail('must keep original controller')};}};
- vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
- const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
- assert(host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
- assert.equal(imports.length,1);assert(imports[0].includes(mode==='job'?'interview-job-exam.mjs':'interview-personality.mjs'));assert.equal(calls[0].url,mode==='job'?'/api/interview-job-exam':'/api/interview-personality');view.destroy();
 });
 for(const mode of ['job_questions','personality_questions'])test('unapproved accounts cannot deep-link into new question menus: '+mode,async()=>{
  const host=element();let imported=false;
