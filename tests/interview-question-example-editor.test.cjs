@@ -1,0 +1,70 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{randomUUID}=require('node:crypto');
+const {fixture}=require('./helpers/interview-mock-cli-fixture.cjs');
+const {createHandler}=require('../api/interview-prep'),auth=require('../api/teacher-auth-utils');
+const migration='supabase/migrations/20261117080858_interview_question_example_editor.sql';
+test('edited examples preserve source text, detect conflicts, scope students and snapshot new practice only',async t=>{
+ const f=await fixture();t.after(()=>f.db.close());
+ for(const file of ['20261102073138_interview_question_taxonomy.sql','20261106075735_interview_portal_practice_access.sql','20261106083856_interview_practice_reference_assessment.sql','20261106084214_interview_practice_result_reference_answer.sql',migration.split('/').at(-1)])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
+ const admin={type:'admin',id:'qa'},student={type:'student',id:'ip-a',testApp:true},q=f.detail.question;
+ const rpc=f.rpc('ip_question_example_service');
+
+ await f.db.exec('create table ip_practice_runs(id uuid primary key,student_id text,mode text,completed boolean,finished boolean); create table ip_practice_turns(run_id uuid,number integer,uploaded boolean,question_id text);');
+ const runId=randomUUID();await f.db.query("insert into ip_practice_runs values($1,'ip-a','job',true,true)",[runId]);
+ await f.db.query('insert into ip_practice_turns values($1,1,true,$2)',[runId,q.id]);
+ await f.db.query("insert into ip_sources(id,filename,sha256,track) values('editor-source','검증 교재',$1,'공채')",['a'.repeat(64)]);
+ const sourceAnswer='기존 원본 해설입니다. 상황을 확인하고 관계기관에 보고한 뒤 조치를 정리합니다.';
+ await f.db.query("insert into ip_occurrences(id,source_id,question_id,number,locator,original_prompt,answer) values('editor-occurrence','editor-source',$1,'1','p1',$2,$3)",[q.id,q.prompt,sourceAnswer]);
+ const original=(await f.db.query('select * from ip_occurrences')).rows;
+ const detail=await rpc('admin_question_example_detail',admin,{id:q.id});assert.equal(detail.example.revision,0);
+ const oldId=randomUUID();await f.rpc('ip_openai_practice_service')('create',student,{id:oldId,mode:'job',questionId:q.id,questionPrompt:q.prompt,audioHash:'a'.repeat(64)});
+ const originalSnapshot=(await f.db.query('select question from ip_openai_practice_attempts where id=$1',[oldId])).rows[0].question;
+ assert.equal(originalSnapshot.reference.answer,sourceAnswer);
+ const answer='관리자가 검토해 작성한 예시답변입니다. 먼저 상황을 확인하고 동료에게 보고합니다.';
+ const saved=await rpc('admin_question_example_save',admin,{id:q.id,revision:0,questionRevision:2,answer});
+ assert.equal(saved.example.answer,answer);assert.equal(saved.example.revision,1);assert.equal(saved.exampleHistory.length,1);
+ assert.deepEqual((await f.db.query('select * from ip_occurrences')).rows,original);
+ assert.equal((await rpc('admin_question_example_detail',admin,{id:q.id})).example.answer,answer);
+ await assert.rejects(rpc('admin_question_example_save',admin,{id:q.id,revision:0,questionRevision:2,answer:'겹친 저장'}),/revision_conflict/);
+ await assert.rejects(rpc('admin_question_example_save',admin,{id:q.id,revision:1,questionRevision:2,answer:' '}),/invalid_request/);
+ await assert.rejects(rpc('admin_question_example_save',student,{id:q.id,revision:1,questionRevision:2,answer}),/forbidden/);
+ const read=await rpc('practice_reference',student,{runId,number:1,questionId:q.id,questionPrompt:q.prompt,mode:'job'});assert.equal(read.referenceAnswer,answer);assert.equal(read.accountId,student.id);
+ await assert.rejects(rpc('practice_reference',student,{runId,number:1,questionId:q.id,questionPrompt:'위조',mode:'job'}),/question_unavailable/);
+ await assert.rejects(rpc('practice_reference',{type:'student',id:'ip-c'},{runId,number:1,questionId:q.id,questionPrompt:q.prompt,mode:'job'}),/forbidden|not_enrolled/);
+ await f.db.query('update ip_practice_runs set completed=false where id=$1',[runId]);
+ await assert.rejects(rpc('practice_reference',student,{runId,number:1,questionId:q.id,questionPrompt:q.prompt,mode:'job'}),/forbidden/);
+ await f.db.query('update ip_practice_runs set completed=true where id=$1',[runId]);
+ const newId=randomUUID();await f.rpc('ip_openai_practice_service')('create',student,{id:newId,mode:'job',questionId:q.id,questionPrompt:q.prompt,audioHash:'b'.repeat(64)});
+ assert.equal((await f.db.query('select question from ip_openai_practice_attempts where id=$1',[newId])).rows[0].question.reference.answer,answer);
+ assert.deepEqual((await f.db.query('select question from ip_openai_practice_attempts where id=$1',[oldId])).rows[0].question,originalSnapshot);
+ const personality=f.personality.question;
+ const added=await rpc('admin_question_example_save',admin,{id:personality.id,revision:0,questionRevision:2,answer:'원본 해설이 없는 인성 문항에도 관리자가 예시답변을 작성할 수 있습니다.'});
+ assert.equal(added.example.revision,1);assert.equal(added.example.custom,true);
+ await f.db.query("update ip_questions set prompt='질문 변경',revision=3 where id=$1",[q.id]);
+ assert.equal((await rpc('admin_question_example_detail',admin,{id:q.id})).example.stale,true);
+ const scope=(await f.db.query("select public.ip_practice_reference_answer($1,'질문 변경','job','공채') result",[q.id])).rows[0].result;
+ assert.notEqual(scope?.answer,answer,'stale override cannot be used for a changed question');
+ await f.db.exec('set role service_role');
+ assert.equal((await rpc('admin_question_example_save',admin,{id:q.id,revision:1,questionRevision:3,answer:'질문 변경 후 서비스 권한으로 재검토하여 저장한 예시답변입니다.'})).example.revision,2);
+ await f.db.exec('reset role');
+ await f.db.exec('set role anon');await assert.rejects(f.db.query('select * from ip_question_examples'),/permission denied/);await f.db.exec('reset role');
+ await f.db.exec('set role authenticated');await assert.rejects(rpc('admin_question_example_detail',admin,{id:q.id}),/permission denied/);await f.db.exec('reset role');
+});
+test('example API requires admin read/write separately and authenticates student reference requests',async()=>{
+ const previous=process.env.TEACHER_SESSION_SECRET;process.env.TEACHER_SESSION_SECRET='example-editor-secret';
+ const calls=[];const handler=createHandler({authenticateWeb:async()=>({id:'real-owner'}),invoke:async(action,actor,body)=>{calls.push({action,actor,body});return {ok:true};}});
+ async function call(body,permissions){let status,result;const headers={host:'localhost'};
+  if(permissions)headers.cookie=auth.COOKIE_NAME+'='+auth.createSessionToken(process.env.TEACHER_SESSION_SECRET,{username:'qa',role:'admin',permissions});
+  await handler({method:'POST',headers,body},{setHeader(){},status(n){status=n;return this;},json(value){result=value;}});return {status,result};
+ }
+ try{
+  assert.equal((await call({action:'admin_question_example_detail',id:'q1'},['interview.read'])).status,200);
+  const payload={action:'admin_question_example_save',id:'q1',revision:0,questionRevision:1,answer:'수정할 예시답변'};
+  assert.equal((await call(payload,['interview.read'])).status,403);
+  assert.equal((await call(payload,['interview.write'])).status,200);
+  assert.equal((await call({...payload,answer:' '},['interview.write'])).status,400);
+  assert.equal((await call({...payload,answer:'a'.repeat(20001)},['interview.write'])).status,400);
+  assert.equal((await call({action:'practice_reference',runId:randomUUID(),number:1,accountId:'forged',questionId:'q1',questionPrompt:'질문',mode:'job'})).status,200);
+  assert.equal(calls.at(-1).actor.id,'real-owner');
+ }finally{if(previous===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=previous;}
+});
