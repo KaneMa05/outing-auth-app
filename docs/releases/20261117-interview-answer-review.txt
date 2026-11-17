@@ -1,0 +1,57 @@
+직무 문항 전체 검토 — 2026-11-17
+
+상태: 사용자 최종 승인 후 2026-11-17 17:54 KST 운영 DB 반영·검증 완료.
+해설 데이터 수정으로 별도 앱 재배포 없이 사용 가능.
+실행 결과: 20261117-interview-answer-application.json.
+127건 수정안 일치, 문항 전체 및 비대상 해설 해시 불변, 기존 rubric 116건 재검토 초안 표시 확인.
+
+검토 범위
+- 운영 DB에서 category=job인 1,727개 문항: 공개 1,417 / 초안 228 / 보관 82.
+- 연결된 해설 1,777건, 동일 답변을 묶은 1,083개 그룹의 전문과 연결 질문을 모두 읽음.
+- 사용자 승인에 따라 현재와 같은 모델의 보조 에이전트 3개로 나누어 검토하고 통합 교차검증.
+- 질문 적합성, 누락·혼입, 법률·기술 내용을 검토. 변동 수치·규정과 의심 항목은 공식 자료로 대조.
+- 개별 근거 대조 범위는 audit.json의 sources와 note에 기록. checked는 모든 문장의 외부 원문 인증을 의미하지 않음.
+
+수정 결과
+- 122개 문항, 해설 127건: 내용 수정 57개 문항 / 형식·공백만 정리 65개 문항.
+- 변경 문항의 상태: 공개 96 / 초안 21 / 보관 5. 문항 자체의 공개 상태는 변경하지 않음.
+- 주요 수정: 즉결심판 자백보강법칙 예외, 2026년 어선 출항제한 개정, 유·도선 승객 정원,
+  관제 절차 예외의 법적 근거, 지역별 해경 업무, 항법·AIS 대응, 난민 대응,
+  단속 중 충돌·익수 구조 상황, 질문과 무관한 공통 답변과 면접 형식 메모.
+- 원문·장비·시점·사건·경험 등 추가 확인이 필요한 44개 문항은 미확정으로 기록.
+  일부는 잘못된 메모나 단정 표현을 수정했지만, 빠진 사실을 임의로 채우지 않음.
+
+검토 파일
+- 20261117-interview-answer-review.html: 검색 가능한 수정 전후·근거·추가 확인 목록·전체 검토 기록.
+- 20261117-interview-answer-audit.json: 전체 그룹별 상태·출처·문항 ID 기록.
+- scripts/data/interview-answer-corrections-20261117.json: 검토한 개별 교정안.
+- scripts/data/interview-answer-patch-20261117.json: 운영 스냅샷 해시와 정확한 occurrence별 변경 전후.
+
+적용 준비와 영향
+- supabase/reviews/interview-answer-corrections-20261117.sql: 승인 후 수동 적용용 SQL.
+- supabase/reviews/interview-answer-corrections-20261117-rollback.sql: 정확한 이전 해설 복구용 SQL.
+- 자동 실행되는 migrations에 추가하지 않음.
+- 문항 ID·유형·질문·revision·공개 상태 및 해설 원문이 예상과 다르면 전체 중단.
+- 중복 적용은 무변경. 해설 변경 문항의 기존 채점 기준은 보존하고 재검토 초안으로 표시.
+  운영 source_draft의 과거 근거·용어는 source_answer_changed 표시로 재검토 대상임을 명시.
+- 기존 응시 기록·녹음·결과·인성 문항은 변경하지 않음. 새 연습은 반영 이후 해설을 사용함.
+- 로컬 corpus와 파생 rubric JSON/SQL을 동기화. 기존 수강생·교사·관리자 화면 코드는 변경하지 않음.
+- 작업 시작 전부터 존재한 native iOS/Android 등 다른 변경사항은 이 작업 범위에 포함하지 않음.
+
+검증 결과: 모두 통과
+- interview-answer-corrections.test.cjs: PostgreSQL 호환 환경에서 127건 적용, 중복 실행,
+  되돌리기, 원문/유형/질문/revision/상태/누락 6종 충돌 전체 중단,
+  관련 없는 데이터 보존 및 JSON/SQL seed 일치.
+- interview-rubrics.test.cjs: 근거 연결, stale 처리, 채점 승인 조건, 권한/RLS.
+- interview-prep.test.cjs: 데이터 import, ownership, 권한/RLS, revision, 기록 관련 회귀검증.
+- interview-practice-reference.test.cjs: 원문 참조, 누락된 근거 처리 등 4개 테스트.
+- git diff --check: 통과.
+
+실행 환경
+PGLITE_MODULE=/private/tmp/ronpark-practice-tools/node_modules/@electric-sql/pglite
+node tests/interview-answer-corrections.test.cjs
+node tests/interview-rubrics.test.cjs
+node tests/interview-prep.test.cjs
+node tests/interview-practice-reference.test.cjs
+
+사용자의 “반영” 최종 승인에 따라 적용 완료. 검토 기준일 이후 데이터·법령 변경 시 재확인.

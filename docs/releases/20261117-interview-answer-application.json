@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-17",
+  "project_id": "ehzrwkvuarertwvwoyus",
+  "application": "applied",
+  "approval": {
+    "message": "반영",
+    "scope": "Reviewed 122 questions / 127 answers"
+  },
+  "preflight": {
+    "checked_at": "2026-11-17 08:54:01.285687+00",
+    "planned": 127,
+    "compatible": 127,
+    "original_matches": 127,
+    "already_applied": 0,
+    "conflicts": [],
+    "affected_rubric_status": {
+      "draft": 116
+    },
+    "all_questions_hash": "b86e8304ac3aa4033387c798868a44a1",
+    "unrelated_occurrences_hash": "7b4a4f9ad727b6c734b8663c6575bd61",
+    "relevant_triggers": null
+  },
+  "verification": {
+    "verified_at": "2026-11-17 08:54:56.837554+00",
+    "verified_answers": 127,
+    "mismatches": [],
+    "rubric_drafts_marked": 116,
+    "all_questions_hash": "b86e8304ac3aa4033387c798868a44a1",
+    "unrelated_occurrences_hash": "7b4a4f9ad727b6c734b8663c6575bd61",
+    "job_status_counts": {
+      "draft": 228,
+      "archived": 82,
+      "published": 1417
+    }
+  },
+  "app_deployment": "not_required_database_only",
+  "patches_sha256": "fa261b84a4c7d18ce189aa5ab4cb8aef13db579a6ffaaaa6cf03f38b8eaab5e3",
+  "executed_sql_sha256": "eb29e6ecd4259f45720c3d321b0b519d94006ec52f683f14e81130f643272f5a"
+}

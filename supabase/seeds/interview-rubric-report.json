@@ -1,6 +1,6 @@
 {
-  "source_sha256": "d603cf9646c2378fe71d345d12ac0c31d29ef0a1c242a70acc74f4d13c82a08e",
-  "analysis_sha256": "2c9ad2323793a8f8ee442889bce6238d9716ba7de46697fdd6bb1be36dcffbaa",
+  "source_sha256": "08ce86fdbe545e9d2acb825293dc9c3a48f067de2cedb90ba2cfff860e848735",
+  "analysis_sha256": "4133bbce526a2bf68ea6bb24d0435837ff68a0fbb67c797c71032d79954755d3",
   "records": 2519,
   "original_job": 2131,
   "classification_review": {
@@ -32,9 +32,9 @@
     "followup": 73,
     "personality_experience": 22
   },
-  "original_job_with_answer": 2106,
-  "original_job_without_answer": 25,
-  "with_term_candidates": 1113,
+  "original_job_with_answer": 2107,
+  "original_job_without_answer": 24,
+  "with_term_candidates": 1126,
   "with_authored_criteria": 10,
   "approved": 0,
   "auto_scoring_ready": 0
