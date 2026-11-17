@@ -766,6 +766,9 @@ final class PracticeFilterUITests: XCTestCase {
         app.buttons["practice.question-catalog"].tap()
         let favorite = app.buttons["practice.favorite.nav"]
         XCTAssertTrue(favorite.waitForExistence(timeout: 5))
+        let progress = app.staticTexts["practice.question-progress.nav"]
+        XCTAssertTrue(progress.exists)
+        XCTAssertTrue(progress.label.contains("회 · 최근"))
         if favorite.label == "즐겨찾기 해제" { favorite.tap() }
         favorite.tap()
         app.buttons["practice.catalog-field"].tap(); app.buttons["해사법규"].tap()

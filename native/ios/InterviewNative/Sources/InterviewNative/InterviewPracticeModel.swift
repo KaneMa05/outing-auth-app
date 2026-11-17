@@ -26,6 +26,11 @@ import CryptoKit
     @Published var selectedField = ""
     @Published var selectedRegion = ""
     @Published private(set) var favoriteQuestionIDs: Set<String> = []
+    @Published private(set) var questionProgress: [String: PracticeQuestionProgress] = [:]
+    func refreshQuestionProgress() {
+        guard let portalAccount else { questionProgress = [:]; return }
+        questionProgress = (try? store?.questionProgress(account: portalAccount, mode: mode)) ?? [:]
+    }
     private var favoritesKey: String? {
         guard let portalAccount else { return nil }
         let scope = SHA256.hash(data: Data(portalAccount.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -152,6 +157,7 @@ import CryptoKit
             .appendingPathComponent("InterviewAccounts/" + scope, isDirectory: true)
         store = try PracticeStore(root: root)
         try store?.migrateLegacyCLI(account: account)
+        refreshQuestionProgress()
         syncPracticeRecords()
         let receivedFields: [PracticeContentField] = (data["fields"] as? [[String: Any]] ?? []).compactMap { row in
             guard let id = row["id"] as? String, let label = row["label"] as? String else { return nil }

@@ -129,6 +129,18 @@ struct PracticeRecord: Codable, Identifiable {
     var finished: Bool?
     var adminSyncFingerprint: String?
 }
+struct PracticeQuestionProgress {
+    var count = 0
+    var latest: Date?
+    var label: String {
+        guard count > 0, let latest else { return "아직 연습하지 않음 · 0회 · 최근 연습 없음" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.dateFormat = "yyyy.MM.dd"
+        return "답변 완료 · \(count)회 · 최근 \(formatter.string(from: latest))"
+    }
+}
 struct PracticeStore {
     let root: URL
     init(root: URL? = nil) throws {
@@ -152,6 +164,23 @@ struct PracticeStore {
                   let data = try? Data(contentsOf: $0.appendingPathComponent("record.json")) else { return nil }
             return try? JSONDecoder().decode(PracticeRecord.self, from: data)
         }.sorted { $0.createdAt > $1.createdAt }
+    }
+    func questionProgress(account: String, mode: String) throws -> [String: PracticeQuestionProgress] {
+        var result: [String: PracticeQuestionProgress] = [:]
+        for record in try list() where record.accountID == account && record.mode == mode {
+            var seen = Set<String>()
+            for turn in record.turns {
+                guard let id = turn.questionID, !id.isEmpty, !seen.contains(id),
+                      let url = try? audio(record.id, turn.audio),
+                      let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 44 else { continue }
+                seen.insert(id)
+                var progress = result[id] ?? PracticeQuestionProgress()
+                progress.count += 1
+                progress.latest = max(progress.latest ?? record.createdAt, record.createdAt)
+                result[id] = progress
+            }
+        }
+        return result
     }
     // Only called for the currently authenticated account's own scoped folder.
     func migrateLegacyCLI(account: String) throws {

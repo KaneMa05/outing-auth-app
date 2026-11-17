@@ -4,6 +4,34 @@ import AVFoundation
 @testable import InterviewNative
 
 final class InterviewPracticeTests: XCTestCase {
+    func testQuestionProgressCountsOnlySavedAnswersWithinAccountAndMode() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try PracticeStore(root: root)
+        func save(_ account: String, _ mode: String, _ date: Date, audioBytes: Int, duplicate: Bool = false) throws {
+            var record = PracticeRecord(id: UUID().uuidString, mode: mode, track: "공채")
+            record.accountID = account; record.createdAt = date
+            var turn = PracticeTurn(id: 1, question: "질문", audio: "1.wav", questionID: "question-a")
+            record.turns = [turn]
+            if duplicate { turn.id = 2; record.turns.append(turn) }
+            try store.save(record)
+            if audioBytes > 0 { try Data(repeating: 0, count: audioBytes).write(to: store.audio(record.id, "1.wav")) }
+        }
+        let earlier = Date(timeIntervalSince1970: 1_794_931_200)
+        let latest = earlier.addingTimeInterval(86400)
+        try save("student-a", "job", earlier, audioBytes: 45, duplicate: true)
+        try save("student-a", "job", latest, audioBytes: 100)
+        try save("student-a", "job", latest, audioBytes: 44)
+        try save("student-a", "job", latest, audioBytes: 0)
+        try save("student-b", "job", latest, audioBytes: 100)
+        try save("student-a", "personality", latest, audioBytes: 100)
+        let progress = try store.questionProgress(account: "student-a", mode: "job")
+        XCTAssertEqual(progress["question-a"]?.count, 2)
+        XCTAssertEqual(progress["question-a"]?.latest, latest)
+        XCTAssertTrue(progress["question-a"]!.label.contains("답변 완료 · 2회"))
+        XCTAssertTrue(PracticeQuestionProgress().label.contains("0회"))
+        XCTAssertTrue(try store.questionProgress(account: "student-c", mode: "job").isEmpty)
+    }
     func testCachedVerifiedJobSummaryDoesNotMentionNonexistentHolds() throws {
         var turn = PracticeTurn(id: 1, question: "질문", audio: "fixture.wav")
         let prefix = "음성 인식 결과가 일부 달라 근거와 판정이 일치하는 1개 항목만 반영했습니다. 보류된 항목은 녹음을 확인해 주세요."

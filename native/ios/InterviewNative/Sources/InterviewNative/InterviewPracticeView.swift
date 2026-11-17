@@ -337,6 +337,9 @@ import AVKit
                                 }
                                 let labels = model.contentFields.filter { question.fieldIDs?.contains($0.id) == true }.map(\.label)
                                 if !labels.isEmpty { Text(labels.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
+                                Text((model.questionProgress[question.id] ?? PracticeQuestionProgress()).label)
+                                    .font(.caption).foregroundStyle((model.questionProgress[question.id]?.count ?? 0) > 0 ? teal : .secondary)
+                                    .accessibilityIdentifier("practice.question-progress.\(question.id)")
                                 action("이 질문 연습하기", enabled: !model.sessionLoading && !model.videoSaving, id: "practice.question-start.\(question.id)") {
                                     showQuestionCatalog = false
                                     model.start(questionIDs: [question.id])
@@ -348,6 +351,7 @@ import AVKit
             }
             .padding(20).background(Color(red: 246/255, green: 248/255, blue: 250/255))
             .navigationTitle("질문 골라 연습").navigationBarTitleDisplayMode(.inline)
+            .onAppear { model.refreshQuestionProgress() }
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("닫기") { showQuestionCatalog = false } } }
             .tint(teal)
         }
