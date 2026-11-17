@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function element(){const nodes=new Map(),listeners=new Map();return {nodes,listeners,innerHTML:'',style:{},classList:{add(){},toggle(){},contains(){return false;}},querySelector(s){if(!nodes.has(s))nodes.set(s,element());return nodes.get(s);},querySelectorAll(){return [];},replaceWith(){},replaceChildren(){this.innerHTML='';},addEventListener(k,v){listeners.set(k,v);},removeEventListener(k){listeners.delete(k);}};}
-for(const mode of ['ai'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
+for(const mode of ['ai','job','job_questions'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
  const host=element(),calls=[],imports=[];
  const window={addEventListener(){},removeEventListener(){},scrollTo(){}};
  if(installed)window.webkit={messageHandlers:{interviewNative:{}}};
@@ -10,6 +10,7 @@ for(const mode of ['ai'])for(const installed of [false,true])test(`ordinary app 
  const view=await context.mountInterviewApp(host,{request:async action=>{calls.push(action);return {allowed:true};},aiRequest:async()=>{throw Error('ordinary app must not call interview APIs');}});
  assert.match(host.querySelector('[data-app-content]').innerHTML,/준비 중입니다\./);
  assert.equal(imports.length,0);assert.deepEqual(calls,['mock_status','mock_status']);
+ if(mode!=='ai')assert(!host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
  assert.equal(view.canLeave(),true);view.destroy();
 });
 for(const mode of ['ai','job','personality'])test(`${mode} mounts only its own authenticated student controller`,async()=>{
@@ -61,14 +62,14 @@ for(const mode of ['job','personality','ai'])test('OpenAI test iPhone routes onl
  view.destroy();
 });
 
-for(const mode of ['job','personality'])test('separate question menu mounts beta practice only: '+mode,async()=>{
+for(const mode of ['job','personality'])test('test-app question menu mounts beta practice only: '+mode,async()=>{
  const host=element(),imports=[],calls=[];
- const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode+'_questions'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountPracticePilot:async(_host,options)=>{assert.equal(options.mode,mode);assert.equal(options.accountId,'ip-a');await options.request('/api/interview-prep',{action:'practice_bootstrap',mode,pilot:true});return {canLeave:()=>true,destroy(){}};}};}};
+ const context={URLSearchParams,AbortController,document:{createElement:element},window:{__ronparkMockTestApp:true,addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode+'_questions'},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountPracticePilot:async(_host,options)=>{assert.equal(options.mode,mode);assert.equal(options.accountId,'ip-a');await options.request('/api/interview-prep',{action:'practice_bootstrap',mode,pilot:true});return {canLeave:()=>true,destroy(){}};}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
  const view=await context.mountInterviewApp(host,{account:{id:'ip-a'},request:async()=>({allowed:true}),aiRequest:async(url,body)=>{calls.push({url,...body});return {ok:true};}});
  assert.equal(imports.length,1);assert(imports[0].includes('practice-pilot'));assert.equal(calls[0].action,'practice_bootstrap');assert.equal(calls[0].pilot,true);view.destroy();
 });
-for(const mode of ['job','personality'])test('approved released app restores the existing controller: '+mode,async()=>{
+for(const mode of ['personality'])test('approved released app restores the existing controller: '+mode,async()=>{
  const host=element(),imports=[],calls=[];
  const controller=(_host,options)=>{void options.request('status');return {canLeave:()=>true,destroy(){}};};
  const context={URLSearchParams,AbortController,document:{createElement:element},window:{addEventListener(){},removeEventListener(){},scrollTo(){}},location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountJobExam:controller,mountPersonalityPractice:controller,mountPracticePilot:()=>assert.fail('must keep original controller')};}};
