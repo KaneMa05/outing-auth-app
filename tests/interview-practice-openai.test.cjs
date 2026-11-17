@@ -11,6 +11,7 @@ async function setup(t){
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_reference_assessment.sql')),'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(n=>n.endsWith('_interview_practice_result_reference_answer.sql')),'utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/20261112025510_interview_personality_test_usage.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117022510_interview_practice_missing_result_response.sql','utf8'));
  // Reproduce production: published questions, only draft rubrics, portal-only owner.
  await f.db.exec("update ip_question_rubrics set status='draft';insert into ip_owners(id,name) values('iw_practice_test','가상 면접 전용 계정');insert into ip_members(student_id,track,exam_number,expires_on,mock_test_enabled) values('iw_practice_test','공채','portal-practice-test','2099-01-01',true);");
  await f.db.exec("insert into ip_sources(id,filename,sha256,track) values('practice-source','practice-fixture.hwpx','fixture','공채');");
@@ -68,6 +69,27 @@ test('owner isolation, server-only transitions, strict RLS and expiry/cleanup pr
  f.failUpload(true);await assert.rejects(cleanup(f.d),/offline/);assert.equal((await f.db.query('select count(*)::int n from ip_openai_practice_attempts')).rows[0].n,1);
  f.failUpload(false);assert.equal((await cleanup(f.d)).removed,1);assert.equal(f.files.has(b.id),false);
  const flags=(await f.db.query("select prosecdef,proconfig from pg_proc where proname='ip_openai_practice_service'")).rows[0];assert.equal(flags.prosecdef,false);assert.ok(flags.proconfig.some(s=>s.startsWith('search_path=')));
+});
+
+test('missing, foreign and expired results return a normal RPC response and remain API 404s',async t=>{
+ const f=await setup(t),actor={type:'student',id:'iw_practice_test'},missing=randomUUID();
+ assert.deepEqual(await f.invoke('get',actor,{id:missing}),{ok:false,error:'not_found'});
+ assert.deepEqual(await f.call({action:'get',id:missing}),{status:404,data:{ok:false,error:'not_found'}});
+ const b=f.body();await f.call(b);await f.finish();
+ assert.deepEqual(await f.invoke('get',{type:'student',id:'ip-b'},{id:b.id}),{ok:false,error:'not_found'});
+ assert.equal((await f.call({action:'get',id:b.id})).data.state,'completed');
+ await f.db.query("update ip_openai_practice_attempts set retain_until=now()-interval '1 second' where id=$1",[b.id]);
+ assert.deepEqual(await f.invoke('get',actor,{id:b.id}),{ok:false,error:'not_found'});
+ assert.equal((await f.call({action:'get',id:b.id})).status,404);
+ assert.equal(f.providers,1);assert.equal(f.uploads,1);
+});
+
+test('API supports the previous RPC exception during rollout and checks access before lookup',async()=>{
+ let invokes=0,allowed=true;
+ const handler=createHandler({authenticate:async()=>({id:'owner'}),requireAccess:async()=>{if(!allowed)throw Error('forbidden');},invoke:async()=>{invokes++;throw Error('not_found');}});
+ const call=async()=>{let status,data;await handler({method:'POST',headers:{host:'localhost'},body:{action:'get',accountId:'owner',id:randomUUID()}},{setHeader(){},status(n){status=n;return this;},json(value){data=value;}});return {status,data};};
+ assert.deepEqual(await call(),{status:404,data:{ok:false,error:'not_found'}});
+ allowed=false;assert.equal((await call()).status,403);assert.equal(invokes,1);
 });
 test('expired execution is held without another provider call and stale completion cannot overwrite it',async t=>{
  const f=await setup(t),b=f.body(),actor={type:'student',id:'iw_practice_test'},server={type:'server',id:'test'};

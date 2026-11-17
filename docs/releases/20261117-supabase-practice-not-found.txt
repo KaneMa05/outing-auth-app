@@ -1,0 +1,57 @@
+2026-11-17 Supabase 면접 연습 결과 not_found 조사 및 로컬 수정
+
+상태
+- 사용자가 "적용"으로 최종 승인. 이번 수정만 분리하여 운영 반영 진행.
+- 최신 origin/main fe64d24d 기준의 별도 worktree에서 기존 결과 안내 기능을 보존하며 수정.
+
+확인한 사실
+- 앱 설정과 연결된 Supabase 프로젝트는 RONPARK APP / ehzrwkvuarertwvwoyus.
+- 프로젝트 ACTIVE_HEALTHY. Health advisor 항목 없음. 로그 조회 정상.
+- 조사 시 최근 24시간 PostgreSQL 로그의 정확히 not_found인 항목 120건.
+- 전부 public.ip_openai_practice_service(text,jsonb,jsonb)의 get 분기 RAISE에서 발생.
+- 최초 2026-11-16 18:06:27 KST, 마지막 2026-11-17 10:32:33 KST.
+- 마지막 발생 구간에 같은 RPC의 HTTP 400 20건 확인.
+- get은 ID, owner_id, retain_until>now()를 모두 만족하는 결과가 없으면 예외를 발생시킴.
+- 현재 ip_openai_practice_attempts 44건 모두 completed, 보관 만료 0건.
+- 가장 최근 생성은 2026-11-13 18:03:40 KST. 오늘 생성 기록은 없음.
+- 로그에 요청 본문/결과 ID가 없어 미제출, 다른 계정의 ID, 과거 삭제 등의 원인을 구분할 수 없음.
+- 조회한 44건이 정상이라는 사실만으로 해당 실패 요청의 결과가 보존되어 있다고 단정하지 않음.
+
+수정 범위
+- get 분기의 예상 가능한 결과 없음은 {ok:false,error:not_found}로 반환.
+- API는 이 응답도 기존처럼 HTTP 404 / {ok:false,error:not_found}로 안내.
+- 기존 RPC가 예외를 발생시키는 상태에서도 API가 동작하므로 API부터 반영 가능.
+- 추가 DB 조회, AI 실행, 결과 재생성, 테이블 변경 없음.
+- 계정/수강 권한 검사, 소유자와 보관 기간 필터, 정상 결과 조회, 기존 문항 범위 제한 유지.
+- 마이그레이션은 현재 함수에서 해당 get 블록만 교체하며, 예상 정의가 없으면 중단.
+- CREATE OR REPLACE로 기존 함수 소유자, 실행 권한, SECURITY INVOKER 설정 보존.
+- 다른 수강생 및 교사·관리자 화면 UI 변경 없음.
+- 이 변경은 결과 누락 복원이나 미제출 원인의 해결을 의미하지 않음.
+
+변경 파일
+- api/interview-practice-openai.js
+- supabase/migrations/20261117022510_interview_practice_missing_result_response.sql
+- tests/interview-practice-openai.test.cjs
+- tests/interview-test-question-scope.test.cjs
+
+검증
+- node --test tests/interview-practice-openai.test.cjs: 19개 통과.
+- node --test tests/interview-test-question-scope.test.cjs tests/interview-practice-cli.test.cjs: 7개 통과.
+- 실제 로컬 PGlite 함수 실행으로 없는 ID/타인 결과/만료 결과의 정상 RPC 응답과 API 404 확인.
+- 정상 결과, 기존 저장 기록, 서버 전용 실행 권한, 문항 범위 제한, AI 중복 실행 방지 회귀 확인.
+- node scripts/verify-interview-build.cjs: 격리 빌드와 구문 검사 통과, 기존 config.js 보존.
+- 최신 운영 기준에서도 위 회귀 검사와 기존 판정 보류 사유 검사를 함께 실행.
+- git diff --check 통과.
+- 운영 DB 읽기 전용 조회로 교체 대상 정의 일치 확인.
+- 운영 함수 SECURITY INVOKER, service_role 실행 가능, anon/authenticated 실행 불가 확인.
+- 운영 DB에서 수정 후 동작 검증은 승인 후 반영할 때 수행해야 함.
+
+사용자 승인 후 반영 순서
+1. 이번 수정만 분리하여 API 배포. 기존 작업 중인 다른 변경을 포함하지 않음.
+2. API 정상 응답 확인 후 위 마이그레이션 한 건만 운영 DB에 적용.
+3. 없는 결과의 RPC 응답, API 404, 기존 정상 결과와 접근 제한 확인.
+4. 요청 ID가 확보되면 실제 조회 불가 원인을 추가 조사. AI 분석 자동 재실행 금지.
+
+참고
+- Supabase 함수 문서: https://supabase.com/docs/guides/database/functions
+- 프로젝트 로그: https://supabase.com/dashboard/project/ehzrwkvuarertwvwoyus/logs
