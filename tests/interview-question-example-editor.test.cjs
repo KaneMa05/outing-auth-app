@@ -62,6 +62,7 @@ test('example API requires admin read/write separately and authenticates student
   const payload={action:'admin_question_example_save',id:'q1',revision:0,questionRevision:1,answer:'수정할 예시답변'};
   assert.equal((await call(payload,['interview.read'])).status,403);
   assert.equal((await call(payload,['interview.write'])).status,200);
+  assert.equal((await call({...payload,answer:'가'.repeat(20000)},['interview.write'])).status,200,'Korean answers at the character limit fit the byte limit');
   assert.equal((await call({...payload,answer:' '},['interview.write'])).status,400);
   assert.equal((await call({...payload,answer:'a'.repeat(20001)},['interview.write'])).status,400);
   assert.equal((await call({action:'practice_reference',runId:randomUUID(),number:1,accountId:'forged',questionId:'q1',questionPrompt:'질문',mode:'job'})).status,200);

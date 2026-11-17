@@ -96,7 +96,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       let body=req.body;
       if(!body){let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>400000)fail('request_too_large',413);}body=JSON.parse(raw||'{}');}
       if(typeof body==='string')body=JSON.parse(body);
-      if(Buffer.byteLength(JSON.stringify(body))>(body?.action==='admin_writing_feedback'?400000:body?.action==='life_save'?180000:body?.action==='admin_rubric_save'?200000:40000))fail('request_too_large',413);
+      if(Buffer.byteLength(JSON.stringify(body))>(body?.action==='admin_writing_feedback'?400000:body?.action==='life_save'?180000:body?.action==='admin_rubric_save'?200000:body?.action==='admin_question_example_save'?90000:40000))fail('request_too_large',413);
       validate(body);
       action=body.action;
       let actor;
