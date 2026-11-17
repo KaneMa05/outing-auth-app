@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{randomUUID}=require('node:crypto');
 const {fixture}=require('./helpers/interview-mock-cli-fixture.cjs');
 const {createHandler}=require('../api/interview-prep'),auth=require('../api/teacher-auth-utils');
-const migration='supabase/migrations/20261117080858_interview_question_example_editor.sql';
+const migration='supabase/migrations/20261117082257_interview_question_example_editor.sql';
 test('edited examples preserve source text, detect conflicts, scope students and snapshot new practice only',async t=>{
  const f=await fixture();t.after(()=>f.db.close());
  for(const file of ['20261102073138_interview_question_taxonomy.sql','20261106075735_interview_portal_practice_access.sql','20261106083856_interview_practice_reference_assessment.sql','20261106084214_interview_practice_result_reference_answer.sql',migration.split('/').at(-1)])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));

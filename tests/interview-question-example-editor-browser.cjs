@@ -5,7 +5,7 @@ const {fixture}=require('./helpers/interview-mock-cli-fixture.cjs');
 (async()=>{
  const f=await fixture(),root=process.cwd(),admin={type:'admin',id:'검증 관리자'};let browser,server;
  try{
-  for(const file of ['20261102073138_interview_question_taxonomy.sql','20261106075735_interview_portal_practice_access.sql','20261106083856_interview_practice_reference_assessment.sql','20261106084214_interview_practice_result_reference_answer.sql','20261117080858_interview_question_example_editor.sql'])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
+  for(const file of ['20261102073138_interview_question_taxonomy.sql','20261106075735_interview_portal_practice_access.sql','20261106083856_interview_practice_reference_assessment.sql','20261106084214_interview_practice_result_reference_answer.sql','20261117082257_interview_question_example_editor.sql'])await f.db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
   const q=f.detail.question,question={id:q.id,prompt:q.prompt,category:'job',tracks:['공채'],topic_ids:[],revision:2,status:'published',source_count:1};
   await f.db.query("insert into ip_sources(id,filename,sha256,track) values('example-source','검증용 교재.pdf','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','공채') on conflict do nothing");
   const source='상황을 확인하고 동료에게 보고한 뒤 필요한 조치를 기록합니다. <img src=x onerror=alert(1)>';

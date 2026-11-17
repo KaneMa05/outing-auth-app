@@ -26,5 +26,5 @@
 운영 반영 상태
 - 사용자 AGENTS.md의 최종 확인 지침에 따라 아직 커밋/푸시/운영 DB 적용/서버 배포/신규 iPhone 설치는 하지 않음.
 - 승인 후 운영 최신 main 통합·테스트, 코드와 마이그레이션 커밋/푸시, DB 마이그레이션 적용 및 이력 번호 정렬, Vercel 후보 배포→검증→승격, 보안 advisor 및 운영 저장/열람 확인, iPhone Debug 업데이트 설치 필요.
-- 운영 DB 변경은 20261117080858_interview_question_example_editor.sql. RPC 기존 소스 SELECT 치환은 정확히 1개인 경우만 적용.
+- 운영 DB 변경은 20261117082257_interview_question_example_editor.sql. RPC 기존 소스 SELECT 치환은 정확히 1개인 경우만 적용.
 - 브라우저 현재 로그인 상태는 확인하지 못했음(접근한 IAB는 로그인 화면). 사용자 기존 문항을 임의로 수정해 운영 테스트하지 말 것. 운영 검증은 트랜잭션 롤백 또는 명시적인 검증용 문항으로 수행.
