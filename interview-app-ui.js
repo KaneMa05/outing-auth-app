@@ -75,7 +75,19 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      box.innerHTML=mockScreen();
-     // Approved accounts still see only the notice in the ordinary released app.
+     if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
+      const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-pilot');
+      if(destroyed||ticket!==generation)return;
+      const slot=document.createElement('div');box.querySelector('[data-mock-mode="'+route.mockMode+'"]').replaceWith(slot);
+      const next=await mountPracticePilot(slot,{mode:route.mockMode,accountId:account.id,request:async(url,body)=>{
+       if(aiRequest)return aiRequest(url,body);
+       const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+       const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
+      }});
+      if(destroyed||ticket!==generation)next.destroy();else child=next;
+      return;
+     }
+     // Real-time AI remains restricted to its existing test-app route.
      if(!mockTestApp)return;
      if(window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
       const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');

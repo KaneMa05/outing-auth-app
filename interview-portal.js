@@ -43,10 +43,10 @@ function render(){
  host.innerHTML='<p class="ip-auth-message" data-auth-message role="status"></p><div data-portal-content></div>';
  const box=host.querySelector('[data-portal-content]');
  if(state.available){
-  const useApp=appMode||state.member?.access_product==='aptitude_only';
+  const useApp=appMode||state.member?.access_product==='aptitude_only'||state.member?.mock_test_enabled===true;
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(useApp?'./interview-app-ui.js?v=20261116-aptitude-percentile':'./interview-workspace.js?v=20261116-aptitude-percentile').then(async module=>{
+  return import(useApp?'./interview-app-ui.js?v=20261117-pilot':'./interview-workspace.js?v=20261116-aptitude-percentile').then(async module=>{
    if(current!==version)return;
    const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
