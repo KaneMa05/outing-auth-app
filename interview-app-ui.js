@@ -89,6 +89,20 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
       window.webkit.messageHandlers.interviewPractice.postMessage({mode});
       return;
      }
+     if(mockTestApp&&route.mockMode==='ai'&&window.__ronparkOpenAIPractice===true&&window.webkit?.messageHandlers?.interviewNative){
+      box.innerHTML='<section class="ip-panel"><p role="status">면접 준비 화면을 불러오고 있습니다.</p></section>';
+      let launch;
+      if(aiRequest)launch=await aiRequest('/api/interview-native',{action:'launch'});
+      else{
+       const response=await fetch('/api/interview-native',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'launch'})});
+       launch=await response.json();if(!response.ok||!launch.ok)throw Error(launch.error||'unavailable');
+      }
+      if(destroyed||ticket!==generation)return;
+      if(!/^[A-Za-z0-9_-]{43}$/.test(launch.code))throw Error('invalid_response');
+      route={...route,mockMode:''};setUrl(true);box.innerHTML=mockScreen();
+      window.webkit.messageHandlers.interviewNative.postMessage({code:launch.code});
+      return;
+     }
      box.innerHTML=mockScreen();
      if(!mockTestApp&&['job','job_questions','personality','personality_questions'].includes(route.mockMode))return;
      if(mockModes[route.mockMode]?.practiceMode){
