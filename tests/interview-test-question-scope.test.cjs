@@ -57,6 +57,28 @@ test('DB allowlist blocks forged questions across every mock path, preserves sou
  const ordinaryRun=await live('reserve',ordinary,{requestKey:randomUUID()});assert.equal(ordinaryRun.run.questions.length,3);
  const rows=(await f.db.query('select mode,question_id,prompt,position from ip_mock_test_question_scope order by mode,position')).rows;
  assert.equal(rows.length,9);for(const row of rows)assert(questionsFor(row.mode).some(q=>q.id===row.question_id&&q.prompt===row.prompt&&q.order===row.position));
+ // Full-pool rollout preserves historical records, source data and service access checks.
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261117071500_interview_full_published_practice_pool.sql','utf8'));
+ assert.deepEqual((await f.db.query('select id,prompt,status from ip_questions order by id')).rows,snapshot);
+ for(const name of ['ip_openai_practice_service','ip_practice_cli_service']){
+  for(const [mode,q] of [['job',outside],['personality',f.personality.question]]){
+   assert.equal((await f.rpc(name)('create',actor,{id:randomUUID(),mode,questionId:q.id,questionPrompt:q.prompt,audioHash:'f'.repeat(64)})).ok,true);
+   await assert.rejects(f.rpc(name)('create',actor,{id:randomUUID(),mode,questionId:q.id,questionPrompt:'위조',audioHash:'1'.repeat(64)}),/question_unavailable/);
+  }
+ }
+ for(const [name,mode] of [['ip_job_exam_service','job'],['ip_personality_service','personality']]){
+  const q=mode==='job'?outside:f.personality.question;
+  assert((await f.rpc(name)('questions',actor,{})).questions.some(row=>row.id===q.id));
+ }
+ const sqlScope=async(mode,q)=>(await f.db.query('select public.ip_mock_test_question_allowed($1,$2,$3,$4::jsonb) allowed',[mode,q.id,q.prompt,JSON.stringify(actor)])).rows[0].allowed;
+ assert.equal(await sqlScope('job',outside),true);assert.equal(await sqlScope('ai',f.personality.question),true);
+ assert.equal(await sqlScope('personality',outside),false);assert.equal(await sqlScope('job',{...outside,prompt:'위조'}),false);
+ await f.db.query("update ip_questions set status='draft' where id=$1",[outside.id]);assert.equal(await sqlScope('job',outside),false);
+ await f.db.query("update ip_questions set status='published' where id=$1",[outside.id]);
+ await f.db.query("update ip_live_runs set state='interrupted'");
+ const expandedRun=await live('reserve',actor,{requestKey:randomUUID()});assert.equal(expandedRun.run.questions.length,2);
+ const liveDef=(await f.db.query("select pg_get_functiondef('ip_live_service(text,jsonb,jsonb)'::regprocedure) definition")).rows[0].definition;
+ assert(!liveDef.includes('ip_mock_test_question_scope'));assert(liveDef.includes('order by random() limit'));
  await f.db.exec('set role anon');await assert.rejects(f.db.query('select * from ip_mock_test_question_scope'),/permission denied/);await f.db.exec('reset role');
  await f.db.exec('set role service_role');await assert.rejects(f.db.exec("delete from ip_mock_test_question_scope"),/permission denied/);await f.db.exec('reset role');
 });

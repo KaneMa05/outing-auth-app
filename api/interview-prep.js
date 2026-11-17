@@ -123,7 +123,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         if(access.allowed!==true)fail('forbidden',403);
         const info=await invoke('bootstrap',actor,{});
         const mode=body.mode||'job';if(!['job','personality','ai'].includes(mode))fail('invalid_request',400);
-        const pool=mode==='ai'&&actor.testApp!==true?await invoke('questions',actor,{category:'personality',page:0}):await require('../lib/interview-practice-catalog.cjs').practiceCatalog(read,{track:info.member.track,mode,testOnly:actor.testApp===true||body.pilot===true});
+        const pool=await require('../lib/interview-practice-catalog.cjs').practiceCatalog(read,{track:info.member.track,mode});
         return res.status(200).json({ok:true,accountId:actor.id,track:info.member.track,mode,
           fields:pool.fields||[],questions:['job','personality'].includes(mode)?pool.questions:pool.questions.map(({id,prompt,category,tracks})=>({id,prompt,category,tracks}))});
       }
