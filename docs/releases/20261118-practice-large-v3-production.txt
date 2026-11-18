@@ -1,0 +1,42 @@
+관리자 녹음 기록 · large-v3 전사 운영 반영 완료
+2026-11-18 18:01 KST 검증
+
+승인과 범위
+- 사용자 '우선 관리자 사이트만 반영해서 푸시 배포' 승인 후 DB 적용, main 푸시 및 운영 배포 완료.
+- 학생 앱의 전사 결과 조회 화면이나 정오답 채점은 이번 배포에 포함하지 않았다.
+- 준비 중 원격 main에 들어온 적성 답안 초기화 변경(8e7b44f) 위로 재배치해 보존했다.
+- 관리자 모듈의 캐시 버전만 transcription으로 갱신했다. 기존 학생 모듈 버전과 서비스워커 v576은 보존했다.
+
+배포
+- 기능 커밋: 167c01296c964ecdddccdc9aa822af8068e8bc1c / 원격 main 정상 푸시.
+- 배포: dpl_CpuuakbXMpU89qY7cDuyWGvWGjNa / READY / production.
+- URL: https://outing-auth-14jdv3ggx-ronpark.vercel.app
+- 운영: https://app.ronparkpass.com / https://outing-auth-app.vercel.app
+- 기존 운영: dpl_5tEaNGox94YjHkeG7vnLefoLCJQ3.
+- --prod --skip-domain 후보 빌드 한 번 생성 → 파일·접근 검사 후 같은 배포 promote.
+- main 자동 Git 배포 비활성 유지. 이 증빙 문서 푸시는 추가 빌드를 만들지 않는다.
+- 업로드 목록에서 환경 파일, 테스트, SQL, 문서, 네이티브 앱, 임시 녹음·모델을 제외했다.
+
+DB와 자동 전사
+- 프로젝트 ehzrwkvuarertwvwoyus에 interview_practice_transcriptions 마이그레이션 적용.
+- 기존 업로드 80개를 대기열로 등록. 기존 large-v3 전사 9개는 저장소 바이트 수·SHA256을 재검증해 재사용.
+- 검증 시점: 완료 13개, 대기 66개, 처리 중 1개. 새로운 자동 전사 결과가 운영 DB에 저장되는 것을 확인했다.
+- PC 작업 복제본: work/practice-transcription-admin-20261118.
+- PC 작업 설정: 해당 복제본 .tmp/practice-asr/config.json. 로그: worker.log / worker-error.log.
+- 실행 PID(검증 시점): 1976. PC에서 숨김 실행한 작업이 대기열을 순차 처리한다.
+- 모델: Whisper large-v3 / faster-whisper 1.2.1 / revision edaa852ec7e145841d8ffdb056a99866b5f0a478.
+- 모델·가상환경은 기존 beta-practice-sync-20261116/.tmp/practice-transcription-review-20261118를 참조하므로 삭제하지 않는다.
+- CUDA DLL은 기존 로컬 GPU 런타임 경로를 사용한다. 설정 파일에 실제 경로를 보관한다.
+- OS 자동 시작 작업은 등록하지 않았다. PC 재시작/작업 종료 후 start-practice-asr-worker.ps1로 다시 실행한다.
+- 학생 녹음 원본, 모델 파일, 전사문, 서버 비밀키는 Git과 웹 정적 파일에 포함하지 않았다.
+
+검증
+- 전사 대기열·임대 복구·재시도·원문 보존·검수 동시 수정·RLS/권한 SQL 검사 통과.
+- 관리자 API·PC 작업·기존 학생 인증·WebM/Ogg/MP4·배포 안전성 검사 및 격리 빌드 통과.
+- 실제 원본 녹음으로 Windows 한글 경로의 전사와 DB 저장을 검증했다.
+- 두 운영 도메인과 후보에서 관리자/학생/적성 파일 18개가 검증된 소스와 바이트 단위 일치.
+- 두 운영 도메인의 비로그인 admin_list 요청은 401 unauthorized. 학생/익명 역할의 전사 테이블 조회와 RPC 실행 권한 없음.
+- Security advisor 신규 WARN/ERROR 없음. 서비스 전용 RLS 테이블의 정책 없음 INFO는 의도된 접근 구조다.
+- 로그인된 실제 화면의 자동 브라우저 검사는 Windows에서 현재 URL을 안전하게 판별할 수 없어 중단됐다.
+  이 제한을 우회하지 않고 배포 상태, 정적 파일, HTTP 인증 차단, 운영 DB 저장으로 확인했다.
+- 검증 증빙은 해당 작업 복제본 .tmp/release 및 기존 beta 작업의 배포 제외 .tmp에 보관.
