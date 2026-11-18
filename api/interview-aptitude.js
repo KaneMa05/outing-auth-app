@@ -4,9 +4,9 @@ const {postOnly,sameOrigin,bodyOf}=require('../lib/interview-ai-http');
 const {MAX,validatePdf}=require('../lib/interview-aptitude-storage.cjs');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const fields={list:[],get:['id'],save:['id','revision','answers'],submit:['id','revision','answers','requestKey'],file:['id','fileId'],
- admin_list:[],admin_get:['id'],admin_report:['id'],admin_delete:['id','revision'],admin_save:['id','revision','kind','roundNo','title','state','resultsReleased','opensAt','closesAt','answerKey','reason'],
+ admin_list:[],admin_get:['id'],admin_report:['id'],admin_reset_attempt:['id','targetStudentId','attemptRevision','sections'],admin_delete:['id','revision'],admin_save:['id','revision','kind','roundNo','title','state','resultsReleased','opensAt','closesAt','answerKey','reason'],
  admin_upload_prepare:['id','revision','name','bytes'],admin_upload_complete:['id','fileId'],admin_upload_abort:['id','fileId'],admin_file:['id','fileId'],admin_file_delete:['id','fileId','revision']};
-const writes=new Set(['admin_save','admin_delete','admin_upload_prepare','admin_upload_complete','admin_upload_abort','admin_file_delete']);
+const writes=new Set(['admin_reset_attempt','admin_save','admin_delete','admin_upload_prepare','admin_upload_complete','admin_upload_abort','admin_file_delete']);
 function defaults(){return {
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
@@ -21,6 +21,9 @@ function validate(b){
  if(!b.action.startsWith('admin_')&&b.action!=='list'&&!b.accountId)throw Error('invalid_request');
  for(const key of ['id','fileId','requestKey'])if(fields[b.action].includes(key)&&!UUID.test(b[key]||''))throw Error('invalid_request');
  if(fields[b.action].includes('revision')&&(!Number.isSafeInteger(b.revision)||b.revision<0))throw Error('invalid_request');
+ if(b.action==='admin_reset_attempt'&&(typeof b.targetStudentId!=='string'||!b.targetStudentId.trim()||b.targetStudentId.length>200||
+  !Number.isSafeInteger(b.attemptRevision)||b.attemptRevision<1||!Array.isArray(b.sections)||b.sections.length<1||b.sections.length>5||
+  b.sections.some(x=>!Number.isInteger(x)||x<0||x>4)||new Set(b.sections).size!==b.sections.length))throw Error('invalid_request');
  if(['save','submit'].includes(b.action)&&(!Array.isArray(b.answers)||![75,150].includes(b.answers.length)||b.answers.some(x=>!Number.isInteger(x)||x<0||x>5)))throw Error('invalid_answers');
  if(b.action==='admin_save'){
   const n=b.kind==='full'?150:75;

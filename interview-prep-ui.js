@@ -316,9 +316,9 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     const version=++loadVersion;
     const box=host.querySelector('[data-content]');
     if(tab==='aptitude_grades'){
-      const {mountAptitudeGrades}=await import('./client/interview-aptitude-grades.mjs?v=20261117-aptitude-subject-scores');
+      const {mountAptitudeGrades}=await import('./client/interview-aptitude-grades.mjs?v=20261118-aptitude-answer-reset');
       if(destroyed||version!==loadVersion)return;
-      const next=await mountAptitudeGrades(box);
+      const next=await mountAptitudeGrades(box,{canWrite});
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
       return;
     }

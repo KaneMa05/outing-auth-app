@@ -5,18 +5,116 @@ const {createHandler,validate}=require('../api/interview-aptitude');
 const migration='supabase/migrations/20261109053559_interview_aptitude_exams.sql';
 const admin={type:'admin',id:'qa'},student=id=>({type:'student',id});
 const subjectScoresMigration='supabase/migrations/20261117122611_interview_aptitude_subject_scores.sql';
-async function fixture(t,{resultsOnSubmission=true,subjectScores=true}={}){
+const resetMigration='supabase/migrations/20261118084036_interview_aptitude_answer_reset.sql';
+async function fixture(t,{resultsOnSubmission=true,subjectScores=true,answerReset=true}={}){
  const {db}=await createDb();t.after(()=>db.close());
  await db.exec("create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]); update ip_settings set enabled=true; insert into ip_members(student_id,track,exam_number,enabled,expires_on) values('ip-a','공채','a',true,null),('ip-b','기관','b',true,'2099-12-01'),('ip-c','방제','c',true,null); insert into ip_owners(id,name) values('web-only','웹 면접반'); insert into ip_members(student_id,track,exam_number,enabled) values('web-only','관제','web',true);");
  await db.exec(fs.readFileSync(migration,'utf8'));
  if(resultsOnSubmission)await db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261116072310_interview_aptitude_historical_attempts.sql','utf8').replace(/\r\n/g,'\n'));
  if(subjectScores)await db.exec(fs.readFileSync(subjectScoresMigration,'utf8'));
+ if(answerReset)await db.exec(fs.readFileSync(resetMigration,'utf8'));
  const invoke=async(action,actor,body={})=>(await db.query('select ip_aptitude_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  const body=(kind='half')=>({id:randomUUID(),revision:0,kind,roundNo:1,title:(kind==='half'?'하프':'본시험')+' 1회',state:'open',resultsReleased:false,opensAt:null,closesAt:null,answerKey:Array(kind==='half'?75:150).fill(1),reason:''});
  const submit=(id,owner,answers,requestKey=randomUUID())=>invoke('submit',student(owner),{id,revision:0,answers,requestKey});
  return {db,invoke,body,submit};
 }
+test('answer reset upgrade preserves existing answers, student results and server-only invoker permissions',async t=>{
+ const f=await fixture(t,{answerReset:false}),exam={...f.body(),resultsReleased:true};
+ await f.invoke('admin_save',admin,exam);await f.submit(exam.id,'ip-a',exam.answerKey);
+ const before=(await f.db.query('select * from ip_aptitude_attempts')).rows,rounds=(await f.db.query('select * from ip_aptitude_rounds')).rows;
+ const studentView=await f.invoke('get',student('ip-a'),{id:exam.id});
+ const privileges=()=>f.db.query("select prosecdef,proacl,proconfig from pg_proc where oid='public.ip_aptitude_service(text,jsonb,jsonb)'::regprocedure");
+ const beforePrivileges=(await privileges()).rows;
+ await f.db.exec(fs.readFileSync(resetMigration,'utf8'));
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_attempts')).rows,before);
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_rounds')).rows,rounds);
+ assert.deepEqual(await f.invoke('get',student('ip-a'),{id:exam.id}),studentView);
+ assert.deepEqual((await privileges()).rows,beforePrivileges);
+ const report=await f.invoke('admin_report',admin,{id:exam.id});
+ assert.equal(report.students.find(s=>s.studentId==='ip-a').attemptRevision,1);
+ assert.equal(report.students.find(s=>s.studentId==='ip-b').attemptRevision,0);
+ for(const role of ['anon','authenticated']){
+  await f.db.exec('set role '+role);
+  await assert.rejects(f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:1,sections:[0]}),/permission denied/);
+  await f.db.exec('reset role');
+ }
+});
+
+test('half/full subject reset preserves other subjects and participants, cancels scores, audits before/after, and permits resubmission',async t=>{
+ for(const kind of ['half','full'])await t.test(kind,async t=>{
+  const f=await fixture(t),exam={...f.body(kind),resultsReleased:true},per=exam.answerKey.length/5;
+  const other={...f.body(kind),roundNo:2};await f.invoke('admin_save',admin,exam);await f.invoke('admin_save',admin,other);
+  const answers=Array.from({length:per*5},(_,i)=>1+Math.floor(i/per));
+  await f.submit(exam.id,'ip-a',answers);await f.submit(exam.id,'ip-b',exam.answerKey);await f.submit(other.id,'ip-a',answers);
+  const untouched=(await f.db.query("select * from ip_aptitude_attempts where not(round_id=$1 and student_id='ip-a') order by round_id,student_id",[exam.id])).rows;
+  const rounds=(await f.db.query('select * from ip_aptitude_rounds order by id')).rows;
+  const before=(await f.db.query("select * from ip_aptitude_attempts where round_id=$1 and student_id='ip-a'",[exam.id])).rows[0];
+  await f.db.exec('set role service_role');
+  const reset=await f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:1,sections:[0,3]});
+  await f.db.exec('reset role');
+  assert.equal(reset.attemptRevision,2);assert.deepEqual(reset.sections,[0,3]);
+  const own=await f.invoke('get',student('ip-a'),{id:exam.id});
+  const expected=answers.map((v,i)=>[0,3].includes(Math.floor(i/per))?0:v);
+  assert.equal(own.attempt.state,'draft');assert.deepEqual(own.attempt.answers,expected);assert.equal(own.attempt.revision,2);
+  assert.equal(own.attempt.submittedAt,null);assert.equal(own.attempt.requestKey,null);
+  for(const key of ['result','correctAnswers','files'])assert.equal(own[key],undefined);
+  const report=await f.invoke('admin_report',admin,{id:exam.id}),row=report.students.find(s=>s.studentId==='ip-a');
+  assert.equal(row.state,'draft');assert.equal(row.correctCount,null);assert.equal(row.rank,null);assert.equal(row.subjectCorrectCounts,null);assert.equal(row.attemptRevision,2);
+  assert.equal((await f.invoke('get',student('ip-b'),{id:exam.id})).result.participants,1);
+  const after=(await f.db.query("select * from ip_aptitude_attempts where round_id=$1 and student_id='ip-a'",[exam.id])).rows[0];
+  assert.equal(after.correct_count,null);assert.equal(after.scored_key_revision,null);
+  const audit=(await f.db.query("select * from ip_aptitude_audit where reason='성적관리 답안지 초기화'")).rows;
+  assert.equal(audit.length,1);assert.equal(audit[0].actor_id,'qa');assert.deepEqual(audit[0].before_value.answers,before.answers);
+  assert.deepEqual(audit[0].after_value.answers,expected);assert.deepEqual(audit[0].after_value.resetSections,[0,3]);
+  await assert.rejects(f.invoke('save',student('ip-a'),{id:exam.id,revision:1,answers}),/revision_conflict/);
+  await assert.rejects(f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:1,sections:[1]}),/revision_conflict/);
+  assert.equal((await f.db.query("select count(*)::int n from ip_aptitude_audit where reason='성적관리 답안지 초기화'")).rows[0].n,1);
+  assert.deepEqual((await f.db.query("select * from ip_aptitude_attempts where not(round_id=$1 and student_id='ip-a') order by round_id,student_id",[exam.id])).rows,untouched);
+  assert.deepEqual((await f.db.query('select * from ip_aptitude_rounds order by id')).rows,rounds);
+  const submitted=await f.invoke('submit',student('ip-a'),{id:exam.id,revision:2,answers:exam.answerKey,requestKey:randomUUID()});
+  assert.equal(submitted.result.correctCount,per*5);
+  await f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:3,sections:[4,3,2,1,0]});
+  const all=await f.invoke('get',student('ip-a'),{id:exam.id});assert.deepEqual(all.attempt.answers,Array(per*5).fill(0));assert.equal(all.attempt.revision,4);
+  // Draft attempts can also be reset; resetting never changes the round schedule.
+  await f.invoke('admin_save',admin,{...exam,revision:1,state:'closed'});
+  await f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:4,sections:[2]});
+  await assert.rejects(f.invoke('submit',student('ip-a'),{id:exam.id,revision:5,answers:exam.answerKey,requestKey:randomUUID()}),/exam_not_open/);
+ });
+});
+
+test('reset API enforces write permission and rejects invalid targets, empty/duplicate subjects and stale revisions without writes',async t=>{
+ const f=await fixture(t),exam=f.body();await f.invoke('admin_save',admin,exam);await f.submit(exam.id,'ip-a',exam.answerKey);
+ const payload={action:'admin_reset_attempt',id:exam.id,targetStudentId:'ip-a',attemptRevision:1,sections:[1]};
+ for(const patch of [{sections:[]},{sections:[1,1]},{sections:[5]},{sections:[-1]},{sections:['1']},{sections:[1.5]},{sections:null},{targetStudentId:''},{attemptRevision:0},{attemptRevision:'1'},{attemptRevision:null}]){
+  assert.throws(()=>validate({...payload,...patch}),/invalid_request/);
+  await assert.rejects(f.invoke('admin_reset_attempt',admin,{...payload,...patch}),/invalid_request/);
+ }
+ await assert.rejects(f.invoke('admin_reset_attempt',student('ip-b'),payload),/forbidden/);
+ await assert.rejects(f.invoke('admin_reset_attempt',admin,{...payload,targetStudentId:'ip-c'}),/not_found/);
+ let allowWrite=false,invoked=0;
+ const handler=createHandler({authenticateAdmin:async(_req,write)=>{assert.equal(write,true);if(!allowWrite)throw Error('forbidden');return {id:'admin-http'};},invoke:async(...args)=>{invoked++;return f.invoke(...args);}});
+ assert.equal((await http(handler,payload)).status,403);assert.equal(invoked,0);
+ allowWrite=true;
+ const conflict=await http(handler,{...payload,attemptRevision:2});assert.equal(conflict.status,409);assert.equal(conflict.data.error,'revision_conflict');
+ const reset=await http(handler,payload);assert.equal(reset.status,200);assert.equal(reset.data.attemptRevision,2);
+ assert.equal((await http(handler,payload)).status,409,'retry must not reset newer student input');
+ assert.equal((await f.db.query("select count(*)::int n from ip_aptitude_audit where reason='성적관리 답안지 초기화'")).rows[0].n,1);
+});
+test('reset preserves actual historical records, subject scores and rankings',async t=>{
+ const f=await fixture(t),exam={...f.body(),resultsReleased:true};
+ await f.invoke('admin_save',admin,exam);await f.submit(exam.id,'ip-a',exam.answerKey);await f.submit(exam.id,'ip-b',Array(75).fill(2));
+ const historyId=randomUUID();await f.db.query(`insert into ip_aptitude_historical_attempts(id,round_id,source_id,cohort,display_name,submitted_at,answers,correct_count,source_correct_count,scored_key_revision,source_filename,source_sha256,source_row) values($1,$2,'reset-history','지난 기수','면접학생 A',now(),$3::jsonb,75,75,1,'fixture.xlsx',repeat('a',64),2)`,[historyId,exam.id,JSON.stringify(exam.answerKey)]);
+ const stored=(await f.db.query('select * from ip_aptitude_historical_attempts')).rows;
+ const before=await f.invoke('admin_report',admin,{id:exam.id}),history=before.students.find(s=>s.historical);
+ assert.equal(history.attemptRevision,null);assert.deepEqual(history.subjectCorrectCounts,[15,15,15,15,15]);
+ await assert.rejects(f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:history.studentId,attemptRevision:1,sections:[0]}),/not_found/);
+ await f.invoke('admin_reset_attempt',admin,{id:exam.id,targetStudentId:'ip-a',attemptRevision:1,sections:[0]});
+ const after=await f.invoke('admin_report',admin,{id:exam.id});
+ assert.deepEqual(after.students.find(s=>s.historical),history);assert.equal(after.students.find(s=>s.studentId==='ip-b').rank,2);
+ assert.deepEqual((await f.db.query('select * from ip_aptitude_historical_attempts')).rows,stored);
+});
+
 test('PDF structures, all interview tracks and web-only members; draft keys and all non-member access stay private',async t=>{
  const f=await fixture(t),half=f.body(),full=f.body('full');await f.invoke('admin_save',admin,half);await f.invoke('admin_save',admin,full);
  const list=await f.invoke('list',student('web-only'));assert.deepEqual(list.rounds.map(r=>r.questionCount).sort((a,b)=>a-b),[75,150]);
