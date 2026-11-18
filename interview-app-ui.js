@@ -21,7 +21,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const aptitudeOnly=account.accessProduct==='aptitude_only';
  let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
  let mockAllowed=false;
- try{mockAllowed=(await request('mock_status')).allowed===true;}catch{}
+ const hasMockAccess=access=>access?.allowed===true||access?.betaAllowed===true;
+ try{mockAllowed=hasMockAccess(await request('mock_status'));}catch{}
  if(route.tab==='mock'&&!mockAllowed&&!aptitudeOnly)route={...route,tab:'home',mockMode:''};
  host.className='ip-root ip-portal ip-app-shell'+(mockTestApp?' ip-test-app-shell':'');
  const canLeave=()=>!busy&&(!child?.canLeave||child.canLeave())&&(!feedbackDialog?.canLeave||feedbackDialog.canLeave());
@@ -29,7 +30,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
   const tab=tabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
-  return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))?p.get('mockMode'):''};
+  return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))&&(mockTestApp||['job','personality'].includes(p.get('mockMode')))?p.get('mockMode'):''};
  }
  function url(){return '#interview-prep?'+new URLSearchParams(route);}
  function remember(){saveResume();}
@@ -37,6 +38,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  async function go(next,{historyChange=false}={}){
   if(destroyed||!canLeave()){if(historyChange)setUrl(true);return;}
   if(next.tab==='mock'&&!mockAllowed&&!aptitudeOnly)return;
+  if(!mockTestApp&&next.mockMode&&!['job','personality'].includes(next.mockMode))return;
   route={...route,...next};if(!historyChange)setUrl();else remember();await render();window.scrollTo({top:0,behavior:'auto'});
  }
  const link=(label,tab,page='',area='')=>`<button type="button" class="ip-app-link" data-app-tab="${tab}" ${page?`data-page="${esc(page)}"`:''} ${area?`data-area="${esc(area)}"`:''}>${esc(label)}<span aria-hidden="true">›</span></button>`;
@@ -48,11 +50,12 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   if(mode){
    const parent=mode.practiceMode||'';
    const back=parent?(parent==='job'?'‹ 직무 연습':'‹ 인성 연습'):'‹ 모의면접 목록';
+   const backButton=!mockTestApp&&['job','personality'].includes(route.mockMode)?'':`<button type="button" class="ip-btn ip-mock-back" data-app-mock="${parent}">${back}</button>`;
    const nativePractice=['job','personality'].includes(route.mockMode)&&window.__ronparkPracticeNative===true&&!!window.webkit?.messageHandlers?.interviewPractice&&!/Android/i.test(globalThis.navigator?.userAgent||'');
    const extra=['job','personality'].includes(route.mockMode)&&!nativePractice&&mockTestApp?`<section class="ip-panel ip-mock-extra"><h2>질문별 연습</h2><button type="button" class="ip-app-link" data-app-mock="${route.mockMode}_questions">질문 골라 연습 · 즐겨찾기<span aria-hidden="true">›</span></button></section>`:'';
-   return `<button type="button" class="ip-btn ip-mock-back" data-app-mock="${parent}">${back}</button><section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>${extra}`;
+   return `${backButton}<section class="ip-panel ip-mock-coming-soon" data-mock-mode="${route.mockMode}"><span class="ip-badge">${mode.title}</span><h2>준비 중입니다.</h2><p role="status">서비스를 준비하고 있습니다.<br>조금만 기다려주세요.</p></section>${extra}`;
   }
-  return `<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${Object.entries(mockModes).filter(([,mode])=>!mode.practiceMode).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}<span aria-hidden="true">›</span></button>`).join('')}</nav>`;
+  return `${mockTestApp?'':'<p class="ip-help"><span class="ip-badge">베타</span> 직무·인성 모의면접을 먼저 이용해보세요.</p>'}<nav class="ip-mock-menu" aria-label="모의면접 모드 선택">${Object.entries(mockModes).filter(([id,mode])=>!mode.practiceMode&&(mockTestApp||id!=='ai')).map(([id,mode])=>`<button type="button" class="ip-app-link ip-mock-button" data-app-mock="${id}">${mode.title}${mockTestApp?'':' <small class="ip-badge">베타</small>'}<span aria-hidden="true">›</span></button>`).join('')}</nav>`;
  }
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
@@ -82,7 +85,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
-     if(access.allowed!==true){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
+     if(!hasMockAccess(access)){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
      if(mockTestApp&&['job','personality'].includes(route.mockMode)&&window.__ronparkPracticeNative===true&&window.webkit?.messageHandlers?.interviewPractice&&!/Android/i.test(globalThis.navigator?.userAgent||'')){
       // Leave the mode list behind the native screen so dismissing it returns there.
       const mode=route.mockMode;
@@ -105,12 +108,12 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
       return;
      }
      box.innerHTML=mockScreen();
-     if(!mockTestApp&&['job','job_questions','personality','personality_questions'].includes(route.mockMode))return;
-     if(mockModes[route.mockMode]?.practiceMode){
+     if(!mockTestApp&&mockModes[route.mockMode]?.practiceMode)return;
+     if(mockModes[route.mockMode]?.practiceMode||!mockTestApp&&['job','personality'].includes(route.mockMode)){
       const {mountPracticePilot}=await import('./client/interview-practice-pilot.mjs?v=20261117-original-menu');
       if(destroyed||ticket!==generation)return;
       const slot=document.createElement('div');box.querySelector('[data-mock-mode="'+route.mockMode+'"]').replaceWith(slot);
-      const next=await mountPracticePilot(slot,{mode:mockModes[route.mockMode].practiceMode,accountId:account.id,request:async(url,body)=>{
+      const next=await mountPracticePilot(slot,{mode:mockModes[route.mockMode].practiceMode||route.mockMode,accountId:account.id,request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);
        const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
        const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
@@ -120,7 +123,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      }
      // Real-time AI remains restricted to its existing test-app route.
      if(!mockTestApp&&route.mockMode==='ai')return;
-     if(window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
+     if(mockTestApp&&window.__ronparkPracticeNative===true&&((window.__ronparkOpenAIPractice===true&&['job','personality'].includes(route.mockMode))||(window.__ronparkOpenAIPractice!==true&&(route.mockMode==='job'||window.__ronparkWindowsPractice===true&&['personality','ai'].includes(route.mockMode))))){
       const slot=box.querySelector('[data-mock-mode="'+route.mockMode+'"]');
       slot.innerHTML='<h2>'+esc(mockModes[route.mockMode].title)+'</h2><p>질문을 듣고 답변한 뒤, 녹음과 피드백을 확인하세요.</p><button type="button" class="ip-btn ip-primary" data-native-practice>연습 시작</button><p role="status" data-native-status></p>';
       slot.querySelector('[data-native-practice]').onclick=async e=>{

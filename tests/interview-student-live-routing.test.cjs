@@ -1,16 +1,17 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function element(){const nodes=new Map(),listeners=new Map();return {nodes,listeners,innerHTML:'',style:{},classList:{add(){},toggle(){},contains(){return false;}},querySelector(s){if(!nodes.has(s))nodes.set(s,element());return nodes.get(s);},querySelectorAll(){return [];},replaceWith(){},replaceChildren(){this.innerHTML='';},addEventListener(k,v){listeners.set(k,v);},removeEventListener(k){listeners.delete(k);}};}
-for(const mode of ['ai','job','job_questions','personality','personality_questions'])for(const installed of [false,true])test(`ordinary app keeps ${mode} coming soon even for an approved account (installed=${installed})`,async()=>{
+for(const mode of ['ai','job','job_questions','personality','personality_questions'])for(const installed of [false,true])test(`ordinary beta routes only job/personality to recording practice (mode=${mode}, installed=${installed})`,async()=>{
  const host=element(),calls=[],imports=[];
  const window={addEventListener(){},removeEventListener(){},scrollTo(){}};
  if(installed)window.webkit={messageHandlers:{interviewNative:{}}};
- const context={URLSearchParams,AbortController,document:{createElement:element},window,location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);throw Error('ordinary app must not load interview controllers');}};
+ const recordingMode=['job','personality'].includes(mode),mounted=[];
+ const context={URLSearchParams,AbortController,document:{createElement:element},window,location:{hash:'#interview-prep?tab=mock&mockMode='+mode},history:{replaceState(){},pushState(){}},localStorage:{setItem(){}},loadMode:async url=>{imports.push(url);return {mountPracticePilot:async(_host,options)=>{mounted.push(options.mode);return {canLeave:()=>true,destroy(){}};}};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('interview-app-ui.js','utf8').replace(/^import .*\r?\n/gm,'').replaceAll('export ','').replace(/await import\(([^)]+)\)/g,'await loadMode($1)'),context);
- const view=await context.mountInterviewApp(host,{request:async action=>{calls.push(action);return {allowed:true};},aiRequest:async()=>{throw Error('ordinary app must not call interview APIs');}});
- assert.match(host.querySelector('[data-app-content]').innerHTML,/준비 중입니다\./);
- assert.equal(imports.length,0);assert.deepEqual(calls,['mock_status','mock_status']);
- if(mode!=='ai')assert(!host.querySelector('[data-app-content]').innerHTML.includes('ip-mock-extra'));
+ const view=await context.mountInterviewApp(host,{account:{id:'beta-owner'},request:async action=>{calls.push(action);return {allowed:false,betaAllowed:true};},aiRequest:async()=>{throw Error('No automatic analysis APIs');}});
+ assert.equal(imports.length,recordingMode?1:0);assert.deepEqual(mounted,recordingMode?[mode]:[]);assert.deepEqual(calls,['mock_status','mock_status']);
+ if(recordingMode)assert.match(imports[0],/interview-practice-pilot/);
+ else{assert.match(host.querySelector('[data-app-content]').innerHTML,/베타/);assert.doesNotMatch(host.querySelector('[data-app-content]').innerHTML,/data-app-mock="ai"|준비 중/);}
  assert.equal(view.canLeave(),true);view.destroy();
 });
 for(const mode of ['ai','job','personality'])test(`${mode} mounts only its own authenticated student controller`,async()=>{

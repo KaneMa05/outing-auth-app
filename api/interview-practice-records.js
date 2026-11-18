@@ -4,7 +4,7 @@ const {UUID,fail}=require('../lib/interview-ai-validation');
 function defaults(){const auth=require('./teacher-auth-utils');return {
  previewAllowed:require('../lib/interview-preview-access').isPreviewStudent,
  authenticateDevice:require('./criminal-law-ox')._private.authenticateStudent,
- requirePracticeAccess:require('../lib/interview-mock-access').requireMockAccess,
+ requirePracticeAccess:id=>require('../lib/interview-mock-access').requireMockAccess(id,{practiceOnly:true}),
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateNative:async req=>{
   if(process.env.INTERVIEW_NATIVE_ENABLED!=='true'||req.headers['x-interview-test-app']!=='1')return null;
