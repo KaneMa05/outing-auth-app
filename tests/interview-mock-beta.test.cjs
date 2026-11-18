@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{randomUUID}=require('node:crypto');
 const {createDb}=require('./helpers/interview-db.cjs');
 const admin={type:'admin',id:'beta-qa'},student=id=>({type:'student',id});
-const migration='supabase/migrations/20261118085526_interview_job_personality_beta.sql';
+const migration='supabase/migrations/20261118091656_interview_job_personality_beta.sql';
 const recording=mode=>({runId:randomUUID(),mode,track:'공채',fieldId:'',fieldLabel:'',region:'',recordedAt:new Date().toISOString(),questionCount:1,completed:true,finished:true,
  turns:[{number:1,questionId:'q',question:'가상 연습 질문',answer:'',duration:2,audioBytes:100,audioHash:'a'.repeat(64),audioMime:'audio/webm'}]});
 async function respond(handler,body,headers={}){let status,data;await handler({method:'POST',headers:{host:'localhost',...headers},body},{setHeader(){},status(n){status=n;return this;},json(d){data=d;}});return {status,data};}
