@@ -28,8 +28,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  // Released apps expose only job/personality beta, even with test native bridges present.
  for(const mode of ['job','personality','personality_questions','ai']){
   await page.evaluate(async mode=>{window.view.destroy();window.__ronparkMockTestApp=false;location.hash='#interview-prep?tab=mock&mockMode='+mode;const {mountInterviewApp}=await import('/interview-app-ui.js');window.view=await mountInterviewApp(document.querySelector('#host'),{account:{id:'beta-member',accessProduct:'interview_package'},request:async()=>({allowed:false,betaAllowed:true}),aiRequest:async(_url,body)=>({ok:true,accountId:'beta-member',mode:body.mode,track:'공채',fields:[],questions:[{id:'q-beta',prompt:'베타 질문',category:body.mode,fieldIds:[],regions:[]}]})});},mode);
-  if(['job','personality'].includes(mode)){await page.locator('[data-pilot=quick]').waitFor();assert.equal(await page.locator('[data-job-action=start],[data-personality-action=start]').count(),0);}
-  else{assert.equal(await page.locator('.ip-mock-menu [data-app-mock]').count(),2);assert.equal(await page.locator('[data-app-mock="ai"]').count(),0);assert.match(await page.locator('[data-app-content]').innerText(),/베타/);}
+  if(['job','personality'].includes(mode)){await page.locator('[data-practice-action=configured]').waitFor();assert.equal(await page.locator('[data-job-action=start],[data-personality-action=start],[data-pilot]').count(),0);}
+  else{assert.equal(await page.locator('.ip-mock-menu [data-app-mock]').count(),2);assert.equal(await page.locator('[data-app-mock="ai"]').count(),0);assert.equal(await page.locator('.ip-app-beta-label').count(),1);}
   assert.equal(await page.evaluate(()=>window.nativeCalls.length),4);assert.equal(await page.evaluate(()=>window.nativeAI.length),2);assert.equal(await page.locator('.ip-mock-extra').count(),0);
  }
  fs.mkdirSync('.tmp/mock-beta-review',{recursive:true});

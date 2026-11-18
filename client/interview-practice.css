@@ -1,0 +1,66 @@
+/* Matches the existing iOS PracticeView / Android PortalPractice screens. */
+.ip-app-shell.ip-app-practice{padding:0!important;max-width:720px!important;background:#f6f8fa}
+.ip-app-practice>.ip-app-header,.ip-app-practice>.ip-app-footer{display:none}
+.ip-mock-practice{--practice-teal:#087d72;--practice-ink:#152c43;--practice-sub:#65778a;min-height:100svh;background:#f6f8fa;color:var(--practice-ink);font-family:inherit;line-height:1.5}
+.ip-mock-practice *{box-sizing:border-box}
+.ip-mock-practice-nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:calc(56px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 16px 0;background:#f6f8faf5;border-bottom:1px solid #e8edf1;backdrop-filter:blur(12px)}
+.ip-mock-practice-nav h1{margin:0;font-size:17px;font-weight:600}
+.ip-mock-practice-nav button{display:flex;align-items:center;gap:2px;justify-self:start;border:0;background:transparent;color:var(--practice-teal);font:inherit;font-size:16px;padding:10px 0;cursor:pointer}
+.ip-mock-practice-nav svg{width:22px;height:22px}
+.ip-mock-practice-content{padding:24px 24px calc(32px + env(safe-area-inset-bottom,0px));max-width:680px;margin:auto}
+.ip-mock-practice-heading{margin-bottom:24px}
+.ip-mock-practice-beta,.ip-app-beta-label{display:table;padding:3px 8px;margin:0 0 7px;border-radius:5px;background:#e4f1ee;color:#087d72;font-size:11px!important;font-weight:700;line-height:1.35;letter-spacing:.02em}
+.ip-mock-practice-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.ip-mock-practice-title h2{margin:0!important;font-size:27px!important;letter-spacing:-.04em;line-height:1.35;font-weight:750}
+.ip-mock-practice:not([data-practice-screen=home]):not([data-practice-screen=settings]) .ip-mock-practice-title h2{font-size:14px!important;font-weight:500;color:var(--practice-teal);letter-spacing:0}
+.ip-mock-practice-title>span{flex:none;color:var(--practice-teal);font-size:14px}
+.ip-mock-practice-page-title{margin:0 0 20px;font-size:24px;line-height:1.4;letter-spacing:-.025em}
+.ip-mock-practice-selection{display:grid;gap:12px}
+.ip-mock-practice-selection.has-region{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.ip-mock-practice-select{display:flex;min-width:0;flex-direction:column;gap:7px;margin:0 0 20px;font-size:13px;color:var(--practice-sub)}
+.ip-mock-practice-select select{display:block;width:100%;min-width:0;height:49px;padding:0 34px 0 12px;border:1px solid #bdc9d2;border-radius:10px;background-color:white;color:var(--practice-ink);font:inherit;font-size:15px;line-height:1.4;text-overflow:ellipsis}
+.ip-mock-practice-button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;margin:0 0 12px;padding:13px 16px;border:1px solid #bfd9d5;border-radius:12px;background:#fff;color:var(--practice-teal);font:inherit;font-size:16px;font-weight:600;line-height:1.5;cursor:pointer;touch-action:manipulation}
+.ip-mock-practice-button.is-primary{background:var(--practice-teal);border-color:var(--practice-teal);color:white}
+.ip-mock-practice-button:disabled{opacity:.45;cursor:default}
+.ip-mock-practice-button:focus-visible,.ip-mock-practice-nav button:focus-visible{outline:3px solid #83bdb4;outline-offset:3px}
+.ip-mock-practice-button:active:not(:disabled){filter:brightness(.97)}
+.ip-mock-practice-button svg{flex:none;width:24px;height:24px}
+.ip-mock-practice-menu{margin:24px 0;border-radius:18px;background:white;overflow:hidden}
+.ip-mock-practice-menu .ip-mock-practice-button{justify-content:flex-start;gap:14px;margin:0;padding:18px;border:0;border-radius:0;background:transparent;text-align:left;color:var(--practice-ink)}
+.ip-mock-practice-menu .ip-mock-practice-button+.ip-mock-practice-button{border-top:1px solid #edf1f3}
+.ip-mock-practice-menu .ip-mock-practice-button>svg:first-child{color:var(--practice-teal)}
+.ip-mock-practice-menu .ip-mock-practice-button>svg:last-child{margin-left:auto;width:18px;color:#7e8e9b}
+.ip-mock-practice-menu small{display:block;margin-top:4px;color:var(--practice-sub);font-size:12px;font-weight:400}
+.ip-mock-practice-card{padding:18px;margin:16px 0;background:white;border-radius:16px}
+.ip-mock-practice-card h4{margin:0 0 10px;font-size:17px;line-height:1.6;letter-spacing:-.02em;overflow-wrap:anywhere}
+.ip-mock-practice-card .ip-mock-practice-button:last-child{margin-bottom:0}
+.ip-mock-practice-card audio{display:block;width:100%;height:44px;margin:12px 0 2px}
+.ip-mock-practice-note{margin:0 0 14px;color:var(--practice-sub);font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.ip-mock-practice-question-row{display:flex;align-items:flex-start;gap:10px}
+.ip-mock-practice-question-row h4{flex:1}
+.ip-mock-practice-button.ip-mock-practice-star{width:40px;min-height:40px;margin:-4px -4px 0 0;padding:8px;border:0;flex:none;background:transparent}
+.ip-mock-practice-star[aria-pressed=true] svg{fill:#087d72}
+.ip-mock-practice-segments{display:flex;gap:3px;padding:3px;margin:0 0 16px;background:#e7ecef;border-radius:9px}
+.ip-mock-practice-segments .ip-mock-practice-button{min-height:36px;margin:0;padding:6px 8px;border:0;border-radius:7px;background:transparent;color:var(--practice-ink);font-size:14px;font-weight:500}
+.ip-mock-practice-segments [aria-pressed=true]{background:white;box-shadow:0 1px 3px #20384b17}
+.ip-mock-practice-turn{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ip-mock-practice-turn strong{font-size:18px}
+.ip-mock-practice-button.ip-mock-practice-text-button{width:auto;min-height:40px;margin:0;padding:8px 0;border:0;background:transparent;font-size:14px;font-weight:500}
+.ip-mock-practice-clock{margin:0 0 20px;font-size:12px;color:var(--practice-sub);font-variant-numeric:tabular-nums}
+.ip-mock-practice-voice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:164px;padding:28px;background:#fff;border-radius:20px;color:var(--practice-teal)}
+.ip-mock-practice-voice-icon svg{display:block;width:38px;height:38px}
+.ip-mock-practice-voice-status{display:flex;align-items:center;gap:8px;height:26px}
+.ip-mock-practice-voice-status>svg{width:14px;height:14px}
+.ip-mock-practice-voice-status small{font-size:11px}
+.ip-mock-practice-wave{display:flex;align-items:center;gap:2px;width:28px;height:24px;--voice-level:.12}
+.ip-mock-practice-wave i{display:block;width:4px;height:calc(12px + (2 - var(--bar))*3px);border-radius:3px;background:currentColor;transform:scaleY(var(--voice-level));transition:transform .1s linear}
+.ip-mock-practice-wave i:nth-child(4){height:15px}.ip-mock-practice-wave i:nth-child(5){height:12px}
+.is-speaking .ip-mock-practice-wave i{animation:practice-speech .65s calc(var(--bar)*-.12s) ease-in-out infinite alternate}
+@keyframes practice-speech{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+.ip-mock-practice-turn-status{text-align:center;margin:22px 0 14px;font-size:16px;color:var(--practice-teal)}
+.ip-mock-practice-prompt{text-align:center;font-size:22px;font-weight:700;line-height:1.65;letter-spacing:-.03em;margin:0 0 28px;word-break:keep-all;overflow-wrap:anywhere}
+.ip-mock-practice-prompt.is-countdown{font-size:44px;font-variant-numeric:tabular-nums}
+.ip-mock-practice-notice{padding:14px;border-radius:14px;background:#e8f2ef;color:var(--practice-teal);font-size:13px;line-height:1.65}
+.ip-mock-practice-delete{border:0;color:#b44f4f;font-weight:400;font-size:14px}
+@media(min-width:768px){.ip-mock-practice-content{padding-top:32px}.ip-mock-practice-title h2{font-size:29px!important}}
+@media(prefers-reduced-motion:reduce){.ip-mock-practice-wave i{animation:none!important;transition:none}}
