@@ -1,0 +1,7 @@
+{
+  "model": "Whisper large-v3",
+  "python": "C:/practice-asr/venv/Scripts/python.exe",
+  "modelDirectory": "C:/practice-asr/model",
+  "modelRevision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
+  "cudaLibraries": "C:/practice-asr/cuda"
+}

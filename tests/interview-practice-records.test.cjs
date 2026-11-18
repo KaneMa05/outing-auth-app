@@ -10,6 +10,7 @@ async function api(handler,body,headers={}){let code,out;await handler({method:'
 function setup(overrides={}){
  const calls=[];const deps={authenticateWeb:async()=>({id:'student-a'}),authenticateAdmin:async()=>({id:'admin'}),
  invoke:async(action,actor,body)=>{calls.push({action,actor,body});return {ok:true,run:{id:runId,student_id:'student-a'},turns:[turn]};},
+ transcription:async()=>({ok:true,jobs:[],summaries:[]}),
  storage:{upload:async()=> 'https://test.supabase.co/storage/v1/object/upload/sign/interview-practice/x?token=fake',verify:async()=>{},signed:async()=> 'signed-audio'},...overrides};
  return {calls,deps,handler:createHandler(deps)};
 }
@@ -62,4 +63,18 @@ test('device login requires a preview account and authenticated matching device 
 test('web compressed formats have fixed storage extensions and reject arbitrary MIME',()=>{
  for(const [audio_mime,extension] of [['audio/mp4','m4a'],['audio/webm','webm'],['audio/ogg','ogg']])assert(objectKey(runId,{...turn,audio_mime}).endsWith('.'+extension));
  assert.throws(()=>validate({...payload,turns:[{...payload.turns[0],audioMime:'text/html'}]}),/invalid_request/);
+});
+
+test('admin transcription views merge only matching turn results, without invoking ASR',async()=>{
+ const actions=[];const h=setup({transcription:async(action,actor,body)=>{actions.push(action);assert.equal(actor.type,'admin');assert.equal(body.runId,runId);return {ok:true,jobs:[{number:1,status:'completed',transcript:'아니다'}]};}});
+ const r=await api(h.handler,{action:'admin_get',runId});assert.equal(r.code,200);assert.equal(r.out.turns[0].transcription.transcript,'아니다');assert.deepEqual(actions,['admin_get']);
+});
+test('transcription edits require write permission and bounded, versioned admin input',async()=>{
+ const body={action:'admin_review',runId,number:1,revision:1,reviewStatus:'meaning',correctedText:'아니다',note:''};let writes=[];
+ const h=setup({authenticateAdmin:async(_req,{write})=>{writes.push(write);if(write)throw Error('forbidden');return {id:'read-only'};}});
+ assert.equal((await api(h.handler,body)).code,403);assert.deepEqual(writes,[true]);assert.equal(h.calls.length,0);
+ for(const bad of [{revision:0},{reviewStatus:'graded'},{correctedText:''},{note:'x'.repeat(3001)},{studentId:'victim'}])assert.equal((await api(setup().handler,{...body,...bad})).code,400);
+ const allowed=setup({transcription:async(action,actor,value)=>{assert.equal(action,'admin_review');assert.equal(actor.id,'admin');assert.equal(value.correctedText,'아니다');return {ok:true};}});
+ assert.equal((await api(allowed.handler,body)).code,200);assert.equal(allowed.calls.length,0);
+ assert.equal((await api(allowed.handler,{action:'complete',runId,number:1})).code,400);
 });

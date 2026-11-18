@@ -35,6 +35,7 @@ public/
 # PC worker configuration and local processing tools
 tools/interview-worker/
 tools/interview-live-worker/
+tools/practice-transcriber/
 
 # Play Console registration evidence and local store assets
 artifacts/

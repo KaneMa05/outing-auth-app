@@ -274,7 +274,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
     }
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('분류·채점 기준','tab',`data-tab="rubrics" ${tab==='rubrics'?'aria-current="page"':''}`));
-    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('베타 연습 현황','tab',`data-tab="practice" ${tab==='practice'?'aria-current="page"':''}`));
+    host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('녹음 기록','tab',`data-tab="practice" ${tab==='practice'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('음성 모의면접 기록','tab',`data-tab="live" ${tab==='live'?'aria-current="page"':''}`));
     if(tab==='review'){
       host.querySelector('.ip-hero h2').textContent='피드백 관리';
@@ -289,7 +289,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
     }
     if(tab==='practice'){
-      host.querySelector('.ip-hero h2').textContent='베타 연습 현황';
+      host.querySelector('.ip-hero h2').textContent='녹음 기록';
       host.querySelector('.ip-hero>p').textContent='학생별 연습 분야와 질문, 답변 시간 및 모든 답변 녹음을 확인합니다.';
       host.querySelector('.ip-hero .ip-summary').remove();
       host.querySelector('[data-ip=enabled]').closest('.ip-row').remove();
@@ -353,9 +353,9 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='practice'){
-      const {mountPracticeRecords}=await import('./interview-practice-admin-ui.js?v=20261116-archive');
+      const {mountPracticeRecords}=await import('./interview-practice-admin-ui.js?v=20261118-transcription');
       if(destroyed||version!==loadVersion)return;
-      const next=await mountPracticeRecords(box);
+      const next=await mountPracticeRecords(box,{canWrite});
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
       return;
     }
