@@ -17,6 +17,7 @@ const reads = new Set(['admin_question_example_detail','admin_app_feedback_list'
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
+  if(body.includeNotices!==undefined&&(body.action!=='bootstrap'||typeof body.includeNotices!=='boolean'))fail('invalid_request');
   if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save','admin_application_decide'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
   if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
   if(body.action==='admin_application_product_save'&&(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.id)||!Number.isInteger(body.revision)))fail('invalid_request');
@@ -133,7 +134,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];
-      res.status(200).json(body.action.startsWith('admin_app_feedback_')
+      const result=body.action.startsWith('admin_app_feedback_')
         ?await require('../lib/interview-app-feedback.cjs').feedback(body.action,actor,payload,read)
         :body.action==='admin_mock_monitor'
         ?await require('../lib/interview-mock-monitor.cjs').monitorStatus(payload,actor,read)
@@ -147,7 +148,12 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         ?await require('../lib/interview-ai-usage.cjs').usage(payload,actor,read)
         :body.action==='admin_assignment_overview'
         ?await require('../lib/interview-assignment-overview.cjs').overview(payload,actor,invoke,read)
-        :await invoke(body.action,actor,payload));
+        :await invoke(body.action,actor,payload);
+      if(body.action==='bootstrap'&&body.includeNotices===true&&result?.ok===true){
+        try{result.notices=await require('../lib/interview-notices.cjs').publishedInterviewNotices(read);}
+        catch{result.notices=[];result.noticesUnavailable=true;}
+      }
+      res.status(200).json(result);
     } catch(error) {
       const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
       known.push('rubric_incomplete');

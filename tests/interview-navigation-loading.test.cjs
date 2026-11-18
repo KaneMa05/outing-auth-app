@@ -113,14 +113,13 @@ test('all interview functions use the database region without changing other app
 
 test('banner opens the assignment article without API reads and home returns to the dashboard',async()=>{
  const calls=[],host=element(),c=load('interview-app-ui.js');
- const view=await c.mountInterviewApp(host,{request:async action=>{calls.push(action);return {};}});
+ const view=await c.mountInterviewApp(host,{request:async(action,payload)=>{calls.push(action);if(action==='bootstrap'){assert.equal(payload.includeNotices,true);return {notices:[{title:'관리자 공지',body:'관리자가 수정한 안내'}]};}return {};}});
  const box=host.querySelector('[data-app-content]');
  assert.match(box.innerHTML,/data-app-notice="preassignments"/);
  assert.match(box.innerHTML,/aria-labelledby="ip-app-notices-title"/);
- assert.match(box.innerHTML,/11\.9/);
- assert.match(box.innerHTML,/11\.10/);
- assert.match(box.innerHTML,/ronpark1234/);
- assert.match(box.innerHTML,/RONPARK1234/);
+ assert.match(box.innerHTML,/관리자 공지/);
+ assert.match(box.innerHTML,/관리자가 수정한 안내/);
+ assert.doesNotMatch(box.innerHTML,/ronpark1234|RONPARK1234/);
  assert.equal((box.innerHTML.match(/data-app-notice="preassignments"/g)||[]).length,1);
  assert.doesNotMatch(box.innerHTML,/ip-app-welcome|이어서 작성하기/);
  calls.length=0;

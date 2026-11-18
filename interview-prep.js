@@ -128,8 +128,38 @@ async function logoutInterviewStudent(student,token){
 }
 
 function renderInterviewPrep() { return renderInterviewPrepModule(false); }
-function renderInterviewPrepAdmin() { return renderInterviewPrepModule(true); }
-const interviewAdminSections={app_feedback:'앱 오류·개선 의견',home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',aptitude:'적성 모의고사 관리',aptitude_grades:'적성 모의고사 성적관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',practice:'베타 연습 현황',live:'음성 모의면접 기록'};
+function renderInterviewPrepAdmin() {
+  if (getInterviewAdminSection() === 'notices') {
+    if (!isTeacherAdmin() || !hasTeacherPermission('interview.read') || !hasTeacherPermission('notices.read')) return renderForbidden();
+    renderInterviewPrepModule.view?.controller?.destroy();
+    renderInterviewPrepModule.view = null;
+    if (!remoteStore) return noticeAdminPanel({ studentCategory: 'interview' });
+    let cache = renderInterviewPrepAdmin.notices;
+    if (!cache || cache.username !== teacherAuth.user.username) {
+      cache = { username: teacherAuth.user.username, loaded: false, error: false, element: el('p', { role: 'status' }, '공지사항을 불러오는 중…') };
+      renderInterviewPrepAdmin.notices = cache;
+      requestNoticeApi({ action: 'list', scope: 'interview' }).then(result => {
+        if (renderInterviewPrepAdmin.notices !== cache) return;
+        state.interviewNotices = (result.notices || []).map(mapNoticeFromRemote);
+        cache.loaded = true;
+        render();
+      }).catch(() => {
+        if (renderInterviewPrepAdmin.notices !== cache) return;
+        cache.error = true;
+        render();
+      });
+    }
+    if (cache.error) return el('div', {}, [
+      el('p', { role: 'alert' }, '공지사항을 불러오지 못했습니다.'),
+      button('다시 시도', 'btn secondary', 'button', () => { renderInterviewPrepAdmin.notices = null; render(); }),
+    ]);
+    if (!cache.loaded) return cache.element;
+    return noticeAdminPanel({ studentCategory: 'interview' });
+  }
+  renderInterviewPrepAdmin.notices = null;
+  return renderInterviewPrepModule(true);
+}
+const interviewAdminSections={notices:'공지사항 관리',app_feedback:'앱 오류·개선 의견',home:'면접반 홈',applications:'수강 신청·승인',preassignments:'과제 관리',review:'피드백 관리',ai_history:'AI 생성 기록',aptitude:'적성 모의고사 관리',aptitude_grades:'적성 모의고사 성적관리',members:'학생 등록·첨삭',topics:'인성 준비 항목',core:'핵심인성 30제',questions:'인성 기출 관리',analysis:'질문 요소 분석',job:'직무 기출 관리',rubrics:'분류·채점 기준',practice:'베타 연습 현황',live:'음성 모의면접 기록'};
 function getInterviewAdminSection(){
   const section=new URLSearchParams((location.hash.split('?')[1]||'')).get('section');
   return Object.hasOwn(interviewAdminSections,section)?section:'home';
@@ -157,6 +187,7 @@ function syncInterviewAdminMode(){
   control.hidden=!allowed;regular.hidden=active;interview.hidden=!active;
   document.body.classList.toggle('teacher-interview-mode',active);
   const section=getInterviewAdminSection();
+  if (!active || section !== 'notices') renderInterviewPrepAdmin.notices = null;
   control.querySelectorAll('[data-teacher-mode]').forEach(node=>{
     node.setAttribute('aria-pressed',String((node.dataset.teacherMode==='interview')===active));
     node.onclick=()=>navigate(node.dataset.teacherMode==='interview'?'interview-prep-admin?section=home':'home');
@@ -233,7 +264,7 @@ function renderInterviewPrepModule(admin) {
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&(isStandaloneStudentApp()||accessProduct==='aptitude_only');
-    const module=await (admin?import('./interview-prep-ui.js?v=20261117-aptitude-subject-scores'):appShell?import('./interview-app-ui.js?v=20261117-writing-submit-notice'):import('./interview-workspace.js?v=20261117-writing-submit-notice'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261117-aptitude-subject-scores'):appShell?import('./interview-app-ui.js?v=20261118-interview-notices'):import('./interview-workspace.js?v=20261117-writing-submit-notice'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{

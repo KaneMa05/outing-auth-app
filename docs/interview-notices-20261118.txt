@@ -1,0 +1,29 @@
+면접반 공지사항 관리
+
+관리 위치
+- 관리자 페이지 → 면접반 관리 → 공지사항 관리
+- 면접반 전용 관리 화면에서는 면접반 공지만 조회하고, 신규 공지 대상을 면접반으로 고정합니다.
+- 제목·내용·사진·공개 여부를 기존 공지 관리 방식으로 등록·수정·삭제합니다.
+
+학생 화면
+- 면접반 앱 홈에서 공개된 면접반 공지를 최신 등록순으로 표시합니다.
+- 홈 bootstrap 요청에 includeNotices=true가 있을 때만 추가 조회합니다.
+- 기존 인증 및 수강 권한 확인이 성공한 뒤 공지를 조회합니다.
+- 공지 조회 실패 시 다른 홈 기능은 유지하고 다시 시도 버튼을 표시합니다.
+- 면접반 공지는 별도 테이블에 저장합니다. 기존 앱을 오래 켜두었거나 오래된 공지 데이터를 저장하더라도 다른 수강생 공지와 섞이지 않습니다.
+
+운영 반영 준비
+- supabase/migrations/20261118064237_interview_notices.sql
+- interview_notices 테이블을 생성하고, 기존 고정 안내를 면접반 공지글 1건으로 이전합니다.
+- 기존 안내의 날짜와 본문은 그대로 유지하며, 관리자에서 이후 수정·숨김·삭제할 수 있습니다.
+- 기존 notices 테이블의 레코드와 권한·RLS 정책은 변경하지 않습니다.
+- 새 테이블은 RLS를 활성화하고 익명·일반 인증 역할의 직접 접근을 차단합니다. 인증·권한을 확인하는 서버 API에서만 조회·저장합니다.
+- 사용자 최종 확인 후 해당 SQL 마이그레이션 적용 → 앱 배포 순서로 진행합니다.
+- 사용자의 반영 승인 후 운영 DB 적용을 완료했습니다. 배포 결과는 운영 반영 기록에 남깁니다.
+
+검증
+- node --test tests/interview-notices.test.cjs tests/interview-navigation-loading.test.cjs tests/interview-admin-entry.test.cjs
+- node tests/interview-notices-browser.cjs
+- npm --ignore-scripts test (전체 본 테스트)
+- npm test는 기존 criminal-law-ox-loading.test.cjs에서 interview-practice-records.js 리전 설정 기대값 불일치로 pretest가 중단됩니다. 이 작업에서는 해당 기존 설정을 수정하지 않았습니다.
+- node scripts/verify-interview-build.cjs

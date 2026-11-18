@@ -4765,7 +4765,7 @@ function applyRemoteAppSettings(settings) {
 
 function normalizeNoticeTargetAudience(value) {
   const normalized = String(value || "").trim();
-  if (normalized === "academy") return "academy";
+  if (normalized === "academy" || normalized === "interview") return normalized;
   const allowed = ["offline", "online_managed", "lecture"];
   const requested = normalized.split(",").map((item) => item.trim()).filter(Boolean);
   if (!requested.length || requested.some((item) => !allowed.includes(item))) return "academy";
@@ -4782,6 +4782,7 @@ function getNoticeTargetAudienceLabel(value) {
     offline: "오프라인 수강생",
     online_managed: "온라인 관리반",
     lecture: "인터넷 수강생",
+    interview: "면접반",
   };
   return getNoticeTargetAudienceValues(value).map((audience) => labels[audience]).join(" · ");
 }
@@ -4792,7 +4793,8 @@ function noticeMatchesStudentCategory(notice, studentCategory) {
 }
 
 function getImportantNotices({ publishedOnly = false, studentCategory = "" } = {}) {
-  return removeLegacySampleNotices(state.notices || [])
+  const notices = studentCategory === "interview" ? state.interviewNotices : state.notices;
+  return removeLegacySampleNotices(notices || [])
     .filter((notice) => String(notice.title || "").trim())
     .filter((notice) => !publishedOnly || notice.isPublished !== false)
     .filter((notice) => noticeMatchesStudentCategory(notice, studentCategory))

@@ -1,0 +1,65 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const {setup,sharedFunctions}=require('./helpers/interview-notices-fixture.cjs');
+const {publishedInterviewNotices}=require('../lib/interview-notices.cjs');
+const {createHandler}=require('../api/interview-prep');
+const {normalizeNoticeTargetAudience}=require('../api/notices')._private;
+const notice=(id,extra={})=>({id,title:'면접반 안내',body:'첫째 줄\n둘째 줄',targetAudience:'interview',isPublished:true,...extra});
+test('migration isolates interview notices from legacy snapshots and writes, preserves existing notices, and seeds the old announcement once',async t=>{
+ const f=await setup({migrate:false});t.after(()=>f.close());
+ await f.db.exec("insert into notices(id,title,body,target_audience) values('legacy','기존 공지','유지','academy');grant select,insert,update,delete on notices to anon;");
+ await f.db.exec(f.migration);
+ assert.equal((await f.db.query("select target_audience from notices where id='legacy'")).rows[0].target_audience,'academy');
+ const seed=(await f.db.query("select * from interview_notices where id='interview-home-announcement-20261109'")).rows[0];
+ assert.equal(seed.target_audience,'interview');assert.match(seed.body,/11\.9/);assert.match(seed.body,/11\.10/);assert.match(seed.body,/ronpark1234 혹은 RONPARK1234/);
+ await f.db.exec("update interview_notices set body='관리자가 수정한 안내' where id='interview-home-announcement-20261109'");await f.db.exec(f.migration);
+ assert.equal((await f.db.query("select body from interview_notices where id='interview-home-announcement-20261109'")).rows[0].body,'관리자가 수정한 안내');
+ for(const role of ['anon','authenticated']){
+  await f.db.exec('set role '+role);await assert.rejects(f.db.query('select * from interview_notices'),/permission denied/);
+  await assert.rejects(f.db.exec("insert into interview_notices(id,title,body) values('denied','제목','본문')"),/permission denied/);await f.db.exec('reset role');
+ }
+ await f.db.exec('set role anon');assert.equal((await f.db.query('select * from notices')).rows.length,1);
+ await f.db.exec("update notices set body='기존 앱에서 저장' where id='legacy'");await f.db.exec('reset role');
+ assert.equal((await f.db.query('select count(*) n from interview_notices')).rows[0].n,1);
+ assert.equal(normalizeNoticeTargetAudience('interview'),'interview');assert.equal(normalizeNoticeTargetAudience('lecture,offline'),'offline,lecture');
+ assert.equal((await f.db.query("select relrowsecurity from pg_class where relname='interview_notices'")).rows[0].relrowsecurity,true);
+ await f.db.exec('set role service_role');assert.equal((await f.db.query('select count(*) n from interview_notices')).rows[0].n,1);await f.db.exec('reset role');
+});
+test('administrator create, edit, hide, and delete persist through the existing authenticated notice API',async t=>{
+ const f=await setup();t.after(()=>f.close());
+ const save=extra=>f.call(f.noticesHandler,{scope:'interview',action:'save',notice:notice('new',extra)},f.adminCookie);
+ assert.equal((await f.call(f.noticesHandler,{action:'save',notice:notice('new',{targetAudience:'offline',body:'기존 앱 공지'})},f.adminCookie)).status,201);
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'list'},'teacher_session='+f.token(['notices.read','interview.read']))).status,200);
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'list'},'teacher_session='+f.token(['notices.read']))).status,403);
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'save',notice:notice('denied')})).status,401);
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'delete',noticeId:'new'},'teacher_session='+f.token(['notices.read']))).status,403);
+ assert.equal((await save()).status,201);
+ assert((await publishedInterviewNotices(f.read)).some(n=>n.id==='new'));
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'save',update:true,notice:notice('new',{title:'수정된 공지',body:'수정 내용'})},f.adminCookie)).status,200);
+ assert.equal((await publishedInterviewNotices(f.read)).find(n=>n.id==='new').body,'수정 내용');
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'save',update:true,notice:notice('new',{isPublished:false})},f.adminCookie)).status,200);
+ assert(!(await publishedInterviewNotices(f.read)).some(n=>n.id==='new'));
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'delete',noticeId:'new'},f.adminCookie)).status,200);
+ assert.equal((await f.db.query("select * from interview_notices where id='new'")).rows.length,0);
+ assert.equal((await f.db.query("select body from notices where id='new'")).rows[0].body,'기존 앱 공지');
+ assert.equal((await f.call(f.noticesHandler,{scope:'interview',action:'save',update:true,notice:notice('new')},f.adminCookie)).status,404);
+});
+test('student home loads published interview notices only after authentication and enrollment; other bootstrap reads stay unchanged',async t=>{
+ const f=await setup();t.after(()=>f.close());
+ await f.db.exec("insert into notices(id,title,body,target_audience) values('offline','비면접반','내용','offline');insert into interview_notices(id,title,body,is_published) values('hidden','숨김','내용',false),('published','면접반 공개','내용',true)");
+ const before=f.readCount;
+ assert.equal((await f.call(f.studentHandler,{action:'bootstrap',includeNotices:true})).status,403);assert.equal(f.readCount,before);
+ const unenrolled=createHandler({authenticateWeb:async()=>({id:'not-enrolled'}),invoke:async()=>{throw Error('not_enrolled');},read:f.read});
+ assert.equal((await f.call(unenrolled,{action:'bootstrap',includeNotices:true})).status,403);assert.equal(f.readCount,before);
+ const plain=await f.call(f.studentHandler,{action:'bootstrap'},'qa_student=1');assert.equal(plain.status,200);assert.equal(plain.data.notices,undefined);assert.equal(f.readCount,before);
+ const home=await f.call(f.studentHandler,{action:'bootstrap',includeNotices:true},'qa_student=1');
+ assert.equal(home.status,200);assert.deepEqual(home.data.notices.map(n=>n.id).sort(),['interview-home-announcement-20261109','published']);
+ await f.db.exec("update interview_notices set image_path='published/123e4567-e89b-12d3-a456-426614174000.jpg' where id='published'");
+ assert.equal((await publishedInterviewNotices(f.read)).find(n=>n.id==='published').imageUrl,'https://notice-fixture.invalid/storage/v1/object/public/notice-images/published/123e4567-e89b-12d3-a456-426614174000.jpg');
+ assert.equal((await f.call(f.studentHandler,{action:'life_get',includeNotices:true},'qa_student=1')).status,400);
+ f.setReadFailure(true);const failed=await f.call(f.studentHandler,{action:'bootstrap',includeNotices:true},'qa_student=1');
+ assert.equal(failed.status,200);assert.equal(failed.data.noticesUnavailable,true);assert.deepEqual(failed.data.topics,[]);
+ const c={state:{interviewNotices:[{id:'interview',title:'면접',targetAudience:'interview'}],notices:[{id:'academy',title:'기존',targetAudience:'academy'},{id:'lecture',title:'인강',targetAudience:'lecture'}]},APP_SETTINGS_NOTICE_ID:'settings',LEGACY_SAMPLE_NOTICE_IDS:new Set()};vm.createContext(c);vm.runInContext(sharedFunctions(),c);
+ for(const category of ['offline','online_managed','lecture'])assert(!c.getImportantNotices({publishedOnly:true,studentCategory:category}).some(n=>n.id==='interview'));
+ assert.deepEqual(Array.from(c.getImportantNotices({studentCategory:'interview'}),n=>n.id),['interview']);
+});

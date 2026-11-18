@@ -12,6 +12,7 @@ const NOTICE_IMAGE_MAX_BYTES = 900 * 1024;
 const NOTICE_REQUEST_MAX_BYTES = 2 * 1024 * 1024;
 
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -23,16 +24,27 @@ module.exports = async function handler(req, res) {
     res.status(401).json({ ok: false, error: "unauthorized" });
     return;
   }
-  if (!hasPermission(session, "notices.write")) {
-    res.status(403).json({ ok: false, error: "forbidden" });
-    return;
-  }
-
   try {
     const body = await readJson(req);
+    const interview = body.scope === "interview";
+    if (body.scope && !interview) throw httpError("invalid_scope", 400);
+    const permission = body.action === "list" ? "read" : "write";
+    const noticePermission = permission === "read" ? hasPermission(session, "notices.read") : hasPermission(session, "notices.write");
+    if (!noticePermission ||
+        (interview && (session.role !== "admin" || !hasPermission(session, `interview.${permission}`)))) {
+      throw httpError("forbidden", 403);
+    }
+    const table = interview ? "interview_notices" : "notices";
+    if (body.action === "list" && interview) {
+      const notices = await requestSupabase("GET", `${table}?select=id,title,body,image_path,target_audience,is_published,created_at,updated_at&order=created_at.desc,id.asc`);
+      res.status(200).json({ ok: true, notices: notices || [] });
+      return;
+    }
     if (body.action === "save") {
       const notice = normalizeNotice(body.notice);
-      const currentNotice = await loadNotice(notice.id);
+      if (interview) notice.target_audience = "interview";
+      else if (notice.target_audience === "interview") throw httpError("invalid_scope", 400);
+      const currentNotice = await loadNotice(notice.id, table);
       const previousImagePath = normalizeNoticeImagePath(currentNotice?.image_path, { optional: true });
       let nextImagePath = body.removeImage === true ? "" : previousImagePath;
       let uploadedImagePath = "";
@@ -48,9 +60,9 @@ module.exports = async function handler(req, res) {
         if (body.update === true) {
           if (!currentNotice) throw httpError("notice_not_found", 404);
           const { id, created_at, ...updates } = payload;
-          await requestSupabase("PATCH", `notices?id=eq.${encodeURIComponent(id)}`, updates, { Prefer: "return=minimal" });
+          await requestSupabase("PATCH", `${table}?id=eq.${encodeURIComponent(id)}`, updates, { Prefer: "return=minimal" });
         } else {
-          await requestSupabase("POST", "notices", payload, { Prefer: "return=minimal" });
+          await requestSupabase("POST", table, payload, { Prefer: "return=minimal" });
         }
       } catch (error) {
         if (uploadedImagePath) await deleteNoticeImage(uploadedImagePath);
@@ -64,9 +76,9 @@ module.exports = async function handler(req, res) {
 
     if (body.action === "delete") {
       const noticeId = normalizeNoticeId(body.noticeId);
-      const currentNotice = await loadNotice(noticeId);
+      const currentNotice = await loadNotice(noticeId, table);
       if (!currentNotice) throw httpError("notice_not_found", 404);
-      await requestSupabase("DELETE", `notices?id=eq.${encodeURIComponent(noticeId)}`, undefined, { Prefer: "return=minimal" });
+      await requestSupabase("DELETE", `${table}?id=eq.${encodeURIComponent(noticeId)}`, undefined, { Prefer: "return=minimal" });
       const imagePath = normalizeNoticeImagePath(currentNotice.image_path, { optional: true });
       if (imagePath) await deleteNoticeImage(imagePath);
       res.status(200).json({ ok: true });
@@ -121,7 +133,7 @@ function normalizeNotice(value) {
 
 function normalizeNoticeTargetAudience(value) {
   const normalized = String(value || "").trim();
-  if (normalized === "academy") return "academy";
+  if (normalized === "academy" || normalized === "interview") return normalized;
   const allowed = ["offline", "online_managed", "lecture"];
   const requested = normalized.split(",").map((item) => item.trim()).filter(Boolean);
   if (!requested.length || requested.some((item) => !allowed.includes(item))) return "academy";
@@ -166,8 +178,8 @@ function normalizeNoticeImagePath(value, options = {}) {
   return path;
 }
 
-async function loadNotice(noticeId) {
-  const rows = await requestSupabase("GET", `notices?id=eq.${encodeURIComponent(noticeId)}&select=id,image_path&limit=1`);
+async function loadNotice(noticeId, table = "notices") {
+  const rows = await requestSupabase("GET", `${table}?id=eq.${encodeURIComponent(noticeId)}&select=id,image_path&limit=1`);
   return rows?.[0] || null;
 }
 

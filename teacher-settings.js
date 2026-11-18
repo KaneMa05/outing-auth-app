@@ -394,8 +394,14 @@ function managerAdminPanel() {
   ]);
 }
 
-function noticeAdminPanel() {
-  const editingNotice = editingNoticeId ? getImportantNoticeById(editingNoticeId) : null;
+function noticeAdminPanel({ studentCategory = "" } = {}) {
+  if (noticeAdminPanel.studentCategory !== studentCategory) {
+    editingNoticeId = "";
+    noticeImageDraft = null;
+    noticeImageRemovalRequested = false;
+    noticeAdminPanel.studentCategory = studentCategory;
+  }
+  const editingNotice = editingNoticeId ? getImportantNoticeById(editingNoticeId, { studentCategory }) : null;
   const titleInput = input("title", "text", "공지 제목", editingNotice?.title || "");
   titleInput.required = true;
   const bodyInput = el("textarea", {
@@ -430,14 +436,16 @@ function noticeAdminPanel() {
     }
   });
   const selectedTargetAudiences = new Set(
-    editingNotice ? getNoticeTargetAudienceValues(editingNotice.targetAudience) : ["offline"]
+    editingNotice ? getNoticeTargetAudienceValues(editingNotice.targetAudience) : [studentCategory || "offline"]
   );
-  const targetAudienceInputs = [
+  const targetAudienceInputs = (studentCategory === "interview" ? [
+    { value: "interview", label: "면접반" },
+  ] : [
     { value: "offline", label: "오프라인 수강생" },
     { value: "online_managed", label: "온라인 관리반" },
     { value: "lecture", label: "인터넷 수강생" },
-  ].map((option) => {
-    const input = el("input", { type: "checkbox", value: option.value, checked: selectedTargetAudiences.has(option.value) });
+  ]).map((option) => {
+    const input = el("input", { type: "checkbox", value: option.value, checked: selectedTargetAudiences.has(option.value), disabled: Boolean(studentCategory) });
     return { ...option, input };
   });
   const targetAudienceInput = el("div", { className: "notice-target-options" }, targetAudienceInputs.map((option) =>
@@ -485,7 +493,8 @@ function noticeAdminPanel() {
     if (!selectedTargetAudience) return notify("공지 대상을 1개 이상 선택해주세요.");
     submitButton.disabled = true;
     submitButton.textContent = "저장 중...";
-    const beforeNotices = JSON.parse(JSON.stringify(state.notices || []));
+    const stateKey = studentCategory === "interview" ? "interviewNotices" : "notices";
+    const beforeNotices = JSON.parse(JSON.stringify(state[stateKey] || []));
     const previousImagePath = String(editingNotice?.imagePath || "");
     try {
       const savedNotice = upsertNotice({
@@ -510,7 +519,7 @@ function noticeAdminPanel() {
       notify(editingNotice ? "공지글을 수정했습니다." : "공지글을 등록했습니다.");
     } catch (error) {
       console.error(error);
-      state.notices = beforeNotices;
+      state[stateKey] = beforeNotices;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       if (error.message === "notice_image_store_unavailable") notify("공지 사진을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
       else if (error.message === "unauthorized") notify("관리자 로그인이 만료되었습니다. 다시 로그인해주세요.");
@@ -520,7 +529,7 @@ function noticeAdminPanel() {
     }
   });
 
-  const rows = getImportantNotices()
+  const rows = getImportantNotices({ studentCategory })
     .map((notice) =>
       el("tr", {}, [
         el("td", { className: "wide-cell" }, [
@@ -539,7 +548,7 @@ function noticeAdminPanel() {
             noticeImageRemovalRequested = false;
             render();
           }) : null,
-          hasTeacherPermission("notices.write") ? button("삭제", "mini-btn danger", "button", () => deleteNotice(notice.id)) : null,
+          hasTeacherPermission("notices.write") ? button("삭제", "mini-btn danger", "button", () => deleteNotice(notice.id, studentCategory)) : null,
         ]),
       ])
     );
@@ -556,9 +565,10 @@ function noticeAdminPanel() {
 }
 
 function upsertNotice({ id, title, body, imagePath = "", targetAudience, isPublished }) {
-  state.notices = state.notices || [];
+  const stateKey = targetAudience === "interview" ? "interviewNotices" : "notices";
+  state[stateKey] = state[stateKey] || [];
   const now = new Date().toISOString();
-  const existing = id ? state.notices.find((notice) => notice.id === id) : null;
+  const existing = id ? state[stateKey].find((notice) => notice.id === id) : null;
   if (existing) {
     existing.title = title;
     existing.body = body;
@@ -578,24 +588,25 @@ function upsertNotice({ id, title, body, imagePath = "", targetAudience, isPubli
     createdAt: now,
     updatedAt: now,
   };
-  state.notices.unshift(notice);
+  state[stateKey].unshift(notice);
   return notice;
 }
 
-async function deleteNotice(id) {
+async function deleteNotice(id, studentCategory = "") {
   if (!hasTeacherPermission("notices.write")) return notify("공지 삭제 권한이 없습니다.");
-  const notice = getImportantNoticeById(id);
+  const notice = getImportantNoticeById(id, { studentCategory });
   if (!notice) return;
   if (!confirm(`"${notice.title}" 공지글을 삭제할까요?`)) return;
   try {
-    await deleteNoticeFromRemote(id);
+    await deleteNoticeFromRemote(id, studentCategory);
   } catch (error) {
     console.error(error);
     notify("공지글 삭제를 원격 저장소에 반영하지 못했습니다.");
     return;
   }
 
-  state.notices = (state.notices || []).filter((item) => item.id !== id);
+  const stateKey = studentCategory === "interview" ? "interviewNotices" : "notices";
+  state[stateKey] = (state[stateKey] || []).filter((item) => item.id !== id);
   if (editingNoticeId === id) editingNoticeId = "";
   noticeImageDraft = null;
   noticeImageRemovalRequested = false;
@@ -612,6 +623,7 @@ async function saveNoticeToRemote(notice, options = {}) {
   }
   return requestNoticeApi({
     action: "save",
+    scope: notice.targetAudience === "interview" ? "interview" : "",
     update: options.update === true,
     removeImage: options.removeImage === true,
     image: options.image ? { data: options.image.data, contentType: options.image.contentType } : null,
@@ -705,9 +717,9 @@ async function requestNoticeApi(payload) {
   return data;
 }
 
-async function deleteNoticeFromRemote(id) {
+async function deleteNoticeFromRemote(id, studentCategory = "") {
   if (!remoteStore) return;
-  await requestNoticeApi({ action: "delete", noticeId: id });
+  await requestNoticeApi({ action: "delete", noticeId: id, scope: studentCategory === "interview" ? "interview" : "" });
 }
 
 function getActiveManagers(cohort = "") {

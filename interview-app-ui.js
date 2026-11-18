@@ -12,8 +12,9 @@ const mockModes={
  job_questions:{title:'직무 질문별 연습',practiceMode:'job'},
  personality_questions:{title:'인성 질문별 연습',practiceMode:'personality'}
 };
-function homeNotices(){
- return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2><div style="line-height:1.8;overflow-wrap:anywhere"><p>(0) 오프반 : 11.9 전까지 사전과제 이행</p><p>(1) 적성 및 면접기출교재 발송일 : <strong>11.9(월)</strong><br>인강생은 인강사이트 주소로 발송, 오프라인은 현장 및 택배수령(신청시 작성 주소)<br><strong>*적성 pdf 비번 : ronpark1234 혹은 RONPARK1234</strong></p><p>(2) 인성검사 온라인검사 실시일 : <strong>11.10(화)</strong><br>인강,오프라인생 검사 문자 발송</p></div></section>`;
+function homeNotices(data={}){
+ const notices=Array.isArray(data.notices)?data.notices:[];
+ return `<section class="ip-panel ip-app-notices" aria-labelledby="ip-app-notices-title"><h2 id="ip-app-notices-title">공지사항</h2>${data.noticesUnavailable?'<p role="alert">공지사항을 불러오지 못했습니다.</p><button type="button" class="ip-btn" data-app-tab="home">다시 시도</button>':notices.length?notices.map(notice=>`<article class="ip-app-notice"><h3>${esc(notice.title)}</h3>${notice.imageUrl?`<a href="${esc(notice.imageUrl)}" target="_blank" rel="noopener"><img src="${esc(notice.imageUrl)}" alt="${esc(notice.title)} 첨부 사진" loading="lazy" style="display:block;max-width:100%;height:auto"></a>`:''}<p style="white-space:pre-wrap;line-height:1.8;overflow-wrap:anywhere">${esc(notice.body)}</p></article>`).join(''):'<p class="ip-help">등록된 공지사항이 없습니다.</p>'}</section>`;
 }
 export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,account={},onExit,onLogout}){
  const mockTestApp=window.__ronparkMockTestApp===true;
@@ -77,7 +78,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
    }else{
     // Each mode mounts only its own controller and authenticated API.
     const [data,life,writing]=route.tab==='mock'?[]:await Promise.all(
-     route.tab==='home'?[request('bootstrap'),request('life_get'),request('writing_list')]:[request('bootstrap')]);
+     route.tab==='home'?[request('bootstrap',{includeNotices:true}),request('life_get'),request('writing_list')]:[request('bootstrap')]);
     if(destroyed||ticket!==generation)return;
     if(route.tab==='mock'){
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
@@ -181,7 +182,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      const notes=data.notes||[],writings=writing.writings||[],topics=data.topics||[];
      const filled=topics.filter(t=>notes.some(n=>n.topic_id===t.id&&Object.values(n.fields||{}).some(v=>String(v).trim()))).length;
      const feedback=[...(life.profile?.feedback?[{label:'기본 이력',tab:'db',area:'life:basic',text:life.profile.feedback}]:[]),...notes.filter(n=>n.feedback&&topics.some(t=>t.id===n.topic_id)).map(n=>({label:topics.find(t=>t.id===n.topic_id).title,tab:'db',area:'note:'+n.topic_id,text:n.feedback})),...writings.filter(w=>w.feedback).map(w=>({label:pages[w.kind]||'작성 답변',tab:'writing',page:w.kind,text:w.feedback}))];
-     box.innerHTML=`<button type="button" class="ip-app-banner" data-app-notice="preassignments" aria-label="면접반 사전과제 안내 게시글 보기"><img src="./assets/interview-preassignment-banner-20261026.png" width="1024" height="572" fetchpriority="high" alt="론박스터디 면접반 사전과제 안내. 1. 인생그래프 인강듣고 DB 작성하기. 2. 자기소개, 지원동기, 공직관 초안받고 다듬기. 3. 핵심25제 인강듣고 답변 작성 후 진단받기."></button>${homeNotices()}<section class="ip-app-stats" aria-label="저장 현황"><div><strong>${filled}<small> / ${topics.length}</small></strong><span>인성 항목 입력</span></div><div><strong>${writings.filter(w=>w.body?.trim()).length}</strong><span>저장한 답변</span></div><div><strong>${feedback.length}</strong><span>강사 피드백</span></div></section><section class="ip-panel"><h2>나의 면접 준비</h2>${link('기본 이력과 인성 경험 정리','db')}${Object.entries(pages).map(([id,label])=>link(label+' 작성하기','writing',id)).join('')}</section><section class="ip-panel"><h2>강사 피드백</h2>${feedback.length?feedback.map(f=>`<article class="ip-app-feedback">${link(f.label,f.tab,f.page,f.area)}<p>${esc(f.text)}</p></article>`).join(''):'<p class="ip-help">아직 등록된 피드백이 없습니다.</p>'}</section>`;
+     box.innerHTML=`<button type="button" class="ip-app-banner" data-app-notice="preassignments" aria-label="면접반 사전과제 안내 게시글 보기"><img src="./assets/interview-preassignment-banner-20261026.png" width="1024" height="572" fetchpriority="high" alt="론박스터디 면접반 사전과제 안내. 1. 인생그래프 인강듣고 DB 작성하기. 2. 자기소개, 지원동기, 공직관 초안받고 다듬기. 3. 핵심25제 인강듣고 답변 작성 후 진단받기."></button>${homeNotices(data)}<section class="ip-app-stats" aria-label="저장 현황"><div><strong>${filled}<small> / ${topics.length}</small></strong><span>인성 항목 입력</span></div><div><strong>${writings.filter(w=>w.body?.trim()).length}</strong><span>저장한 답변</span></div><div><strong>${feedback.length}</strong><span>강사 피드백</span></div></section><section class="ip-panel"><h2>나의 면접 준비</h2>${link('기본 이력과 인성 경험 정리','db')}${Object.entries(pages).map(([id,label])=>link(label+' 작성하기','writing',id)).join('')}</section><section class="ip-panel"><h2>강사 피드백</h2>${feedback.length?feedback.map(f=>`<article class="ip-app-feedback">${link(f.label,f.tab,f.page,f.area)}<p>${esc(f.text)}</p></article>`).join(''):'<p class="ip-help">아직 등록된 피드백이 없습니다.</p>'}</section>`;
     }
    }
   }catch{if(!destroyed&&ticket===generation)box.innerHTML='<section class="ip-panel"><p role="alert">자료를 불러오지 못했습니다. 연결과 수강 등록 상태를 확인해주세요.</p><button type="button" class="ip-btn" data-app-reload>다시 시도</button></section>';}
