@@ -1,0 +1,52 @@
+면접반 공지사항 관리 — 운영 반영 완료
+2026-11-18 (Asia/Seoul)
+
+승인 및 기능
+- 사용자의 "반영" 최종 승인 후 DB 적용·푸시·운영 배포를 진행했다.
+- 관리자 → 면접반 → 공지사항 관리에서 등록·수정·삭제·사진 첨부·공개/숨김을 관리한다.
+- 면접반 앱 홈은 공개된 공지만 조회한다. 기존 고정 안내 1건을 관리 가능한 공지로 이전했다.
+- 공지 조회 실패는 홈의 다른 기능을 막지 않으며 다시 시도할 수 있다.
+
+기존 운영 보존
+- 최신 origin/main 9ab80ab2를 기준으로 별도 worktree에서 변경을 분리했다.
+- 배포 전 주요 정적 파일 21개가 당시 운영 소스와 일치함을 확인했다.
+- 기존 질문 예시 편집·과목별 성적·제출 안내·일반앱 의견 접수 기능과 기존 캐시 처리 로직을 유지했다.
+- 원래 작업 폴더의 다른 미완료 변경은 릴리스에 포함하지 않았다.
+
+DB
+- 프로젝트 ehzrwkvuarertwvwoyus / RONPARK APP.
+- 적용 마이그레이션: 20261118064237_interview_notices.sql.
+- interview_notices 테이블은 RLS를 활성화하고 anon/authenticated 직접 접근을 차단했다.
+- 기존 교사 권한 또는 학생 인증·수강 권한을 확인한 서버 API만 접근한다.
+- 기존 notices 6건은 적용·운영 검증 전후 행 해시가 동일하다.
+  3135a9044380738aaf5c545de6f98e0b
+- 새 테이블의 기존 안내는 1건이며 운영 검증 중 공지를 등록·수정·삭제하지 않았다.
+- Security advisor는 WARN/ERROR 없음. 서비스 전용 테이블에 정책을 개방하지 않는 구조로
+  RLS 활성/정책 없음 INFO가 기존 140건에서 141건으로 증가했다.
+  https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+
+소스 및 배포
+- 기능 커밋: a6e2beb1f4558555e47ea753068f5d01fcc392e0 / origin/main 일반 푸시 완료.
+- 기능 커밋 archive에서만 배포물을 만들었다. 일반 업로드 파일 5,709개를 검사했으며
+  환경 파일·테스트·SQL·문서·로컬 작업 산출물을 업로드하지 않았다.
+- Vercel 재인증 후 --prod --skip-domain으로 후보 배포 한 번만 생성했다.
+- 후보 확인 후 같은 배포를 promote했으며 추가 빌드를 생성하지 않았다.
+- 배포: dpl_AMcNg6VmYq6m7sSPvGGVnkfgTUGv / READY / production.
+- URL: https://outing-auth-i8x94gd3d-ronpark.vercel.app
+- 운영: https://app.ronparkpass.com / https://outing-auth-app.vercel.app
+- 전환 완료: 2026-11-18 15:49:41 KST.
+- 이전 운영: dpl_9heSBDZ63tcwk6Sg9npALRdvdMBU.
+- main 자동 Git 배포 비활성화를 유지한다. 결과 기록 문서 푸시는 새 빌드를 만들지 않는다.
+
+검증
+- 공지 API·로컬 DB 권한·등록/수정/숨김/삭제·실패 복구·안전한 본문·모바일 브라우저 검사 통과.
+- 최신 운영 기준 전체 본 테스트(npm --ignore-scripts test), 탐색·배포 안전성·관리자 진입 및 격리 빌드 통과.
+- npm test의 기존 pretest 리전 기대값 불일치(api/interview-practice-records.js)는
+  변경 전 운영 설정과 동일하며 이번 작업에서 변경하지 않았다.
+- 후보와 두 운영 주소에서 각각 정적 파일 21개 일치 및 15개 검증 그룹을 통과했다.
+- 관리자 실제 로그인·공지 조회·수정 폼 열기/취소·390/1440px 표시·비인증 차단·내부 파일 비공개를 확인했다.
+- 학생 화면은 인증된 관리자 조회 결과의 공개 공지로 렌더링만 검증했다. 실제 학생 계정을 가장하거나 학생 데이터를 저장하지 않았다.
+- 15:49:41~15:50:45 KST 조회 구간 ERROR/FATAL/HTTP 5xx 각각 0건.
+
+배포 제외 증빙
+.tmp/interview-notices-evidence/
