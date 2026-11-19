@@ -53,11 +53,11 @@ import InterviewNative
     }
     func close() {
         guard !closed else { return }; closed = true
-        webView?.callAsyncJavaScript("window.__ronparkPracticeClose?.(sessionID)", arguments: ["sessionID": sessionID], in: nil, contentWorld: .page, completionHandler: nil)
+        webView?.callAsyncJavaScript("window.__ronparkPracticeClose?.(sessionID)", arguments: ["sessionID": sessionID], in: nil, in: .page, completionHandler: nil)
     }
     func showWebRecords() {
         guard !closed else { return }
-        webView?.callAsyncJavaScript("window.__ronparkPracticeWebRecords?.(sessionID)", arguments: ["sessionID": sessionID], in: nil, contentWorld: .page, completionHandler: nil)
+        webView?.callAsyncJavaScript("window.__ronparkPracticeWebRecords?.(sessionID)", arguments: ["sessionID": sessionID], in: nil, in: .page, completionHandler: nil)
     }
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
         willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
