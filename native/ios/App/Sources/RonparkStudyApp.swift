@@ -22,11 +22,13 @@ private struct StudentApp: View {
     }
     private var studentContent: some View {
         ZStack(alignment: .bottomTrailing) {
-            StudentWebApp { code in launch = InterviewLaunch(code: code, preview: false) }
+            NativePracticeNavigation(onInterview: { code in launch = InterviewLaunch(code: code, preview: false) })
             #if DEBUG
             if !ProcessInfo.processInfo.arguments.contains("--store-screenshots") {
+            if ProcessInfo.processInfo.arguments.contains("--enable-internal-demo") {
             Button("무료 모의면접 시연") { launch = InterviewLaunch(code: "", preview: true) }
                 .buttonStyle(.borderedProminent).padding(.bottom, 75).padding(.trailing, 12)
+            }
             }
             #endif
         }
@@ -43,20 +45,23 @@ private struct StudentApp: View {
 
 // Existing student pages remain in a persistent WKWebView. Only the interview route presents SwiftUI.
 // Safari/PWA cookies are not shared: first login in this installed app is required.
-private struct StudentWebApp: UIViewRepresentable {
+struct StudentWebApp: UIViewRepresentable {
     let onInterview: (String) -> Void
+    let onPractice: (WKWebView, String, String) -> Void
     static let host = InterviewLaunchPolicy.host
-    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview) }
+    func makeCoordinator() -> Coordinator { Coordinator(onInterview: onInterview, onPractice: onPractice) }
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.userContentController.add(context.coordinator, name: "interviewNative")
+        config.userContentController.add(context.coordinator, name: "interviewPractice")
         // The installed WKWebView is standalone too. Set this before the existing
         // web app evaluates its install gate; never apply it to third-party pages.
         let installedApp = WKUserScript(source: """
-            if (location.protocol === 'https:' && location.hostname === '\(Self.host)') {
+            if (location.protocol === 'https:' && ['\(Self.host)', 'app.ronparkpass.com'].includes(location.hostname)) {
                 Object.defineProperty(navigator, 'standalone', { value: true });
+                window.__ronparkBetaPracticeNative = true;
             }
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(installedApp)
@@ -105,13 +110,22 @@ private struct StudentWebApp: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewNative")
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "interviewPractice")
         uiView.stopLoading(); uiView.navigationDelegate = nil; uiView.uiDelegate = nil
     }
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         let onInterview: (String) -> Void
-        init(onInterview: @escaping (String) -> Void) { self.onInterview = onInterview }
+        let onPractice: (WKWebView, String, String) -> Void
+        init(onInterview: @escaping (String) -> Void, onPractice: @escaping (WKWebView, String, String) -> Void) { self.onInterview = onInterview; self.onPractice = onPractice }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             let origin = message.frameInfo.securityOrigin
+            if message.name == "interviewPractice", let data = message.body as? [String: String],
+               let view = message.webView,
+               InterviewLaunchPolicy.acceptsPractice(scheme: origin.protocol, host: origin.host, port: origin.port,
+                   isMainFrame: message.frameInfo.isMainFrame, topLevelURL: view.url, payload: data),
+               let mode = data["mode"], let id = data["sessionId"] {
+                onPractice(view, mode, id); return
+            }
             guard message.name == "interviewNative", let data = message.body as? [String: String],
                   InterviewLaunchPolicy.accepts(scheme: origin.protocol, host: origin.host, port: origin.port,
                                                 isMainFrame: message.frameInfo.isMainFrame, payload: data),

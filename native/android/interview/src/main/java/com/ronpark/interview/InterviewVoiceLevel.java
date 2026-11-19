@@ -31,6 +31,7 @@ final class InterviewVoiceLevel {
             output.setEnabled(true);
         }catch(Exception ignored){stop();}
     }
+    boolean isRecording(){AudioRecord recorder=input;Thread thread=reader;return recorder!=null&&thread!=null&&thread.isAlive()&&recorder.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING;}
     void microphone(){microphone(null,null);}
     void microphone(File recording){microphone(recording,null);}
     void microphone(File recording,PcmListener listener) {

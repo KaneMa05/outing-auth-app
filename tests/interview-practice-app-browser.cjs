@@ -21,7 +21,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     const {mountInterviewApp}=await import('/interview-app-ui.js');
     window.view=await mountInterviewApp(document.querySelector('#host'),{account:{id:window.account,accessProduct:'interview_package'},request:async action=>{window.calls.push({action});return {ok:true,allowed:false,betaAllowed:true};},aiRequest:async(url,body)=>{
      window.calls.push({url,...body});
-     if(body.action==='practice_bootstrap'){if(window.failBootstrap)throw Error('network');return {ok:true,accountId:window.account,mode,track:'공채',fields:[{id:'coast_guard',label:'공통 직무'},{id:'teamwork',label:'협동심·팀워크'}],questions:[1,2,3].map(i=>({id:mode+'-q-'+i,prompt:mode==='job'?'해양경찰의 주요 임무를 설명해주세요.':'함께 협력해 문제를 해결한 경험을 말해주세요.',category:mode,tracks:['공채'],fieldIds:[mode==='job'?'coast_guard':'teamwork'],regions:['서해']}))};}
+     if(url==='/api/interview-native-practice'&&body.action==='launch')return {ok:true,code:'a'.repeat(43),expiresIn:60};
+     if(body.action==='practice_bootstrap'){if(window.failBootstrap)throw Error('network');const selected=body.mode;return {ok:true,accountId:window.account,mode:selected,track:'공채',fields:[{id:'coast_guard',label:'공통 직무'},{id:'teamwork',label:'협동심·팀워크'}],questions:[1,2,3].map(i=>({id:selected+'-q-'+i,prompt:selected==='job'?'해양경찰의 주요 임무를 설명해주세요.':'함께 협력해 문제를 해결한 경험을 말해주세요.',category:selected,tracks:['공채'],fieldIds:[selected==='job'?'coast_guard':'teamwork'],regions:['서해']}))};}
      if(url!=='/api/interview-practice-records')throw Error('Unexpected production API '+url);
      return {ok:true,uploads:body.action==='sync'?body.turns.map(t=>({number:t.number,audioHash:t.audioHash,url:'https://qa.supabase.co/storage/v1/object/upload/sign/interview-practice/'+body.runId+'/'+t.number+'-'+t.audioHash+'.'+({'audio/mp4':'m4a','audio/webm':'webm','audio/ogg':'ogg'}[t.audioMime])+'?token=fixture'})):[]};
     }});
@@ -31,6 +32,22 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const badge=page.locator('.ip-app-beta-label');assert.equal(await badge.count(),1);
   const position=await badge.evaluate(n=>({badge:n.getBoundingClientRect().toJSON(),title:n.nextElementSibling.getBoundingClientRect().toJSON()}));assert(position.badge.bottom<=position.title.top);assert(Math.abs(position.badge.left-position.title.left)<1);
   assert.equal(await page.locator('.ip-mock-menu .ip-badge').count(),0);await page.screenshot({path:path.join(output,'menu.png'),fullPage:true});
+  // New installed apps open real native screens. Ordinary browsers keep the web renderer.
+  await page.evaluate(async()=>{window.nativeOpens=[];window.__ronparkBetaPracticeNative=true;window.webkit={messageHandlers:{interviewPractice:{postMessage:body=>window.nativeOpens.push(body)}}};await window.mount('');});
+  for(const mode of ['job','personality']){
+   await page.locator('[data-app-mock="'+mode+'"]').click();await page.waitForFunction(n=>window.nativeOpens.length===n,mode==='job'?1:2);
+   assert.equal(await page.locator('[data-practice-screen]').count(),0);assert.equal(await page.locator('.ip-mock-menu').count(),1);
+   const opened=await page.evaluate(()=>window.nativeOpens.at(-1));assert.deepEqual(Object.keys(opened).sort(),['mode','sessionId']);assert.equal(opened.mode,mode);
+   assert.equal(await page.evaluate(async id=>(await window.__ronparkPracticeRequest(id,{action:'practice_bootstrap',mode:window.nativeOpens.at(-1).mode})).accountId,opened.sessionId),'a');
+   await page.evaluate(id=>window.__ronparkPracticeClose(id),opened.sessionId);
+  }
+  await page.evaluate(async()=>{window.__ronparkBetaPracticeNative=false;delete window.webkit;await window.mount('');});
+  assert.equal(await page.evaluate(()=>window.__ronparkPracticeRequest),undefined);
+  await page.evaluate(async()=>{history.replaceState(null,'','/qa?nativePractice=1');Object.defineProperty(navigator,'userAgent',{value:'Android NativeReview',configurable:true});await window.mount('');});
+  await page.locator('[data-app-mock=job]').click();await page.locator('[data-native-open]:visible').waitFor();
+  assert.match(await page.locator('[data-native-open]').getAttribute('href'),/intent:\/\/interview\/practice\?code=a+&mode=job#Intent;scheme=ronpark-study;package=com\.ronpark\.study;end/);
+  assert.equal(await page.locator('[data-practice-screen]').count(),0);await page.locator('[data-native-back]').click();await page.locator('.ip-mock-menu').waitFor();
+  await page.evaluate(async()=>{delete navigator.userAgent;history.replaceState(null,'','/qa');await window.mount('');});
   for(const mode of ['job','personality']){
    await page.evaluate(mode=>window.mount(mode),mode);await page.locator('[data-practice-action=configured]:enabled').waitFor();
    assert.equal(await page.locator('[data-pilot]').count(),0);assert.equal(await page.locator('.ip-app-footer').isVisible(),false);
@@ -84,7 +101,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.locator('[data-practice-screen=review]').waitFor({timeout:7000});assert.equal(await page.locator('audio').count(),1);
   page.once('dialog',dialog=>dialog.accept());await page.locator('[data-practice-action=end]').click();await page.locator('[data-practice-screen=result]').waitFor();
   await page.evaluate(async()=>{navigator.mediaDevices.getUserMedia=window.originalMic;await window.signalContext.close();});
-  assert.equal(await page.evaluate(()=>window.calls.some(c=>/interview-(openai|live|job-exam|personality|native)/.test(c.url||''))),false);
+  // An updated installed app can still open its original, account-scoped web recordings.
+  const oldRecords=await page.evaluate(async()=>{await window.mount('job');await window.view.destroy();return new Promise(resolve=>{const r=indexedDB.open('ronpark-practice-pilot-v1',1);r.onsuccess=()=>{const db=r.result,q=db.transaction('runs').objectStore('runs').getAll();q.onsuccess=()=>{const count=q.result.filter(row=>row.accountId===window.account&&row.mode==='job').length;db.close();resolve(count);};};});});
+  const beforeHistoryBootstrap=await page.evaluate(()=>window.calls.filter(c=>c.action==='practice_bootstrap').length);
+  await page.evaluate(async()=>{window.__ronparkBetaPracticeNative=true;window.webkit={messageHandlers:{interviewPractice:{postMessage(){throw Error('history must stay in the original viewer');}}}};location.hash='#interview-prep?tab=mock&mockMode=job&legacyRecords=1';const {mountInterviewApp}=await import('/interview-app-ui.js');window.view=await mountInterviewApp(document.querySelector('#host'),{account:{id:window.account,accessProduct:'interview_package'},request:async()=>({betaAllowed:true}),aiRequest:async(url,body)=>{window.calls.push({url,...body});return {ok:true,uploads:[]};}});});
+  await page.locator('[data-practice-screen=records]').waitFor();assert.equal(await page.locator('[data-practice-action=record]').count(),oldRecords);assert.equal(await page.locator('[data-practice-action=configured],[data-practice-action=home]').count(),0);
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.action==='practice_bootstrap').length),beforeHistoryBootstrap);
+  await page.locator('[data-practice-action=record]').first().click();assert.equal(await page.locator('[data-practice-action=repeat]').count(),0);await page.locator('[data-practice-action=back]').click();await page.locator('[data-practice-action=back]').click();await page.locator('.ip-mock-menu').waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.some(c=>/interview-(openai|live|job-exam|personality|native(?!-practice))/.test(c.url||''))),false);
   assert.equal(errors.length,0,errors.join('\n'));
   console.log('PASS app recording: original UI and lifecycle; silent input stays on question one and warns; sustained input followed by four seconds of silence advances; replay/audio/history/upload/account isolation preserved. No production writes or paid APIs.');
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

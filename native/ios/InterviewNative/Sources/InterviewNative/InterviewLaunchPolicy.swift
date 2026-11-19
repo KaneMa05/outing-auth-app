@@ -4,11 +4,21 @@ import Foundation
 /// The server independently checks the code's expiry, single use and student enrollment.
 public enum InterviewLaunchPolicy {
     public static let host = "outing-auth-app.vercel.app"
+    public static func acceptsPractice(scheme: String, host: String, port: Int,
+        isMainFrame: Bool, topLevelURL: URL?, payload: [String: String]) -> Bool {
+        guard scheme == "https", [Self.host, "app.ronparkpass.com"].contains(host),
+              port == 0 || port == 443, isMainFrame, let page = topLevelURL,
+              page.scheme == "https", page.host == host, page.user == nil, page.password == nil,
+              page.port == nil || page.port == 443, payload.count == 2,
+              let mode = payload["mode"], ["job", "personality"].contains(mode),
+              let id = payload["sessionId"], UUID(uuidString: id) != nil else { return false }
+        return true
+    }
     /// OAuth shares this webview's cookies; provider pages never receive native bridge privileges.
     public static func allowsWebNavigation(_ url: URL) -> Bool {
         guard url.scheme == "https", url.user == nil, url.password == nil,
               url.port == nil || url.port == 443 else { return false }
-        return [host, "kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"].contains(url.host ?? "")
+        return [host, "app.ronparkpass.com", "kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"].contains(url.host ?? "")
     }
     public static func accepts(scheme: String, host: String, port: Int,
                                isMainFrame: Bool, payload: [String: String]) -> Bool {

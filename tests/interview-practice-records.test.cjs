@@ -21,6 +21,11 @@ test('sync binds identity to login and returns every pending answer without invo
  assert.equal((await api(setup({authenticateWeb:async()=>null}).handler,payload)).code,401);
  assert.equal((await api(h.handler,payload,{origin:'https://evil.test'})).code,403);
 });
+test('production native practice tokens cannot sync or commit another mode',async()=>{
+ const h=setup({authenticateWeb:async()=>null,authenticateNative:async()=>({id:'student-a',practiceMode:'personality'}),requirePracticeAccess:async()=>{}});
+ assert.equal((await api(h.handler,payload)).code,403);assert.equal(h.calls.length,0);
+ assert.equal((await api(h.handler,{action:'uploaded',runId,number:1,audioHash:hash})).code,403);assert.deepEqual(h.calls.map(c=>c.action),['get']);
+});
 test('rejects invalid dates, duplicate turns, excess audio, forged object paths and missing turn identity',()=>{
  for(const bad of [{recordedAt:'bad'},{turns:[payload.turns[0],payload.turns[0]]},{turns:[{...payload.turns[0],audioBytes:16777217}]},{turns:[{...payload.turns[0],number:2}]},{turns:[{...payload.turns[0],objectKey:'victim/1.wav'}]}])assert.throws(()=>validate({...payload,...bad}),/invalid_request/);
  assert.throws(()=>validate({action:'uploaded',runId,audioHash:hash}),/invalid_request/);

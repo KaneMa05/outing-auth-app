@@ -1,6 +1,8 @@
 import {mountWorkspace} from './interview-workspace.js?v=20261117-writing-submit-notice';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
+import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261119-native-beta';
+import {mountNativePracticeLauncher} from './client/interview-native-practice-launcher.mjs?v=20261119-native-beta';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'stopwatch',mock:'study-cafe',my:'mypage'};
@@ -18,6 +20,9 @@ function homeNotices(data={}){
 }
 export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,account={},onExit,onLogout}){
  const mockTestApp=window.__ronparkMockTestApp===true;
+ const nativePractice=!mockTestApp&&window.__ronparkBetaPracticeNative===true&&typeof window.webkit?.messageHandlers?.interviewPractice?.postMessage==='function';
+ const androidPractice=!mockTestApp&&typeof navigator!=='undefined'&&/Android/i.test(navigator.userAgent)&&new URLSearchParams(location.search||'').get('nativePractice')==='1';
+ let practiceGateway;
  const aptitudeOnly=account.accessProduct==='aptitude_only';
  let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
  let mockAllowed=false;
@@ -30,7 +35,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
   const tab=tabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
-  return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))&&(mockTestApp||['job','personality'].includes(p.get('mockMode')))?p.get('mockMode'):''};
+  return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))&&(mockTestApp||['job','personality'].includes(p.get('mockMode')))?p.get('mockMode'):'',...(p.get('legacyRecords')==='1'?{legacyRecords:'1'}:{})};
  }
  function url(){return '#interview-prep?'+new URLSearchParams(route);}
  function remember(){saveResume();}
@@ -39,7 +44,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   if(destroyed||!canLeave()){if(historyChange)setUrl(true);return;}
   if(next.tab==='mock'&&!mockAllowed&&!aptitudeOnly)return;
   if(!mockTestApp&&next.mockMode&&!['job','personality'].includes(next.mockMode))return;
-  route={...route,...next};if(!historyChange)setUrl();else remember();await render();
+  route={...route,...next};if(next.legacyRecords!=='1')delete route.legacyRecords;if(!historyChange)setUrl();else remember();await render();
   if(mockTestApp||route.tab!=='mock'||!['job','personality'].includes(route.mockMode))window.scrollTo({top:0,behavior:'auto'});
  }
  const link=(label,tab,page='',area='')=>`<button type="button" class="ip-app-link" data-app-tab="${tab}" ${page?`data-page="${esc(page)}"`:''} ${area?`data-area="${esc(area)}"`:''}>${esc(label)}<span aria-hidden="true">›</span></button>`;
@@ -60,7 +65,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  }
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
-  const recordingPractice=!mockTestApp&&!aptitudeOnly&&route.tab==='mock'&&['job','personality'].includes(route.mockMode);
+  const recordingPractice=!mockTestApp&&(route.legacyRecords==='1'||!nativePractice&&!androidPractice)&&!aptitudeOnly&&route.tab==='mock'&&['job','personality'].includes(route.mockMode);
   host.classList.toggle('ip-app-practice',recordingPractice);
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
   if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · ${aptitudeOnly?'인적성 단과':'면접반'}</small>${route.tab==='mock'&&!mockTestApp?'<span class="ip-app-beta-label">베타</span>':''}<h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div>${aptitudeOnly&&onLogout?'<button type="button" class="ip-btn" data-app-logout>로그아웃</button>':'<span class="ip-app-mark" aria-hidden="true">R</span>'}</header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed||aptitudeOnly?6:5},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed||aptitudeOnly).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
@@ -93,6 +98,22 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
     if(route.tab==='mock'){
      const access=await request('mock_status');if(destroyed||ticket!==generation)return;
      if(!hasMockAccess(access)){mockAllowed=false;route={...route,tab:'home',mockMode:''};setUrl(true);return await render();}
+     if(nativePractice&&route.legacyRecords!=='1'&&['job','personality'].includes(route.mockMode)){
+      const mode=route.mockMode;route={...route,mockMode:''};setUrl(true);box.innerHTML=mockScreen();
+      practiceGateway??=createPracticeGateway({accountId:account.id,onWebRecords:mode=>go({tab:'mock',mockMode:mode,legacyRecords:'1'}),request:async(url,body)=>{
+       if(aiRequest)return aiRequest(url,body);
+       const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+       const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
+      }});
+      practiceGateway.open(mode);return;
+     }
+     if(androidPractice&&route.legacyRecords!=='1'&&['job','personality'].includes(route.mockMode)){
+      child=mountNativePracticeLauncher(box,{mode:route.mockMode,onBack:()=>go({tab:'mock',mockMode:''}),request:async(url,body)=>{
+       if(aiRequest)return aiRequest(url,body);
+       const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+       const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
+      }});window.scrollTo({top:0,behavior:'auto'});return;
+     }
      if(mockTestApp&&['job','personality'].includes(route.mockMode)&&window.__ronparkPracticeNative===true&&window.webkit?.messageHandlers?.interviewPractice&&!/Android/i.test(globalThis.navigator?.userAgent||'')){
       // Leave the mode list behind the native screen so dismissing it returns there.
       const mode=route.mockMode;
@@ -117,9 +138,9 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      if(!recordingPractice)box.innerHTML=mockScreen();
      if(!mockTestApp&&mockModes[route.mockMode]?.practiceMode)return;
      if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
-      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-mic-entry');
+      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-native-beta');
       if(destroyed||ticket!==generation)return;
-      const next=await mountPractice(box,{mode:route.mockMode,accountId:account.id,request:async(url,body)=>{
+      const next=await mountPractice(box,{mode:route.mockMode,accountId:account.id,initialScreen:route.legacyRecords==='1'?'records':'home',onClose:()=>go({tab:'mock',mockMode:''}),request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);
        const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
        const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'unavailable');return data;
@@ -231,5 +252,5 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const rememberClick=()=>saveResume();
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();
- return {canLeave,destroy(){destroyed=true;++generation;saveResume();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
+ return {canLeave,destroy(){destroyed=true;++generation;saveResume();practiceGateway?.destroy();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
 }

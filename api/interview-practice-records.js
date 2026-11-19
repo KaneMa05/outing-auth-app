@@ -7,8 +7,11 @@ function defaults(){const auth=require('./teacher-auth-utils');return {
  requirePracticeAccess:id=>require('../lib/interview-mock-access').requireMockAccess(id,{practiceOnly:true}),
  authenticateWeb:require('../lib/interview-web-auth').authenticatePortal,
  authenticateNative:async req=>{
-  if(process.env.INTERVIEW_NATIVE_ENABLED!=='true'||req.headers['x-interview-test-app']!=='1')return null;
-  return require('../lib/interview-native-auth').readPractice((req.headers.authorization||'').replace(/^Bearer /,''),process.env.INTERVIEW_LIVE_WORKER_SECRET||'');
+  if(!req.headers.authorization)return null;
+  const token=req.headers.authorization.replace(/^Bearer /,''),key=process.env.INTERVIEW_LIVE_WORKER_SECRET||'';
+  try{if(process.env.INTERVIEW_NATIVE_PRACTICE_ENABLED!=='false')return require('../lib/interview-native-practice-auth.cjs').read(token,key);}catch{}
+  if(process.env.INTERVIEW_NATIVE_ENABLED!=='true'||req.headers['x-interview-test-app']!=='1')throw Error('unauthorized');
+  return require('../lib/interview-native-auth').readPractice(token,key);
  },
  authenticateAdmin:async(req,{write=false}={})=>{
   const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),auth.getConfig().secret);
@@ -61,8 +64,10 @@ function createHandler(deps){return async(req,res)=>{try{
  const admin=b.action.startsWith('admin_');let user=admin?await d.authenticateAdmin(req,{write:['admin_review','admin_retry'].includes(b.action)}):(await d.authenticateWeb(req))||(d.authenticateNative?await d.authenticateNative(req):null);
  if(credentials){if(!d.previewAllowed?.(credentials.studentId))fail('forbidden');if(user&&user.id!==credentials.studentId)fail('forbidden');if(!user&&d.authenticateDevice)user=await d.authenticateDevice(credentials);if(user?.id!==credentials.studentId)fail('unauthorized');}
  if(!user?.id)fail('unauthorized');if(!admin&&d.requirePracticeAccess)await d.requirePracticeAccess(user.id);const actor={type:admin?'admin':'student',id:user.id};
+ if(user.practiceMode&&b.action==='sync'&&b.mode!==user.practiceMode)fail('forbidden');
  if(b.action==='uploaded'){
   const data=await d.invoke('get',actor,{runId:b.runId});
+  if(user.practiceMode&&data.run?.mode!==user.practiceMode)fail('forbidden');
   const turn=data.turns.find(t=>t.number===b.number&&t.audio_hash===b.audioHash&&t.audio_bytes>0);
   if(!turn)fail('not_found');
   await d.storage.verify(b.runId,turn);

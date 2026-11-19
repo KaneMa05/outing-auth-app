@@ -1,0 +1,95 @@
+네이티브 직무·인성 베타 검토 — 2026-11-19
+
+상태
+- 로컬 구현 및 Android 빌드 완료. 소스 푸시, iOS 클라우드 빌드, 웹/API 배포,
+  앱 서명·스토어 제출은 아직 수행하지 않았다.
+- 작업 브랜치: codex/native-practice-beta-20261119
+- 기준 운영 main: 3e867608ff3fd379e80e41bdbdff47545398f080
+- 현재 운영 앱은 이전 웹 연습 화면을 계속 사용한다. 네이티브 전환에는 앱 업데이트와
+  이번 웹/API 변경의 배포가 모두 필요하다.
+
+요청에 따른 동작
+- 이용 중인 면접 패키지 수강생의 직무(전공)·인성만 베타 공개한다.
+- 기존 실제 네이티브 준비·면접·기록 화면을 정식 경로로 승격했다.
+  분야·지역·문항 수 선택, 질문 선택·즐겨찾기, 음성 표시, 녹음·재생·기록을 제공한다.
+- 베타 표시는 준비 화면 타이틀 위쪽 왼쪽에 표시한다.
+- iOS: 기존 WKWebView와 로그인은 유지하고, SwiftUI 연습 화면을 UIKit navigation
+  controller로 우측에서 push한다. 닫으면 기존 목록으로 돌아온다.
+- Android: 기존 Chrome/TWA 런처와 로그인은 유지한다. 패키지를 지정한 일회용
+  실행 코드로 실제 native Activity를 열고, 우측 전환 애니메이션을 적용한다.
+  브라우저의 앱 열기 제한을 고려하여 연결 화면의 '연습 화면 열기'를 한 번 더 누른다.
+- 새 앱만 native capability를 사용한다. 기존 앱과 일반 브라우저는 기존 웹 연습을
+  유지하므로 웹/API 배포가 기존 설치 앱에 미치는 영향을 제한한다.
+- 마이크 허용 및 실제 입력 장치 준비 성공 전에는 준비 화면에서 시작하지 않는다.
+  입력 확인 전의 무음은 다음 문항으로 진행하지 않는다. 지속 입력 후 4초 무음만
+  자동 완료하며, 8초 무입력 안내와 120초 무입력 중단을 적용한다.
+- 기존 웹 녹음은 삭제·이동하지 않는다. 네이티브 기록의 '기존 웹 기록 보기'에서
+  원래 계정·모드·origin의 저장소를 사용하는 기존 웹 기록 화면을 연다.
+  이 경로는 질문 목록을 새로 읽거나 연습 시작 버튼을 노출하지 않는다.
+- 이 베타의 연습에 채점·유료 AI 호출은 연결하지 않았다.
+
+인증 및 데이터
+- iOS는 기존 로그인 request closure를 제한된 메모리 세션으로 사용한다.
+  화면 전환 메시지에는 모드와 세션 UUID만 포함한다.
+- Android 실행 코드는 60초 만료/일회용이며 기존 원자적 코드 레지스트리를 재사용한다.
+  코드 해시·토큰 audience를 기존 Live/test 경로 및 직무·인성별로 분리했다.
+- API는 기존 베타 이용 권한을 실행/교환/목록/저장 시 재확인한다.
+  native bearer는 계정·모드에 한정하고 관리자·AI·다른 모드에 사용할 수 없다.
+- 새 DB migration은 필요하지 않다. 운영 DB는 함수 권한과 advisor 메타데이터만
+  읽었다. 운영 학생 기록 생성·변경, 대규모 부하검사, 유료 분석 호출은 수행하지 않았다.
+- 공개 질문 음성만 문구·파일명·바이트 수·SHA256을 대조하여 캐시한다.
+  PC bridge 설정과 debug 테스트 자산은 Android 검토/Release 바이너리에 포함하지 않았다.
+
+검증 결과
+- Node 자동검사 72개 통과: API 권한, 토큰·코드 격리, gateway 취소/기록 전환,
+  launcher, 웹 진입, 녹음 저장, 기존 test 앱 경로, 캐시 및 빌드 안전성.
+- 로컬 PGlite의 실제 기존 SQL로 일회용 코드 동시 교환(2개 중 1개만 성공), 만료,
+  다른 모드 거부, 수강 권한 회수, 비로그인 거부를 검증했다. 위 72개에 포함된다.
+- 실제 Chrome 회귀검사 통과: 두 모드 전체 녹음·재생·동기화, 질문 재생,
+  계정 분리, 무입력 대기/안내, 입력 후 무음 진행, 지연/거부 마이크,
+  백그라운드 중단, 기존 웹 기록만 열기, native capability/Android intent 라우팅.
+- 별도 진입/메뉴 검사 통과: CSS·데이터 지연 시 상단 잘림/중간 화면 방지,
+  실제 브라우저 마이크 거부 시 기록 미생성, 320/390/844px 및 기존 test 경로.
+- Android Debug/unsigned Release 전체 빌드 성공(116 tasks).
+  NativePracticePolicyTest JUnit 5개, 실패/오류 0.
+- APK manifest 검사: 기존 com.ronpark.study.LauncherActivity 유지,
+  InterviewBetaPracticeActivity와 /practice deep link 포함.
+  Release는 서명되지 않았고 review APK는 별도 로컬 검토 인증서로 서명했다.
+- iOS Swift 30개 구문 파싱 오류 0. 이는 Xcode 컴파일 성공을 의미하지 않는다.
+  Windows 환경이라 iOS 컴파일·시뮬레이터 화면/전환 검증은 아직 수행하지 못했다.
+- iOS cloud source snapshot 41개 파일 생성. 웹/API/Android/서명 파일을 제외하고
+  Vercel Git 배포를 비활성화했다. 기본 UI 테스트는 가상 문항으로 실제 native
+  준비 화면을 push/pop하며 녹음·운영 학생 데이터 쓰기 없이 실행한다.
+- 실물 Android/iPhone에서의 마이크·이어폰·앱 복귀 검사는 아직 수행하지 않았다.
+
+검토 산출물 (작업 폴더 기준)
+- .tmp/native-practice-beta-review/ronpark-native-practice-review.apk
+  package: com.ronpark.study.nativebeta
+  SHA256: ef32897c7ef74a0619fd6ed28a81f9c66c826160c67b1b7118b28c39e9c6ab16
+- .tmp/native-practice-beta-review/ronpark-native-practice-release-unsigned.apk
+  package: com.ronpark.study
+  SHA256: 5f99a0d489f62cb1f080099bbb96451f1b53e5ef1672bd0b0148e1729061a0aa
+- .tmp/native-practice-beta-review/android-artifacts.json
+- .tmp/ios-native-practice-beta-20261119/.ios-source-manifest.json
+- .tmp/native-final-node-tests.log / native-final-browser.log
+- .tmp/native-android-final-build.log / native-android-manifest.txt / native-swift-syntax.json
+- Android versionCode 2 / versionName 1.1.0-native-beta는 검토용 값이다.
+  스토어 제출 전에 실제 배포 버전보다 높은 값인지 확인해야 한다.
+- 검토 APK도 운영 웹/API가 아직 이전 버전이라 현재 운영 서버에서 새 연습 연결을
+  끝까지 실행할 수 없다. 성공한 로컬 빌드와 실제 운영 연결 검증은 구분한다.
+
+다음 승인 범위
+- 이 소스를 검토 브랜치에 푸시하고, 별도 codex/ios-native-build-practice-beta-20261119
+  브랜치의 native-only snapshot을 푸시해 macOS cloud compile/UI test/unsigned archive를
+  실행한다. 비용이 발생할 수 있어 AGENTS.md에 따라 사용자의 최종 확인이 필요하다.
+- 이 승인은 운영 웹/API 배포나 앱 스토어 제출을 포함하지 않는다.
+  iOS 결과와 실물 연결 검증 후 구체적인 배포 후보를 별도로 제시한다.
+- 운영 반영 시 단일 Vercel 후보 배포를 검증한 뒤 동일 후보를 승격하고,
+  앱은 실제 배포 버전·서명 및 마이크/전환/기록 동작을 확인한 빌드로 제출한다.
+  웹 rollback은 현재 운영 dpl_8Pe6WoCVYKWJfHQuSAvzMf2ydFAD를 기준으로 한다.
+  새 native API는 INTERVIEW_NATIVE_PRACTICE_ENABLED=false로 차단 가능하다.
+
+후속 작업
+- 전달받은 질문 목록 캐시·변경 답변만 저장·동기화 backoff/분할 개선은 native 연결
+  검증 후 순차 진행한다. 동일 파일을 병렬 수정하지 않았으며, 이번 native 변경에
+  그 최적화를 완료했다고 포함하지 않는다. 해당 배포/DB 변경도 최종 확인 후 진행한다.

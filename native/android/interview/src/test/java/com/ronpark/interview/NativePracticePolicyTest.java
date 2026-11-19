@@ -1,0 +1,11 @@
+package com.ronpark.interview;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class NativePracticePolicyTest {
+ @Test public void onlyOwnedHttpsOriginsAndTwoModesOpenNative(){assertTrue(NativePracticePolicy.trusted("https://app.ronparkpass.com/index.html#home"));assertTrue(NativePracticePolicy.trusted("https://outing-auth-app.vercel.app:443/interview"));for(String raw:new String[]{"http://app.ronparkpass.com","https://app.ronparkpass.com.evil.test","https://u@app.ronparkpass.com","https://app.ronparkpass.com:8443"})assertFalse(NativePracticePolicy.trusted(raw));assertTrue(NativePracticePolicy.handoff("job","12345678-1234-1234-1234-123456789abc"));assertFalse(NativePracticePolicy.handoff("ai","12345678-1234-1234-1234-123456789abc"));assertFalse(NativePracticePolicy.handoff("job","token"));}
+ @Test public void silenceOrTapsNeverAdvance(){NativePracticeInput input=new NativePracticeInput(0);for(int i=100;i<20000;i+=100)assertFalse(input.sample(i,false));input=new NativePracticeInput(0);assertFalse(input.sample(100,true));assertFalse(input.sample(200,false));assertFalse(input.sample(8000,false));assertFalse(input.confirmed);}
+ @Test public void sustainedInputThenFourSecondsOfSilenceAdvances(){NativePracticeInput input=new NativePracticeInput(0);assertFalse(input.sample(100,true));assertFalse(input.sample(200,true));assertFalse(input.sample(300,true));assertTrue(input.confirmed);assertFalse(input.sample(4299,false));assertTrue(input.sample(4300,false));}
+ @Test public void cancelledDialogTimeCannotCompleteAnAnswer(){NativePracticeInput input=new NativePracticeInput(0);for(int i=100;i<=400;i+=100)input.sample(i,true);input.resume(5000);assertFalse(input.sample(8000,false));assertTrue(input.sample(9000,false));}
+ @Test public void onlyExactPracticeLinksAreAccepted(){String code="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",base="ronpark-study://interview/practice?code="+code+"&mode=job";assertTrue(NativePracticePolicy.launch(base));for(String bad:new String[]{base+"&mode=personality",base+"#fragment",base.replace("mode=job","mode=ai"),base.replace("//interview","//user@interview"),base.replace("/practice?","/start?"),base.replace("&mode=job","&mode=job&token=other")})assertFalse(NativePracticePolicy.launch(bad));}
+}

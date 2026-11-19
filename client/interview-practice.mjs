@@ -1,4 +1,4 @@
-import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-mic-entry';
+import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-native-beta';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const symbols={
@@ -16,7 +16,7 @@ const formatDate=value=>new Date(value).toLocaleString('ko-KR',{timeZone:'Asia/S
 const time=value=>Math.floor(value/60)+':'+String(Math.floor(value%60)).padStart(2,'0');
 
 export function renderPractice(state){
- const {screen,mode,busy,talking,countdown,index,selected,run,field,region,count,stars,notice,fields,all,catalog,favorites,records,progress,audio}=state;
+ const {screen,mode,busy,talking,countdown,index,selected,run,field,region,count,stars,notice,fields,all,catalog,favorites,records,progress,audio,historyOnly}=state;
  const title=mode==='job'?'직무(전공) 연습모드':'인성 연습모드';
  const pageTitle={catalog:'질문 골라 연습',records:'내 면접 기록',result:'면접 결과',review:'답변 돌아보기'}[screen];
  const active=['live','review'].includes(screen);
@@ -54,10 +54,10 @@ export function renderPractice(state){
  if(screen==='result'){
   html+=`<p class="ip-mock-practice-note">답변 ${run.turns.length} / ${run.questionCount}개 · ${run.completed?'면접 완료':'중단된 면접'}</p>`;
   html+=run.turns.map(turnCard).join('')||'<p class="ip-mock-practice-note">저장된 답변이 없습니다.</p>';
-  html+=button('같은 질문으로 다시 연습','repeat',{primary:true,disabled:busy||!run.turns.length})+button('연습 홈으로','home')+button('내 면접 기록','records');
+  html+=(historyOnly?'':button('같은 질문으로 다시 연습','repeat',{primary:true,disabled:busy||!run.turns.length})+button('연습 홈으로','home'))+button('내 면접 기록','records');
  }
  if(screen==='records'){
-  html+=button('연습 홈으로','home');
+  html+=historyOnly?'<p class="ip-mock-practice-note">이전에 웹에서 저장한 녹음 기록입니다.</p>':button('연습 홈으로','home');
   html+=records.map(r=>`<article class="ip-mock-practice-card"><h4>${esc(formatDate(r.recordedAt))}</h4><p class="ip-mock-practice-note">${esc(r.track)} · 답변 ${r.turns.length}/${r.questionCount}개 · ${r.completed?'완료':'중단'}</p>${r.fieldLabel||r.region?`<p class="ip-mock-practice-note">${esc([r.fieldLabel,r.region].filter(Boolean).join(' · '))}</p>`:''}${button('기록 보기','record',{attrs:`data-id="${esc(r.runId)}"`})}${button('기록 삭제','delete',{attrs:`data-id="${esc(r.runId)}"`,className:'ip-mock-practice-delete'})}</article>`).join('')||'<p class="ip-mock-practice-note">아직 저장된 기록이 없습니다.</p>';
  }
  if(notice)html+=`<p class="ip-mock-practice-notice" role="status">${esc(notice)}</p>`;

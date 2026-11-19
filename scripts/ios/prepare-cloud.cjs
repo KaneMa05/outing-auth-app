@@ -25,7 +25,7 @@ function sourceFiles(sourceRoot=root){
  for(const file of files){const resolved=path.resolve(sourceRoot,file);if(!resolved.startsWith(path.resolve(sourceRoot)+path.sep)||fs.lstatSync(resolved).isSymbolicLink())throw Error('Invalid source path');}
  return files.sort();
 }
-function prepare({sourceRoot=root,target=path.join(root,'.tmp',snapshotName)}={}){
+function prepare({sourceRoot=root,target=path.join(root,'.tmp',snapshotName),buildBranch=branch}={}){
  const files=sourceFiles(sourceRoot),marker=path.join(target,'.ios-source-manifest.json');
  if(fs.existsSync(target)&&!fs.existsSync(marker))throw Error('Refusing to overwrite an unrecognized directory');
  if(fs.existsSync(marker)&&JSON.parse(fs.readFileSync(marker,'utf8')).kind!=='ronpark-ios-cloud-source')throw Error('Invalid snapshot marker');
@@ -37,7 +37,7 @@ function prepare({sourceRoot=root,target=path.join(root,'.tmp',snapshotName)}={}
  }
  fs.writeFileSync(path.join(target,'vercel.json'),JSON.stringify({$schema:'https://openapi.vercel.sh/vercel.json',git:{deploymentEnabled:false}},null,2)+'\n');
  fs.writeFileSync(path.join(target,'.gitignore'),'artifacts/\n.build/\nDerivedData/\n*.xcodeproj/\n*.xcworkspace/\n.env*\n*.p12\n*.p8\n*.mobileprovision\n');
- const report={kind:'ronpark-ios-cloud-source',branch,files:entries,sourceCount:entries.length,
+ const report={kind:'ronpark-ios-cloud-source',branch:buildBranch,files:entries,sourceCount:entries.length,
   deploymentEnabled:false,remotePushPerformed:false,cloudBuildPerformed:false};
  fs.writeFileSync(marker,JSON.stringify(report,null,2)+'\n');
  return {target,...report};

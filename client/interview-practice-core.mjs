@@ -7,8 +7,9 @@ export function eligible(questions,{mode,track,field='',region=''}){return quest
 export function questionProgress(records,id){const answered=records.filter(r=>r.turns.some(t=>t.questionId===id&&t.blob?.size>44));return {count:answered.length,latest:answered.map(r=>r.recordedAt).sort().at(-1)};}
 export function progressLabel(value){return value.count?`답변 완료 · ${value.count}회 · 최근 ${stamp(value.latest)}`:'아직 연습하지 않음 · 0회 · 최근 연습 없음';}
 function openStore(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ronpark-practice-pilot-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('runs',{keyPath:'runId'});r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result;resolve({run(method,value){return new Promise((yes,no)=>{const tx=db.transaction('runs',method==='get'||method==='getAll'?'readonly':'readwrite'),request=tx.objectStore('runs')[method](value);let result;request.onsuccess=()=>result=request.result;tx.oncomplete=()=>yes(result);tx.onerror=()=>no(tx.error);tx.onabort=()=>no(tx.error);});},close:()=>db.close()});};});}
-export async function mountPractice(host,{mode,accountId,request,renderView}){
- let destroyed=false,busy=false,screen='home',catalog,store,records=[],field='',region='',count=3,stars=false,notice='',run=null,selected=[],index=0,stream,recorder,parts=[],questionAudio,questionTicket=0,answerStarted=0,timer,analyzer,audioContext,talking=false,playURLs=[],syncing=false,syncAgain=false,startGeneration=0,countdown=null,sessionStarted=0,historyResult=false;
+export async function mountPractice(host,{mode,accountId,request,renderView,initialScreen='home',onClose}){
+ const historyOnly=initialScreen==='records';
+ let destroyed=false,busy=false,screen=historyOnly?'records':'home',catalog,store,records=[],field='',region='',count=3,stars=false,notice='',run=null,selected=[],index=0,stream,recorder,parts=[],questionAudio,questionTicket=0,answerStarted=0,timer,analyzer,audioContext,talking=false,playURLs=[],syncing=false,syncAgain=false,startGeneration=0,countdown=null,sessionStarted=0,historyResult=false;
  const scope='practice-pilot:'+encodeURIComponent(accountId)+':'+mode;
  let favorites=new Set();try{favorites=new Set(JSON.parse(localStorage.getItem(scope+':favorites')||'[]'));count=Number(localStorage.getItem(scope+':count'))||3;}catch{}
  if(![3,5,10,15,20].includes(count))count=3;
@@ -36,7 +37,7 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
  function stopHardware(){clearInterval(timer);stream?.getTracks().forEach(t=>t.stop());stream=null;if(audioContext){void audioContext.close();audioContext=null;}analyzer=null;}
  function releasePlayers(){host.querySelectorAll('audio').forEach(a=>a.pause());playURLs.forEach(URL.revokeObjectURL);playURLs=[];}
  function render(){if(destroyed)return;releasePlayers();const all=list(),fields=catalog?.fields||[];
-  if(renderView){host.innerHTML=renderView({screen,mode,busy,talking,countdown,index,selected,run,field,region,count,stars,notice,fields,all,catalog,favorites,historyResult,
+  if(renderView){host.innerHTML=renderView({screen,mode,busy,talking,countdown,index,selected,run,field,region,count,stars,notice,fields,all,catalog,favorites,historyResult,historyOnly,
    records:records.map(r=>({...r,pending:r.synced!==JSON.stringify(meta(r))})),progress:id=>progressLabel(questionProgress(records,id)),
    audio:blob=>{const url=URL.createObjectURL(blob);playURLs.push(url);return url;}});
    host.querySelectorAll('audio').forEach(a=>a.onplay=()=>host.querySelectorAll('audio').forEach(other=>{if(a!==other)other.pause();}));return;}
@@ -91,6 +92,8 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
  async function end(completed){startGeneration++;countdown=null;stopQuestion();try{await capture();run.completed=completed;run.finished=true;await save();}catch{notice='기기 저장 공간을 확인해주세요.';}stopHardware();screen='result';busy=false;historyResult=false;render();void sync();}
  const sample=n=>list().map(q=>({q,sort:crypto.getRandomValues(new Uint32Array(1))[0]})).sort((a,b)=>a.sort-b.sort).slice(0,n).map(v=>v.q.id);
  async function click(event){const b=event.target.closest('[data-pilot],[data-practice-action]');if(!b||b.disabled||!host.contains(b))return;const action=b.dataset.practiceAction||b.dataset.pilot;if(busy&&action!=='back')return;
+  if(historyOnly&&!['back','records','record','delete'].includes(action))return;
+  if(historyOnly&&action==='back'&&screen==='records'){onClose?.();return;}
   if(action==='back'){if(busy&&!['live','review'].includes(screen)){startGeneration++;busy=false;stopHardware();screen='home';notice='';render();return;}if(busy)return;if(['live','review'].includes(screen)){if(confirm('면접을 종료하고 지금까지의 답변을 저장할까요?'))await end(false);return;}if(screen==='home'){location.hash='#interview-prep?tab=mock';return;}screen=historyResult&&screen==='result'?'records':'home';notice='';render();return;}
   if(['catalog','settings','records','home'].includes(action)){screen=action;notice='';await reload();render();if(action==='records')void sync();}
   if(action==='all'||action==='stars'){stars=action==='stars';render();}
@@ -111,6 +114,6 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
  function unload(e){if(['live','review'].includes(screen)||busy){e.preventDefault();e.returnValue='';}}
  host.addEventListener('click',click);host.addEventListener('change',change);document.addEventListener('visibilitychange',visibility);window.addEventListener('beforeunload',unload);
  if(renderView)busy=true;
- try{store=await openStore();await reload();await load();await loadAudio();busy=false;render();void sync();}catch{busy=false;if(renderView){notice='이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.';render();}else host.innerHTML='<p role="status">이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.</p>';}
+ try{store=await openStore();await reload();if(!historyOnly){await load();await loadAudio();}busy=false;render();void sync();}catch{busy=false;if(renderView){notice='이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.';render();}else host.innerHTML='<p role="status">이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.</p>';}
  return {canLeave:()=>!['live','review'].includes(screen)&&!busy,destroy(){destroyed=true;startGeneration++;stopQuestion();if(['recording','paused'].includes(recorder?.state))recorder.stop();stopHardware();releasePlayers();host.removeEventListener('click',click);host.removeEventListener('change',change);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('beforeunload',unload);if(!syncing)store?.close();}};
 }

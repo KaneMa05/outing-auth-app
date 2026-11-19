@@ -7,6 +7,10 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
     <application>
+        <activity android:name="com.ronpark.interview.InterviewBetaPracticeActivity" android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="ronpark-study" android:host="interview" android:path="/practice"/></intent-filter>
+        </activity>
         <activity android:name="com.ronpark.interview.InterviewActivity" android:exported="true"
             android:theme="@android:style/Theme.Material.Light.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden" android:excludeFromRecents="true"
