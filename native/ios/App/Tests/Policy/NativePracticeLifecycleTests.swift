@@ -95,19 +95,41 @@ private final class MicrophoneCheckStub: PracticeMicrophoneChecking {
         XCTAssertEqual(model.record?.completed, false)
         XCTAssertTrue(model.notice.contains("저장하지 못했습니다")); XCTAssertFalse(model.notice.contains("저장되었습니다"))
     }
+    private func writeAnswer(_ store: PracticeStore, _ record: PracticeRecord) throws {
+        try store.save(record)
+        try autoreleasepool {
+            let format = AVAudioFormat(standardFormatWithSampleRate: 16000, channels: 1)!
+            let audio = try AVAudioFile(forWriting: store.audio(record.id, "1.wav"), settings: format.settings)
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1600)!
+            buffer.frameLength = 1600
+            for index in 0..<1600 { buffer.floatChannelData![0][index] = 0.1 }
+            try audio.write(from: buffer)
+        }
+    }
+    func testEndingDuringPromptReplayPreservesEarlierPartialRecording() async throws {
+        for mode in ["job", "personality"] {
+            let (model, root) = try await fixture(mode); defer { clean(model, root) }
+            let store = try PracticeStore(root: root), record = PracticeRecord(id: UUID().uuidString, mode: mode, track: "공채")
+            try writeAnswer(store, record)
+            model.record = record; model.number = 1; model.screen = .live; model.talking = true; model.recordingReady = false; model.notice = ""
+            model.background()
+            XCTAssertTrue(model.screen == .result); XCTAssertEqual(model.record?.turns.count, 1)
+            XCTAssertEqual(model.record?.completed, false); XCTAssertEqual(try store.load(record.id).turns.count, 1)
+        }
+    }
+    func testEndingBeforeFirstAnswerDoesNotInventARecording() async throws {
+        let (model, root) = try await fixture(); defer { clean(model, root) }
+        model.record = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        model.number = 1; model.screen = .live; model.talking = true; model.recordingReady = false; model.notice = ""
+        model.stop()
+        XCTAssertEqual(model.record?.turns.count, 0); XCTAssertEqual(model.record?.completed, false)
+        XCTAssertTrue(model.notice.contains("저장된 답변 음성이 없습니다"))
+    }
     func testReadableSavedAnswerStillReachesReviewOrCompletedResult() async throws {
         for mode in ["job", "personality"] {
             let (model, root) = try await fixture(mode); defer { clean(model, root) }
             let store = try PracticeStore(root: root)
-            let record = PracticeRecord(id: UUID().uuidString, mode: mode, track: "공채"); try store.save(record)
-            do {
-                let format = AVAudioFormat(standardFormatWithSampleRate: 16000, channels: 1)!
-                let audio = try AVAudioFile(forWriting: store.audio(record.id, "1.wav"), settings: format.settings)
-                let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1600)!
-                buffer.frameLength = 1600
-                for index in 0..<1600 { buffer.floatChannelData![0][index] = 0.1 }
-                try audio.write(from: buffer)
-            }
+            let record = PracticeRecord(id: UUID().uuidString, mode: mode, track: "공채"); try writeAnswer(store, record)
             model.record = record; model.number = 1; model.screen = .live; model.talking = false; model.recordingReady = true; model.notice = ""
             model.answer()
             XCTAssertEqual(model.record?.turns.count, 1)

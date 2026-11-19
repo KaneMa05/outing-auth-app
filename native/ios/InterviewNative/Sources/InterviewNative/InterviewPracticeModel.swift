@@ -674,11 +674,15 @@ import CryptoKit
         let wasAnswering = !talking
         let currentCaptions = captions; captions = nil
         stopTurn()
-        guard wasAnswering, var saved = record, let store,
+        guard var saved = record, let store,
               !saved.turns.contains(where: { $0.id == currentNumber }) else { currentCaptions?.close(); return false }
         do {
             let url = try store.audio(saved.id, "\(currentNumber).wav")
+            // Replaying the prompt stops the mic but keeps the earlier partial answer.
+            // Ending/backgrounding during replay must still index that saved audio.
+            if !wasAnswering && !FileManager.default.fileExists(atPath: url.path) { currentCaptions?.close(); return false }
             let bytes = (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            if !wasAnswering && bytes <= 44 { currentCaptions?.close(); return false }
             guard bytes > 44 else { throw InterviewError.invalidResponse }
             let audio = try AVAudioFile(forReading: url)
             guard audio.length > 0 else { throw InterviewError.invalidResponse }
