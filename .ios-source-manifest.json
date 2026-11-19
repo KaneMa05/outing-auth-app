@@ -144,7 +144,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewView.swift",
-      "sha256": "fb8f807cb8e73d8a98b16d938f1f543c41741f1f2d1752bf368f9703343da0be"
+      "sha256": "1afc54dc0e625c293d426f805710c941d9b022a95e6996f145243f25007373f6"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/PracticeAnswerPlayback.swift",

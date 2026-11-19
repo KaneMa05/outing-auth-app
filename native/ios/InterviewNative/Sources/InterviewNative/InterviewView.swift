@@ -187,7 +187,7 @@ private struct InterviewPreparationMedia: View {
         VStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 24).fill(Color.gray.opacity(0.12))
-                if media.cameraOn { InterviewCameraPreview(session: media.capture) }
+                if media.cameraOn { InterviewCameraPreview(media: media) }
                 else { Text("카메라 미리보기\n영상은 전송·저장하지 않습니다.").font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.secondary) }
             }.frame(height: 200).clipShape(RoundedRectangle(cornerRadius: 24))
             Button(media.cameraOn ? "내 모습 함께 보기 · 켜짐" : "내 모습 함께 보기 · 꺼짐") { media.toggleCamera() }.buttonStyle(.bordered)
@@ -200,6 +200,6 @@ private struct InterviewPreparationMedia: View {
 private struct InterviewSmallCamera: View {
     @ObservedObject var media: InterviewMedia
     var body: some View {
-        if media.cameraOn { InterviewCameraPreview(session: media.capture).frame(width: 72, height: 96).clipShape(RoundedRectangle(cornerRadius: 14)).accessibilityLabel("내 카메라 미리보기") }
+        if media.cameraOn { InterviewCameraPreview(media: media).frame(width: 72, height: 96).clipShape(RoundedRectangle(cornerRadius: 14)).accessibilityLabel("내 카메라 미리보기") }
     }
 }
