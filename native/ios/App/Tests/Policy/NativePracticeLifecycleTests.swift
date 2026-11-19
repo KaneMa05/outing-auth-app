@@ -87,6 +87,25 @@ private final class MicrophoneCheckStub: PracticeMicrophoneChecking {
         XCTAssertEqual(model.record?.turns.count, 0); XCTAssertEqual(model.record?.completed, false)
         XCTAssertTrue(model.notice.contains("저장하지 못했습니다")); XCTAssertFalse(model.notice.contains("저장되었습니다"))
     }
+    func testRecordsBeforeBootstrapCannotExposeUnownedLegacyData() async {
+        let model = PracticeModel(); defer { model.dispose() }
+        model.sessionLoader = { self.catalog() }; model.mode = "job"; model.screen = .prep
+        let legacy = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채")
+        model.records = [legacy]; model.showRecords(); model.showRecord(legacy)
+        XCTAssertTrue(model.screen == .prep); XCTAssertTrue(model.visibleRecords.isEmpty); XCTAssertNil(model.record)
+    }
+    func testRecordsRejectForeignAccountModeAndUnownedRows() async throws {
+        let (model, root) = try await fixture(); defer { clean(model, root) }
+        let store = try PracticeStore(root: root)
+        var own = PracticeRecord(id: UUID().uuidString, mode: "job", track: "공채"); own.accountID = model.portalAccount
+        var foreign = own; foreign.id = UUID().uuidString; foreign.accountID = "different-account"
+        var legacy = own; legacy.id = UUID().uuidString; legacy.accountID = nil
+        var differentMode = own; differentMode.id = UUID().uuidString; differentMode.mode = "personality"
+        for row in [own, foreign, legacy, differentMode] { try store.save(row) }
+        model.showRecords(); XCTAssertEqual(model.visibleRecords.map(\.id), [own.id])
+        for row in [foreign, legacy, differentMode] { model.showRecord(row); XCTAssertTrue(model.screen == .records); XCTAssertNil(model.record) }
+        model.showRecord(own); XCTAssertTrue(model.screen == .result); XCTAssertEqual(model.record?.id, own.id)
+    }
     func testStorageFailurePreservesFailureMessageAndIncompleteState() async throws {
         let (model, root) = try await fixture(); defer { clean(model, root) }
         try FileManager.default.removeItem(at: root); try Data("blocked".utf8).write(to: root)
