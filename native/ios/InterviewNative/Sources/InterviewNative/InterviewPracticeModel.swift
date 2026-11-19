@@ -85,6 +85,7 @@ import CryptoKit
         return false
     }
     func showRecord(_ saved: PracticeRecord) {
+        guard !isPortalPractice || (portalAccount != nil && saved.accountID == portalAccount && saved.mode == mode) else { return }
         stopPlayback(); resultCameFromRecords = true; record = saved; screen = .result
     }
     var canAutomaticallySubmitCurrentAnswers: Bool {
@@ -92,7 +93,11 @@ import CryptoKit
         guard let activePracticeRecordID else { return false }
         return record?.id == activePracticeRecordID
     }
-    var visibleRecords: [PracticeRecord] { isPortalPractice ? records.filter { $0.mode == mode } : records }
+    var visibleRecords: [PracticeRecord] {
+        guard isPortalPractice else { return records }
+        guard let account = portalAccount else { return [] }
+        return records.filter { $0.mode == mode && $0.accountID == account }
+    }
     var canRepeatJobQuestions: Bool { mode == "job" && record?.id == activePracticeRecordID && !questions.isEmpty }
     @Published private(set) var avatarURL: URL?
     @Published private(set) var questionPlayer: AVPlayer?
@@ -865,7 +870,8 @@ import CryptoKit
 
     func showRecords() {
         cancelPendingStart(); media.stop(); stopPlayback()
-        do { records = try store?.list() ?? []; screen = .records } catch { notice = "기록을 불러오지 못했습니다." }
+        guard !isPortalPractice || portalAccount != nil else { notice = "로그인 확인을 마친 뒤 기록을 열어주세요."; return }
+        do { records = (try store?.list() ?? []).filter { !isPortalPractice || $0.accountID == portalAccount }; screen = .records } catch { notice = "기록을 불러오지 못했습니다." }
         refreshCLIResults()
     }
     func delete(_ id: String) {
