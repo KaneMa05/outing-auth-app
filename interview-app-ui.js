@@ -111,7 +111,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      box.innerHTML=mockScreen();
      if(!mockTestApp&&mockModes[route.mockMode]?.practiceMode)return;
      if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
-      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261118-app-ui');
+      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-input-check');
       if(destroyed||ticket!==generation)return;
       const next=await mountPractice(box,{mode:route.mockMode,accountId:account.id,request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);

@@ -1,4 +1,4 @@
-import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261118-app-ui';
+import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-input-check';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const symbols={

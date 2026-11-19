@@ -70,8 +70,20 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.evaluate(()=>window.mount('personality'));await page.locator('[data-practice-action=configured]:enabled').waitFor();await page.locator('[data-practice-action=configured]').click();await page.locator('[data-practice-action=answer]:enabled').waitFor();await page.waitForTimeout(1100);
   await page.evaluate(()=>window.speechDelay=2000);await page.locator('[data-practice-action=replay]').click();await page.waitForFunction(()=>document.querySelector('[data-live-status]').textContent.includes('질문'));
   page.once('dialog',dialog=>dialog.accept());await page.locator('[data-practice-action=end]').click();await page.locator('[data-practice-screen=result]').waitFor();assert.equal(await page.locator('audio').count(),1);
+  await page.evaluate(async()=>{
+   window.speechDelay=20;window.signalContext=new AudioContext();await window.signalContext.resume();window.signalGain=window.signalContext.createGain();window.signalGain.gain.value=0;
+   const oscillator=window.signalContext.createOscillator(),destination=window.signalContext.createMediaStreamDestination();oscillator.connect(window.signalGain);window.signalGain.connect(destination);oscillator.start();
+   navigator.mediaDevices.getUserMedia=async()=>destination.stream;await window.mount('job');
+  });
+  await page.locator('[data-practice-action=configured]:enabled').waitFor();await page.locator('[data-practice-action=configured]').click();await page.locator('[data-practice-action=answer]:enabled').waitFor();
+  await page.waitForTimeout(4800);assert.equal(await page.locator('[data-practice-screen=live]').count(),1);assert.match(await page.locator('.ip-mock-practice-turn').innerText(),/질문 1 \/ 3/);
+  await page.getByRole('status').filter({hasText:'마이크 입력이 확인되지 않습니다'}).waitFor();
+  await page.evaluate(()=>window.signalGain.gain.value=.15);await page.waitForTimeout(1000);await page.evaluate(()=>window.signalGain.gain.value=0);
+  await page.locator('[data-practice-screen=review]').waitFor({timeout:7000});assert.equal(await page.locator('audio').count(),1);
+  page.once('dialog',dialog=>dialog.accept());await page.locator('[data-practice-action=end]').click();await page.locator('[data-practice-screen=result]').waitFor();
+  await page.evaluate(async()=>{navigator.mediaDevices.getUserMedia=window.originalMic;await window.signalContext.close();});
   assert.equal(await page.evaluate(()=>window.calls.some(c=>/interview-(openai|live|job-exam|personality|native)/.test(c.url||''))),false);
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS actual app layout: title-top-left beta; preparation/voice/review/result/history; three recordings per mode; upload/account isolation; retry; late microphone cancellation; background countdown cancellation; ending during paused replay preserves audio; 320/390/844px. No production writes or paid APIs.');
+  console.log('PASS app recording: original UI and lifecycle; silent input stays on question one and warns; sustained input followed by four seconds of silence advances; replay/audio/history/upload/account isolation preserved. No production writes or paid APIs.');
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

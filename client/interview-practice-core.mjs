@@ -1,4 +1,5 @@
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './interview-question-audio.js';
+import {createInputActivity} from './interview-input-activity.mjs?v=20261119-input-check';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hash=async blob=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(v=>v.toString(16).padStart(2,'0')).join('');
 const stamp=s=>new Date(s).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'});
@@ -7,12 +8,14 @@ export function questionProgress(records,id){const answered=records.filter(r=>r.
 export function progressLabel(value){return value.count?`답변 완료 · ${value.count}회 · 최근 ${stamp(value.latest)}`:'아직 연습하지 않음 · 0회 · 최근 연습 없음';}
 function openStore(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ronpark-practice-pilot-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('runs',{keyPath:'runId'});r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result;resolve({run(method,value){return new Promise((yes,no)=>{const tx=db.transaction('runs',method==='get'||method==='getAll'?'readonly':'readwrite'),request=tx.objectStore('runs')[method](value);let result;request.onsuccess=()=>result=request.result;tx.oncomplete=()=>yes(result);tx.onerror=()=>no(tx.error);tx.onabort=()=>no(tx.error);});},close:()=>db.close()});};});}
 export async function mountPractice(host,{mode,accountId,request,renderView}){
- let destroyed=false,busy=false,screen='home',catalog,store,records=[],field='',region='',count=3,stars=false,notice='',run=null,selected=[],index=0,stream,recorder,parts=[],questionAudio,questionTicket=0,answerStarted=0,timer,analyzer,audioContext,lastSpeech=0,talking=false,playURLs=[],syncing=false,syncAgain=false,startGeneration=0,countdown=null,sessionStarted=0,historyResult=false;
+ let destroyed=false,busy=false,screen='home',catalog,store,records=[],field='',region='',count=3,stars=false,notice='',run=null,selected=[],index=0,stream,recorder,parts=[],questionAudio,questionTicket=0,answerStarted=0,timer,analyzer,audioContext,talking=false,playURLs=[],syncing=false,syncAgain=false,startGeneration=0,countdown=null,sessionStarted=0,historyResult=false;
  const scope='practice-pilot:'+encodeURIComponent(accountId)+':'+mode;
  let favorites=new Set();try{favorites=new Set(JSON.parse(localStorage.getItem(scope+':favorites')||'[]'));count=Number(localStorage.getItem(scope+':count'))||3;}catch{}
  if(![3,5,10,15,20].includes(count))count=3;
  let audioCatalogs={};
  let finishQuestion;
+ let inputActivity;
+ const inputWarning='마이크 입력이 확인되지 않습니다. 마이크 권한과 연결 상태를 확인하고, 기기 가까이에서 말씀해주세요. 말하기 전에는 자동으로 넘어가지 않습니다.';
  const list=()=>eligible(catalog?.questions||[],{mode,track:catalog?.track,field,region});
  const button=(label,action,attrs='')=>`<button type="button" class="ip-btn ${['quick','configured','answer'].includes(action)?'ip-primary':''}" data-pilot="${action}" ${attrs}>${esc(label)}</button>`;
  const save=async()=>{await store.run('put',run);await reload();};
@@ -67,8 +70,19 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
   });
  }
  async function ask(){stopQuestion();talking=true;render();const ticket=questionTicket;await playQuestion(selected[index]);if(destroyed||ticket!==questionTicket||screen!=='live')return;talking=false;parts=[];
-  try{recorder=new MediaRecorder(stream,{mimeType:run.mime,audioBitsPerSecond:32000});recorder.ondataavailable=e=>{if(e.data.size)parts.push(e.data);};answerStarted=performance.now();recorder.start(1000);lastSpeech=Date.now();
-   render();timer=setInterval(()=>{if(destroyed||screen!=='live'||busy||talking)return;let volume=0;if(analyzer){const samples=new Float32Array(analyzer.fftSize);analyzer.getFloatTimeDomainData(samples);volume=Math.sqrt(samples.reduce((n,v)=>n+v*v,0)/samples.length);if(volume>.015)lastSpeech=Date.now();}const meter=host.querySelector('[data-level]');if(meter)meter.value=Math.min(1,volume*8);const wave=host.querySelector('[data-practice-wave]');if(wave)wave.style.setProperty('--voice-level',String(Math.max(.12,Math.min(1,volume*12))));const clock=host.querySelector('[data-practice-elapsed]');if(clock){const elapsed=Math.floor((performance.now()-sessionStarted)/1000);clock.textContent=Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0');}if(analyzer&&audioContext?.state==='running'&&Date.now()-lastSpeech>=4000)void answer();if(performance.now()-answerStarted>=120000)void answer();},100);
+  try{recorder=new MediaRecorder(stream,{mimeType:run.mime,audioBitsPerSecond:32000});recorder.ondataavailable=e=>{if(e.data.size)parts.push(e.data);};answerStarted=performance.now();recorder.start(1000);
+   inputActivity=createInputActivity({startedAt:Date.now()});if(notice===inputWarning)notice='';render();timer=setInterval(()=>{
+    if(destroyed||screen!=='live'||busy||talking)return;
+    let volume=0;if(analyzer){const samples=new Float32Array(analyzer.fftSize);analyzer.getFloatTimeDomainData(samples);volume=Math.sqrt(samples.reduce((n,v)=>n+v*v,0)/samples.length);}
+    const available=!!analyzer&&audioContext?.state==='running'&&stream?.getAudioTracks().some(t=>t.readyState==='live'&&!t.muted);
+    const input=inputActivity.sample(Date.now(),volume,available);
+    if(input.warning&&!input.confirmed&&notice!==inputWarning){notice=inputWarning;render();}else if(input.confirmed&&notice===inputWarning){notice='';render();}
+    const meter=host.querySelector('[data-level]');if(meter)meter.value=Math.min(1,volume*8);
+    const wave=host.querySelector('[data-practice-wave]');if(wave)wave.style.setProperty('--voice-level',String(Math.max(.12,Math.min(1,volume*12))));
+    const clock=host.querySelector('[data-practice-elapsed]');if(clock){const elapsed=Math.floor((performance.now()-sessionStarted)/1000);clock.textContent=Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0');}
+    if(input.advance){void answer();return;}
+    if(performance.now()-answerStarted>=120000){if(input.confirmed)void answer();else{notice='마이크 입력이 확인되지 않아 면접을 중단했습니다. 기기 설정을 확인한 뒤 다시 연습해주세요.';void end(false);}}
+   },100);
   }catch{notice='마이크를 시작하지 못했습니다. 권한을 확인해주세요.';await end(false);}
  }
  async function capture(){clearInterval(timer);if(!recorder||!['recording','paused'].includes(recorder.state))return;const active=recorder;await new Promise(resolve=>{active.onstop=resolve;active.stop();});recorder=null;const blob=new Blob(parts,{type:active.mimeType.split(';')[0]});if(blob.size<=44)throw Error('empty_recording');const turn={number:index+1,questionId:selected[index].id,question:selected[index].prompt,answer:'',duration:Math.min(120,(performance.now()-answerStarted)/1000),audioBytes:blob.size,audioHash:await hash(blob),audioMime:blob.type,blob};run.turns.push(turn);await save();void sync();}
@@ -83,7 +97,7 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
   if(action==='quick'||action==='configured')await start(sample(action==='quick'?3:count));
   if(action==='one')await start([b.dataset.id]);
   if(action==='answer')await answer();
-  if(action==='replay'&&screen==='live'&&!talking&&countdown===null){const current=recorder;if(current?.state!=='recording'||typeof current.pause!=='function')return;current.pause();const pausedAt=performance.now();stopQuestion();const ticket=questionTicket;talking=true;render();await playQuestion(selected[index]);if(destroyed||screen!=='live'||ticket!==questionTicket||current.state!=='paused')return;current.resume();answerStarted+=performance.now()-pausedAt;lastSpeech=Date.now();talking=false;render();}
+  if(action==='replay'&&screen==='live'&&!talking&&countdown===null){const current=recorder;if(current?.state!=='recording'||typeof current.pause!=='function')return;current.pause();const pausedAt=performance.now();stopQuestion();const ticket=questionTicket;talking=true;render();await playQuestion(selected[index]);if(destroyed||screen!=='live'||ticket!==questionTicket||current.state!=='paused')return;current.resume();answerStarted+=performance.now()-pausedAt;inputActivity?.resume(Date.now());talking=false;render();}
   if(action==='retry'){busy=true;notice='';render();try{if(!store){store=await openStore();await reload();}await load();await loadAudio();}catch{notice='문항 목록을 불러오지 못했습니다. 로그인 상태와 연결을 확인해주세요.';}busy=false;render();}
   if(action==='next'&&screen==='review'){if(index+1===selected.length)await end(true);else{index++;screen='live';await ask();}}
   if(action==='end'&&confirm('면접을 종료하고 답변을 저장할까요?'))await end(false);

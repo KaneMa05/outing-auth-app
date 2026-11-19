@@ -264,7 +264,7 @@ function renderInterviewPrepModule(admin) {
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&(isStandaloneStudentApp()||accessProduct==='aptitude_only');
-    const module=await (admin?import('./interview-prep-ui.js?v=20261118-transcription'):appShell?import('./interview-app-ui.js?v=20261118-app-practice-ui'):import('./interview-workspace.js?v=20261117-writing-submit-notice'));
+    const module=await (admin?import('./interview-prep-ui.js?v=20261118-transcription'):appShell?import('./interview-app-ui.js?v=20261119-input-check'):import('./interview-workspace.js?v=20261117-writing-submit-notice'));
     if(renderInterviewPrepModule.view!==view)return;
     if(appShell){try{localStorage.setItem('outing-student-mode:'+student.id,'interview');}catch{}prepareInterviewAppEntry.cache={key:student.id+':'+token,state:'ready',enabled:true};}
     const controller=await (admin?module.mountAdmin:appShell?module.mountInterviewApp:module.mountWorkspace)(host,{
