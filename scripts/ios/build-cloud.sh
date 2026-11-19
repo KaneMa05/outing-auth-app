@@ -39,9 +39,16 @@ xcodebuild "${common[@]}" -resolvePackageDependencies 2>&1 | tee "$output/packag
 # No Apple account, certificate, OpenAI key, or production login is supplied to this job.
 xcrun simctl list devices available --json > "$output/simulators.json"
 simulator=$(python3 "$root/scripts/ios/select-simulator.py" < "$output/simulators.json")
+# Compile before waiting for simulator startup so source errors fail early.
+xcodebuild "${common[@]}" build-for-testing -configuration Debug \
+  -destination "platform=iOS Simulator,id=$simulator" -destination-timeout 120 \
+  -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+  -derivedDataPath "$build_dir/derived" \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$output/simulator-build.log"
+
 xcrun simctl boot "$simulator" || true
 xcrun simctl bootstatus "$simulator" -b
-xcodebuild "${common[@]}" test -configuration Debug \
+xcodebuild "${common[@]}" test-without-building -configuration Debug \
   -destination "platform=iOS Simulator,id=$simulator" -destination-timeout 120 \
   -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
   -derivedDataPath "$build_dir/derived" -resultBundlePath "$build_dir/NativeTests.xcresult" \
