@@ -1,5 +1,5 @@
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './interview-question-audio.js';
-import {createInputActivity} from './interview-input-activity.mjs?v=20261119-input-check';
+import {createInputActivity} from './interview-input-activity.mjs?v=20261119-mic-entry';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hash=async blob=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(v=>v.toString(16).padStart(2,'0')).join('');
 const stamp=s=>new Date(s).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'});
@@ -56,11 +56,12 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
  async function start(ids){if(busy||!ids.length||destroyed)return;const ticket=++startGeneration;busy=true;notice='';render();let acquired;
   try{const Context=globalThis.AudioContext||globalThis.webkitAudioContext;if(Context){audioContext=new Context();void audioContext.resume();}await load();if(destroyed||ticket!==startGeneration)return;const available=list();selected=ids.map(id=>available.find(q=>q.id===id));if(selected.some(q=>!q)||new Set(ids).size!==ids.length)throw Error('question_changed');
    const mime=['audio/mp4','audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>globalThis.MediaRecorder?.isTypeSupported(t));if(!mime)throw Error('recording_unsupported');
-   acquired=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,sampleRate:16000,echoCancellation:true,noiseSuppression:true}});if(destroyed||ticket!==startGeneration){acquired.getTracks().forEach(t=>t.stop());return;}if(document.hidden)throw Error('background');stream=acquired;if(audioContext){analyzer=audioContext.createAnalyser();analyzer.fftSize=2048;audioContext.createMediaStreamSource(stream).connect(analyzer);}
+   if(!navigator.mediaDevices?.getUserMedia)throw Error('microphone_unavailable');
+   acquired=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,sampleRate:16000,echoCancellation:true,noiseSuppression:true}});if(destroyed||ticket!==startGeneration){acquired.getTracks().forEach(t=>t.stop());return;}if(!acquired.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled))throw Error('microphone_unavailable');if(document.hidden)throw Error('background');stream=acquired;if(audioContext){analyzer=audioContext.createAnalyser();analyzer.fftSize=2048;audioContext.createMediaStreamSource(stream).connect(analyzer);}
    run={runId:crypto.randomUUID(),accountId,mode,track:catalog.track,fieldId:field,fieldLabel:catalog.fields.find(f=>f.id===field)?.label||'',region:mode==='job'?region:'',recordedAt:new Date().toISOString(),questionCount:selected.length,completed:false,finished:false,turns:[],mime};await save();if(destroyed||ticket!==startGeneration){acquired.getTracks().forEach(t=>t.stop());return;}if(document.hidden)throw Error('background');index=0;historyResult=false;screen='live';busy=false;void sync();
    if(renderView){for(let n=3;n>0;n--){if(destroyed||ticket!==startGeneration||screen!=='live'||document.hidden)return;countdown=n;render();await new Promise(resolve=>setTimeout(resolve,1000));}countdown=null;if(destroyed||ticket!==startGeneration||screen!=='live'||document.hidden)return;}
    sessionStarted=performance.now();await ask();
-  }catch(error){acquired?.getTracks().forEach(t=>t.stop());if(destroyed||ticket!==startGeneration)return;stopHardware();busy=false;notice=error.name==='NotAllowedError'?'마이크 권한을 허용한 뒤 다시 시작해주세요.':'문항·권한·기기 저장 공간을 확인한 뒤 다시 시작해주세요.';render();}
+  }catch(error){acquired?.getTracks().forEach(t=>t.stop());if(destroyed||ticket!==startGeneration)return;stopHardware();busy=false;notice=['NotAllowedError','SecurityError'].includes(error.name)?'마이크 사용을 허용해야 면접을 시작할 수 있습니다. 브라우저·앱 설정에서 마이크 권한을 허용한 뒤 다시 시작해주세요.':['NotFoundError','NotReadableError'].includes(error.name)||error.message==='microphone_unavailable'?'사용 가능한 마이크가 없습니다. 기기의 마이크 연결과 사용 권한을 확인한 뒤 다시 시작해주세요.':'문항·권한·기기 저장 공간을 확인한 뒤 다시 시작해주세요.';render();}
  }
  async function playQuestion(q){
   const recorded=resolveQuestionAudio(q,audioCatalogs);
@@ -74,7 +75,7 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
    inputActivity=createInputActivity({startedAt:Date.now()});if(notice===inputWarning)notice='';render();timer=setInterval(()=>{
     if(destroyed||screen!=='live'||busy||talking)return;
     let volume=0;if(analyzer){const samples=new Float32Array(analyzer.fftSize);analyzer.getFloatTimeDomainData(samples);volume=Math.sqrt(samples.reduce((n,v)=>n+v*v,0)/samples.length);}
-    const available=!!analyzer&&audioContext?.state==='running'&&stream?.getAudioTracks().some(t=>t.readyState==='live'&&!t.muted);
+    const available=!!analyzer&&audioContext?.state==='running'&&stream?.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled&&!t.muted);
     const input=inputActivity.sample(Date.now(),volume,available);
     if(input.warning&&!input.confirmed&&notice!==inputWarning){notice=inputWarning;render();}else if(input.confirmed&&notice===inputWarning){notice='';render();}
     const meter=host.querySelector('[data-level]');if(meter)meter.value=Math.min(1,volume*8);
@@ -109,7 +110,7 @@ export async function mountPractice(host,{mode,accountId,request,renderView}){
  function visibility(){if(document.hidden&&['live','review'].includes(screen)&&!busy)void end(false);else if(!document.hidden)void sync();}
  function unload(e){if(['live','review'].includes(screen)||busy){e.preventDefault();e.returnValue='';}}
  host.addEventListener('click',click);host.addEventListener('change',change);document.addEventListener('visibilitychange',visibility);window.addEventListener('beforeunload',unload);
- if(renderView){busy=true;render();}
+ if(renderView)busy=true;
  try{store=await openStore();await reload();await load();await loadAudio();busy=false;render();void sync();}catch{busy=false;if(renderView){notice='이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.';render();}else host.innerHTML='<p role="status">이용 권한이나 기기 저장 공간을 확인한 뒤 다시 열어주세요.</p>';}
  return {canLeave:()=>!['live','review'].includes(screen)&&!busy,destroy(){destroyed=true;startGeneration++;stopQuestion();if(['recording','paused'].includes(recorder?.state))recorder.stop();stopHardware();releasePlayers();host.removeEventListener('click',click);host.removeEventListener('change',change);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('beforeunload',unload);if(!syncing)store?.close();}};
 }

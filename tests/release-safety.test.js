@@ -6,12 +6,15 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261119-input-check"));
+  assert.ok(index.includes("interview-prep.js?v=20261119-mic-entry"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261119-input-check"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261119-mic-entry"));
   }
+  for(const page of [index,portal])assert.ok(page.includes('interview-app.css?v=20261119-mic-entry'));
+  for(const [file,module] of [['interview-app-ui.js','./client/interview-practice.mjs'],['client/interview-practice.mjs','./interview-practice-core.mjs'],['client/interview-practice-core.mjs','./interview-input-activity.mjs']])
+    assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v=20261119-mic-entry'),'Refresh practice permission and input fixes: '+file);
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
   for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261117-writing-submit-notice'],['interview-workspace.js','interview-ai-ui.js','20261111-ai-retry'],['interview-ai-ui.js','client/interview-ai-client.js','20261111-ai-retry']])
     assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh the entire cached interview module chain: '+file);

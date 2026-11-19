@@ -102,3 +102,13 @@ body.ip-portal-app #interview-portal{padding:0;max-width:none}
 /* Native test app already sits above the iOS home-indicator safe area. */
 .ip-test-app-shell .ip-app-footer{padding-bottom:8px}
 .ip-test-app-shell{padding-bottom:104px!important}
+
+/* Keep the practice frame stable before its lazy stylesheet and data arrive. */
+.ip-app-shell.ip-app-practice{padding:0!important;max-width:720px!important;background:#f6f8fa;overflow-anchor:none}
+.ip-app-practice>.ip-app-header,.ip-app-practice>.ip-app-footer{display:none}
+.ip-app-practice-loading{min-height:100svh;background:#f6f8fa;color:#152c43;line-height:1.5}
+.ip-app-practice-loading-nav{box-sizing:border-box;display:grid;place-items:center;min-height:calc(56px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid #e8edf1;font-size:17px;font-weight:600}
+.ip-app-practice-loading-content{box-sizing:border-box;max-width:680px;margin:auto;padding:24px}
+.ip-app-practice-loading-content .ip-app-beta-label{display:table;padding:3px 8px;margin:0 0 7px;border-radius:5px;background:#e4f1ee;color:#087d72;font-size:11px!important;font-weight:700;line-height:1.35;letter-spacing:.02em}
+.ip-app-practice-loading-content h2{margin:0!important;font-size:27px!important;line-height:1.35;letter-spacing:-.04em;font-weight:750}
+.ip-app-practice-loading-content p{margin-top:24px;color:#65778a;font-size:14px}

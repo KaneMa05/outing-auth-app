@@ -1,4 +1,4 @@
-import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-input-check';
+import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-mic-entry';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const symbols={
@@ -29,6 +29,7 @@ export function renderPractice(state){
  if(screen==='home'||screen==='settings'){
   html+=`<div class="ip-mock-practice-selection ${mode==='job'?'has-region':''}">${fieldChoice(mode==='job'?'내용 분야':'인성 분야')}${mode==='job'?select('기출 지역','data-practice-region',region,[['','전체 지역'],...regions.map(r=>[r,r])]):''}</div>${select('연습 문항 수','data-practice-count',count,[3,5,10,15,20].map(n=>[n,n+'문항']))}`;
   if(catalog&&!all.length)html+='<p class="ip-mock-practice-note">선택 조건에 맞는 공개 문항이 없습니다. 분야나 지역을 변경해주세요.</p>';
+  html+='<p class="ip-mock-practice-note" data-practice-mic-required>연습 시작 시 마이크 권한을 허용해주세요. 허용하기 전에는 면접이 시작되지 않습니다.</p>';
   html+=button(busy?'준비 중…':'연습 시작','configured',{primary:true,disabled:busy||!catalog||!all.length});
   html+=`<div class="ip-mock-practice-menu">${button(`${icon('list')}<span>질문 골라 연습<small>분야별 질문 · 즐겨찾기</small></span>${icon('next')}`,'catalog',{disabled:busy||!catalog})}${button(`${icon('clock')}<span>내 면접 기록<small>지난 답변 다시 듣기</small></span>${icon('next')}`,'records',{disabled:busy})}</div>`;
   if(!catalog&&!busy)html+=button('문항 목록 다시 불러오기','retry',{primary:true});
@@ -63,9 +64,20 @@ export function renderPractice(state){
  return html+'</div></section>';
 }
 
+let stylesReady;
+function loadStyles(){
+ if(stylesReady)return stylesReady;
+ stylesReady=new Promise((resolve,reject)=>{
+  let link=document.querySelector('[data-practice-styles]');
+  if(link?.sheet){resolve();return;}
+  const failed=()=>{link.remove();stylesReady=null;reject(Error('practice_styles_unavailable'));};
+  if(!link){link=document.createElement('link');link.rel='stylesheet';link.href='/client/interview-practice.css?v=20261119-mic-entry';link.dataset.practiceStyles='';}
+  link.addEventListener('load',resolve,{once:true});link.addEventListener('error',failed,{once:true});
+  if(!link.isConnected)document.head.appendChild(link);
+ });
+ return stylesReady;
+}
 export async function mountPractice(host,options){
- if(!document.querySelector('[data-practice-styles]')){
-  const link=document.createElement('link');link.rel='stylesheet';link.href='/client/interview-practice.css?v=20261118-app-ui';link.dataset.practiceStyles='';document.head.appendChild(link);
- }
+ await loadStyles();
  return mountRecordingPractice(host,{...options,renderView:renderPractice});
 }

@@ -39,7 +39,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   if(destroyed||!canLeave()){if(historyChange)setUrl(true);return;}
   if(next.tab==='mock'&&!mockAllowed&&!aptitudeOnly)return;
   if(!mockTestApp&&next.mockMode&&!['job','personality'].includes(next.mockMode))return;
-  route={...route,...next};if(!historyChange)setUrl();else remember();await render();window.scrollTo({top:0,behavior:'auto'});
+  route={...route,...next};if(!historyChange)setUrl();else remember();await render();
+  if(mockTestApp||route.tab!=='mock'||!['job','personality'].includes(route.mockMode))window.scrollTo({top:0,behavior:'auto'});
  }
  const link=(label,tab,page='',area='')=>`<button type="button" class="ip-app-link" data-app-tab="${tab}" ${page?`data-page="${esc(page)}"`:''} ${area?`data-area="${esc(area)}"`:''}>${esc(label)}<span aria-hidden="true">›</span></button>`;
  function assignmentArticle(){
@@ -59,11 +60,16 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  }
  async function render(){
   busy=true;const ticket=++generation;child?.destroy();child=null;
-  host.classList.toggle('ip-app-practice',!mockTestApp&&route.tab==='mock'&&['job','personality'].includes(route.mockMode));
+  const recordingPractice=!mockTestApp&&!aptitudeOnly&&route.tab==='mock'&&['job','personality'].includes(route.mockMode);
+  host.classList.toggle('ip-app-practice',recordingPractice);
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
   if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · ${aptitudeOnly?'인적성 단과':'면접반'}</small>${route.tab==='mock'&&!mockTestApp?'<span class="ip-app-beta-label">베타</span>':''}<h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div>${aptitudeOnly&&onLogout?'<button type="button" class="ip-btn" data-app-logout>로그아웃</button>':'<span class="ip-app-mark" aria-hidden="true">R</span>'}</header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed||aptitudeOnly?6:5},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed||aptitudeOnly).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
   const box=host.querySelector('[data-app-content]');
   box.classList.toggle('ip-app-mock',route.tab==='mock');
+  if(recordingPractice){
+   box.innerHTML=`<section class="ip-app-practice-loading" aria-busy="true"><div class="ip-app-practice-loading-nav">모의면접</div><div class="ip-app-practice-loading-content"><span class="ip-app-beta-label">베타</span><h2>${esc(mockModes[route.mockMode].title)}</h2><p role="status">연습 화면을 불러오는 중…</p></div></section>`;
+   window.scrollTo({top:0,behavior:'auto'});
+  }
   try{
    if(aptitudeOnly&&route.tab!=='aptitude'){
     box.innerHTML='<section class="ip-panel ip-package-required" aria-labelledby="ip-package-required-title"><span class="ip-badge">면접 패키지 전용</span><h2 id="ip-package-required-title" tabindex="-1">면접 패키지로 구매하셔야 이용가능합니다</h2><button type="button" class="ip-btn ip-primary" data-app-tab="aptitude">적성 모의고사로 이동</button></section>';
@@ -108,10 +114,10 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
       window.webkit.messageHandlers.interviewNative.postMessage({code:launch.code});
       return;
      }
-     box.innerHTML=mockScreen();
+     if(!recordingPractice)box.innerHTML=mockScreen();
      if(!mockTestApp&&mockModes[route.mockMode]?.practiceMode)return;
      if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
-      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-input-check');
+      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-mic-entry');
       if(destroyed||ticket!==generation)return;
       const next=await mountPractice(box,{mode:route.mockMode,accountId:account.id,request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);

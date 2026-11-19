@@ -1,6 +1,4 @@
 /* Matches the existing iOS PracticeView / Android PortalPractice screens. */
-.ip-app-shell.ip-app-practice{padding:0!important;max-width:720px!important;background:#f6f8fa}
-.ip-app-practice>.ip-app-header,.ip-app-practice>.ip-app-footer{display:none}
 .ip-mock-practice{--practice-teal:#087d72;--practice-ink:#152c43;--practice-sub:#65778a;min-height:100svh;background:#f6f8fa;color:var(--practice-ink);font-family:inherit;line-height:1.5}
 .ip-mock-practice *{box-sizing:border-box}
 .ip-mock-practice-nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:calc(56px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 16px 0;background:#f6f8faf5;border-bottom:1px solid #e8edf1;backdrop-filter:blur(12px)}
