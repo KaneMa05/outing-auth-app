@@ -725,9 +725,6 @@ private struct PracticeVoiceIndicator: View {
         }.foregroundStyle(.teal).accessibilityLabel(preparing ? "면접 준비" : talking ? "면접관 질문 음성" : "내 답변 음성")
     }
 }
-#endif
-
-#if DEBUG
 private struct PracticeRecordingStatus: View {
     @ObservedObject var media: InterviewMedia
     var body: some View {

@@ -132,7 +132,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeView.swift",
-      "sha256": "df6a8f011e3e81c53a778d44e67fbabd3bbd34c22ea4e32ccf3a545e885a32f2"
+      "sha256": "bb7cf866d50961de016429fcba266b26571d6a6b63c0dabdbf690003ef1f3a0e"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewQuestionVideo.swift",
@@ -156,7 +156,7 @@
     },
     {
       "path": "scripts/ios/build-cloud.sh",
-      "sha256": "254ad08c5e445ccf838d222dde8db80ccf5d7e83162488c1098f1527b6510e2b"
+      "sha256": "12a1ebe0683250157f3a2c3cd36865429b2f848c45e32d48cdf3e3b241fd8626"
     },
     {
       "path": "scripts/ios/capture-store.sh",
