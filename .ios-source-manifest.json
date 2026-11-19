@@ -48,7 +48,7 @@
     },
     {
       "path": "native/ios/App/Tests/Policy/NativePracticeLifecycleTests.swift",
-      "sha256": "f424fc1abf1d48395e168a2ea095c6d7123dbbf97c0417457a74273d894f2e7f"
+      "sha256": "43d07cab30f69949b8690b4ff7e41ae9aa3f8f36ab6fbb48582ca1e53c664a2e"
     },
     {
       "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
@@ -116,7 +116,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeModel.swift",
-      "sha256": "b8b558d4d8dba52b21fc956dfdcc68e2928a8e3f188d5da2bdfc726fc5679810"
+      "sha256": "c66a2b3ecd6343bc1fe918c9bf4bf352a26b59c1f9edffa8aad2bec09bb6a914"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticePolicy.swift",
