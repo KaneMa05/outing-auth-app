@@ -4,6 +4,7 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.media.audiofx.Visualizer;
+import android.os.SystemClock;
 import java.io.File;
 import java.io.RandomAccessFile;
 
@@ -15,6 +16,8 @@ final class InterviewVoiceLevel {
     private Visualizer output;
     private volatile AudioRecord input;
     private Thread reader;
+    private volatile long lastFrameAt;
+    private volatile boolean receivedAudio;
     private final InterviewNoiseControl noiseControl=new InterviewNoiseControl();
     void playback(int session) {
         stop();
@@ -31,7 +34,8 @@ final class InterviewVoiceLevel {
             output.setEnabled(true);
         }catch(Exception ignored){stop();}
     }
-    boolean isRecording(){AudioRecord recorder=input;Thread thread=reader;return recorder!=null&&thread!=null&&thread.isAlive()&&recorder.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING;}
+    boolean isRecording(){AudioRecord recorder=input;Thread thread=reader;return recorder!=null&&thread!=null&&thread.isAlive()&&recorder.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING&&SystemClock.elapsedRealtime()-lastFrameAt<3000;}
+    boolean hasAudio(){return receivedAudio&&isRecording();}
     void microphone(){microphone(null,null);}
     void microphone(File recording){microphone(recording,null);}
     void microphone(File recording,PcmListener listener) {
@@ -43,7 +47,7 @@ final class InterviewVoiceLevel {
             int size=Math.max(4096,AudioRecord.getMinBufferSize(16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT));
             final AudioRecord recorder=new AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION,16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,size);
             if(recorder.getState()!=AudioRecord.STATE_INITIALIZED){recorder.release();return;}
-            input=recorder;noiseControl.attach(recorder.getAudioSessionId());recorder.startRecording();
+            input=recorder;noiseControl.attach(recorder.getAudioSessionId());recorder.startRecording();lastFrameAt=SystemClock.elapsedRealtime();
             reader=new Thread(()->{
                 short[] samples=new short[1024];
                 InterviewMicLevel signal=new InterviewMicLevel(noiseDb);
@@ -52,8 +56,9 @@ final class InterviewVoiceLevel {
                     if(recording!=null){wav=new RandomAccessFile(recording,"rw");if(wav.length()<44)wav.setLength(44);wav.seek(wav.length());}
                     while(input==recorder){int n=recorder.read(samples,0,samples.length);if(n<=0)break;
                     signal.sample(samples,n);
-                    if(input==recorder){level=signal.level();speaking=signal.speaking();}
+                    if(input==recorder){level=signal.level();speaking=signal.speaking();lastFrameAt=SystemClock.elapsedRealtime();}
                     if(wav!=null||listener!=null){byte[] bytes=new byte[n*2];for(int i=0;i<n;i++){bytes[i*2]=(byte)samples[i];bytes[i*2+1]=(byte)(samples[i]>>8);}if(wav!=null)wav.write(bytes);if(listener!=null)listener.bytes(bytes);}
+                    if(input==recorder)receivedAudio=true;
                 }}catch(Exception ignored){}
                 finally{if(wav!=null)try{long length=wav.length()-44;wav.seek(0);wav.writeBytes("RIFF");le(wav,length+36,4);wav.writeBytes("WAVEfmt ");le(wav,16,4);le(wav,1,2);le(wav,1,2);le(wav,16000,4);le(wav,32000,4);le(wav,2,2);le(wav,16,2);wav.writeBytes("data");le(wav,length,4);wav.close();}catch(Exception ignored){}}
             },"InterviewVoiceLevel");reader.start();
@@ -64,6 +69,6 @@ final class InterviewVoiceLevel {
         AudioRecord recorder=input;input=null;
         if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}if(reader!=null)try{reader.join(500);}catch(InterruptedException e){Thread.currentThread().interrupt();}noiseControl.close();recorder.release();reader=null;}
         if(output!=null){try{output.setEnabled(false);}catch(Exception ignored){}output.release();output=null;}
-        level=0;speaking=false;
+        level=0;speaking=false;receivedAudio=false;
     }
 }

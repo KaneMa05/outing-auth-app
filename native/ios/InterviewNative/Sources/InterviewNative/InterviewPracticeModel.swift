@@ -74,6 +74,7 @@ import CryptoKit
     /// Only the outermost screen dismisses the native practice flow.
     func navigateBack() -> Bool {
         guard screen != .live && screen != .jobReview else { return false }
+        cancelPendingStart()
         if isNavigationRoot { return true }
         media.stop(); stopPlayback(); notice = ""
         if screen == .result && resultCameFromRecords {
@@ -141,11 +142,21 @@ import CryptoKit
     var isPortalPractice: Bool { sessionLoader != nil }
     @Published var sessionLoading = false
     @Published private(set) var starting = false
-    private let preflight = InterviewMicMonitor()
+    var preflight: PracticeMicrophoneChecking = InterviewMicMonitor()
+    var requestMicrophonePermission: (@escaping (Bool) -> Void) -> Void = { AVAudioSession.sharedInstance().requestRecordPermission($0) }
+    private var startTask: Task<Void, Never>?
+    var makeAccountStore: (String) throws -> PracticeStore = { account in
+        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("InterviewAccounts/" + scope, isDirectory: true)
+        return try PracticeStore(root: root)
+    }
     @Published var catalogLoaded = false
     func refreshPortal() async throws {
         guard let sessionLoader else { return }
         let data = try await sessionLoader()
+        try Task.checkCancellation()
+        guard !disposed else { throw CancellationError() }
         guard let account = data["accountId"] as? String, !account.isEmpty,
               let newTrack = data["track"] as? String,
               let rows = data["questions"] as? [[String: Any]] else { throw InterviewError.invalidResponse }
@@ -153,10 +164,7 @@ import CryptoKit
         portalAccount = account; track = newTrack
         if let favoritesKey { favoriteQuestionIDs = Set(UserDefaults.standard.stringArray(forKey: favoritesKey) ?? []) }
         if let selected = data["mode"] as? String, ["job", "personality", "ai"].contains(selected) { mode = selected }
-        let scope = SHA256.hash(data: Data(account.utf8)).map { String(format: "%02x", $0) }.joined()
-        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("InterviewAccounts/" + scope, isDirectory: true)
-        store = try PracticeStore(root: root)
+        store = try makeAccountStore(account)
         try store?.migrateLegacyCLI(account: account)
         refreshQuestionProgress()
         syncPracticeRecords()
@@ -325,15 +333,17 @@ import CryptoKit
         stopPlayback(); screen = .prep
     }
     func start(allowAI: Bool? = nil, questionIDs: [String]? = nil) {
-        guard !sessionLoading, !starting else { return }
+        guard !disposed, screen == .prep, !sessionLoading, !starting else { return }
         if isPortalPractice {
+            generation += 1; let active = generation
             sessionLoading = true
             catalogLoaded = false
-            Task { [weak self] in
+            startTask = Task { [weak self] in
                 guard let self else { return }
-                defer { self.sessionLoading = false }
+                defer { if self.generation == active { self.sessionLoading = false; self.startTask = nil } }
                 do {
                     try await self.refreshPortal()
+                    guard !Task.isCancelled, !self.disposed, self.generation == active, self.screen == .prep else { return }
                     if let questionIDs {
                         // Recheck the current approved catalog before opening the microphone.
                         let selected = questionIDs.compactMap { id in self.catalogQuestions.first { $0.id == id } }
@@ -347,9 +357,14 @@ import CryptoKit
                         self.bridgeReady = try await PracticeCLI(request: request).ready(account: account)
                         guard self.bridgeReady else { self.notice = "음성 분석이 준비되지 않았습니다. 연결을 다시 확인해주세요."; return }
                     }
-                    guard !self.disposed, self.screen == .prep else { return }
+                    guard !Task.isCancelled, !self.disposed, self.generation == active, self.screen == .prep,
+                          UIApplication.shared.applicationState != .background else { return }
+                    self.sessionLoading = false; self.startTask = nil
                     self.startVerified(allowAI: allowAI)
-                } catch { self.notice = "연습 권한을 확인하지 못했습니다. 로그인과 연결 상태를 확인해주세요." }
+                } catch {
+                    guard !Task.isCancelled, !self.disposed, self.generation == active else { return }
+                    self.notice = "연습 권한을 확인하지 못했습니다. 로그인과 연결 상태를 확인해주세요."
+                }
             }
         } else { startVerified(allowAI: allowAI) }
     }
@@ -361,7 +376,7 @@ import CryptoKit
         }
         generation += 1; let active = generation
         starting = true
-        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] allowed in
+        requestMicrophonePermission { [weak self] allowed in
             DispatchQueue.main.async {
                 guard let self, !self.disposed, self.generation == active, self.screen == .prep else { return }
                 guard allowed else { self.starting = false; self.notice = "설정에서 마이크 권한을 허용해주세요."; return }
@@ -388,7 +403,7 @@ import CryptoKit
                 record.region = mode == "job" && !selectedRegion.isEmpty ? selectedRegion : nil
             }
 
-            record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id
+            record.completed = false; try store?.save(record); self.record = record; activePracticeRecordID = record.id; notice = ""
             syncPracticeRecords()
             avatarURL = showsInterviewer ? InterviewAvatarVideo.availableURLs.randomElement() : nil
             remaining = InterviewAnswerGate.silenceSeconds
@@ -595,14 +610,19 @@ import CryptoKit
                 guard let self, self.generation == active, self.screen == .live else { return }
                 switch result {
                 case .success: self.playCue()
-                case .failure: self.captions?.close(); self.captions = nil; self.notice = "마이크를 확인하지 못했습니다. 면접을 종료하고 다시 시도해주세요."
+                case .failure:
+                    self.notice = "마이크 입력이나 녹음 파일을 확인하지 못해 면접을 중단했습니다. 권한과 저장 공간을 확인해주세요."
+                    self.stop(completed: false)
                 }
             }) { [weak self] level, speaking, data in
                 guard let self, self.generation == active, self.screen == .live, !self.talking else { return }
                 self.meter.updateLevel(level); self.speaking = speaking; self.captions?.pcm(data)
             }
 
-        } catch { captions?.close(); captions = nil; notice = "마이크를 확인하지 못했습니다. 답변 완료를 눌러 계속하거나 면접을 종료해주세요." }
+        } catch {
+            notice = "마이크 입력이나 녹음 파일을 확인하지 못해 면접을 중단했습니다. 권한과 저장 공간을 확인해주세요."
+            stop(completed: false)
+        }
     }
     private func currentAnswerBytes() -> Int {
         guard let record, let store else { return 0 }
@@ -642,23 +662,26 @@ import CryptoKit
     }
     func answer() {
         guard screen == .live, !talking, !answering, recordingReady else { return }
-        answering = true; captureAnswer()
+        answering = true
+        guard captureAnswer() else { stop(completed: false, capture: false); return }
         if mode == "job" { screen = .jobReview; reviewStartedAt = Date(); answering = false; return }
         if number == questions.count { stop(completed: true, capture: false) }
         else { number += 1; answering = false; transcript = ""; transcriptPrefix = ""; speakQuestion() }
     }
-    private func captureAnswer() {
+    @discardableResult private func captureAnswer() -> Bool {
 
         let text = transcript, currentNumber = number
         let wasAnswering = !talking
         let currentCaptions = captions; captions = nil
         stopTurn()
         guard wasAnswering, var saved = record, let store,
-              !saved.turns.contains(where: { $0.id == currentNumber }) else { currentCaptions?.close(); return }
+              !saved.turns.contains(where: { $0.id == currentNumber }) else { currentCaptions?.close(); return false }
         do {
             let url = try store.audio(saved.id, "\(currentNumber).wav")
             let bytes = (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            guard bytes > 44 else { currentCaptions?.close(); return }
+            guard bytes > 44 else { throw InterviewError.invalidResponse }
+            let audio = try AVAudioFile(forReading: url)
+            guard audio.length > 0 else { throw InterviewError.invalidResponse }
             let shouldAnalyze = analyzesAnswers
             saved.turns.append(PracticeTurn(id: currentNumber, question: question, answer: text, duration: min(120, Double(bytes - 44) / 32000), audio: "\(currentNumber).wav", questionID: questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].id : nil, analysisPending: shouldAnalyze))
             saved.turns[saved.turns.count - 1].analysisQuestionPrompt = questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].prompt : nil
@@ -672,7 +695,7 @@ import CryptoKit
             if usesPC {
                 currentCaptions?.close()
                 if shouldAnalyze { runCLI(saved.id, currentNumber, allowSubmission: true) }
-                return
+                return true
             }
             let run = saved.id, prompt = questions.indices.contains(currentNumber - 1) ? questions[currentNumber - 1].spokenPrompt : question, selectedMode = mode
             let prefix = transcriptPrefix
@@ -695,7 +718,8 @@ import CryptoKit
                 let key = UUID(); pendingCaptions[key] = currentCaptions
                 currentCaptions.end { [weak self] final, confirmed in self?.pendingCaptions.removeValue(forKey: key); finish(prefix.isEmpty ? final : prefix + " " + final, confirmed && prefix.isEmpty) }
             } else { finish(text, false) }
-        } catch { currentCaptions?.close(); notice = "기록을 저장하지 못했습니다. 기기 저장 공간을 확인해주세요." }
+            return true
+        } catch { currentCaptions?.close(); notice = "답변 녹음을 저장하지 못했습니다. 기기 저장 공간을 확인해주세요."; return false }
     }
     private func updateTurn(_ run: String, _ number: Int, change: (inout PracticeTurn) -> Void) {
         guard let store else { return }
@@ -788,8 +812,14 @@ import CryptoKit
         guard screen == .live || screen == .jobReview else { return }
         if capture { captureAnswer() } else { stopTurn() }
         media.stop(); ticker?.cancel(); UIApplication.shared.isIdleTimerDisabled = false
-        if var saved = record { saved.completed = completed; saved.finished = true; do { try store?.save(saved); record = saved; syncPracticeRecords() } catch { notice = "기록을 저장하지 못했습니다." } }
-        screen = .result; answering = false; notice = "음성은 이 기기에 저장되었습니다."
+        if var saved = record {
+            saved.completed = completed && saved.turns.count == questions.count && !questions.isEmpty
+            saved.finished = true
+            do { guard let store else { throw InterviewError.invalidResponse }; try store.save(saved); record = saved; syncPracticeRecords() }
+            catch { notice = "기록을 저장하지 못했습니다. 기기 저장 공간을 확인해주세요." }
+        }
+        screen = .result; answering = false
+        if notice.isEmpty { notice = record?.turns.isEmpty == false ? "음성은 이 기기에 저장되었습니다." : "저장된 답변 음성이 없습니다." }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
     private func stopTurn() {
@@ -830,7 +860,7 @@ import CryptoKit
     }
 
     func showRecords() {
-        media.stop(); stopPlayback()
+        cancelPendingStart(); media.stop(); stopPlayback()
         do { records = try store?.list() ?? []; screen = .records } catch { notice = "기록을 불러오지 못했습니다." }
         refreshCLIResults()
     }
@@ -847,7 +877,7 @@ import CryptoKit
         catch { notice = "기록을 삭제하지 못했습니다." }
     }
     func background() {
-        if starting { generation += 1 }; preflight.stop(); starting = false
+        cancelPendingStart()
         media.stop()
         if screen == .result { answerPlayback.interrupt() } else { stopPlayback() }
         if screen == .live || screen == .jobReview { stop() }
@@ -855,7 +885,7 @@ import CryptoKit
     }
     func dispose() {
         if screen == .live || screen == .jobReview { stop() }
-        disposed = true; preflight.stop(); starting = false; answerPlayback.stop(); media.stop(); stopTurn(); ticker?.cancel()
+        disposed = true; cancelPendingStart(); answerPlayback.stop(); media.stop(); stopTurn(); ticker?.cancel()
         for task in cliTasks.values { task.cancel() }; cliTasks = [:]
         for task in exampleTasks.values { task.cancel() }; exampleTasks = [:]
         if let audioRouteObserver { NotificationCenter.default.removeObserver(audioRouteObserver) }
@@ -863,5 +893,9 @@ import CryptoKit
         for pending in pendingCaptions.values { pending.close() }; pendingCaptions = [:]
         bridge.close()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    private func cancelPendingStart() {
+        if starting || startTask != nil { generation += 1; sessionLoading = false }
+        startTask?.cancel(); startTask = nil; preflight.stop(); starting = false
     }
 }

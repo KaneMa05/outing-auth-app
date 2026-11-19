@@ -242,7 +242,7 @@ import AVKit
     }
     private var betaPreparation: some View {
         VStack(alignment: .leading, spacing: 24) {
-            practiceSelectionControls
+            practiceSelectionControls.disabled(model.starting || model.sessionLoading)
             Text("연습 시작 시 마이크 권한을 허용해주세요. 허용하기 전에는 면접이 시작되지 않습니다.").font(.footnote).foregroundStyle(.secondary)
             action(model.starting ? "마이크 확인 중…" : model.sessionLoading ? "준비 중…" : "연습 시작", primary: true,
                    enabled: !model.starting && !model.sessionLoading && !model.catalogQuestions.isEmpty && !model.videoSaving,
@@ -250,7 +250,7 @@ import AVKit
             VStack(spacing: 0) {
                 preparationRow("질문 골라 연습", subtitle: "분야별 질문 · 즐겨찾기", icon: "list.bullet", id: "practice.question-catalog") {
                     favoritesOnly = false; showQuestionCatalog = true
-                }.disabled(model.sessionLoading)
+                }.disabled(model.starting || model.sessionLoading)
                 Divider().padding(.leading, 60)
                 preparationRow("내 면접 기록", subtitle: "지난 답변 다시 듣기", icon: "clock.arrow.circlepath", id: "practice.records") { model.showRecords() }
             }.background(.white, in: RoundedRectangle(cornerRadius: 20))

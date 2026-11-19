@@ -1,8 +1,15 @@
 package com.ronpark.interview;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import java.io.*;
 
 public class NativePracticePolicyTest {
+ private static File wav(int frames)throws IOException{File file=File.createTempFile("native-practice-", ".wav");try(RandomAccessFile out=new RandomAccessFile(file,"rw")){out.writeBytes("RIFF");le(out,36+frames*2,4);out.writeBytes("WAVEfmt ");le(out,16,4);le(out,1,2);le(out,1,2);le(out,16000,4);le(out,32000,4);le(out,2,2);le(out,16,2);out.writeBytes("data");le(out,frames*2,4);for(int i=0;i<frames;i++)le(out,1000,2);}return file;}
+ private static void le(RandomAccessFile file,int value,int bytes)throws IOException{for(int i=0;i<bytes;i++)file.write(value>>(8*i)&255);}
+ private static void rejects(File file){try{NativePracticeRecording.duration(file);fail("Invalid audio must not advance a turn");}catch(IOException expected){}}
+ @Test public void finalizedPcmAudioIsReadableBeforeTurnAdvances()throws Exception{File file=wav(1600);try{assertEquals(.1,NativePracticeRecording.duration(file),.0001);}finally{file.delete();}}
+ @Test public void missingEmptyOrUnfinalizedAudioNeverAdvances()throws Exception{File file=wav(0);try{rejects(file);try(RandomAccessFile out=new RandomAccessFile(file,"rw")){out.setLength(3244);out.seek(0);out.write(new byte[44]);}rejects(file);}finally{file.delete();}rejects(file);}
+ @Test public void truncatedAudioAndWrongSampleRateNeverAdvance()throws Exception{File file=wav(1600);try{try(RandomAccessFile out=new RandomAccessFile(file,"rw")){out.setLength(out.length()-2);}rejects(file);}finally{file.delete();}file=wav(1600);try{try(RandomAccessFile out=new RandomAccessFile(file,"rw")){out.seek(24);le(out,48000,4);}rejects(file);}finally{file.delete();}}
  @Test public void onlyOwnedHttpsOriginsAndTwoModesOpenNative(){assertTrue(NativePracticePolicy.trusted("https://app.ronparkpass.com/index.html#home"));assertTrue(NativePracticePolicy.trusted("https://outing-auth-app.vercel.app:443/interview"));for(String raw:new String[]{"http://app.ronparkpass.com","https://app.ronparkpass.com.evil.test","https://u@app.ronparkpass.com","https://app.ronparkpass.com:8443"})assertFalse(NativePracticePolicy.trusted(raw));assertTrue(NativePracticePolicy.handoff("job","12345678-1234-1234-1234-123456789abc"));assertFalse(NativePracticePolicy.handoff("ai","12345678-1234-1234-1234-123456789abc"));assertFalse(NativePracticePolicy.handoff("job","token"));}
  @Test public void silenceOrTapsNeverAdvance(){NativePracticeInput input=new NativePracticeInput(0);for(int i=100;i<20000;i+=100)assertFalse(input.sample(i,false));input=new NativePracticeInput(0);assertFalse(input.sample(100,true));assertFalse(input.sample(200,false));assertFalse(input.sample(8000,false));assertFalse(input.confirmed);}
  @Test public void sustainedInputThenFourSecondsOfSilenceAdvances(){NativePracticeInput input=new NativePracticeInput(0);assertFalse(input.sample(100,true));assertFalse(input.sample(200,true));assertFalse(input.sample(300,true));assertTrue(input.confirmed);assertFalse(input.sample(4299,false));assertTrue(input.sample(4300,false));}

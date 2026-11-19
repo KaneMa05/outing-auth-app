@@ -51,13 +51,13 @@
 - 별도 진입/메뉴 검사 통과: CSS·데이터 지연 시 상단 잘림/중간 화면 방지,
   실제 브라우저 마이크 거부 시 기록 미생성, 320/390/844px 및 기존 test 경로.
 - Android Debug/unsigned Release 전체 빌드 성공(116 tasks).
-  NativePracticePolicyTest JUnit 5개, 실패/오류 0.
+  NativePracticePolicyTest JUnit 8개, 실패/오류 0 (재검토 후 재빌드).
 - APK manifest 검사: 기존 com.ronpark.study.LauncherActivity 유지,
   InterviewBetaPracticeActivity와 /practice deep link 포함.
   Release는 서명되지 않았고 review APK는 별도 로컬 검토 인증서로 서명했다.
-- iOS Swift 30개 구문 파싱 오류 0. 이는 Xcode 컴파일 성공을 의미하지 않는다.
+- iOS Swift 31개 구문 파싱 오류 0. 이는 Xcode 컴파일 성공을 의미하지 않는다.
   Windows 환경이라 iOS 컴파일·시뮬레이터 화면/전환 검증은 아직 수행하지 못했다.
-- iOS cloud source snapshot 41개 파일 생성. 웹/API/Android/서명 파일을 제외하고
+- iOS cloud source snapshot 42개 파일 생성. 웹/API/Android/서명 파일을 제외하고
   Vercel Git 배포를 비활성화했다. 기본 UI 테스트는 가상 문항으로 실제 native
   준비 화면을 push/pop하며 녹음·운영 학생 데이터 쓰기 없이 실행한다.
 - 실물 Android/iPhone에서의 마이크·이어폰·앱 복귀 검사는 아직 수행하지 않았다.
@@ -65,18 +65,40 @@
 검토 산출물 (작업 폴더 기준)
 - .tmp/native-practice-beta-review/ronpark-native-practice-review.apk
   package: com.ronpark.study.nativebeta
-  SHA256: ef32897c7ef74a0619fd6ed28a81f9c66c826160c67b1b7118b28c39e9c6ab16
+  SHA256: a74fc1b1a9e2d11fcd16800797955cd81881d7bbae0f4b3242930349bf064593
 - .tmp/native-practice-beta-review/ronpark-native-practice-release-unsigned.apk
   package: com.ronpark.study
-  SHA256: 5f99a0d489f62cb1f080099bbb96451f1b53e5ef1672bd0b0148e1729061a0aa
+  SHA256: 975ee62f57267b473d5d6e409fce5954ff4c1a2914537e7d4ec5c83bfc16a732
 - .tmp/native-practice-beta-review/android-artifacts.json
 - .tmp/ios-native-practice-beta-20261119/.ios-source-manifest.json
 - .tmp/native-final-node-tests.log / native-final-browser.log
 - .tmp/native-android-final-build.log / native-android-manifest.txt / native-swift-syntax.json
+- .tmp/native-recheck-android-build.log / native-recheck-node-tests.log (재검토 후 검증)
 - Android versionCode 2 / versionName 1.1.0-native-beta는 검토용 값이다.
   스토어 제출 전에 실제 배포 버전보다 높은 값인지 확인해야 한다.
 - 검토 APK도 운영 웹/API가 아직 이전 버전이라 현재 운영 서버에서 새 연습 연결을
   끝까지 실행할 수 없다. 성공한 로컬 빌드와 실제 운영 연결 검증은 구분한다.
+
+재검토 및 수정 (사용자 요청: 수정사항 있는지 재확인)
+- iOS 시작 요청이 권한 응답/실제 마이크 확인을 기다리는 동안 기록 화면으로 이동하거나
+  닫기·백그라운드 전환하면 요청과 마이크 확인을 취소한다. 취소 후 늦게 도착한
+  catalog/권한/마이크 성공 응답이 녹음 회차를 생성하지 못하도록 차단했다.
+- iOS와 Android 모두 실제 오디오 버퍼 수신을 확인한 뒤 준비 화면에서 시작한다.
+  입력 스트림이 3초 이상 오지 않거나 녹음 쓰기가 실패하면 중단한다.
+  Android 답변 완료 버튼도 첫 오디오 수신 전에는 활성화하지 않는다.
+- 답변을 진행하기 전에 WAV가 읽히고 최종 헤더/데이터가 유효한지 확인한다.
+  Android는 저장 성공 전 메모리의 답변 목록을 갱신하지 않는다.
+  녹음 파일 누락·손상·저장 실패 시 다음 문항으로 넘어가거나 완료 처리하지 않는다.
+- iOS 중단/저장 오류 안내가 일반 저장 성공 안내로 덮이는 문제를 수정했다.
+  새 회차를 정상 시작할 때 이전 오류를 지운다.
+- 수정 후 Android Debug/unsigned Release 빌드 재성공, JUnit 8개 통과.
+  정상 PCM WAV와 빈 파일·미완료 헤더·잘린 파일·잘못된 샘플률을 검증한다.
+  backend/gateway/launcher/iOS snapshot 자동검사 14개도 통과했다.
+- iOS 실제 모델 회귀 테스트 7개 추가: 권한 거부, 준비 실패, 기록 화면 이동 취소,
+  백그라운드 후 늦은 응답, 녹음 누락, 저장 실패, 두 모드 정상 저장/진행.
+  구문 검사는 통과했으며 Xcode에서 실행한 결과는 아직 없다.
+- 웹/API 동작에는 이번 재검토에서 추가 변경하지 않았다.
+  운영 푸시·배포, 유료 클라우드 빌드와 실물 기기 검사는 수행하지 않았다.
 
 다음 승인 범위
 - 이 소스를 검토 브랜치에 푸시하고, 별도 codex/ios-native-build-practice-beta-20261119
