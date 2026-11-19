@@ -1,0 +1,40 @@
+name: iOS native interview build
+
+# Dedicated build branches only. A normal main/production push does not run this job.
+# The isolated upload snapshot disables Vercel Git deployments in its own vercel.json.
+on:
+  push:
+    branches: ['codex/ios-native-build-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - name: Checkout iOS build source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: bash scripts/ios/install-tools.sh
+      - name: Compile iOS app and test native screens
+        run: bash scripts/ios/build-cloud.sh
+      - name: Keep build logs, native screenshots and unsigned outputs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ios-native-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/ios-cloud/
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 0

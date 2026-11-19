@@ -1,0 +1,178 @@
+{
+  "kind": "ronpark-ios-cloud-source",
+  "branch": "codex/ios-native-build-practice-beta-20261119",
+  "files": [
+    {
+      "path": ".github/workflows/ios-native-build.yml",
+      "sha256": "61018006e3665a4389d771d1804df46018a25227fad42530d40bb91b47777abd"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bf4d73d7fa08a3849aa123b32281db2b61993cc79ea749e58fd1dfc83621b2ab"
+    },
+    {
+      "path": "native/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "sha256": "8e8b977d57ec6e4c4808709c8ae208e923b79a67e9167b43846c284b4b1164e9"
+    },
+    {
+      "path": "native/ios/App/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "4d409617f26818cc08ee4c63d5d41a2f1f4be7e304ba1a26429f361aab86d4d8"
+    },
+    {
+      "path": "native/ios/App/Assets.xcassets/Contents.json",
+      "sha256": "72c7d24704014fc43418caf0de10610912623033478dc1cfe1a4f8458970f0db"
+    },
+    {
+      "path": "native/ios/App/Info.plist",
+      "sha256": "05505c3bd6c469027491460ff6085ebd4481549bd4e2763dc90cd2fa70525349"
+    },
+    {
+      "path": "native/ios/App/Sources/NativePracticeNavigation.swift",
+      "sha256": "5f9233181ffd50be578308f2b310583a36f9b1c236d101f34104192399710ddc"
+    },
+    {
+      "path": "native/ios/App/Sources/PracticePortalSession.swift",
+      "sha256": "3ba3442e0a3fc4059458a1e884acd4079ba7656b33dee2190cfe4c5cf79c14f4"
+    },
+    {
+      "path": "native/ios/App/Sources/RonparkStudyApp.swift",
+      "sha256": "7326fa388f29bbe642355130604d937d0c4d12a90f2c6440f772299a1e5d3aef"
+    },
+    {
+      "path": "native/ios/App/Tests/Policy/InterviewLaunchPolicyTests.swift",
+      "sha256": "4111a2906242b08a40f4f6ce5b5a80ad6ce6006c22b014f8ce1690743f9eeb53"
+    },
+    {
+      "path": "native/ios/App/Tests/Policy/NativePracticeBetaTests.swift",
+      "sha256": "83b4833a2ea7148abc0483a06e1a3e9857958b3990a015f8f56f76f81c7ffbcc"
+    },
+    {
+      "path": "native/ios/App/Tests/Policy/NativePracticeLifecycleTests.swift",
+      "sha256": "f424fc1abf1d48395e168a2ea095c6d7123dbbf97c0417457a74273d894f2e7f"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
+      "sha256": "3c2abd67a8203208f563853278db222ac06ee09c3848f52f9a4f9564f8dc8d63"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/NativePracticeNavigationTests.swift",
+      "sha256": "c37a39d9c9b24202158bb2d6ade4364640cefb7ddaa4a5d59cb64b26ce9daddf"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/ProductionNativePracticeTests.swift",
+      "sha256": "82b9e4388f7e2dc79bbef96400b6dc566a0d57fc902fdf5697117e9cbc949283"
+    },
+    {
+      "path": "native/ios/App/Tests/UI/StoreScreenshotTests.swift",
+      "sha256": "a644397b87d56bf9898b4e4b5631e05dd2f442150bc89e795923c9738dd6bc17"
+    },
+    {
+      "path": "native/ios/App/project.yml",
+      "sha256": "84ff2725ba0daaa296f5e392278d4f42926632579e07d0ee3ff403bbb9363cf4"
+    },
+    {
+      "path": "native/ios/InterviewNative/Package.swift",
+      "sha256": "7eadc50dedabf93e7d4f71c000ccd0bd57e581372f0b1dcfb055e9ee6c1e4c22"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewAPI.swift",
+      "sha256": "633651db5e6a3460aad6e297c9e64598f638538eb46d3e9b71d401b06b850458"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewAvatarVideo.swift",
+      "sha256": "21261d064af9fe2ab4050ed40e3d9f821aff8824cf104bebc663d4444f3fecd7"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewCall.swift",
+      "sha256": "5dbc8a3a7878a511e2d23c00f4178970c1ba502a53ebe90bab1d09913b4ff82a"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewLaunchPolicy.swift",
+      "sha256": "3ca351820116b827ff7822cd2c7f536b7f3fb590b24f6a8884882f6a06ab773c"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewMedia.swift",
+      "sha256": "1537866a415700ed1c567fd06c06912b48789a3205d3c1994618c50a7aa3a264"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewMicMonitor.swift",
+      "sha256": "a897cc8d2cb1208dde49224472aa23a3a9074649c88ef95a267c8df9185fe373"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewModel.swift",
+      "sha256": "d0700a2a62bdcef848e0e385359ba95911cda96b5b1bc59c061a35e229c8dcc3"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeArchive.swift",
+      "sha256": "94af3509cf4ad04711d1c8cf3f25854a385da7b33bca46fac9e7d078b692e010"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeBridge.swift",
+      "sha256": "c4931e3df1301f2fb6915a56d30f09bd82054169be79950e34e988a67275da1c"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeCLI.swift",
+      "sha256": "08d50fe5337dde3fc587ca79496f7088ec5bee78dc0e53aeff8178ec58b49f14"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeModel.swift",
+      "sha256": "b8b558d4d8dba52b21fc956dfdcc68e2928a8e3f188d5da2bdfc726fc5679810"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticePolicy.swift",
+      "sha256": "9217b66a79acb1b0ef996f7195cef6898b624b8f9d88690a9ad5a8dffbbe1d4a"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeRecorder.swift",
+      "sha256": "588494517acff34c8b1222c20e90b5fe79e7c20a4f6b317a2e91502f9da52dbb"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeStore.swift",
+      "sha256": "922c87ea0f6dbd6d810fea5f167e0901446a2440c604812dc49151d10b24fe31"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewPracticeView.swift",
+      "sha256": "df6a8f011e3e81c53a778d44e67fbabd3bbd34c22ea4e32ccf3a545e885a32f2"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewQuestionVideo.swift",
+      "sha256": "04b242a323e517e5ec2ad93fd8e056b97bb887d2eba822f0d8aaf98e11467c07"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewSpeakerAudio.swift",
+      "sha256": "4d7653c8dfeb07776fa47dc1add8772f776665b50054db048f022b63a9f09772"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewView.swift",
+      "sha256": "fb8f807cb8e73d8a98b16d938f1f543c41741f1f2d1752bf368f9703343da0be"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/PracticeAnswerPlayback.swift",
+      "sha256": "53183b70a935b3c09ca95c4ad61b98f046eee024b41f21c3da6271573a60a4fb"
+    },
+    {
+      "path": "native/ios/InterviewNative/Sources/InterviewNative/PracticeQuestionAudioCache.swift",
+      "sha256": "d37d3b8c00296ad99b1bf35d029e613d820c4a1b5f46e0f9527c605186d31633"
+    },
+    {
+      "path": "scripts/ios/build-cloud.sh",
+      "sha256": "254ad08c5e445ccf838d222dde8db80ccf5d7e83162488c1098f1527b6510e2b"
+    },
+    {
+      "path": "scripts/ios/capture-store.sh",
+      "sha256": "dab7359d0a39824c196dee92c38cbbd03efd00b73efdde82d8a56f67caadb8d4"
+    },
+    {
+      "path": "scripts/ios/install-tools.sh",
+      "sha256": "356966c704b17e6739ebf256a2e7c701f4ad47337c0870e4e8b0653b333c1f71"
+    },
+    {
+      "path": "scripts/ios/select-simulator.py",
+      "sha256": "f732275af2961aa9018e9dc00e65dc9fc9391438faa1c62aac073980feb77f24"
+    }
+  ],
+  "sourceCount": 42,
+  "deploymentEnabled": false,
+  "remotePushPerformed": false,
+  "cloudBuildPerformed": false
+}
