@@ -2,6 +2,8 @@
 
 이 문서는 푸시 전 준비 단계의 검토 기록이다. 이후 실행한 최신 빌드·테스트 결과와
 산출물 해시는 20261119-native-practice-build-results.txt를 참조한다.
+이후 승인·완료한 웹/API 운영 배포는 20261119-native-practice-web-api-production.txt를
+참조한다. 아래 상태는 준비 단계 당시의 기록이며, 앱 서명·스토어 제출은 여전히 남아 있다.
 
 상태
 - 로컬 구현 및 Android 빌드 완료. 소스 푸시, iOS 클라우드 빌드, 웹/API 배포,

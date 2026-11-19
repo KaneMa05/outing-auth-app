@@ -1,0 +1,70 @@
+네이티브 직무·인성 베타 웹/API 운영 배포 — 2026-11-19
+
+현재 상태와 승인 범위
+- 빌드 결과 검토 후 사용자가 '진행'으로 승인한 웹/API 운영 배포를 완료했다.
+- 이용 중인 면접 패키지 수강생의 직무·인성 연습 연결을 반영한다. 유료 AI 채점은
+  이번 베타에 포함하지 않는다. 다른 수강생 유형과 교사·관리자 화면 범위를 확장하지 않았다.
+- 새 네이티브 준비·면접·기록 화면은 업데이트된 앱을 설치해야 사용할 수 있다.
+  기존 설치 앱은 웹 경로를 유지한다. 이번 웹/API 배포만으로 네이티브 UI가 전환되지는 않는다.
+- Android/iOS 앱의 운영 서명, 실물 기기 검증 및 스토어 제출은 이번 배포에 포함하지 않았다.
+
+운영 배포
+- 프로젝트: outing-auth-app / ronpark
+- 배포 입력 커밋: 6566591fbb11a67d85550bb7363d585b314254f3
+  기능 코드 커밋: 36aa40d61ac1ee7adaeebff4ba031d374bec24fc
+- 배포 ID: dpl_DKRPiiScn9dNx8PaWft9fcggWju7
+- 후보 URL: https://outing-auth-btp272760-ronpark.vercel.app
+- 운영 주소: https://app.ronparkpass.com
+             https://outing-auth-app.vercel.app
+- 운영 승격 시작: 2026-11-19 16:42:39 KST. CLI 승격 성공과 두 주소의 READY 상태 및
+  동일 배포 ID를 확인했다. 단일 후보를 한 번 빌드한 뒤 같은 후보를 운영에 승격했다.
+- main과 검토 브랜치의 Vercel Git 자동 배포는 비활성 상태다. 이 결과 문서의 후속
+  커밋/푸시가 새 웹 빌드를 만들지 않는다. 운영 런타임의 입력은 위 커밋을 기준으로 한다.
+
+배포 전·후 확인
+- 이전 운영의 핵심 정적 파일 24개를 기준 소스와 대조했다. 한 파일의 줄바꿈 차이는
+  실제 내용 일치를 확인했다. 새 후보와 운영 파일은 줄바꿈 정규화 없이 정확히 대조했다.
+- git archive로 승인 커밋을 추출하여 배포했다. 업로드 파일 5,718개를 확인하고 native,
+  tests, docs, supabase, scripts, .tmp, 로컬 환경 파일 및 서명 자료를 제외했다.
+- 기존 프로젝트의 운영 환경 설정으로 공개 config를 생성했다. 이전 운영과 config 해시가
+  같고, 공개 키가 anon 역할인 것을 확인했다. 비밀 값은 읽거나 보고서에 기록하지 않았다.
+- 후보 및 두 운영 주소에서 각각 핵심 정적 파일 26개와 API 접근 제한 8개를 통과했다.
+  익명 호출, 잘못된 모드/교환 코드, 교차 출처 요청을 거부했다. 비공개 경로는 404였다.
+- 후보와 app.ronparkpass.com에서 실제 배포 모듈을 불러오는 브라우저 회귀검사를 통과했다.
+  직무·인성 UI, 녹음/재생/기록, 계정 분리, 기존 웹 기록 전용 경로, iOS gateway 및 Android
+  실행 연결 payload를 검사했다. 앱 자체의 기기 연결 완료를 의미하는 검사는 아니다.
+- 브라우저의 실제 마이크 거부/트랙 누락 시 시작이 막히고, 허용 후 재시도가 가능한 것을
+  확인했다. 조용한 입력은 첫 문항을 유지하며 경고하고, 지속 입력 후 4초 침묵 시 이동했다.
+  CSS/데이터 응답이 지연되어도 화면 상단 위치가 유지되는 것을 확인했다.
+- 브라우저 동작 데이터와 저장소 요청은 격리된 fixture를 사용했다. 운영 API로 쓰기 요청이
+  나가는 경우 실패하도록 차단했으며, 실제 수강생 녹음과 유료 AI를 사용하지 않았다.
+- 배포 직후 관찰 구간 16:42:39~16:50:26 KST에서 runtime error/fatal 0건,
+  HTTP 500 이상 0건이었다. 이 결과는 해당 관찰 구간의 상태다.
+- 16:52 KST 읽기 전용 DB 상태: 연결 17개, 잠금 대기 0개, idle in transaction 0개.
+  네이티브 실행 RPC의 익명/일반 인증 실행 차단과 service_role 실행 권한도 확인했다.
+- DB migration 및 운영 데이터 변경은 수행하지 않았다.
+
+롤백 기준
+- 이전 운영 ID: dpl_8Pe6WoCVYKWJfHQuSAvzMf2ydFAD
+- 이전 운영 URL: https://outing-auth-kfdveivga-ronpark.vercel.app
+- 이전 main: 3e867608ff3fd379e80e41bdbdff47545398f080
+- 이전 배포를 보존했다. 이번 검증에서 롤백을 필요로 하는 오류는 발견되지 않았다.
+
+앱 업데이트 전 남은 사항
+- Android/iPhone 실물 기기의 로그인 복귀, 마이크 권한, 실제 녹음·재생·기록,
+  이어폰 및 백그라운드 복귀 검증이 남는다.
+- Android 검토 APK와 미서명 APK/AAB, iOS simulator 앱 및 미서명 xcarchive의
+  빌드 결과/해시는 20261119-native-practice-build-results.txt에 기록했다.
+- 현재 앱 버전은 검토용 값이므로 실제 스토어 최신 버전과 운영 서명을 확인해야 한다.
+  미서명 iOS xcarchive는 iPhone 설치용 IPA가 아니다. 운영 앱 배포가 완료된 상태로
+  안내하지 않는다. 서명·스토어 제출은 구체적인 후보를 확인받은 후 별도로 진행한다.
+- 질문 목록 캐시, 변경 답변만 저장, 동기화 재시도 간격 개선은 별도 후속 작업이며
+  이번 배포에 포함하지 않았다.
+
+증적
+- 비공개 로컬 증적: .tmp/native-practice-rollout-20261119/
+  source-commit.json, preflight.json, deployment-exit.json, promotion-started.json,
+  promote.log, verified-*.json, candidate-browser-verified.json, 브라우저 PASS 로그,
+  runtime-errors.jsonl, http-errors.jsonl.
+- 실제 네이티브 시뮬레이터 화면과 빌드 산출물: .tmp/native-practice-beta-review/
+  웹 회귀검사 캡처는 실제 설치 앱의 네이티브 화면 캡처와 구분한다.
