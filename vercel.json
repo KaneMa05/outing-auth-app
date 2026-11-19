@@ -6,7 +6,8 @@
   "trailingSlash": false,
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": false,
+      "codex/native-practice-beta-20261119": false
     }
   },
   "functions": {
