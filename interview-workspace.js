@@ -1,6 +1,6 @@
 import {mountInterviewAI} from './interview-ai-ui.js?v=20261111-ai-retry';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
-import {mountWriting} from './interview-writing-ui.js?v=20261120-feedback-wait';
+import {mountWriting} from './interview-writing-ui.js?v=20261120-history-bottom';
 import {mountDiagnosis} from './interview-diagnosis-ui.js?v=20261024-school-status';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 import {mountMyResources,interviewMyProfile} from './client/interview-my-resources.mjs?v=20261109-db-copy';
@@ -36,7 +36,7 @@ export async function mountWorkspace(host,{request,aiRequest,account={},initialP
   contentHost.innerHTML=`<nav class="ip-tabs ip-workspace-tabs" aria-label="면접 준비">${visibleMenus.map(([id,label])=>`<button type="button" class="ip-btn" data-workspace-page="${id}" ${id===page?'aria-current="page"':''}>${compactNavigation?label.replace(' 작성하기',''):label}</button>`).join('')}</nav>
    <section class="ip-hero ip-workspace-hero"><div class="ip-workspace-hero-copy"><span class="ip-workspace-kicker">나의 경험에서 시작하는 면접 준비</span><h2>${title}</h2><p>${page==='db'?'기본 이력부터 경험과 가치관까지, 나의 답변에 사용할 소재를 한곳에 정리하세요.':page==='core'?'핵심인성 질문마다 나만의 답변을 작성하세요.':'나의 DB에 정리한 경험과 생각을 바탕으로 작성하세요.'}</p></div><div class="ip-workspace-hero-art" aria-hidden="true"><span></span><span></span><span></span></div></section>
    <p class="ip-message" data-workspace-message role="status"></p>
-   ${page==='db'?`<div class="ip-db-layout">${navigation()}<div data-db-editor></div></div>`:page==='my'?'<div data-workspace-my></div>':'<div data-writing-host></div><div data-workspace-ai></div>'}`;
+   ${page==='db'?`<div class="ip-db-layout">${navigation()}<div data-db-editor></div></div>`:page==='my'?'<div data-workspace-my></div>':'<div data-writing-host></div><div data-workspace-ai></div><div data-workspace-writing-history></div>'}`;
   try{
    let next;
    if(page==='my'){
@@ -62,7 +62,7 @@ export async function mountWorkspace(host,{request,aiRequest,account={},initialP
     const box=host.querySelector('[data-db-editor]');
     if(area.startsWith('life:')){next=mountLife(box,{request:editorRequest,followupRequest:aiRequest?(action,payload={})=>aiRequest('/api/interview-life-followup',{...payload,action}):undefined,embedded:true,simpleEditor:true,combined:true,initialSection:area.slice(5)});child=next;await next.ready;}
     else {next=mountDiagnosis(box,{request:editorRequest,initialTopic:initialArea.startsWith('note:')?initialArea.slice(5):'',onLife:async()=>{if(!canLeave())return;area='life:experiences';onPageChange(page,area);await render();}});child=next;await next.ready;}
-   }else{next=mountWriting(host.querySelector('[data-writing-host]'),{request:editorRequest,kind:page,hideQuestionPicker:page==='core'});child=next;await next.ready;}
+   }else{next=mountWriting(host.querySelector('[data-writing-host]'),{request:editorRequest,kind:page,hideQuestionPicker:page==='core',historyTarget:host.querySelector('[data-workspace-writing-history]')});child=next;await next.ready;}
    if(destroyed||ticket!==generation)next?.destroy();else {
     child=next;
     if(!['db','mock','core','my'].includes(page))ai=mountInterviewAI(host.querySelector('[data-workspace-ai]'),{

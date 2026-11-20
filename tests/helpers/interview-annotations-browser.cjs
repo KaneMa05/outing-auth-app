@@ -222,7 +222,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await send('Page.navigate',{url:origin+'/'});await wait('window.ready===true');
  await ev(`(async()=>{
   window.controller.destroy();
-  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-feedback-wait');
+  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-history-bottom');
   const request=async(action,payload={})=>{const r=await fetch('/api/interview-prep',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action,studentId:'18120',deviceToken:'qa-device'})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error);return d;};
   window.controller=await mountWorkspace(document.querySelector('#app'),{request,initialPage:'introduction'});
  })()`);
@@ -230,6 +230,17 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  assert.equal(await ev("document.querySelector('.ip-corrections').textContent.includes('지원자의 실제 행동과 결과를 구체적으로 적어주세요.')"),true);
  assert.equal(await ev("!!document.querySelector('[data-writing-review]')"),false);
  assert.equal(await ev("!!document.querySelector('.ip-writing-submission') && !!document.querySelector('[data-writing-history]')"),true,'Student submission details and history remain visible');
+ assert.equal(await ev("!!document.querySelector('[data-writing-host] [data-writing-history]')"),false,'Historical records are outside the answer editor');
+ assert.equal(await ev("document.querySelector('[data-workspace-content]').lastElementChild===document.querySelector('[data-workspace-writing-history]')"),true,'History is the last student page section, after AI drafts');
+ await click('[data-workspace-writing-history] summary');await wait("!!document.querySelector('[data-workspace-writing-history] .ip-writing-round')");
+ assert((await ev("document.querySelector('[data-workspace-writing-history]').textContent")).includes('지원자의 실제 행동과 결과를 구체적으로 적어주세요.'));
+ await click('[data-workspace-writing-history] summary');
+ for(const width of [1200,390]){
+  await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<600});
+  assert.equal(await ev("document.querySelector('[data-workspace-writing-history]').getBoundingClientRect().top>=document.querySelector('[data-workspace-ai]').getBoundingClientRect().bottom"),true,'History follows the complete AI section at width '+width);
+  await ev("document.querySelector('[data-workspace-writing-history]').scrollIntoView({block:'end',behavior:'instant'})");
+  await screenshot('student-history-bottom-'+width,width);
+ }
  assert.equal(await ev("document.querySelectorAll('.ip-comment-label').length"),0);
  assert.equal(await ev("document.querySelector('.ip-corrections .ip-inline-comment').textContent"),'지원자의 실제 행동과 결과를 구체적으로 적어주세요.');
  await screenshot('student-annotation-feedback-mobile',390);

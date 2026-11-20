@@ -1,4 +1,4 @@
-import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-feedback-wait';
+import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-history-bottom';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
 const statuses={draft:'임시저장',saved:'저장 완료',needs_revision:'보완 필요',approved:'강사 확인'};
@@ -48,7 +48,7 @@ const error=e=>({
  forbidden:'이 내용을 볼 권한이 없습니다.'
 }[e.code||e.message]||'저장하지 못했습니다. 입력은 유지됩니다. 잠시 후 다시 시도해주세요.');
 
-export function mountWriting(host,{request,kind='introduction',admin=false,studentId='',canWrite=true,hideQuestionPicker=false,hideSubmissionDetails=false,initialItemId='',onFeedbackSaved=()=>{},onClose=null}){
+export function mountWriting(host,{request,kind='introduction',admin=false,studentId='',canWrite=true,hideQuestionPicker=false,hideSubmissionDetails=false,initialItemId='',onFeedbackSaved=()=>{},onClose=null,historyTarget=null}){
  let rows=[],items=[],selected='',dirty=false,busy=true,destroyed=false,blocked=false;
  let history=null,annotations=null;
  let submissionTimer=null;
@@ -92,17 +92,19 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
    ${current?`<section class="ip-panel ip-writing-editor"><div class="ip-row"><h3>${esc(current.prompt)}</h3><span class="ip-badge" data-writing-status>${(admin?reviewLabels[saved?.submission_status]:statuses[saved?.status])||statuses[saved?.status]||'미작성'}</span></div>
     ${hideDetails?'':saved?.submitted_at?`<div class="ip-writing-submission"><strong>${saved.submission_round||1}차 제출 · ${(admin?reviewLabels:submissionLabels)[saved.submission_status]}</strong><p class="ip-help">제출일 ${esc(submittedDate(saved.submitted_at))}${saved.body!==saved.submitted_body?' · 제출 후 수정한 내용이 있습니다. 다시 제출하면 교사에게 전달됩니다.':''}</p>${!admin?`<details><summary>제출한 답변 보기</summary><p class="ip-writing-text">${esc(saved.submitted_body)}</p></details>`:''}</div>`:'<p class="ip-help">아직 교사에게 제출하지 않은 답변입니다.</p>'}
     ${!admin||saved?.feedback_revision!==saved?.submitted_revision?writingCorrections(saved):''}
-    ${!hideDetails&&saved?.submitted_at?'<div data-writing-history></div>':''}
+    ${admin&&!hideDetails&&saved?.submitted_at?'<div data-writing-history></div>':''}
     ${admin?`${hideDetails?'':`<p class="ip-help">${saved?.submitted_at?'교사에게 제출된 답변':'저장된 답변 · 미제출'}</p>`}<div data-writing-annotations></div>
     <label>처리<select data-writing-review ${canWrite?'':'disabled'}><option value="needs_revision">보완요청</option><option value="approved" ${saved?.submission_status==='approved'?'selected':''}>첨삭완료 (수고하셨습니다.)</option></select></label>
     <div class="ip-feedback-save-actions"><button type="button" class="ip-btn ip-primary" data-writing-save="feedback" ${canWrite&&saved?.submitted_at?'':'disabled'}>첨삭 저장 · 학생에게 전달</button>${typeof onClose==='function'?'<button type="button" class="ip-btn ip-primary" data-writing-close hidden>창 닫기</button>':''}</div><p class="ip-message ip-feedback-save-message" data-writing-message role="status"></p>${hideDetails?'':'<p class="ip-help">피드백을 수정해도 회차는 늘어나지 않습니다.</p>'}`:
     `<label>나의 답변<textarea data-writing-text maxlength="10000" placeholder="나의 DB에 정리한 경험을 바탕으로 답변을 작성해주세요." ${current.retired?'readonly':''}>${esc(saved?.body||'')}</textarea></label>
     <div class="ip-row ip-help"><span data-writing-count>${(saved?.body||'').length.toLocaleString()} / 10,000자</span><span data-writing-saved>${saved?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>
-    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionPending()||feedbackPending()?'disabled':''}>${submissionLabel()}</button></div><p class="ip-help ip-writing-submit-notice" data-writing-submission-notice hidden></p>`}`}</section>`:
+    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionPending()||feedbackPending()?'disabled':''}>${submissionLabel()}</button></div><p class="ip-help ip-writing-submit-notice" data-writing-submission-notice hidden></p>`}`}
+    ${!admin&&!historyTarget&&saved?.submitted_at?'<div data-writing-history></div>':''}</section>`:
     `<section class="ip-panel ip-empty">${admin?'이 학생이 저장한 답변이 없습니다.':'관리자가 공개한 핵심인성 질문이 아직 없습니다. 질문이 공개되면 이곳에서 답변을 작성할 수 있습니다.'}</section>`}`;
   const annotationHost=host.querySelector('[data-writing-annotations]');
   if(annotationHost)annotations=mountAnnotations(annotationHost,{text:saved?.submitted_body??saved?.body??'',marks:saved?.feedback_revision===saved?.submitted_revision?saved?.annotation_marks:[],feedback:saved?.feedback_revision===saved?.submitted_revision?saved?.feedback||'':'',canWrite:canWrite&&!!saved?.submitted_at,showHelp:!hideDetails,onChange:markDirty});
-  const historyHost=host.querySelector('[data-writing-history]');
+  if(!admin&&historyTarget)historyTarget.innerHTML=saved?.submitted_at?'<section class="ip-panel" data-writing-history></section>':'';
+  const historyHost=(!admin&&historyTarget?historyTarget:host).querySelector('[data-writing-history]');
   if(historyHost)history=mountWritingHistory(historyHost,{request,admin,studentId,kind:admin?current.kind:kind,itemId:current.id});
   syncFeedbackSave();syncSubmission();
  }
@@ -191,5 +193,5 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
    field.dispatchEvent(new Event('input',{bubbles:true}));
    tell('초안을 내 답변에 넣었습니다. 확인 후 저장하거나 교사에게 제출해주세요.');
    field.focus();return true;
-  },destroy(){destroyed=true;clearTimeout(submissionTimer);history?.destroy();annotations?.destroy();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('focus',syncSubmission);host.oninput=null;host.onchange=null;host.onclick=null;}};
+  },destroy(){destroyed=true;clearTimeout(submissionTimer);history?.destroy();if(!admin&&historyTarget)historyTarget.replaceChildren();annotations?.destroy();window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('focus',syncSubmission);host.oninput=null;host.onchange=null;host.onclick=null;}};
 }
