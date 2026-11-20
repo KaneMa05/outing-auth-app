@@ -13,7 +13,7 @@ test("both mobile interview entry points bypass the cached pre-announcement load
     assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261120-pending-reflection"));
   }
   for(const module of ['interview-native-practice.mjs','interview-native-practice-launcher.mjs'])assert.ok(fs.readFileSync('interview-app-ui.js','utf8').includes(module+'?v=20261119-native-beta'));
-  for(const page of [index,portal])assert.ok(page.includes('interview-app.css?v=20261119-mic-entry'));
+  for(const page of [index,portal])assert.ok(page.includes('interview-app.css?v=20261120-compact-footer'));
   for(const [file,module,version] of [['interview-app-ui.js','./client/interview-practice.mjs','20261119-native-beta'],['client/interview-practice.mjs','./interview-practice-core.mjs','20261119-native-beta'],['client/interview-practice-core.mjs','./interview-input-activity.mjs','20261119-mic-entry']])
     assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh practice permission and input fixes: '+file);
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
