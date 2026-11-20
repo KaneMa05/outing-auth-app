@@ -39,8 +39,8 @@ for line in sys.stdin:
         started = time.perf_counter()
         def run():
             chunks, info = model.transcribe(str(file), language='ko', beam_size=5, temperature=0,
-                condition_on_previous_text=False, word_timestamps=True, vad_filter=False,
-                initial_prompt=None)
+                condition_on_previous_text=False, word_timestamps=True, vad_filter=True,
+                vad_parameters={'min_silence_duration_ms': 500}, initial_prompt=None)
             return list(chunks), info
         try:
             segments, info = run()
