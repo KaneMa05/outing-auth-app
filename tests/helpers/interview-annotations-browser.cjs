@@ -15,6 +15,17 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  assert.deepEqual(await ev("[...document.querySelectorAll('.ip-board-table thead th')].map(n=>n.textContent)"),['번호','학생','항목','차수','제출일','관리','처리상태']);
  assert.equal(await ev("document.querySelector('.ip-board-table tbody tr').children[3].textContent"),`${(await invoke('writing_list',student)).writings.find(w=>w.kind==='introduction').submission_round}차`);
  await screenshot('annotation-board-desktop',1200);
+ const beforeCancel=getCalls().length;
+ await ev("window.__confirm=window.confirm;window.confirm=()=>false");await click('[data-board-delete]');
+ assert.equal(getCalls().length,beforeCancel,'Cancel never sends a deletion request');
+ await ev("window.confirm=window.__confirm");
+ failNext();await click('[data-board-delete]');await wait("document.querySelector('[data-board-message]').textContent.includes('삭제하지 못했습니다')");
+ assert.equal(await ev("document.querySelector('[data-board-delete]').disabled"),false);
+ await click('[data-board-delete]');await wait("document.querySelector('[data-board-message]').textContent==='게시판에서 삭제했습니다.' && !document.querySelector('[data-board-open]')");
+ const removed=(await invoke('writing_list',student)).writings.find(w=>w.kind==='introduction');
+ assert.equal(removed.body,text);
+ await invoke('writing_save',student,{...key,revision:removed.revision,status:'submitted',text});
+ await click('[data-board-action=reload]');await wait("!!document.querySelector('[data-board-open]')");
  // A blocked popup leaves a usable link and keeps the list available.
  await ev("window.__originalOpen=window.open;window.open=()=>null");await click('[data-board-open]');
  assert.equal(await ev("document.querySelector('[data-board-message] a').target"),'_blank');

@@ -62,6 +62,7 @@ const root=path.resolve(__dirname,'..');
   assert.match(await card.locator('[data-cli-worker="questions"]').textContent(),/연결됨 · 요청 대기 중/);
   await page.locator('[data-ip="category"][data-category="job"]').click();
   await page.getByRole('heading',{name:'직무 기출 관리',exact:true}).waitFor();
+  await page.locator('[data-content] table').waitFor();
   assert.equal(await card.count(),0);
   await page.evaluate(()=>window.view.openSection('home'));
   assert.equal(await page.evaluate(()=>window.view.canLeave()),true);

@@ -115,7 +115,7 @@ let db,server,browser,ws,localWorker;
  const prepCalls=[];let teacherSessionUser={username:'qa',role:'admin',permissions:['*']};
  const handler=createHandler({authenticate:async body=>body.studentId==='18120'&&body.deviceToken==='qa-device'?{id:'18120'}:null,
    authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
-   invoke:async(...args)=>{prepCalls.push(args[0]);if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}return invoke(...args);}});
+   invoke:async(...args)=>{prepCalls.push(args[0]);if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback','admin_writing_delete'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}return invoke(...args);}});
  const aiHandler=createAIHandler({authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
   authenticateAdmin:async req=>{
    const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),process.env.TEACHER_SESSION_SECRET);
@@ -222,7 +222,7 @@ let db,server,browser,ws,localWorker;
  const browserContext=await browser.newContext({viewport:null}),boardPage=await browserContext.newPage(),exceptions=[];
  const attach=async page=>{
   const socket=await browserContext.newCDPSession(page);
-  socket.on('Page.javascriptDialogOpening',()=>socket.send('Page.handleJavaScriptDialog',{accept:true}));
+  page.on('dialog',dialog=>dialog.accept().catch(()=>{}));
   socket.on('Runtime.exceptionThrown',event=>exceptions.push(event.exceptionDetails));
   return socket;
  };

@@ -14,7 +14,7 @@ export function mountWritingBoard(host,{request,canWrite=false}){
   const pending=filter.status==='submitted';
   host.querySelector('[data-board-heading]').textContent=pending?'제출물 첨삭 게시판':filter.status==='needs_revision'?'보완요청 제출물':'첨삭완료 제출물';
   results.innerHTML=`<div class="ip-review-summary">${[['submitted','pending','확인 대기',data.pending],['needs_revision','revision','보완요청',data.revision],['approved','completed','첨삭완료',data.approved]].map(([status,action,label,count])=>`<button type="button" class="ip-board-summary-button" data-board-action="${action}" aria-pressed="${filter.status===status}" aria-label="${label} ${count}건 목록 보기">${label}<strong>${count}</strong></button>`).join('')}</div><div class="ip-row"><p>${pending?'관리자 처리 대기':filter.status==='needs_revision'?'학생 보완 대기':'첨삭완료'} <strong>${data.total}건</strong></p><div class="ip-toolbar">${!pending?'<button type="button" class="ip-btn" data-board-action="active">제출물 게시판으로</button>':''}<button type="button" class="ip-btn" data-board-action="reload">목록 새로고침</button></div></div>
-   <div class="ip-panel ip-table-wrap"><table class="ip-board-table"><caption class="ip-help">최근 제출 순 · 첨삭 또는 조회 버튼으로 답변 새 창 열기</caption><thead><tr><th scope="col">번호</th><th scope="col">학생</th><th scope="col">항목</th><th scope="col">차수</th><th scope="col">제출일</th><th scope="col">관리</th><th scope="col">처리상태</th></tr></thead><tbody>${data.submissions.map((s,i)=>`<tr><td>${data.total-page*data.pageSize-i}</td><td><strong>${esc(s.name)}</strong><small>${esc(s.track)} · ${esc(s.exam_number)}</small></td><td>${kinds[s.kind]}</td><td>${s.submission_round}차</td><td>${esc(date(s.submitted_at))}</td><td><button type="button" class="ip-btn" data-board-open="${i}" aria-label="${esc(s.name)} ${kinds[s.kind]} ${canWrite?'첨삭':'조회'} 새 창 열기">${canWrite?'첨삭':'조회'}</button></td><td><span class="ip-badge ${s.submission_status}">${statuses[s.submission_status]}</span></td></tr>`).join('')||'<tr><td colspan="7" class="ip-empty">조건에 맞는 제출물이 없습니다.</td></tr>'}</tbody></table></div>
+   <div class="ip-panel ip-table-wrap"><table class="ip-board-table"><caption class="ip-help">최근 제출 순 · 첨삭 또는 조회 버튼으로 답변 새 창 열기</caption><thead><tr><th scope="col">번호</th><th scope="col">학생</th><th scope="col">항목</th><th scope="col">차수</th><th scope="col">제출일</th><th scope="col">관리</th><th scope="col">처리상태</th></tr></thead><tbody>${data.submissions.map((s,i)=>`<tr><td>${data.total-page*data.pageSize-i}</td><td><strong>${esc(s.name)}</strong><small>${esc(s.track)} · ${esc(s.exam_number)}</small></td><td>${kinds[s.kind]}</td><td>${s.submission_round}차</td><td>${esc(date(s.submitted_at))}</td><td><div class="ip-board-actions"><button type="button" class="ip-btn" data-board-open="${i}" aria-label="${esc(s.name)} ${kinds[s.kind]} ${canWrite?'첨삭':'조회'} 새 창 열기">${canWrite?'첨삭':'조회'}</button>${canWrite?`<button type="button" class="ip-btn ip-danger" data-board-delete="${i}" aria-label="${esc(s.name)} ${kinds[s.kind]} 제출물 삭제">삭제</button>`:''}</div></td><td><span class="ip-badge ${s.submission_status}">${statuses[s.submission_status]}</span></td></tr>`).join('')||'<tr><td colspan="7" class="ip-empty">조건에 맞는 제출물이 없습니다.</td></tr>'}</tbody></table></div>
    <div class="ip-toolbar"><button type="button" class="ip-btn" data-board-action="prev" ${page===0?'disabled':''}>이전</button><span>${page+1} / ${Math.max(1,Math.ceil(data.total/data.pageSize))} 페이지</span><button type="button" class="ip-btn" data-board-action="next" ${(page+1)*data.pageSize>=data.total?'disabled':''}>다음</button></div>`;
  }
  async function load(){
@@ -41,10 +41,25 @@ export function mountWritingBoard(host,{request,canWrite=false}){
    const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener';link.textContent='첨삭 새 창 열기';message.append(link);
   }
  }
+ async function remove(index){
+  const submission=data?.submissions[index];if(!canWrite||!submission)return;
+  if(!confirm(`${submission.name} · ${kinds[submission.kind]} 제출물을 게시판에서 삭제할까요?\n학생 원문과 첨삭 이력은 보존됩니다.`))return;
+  const message=host.querySelector('[data-board-message]');message.textContent='삭제하는 중…';loading=true;
+  host.querySelectorAll('[data-board-delete],[data-board-open]').forEach(n=>n.disabled=true);
+  try{
+   await request('admin_writing_delete',{targetStudentId:submission.student_id,kind:submission.kind,itemId:submission.item_id||'',revision:submission.revision});
+   if(destroyed)return;message.textContent='게시판에서 삭제했습니다.';await load();
+  }catch(error){
+   if(destroyed)return;
+   message.textContent=error.code==='revision_conflict'?'제출물이 변경되었습니다. 목록을 새로고침한 뒤 다시 확인해주세요.':'삭제하지 못했습니다. 잠시 후 다시 시도해주세요.';
+   host.querySelectorAll('[data-board-delete],[data-board-open]').forEach(n=>n.disabled=false);
+  }finally{loading=false;}
+ }
  host.onsubmit=e=>{e.preventDefault();e.stopPropagation();if(!e.target.matches('[data-board-filter]')||!canLeave())return;filter=Object.fromEntries(new FormData(e.target));if(!Object.hasOwn(statuses,filter.status))filter.status='submitted';host.querySelector('[name=status]').value=filter.status;page=0;load();};
  const showStatus=status=>{filter={...filter,status};host.querySelector('[data-board-filter] [name=status]').value=status;page=0;load();};
  host.onclick=e=>{
-  e.stopPropagation();const b=e.target.closest('[data-board-action],[data-board-open]');if(!b||b.disabled||loading||!canLeave())return;
+  e.stopPropagation();const b=e.target.closest('[data-board-action],[data-board-open],[data-board-delete]');if(!b||b.disabled||loading||!canLeave())return;
+  if(b.dataset.boardDelete!==undefined){void remove(Number(b.dataset.boardDelete));return;}
   if(b.dataset.boardOpen!==undefined){open(Number(b.dataset.boardOpen));return;}
   switch(b.dataset.boardAction){
    case 'completed':showStatus('approved');break;

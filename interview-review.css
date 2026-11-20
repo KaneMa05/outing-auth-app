@@ -58,3 +58,6 @@
 .ip-board-detail h3:focus-visible{outline:2px solid #234e83}
 .ip-review [data-review-view][aria-current]{background:#234e83;color:#fff}
 @media(max-width:600px){.ip-board-filter label{width:100%}.ip-board-filter .ip-btn{flex:1}.ip-review .ip-review-summary{gap:8px}.ip-review-summary>span,.ip-review-summary>.ip-board-summary-button{min-width:70px;padding:12px;font-size:12px}.ip-annotated-text{padding:14px}}
+
+.ip-board-actions{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
+.ip-board-actions .ip-btn{white-space:nowrap}

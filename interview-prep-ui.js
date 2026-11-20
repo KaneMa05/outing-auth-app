@@ -365,7 +365,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261120-pending-only');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261120-board-delete');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;

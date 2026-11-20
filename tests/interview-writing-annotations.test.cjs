@@ -71,7 +71,24 @@ const auth=require('../api/teacher-auth-utils');
   writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:'첨삭 후 보완한 새 제출 답변'})).writing;
   const reopened=await invoke('admin_writing_board',admin,{status:'submitted'});
   assert.equal(reopened.total,32);assert.equal(reopened.approved,0,'A resubmitted completed answer returns to the active list');
+  const removal={targetStudentId:'ip-a',kind:'introduction',itemId:'',revision:writing.revision};
+  const writingBeforeRemoval=structuredClone(writing),roundsBeforeRemoval=await invoke('writing_history',student,key);
+  await assert.rejects(invoke('admin_writing_delete',student,removal),/forbidden/);
+  await assert.rejects(invoke('admin_writing_delete',admin,{...removal,revision:writing.revision-1}),/revision_conflict/);
+  assert.equal((await invoke('admin_writing_delete',admin,removal)).ok,true);
+  assert.equal((await invoke('admin_writing_board',admin,{status:'submitted',search:'EXAM-ip-a'})).total,0);
+  assert.equal((await invoke('admin_writing_board',admin,{status:'submitted'})).total,31,'Other students remain visible');
+  assert.deepEqual((await invoke('writing_list',student)).writings.find(w=>w.kind==='introduction'),writingBeforeRemoval,'Removing a board entry preserves the original writing');
+  assert.deepEqual(await invoke('writing_history',student,key),roundsBeforeRemoval,'Removing a board entry preserves every feedback round');
+  await invoke('admin_writing_delete',admin,removal);
+  assert.equal((await db.query('select count(*)::int n from ip_writing_board_hidden')).rows[0].n,1,'Removal is idempotent');
+  writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'draft',text:writing.body})).writing;
+  assert.equal((await invoke('admin_writing_board',admin,{search:'EXAM-ip-a'})).total,0,'Draft saves do not restore a hidden submission');
+  writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:writing.body})).writing;
+  assert.equal((await invoke('admin_writing_board',admin,{status:'submitted',search:'EXAM-ip-a'})).total,1,'Even an unchanged answer returns after deliberate resubmission');
+  assert.equal(writing.submission_round,writingBeforeRemoval.submission_round+1);
   for(const role of ['anon','authenticated']){
+   await db.exec('set role '+role);await assert.rejects(db.query('select * from ip_writing_board_hidden'),/permission denied/);await assert.rejects(invoke('admin_writing_delete',admin,removal),/permission denied/);await db.exec('reset role');
    await db.exec('set role '+role);await assert.rejects(invoke('admin_writing_board',admin),/permission denied/);await db.exec('reset role');
   }
   await db.exec('set role service_role');assert.equal((await invoke('admin_writing_board',admin)).total,32);await db.exec('reset role');
@@ -85,8 +102,10 @@ const auth=require('../api/teacher-auth-utils');
    assert.equal((await call({action:'admin_writing_board'},['interview.read'])).status,200);
    assert.equal((await call({action:'admin_writing_board',status:'submitted'},['interview.read'])).data.total,32);
    assert.equal((await call({action:'admin_writing_feedback',...review()},['interview.read'])).status,403);
+   assert.equal((await call({action:'admin_writing_delete',...removal,revision:writing.revision},['interview.read'])).status,403);
    assert.equal((await call({action:'admin_writing_feedback',...review(),annotations:[{...marks[0],start:-1}]},['interview.write'])).status,400);
-   assert.equal(calls,2,'Rejected input/permissions cannot reach database');
+   assert.equal((await call({action:'admin_writing_delete',...removal,revision:writing.revision},['interview.write'])).status,200);
+   assert.equal(calls,3,'Rejected input/permissions cannot reach database');
   }finally{if(previous===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=previous;}
   console.log('PASS annotations/board: Unicode ranges, immutable source, mark-only review, validation, old-client compatibility, resubmission, conflicts, ownership, search/status/kind filters, pagination, API permissions and DB grants.');
  }finally{await db.close();}
