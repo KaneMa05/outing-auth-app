@@ -1,4 +1,4 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261120-review-save';
+import {mountWorkspace} from './interview-workspace.js?v=20261120-review-quiet';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261119-native-beta';

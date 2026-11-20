@@ -1,4 +1,4 @@
-import {mountWriting} from './interview-writing-ui.js?v=20261120-review-save';
+import {mountWriting} from './interview-writing-ui.js?v=20261120-review-quiet';
 
 const host=document.querySelector('#app');
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};

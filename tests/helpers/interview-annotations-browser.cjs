@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openPopup,closePopup,getCalls,setSession,setWritingTime,holdNextSave})=>{
+module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openPopup,closePopup,getCalls,setSession,setWritingTime,holdNextSave,holdNextBoard})=>{
  const eraseComment=async index=>{
   await ev(`{const field=document.querySelector('[data-inline-comment="${index}"]');field.focus();const range=document.createRange();range.selectNodeContents(field);getSelection().removeAllRanges();getSelection().addRange(range);}`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8});
@@ -27,14 +27,21 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await invoke('writing_save',student,{...key,revision:removed.revision,status:'submitted',text});
  await click('[data-board-action=reload]');await wait("!!document.querySelector('[data-board-open]')");
  // A blocked popup leaves a usable link and keeps the list available.
- await ev("window.__originalOpen=window.open;window.open=(url,target,features)=>{window.__popupFeatures=features;return null}");await click('[data-board-open]');
+ const releaseBoard=holdNextBoard();
+ await ev("window.__originalOpen=window.open;window.open=(url,target,features)=>{window.__popupFeatures=features;return null};window.dispatchEvent(new Event('focus'))");
+ await wait("document.querySelector('[data-board-results]').getAttribute('aria-busy')==='true'");
+ await click('[data-board-open]');
  assert.equal(await ev("{const f=Object.fromEntries(window.__popupFeatures.split(',').map(part=>part.split('=')));Math.abs(Number(f.left)+(Number(f.width)/2)-(screen.availLeft+screen.availWidth/2))<=.5 && Math.abs(Number(f.top)+(Number(f.height)/2)-(screen.availTop+screen.availHeight/2))<=.5}"),true,'Popup is centered in the available screen, including monitor offsets');
  assert.equal(await ev("document.querySelector('[data-board-message] a').target"),'_blank');
+ releaseBoard();await wait("document.querySelector('[data-board-results]').getAttribute('aria-busy')!=='true'");
+ await ev("window.open=()=>{throw Error('popup unavailable')}");await click('[data-board-open]');
+ assert.equal(await ev("document.querySelector('[data-board-message] a').textContent"),'첨삭 새 창 열기','Unsupported popup APIs still expose a working direct link');
  await ev("window.open=window.__originalOpen");
  const beforeOpen=getCalls().length;
  await openPopup();await wait("!!document.querySelector('[data-mark-source]')");
  assert.equal(await ev('window.opener===null'),true);
  assert.equal(await ev("document.querySelectorAll('header,[data-review-student],[data-review-close],.ip-writing-submission,[data-writing-history]').length"),0);
+ for(const phrase of ['교사에게 제출된 답변','문장을 선택해 밑줄·취소선·괄호를 표시하세요.','피드백을 수정해도 회차는 늘어나지 않습니다.'])assert.equal(await ev(`document.body.textContent.includes(${JSON.stringify(phrase)})`),false,'Remove popup guidance: '+phrase);
  assert.equal(getCalls().slice(beforeOpen).includes('admin_ai_usage'),false,'Opening corrections must not load AI generation history');
  assert.equal(await ev("!!document.querySelector('[data-board-ai-usage],.ip-ai-usage')"),false);
  assert.deepEqual(await ev("[...document.querySelector('[data-writing-review]').options].map(n=>n.textContent)"),['보완요청','첨삭완료 (수고하셨습니다.)']);
@@ -46,6 +53,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
   const point=value=>{const part=parts.find(p=>Number(p.dataset.originalStart)<=value&&Number(p.dataset.originalEnd)>=value);return [part.firstChild,[...part.textContent].slice(0,value-Number(part.dataset.originalStart)).join('').length];};
   range.setStart(...point(start));range.setEnd(...point(end));const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
  };window.selectAnnotation(0,7);`);
+ assert.equal(await ev("getComputedStyle(document.querySelector('[data-mark-source]')).outlineStyle"),'none','Focusing the original text must not draw a blue box around the editor');
  await click('[data-mark=underline]');
  await ev('window.selectAnnotation(2,15)');await click('[data-mark=strike]');
  await ev('window.selectAnnotation(8,19)');await click('[data-mark=bracket]');
@@ -140,6 +148,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await ev("document.querySelector('[data-writing-review]').value='approved';document.querySelector('[data-writing-review]').dispatchEvent(new Event('change',{bubbles:true}))");
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').textContent"),'첨삭 저장 · 학생에게 전달');
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').disabled"),false);
+ assert.equal(await ev("document.querySelector('[data-writing-message]').textContent"),'','Editing clears prior save confirmation without showing an unsaved-changes notice');
  await ev("document.querySelector('[data-writing-review]').value='needs_revision';document.querySelector('[data-writing-review]').dispatchEvent(new Event('change',{bubbles:true}))");
  await click('[data-writing-save=feedback]');await wait("document.querySelector('[data-writing-save=feedback]').dataset.saveState==='saved'");
  await ev("document.querySelector('[data-writing-annotations]').scrollIntoView({block:'start',behavior:'instant'})");
@@ -208,7 +217,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await send('Page.navigate',{url:origin+'/'});await wait('window.ready===true');
  await ev(`(async()=>{
   window.controller.destroy();
-  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-review-save');
+  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-review-quiet');
   const request=async(action,payload={})=>{const r=await fetch('/api/interview-prep',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action,studentId:'18120',deviceToken:'qa-device'})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error);return d;};
   window.controller=await mountWorkspace(document.querySelector('#app'),{request,initialPage:'introduction'});
  })()`);

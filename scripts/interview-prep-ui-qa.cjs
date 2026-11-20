@@ -112,11 +112,13 @@ let db,server,browser,ws,localWorker;
   authenticateAdmin:async(req,write)=>{const s=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),process.env.TEACHER_SESSION_SECRET);if(!s||s.role!=='admin'||!auth.hasPermission(s,write?'interview.write':'interview.read'))throw Error('forbidden');return {id:s.username};},
   invoke:preassignmentCall});
  const authHandler=createAuthHandler({getConfig:portalConfig,invoke:portalCall,exchange:async code=>code==='qa-new'?'20261020001':'20261020002'});
- const prepCalls=[];let teacherSessionUser={username:'qa',role:'admin',permissions:['*']},writingNow,heldFeedbackSave;
- const holdNextSave=()=>{let release;const pending=new Promise(resolve=>{release=resolve;});heldFeedbackSave=pending;return release;};
+ const prepCalls=[];let teacherSessionUser={username:'qa',role:'admin',permissions:['*']},writingNow;
+ const heldRequests=new Map();
+ const holdNextRequest=action=>{let release;const pending=new Promise(resolve=>{release=resolve;});heldRequests.set(action,pending);return release;};
+ const holdNextSave=()=>holdNextRequest('admin_writing_feedback'),holdNextBoard=()=>holdNextRequest('admin_writing_board');
  const handler=createHandler({now:()=>writingNow??Date.now(),authenticate:async body=>body.studentId==='18120'&&body.deviceToken==='qa-device'?{id:'18120'}:null,
    authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
-   invoke:async(...args)=>{prepCalls.push(args[0]);if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback','admin_writing_delete'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}if(args[0]==='admin_writing_feedback'&&heldFeedbackSave){const pending=heldFeedbackSave;heldFeedbackSave=null;await pending;}return invoke(...args);}});
+   invoke:async(...args)=>{prepCalls.push(args[0]);if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback','admin_writing_delete'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}if(heldRequests.has(args[0])){const pending=heldRequests.get(args[0]);heldRequests.delete(args[0]);await pending;}return invoke(...args);}});
  const aiHandler=createAIHandler({authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
   authenticateAdmin:async req=>{
    const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),process.env.TEACHER_SESSION_SECRET);
@@ -303,7 +305,7 @@ let db,server,browser,ws,localWorker;
   await invoke('writing_save',{type:'student',id:'18120'},{kind:'motivation',itemId:'',revision:0,status:'submitted',text:'국민의 생명과 안전을 지키는 일에 기여하고자 지원했습니다.'});
   await send('Page.navigate',{url:base+'/admin'});await wait('window.ready===true');
   await send('Page.navigate',{url:base+'/teacher.html#interview-prep-admin?section=review'});await wait("!!document.querySelector('[data-board-open]')");
-  await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,setWritingTime:value=>{writingNow=value;},holdNextSave,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
+  await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,setWritingTime:value=>{writingNow=value;},holdNextSave,holdNextBoard,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
   assert.equal(exceptions.length,0,JSON.stringify(exceptions));return;
  }
  if(process.argv.includes('--diagnosis-only')){
@@ -618,7 +620,7 @@ let db,server,browser,ws,localWorker;
  assert.equal(await ev("document.querySelectorAll('[data-tab=topics],[data-tab=members],[data-tab=analysis]').length"),0);
  await screenshot('actual-admin-job-shell',1200);
  await require('../tests/helpers/interview-review-browser.cjs')({db,invoke,admin,newStudentId:pendingApplication.owner_id,ev,wait,click,fill,submit,screenshot});
- await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,setWritingTime:value=>{writingNow=value;},holdNextSave,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
+ await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,setWritingTime:value=>{writingNow=value;},holdNextSave,holdNextBoard,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
  await send('Page.navigate',{url:base+'/interview?app=1'});await wait("!!document.querySelector('[data-kakao=login]')");
  kakaoCode='qa-existing';await click('[data-kakao=login]');await wait("!!document.querySelector('.ip-app-welcome')");
  await click('.ip-app-footer [data-app-tab=writing]');await wait("document.querySelector('.ip-ai-panel')?.getAttribute('aria-busy')==='false'");

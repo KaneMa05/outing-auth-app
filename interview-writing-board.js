@@ -36,13 +36,12 @@ export function mountWritingBoard(host,{request,canWrite=false}){
   const availableWidth=window.screen.availWidth||1120,availableHeight=window.screen.availHeight||900;
   const width=Math.min(1120,availableWidth),height=Math.min(900,availableHeight);
   const left=Math.round((window.screen.availLeft??0)+(availableWidth-width)/2),top=Math.round((window.screen.availTop??0)+(availableHeight-height)/2);
-  const popup=window.open(url.href,'_blank',`popup=yes,width=${width},height=${height},left=${left},top=${top}`);
   const message=host.querySelector('[data-board-message]');message.replaceChildren();
-  if(popup){popup.opener=null;popup.focus();}
-  else{
-   message.textContent='팝업이 차단되었습니다. 팝업을 허용하거나 다음 링크를 눌러주세요. ';
-   const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener';link.textContent='첨삭 새 창 열기';message.append(link);
-  }
+  let popup=null;
+  try{popup=window.open(url.href,'_blank',`popup=yes,width=${width},height=${height},left=${left},top=${top}`);}catch{}
+  message.textContent=popup?'첨삭 창을 열었습니다. 창이 보이지 않으면 다음 링크를 눌러주세요. ':'새 창이 열리지 않았습니다. 다음 링크를 눌러주세요. ';
+  const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener';link.textContent='첨삭 새 창 열기';message.append(link);
+  if(popup){try{popup.opener=null;popup.focus();}catch{}}
  }
  async function remove(index){
   const submission=data?.submissions[index];if(!canWrite||!submission)return;
@@ -61,9 +60,11 @@ export function mountWritingBoard(host,{request,canWrite=false}){
  host.onsubmit=e=>{e.preventDefault();e.stopPropagation();if(!e.target.matches('[data-board-filter]')||!canLeave())return;filter=Object.fromEntries(new FormData(e.target));if(!Object.hasOwn(statuses,filter.status))filter.status='submitted';host.querySelector('[name=status]').value=filter.status;page=0;load();};
  const showStatus=status=>{filter={...filter,status};host.querySelector('[data-board-filter] [name=status]').value=status;page=0;load();};
  host.onclick=e=>{
-  e.stopPropagation();const b=e.target.closest('[data-board-action],[data-board-open],[data-board-delete]');if(!b||b.disabled||loading||!canLeave())return;
-  if(b.dataset.boardDelete!==undefined){void remove(Number(b.dataset.boardDelete));return;}
+  e.stopPropagation();const b=e.target.closest('[data-board-action],[data-board-open],[data-board-delete]');if(!b||b.disabled)return;
+  // A focus-triggered list refresh must not swallow the first review click.
   if(b.dataset.boardOpen!==undefined){open(Number(b.dataset.boardOpen));return;}
+  if(loading||!canLeave())return;
+  if(b.dataset.boardDelete!==undefined){void remove(Number(b.dataset.boardDelete));return;}
   switch(b.dataset.boardAction){
    case 'completed':showStatus('approved');break;
    case 'revision':showStatus('needs_revision');break;

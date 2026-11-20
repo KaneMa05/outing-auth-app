@@ -120,11 +120,13 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 .ip-bracket-end::after{content:')';color:#c62828;font-weight:800}
 .ip-mark-bracket{background:#fff4e9}
 .ip-annotation-editor [data-mark-message]{font-size:13px;color:#45617f;white-space:pre-wrap;overflow-wrap:anywhere;max-height:100px;overflow:auto}
+.ip-annotation-editor [data-mark-message]:empty,.ip-root .ip-feedback-save-message:empty{display:none}
 .ip-corrections{margin:20px 0}
 
 .ip-inline-comment{color:#1d4ed8;font:inherit;white-space:inherit;overflow-wrap:inherit}
 .ip-inline-comment [contenteditable]{outline:none;border:0;background:transparent;box-shadow:none;cursor:text;caret-color:#20354d}
 .ip-inline-comment [contenteditable=plaintext-only]:empty{display:inline-block;min-height:1em;vertical-align:baseline}
+.ip-root .ip-annotation-source:focus,.ip-root .ip-inline-comment [contenteditable]:focus{outline:none;box-shadow:none}
 
 .ip-root .ip-annotation-editor .ip-color-control{display:flex;flex:0 0 auto;align-items:center;gap:8px;min-width:0;margin:0;font-size:13px}
 .ip-root .ip-color-control input[type=color]{display:block;width:44px;height:42px;min-height:0;padding:4px;margin:0;cursor:pointer;border:1px solid #b9cadb;background:#fff;border-radius:8px}
