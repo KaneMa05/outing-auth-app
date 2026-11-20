@@ -73,12 +73,21 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await send('Input.insertText',{text:'국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.'});
  assert.equal(await ev("document.querySelector('[data-mark-source]').textContent.includes('교사:')"),false);
  assert.equal(await ev("document.querySelector('.ip-inline-comment').textContent"),'국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.');
+ assert.equal(await ev(`{
+  const field=document.querySelector('[data-inline-comment="3"]'),note=field.parentElement;
+  const style=getComputedStyle(field),wrapper=getComputedStyle(note),original=getComputedStyle(document.querySelector('[data-original-start]'));
+  style.backgroundColor==='rgba(0, 0, 0, 0)'&&wrapper.backgroundColor==='rgba(0, 0, 0, 0)'&&style.outlineStyle==='none'&&style.borderTopWidth==='0px'&&style.boxShadow==='none'&&style.caretColor==='rgb(32, 53, 77)'&&style.fontWeight===original.fontWeight&&style.fontSize===original.fontSize&&style.lineHeight===original.lineHeight&&wrapper.paddingLeft==='0px'&&wrapper.marginLeft==='0px';
+ }`),true,'Focused comments use ordinary text styling and a neutral caret, without a box or extra spacing');
  assert.equal(await ev("document.querySelectorAll('[data-remove-comment],[data-remove-legacy],.ip-comment-remove').length"),0);
  // Selection beyond inline comments must still use original source offsets.
  await ev('window.selectAnnotation(30,35)');await click('[data-mark=bracket]');await click('[data-mark-undo]');
  await ev('window.selectAnnotation(0,0)');await send('Input.insertText',{text:'시작 코멘트'});
  await eraseComment(4);await click('[data-mark-undo]');
  assert((await ev("document.querySelector('[data-mark-source]').textContent")).includes('시작 코멘트'));
+ await eraseComment(4);
+ assert.equal(await ev("document.querySelector('[data-inline-comment=\"4\"]').parentElement.getBoundingClientRect().width"),0,'Erasing a comment leaves no visible chip or gap');
+ await send('Input.insertText',{text:'다시 입력'});
+ assert.equal(await ev("document.querySelector('[data-inline-comment=\"4\"]').textContent"),'다시 입력','Typing continues normally after deleting the entire comment');
  await eraseComment(4);
  await ev('window.selectAnnotation(7,8)');await click('[data-mark-clear]');
  assert.equal(await ev("document.querySelectorAll('[data-mark-source] .ip-mark-strike').length"),0);

@@ -260,7 +260,7 @@ function renderInterviewPrepModule(admin) {
     }
     if(renderInterviewPrepModule.view!==view)return;
     if(!document.querySelector('link[data-interview-style]'))
-      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261120-review-save','data-interview-style':'true'}));
+      document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-prep.css?v=20261120-plain-comments','data-interview-style':'true'}));
     if(!admin&&!document.querySelector('link[data-interview-workspace-style]'))
       document.head.appendChild(el('link',{rel:'stylesheet',href:'./interview-portal.css?v=20261021-app','data-interview-workspace-style':'true'}));
     const appShell=!admin&&(isStandaloneStudentApp()||accessProduct==='aptitude_only');
