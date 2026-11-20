@@ -48,3 +48,8 @@ output/
 
 # Internal Word planning files must never be published
 **/*.docx
+
+# Local caches and operator launchers
+npm-limit40-cache/
+Prepare-Interview-Reboot.cmd
+Start-Interview-Workers.cmd

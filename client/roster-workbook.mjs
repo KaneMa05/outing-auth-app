@@ -17,7 +17,7 @@ export function createRosterWorkbook(sheetTitle, rows) {
 }
 
 function createRosterSheetXml(rows) {
-  const columnWidths = [18, 18, 24, 24];
+  const columnWidths = [18, 18, 24, 24, 24];
   const columns = columnWidths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("");
   const sheetRows = rows.map((row, rowIndex) => {
     const cells = row.map((value, columnIndex) => {

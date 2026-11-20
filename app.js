@@ -3226,7 +3226,6 @@ function renderStudentHome() {
           el("p", {}, `${formatExamDate(COAST_GUARD_EXAM_DATE)} 시험 기준`),
         ]),
     onlineMode ? renderStudyCafeHomeCard(student) : null,
-    renderPassPredictionHomeEntry(),
     renderInterviewRegistrationHomeEntry(),
     onlineMode ? null : renderStudentImportantNoticeCard(),
     !onlineMode && holiday && !todayAttendance
@@ -3445,7 +3444,6 @@ function renderLectureStudentHome(student) {
   const notices = getStudentImportantNotices();
   return el("div", { className: "grid student-view student-home lecture-student-home" }, [
     renderStudyCafeHomeCard(student),
-    renderPassPredictionHomeEntry(),
     renderInterviewRegistrationHomeEntry(),
     renderQuestionBoardHomePreview(student),
     renderCriminalLawOxLocalEntry(),
@@ -4095,25 +4093,6 @@ function openFinalScopePlanGuide() {
       ]),
     ]),
   });
-}
-
-function renderPassPredictionHomeEntry() {
-  return el("a", {
-    className: "lecture-home-shortcut pass-prediction-home-entry",
-    href: "https://www.ronparkpass.com/",
-    target: "_blank",
-    rel: "noopener noreferrer",
-    ariaLabel: "26년 3차 합격 예측 서비스 바로가기 (새 창)",
-  }, [
-    el("span", { className: "lecture-home-shortcut-icon", ariaHidden: "true" }, [
-      el("span", { className: "footer-icon footer-icon-study-ranking" }),
-    ]),
-    el("span", { className: "lecture-home-shortcut-copy" }, [
-      el("strong", {}, "26년 3차 합격 예측 서비스"),
-      el("span", {}, "바로가기"),
-    ]),
-    el("span", { className: "lecture-home-shortcut-chevron", ariaHidden: "true" }, "›"),
-  ]);
 }
 
 function renderInterviewRegistrationHomeEntry() {

@@ -48,3 +48,6 @@ __pycache__/
 *.pyc
 /tools/interview-worker/config.json
 .env*
+
+# Local npm cache from draft-limit validation
+/npm-limit40-cache/

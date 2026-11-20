@@ -276,6 +276,27 @@ let db,server,browser,ws,localWorker;
  };
 
  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
+ if(process.argv.includes('--student-home-only')){
+  await send('Page.navigate',{url:base+'/index.html#home'});await wait("typeof isLocalStudentPreview==='function'");
+  const beforeRequests=interviewRequests;
+  await ev(`isLocalStudentPreview=()=>false;isStandaloneStudentApp=()=>true;isStudyCafeLocalPreview=()=>false;
+   if(!findStudent('18121'))state.students.push({id:'18121',name:'일반 학생',studentCategory:'offline',isActive:true,appRegisteredAt:'2026-01-01'});
+   state.settings.studentAuthId='18121';state.settings.studentProfiles['18121']={passwordHash:'qa-password',deviceToken:'qa-device'};`);
+  for(const category of ['offline','online_managed','lecture']){
+   await ev(`findStudent('18121').studentCategory=${JSON.stringify(category)};location.hash='#home';render();`);
+   await wait("currentRoute==='home' && !!document.querySelector('.student-home')");
+   assert.equal(await ev("document.querySelectorAll('.pass-prediction-home-entry').length"),0);
+   assert.equal(await ev("document.querySelectorAll('.student-interview-registration').length"),1);
+   assert.equal(await ev("document.querySelector('.student-interview-registration').getAttribute('href')"),'/interview?app=1');
+   assert.equal(await ev("!!document.querySelector('.normal-student-footer')"),true);
+   await screenshot('student-home-'+category+'-mobile',390);await screenshot('student-home-'+category+'-desktop',1200);
+   await ev("location.hash='#mypage';render()");await wait("currentRoute==='mypage'");
+   assert.equal(await ev("document.querySelectorAll('.student-interview-registration').length"),0);
+  }
+  assert.equal(interviewRequests,beforeRequests,'Ordinary students do not incur interview requests');
+  assert.equal(exceptions.length,0,JSON.stringify(exceptions));
+  console.log('PASS student homes: offline/online-managed/lecture, existing registration and footer, no interview API calls, home/my navigation, 390/1200px layouts.');return;
+ }
  if(process.argv.includes('--applications-only')){
   await db.exec("insert into ip_owners(id,name) values('application-qa','신청 확인 학생'); insert into ip_applications(owner_id,name,track,exam_number) values('application-qa','신청 확인 학생','공채','QA-001');");
   await send('Page.navigate',{url:base+'/admin'});await wait('window.ready===true');
@@ -549,10 +570,10 @@ let db,server,browser,ws,localWorker;
    await wait("currentRoute==='home'");
    assert.equal(await ev("document.querySelector('#app').textContent.includes('면접 준비')"),false);
    assert.equal(await ev("document.querySelectorAll('.student-interview-registration').length"),1);
-   assert.equal(await ev("document.querySelector('.pass-prediction-home-entry').nextElementSibling.classList.contains('student-interview-registration')"),true);
+   assert.equal(await ev("document.querySelectorAll('.pass-prediction-home-entry').length"),0);
    assert.equal(await ev("document.querySelector('.student-interview-registration strong').textContent"),'면접반 등록');
    assert.equal(await ev("document.querySelector('.student-interview-registration').getAttribute('href')"),'/interview?app=1');
-   await ev("document.querySelector('.pass-prediction-home-entry').scrollIntoView({block:'start'})");
+   await ev("document.querySelector('.student-interview-registration').scrollIntoView({block:'start'})");
    await screenshot('registration-home-'+category+'-mobile',390);
    await screenshot('registration-home-'+category+'-desktop',1200);
    await ev("location.hash='#mypage';render()");

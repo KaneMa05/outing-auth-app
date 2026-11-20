@@ -1,7 +1,10 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const testQuestions = require('../lib/interview-test-question-scope.json').questions;
 const { PGlite } = require(process.env.PGLITE_MODULE || 'C:/Users/Public/Documents/ESTsoft/CreatorTemp/ox-db-tools/node_modules/@electric-sql/pglite');
+// Normalize test SQL so function definitions and patch literals agree on Windows.
+const readSql = file => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 (async () => {
   const db = new PGlite();
   try {
@@ -17,17 +20,27 @@ const { PGlite } = require(process.env.PGLITE_MODULE || 'C:/Users/Public/Documen
     assert.ok(files.some(name => name.endsWith('_interview_mock_operations_monitor.sql')));
     assert.ok(files.some(name => name.endsWith('_iphone_practice_cli.sql')));
     for (const file of files) {
-      try { await db.exec(fs.readFileSync('supabase/migrations/' + file, 'utf8')); }
+      // The historical allowlist migration requires six already published questions.
+      // Supply those prerequisites only in this disposable DB, before importing drafts.
+      if (file.endsWith('_interview_mock_test_question_scope.sql')) {
+        for (const question of testQuestions) {
+          await db.query("insert into public.ip_questions(id,prompt,category,status,tracks) values($1,$2,$3,'published',array['공채'])", [question.id,question.prompt,question.category]);
+        }
+      }
+      try { await db.exec(readSql('supabase/migrations/' + file)); }
       catch (error) { throw new Error(file + ': ' + error.message, { cause: error }); }
     }
+    const publishedBeforeSeed = (await db.query("select id,prompt,category,status from public.ip_questions where status='published' order by id")).rows;
+    assert.equal(publishedBeforeSeed.length, testQuestions.length);
     const seeds = ['interview-corpus.sql', 'interview-personality-analysis.sql', 'interview-core30.sql', 'interview-life-catalog.sql', 'interview-rubric-drafts.sql'];
     for (const file of seeds) {
-      try { await db.exec(fs.readFileSync('supabase/seeds/' + file, 'utf8')); }
+      try { await db.exec(readSql('supabase/seeds/' + file)); }
       catch (error) { throw new Error(file + ': ' + error.message, { cause: error }); }
     }
     const questions = (await db.query("select count(*)::int total, count(*) filter(where status='published')::int published from ip_questions")).rows[0];
-    assert.ok(questions.total > 0);
-    assert.equal(questions.published, 0, 'Import must not publish unreviewed questions');
+    assert.ok(questions.total > testQuestions.length);
+    assert.equal(questions.published, testQuestions.length, 'Import must not publish unreviewed questions');
+    assert.deepEqual((await db.query("select id,prompt,category,status from public.ip_questions where status='published' order by id")).rows, publishedBeforeSeed, 'Import must preserve previously published questions');
     assert.deepEqual((await db.query('select * from public.students')).rows, before);
     const tables = (await db.query("select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and relname like 'ip\\_%' escape '\\' and relkind='r'")).rows;
     assert.ok(tables.length > 20);
@@ -42,6 +55,6 @@ const { PGlite } = require(process.env.PGLITE_MODULE || 'C:/Users/Public/Documen
     assert.equal(bucket.public, false);
     assert.deepEqual(bucket.allowed_mime_types, ['audio/wav']);
     assert.equal((await db.query('select count(*)::int n from ip_pa_rubrics')).rows[0].n, 25);
-    console.log(`PASS ${files.length} interview migrations and ${seeds.length} seeds in deployment order; ${questions.total} draft questions, ${tables.length} RLS tables, private audio bucket, server-only RPCs, disabled gates, existing students preserved.`);
+    console.log(`PASS ${files.length} interview migrations and ${seeds.length} seeds with historical publication prerequisites; ${questions.total - questions.published} draft questions, ${questions.published} preserved published fixtures, ${tables.length} RLS tables, private audio bucket, server-only RPCs, disabled gates, existing students preserved.`);
   } finally { await db.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

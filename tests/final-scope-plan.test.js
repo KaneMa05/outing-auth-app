@@ -25,8 +25,6 @@ assert.equal(plan.rounds[9].code, "전 범위");
 assert.equal(plan.appSubjectByScopeSubject["형사소송법·공판"], "형사법(공판)");
 
 assert.match(appSource, /function canUseFinalScopePlan[\s\S]*?\["online_managed", "lecture"\]/);
-assert.match(appSource, /function renderStudentHome[\s\S]*?renderPassPredictionHomeEntry\(\)/);
-assert.match(appSource, /function renderLectureStudentHome[\s\S]*?renderPassPredictionHomeEntry\(\)/);
 assert.doesNotMatch(appSource, /renderFinalScopeHomeEntry\(/);
 assert.match(appSource, /\{ id: "final-scope", label: "회독 플랜" \}/);
 assert.match(appSource, /activeView === "final-scope"[\s\S]*?renderFinalScopePlan\(\)/);

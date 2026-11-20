@@ -250,7 +250,13 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const pop=()=>go(readRoute(),{historyChange:true});
  const keyboard=()=>{const v=window.visualViewport;host.classList.toggle('ip-keyboard-open',!!v&&window.innerHeight-v.height>140&&host.contains(document.activeElement)&&document.activeElement.matches('input:not([type=radio]):not([type=checkbox]),textarea,select:not([data-round-select]):not([data-timer-section-select])'));};
  const rememberClick=()=>saveResume();
+ // Keep the active answer focused until saving handles the pointer tap.
+ const preserveWritingFocus=e=>{
+  const button=e.target.closest('[data-writing-save]'),field=document.activeElement;
+  if(e.button===0&&button&&!button.disabled&&field?.matches('[data-writing-text]')&&host.contains(field))e.preventDefault();
+ };
+ host.addEventListener('pointerdown',preserveWritingFocus);
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();
- return {canLeave,destroy(){destroyed=true;++generation;saveResume();practiceGateway?.destroy();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
+ return {canLeave,destroy(){destroyed=true;++generation;saveResume();practiceGateway?.destroy();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('pointerdown',preserveWritingFocus);host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
 }

@@ -15,6 +15,7 @@ const templates={
   situation:[['criteria','판단할 때 가장 먼저 고려할 기준은 무엇인가요?'],['steps','어떤 순서로 행동하겠습니까?'],['caution','주의할 점과 그 이유는 무엇인가요?']],
 };
 const errors={unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.',not_enrolled:'면접반 이용 등록 또는 이용 기간을 확인해주세요.',
+  invalid_phone:'휴대폰 번호를 확인해주세요. 예: 010-1234-5678',
   review_note_required:'학생이 확인할 보완 사유를 입력해주세요.',
   revision_conflict:'다른 기기 또는 관리자가 내용을 수정했습니다. 입력 내용을 복사해 보관한 후 최신 내용을 불러오세요.',
   topic_changed:'준비 항목이 변경되었습니다. 입력 내용을 보관한 뒤 최신 항목을 불러오세요.',
@@ -224,7 +225,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
   const applicationProduct=application=>application.current_access_product||application.access_product||'interview_package';
-  const rosterDownload=()=>`<div class="ip-toolbar">${btn('수강 명단 엑셀 다운로드','roster-export')}</div><p class="ip-help">이름·직렬·수험번호·과정이 포함됩니다. 검색 조건과 관계없이 등록된 전체 수강생을 다운로드합니다(이용 중지·기간 만료 포함).</p>`;
+  const rosterDownload=()=>`<div class="ip-toolbar">${btn('수강 명단 엑셀 다운로드','roster-export')}${btn('휴대폰 번호 입력·수정','contacts-open')}</div><p class="ip-help">이름·직렬·수험번호·과정·휴대폰 번호가 포함됩니다. 번호 미등록은 빈칸으로 표시됩니다. 검색 조건과 관계없이 등록된 전체 수강생을 다운로드합니다(이용 중지·기간 만료 포함).</p>`;
   function shell(){
     stopQuestionAudio();
     examplePanel?.destroy();examplePanel=null;
@@ -545,7 +546,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         host.querySelectorAll('[data-ip=question-example]').forEach(button=>button.setAttribute('aria-expanded','false'));
       }
 
-      if(['category','tab','section','prev','next','question-new','question-edit','question-example','taxonomy-edit','analysis-edit','application-reject','application-edit','application-product','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled'].includes(a)&&!canLeave())return;
+      if(['category','tab','section','prev','next','question-new','question-edit','question-example','taxonomy-edit','analysis-edit','application-reject','application-edit','application-product','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled','contacts-open','roster-export'].includes(a)&&!canLeave())return;
       if(['category','tab','section','close'].includes(a))dirty=false;
       if(a==='section'){if(onSection)onSection(target.dataset.section);else await openSection(target.dataset.section);}
       else if(a==='category'){category=target.dataset.category;tab='questions';page=0;filter={};shell();await load();}
@@ -556,12 +557,18 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         const version=loadVersion;
         const isCurrent=()=>!destroyed&&version===loadVersion;
         notify(host,'수강 명단을 불러오는 중…');
-        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261112-roster');
+        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261120-admin-contacts');
         const members=await loadInterviewRoster(request,{isCurrent,onProgress:count=>notify(host,`수강 명단 ${count.toLocaleString('ko-KR')}명 확인 중…`)});
         if(!members||!isCurrent())return;
         if(!members.length){notify(host,'다운로드할 등록 수강생이 없습니다.');return;}
         downloadInterviewRoster(members);
         notify(host,`수강 명단 ${members.length.toLocaleString('ko-KR')}명의 엑셀 파일을 다운로드했습니다.`);
+      }
+      else if(a==='contacts-open'){
+        const {mountAdminContacts}=await import('./client/interview-admin-contacts.mjs?v=20261120-admin-contacts');
+        if(destroyed)return;
+        editor(`${btn('닫기','close')}<div data-contact-host></div>`);
+        life=mountAdminContacts(host.querySelector('[data-contact-host]'),{request,canWrite});await life.ready;
       }
       else if(a==='taxonomy-edit'){const r=await request('admin_question_detail',{id:target.dataset.id});if(destroyed)return;selected=r.question;editor(taxonomyEditor(selected,r.sources));}
       else if(a==='question-example'){

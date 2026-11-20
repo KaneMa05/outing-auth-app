@@ -24,7 +24,17 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
         calls.push({action,body});
         if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};
         if(action==='admin_applications')return {applications:[],summary:{students:65,pending:0,approved:65,rejected:0}};
+        if(action==='admin_contact_save'){
+          if(mode==='save-failure')throw Error('interview_unavailable');
+          if(mode==='conflict')throw Error('revision_conflict');
+          const member=members.find(m=>m.id===body.targetStudentId),phone=body.phone.replace(/\D/g,'');
+          if(phone&&!/^01\d{8,9}$/.test(phone))throw Error('invalid_phone');
+          member.phone=phone;member.phone_revision=(member.phone_revision||0)+1;
+          return {ok:true,phone,revision:member.phone_revision};
+        }
         if(action==='admin_members'){
+          if(mode==='contacts-load-hold')await new Promise(resolve=>window.releaseContactRead=resolve);
+          if(mode==='contacts-load-failure')throw Error('interview_unavailable');
           if(mode==='failure'&&body.page===1)throw Error('unauthorized');
           if(mode==='empty')return {members:[]};
           if(body.search)return {members:[]};
@@ -32,7 +42,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
         }
         throw Error(action);
       };
-      window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'applications',request,canWrite:false});
+      window.remount=async canWrite=>{window.view?.destroy();window.view=await mountAdmin(document.querySelector('#host'),{initialSection:'applications',request,canWrite});};
+      await remount(false);
     });
     const downloadButton=()=>page.getByRole('button',{name:'수강 명단 엑셀 다운로드',exact:true});
     assert.equal(await downloadButton().isEnabled(),true,'Read permission is enough to export');
@@ -42,7 +53,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
     assert.match(download.suggestedFilename(),/^면접반_수강명단_\d{4}-\d{2}-\d{2}\.xlsx$/);
     await download.saveAs(path.join(output,'synthetic-roster.xlsx'));
     await page.waitForFunction(()=>document.querySelector('[data-message]').textContent.includes('65명의 엑셀'));
-    assert.deepEqual(await page.evaluate(()=>calls.map(c=>c.body)),[0,1,2].map(page=>({registeredOnly:true,page})));
+    assert.deepEqual(await page.evaluate(()=>calls.map(c=>c.body)),[0,1,2].map(page=>({registeredOnly:true,includeContacts:true,page})));
     await page.screenshot({path:path.join(output,'applications-desktop.png'),fullPage:true});
     await page.locator('[data-filter] [name=search]').fill('검색 결과 없음');await page.locator('[data-filter] button').click();
     await page.getByText('신청 내역이 없습니다.',{exact:true}).waitFor();
@@ -50,7 +61,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
     const [allDownload]=await Promise.all([page.waitForEvent('download'),downloadButton().click()]);
     assert.equal(await allDownload.failure(),null);
     await page.waitForFunction(()=>document.querySelector('[data-message]').textContent.includes('65명의 엑셀'));
-    assert.deepEqual(await page.evaluate(()=>calls.map(c=>c.body)),[0,1,2].map(page=>({registeredOnly:true,page})));
+    assert.deepEqual(await page.evaluate(()=>calls.map(c=>c.body)),[0,1,2].map(page=>({registeredOnly:true,includeContacts:true,page})));
     let downloads=0;page.on('download',()=>downloads++);
     await page.evaluate(()=>{mode='failure';});await downloadButton().click();
     await page.getByText('로그인이 만료되었습니다. 다시 로그인해주세요.',{exact:true}).waitFor();
@@ -63,7 +74,50 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
     await page.screenshot({path:path.join(output,'applications-mobile.png'),fullPage:true});
     await page.evaluate(()=>view.openSection('members'));
     assert.equal(await downloadButton().count(),0,'Only the application approval tab has a download button');
+    assert.equal(await page.locator('[data-ip=contacts-open]').count(),0,'Contacts are limited to the application approval tab');
+    await page.evaluate(()=>{mode='normal';return remount(false);});
+    await page.locator('[data-ip=contacts-open]').click();
+    await page.locator('[data-contact-row]').first().waitFor();
+    assert.equal(await page.locator('[data-contact-row] input').first().isDisabled(),true,'Read-only staff cannot edit');
+    await page.locator('[data-ip=close]').click();
+    await page.evaluate(()=>remount(true));
+    await page.locator('[data-ip=contacts-open]').click();await page.locator('[data-contact-row]').first().waitFor();
+    const first=page.locator('[data-contact-row]').nth(0),second=page.locator('[data-contact-row]').nth(1);
+    await first.locator('input').fill('010-1234-5678');await second.locator('input').fill('010-2222-3333');
+    await first.locator('button').click();await first.getByText('저장했습니다.',{exact:true}).waitFor();
+    assert.equal(await second.locator('input').inputValue(),'010-2222-3333','Saving another row preserves pending edits');
+    page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-ip=close]').click();
+    assert.equal(await page.locator('[data-contact-host]').isVisible(),true,'Unsaved contact changes block leaving');
+    await second.locator('button').click();await second.getByText('저장했습니다.',{exact:true}).waitFor();
+    await page.evaluate(()=>{mode='save-failure';});await first.locator('input').fill('010-9999-8888');await first.locator('button').click();
+    await first.getByText('저장하지 못했습니다.',{exact:true}).waitFor();assert.equal(await first.locator('input').inputValue(),'010-9999-8888');
+    await page.evaluate(()=>{mode='conflict';});await first.locator('button').click();
+    await page.getByText('다른 관리자가 번호를 변경했습니다. 입력 내용을 보관한 뒤 검색을 눌러 최신 번호를 확인해주세요.',{exact:true}).waitFor();
+    await page.evaluate(()=>{mode='normal';});await first.locator('input').fill('1234');await first.locator('button').click();
+    await page.getByText('휴대폰 번호를 확인해주세요. 예: 010-1234-5678',{exact:true}).waitFor();
+    await first.locator('input').fill('010-1234-5678');await first.locator('button').click();await first.getByText('저장했습니다.',{exact:true}).waitFor();
+    await page.locator('[data-ip=close]').click();await page.locator('[data-ip=contacts-open]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-contact-row] input')?.value==='010-1234-5678');
+    await page.locator('[data-contact-page="1"]').click();await page.locator('[data-contact-page-label]').filter({hasText:'2 페이지'}).waitFor();
+    await page.locator('[data-contact-page="-1"]').click();await page.locator('[data-contact-page-label]').filter({hasText:'1 페이지'}).waitFor();
+    await page.evaluate(()=>{mode='contacts-load-hold';});
+    await page.locator('[data-contact-search] button').click();
+    await page.waitForFunction(()=>typeof releaseContactRead==='function');
+    assert.equal(await page.locator('[data-contact-row] input:enabled,[data-contact-row] button:enabled').count(),0,'Loading cannot accept edits that an incoming page would discard');
+    await page.evaluate(()=>{mode='normal';releaseContactRead();delete window.releaseContactRead;});
+    await page.locator('[data-contact-row] input:enabled').first().waitFor();
+    const preserved=await page.locator('[data-contact-row] input').first().inputValue();
+    await page.evaluate(()=>{mode='contacts-load-failure';});await page.locator('[data-contact-search] button').click();
+    await page.getByText('저장하거나 조회하지 못했습니다. 입력 내용을 유지하고 다시 시도해주세요.',{exact:true}).waitFor();
+    assert.equal(await page.locator('[data-contact-row] input').first().inputValue(),preserved);
+    assert.equal(await page.locator('[data-contact-row] input').first().isEnabled(),true,'A failed load restores the existing writable rows');
+    await page.evaluate(()=>{mode='normal';});await page.locator('[data-contact-search] button').click();await page.locator('[data-contact-row] input:enabled').first().waitFor();
+    await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>document.querySelector('[data-contact-host]').scrollIntoView({block:'start'}));await page.screenshot({path:path.join(output,'contacts-desktop.png')});
+    await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.screenshot({path:path.join(output,'contacts-mobile.png')});
+    await page.locator('[data-ip=close]').click();
+    const [phoneDownload]=await Promise.all([page.waitForEvent('download'),downloadButton().click()]);await phoneDownload.saveAs(path.join(output,'synthetic-roster-with-phones.xlsx'));
     assert.deepEqual(errors,[]);
-    console.log('PASS browser: application approval tab only, read-only access, 65-row XLSX download, unfiltered full roster, lazy loading, failure/empty recovery, desktop/mobile layout.');
+    console.log('PASS browser: application approval tab only, 65-row XLSX, contacts save/reopen/page/validation/conflict, pending edits and failure recovery, read-only access, desktop/mobile layout.');
   }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

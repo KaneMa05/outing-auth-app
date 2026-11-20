@@ -1,12 +1,12 @@
-const CACHE_NAME = "outing-auth-app-v577-interview-aptitude-correction-guard";
+const CACHE_NAME = "outing-auth-app-v578-pending-reflection";
 const APP_SHELL = [
-  "/app.js?v=20261109-login-entry",
+  "/app.js?v=20261120-pending-reflection",
   "/student-content-safety.js?v=20261028-safety-fallback",
   "/question-board.js?v=20261028-safety-fallback",
   "/community-guidelines.html",
   "/app.js?v=20261028-ios-lecture-edges",
   "/inquiry-board.js?v=20261028-safety-fallback",
-  "/styles.css?v=20261028-ios-lecture-edges",
+  "/styles.css?v=20261120-pending-reflection",
   "/styles.css?v=20261028-deletion-request",
   "/app-startup.css?v=20261113-pwa-cold-start",
   "/app-startup.js?v=20261113-pwa-cold-start",

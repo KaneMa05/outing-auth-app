@@ -118,6 +118,7 @@ test('OX and study cafe APIs use the database region while unrelated functions r
   configuredSydney.add('api/interview-aptitude.js');
   configuredSydney.add('api/study-cafe.js');
   configuredSydney.add('api/study-cafe-rooms.js');
+  for(const name of ['interview-native-practice','interview-practice-records','interview-app-feedback'])configuredSydney.add('api/'+name+'.js');
   for(const name of ['interview-practice-cli','interview-mock-worker','interview-draft-worker','interview-personality','interview-job-exam','interview-practice-openai'])configuredSydney.add('api/'+name+'.js');
   for(const [name,options] of Object.entries(config.functions)){
     if(name==='api/criminal-law-ox.js')continue;

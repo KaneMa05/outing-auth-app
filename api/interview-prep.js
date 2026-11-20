@@ -8,7 +8,7 @@ const { authenticatePortal } = require('../lib/interview-web-auth');
 const writingSubmissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
 const scheduledWritingKinds=new Set(['introduction','motivation','public_service']);
 const actions = new Set(['admin_question_example_detail','admin_question_example_save','practice_reference','admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
-  'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
+  'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_contact_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
   'life_get','life_save','diagnosis_get','diagnosis_save','admin_life_get','admin_life_feedback','admin_applications','admin_application_decide','admin_application_product_save',
@@ -20,6 +20,11 @@ const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
   if(body.includeNotices!==undefined&&(body.action!=='bootstrap'||typeof body.includeNotices!=='boolean'))fail('invalid_request');
+  if(body.includeContacts!==undefined&&(body.action!=='admin_members'||typeof body.includeContacts!=='boolean'))fail('invalid_request');
+  if(body.action==='admin_contact_save'){
+    if(!Number.isInteger(body.revision)||body.revision<0||body.revision>999999999)fail('invalid_request');
+    try{body.phone=require('../lib/interview-admin-contacts.cjs').normalizePhone(body.phone);}catch{fail('invalid_phone');}
+  }
   if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save','admin_application_decide'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
   if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
   if(body.action==='admin_application_product_save'&&(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.id)||!Number.isInteger(body.revision)))fail('invalid_request');
@@ -55,6 +60,7 @@ function validate(body) {
     admin_question_publication:['id','revision','approved'],
     admin_topic_save:['title','kind','guidance','required','active','tracks','sortOrder','revision'],
     admin_member_save:['targetStudentId','track','examNumber','enabled'],
+    admin_contact_save:['targetStudentId','phone','revision'],
     admin_feedback:['targetStudentId','topicId','revision','status','feedback'],
     admin_enabled:['enabled'],admin_note_detail:['targetStudentId','topicId'],
     admin_analysis_save:['id','revision','questionRevision','elementIds','disposition','answerForm','rationale','status'],
@@ -90,7 +96,7 @@ function validate(body) {
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
 function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,now=Date.now,
-  invoke=(action,actor,body)=>requestSupabase('POST',['admin_question_example_detail','admin_question_example_save','practice_reference'].includes(action)?'rpc/ip_question_example_service':['admin_questions','admin_question_detail','admin_question_taxonomy_save'].includes(action)?'rpc/ip_taxonomy_service':['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action==='admin_writing_delete'?'rpc/ip_writing_board_delete_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
+  invoke=(action,actor,body)=>requestSupabase('POST',['admin_contact_list','admin_contact_save'].includes(action)?'rpc/ip_admin_contacts_service':['admin_question_example_detail','admin_question_example_save','practice_reference'].includes(action)?'rpc/ip_question_example_service':['admin_questions','admin_question_detail','admin_question_taxonomy_save'].includes(action)?'rpc/ip_taxonomy_service':['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action==='admin_writing_delete'?'rpc/ip_writing_board_delete_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
     let action;
@@ -157,10 +163,11 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         try{result.notices=await require('../lib/interview-notices.cjs').publishedInterviewNotices(read);}
         catch{result.notices=[];result.noticesUnavailable=true;}
       }
-      res.status(200).json(result);
+      res.status(200).json(body.action==='admin_members'&&body.includeContacts===true
+        ?await require('../lib/interview-admin-contacts.cjs').withAdminContacts(result,actor,invoke):result);
     } catch(error) {
       const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
-      known.push('rubric_incomplete','submission_not_open','feedback_pending');
+      known.push('rubric_incomplete','submission_not_open','feedback_pending','invalid_phone');
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
