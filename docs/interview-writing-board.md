@@ -40,4 +40,4 @@
 2. 첨삭 모듈, 게시판, 새 `interview-writing-review.html`·JS, 갱신한 CSS·학생/관리자 진입 모듈을 함께 배포한다. 같은 체크아웃에 있는 별도 작업 변경은 이번 변경과 따로 검토한다.
 3. 허가된 테스트 계정에서 제출 → 교사 첨삭 → 학생 확인을 점검한다.
 
-프런트엔드를 이전 버전으로 되돌려야 해도 새 DB 열과 기록은 보존한다. 첨삭 JSON을 모르는 이전 화면에서도 텍스트 피드백은 계속 동작한다. 운영 적용 결과는 `docs/releases/20261120-feedback-worker-production.txt`에 기록한다.
+프런트엔드를 이전 버전으로 되돌려야 해도 새 DB 열과 기록은 보존한다. 첨삭 JSON을 모르는 이전 화면에서도 텍스트 피드백은 계속 동작한다. 최초 통합 운영 결과는 `docs/releases/20261120-feedback-worker-production.txt`, 제출 개시 시각·일반 글 코멘트·저장 후 닫기를 포함한 최종 승인 배포 결과는 `docs/releases/20261120-feedback-final-approved-production.txt`에 기록한다.
