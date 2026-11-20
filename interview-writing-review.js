@@ -1,4 +1,4 @@
-import {mountWriting} from './interview-writing-ui.js?v=20261120-comment-input';
+import {mountWriting} from './interview-writing-ui.js?v=20261120-review-save';
 
 const host=document.querySelector('#app');
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
@@ -17,14 +17,11 @@ async function start(){
  const allowed=permission=>Array.isArray(user.permissions)&&(user.permissions.includes('*')||user.permissions.includes(permission));
  if(user.role!=='admin'||!allowed('interview.read'))throw Error('forbidden');
  const canWrite=allowed('interview.write');
- host.innerHTML='<header class="ip-panel"><div class="ip-row"><h2></h2><button type="button" class="ip-btn" data-review-close>창 닫기</button></div><p class="ip-help" data-review-student></p></header><div data-review-editor></div>';
+ host.innerHTML='<div data-review-editor></div>';
  const name=new URLSearchParams(location.hash.slice(1)).get('name')||studentId;
  const title=`${name} · ${kinds[kind]} ${canWrite?'첨삭':'조회'}`;
- document.title=title;host.querySelector('h2').textContent=title;
- host.querySelector('[data-review-student]').textContent=`학생 ID: ${studentId} · ${canWrite?'첨삭을 저장하면 학생에게 전달됩니다.':'조회 권한으로 열었습니다.'}`;
- const editor=mountWriting(host.querySelector('[data-review-editor]'),{request,admin:true,studentId,kind,initialItemId:itemId,canWrite,hideQuestionPicker:true});
- // The writing editor's beforeunload guard also protects the close button.
- host.querySelector('[data-review-close]').onclick=()=>window.close();
+ document.title=title;
+ const editor=mountWriting(host.querySelector('[data-review-editor]'),{request,admin:true,studentId,kind,initialItemId:itemId,canWrite,hideQuestionPicker:true,hideSubmissionDetails:true});
  window.addEventListener('pagehide',event=>{if(!event.persisted)editor.destroy();});
 }
 start().catch(error=>{

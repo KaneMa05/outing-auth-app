@@ -365,7 +365,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       life=await mountLiveHistory(box,{admin:true});return;
     }
     if(tab==='review'){
-      const {mountReview}=await import('./interview-review-ui.js?v=20261120-comment-input');
+      const {mountReview}=await import('./interview-review-ui.js?v=20261120-review-save');
       if(destroyed||version!==loadVersion)return;
       life=mountReview(box,{request,templates,canWrite});
       await life.ready;
@@ -623,7 +623,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         life=mountLife(host.querySelector('[data-life-host]'),{request,admin:true,studentId:target.dataset.id,canWrite});
       }
       else if(a==='writing'){
-        const {mountWriting}=await import('./interview-writing-ui.js?v=20261120-comment-input');
+        const {mountWriting}=await import('./interview-writing-ui.js?v=20261120-review-save');
         if(destroyed)return;
         editor(`${btn('닫기','close')}<h3>학생 작성 답변</h3><div data-writing-host></div>`);
         life=mountWriting(host.querySelector('[data-writing-host]'),{request,admin:true,studentId:target.dataset.id,canWrite});

@@ -5,6 +5,8 @@ const { requestSupabase } = require('./curriculum')._private;
 const { authenticateStudent } = require('./criminal-law-ox')._private;
 const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
+const writingSubmissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
+const scheduledWritingKinds=new Set(['introduction','motivation','public_service']);
 const actions = new Set(['admin_question_example_detail','admin_question_example_save','practice_reference','admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
@@ -87,7 +89,7 @@ function validate(body) {
   if(body.action==='admin_question_publish' && (!Array.isArray(body.items)||body.items.length<1||body.items.length>30||
     body.items.some(q=>!q||typeof q.id!=='string'||q.id.length>120||!Number.isInteger(q.revision)||q.revision<1)))fail('invalid_request');
 }
-function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,
+function createHandler({authenticate=authenticateStudent, previewAllowed=isPreviewStudent,authenticateWeb=authenticatePortal,read=requestSupabase,now=Date.now,
   invoke=(action,actor,body)=>requestSupabase('POST',['admin_question_example_detail','admin_question_example_save','practice_reference'].includes(action)?'rpc/ip_question_example_service':['admin_questions','admin_question_detail','admin_question_taxonomy_save'].includes(action)?'rpc/ip_taxonomy_service':['mock_status','admin_members','admin_member_save'].includes(action)?'rpc/ip_mock_access_service':action==='admin_question_publication'?'rpc/ip_question_publication_service':action==='admin_writing_board'?'rpc/ip_writing_board_service':action==='admin_writing_delete'?'rpc/ip_writing_board_delete_service':action.startsWith('diagnosis_')?'rpc/ip_diagnosis_service':['writing_history','admin_writing_history'].includes(action)?'rpc/ip_writing_history_service':action.startsWith('admin_rubric_')?'rpc/ip_rubric_service':action.startsWith('admin_review_')?'rpc/ip_review_service':/^(admin_)?writing_/.test(action)?'rpc/ip_writing_service':action.startsWith('admin_application')?'rpc/ip_portal_service':/^(admin_)?life_/.test(action)?'rpc/ip_life_service':action.startsWith('admin_analysis_')?'rpc/ip_analysis_service':['core_questions','admin_core_questions'].includes(action)?'rpc/ip_core_service':'rpc/ip_service',{p_action:action,p_actor:actor,p_body:body})}={}) {
   return async (req,res) => {
     res.setHeader('Cache-Control','no-store');
@@ -124,6 +126,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         actor={type:'student',id:student.id,...require('../lib/interview-test-app.cjs').testAppFields(req)};
         }
       }
+      if(body.action==='writing_save'&&body.status==='submitted'&&scheduledWritingKinds.has(body.kind)&&now()<writingSubmissionOpensAt)fail('submission_not_open',403);
       if(body.action==='practice_bootstrap') {
         const mode=body.mode||'job';if(!['job','personality','ai'].includes(mode))fail('invalid_request',400);
         const access=await invoke('mock_status',actor,{});
@@ -157,7 +160,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       res.status(200).json(result);
     } catch(error) {
       const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
-      known.push('rubric_incomplete');
+      known.push('rubric_incomplete','submission_not_open');
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));

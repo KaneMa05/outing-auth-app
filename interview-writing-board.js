@@ -33,7 +33,10 @@ export function mountWritingBoard(host,{request,canWrite=false}){
   url.search=new URLSearchParams({studentId:submission.student_id,kind:submission.kind,itemId:submission.item_id||''}).toString();
   url.hash=new URLSearchParams({name:submission.name}).toString();
   // Open synchronously in the click handler so the browser treats this as a user action.
-  const popup=window.open(url.href,'_blank','popup=yes,width=1120,height=900');
+  const availableWidth=window.screen.availWidth||1120,availableHeight=window.screen.availHeight||900;
+  const width=Math.min(1120,availableWidth),height=Math.min(900,availableHeight);
+  const left=Math.round((window.screen.availLeft??0)+(availableWidth-width)/2),top=Math.round((window.screen.availTop??0)+(availableHeight-height)/2);
+  const popup=window.open(url.href,'_blank',`popup=yes,width=${width},height=${height},left=${left},top=${top}`);
   const message=host.querySelector('[data-board-message]');message.replaceChildren();
   if(popup){popup.opener=null;popup.focus();}
   else{
