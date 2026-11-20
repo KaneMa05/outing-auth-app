@@ -90,7 +90,7 @@ def run_loop(cfg, runtime, stop, pause, notify, once=False):
                     completed = worker.tick()
                     notify(worker.last_status)
                 backoff = .1 if not pause.is_set() and allowed_time(cfg) and completed else cfg["poll_seconds"]
-                if not completed and worker.last_status in ("daily_limit", "automation_disabled", "dispatch_unknown", "worker_busy"):
+                if not completed and worker.last_status in ("daily_limit", "automation_disabled", "dispatch_unknown", "worker_busy", "bundle_update_required"):
                     backoff = max(backoff, 60)
                 if pause.is_set() or not allowed_time(cfg):
                     backoff = max(backoff, 10)
@@ -152,6 +152,7 @@ def main():
             "dispatch_unknown": "실행 여부 확인 필요 — 자동 재생성 중단",
             "daily_limit": "오늘 호출 한도 도달", "worker_busy": "진행 작업 또는 불명 실행 확인 중",
             "connection_or_configuration_error": "연결·설정 확인 필요",
+            "bundle_update_required": "지침 업데이트 필요 — 서버·PC 버전 확인 후 처리기를 재시작하세요",
             "automation_disabled": "웹 자동 생성 기능 꺼짐"
         }
         tk.Label(root, text="학생 본인 DB 기반 초안 생성", font=("", 14)).pack(pady=14)

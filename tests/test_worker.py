@@ -120,6 +120,61 @@ class WorkerTests(unittest.TestCase):
         self.bridge.doctor = lambda: {"generation_enabled": False}
         self.assertFalse(self.worker.tick())
         self.assertEqual(self.api.claims, 0)
+    def test_bundle_rejection_stops_claims_until_a_new_worker_is_started(self):
+        original_call = self.api.call
+        rejected = []
+        def reject_claim(action, **body):
+            rejected.append(action)
+            if action == "claim": raise ApiError("bundle_mismatch", 409)
+            return original_call(action, **body)
+        self.api.call = reject_claim
+        self.assertFalse(self.worker.tick())
+        self.assertEqual(self.worker.last_status, "bundle_update_required")
+        self.api.call = original_call
+        for _ in range(5):
+            self.assertFalse(self.worker.tick())
+            self.assertEqual(self.worker.last_status, "bundle_update_required")
+        self.assertEqual(rejected, ["claim"])
+        self.assertEqual(self.api.claims, 0)
+        self.assertEqual(self.bridge.starts, 0)
+        self.assertEqual(self.store.active(), [])
+        self.assertTrue(Worker(self.api, self.bridge, self.store, GUIDES).tick())
+        self.assertEqual(self.bridge.starts, 1)
+    def test_network_error_does_not_permanently_stop_claims(self):
+        original_call = self.api.call
+        def network_error(action, **body):
+            raise ApiError("network_unavailable")
+        self.api.call = network_error
+        with self.assertRaises(ApiError): self.worker.tick()
+        self.api.call = original_call
+        self.assertTrue(self.worker.tick())
+        self.assertEqual(self.bridge.starts, 1)
+    def test_mismatched_job_is_reported_without_generation_and_stops_new_claims(self):
+        self.api.job["bundle_hash"] = "0" * 64
+        self.assertFalse(self.worker.tick())
+        self.assertEqual(self.worker.last_status, "bundle_update_required")
+        self.assertEqual(self.api.reports, ["bundle_mismatch"])
+        self.assertEqual(self.bridge.starts, 0)
+        self.assertEqual(self.store.active(), [])
+        for _ in range(3): self.assertFalse(self.worker.tick())
+        self.assertEqual(self.api.claims, 1)
+    def test_bundle_rejection_preserves_recovery_and_never_regenerates_saved_output(self):
+        self.api.fail_upload_once = True
+        with self.assertRaises(ApiError): self.worker.tick()
+        self.assertEqual(self.store.active()[0][1], "OUTBOX")
+        original_call = self.api.call
+        def reject_claim(action, **body):
+            if action == "claim": raise ApiError("bundle_mismatch", 409)
+            return original_call(action, **body)
+        self.api.call = reject_claim
+        self.assertFalse(self.worker.tick())
+        self.assertEqual(self.worker.last_status, "bundle_update_required")
+        self.assertEqual(self.store.active(), [])
+        self.assertEqual(self.api.completed, result())
+        self.assertEqual(self.api.uploads, 2)
+        self.assertEqual(self.bridge.starts, 1)
+        self.assertFalse(self.worker.tick())
+        self.assertEqual(self.bridge.starts, 1)
     def test_lost_session_creation_before_generation_is_not_unknown_execution(self):
         def fail_prepare():
             raise Uncertain("session_creation_response_lost")

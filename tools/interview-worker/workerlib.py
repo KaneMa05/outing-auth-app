@@ -339,6 +339,7 @@ class Worker:
     def __init__(self, api, bridge, store, guidelines):
         self.api, self.bridge, self.store = api, bridge, store
         self.bundle = bundle_hash(guidelines)
+        self.bundle_update_required = False
         self.last_status = "idle"
 
     @staticmethod
@@ -445,12 +446,23 @@ class Worker:
     def tick(self):
         self.store.purge()
         if not self.recover(): return False
+        # Keep delivery/recovery available, but only a restart may resume claims
+        # after the server rejects this process's immutable guideline version.
+        if self.bundle_update_required:
+            self.last_status = "bundle_update_required"
+            return False
         # Check connectivity / explicit verification before taking a server lease.
         doctor = self.bridge.doctor()
         if not doctor.get("generation_enabled"):
             self.last_status = "desktop_verification_required"
             return False
-        response = self.api.call("claim", bundleHash=self.bundle)
+        try:
+            response = self.api.call("claim", bundleHash=self.bundle)
+        except ApiError as error:
+            if error.code != "bundle_mismatch": raise
+            self.bundle_update_required = True
+            self.last_status = "bundle_update_required"
+            return False
         job = response.get("job")
         if job is None:
             self.last_status = response.get("reason", "idle")
@@ -491,8 +503,11 @@ class Worker:
             self.last_status = "dispatch_unknown"
             return False
         except WorkerError as error:
+            mismatched_bundle = str(error) == "bundle_mismatch" and not record.get("dispatched")
+            if mismatched_bundle:
+                self.bundle_update_required = True
             definite_failure = str(error) in ("invalid_output", "invalid_evidence", "experience_required", "generation_failed")
-            reason = str(error) if definite_failure else "connection_unavailable"
+            reason = str(error) if definite_failure or mismatched_bundle else "connection_unavailable"
             if record.get("dispatched") and not definite_failure:
                 self._save("UNCERTAIN", record)
                 try: self.api.call("report", **self.lease(job), reason="dispatch_unknown")
@@ -506,5 +521,5 @@ class Worker:
                 self.store.save(job["id"], "DONE", {"failed": time.time(), "failure_reason": reason})
                 self._acknowledge(record)
             except ApiError: pass
-            self.last_status = reason
+            self.last_status = "bundle_update_required" if mismatched_bundle else reason
             return False

@@ -174,6 +174,42 @@ const {createDb}=require('./helpers/interview-db.cjs'),{createHandler}=require('
   const recovered=(await invoke('get',{type:'student',id:'ip-a'},{id:roundIds.full3})).attempt;
   assert.equal(recovered.revision,newer.attempt.revision+1);assert.deepEqual(recovered.answers,Array.from({length:150},(_,i)=>Math.floor(i/30)===1?0:2));
   await page.setViewportSize({width:1440,height:900});await page.screenshot({path:path.join(out,'reset-completed-1440.png'),fullPage:true});
+  // Invalid corrections must never reach the API; valid reasons survive subject navigation.
+  const correctionId=randomUUID(),correctionKey=Array(75).fill(1),correctionReason='정답 오기 정정 <확인>';
+  await invoke('admin_save',admin,{id:correctionId,revision:0,kind:'half',roundNo:99,title:'정정 사유 검사',state:'open',resultsReleased:true,opensAt:null,closesAt:null,answerKey:correctionKey});
+  await invoke('submit',{type:'student',id:'ip-a'},{id:correctionId,revision:0,answers:correctionKey,requestKey:randomUUID()});
+  await page.evaluate(async()=>{window.view.destroy();const {mountAptitude}=await import('/client/interview-aptitude.mjs?v=20261120-aptitude-correction-guard');window.view=await mountAptitude(document.querySelector('#host'),{admin:true,canWrite:true});});
+  await page.locator('[data-ia-action="open"][data-id="'+correctionId+'"]').click();
+  const correctionBefore=await invoke('admin_get',admin,{id:correctionId}),correctionRequests=[];
+  page.on('request',req=>{if(req.url().endsWith('/api/interview-aptitude')&&req.postDataJSON()?.action==='admin_save')correctionRequests.push(req.postDataJSON());});
+  await page.locator('[data-ia-action="section"]').first().click();await page.locator('[data-key-index="0"]').selectOption('2');
+  for(const reason of ['', '     ', '정답수정', '😀😀😀']){
+   await page.locator('[name=reason]').fill(reason);await page.locator('[data-ia-action="admin-save"]').click();
+   await page.locator('[data-ia-message][role="alert"]').filter({hasText:'정정 사유를 5자 이상'}).waitFor();
+   assert.equal(correctionRequests.length,0);assert.equal(await page.evaluate(()=>document.activeElement.name),'reason');
+  }
+  assert.deepEqual(await invoke('admin_get',admin,{id:correctionId}),correctionBefore);
+  assert.equal((await invoke('get',{type:'student',id:'ip-a'},{id:correctionId})).result.correctCount,75);
+  await page.locator('[name=reason]').fill(correctionReason);await page.locator('[data-ia-action="subjects"]').click();
+  assert.equal(await page.locator('[name=reason]').inputValue(),correctionReason);
+  await page.locator('[data-ia-action="section"][data-section="1"]').click();
+  assert.equal(await page.locator('[name=reason]').inputValue(),correctionReason);
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(out,'correction-reason-'+width+'.png'),fullPage:true});}
+  await page.locator('[data-ia-action="admin-save"]').click();await page.locator('[data-ia-message]').filter({hasText:'저장했습니다.'}).waitFor();
+  assert.equal(correctionRequests.length,1);assert.equal(correctionRequests[0].reason,correctionReason);assert.equal(correctionRequests[0].answerKey[0],2);
+  assert.equal((await invoke('get',{type:'student',id:'ip-a'},{id:correctionId})).result.correctCount,74);
+  assert.equal((await db.query('select reason from ip_aptitude_audit where round_id=$1 order by created_at desc limit 1',[correctionId])).rows[0].reason,correctionReason);
+  assert.equal(await page.locator('[name=reason]').inputValue(),'');
+  await page.locator('.ia-settings summary').click();await page.locator('[name=title]').fill('정답 유지 · 제목만 수정');
+  await page.locator('[data-ia-action="admin-save"]').click();await page.locator('[data-ia-message]').filter({hasText:'저장했습니다.'}).waitFor();assert.equal(correctionRequests.length,2);
+  await page.locator('[data-ia-action="section"]').first().click();await page.locator('[data-key-index="0"]').selectOption('3');await page.locator('[data-key-index="0"]').selectOption('2');
+  await page.locator('[data-ia-action="admin-save"]').click();await page.locator('[data-ia-message]').filter({hasText:'저장했습니다.'}).waitFor();assert.equal(correctionRequests.length,3);
+  await page.locator('[data-ia-action="section"]').first().click();await page.locator('[data-key-index="0"]').selectOption('3');
+  await page.locator('[data-ia-action="admin-save"]').click();await page.locator('[data-ia-message][role="alert"]').filter({hasText:'정정 사유를 5자 이상'}).waitFor();assert.equal(correctionRequests.length,3);
+  // A direct API call still cannot bypass the database's correction validation.
+  const latestCorrection=await invoke('admin_get',admin,{id:correctionId});
+  await assert.rejects(invoke('admin_save',admin,{id:correctionId,revision:latestCorrection.round.revision,kind:'half',roundNo:99,title:latestCorrection.round.title,state:'open',resultsReleased:true,opensAt:null,closesAt:null,answerKey:correctionKey,reason:''}),/correction_reason_required/);
+  console.log('PASS correction guard: no request for empty/short/whitespace/short-Unicode reasons, unchanged DB and grades on rejection, preserved reasons across subjects, audited correction/regrading, unchanged/reverted keys save without a reason, refreshed baseline, server validation, and 320/390/1440px layouts.');
   await page.evaluate(()=>window.view.destroy());assert.deepEqual(errors,[]);
   console.log('PASS grade reset browser: write permissions, cancel, partial/full selection, mobile layouts, stale backups, concurrent saves, and transport errors.');
   console.log('PASS grade management browser: dedicated read-only admin entry, half/full rounds, submission counts, search/status filters, filtered CSV, refresh recovery, and 320/390/1440px layouts.');
