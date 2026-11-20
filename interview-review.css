@@ -1,5 +1,8 @@
 .ip-review .ip-review-summary{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
-.ip-review-summary>span{flex:1;min-width:140px;border:1px solid #dce5ee;border-radius:12px;padding:16px;background:white;color:#607184}
+.ip-review-summary>span,.ip-review-summary>.ip-board-summary-button{flex:1;min-width:140px;border:1px solid #dce5ee;border-radius:12px;padding:16px;background:white;color:#607184}
+.ip-review-summary>.ip-board-summary-button{text-align:left;cursor:pointer}
+.ip-review-summary>.ip-board-summary-button:hover,.ip-review-summary>.ip-board-summary-button[aria-pressed=true]{border-color:#234e83;background:#eef5ff}
+.ip-review-summary>.ip-board-summary-button:focus-visible{outline:3px solid #234e83;outline-offset:3px}
 .ip-review-summary strong{display:block;font-size:28px;color:#234e83}
 .ip-review .ip-review-table{min-width:720px}
 .ip-review-table td:first-child{min-width:170px;max-width:230px;overflow-wrap:anywhere}
@@ -54,4 +57,4 @@
 .ip-board-detail h3{outline:none}
 .ip-board-detail h3:focus-visible{outline:2px solid #234e83}
 .ip-review [data-review-view][aria-current]{background:#234e83;color:#fff}
-@media(max-width:600px){.ip-board-filter label{width:100%}.ip-board-filter .ip-btn{flex:1}.ip-review .ip-review-summary{gap:8px}.ip-review-summary>span{min-width:70px;padding:12px;font-size:12px}.ip-annotated-text{padding:14px}}
+@media(max-width:600px){.ip-board-filter label{width:100%}.ip-board-filter .ip-btn{flex:1}.ip-review .ip-review-summary{gap:8px}.ip-review-summary>span,.ip-review-summary>.ip-board-summary-button{min-width:70px;padding:12px;font-size:12px}.ip-annotated-text{padding:14px}}

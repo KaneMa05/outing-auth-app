@@ -1,8 +1,9 @@
-import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261024-colors';
+import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-comment-text';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
 const statuses={draft:'임시저장',saved:'저장 완료',needs_revision:'보완 필요',approved:'강사 확인'};
 const submissionLabels={submitted:'교사 확인 대기',needs_revision:'보완 필요',approved:'확인 완료'};
+const reviewLabels={submitted:'확인 대기',needs_revision:'보완요청',approved:'첨삭완료 (수고하셨습니다.)'};
 const submittedDate=v=>new Date(v).toLocaleString('ko-KR');
 export const writingFeedbackTitle=saved=>`${saved.feedback_revision!==saved.submitted_revision?'이전 제출 · ':''}${saved.feedback_round?`${saved.feedback_round}차 `:''}교사 피드백`;
 
@@ -18,7 +19,7 @@ export function mountWritingHistory(host,{request,admin=false,studentId='',kind,
   try{
    const result=await request(admin?'admin_writing_history':'writing_history',{kind,itemId,page,...(admin?{targetStudentId:studentId}:{})});
    if(destroyed)return;
-   box.innerHTML=result.rounds.map((r,i)=>`<details class="ip-writing-round" ${i===0?'open':''}><summary><strong>${r.round}차 제출 · ${submissionLabels[r.status]}</strong></summary><p class="ip-help">제출일 ${esc(submittedDate(r.submitted_at))}</p><h4>제출한 답변</h4><div class="ip-annotated-text">${annotatedText(r.submitted_body,r.annotation_marks,{feedback:r.feedback})}</div>${r.feedback_at?`<small>첨삭 수정일 ${esc(submittedDate(r.feedback_at))}</small>`:''}</details>`).join('')||'<p>아직 제출 기록이 없습니다.</p>';
+   box.innerHTML=result.rounds.map((r,i)=>`<details class="ip-writing-round" ${i===0?'open':''}><summary><strong>${r.round}차 제출 · ${(admin?reviewLabels:submissionLabels)[r.status]}</strong></summary><p class="ip-help">제출일 ${esc(submittedDate(r.submitted_at))}</p><h4>제출한 답변</h4><div class="ip-annotated-text">${annotatedText(r.submitted_body,r.annotation_marks,{feedback:r.feedback})}</div>${r.feedback_at?`<small>첨삭 수정일 ${esc(submittedDate(r.feedback_at))}</small>`:''}</details>`).join('')||'<p>아직 제출 기록이 없습니다.</p>';
    box.insertAdjacentHTML('beforeend',`<div class="ip-toolbar"><button class="ip-btn" type="button" data-round-page="prev" ${page===0?'disabled':''}>이전</button><span>${page+1} / ${Math.max(1,Math.ceil(result.total/result.pageSize))}</span><button class="ip-btn" type="button" data-round-page="next" ${(page+1)*result.pageSize>=result.total?'disabled':''}>다음</button></div>`);
    loaded=true;
   }catch(e){if(!destroyed)box.innerHTML='<p role="alert">제출 기록을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-round-retry>다시 시도</button>';}
@@ -42,7 +43,6 @@ const error=e=>({
 }[e.code||e.message]||'저장하지 못했습니다. 입력은 유지됩니다. 잠시 후 다시 시도해주세요.');
 
 export function mountWriting(host,{request,kind='introduction',admin=false,studentId='',canWrite=true,hideQuestionPicker=false,initialItemId='',onFeedbackSaved=()=>{}}){
- const submissionDisabled=!admin&&['introduction','motivation','public_service'].includes(kind);
  let rows=[],items=[],selected='',dirty=false,busy=true,destroyed=false,blocked=false;
  let history=null,annotations=null;
  const row=()=>rows.find(r=>r.kind===(admin?items.find(i=>i.key===selected)?.kind:kind)&&r.item_id===(items.find(i=>i.key===selected)?.id||''));
@@ -56,16 +56,16 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
   const current=item(),saved=row();
   host.innerHTML=`${items.length&& (admin&&!hideQuestionPicker||kind==='core'&&!hideQuestionPicker)?`<label class="ip-writing-picker">${admin?'작성 답변 선택':'질문 선택'}<select data-writing-select>${items.map(i=>`<option value="${esc(i.key)}" ${i.key===selected?'selected':''}>${esc(i.label)}${i.retired?' (비공개·기존 답변)':''}</option>`).join('')}</select></label>`:''}
    <p class="ip-message" data-writing-message role="status"></p>
-   ${current?`<section class="ip-panel ip-writing-editor"><div class="ip-row"><h3>${esc(current.prompt)}</h3><span class="ip-badge" data-writing-status>${statuses[saved?.status]||'미작성'}</span></div>
-    ${saved?.submitted_at?`<div class="ip-writing-submission"><strong>${saved.submission_round||1}차 제출 · ${submissionLabels[saved.submission_status]}</strong><p class="ip-help">제출일 ${esc(submittedDate(saved.submitted_at))}${saved.body!==saved.submitted_body?' · 제출 후 수정한 내용이 있습니다. 다시 제출하면 교사에게 전달됩니다.':''}</p>${!admin?`<details><summary>제출한 답변 보기</summary><p class="ip-writing-text">${esc(saved.submitted_body)}</p></details>`:''}</div>`:submissionDisabled?'':'<p class="ip-help">아직 교사에게 제출하지 않은 답변입니다.</p>'}
+   ${current?`<section class="ip-panel ip-writing-editor"><div class="ip-row"><h3>${esc(current.prompt)}</h3><span class="ip-badge" data-writing-status>${(admin?reviewLabels[saved?.submission_status]:statuses[saved?.status])||statuses[saved?.status]||'미작성'}</span></div>
+    ${saved?.submitted_at?`<div class="ip-writing-submission"><strong>${saved.submission_round||1}차 제출 · ${(admin?reviewLabels:submissionLabels)[saved.submission_status]}</strong><p class="ip-help">제출일 ${esc(submittedDate(saved.submitted_at))}${saved.body!==saved.submitted_body?' · 제출 후 수정한 내용이 있습니다. 다시 제출하면 교사에게 전달됩니다.':''}</p>${!admin?`<details><summary>제출한 답변 보기</summary><p class="ip-writing-text">${esc(saved.submitted_body)}</p></details>`:''}</div>`:'<p class="ip-help">아직 교사에게 제출하지 않은 답변입니다.</p>'}
     ${!admin||saved?.feedback_revision!==saved?.submitted_revision?writingCorrections(saved):''}
     ${saved?.submitted_at?'<div data-writing-history></div>':''}
     ${admin?`<p class="ip-help">${saved?.submitted_at?'교사에게 제출된 답변':'저장된 답변 · 미제출'}</p><div data-writing-annotations></div>
-    <label>처리<select data-writing-review ${canWrite?'':'disabled'}><option value="needs_revision">보완 필요</option><option value="approved" ${saved?.submission_status==='approved'?'selected':''}>확인 완료</option></select></label>
+    <label>처리<select data-writing-review ${canWrite?'':'disabled'}><option value="needs_revision">보완요청</option><option value="approved" ${saved?.submission_status==='approved'?'selected':''}>첨삭완료 (수고하셨습니다.)</option></select></label>
     <button type="button" class="ip-btn ip-primary" data-writing-save="feedback" ${canWrite&&saved?.submitted_at?'':'disabled'}>첨삭 저장 · 학생에게 전달</button><p class="ip-help">피드백을 수정해도 회차는 늘어나지 않습니다.</p>`:
     `<label>나의 답변<textarea data-writing-text maxlength="10000" placeholder="나의 DB에 정리한 경험을 바탕으로 답변을 작성해주세요." ${current.retired?'readonly':''}>${esc(saved?.body||'')}</textarea></label>
     <div class="ip-row ip-help"><span data-writing-count>${(saved?.body||'').length.toLocaleString()} / 10,000자</span><span data-writing-saved>${saved?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>
-    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionDisabled?'disabled':''}>${saved?.submitted_at?'교사에게 다시 제출':'교사에게 제출'}</button>${submissionDisabled?'<small class="ip-help">교사에게 제출은 11/23 이후에 가능합니다</small>':''}</div>`}`}</section>`:
+    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted">${saved?.submitted_at?'교사에게 다시 제출':'교사에게 제출'}</button></div>`}`}</section>`:
     `<section class="ip-panel ip-empty">${admin?'이 학생이 저장한 답변이 없습니다.':'관리자가 공개한 핵심인성 질문이 아직 없습니다. 질문이 공개되면 이곳에서 답변을 작성할 수 있습니다.'}</section>`}`;
   const annotationHost=host.querySelector('[data-writing-annotations]');
   if(annotationHost)annotations=mountAnnotations(annotationHost,{text:saved?.submitted_body??saved?.body??'',marks:saved?.feedback_revision===saved?.submitted_revision?saved?.annotation_marks:[],feedback:saved?.feedback_revision===saved?.submitted_revision?saved?.feedback||'':'',canWrite:canWrite&&!!saved?.submitted_at,onChange:()=>{dirty=true;}});
@@ -87,7 +87,7 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
     items=questions.map(q=>({key:q.id,id:q.id,prompt:q.prompt,label:(q.kind==='main'?'핵심 ':'추가 ')+q.position+'. '+q.prompt}));
     for(const r of rows.filter(r=>r.kind==='core'&&!items.some(i=>i.id===r.item_id)))items.push({key:r.item_id,id:r.item_id,prompt:r.prompt_snapshot,label:r.prompt_snapshot,retired:true});
    }else items=[{key:kind,id:'',prompt:titles[kind]+' 작성하기',label:titles[kind]}];
-   selected=(admin?items.find(i=>i.kind===kind&&i.id===initialItemId):null)?.key||items[0]?.key||'';render();
+   selected=(admin?items.find(i=>i.kind===kind&&i.id===initialItemId):null)?.key||(admin&&hideQuestionPicker?'':items[0]?.key)||'';render();
   }catch(e){if(!destroyed)host.innerHTML=`<p role="alert">${esc(error(e))}</p><button class="ip-btn" type="button" data-writing-retry>다시 시도</button>`;}
   finally{busy=false;}
  }
@@ -109,7 +109,6 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
  };
  async function save(status){
   if(busy||destroyed)return false;
-  if(submissionDisabled&&status==='submitted')return false;
   if(blocked){tell('입력을 복사해 보관한 뒤 새로고침해주세요.',true);return false;}
   const saved=row(),current=item();
   if(!current||current.retired)return !dirty;

@@ -16,6 +16,8 @@ const examFixture=process.argv.includes('--exam-fixture');
 if(examFixture&&!process.argv.includes('--serve'))throw Error('--exam-fixture requires --serve');
 const localAI=process.argv.includes('--local-ai');
 if(localAI&&!process.argv.includes('--serve'))throw Error('--local-ai requires --serve');
+const feedbackFixture=process.argv.includes('--feedback-fixture');
+if(feedbackFixture&&!process.argv.includes('--serve'))throw Error('--feedback-fixture requires --serve');
 const root=path.resolve(__dirname,'..'),dir=path.join(root,'.tmp/interview-qa');fs.mkdirSync(dir,{recursive:true});
 let db,server,browser,ws,localWorker;
 (async()=>{try{
@@ -44,6 +46,16 @@ let db,server,browser,ws,localWorker;
  await db.exec(fs.readFileSync('supabase/seeds/interview-rubric-drafts.sql','utf8'));
  await invoke('admin_member_save',admin,{targetStudentId:'18120',track:'공채',examNumber:'2026-001',enabled:true});
  await invoke('admin_enabled',admin,{enabled:true});
+ if(feedbackFixture){
+  for(const [kind,text,status,note] of [
+   ['introduction','저는 약속한 일을 끝까지 책임지고, 서로의 의견을 경청하는 지원자입니다. 팀 활동에서 역할을 조율하며 공동 목표를 달성했습니다.','submitted',''],
+   ['motivation','국민의 생명과 안전을 지키는 일에 기여하고자 지원했습니다. 책임감과 협력을 바탕으로 현장에서 신뢰받는 공직자가 되겠습니다.','needs_revision','지원하게 된 실제 경험을 한 문장 추가해주세요.'],
+   ['public_service','공정한 기준을 지키고, 국민의 입장에서 한 번 더 생각하겠습니다. 작은 약속도 실천하고 맡은 일에 끝까지 책임지겠습니다.','approved','구체적인 실천 방향이 잘 드러납니다. 수고하셨습니다.']
+  ]){
+   const {writing}=await invoke('writing_save',{type:'student',id:'18120'},{kind,itemId:'',revision:0,status:'submitted',text});
+   if(status!=='submitted')await invoke('admin_writing_feedback',admin,{targetStudentId:'18120',kind,itemId:'',revision:writing.revision,status,feedback:'',annotations:[{type:'comment',start:[...text].length,end:[...text].length,note,color:status==='approved'?'#15803d':'#c62828'}]});
+  }
+ }
  await db.exec(fs.readFileSync('supabase/migrations/20261023064604_interview_preassignments.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261023073656_interview_preassignment_guidance.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261023074848_interview_preassignment_core25_only.sql','utf8'));
@@ -100,9 +112,10 @@ let db,server,browser,ws,localWorker;
   authenticateAdmin:async(req,write)=>{const s=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),process.env.TEACHER_SESSION_SECRET);if(!s||s.role!=='admin'||!auth.hasPermission(s,write?'interview.write':'interview.read'))throw Error('forbidden');return {id:s.username};},
   invoke:preassignmentCall});
  const authHandler=createAuthHandler({getConfig:portalConfig,invoke:portalCall,exchange:async code=>code==='qa-new'?'20261020001':'20261020002'});
+ const prepCalls=[];let teacherSessionUser={username:'qa',role:'admin',permissions:['*']};
  const handler=createHandler({authenticate:async body=>body.studentId==='18120'&&body.deviceToken==='qa-device'?{id:'18120'}:null,
    authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
-   invoke:async(...args)=>{if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}return invoke(...args);}});
+   invoke:async(...args)=>{prepCalls.push(args[0]);if(failSave&&['note_save','life_save','writing_save','diagnosis_save','admin_writing_feedback'].includes(args[0])){failSave=false;throw Error('temporary_db_failure');}return invoke(...args);}});
  const aiHandler=createAIHandler({authenticateWeb:req=>webAuth.authenticatePortal(req,{getConfig:portalConfig,call:portalCall}),
   authenticateAdmin:async req=>{
    const session=auth.readSessionToken(auth.readCookie(req,auth.COOKIE_NAME),process.env.TEACHER_SESSION_SECRET);
@@ -170,13 +183,13 @@ let db,server,browser,ws,localWorker;
   }
   if(p==='/'||p==='/admin'){
    if(p==='/admin')res.setHeader('Set-Cookie',auth.COOKIE_NAME+'='+auth.createSessionToken(process.env.TEACHER_SESSION_SECRET,{username:'qa',role:'admin',permissions:['*']})+'; HttpOnly; SameSite=Strict; Path=/');
-   if(p==='/admin'&&process.argv.includes('--serve')){res.writeHead(302,{Location:'/teacher.html#interview-prep-admin?section=home'}).end();return;}
+   if(p==='/admin'&&process.argv.includes('--serve')){res.writeHead(302,{Location:'/teacher.html#interview-prep-admin?section='+(feedbackFixture?'review':'home')}).end();return;}
    res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(page(p==='/admin'));
   }
-  if(p==='/api/teacher-session'){res.setHeader('Content-Type','application/json');return res.end(JSON.stringify({ok:true,authenticated:true,user:{username:'qa',role:'admin',permissions:['*']}}));}
+  if(p==='/api/teacher-session'){res.setHeader('Content-Type','application/json');return res.end(JSON.stringify({ok:!!teacherSessionUser,user:teacherSessionUser}));}
   if(p==='/config.js'){res.setHeader('Content-Type','text/javascript');return res.end('window.OUTING_APP_CONFIG='+JSON.stringify({supabaseUrl:'',supabaseAnonKey:'',interviewPreviewStudentHashes:require('../lib/interview-preview-access').getPreviewHashes()})+';');}
   if(p.startsWith('/api/')||p.startsWith('/_vercel/')){res.writeHead(404).end();return;}
-  if(!(/^\/(?:client\/|assets\/(?:core25-summaries|interview-login)\/)?[a-z0-9.-]+\.(?:js|css|html|png|webmanifest)$/.test(p)||p==='/fonts/HakgyoansimPosterB.woff2')||!fs.existsSync(path.join(root,p.slice(1)))){res.writeHead(404).end();return;}
+  if(!(/^\/(?:client\/|assets\/(?:core25-summaries|interview-login)\/)?[a-z0-9.-]+\.(?:m?js|css|html|png|webmanifest)$/.test(p)||p==='/fonts/HakgyoansimPosterB.woff2')||!fs.existsSync(path.join(root,p.slice(1)))){res.writeHead(404).end();return;}
   res.setHeader('Content-Type',p.endsWith('.css')?'text/css':p.endsWith('.html')?'text/html; charset=utf-8':p.endsWith('.png')?'image/png':p.endsWith('.woff2')?'font/woff2':'text/javascript');res.end(fs.readFileSync(path.join(root,p.slice(1))));
  });await new Promise(r=>server.listen(0,'127.0.0.1',r));
  if(process.argv.includes('--serve')){
@@ -204,12 +217,17 @@ let db,server,browser,ws,localWorker;
    await new Promise(resolve=>{process.once('SIGINT',resolve);process.once('SIGTERM',resolve);});
    return;
  }
- browser=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+path.join(dir,'browser-'+Date.now()),'about:blank'],{windowsHide:true,stdio:['ignore','ignore','pipe']});
- const debug=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Chrome timeout')),15000);browser.stderr.on('data',c=>{output+=c;const m=output.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(m){clearTimeout(timer);resolve(m[1]);}});browser.on('error',reject);});
- const tabs=await(await fetch('http://'+new URL(debug).host+'/json')).json();ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));
- let id=0;const pending=new Map(),exceptions=[];
- ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Page.javascriptDialogOpening')send('Page.handleJavaScriptDialog',{accept:true});else if(m.method==='Runtime.exceptionThrown')exceptions.push(m.params.exceptionDetails);});
- const sendRaw=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
+ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+ browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+ const browserContext=await browser.newContext({viewport:null}),boardPage=await browserContext.newPage(),exceptions=[];
+ const attach=async page=>{
+  const socket=await browserContext.newCDPSession(page);
+  socket.on('Page.javascriptDialogOpening',()=>socket.send('Page.handleJavaScriptDialog',{accept:true}));
+  socket.on('Runtime.exceptionThrown',event=>exceptions.push(event.exceptionDetails));
+  return socket;
+ };
+ ws=await attach(boardPage);
+ const sendRaw=(method,params={})=>ws.send(method,params);
  const send=async(method,params={})=>{
    if(method!=='Page.reload')return sendRaw(method,params);
    // Page.reload can resolve while the old document still matches the next assertion.
@@ -237,6 +255,21 @@ let db,server,browser,ws,localWorker;
    assert.equal(overflow,false,name+' overflow '+JSON.stringify(offenders));
  };
  const base='http://127.0.0.1:'+server.address().port;
+ const boardSocket=ws;
+ let reviewPage;
+ const openPopup=async()=>{
+  const opened=browserContext.waitForEvent('page',{timeout:15000});
+  await click('[data-board-open]');reviewPage=await opened;await reviewPage.waitForLoadState('domcontentloaded');
+  assert(reviewPage.url().startsWith(base+'/interview-writing-review'),'Click opens a separate review window');
+  ws=await attach(reviewPage);
+  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
+ };
+ const closePopup=async()=>{
+  await reviewPage.close();ws=boardSocket;
+  await send('Page.bringToFront');await ev("window.dispatchEvent(new Event('focus'))");
+  await wait("document.querySelector('[data-board-results]')?.getAttribute('aria-busy')!=='true'");
+ };
+
  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
  if(process.argv.includes('--applications-only')){
   await db.exec("insert into ip_owners(id,name) values('application-qa','신청 확인 학생'); insert into ip_applications(owner_id,name,track,exam_number) values('application-qa','신청 확인 학생','공채','QA-001');");
@@ -266,10 +299,10 @@ let db,server,browser,ws,localWorker;
   console.log('PASS application UI: desktop/mobile, approval labels and summary refresh after approval/filter');return;
  }
  if(process.argv.includes('--writing-board-only')){
-  for(const [kind,text] of [['motivation','국민의 생명과 안전을 지키는 일에 기여하고자 지원했습니다.'],['public_service','공정한 기준과 책임 있는 행동으로 신뢰를 쌓겠습니다.']])await invoke('writing_save',{type:'student',id:'18120'},{kind,itemId:'',revision:0,status:'submitted',text});
+  await invoke('writing_save',{type:'student',id:'18120'},{kind:'motivation',itemId:'',revision:0,status:'submitted',text:'국민의 생명과 안전을 지키는 일에 기여하고자 지원했습니다.'});
   await send('Page.navigate',{url:base+'/admin'});await wait('window.ready===true');
   await send('Page.navigate',{url:base+'/teacher.html#interview-prep-admin?section=review'});await wait("!!document.querySelector('[data-board-open]')");
-  await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,failNext:()=>{failSave=true;}});
+  await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
   assert.equal(exceptions.length,0,JSON.stringify(exceptions));return;
  }
  if(process.argv.includes('--diagnosis-only')){
@@ -584,7 +617,7 @@ let db,server,browser,ws,localWorker;
  assert.equal(await ev("document.querySelectorAll('[data-tab=topics],[data-tab=members],[data-tab=analysis]').length"),0);
  await screenshot('actual-admin-job-shell',1200);
  await require('../tests/helpers/interview-review-browser.cjs')({db,invoke,admin,newStudentId:pendingApplication.owner_id,ev,wait,click,fill,submit,screenshot});
- await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,failNext:()=>{failSave=true;}});
+ await require('../tests/helpers/interview-annotations-browser.cjs')({invoke,admin,ev,wait,click,submit,screenshot,send,openPopup,closePopup,getCalls:()=>prepCalls,setSession:user=>{teacherSessionUser=user;},failNext:()=>{failSave=true;}});
  await send('Page.navigate',{url:base+'/interview?app=1'});await wait("!!document.querySelector('[data-kakao=login]')");
  kakaoCode='qa-existing';await click('[data-kakao=login]');await wait("!!document.querySelector('.ip-app-welcome')");
  await click('.ip-app-footer [data-app-tab=writing]');await wait("document.querySelector('.ip-ai-panel')?.getAttribute('aria-busy')==='false'");
@@ -620,4 +653,4 @@ let db,server,browser,ws,localWorker;
  await click('[data-ip=core-note]');await wait("!!document.querySelector('[data-note-form]')");
  assert.equal(exceptions.length,0,JSON.stringify(exceptions));
  console.log('PASS browser: persistent teacher interview mode, core collection publication/student access, distinct topic prompts, enrollment, autosave, feedback/history, analysis and unchanged ordinary student routes; 390/1200px screenshots in .tmp/interview-qa.');
- }finally{localWorker?.stdin.end();ws?.close();browser?.kill();server?.close();await db?.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+ }finally{localWorker?.stdin.end();await browser?.close();server?.close();await db?.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

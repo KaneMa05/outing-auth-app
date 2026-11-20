@@ -41,6 +41,10 @@ const auth=require('../api/teacher-auth-utils');
   assert.equal((await invoke('admin_writing_board',admin,{search:'EXAM-ip-a'})).total,1);
   assert.equal((await invoke('admin_writing_board',admin,{kind:'motivation'})).total,0);
   assert.equal((await invoke('admin_writing_board',admin,{status:'submitted'})).total,0);
+  const openOnly=await invoke('admin_writing_board',admin,{status:'submitted'});
+  assert.equal(openOnly.total,0);assert.deepEqual(openOnly.submissions,[]);assert.equal(openOnly.approved,1,'Completed count remains available when the list is empty');
+  assert.equal((await invoke('admin_writing_board',admin,{status:'approved'})).total,1,'Explicit completed view includes completed answers');
+  assert.equal((await invoke('admin_writing_board',admin,{})).total,1,'Older all-status queries remain compatible');
   await assert.rejects(invoke('admin_writing_board',student),/forbidden/);
   await assert.rejects(invoke('admin_writing_board',admin,{status:'draft'}),/invalid_request/);
   for(let i=0;i<31;i++){
@@ -51,6 +55,22 @@ const auth=require('../api/teacher-auth-utils');
   const a=await invoke('admin_writing_board',admin),b=await invoke('admin_writing_board',admin,{page:1});
   assert.equal(a.total,32);assert.equal(a.submissions.length,30);assert.equal(b.submissions.length,2);
   assert.equal(new Set([...a.submissions,...b.submissions].map(s=>s.student_id+':'+s.kind)).size,32);
+  const openFirst=await invoke('admin_writing_board',admin,{status:'submitted'}),openNext=await invoke('admin_writing_board',admin,{status:'submitted',page:1});
+  assert.equal(openFirst.total,31);assert.equal(openFirst.pending,31);assert.equal(openFirst.approved,1);
+  assert.equal(openFirst.submissions.length,30);assert.equal(openNext.submissions.length,1,'Filtering happens before pagination');
+  assert.equal(new Set([...openFirst.submissions,...openNext.submissions].map(s=>s.student_id+':'+s.kind)).size,31);
+  assert([...openFirst.submissions,...openNext.submissions].every(s=>s.submission_status==='submitted'));
+  assert.equal((await invoke('admin_writing_board',admin,{status:'submitted',search:'EXAM-ip-a'})).total,0);
+  assert.equal((await invoke('admin_writing_board',admin,{search:'EXAM-ip-a',status:'approved'})).total,1);
+  assert.equal((await invoke('admin_writing_board',admin,{kind:'public_service',status:'approved'})).total,0);
+  const fn=(await db.query("select prosecdef,provolatile from pg_proc where proname='ip_writing_board_service'")).rows[0];
+  assert.deepEqual(fn,{prosecdef:false,provolatile:'s'});
+  writing=(await invoke('admin_writing_feedback',admin,{...key,targetStudentId:'ip-a',revision:writing.revision,status:'needs_revision',feedback:'학생의 보완 제출을 기다립니다.'})).writing;
+  assert.equal((await invoke('admin_writing_board',admin,{status:'submitted'})).total,31,'Revision requests are waiting on the student, not the administrator');
+  assert.equal((await invoke('admin_writing_board',admin,{status:'needs_revision'})).total,1);
+  writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:'첨삭 후 보완한 새 제출 답변'})).writing;
+  const reopened=await invoke('admin_writing_board',admin,{status:'submitted'});
+  assert.equal(reopened.total,32);assert.equal(reopened.approved,0,'A resubmitted completed answer returns to the active list');
   for(const role of ['anon','authenticated']){
    await db.exec('set role '+role);await assert.rejects(invoke('admin_writing_board',admin),/permission denied/);await db.exec('reset role');
   }
@@ -63,9 +83,10 @@ const auth=require('../api/teacher-auth-utils');
     await handler({method:'POST',headers:{host:'local.test',origin:'http://local.test',cookie:auth.COOKIE_NAME+'='+token},body},{setHeader(){},status(n){status=n;return this;},json(v){data=v;}});return {status,data};
    };
    assert.equal((await call({action:'admin_writing_board'},['interview.read'])).status,200);
+   assert.equal((await call({action:'admin_writing_board',status:'submitted'},['interview.read'])).data.total,32);
    assert.equal((await call({action:'admin_writing_feedback',...review()},['interview.read'])).status,403);
    assert.equal((await call({action:'admin_writing_feedback',...review(),annotations:[{...marks[0],start:-1}]},['interview.write'])).status,400);
-   assert.equal(calls,1,'Rejected input/permissions cannot reach database');
+   assert.equal(calls,2,'Rejected input/permissions cannot reach database');
   }finally{if(previous===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=previous;}
   console.log('PASS annotations/board: Unicode ranges, immutable source, mark-only review, validation, old-client compatibility, resubmission, conflicts, ownership, search/status/kind filters, pagination, API permissions and DB grants.');
  }finally{await db.close();}
