@@ -222,7 +222,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await send('Page.navigate',{url:origin+'/'});await wait('window.ready===true');
  await ev(`(async()=>{
   window.controller.destroy();
-  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-review-quiet');
+  const {mountWorkspace}=await import('/interview-workspace.js?v=20261120-feedback-wait');
   const request=async(action,payload={})=>{const r=await fetch('/api/interview-prep',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action,studentId:'18120',deviceToken:'qa-device'})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error);return d;};
   window.controller=await mountWorkspace(document.querySelector('#app'),{request,initialPage:'introduction'});
  })()`);
@@ -243,6 +243,8 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  const opensAt=Date.parse('2026-11-22T15:00:00Z');
  await ev('window.__writingRealNow=Date.now');
  for(const [kind,title] of [['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기']]){
+  const existing=(await invoke('writing_list',student)).writings.find(w=>w.kind===kind);
+  if(existing?.awaiting_feedback)await invoke('admin_writing_feedback',{type:'admin',id:'qa'},{targetStudentId:student.id,kind,itemId:'',revision:existing.revision,status:'needs_revision',feedback:'이전 테스트 제출에 대한 교사 피드백'});
   setWritingTime(opensAt-100);
   await ev(`Date.now=()=>${opensAt-100}`);
   if(kind!=='introduction'){
@@ -253,6 +255,8 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
   assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),true);
   assert.equal(await ev("document.body.textContent.includes('11/23 이후')"),false);
   assert((await ev("document.querySelector('[data-writing-save=submitted]').textContent")).includes('11/23 00시부터'));
+  assert.equal(await ev("document.querySelector('[data-writing-submission-notice]').hidden"),false);
+  assert((await ev("document.querySelector('[data-writing-submission-notice]').textContent")).includes('11월 23일 00시(한국 시간)부터'));
   let answer=`${title} · 제출 시작 시간까지 저장해둔 답변입니다.`;
   await ev(`document.querySelector('[data-writing-text]').value=${JSON.stringify(answer)};document.querySelector('[data-writing-text]').dispatchEvent(new Event('input',{bubbles:true}))`);
   await click('[data-writing-save=draft]');await wait("document.querySelector('[data-writing-message]').textContent==='임시저장했습니다.'");
@@ -261,7 +265,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
   assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),true);
   const beforeBlockedClick=getCalls().length;
   await ev("document.querySelector('[data-writing-save=submitted]').disabled=false");await click('[data-writing-save=submitted]');
-  assert.equal(await ev("document.querySelector('[data-writing-message]').textContent"),'교사에게 제출은 11월 23일 00시(한국 시간)부터 가능합니다.');
+  assert.equal(await ev("document.querySelector('[data-writing-message]').textContent"),'교사 제출은 11월 23일 00시(한국 시간)부터 가능합니다.');
   assert.equal(getCalls().length,beforeBlockedClick,'An enabled DOM button cannot bypass the start time');
   await ev("window.dispatchEvent(new Event('focus'))");
   answer+=' 개시 직전 수정한 내용';
@@ -270,6 +274,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
   setWritingTime(opensAt);
   await ev(`Date.now=()=>${opensAt}`);
   await wait("document.querySelector('[data-writing-save=submitted]').disabled===false");
+  assert.equal(await ev("document.querySelector('[data-writing-submission-notice]').hidden"),true,'The opening notice clears at the scheduled time');
   assert.equal(await ev("document.querySelector('[data-writing-text]').value"),answer);
   if(kind==='introduction'){
    await ev("document.querySelector('[data-writing-text]').value='';document.querySelector('[data-writing-text]').dispatchEvent(new Event('input',{bubbles:true}))");
@@ -287,10 +292,44 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
   const submitted=(await invoke('writing_list',student)).writings.find(w=>w.kind===kind);
   assert.equal(submitted.submitted_body,answer);assert.equal(submitted.submission_status,'submitted');
   assert.equal(submitted.submission_round,(before?.submission_round||0)+1);
+  assert.equal(submitted.awaiting_feedback,true);
+  assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),true);
+  assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').textContent"),'교사 피드백 대기 중');
+  assert((await ev("document.querySelector('[data-writing-submission-notice]').textContent")).includes('피드백을 받은 뒤 다시 제출'));
+  const pendingText=answer+' 교사 확인 중에 편집한 내용';
+  await ev(`document.querySelector('[data-writing-text]').value=${JSON.stringify(pendingText)};document.querySelector('[data-writing-text]').dispatchEvent(new Event('input',{bubbles:true}))`);
+  for(const status of ['draft','saved']){
+   await click(`[data-writing-save=${status}]`);
+   await wait(`document.querySelector('[data-writing-message]').textContent===${JSON.stringify(status==='draft'?'임시저장했습니다.':'저장했습니다.')}`);
+   assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),true);
+  }
+  const waiting=(await invoke('writing_list',student)).writings.find(w=>w.kind===kind);
+  assert.equal(waiting.submitted_body,answer);assert.equal(waiting.submission_round,submitted.submission_round);
+  const waitingCalls=getCalls().length;
+  await ev("document.querySelector('[data-writing-save=submitted]').disabled=false");await click('[data-writing-save=submitted]');
+  assert.equal(getCalls().length,waitingCalls);
+  assert((await ev("document.querySelector('[data-writing-message]').textContent")).includes('피드백을 받은 뒤 다시 제출'));
+  await invoke('admin_writing_feedback',{type:'admin',id:'qa'},{targetStudentId:student.id,kind,itemId:'',revision:waiting.revision,status:kind==='motivation'?'approved':'needs_revision',feedback:'현재 제출에 대한 교사 피드백입니다.'});
+  const other=kind==='introduction'?'motivation':'introduction',otherTitle=other==='introduction'?'자기소개 작성하기':'지원동기 작성하기';
+  await click(`[data-workspace-page="${other}"]`);await wait(`document.querySelector('h2').textContent===${JSON.stringify(otherTitle)} && !!document.querySelector('[data-writing-text]')`);
+  await click(`[data-workspace-page="${kind}"]`);await wait(`document.querySelector('h2').textContent===${JSON.stringify(title)} && !!document.querySelector('[data-writing-text]')`);
+  assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),false);
+  assert.equal(await ev("document.querySelector('[data-writing-text]').value"),pendingText);
+  await click('[data-writing-save=submitted]');await wait("document.querySelector('[data-writing-message]').textContent==='교사에게 제출했습니다. 피드백을 기다려주세요.'");
+  const resubmitted=(await invoke('writing_list',student)).writings.find(w=>w.kind===kind);
+  assert.equal(resubmitted.submission_round,submitted.submission_round+1);assert.equal(resubmitted.awaiting_feedback,true);
+  assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),true,'A new submitted round waits for new feedback');
   const board=await invoke('admin_writing_board',{type:'admin',id:'qa'},{status:'submitted',search:'2026-001',kind});
   assert.equal(board.total,1);assert.equal(board.submissions[0].submission_status,'submitted');assert.equal(board.approved,0);
  }
- await ev('Date.now=window.__writingRealNow;delete window.__writingRealNow');setWritingTime(undefined);
+ const toRemove=(await invoke('writing_list',student)).writings.find(w=>w.kind==='public_service');
+ await invoke('admin_writing_delete',{type:'admin',id:'qa'},{targetStudentId:student.id,kind:'public_service',itemId:'',revision:toRemove.revision});
+ await click('[data-workspace-page=introduction]');await wait("document.querySelector('h2').textContent==='자기소개 작성하기' && !!document.querySelector('[data-writing-text]')");
+ await click('[data-workspace-page=public_service]');await wait("document.querySelector('h2').textContent==='공직관 작성하기' && !!document.querySelector('[data-writing-text]')");
+ assert.equal(await ev("document.querySelector('[data-writing-save=submitted]').disabled"),false,'An administrative removal allows another submission without feedback');
+ await click('[data-writing-save=submitted]');await wait("document.querySelector('[data-writing-message]').textContent==='교사에게 제출했습니다. 피드백을 기다려주세요.'");
+ assert.equal((await invoke('writing_list',student)).writings.find(w=>w.kind==='public_service').submission_round,toRemove.submission_round+1);
+ await ev('Date.now=window.__writingRealNow;delete window.__writingRealNow;window.dispatchEvent(new Event("focus"))');setWritingTime(undefined);
  await ev("document.querySelector('.ip-writing-actions').scrollIntoView({block:'center',behavior:'instant'})");
  await screenshot('student-submission-open-mobile',390);
  console.log('PASS separate correction windows, ordered columns, blocked-popup recovery, no AI-history reads, read-only/denied sessions, saved status refresh, 5-color palette without an apply button; direct typing, IME, original/comment colors and inline comments: no separate list/feedback field, caret insertion, Unicode offsets after comments, real Korean text input, inline editing/deletion, undo, escaping, failure retry, persistence and mobile layout.');

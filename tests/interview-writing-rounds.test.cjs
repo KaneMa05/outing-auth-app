@@ -26,14 +26,18 @@ const {createDb}=require('./helpers/interview-db.cjs');
   const legacy=(await invoke('writing_history',student,{kind:'motivation',itemId:''})).rounds[0];
   assert.equal(legacy.round,1);assert.equal(legacy.feedback,'Legacy feedback');assert.equal(legacy.feedback_at,null);
   const first=history.rounds[2];
-  for(let round=4;round<=13;round++)writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:'Round '+round})).writing;
-  assert.equal(writing.submission_round,13);assert.equal(writing.feedback_round,1);
+  for(let round=4;round<=13;round++){
+   writing=(await invoke('admin_writing_feedback',admin,{...key,targetStudentId:student.id,revision:writing.revision,status:'needs_revision',feedback:'Feedback before round '+round})).writing;
+   writing=(await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:'Round '+round})).writing;
+  }
+  assert.equal(writing.submission_round,13);assert.equal(writing.feedback_round,12);
   history=await invoke('writing_history',student,key);
   assert.equal(history.total,13);assert.equal(history.rounds.length,10);assert.equal(history.rounds[0].round,13);
   const older=await invoke('writing_history',student,{...key,page:1});
   assert.deepEqual(older.rounds.map(r=>r.round),[3,2,1]);assert.deepEqual(older.rounds[2],first);
   const repeat=await invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:writing.body});
   assert.equal(repeat.writing.submission_round,13);assert.equal(repeat.writing.revision,writing.revision);
+  writing=(await invoke('admin_writing_feedback',admin,{...key,targetStudentId:student.id,revision:writing.revision,status:'approved',feedback:'Feedback before concurrent round'})).writing;
   const concurrent=await Promise.allSettled([0,1].map(n=>invoke('writing_save',student,{...key,revision:writing.revision,status:'submitted',text:'Concurrent '+n})));
   assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
   assert.equal((await invoke('writing_history',student,key)).total,14);

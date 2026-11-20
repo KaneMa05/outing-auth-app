@@ -160,11 +160,11 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       res.status(200).json(result);
     } catch(error) {
       const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
-      known.push('rubric_incomplete','submission_not_open');
+      known.push('rubric_incomplete','submission_not_open','feedback_pending');
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
-      const logicalStatus=['revision_conflict','topic_changed','topic_in_use'].includes(code)?409:
+      const logicalStatus=['revision_conflict','topic_changed','topic_in_use','feedback_pending'].includes(code)?409:
         ['forbidden','not_enrolled'].includes(code)?403:code==='unauthorized'?401:code==='not_found'?404:code?400:503;
       const status=['admin_application_product_save','admin_application_decide'].includes(action)&&code?logicalStatus:error.status||logicalStatus;
       res.status(status).json({ok:false,error:code||'interview_unavailable'});

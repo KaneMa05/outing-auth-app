@@ -1,4 +1,4 @@
-import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-review-quiet';
+import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-feedback-wait';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
 const statuses={draft:'임시저장',saved:'저장 완료',needs_revision:'보완 필요',approved:'강사 확인'};
@@ -7,7 +7,8 @@ const reviewLabels={submitted:'확인 대기',needs_revision:'보완요청',appr
 const submittedDate=v=>new Date(v).toLocaleString('ko-KR');
 const submissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
 const scheduledWritingKinds=['introduction','motivation','public_service'];
-const submissionNotice='교사에게 제출은 11월 23일 00시(한국 시간)부터 가능합니다.';
+const submissionNotice='교사 제출은 11월 23일 00시(한국 시간)부터 가능합니다.';
+const feedbackPendingNotice='제출한 답변은 교사 확인 중입니다. 피드백을 받은 뒤 다시 제출할 수 있습니다.';
 export const writingFeedbackTitle=saved=>`${saved.feedback_revision!==saved.submitted_revision?'이전 제출 · ':''}${saved.feedback_round?`${saved.feedback_round}차 `:''}교사 피드백`;
 
 // Load a single answer's history only on request; pending responses cannot
@@ -43,6 +44,7 @@ const error=e=>({
  not_enrolled:'면접반 이용 등록과 기간을 확인해주세요.',unauthorized:'다시 로그인해주세요.',
  not_submitted:'학생이 교사에게 제출한 답변에 피드백을 남길 수 있습니다.',
  submission_not_open:submissionNotice,
+ feedback_pending:feedbackPendingNotice,
  forbidden:'이 내용을 볼 권한이 없습니다.'
 }[e.code||e.message]||'저장하지 못했습니다. 입력은 유지됩니다. 잠시 후 다시 시도해주세요.');
 
@@ -54,6 +56,8 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
  const hideDetails=admin&&hideSubmissionDetails;
  const submissionPending=()=>!admin&&scheduledWritingKinds.includes(kind)&&Date.now()<submissionOpensAt;
  const row=()=>rows.find(r=>r.kind===(admin?items.find(i=>i.key===selected)?.kind:kind)&&r.item_id===(items.find(i=>i.key===selected)?.id||''));
+ const feedbackPending=()=>!admin&&(row()?.awaiting_feedback??(row()?.submission_status==='submitted'));
+ const submissionLabel=()=>feedbackPending()&&!submissionPending()?'교사 피드백 대기 중':(row()?.submitted_at?'교사에게 다시 제출':'교사에게 제출')+(submissionPending()?' (11/23 00시부터)':'');
  const item=()=>items.find(i=>i.key===selected);
  const tell=(text,failed=false)=>{const n=host.querySelector('[data-writing-message]');if(n){n.textContent=text;n.dataset.error=String(failed);}};
  function syncFeedbackSave(){
@@ -74,7 +78,9 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
   clearTimeout(submissionTimer);submissionTimer=null;
   if(destroyed)return;
   const button=host.querySelector('[data-writing-save=submitted]');
-  if(button){button.disabled=busy||submissionPending();button.textContent=(row()?.submitted_at?'교사에게 다시 제출':'교사에게 제출')+(submissionPending()?' (11/23 00시부터)':'');}
+  if(button){button.disabled=busy||submissionPending()||feedbackPending();button.textContent=submissionLabel();}
+  const notice=host.querySelector('[data-writing-submission-notice]');
+  if(notice){notice.textContent=[submissionPending()?submissionNotice:'',feedbackPending()?feedbackPendingNotice:'',submissionPending()||feedbackPending()?'임시저장·저장은 계속 가능합니다.':''].filter(Boolean).join(' ');notice.hidden=!notice.textContent;}
   if(submissionPending())submissionTimer=setTimeout(syncSubmission,Math.min(2147483647,Math.max(1,submissionOpensAt-Date.now())));
  }
  window.addEventListener('focus',syncSubmission);
@@ -92,13 +98,13 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
     <div class="ip-feedback-save-actions"><button type="button" class="ip-btn ip-primary" data-writing-save="feedback" ${canWrite&&saved?.submitted_at?'':'disabled'}>첨삭 저장 · 학생에게 전달</button>${typeof onClose==='function'?'<button type="button" class="ip-btn ip-primary" data-writing-close hidden>창 닫기</button>':''}</div><p class="ip-message ip-feedback-save-message" data-writing-message role="status"></p>${hideDetails?'':'<p class="ip-help">피드백을 수정해도 회차는 늘어나지 않습니다.</p>'}`:
     `<label>나의 답변<textarea data-writing-text maxlength="10000" placeholder="나의 DB에 정리한 경험을 바탕으로 답변을 작성해주세요." ${current.retired?'readonly':''}>${esc(saved?.body||'')}</textarea></label>
     <div class="ip-row ip-help"><span data-writing-count>${(saved?.body||'').length.toLocaleString()} / 10,000자</span><span data-writing-saved>${saved?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>
-    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionPending()?'disabled':''}>${saved?.submitted_at?'교사에게 다시 제출':'교사에게 제출'}${submissionPending()?' (11/23 00시부터)':''}</button></div>`}`}</section>`:
+    ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionPending()||feedbackPending()?'disabled':''}>${submissionLabel()}</button></div><p class="ip-help ip-writing-submit-notice" data-writing-submission-notice hidden></p>`}`}</section>`:
     `<section class="ip-panel ip-empty">${admin?'이 학생이 저장한 답변이 없습니다.':'관리자가 공개한 핵심인성 질문이 아직 없습니다. 질문이 공개되면 이곳에서 답변을 작성할 수 있습니다.'}</section>`}`;
   const annotationHost=host.querySelector('[data-writing-annotations]');
   if(annotationHost)annotations=mountAnnotations(annotationHost,{text:saved?.submitted_body??saved?.body??'',marks:saved?.feedback_revision===saved?.submitted_revision?saved?.annotation_marks:[],feedback:saved?.feedback_revision===saved?.submitted_revision?saved?.feedback||'':'',canWrite:canWrite&&!!saved?.submitted_at,showHelp:!hideDetails,onChange:markDirty});
   const historyHost=host.querySelector('[data-writing-history]');
   if(historyHost)history=mountWritingHistory(historyHost,{request,admin,studentId,kind:admin?current.kind:kind,itemId:current.id});
-  syncFeedbackSave();
+  syncFeedbackSave();syncSubmission();
  }
  async function load(){
   host.innerHTML='<p role="status">작성 내용을 불러오는 중…</p>';
@@ -138,6 +144,7 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
  async function save(status){
   if(busy||destroyed)return false;
   if(status==='submitted'&&submissionPending()){tell(submissionNotice,true);return false;}
+  if(status==='submitted'&&feedbackPending()){tell(feedbackPendingNotice,true);return false;}
   if(blocked){tell('입력을 복사해 보관한 뒤 새로고침해주세요.',true);return false;}
   const saved=row(),current=item();
   if(!current||current.retired)return !dirty;
