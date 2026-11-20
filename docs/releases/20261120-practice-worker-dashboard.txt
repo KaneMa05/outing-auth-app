@@ -1,0 +1,39 @@
+관리자 홈 · 녹음 전사 프로그램 실행 상태
+2026-11-20 로컬 구현 및 검증 완료 / 운영 반영 승인 대기
+
+변경
+- 기존 CLI 3종 상태 카드와 함께 녹음 전사 프로그램 상태 카드를 표시한다.
+- 시작 중 / 실행 중·녹음 대기 / 전사 중 / 오류 확인 필요 / 중지됨 / 응답 없음 / 연결 기록 없음 / 상태 확인 불가를 구분한다.
+- 처리 중·대기·실패 건수와 마지막 접속·최근 완료·최근 실패 시각을 한국 시간으로 표시한다.
+- PC 프로그램은 녹음이 없거나 전사 중이어도 30초마다 접속 신호를 보낸다. 서버 조회 기준 90초가 지나면 응답 없음으로 표시한다.
+- 관리자 홈 진입 또는 상태 새로고침으로만 조회한다. 조회가 작업 실행·재시도·AI 호출을 일으키지 않는다.
+- 상태 조회 장애는 해당 카드에만 표시한다. 기존 CLI와 녹음 원문·검수 결과는 유지한다.
+- 학생 화면 모듈, 학생 인증, 전사 모델과 작업 임대/재시도 방식은 변경하지 않는다.
+
+권한
+- ip_practice_asr_worker_presence 단일 행과 ip_practice_asr_presence(text) 함수는 service_role만 접근한다.
+- RLS 활성화, PUBLIC/anon/authenticated 권한 회수, SECURITY INVOKER와 빈 search_path 적용.
+- 사이트는 기존 admin_cli_status 관리자 interview.read 권한으로 상태 메타데이터만 반환한다.
+- 비밀키, 학생 정보, 전사문, 녹음 경로는 상태 응답에 포함하지 않는다.
+
+검증
+- node --test tests/interview-cli-status.test.cjs tests/interview-practice-asr-worker.test.cjs: 13개 통과.
+- node --test tests/interview-practice-records.test.cjs tests/release-safety.test.js tests/interview-navigation-loading.test.cjs: 26개 통과.
+- PGlite ASR presence SQL: 상태 검증·단일 행·서버 시각·RLS·호출 권한 통과.
+- 기존 transcription SQL: 원문/검수 보존·임대 복구·재시도·권한 검사 통과.
+- 실제 Chrome으로 관리자 홈의 카드 4개, 수동 갱신, 응답 없음, 독립 장애, 화면 전환과 1440/390px 수평 넘침 없음 확인.
+- 별도 .tmp/build-check에서 실제 운영 공개 설정을 사용한 production 빌드 통과. 서버 비밀키 미포함 확인.
+- 미리보기와 빌드 산출물은 .tmp에만 보관하며 Git/웹 배포 제외.
+
+승인 후 반영
+1. 원격 main과 현재 다른 작업의 반영 여부를 다시 확인하고 이 변경만 합친다. 기존 피드백 관리 수정은 덮어쓰지 않는다.
+2. 20261120032500_interview_practice_asr_presence.sql을 운영 DB에 적용하고 서비스 전용 권한을 검증한다.
+3. 기존 실행 폴더 work/practice-transcription-admin-20261118의 전사 프로그램을 검증한 코드로 업데이트한다.
+   처리 중 건수가 없음을 확인하고 기존 작업자를 종료한 후 같은 환경 파일과 모델 설정을 보존해 다시 실행한다.
+   이 문서 작성 시 현재 작업자는 이전 버전이며, 아직 접속 신호를 보내지 않는다.
+4. 실제 PC에서 신호가 지속 갱신되는지 확인한다. 새 녹음이 없어도 상태는 실행 중으로 표시되어야 한다.
+5. 최종 승인 범위의 커밋만 푸시·배포하고 관리자 홈의 정적 파일과 권한 검사를 확인한다.
+
+현재 운영 상태
+- 운영 DB 적용, 현재 PC 프로그램 교체, 푸시, 배포는 이번 구현 단계에서 수행하지 않았다.
+- 기존 전사 프로그램은 이전에 재실행한 상태로 계속 둔다.

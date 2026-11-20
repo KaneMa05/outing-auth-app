@@ -4,7 +4,7 @@ import {interviewProducts,interviewProductLabel} from './client/interview-produc
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
-import {mountCLIStatus} from './interview-cli-status.js?v=20261103-manual-status';
+import {mountCLIStatus} from './interview-cli-status.js?v=20261120-practice-asr';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261117-aptitude-subject-scores';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={draft:'작성 중',submitted:'작성 완료',needs_revision:'보완 필요',approved:'강사 확인',no_experience:'소재 찾기',empty:'미작성'};
@@ -252,7 +252,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       summary.dataset.dashboardSummary='';
       summary.setAttribute('role','status');
       summary.textContent='운영 현황을 불러오는 중…';
-      host.querySelector('.ip-hero').insertAdjacentHTML('afterend','<section class="ip-panel" data-cli-worker-status aria-label="CLI 실행 상태"></section>');
+      host.querySelector('.ip-hero').insertAdjacentHTML('afterend','<section class="ip-panel" data-cli-worker-status aria-label="작업 프로그램 실행 상태"></section>');
       life=mountCLIStatus(host.querySelector('[data-cli-worker-status]'),{request});
     }
     if(tab==='preassignments'){

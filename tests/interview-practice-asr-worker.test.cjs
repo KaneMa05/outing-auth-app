@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),{test}=require('node:test'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),{randomUUID,createHash}=require('node:crypto');
-const {runOnce,createRemote,validResult}=require('../scripts/interview-practice-asr-worker.cjs');
+const {runOnce,createRemote,validResult,createPresenceReporter}=require('../scripts/interview-practice-asr-worker.cjs');
 const bytes=Buffer.alloc(100,3),hash=createHash('sha256').update(bytes).digest('hex');
 const job={runId:randomUUID(),number:1,audioHash:hash,audioBytes:bytes.length,leaseId:randomUUID()};
 const result={model:'Whisper large-v3',modelRevision:'e'.repeat(40),engineVersion:'1.2.1',transcript:'아니다.',segments:[{start:0,end:1,text:'아니다.'}],decodedSeconds:2,processingSeconds:1};
@@ -25,4 +25,28 @@ test('remote worker uses server credentials only for fixed private storage and q
  await remote.rpc('claim');await remote.download(job);
  assert.equal(calls[0].url,'https://project.supabase.co/rest/v1/rpc/ip_practice_transcription_service');assert.equal(JSON.parse(calls[0].o.body).p_actor.type,'worker');
  assert.match(calls[1].url,/storage\/v1\/object\/authenticated\/interview-practice\//);assert.equal(calls[1].o.redirect,'error');assert.throws(()=>createRemote({url:'http://evil.test',key:'x'}),/runtime_unavailable/);
+ await remote.presence('idle');assert.equal(calls[2].url,'https://project.supabase.co/rest/v1/rpc/ip_practice_asr_presence');assert.deepEqual(JSON.parse(calls[2].o.body),{p_state:'idle'});
 });
+test('presence continues while idle or transcribing and stops without overlapping requests',async()=>{
+ const states=[];let tick,cancelled=false,release,active=0,maxActive=0;
+ const reporter=createPresenceReporter(async state=>{active++;maxActive=Math.max(active,maxActive);states.push(state);if(state==='processing')await new Promise(r=>release=r);active--;},{schedule:(fn,ms)=>{assert.equal(ms,30000);tick=fn;return 123;},cancel:id=>{assert.equal(id,123);cancelled=true;}});
+ await reporter.ready;reporter.setState('idle');await new Promise(r=>setImmediate(r));tick();await new Promise(r=>setImmediate(r));
+ assert.deepEqual(states,['starting','idle','idle']);
+ reporter.setState('processing');tick();reporter.setState('error');
+ assert.deepEqual(states,['starting','idle','idle','processing']);
+ release();await new Promise(r=>setImmediate(r));assert.equal(states.at(-1),'error');
+ await reporter.close();assert(cancelled);assert.equal(states.at(-1),'stopped');assert.equal(maxActive,1);
+ tick();reporter.setState('idle');await reporter.close();assert.equal(states.at(-1),'stopped');
+});
+test('presence failures do not prevent queue work and shutdown waits for an in-flight signal',async()=>{
+ let tick,errors=0,release;const states=[];
+ const reporter=createPresenceReporter(async state=>{states.push(state);if(state==='starting')throw Error('network');if(state==='processing')await new Promise(r=>release=r);},{schedule:fn=>{tick=fn;return 1;},cancel(){},onError(){errors++;}});
+ await reporter.ready;assert.equal(errors,1);reporter.setState('idle');await new Promise(r=>setImmediate(r));tick();await new Promise(r=>setImmediate(r));
+ reporter.setState('processing');const closed=reporter.close();assert.equal(states.at(-1),'processing');release();await closed;assert.equal(states.at(-1),'stopped');
+});
+test('a processing signal is emitted only after a valid job is claimed',()=>fixture(async cacheDir=>{
+ let claimed=0;
+ await runOnce({cacheDir,rpc:async()=>({job:null}),onClaim:()=>claimed++});assert.equal(claimed,0);
+ const r=await runOnce({cacheDir,rpc:async a=>a==='claim'?{job}:{ok:true},download:async()=>bytes,transcribe:async()=>{assert.equal(claimed,1);return result;},onClaim:()=>claimed++});
+ assert(r.completed);
+}));

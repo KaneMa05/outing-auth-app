@@ -17,8 +17,9 @@ function validResult(result){
   result.segments.some(s=>typeof s.text!=='string'||s.text.length>4000||!Number.isFinite(s.start)||!Number.isFinite(s.end)||s.start<0||s.end<s.start||s.end>result.decodedSeconds+10))throw Error('transcription_failed');
  return result;
 }
-async function runOnce({rpc,download,transcribe,cacheDir,claim={},heartbeatMs=60000}){
+async function runOnce({rpc,download,transcribe,cacheDir,claim={},heartbeatMs=60000,onClaim=()=>{}}){
  const {job}=await rpc('claim',claim);if(!job)return {worked:false};validJob(job);
+ onClaim();
  await fs.mkdir(cacheDir,{recursive:true});const directory=await fs.mkdtemp(path.join(path.resolve(cacheDir),'job-'));
  const extension={'audio/mp4':'m4a','audio/webm':'webm','audio/ogg':'ogg'}[job.audioMime||'audio/mp4'];
  const file=path.join(directory,'answer.'+extension);let timer,leaseLost=false,beating=false;
@@ -43,6 +44,10 @@ function createRemote({url,key,fetchImpl=fetch}){
  const base=new URL(url);if(base.protocol!=='https:'||base.username||base.password||!key)throw Error('runtime_unavailable');
  const headers={apikey:key,Authorization:'Bearer '+key};
  return {
+  async presence(state){
+   const response=await fetchImpl(new URL('/rest/v1/rpc/ip_practice_asr_presence',base),{method:'POST',redirect:'error',signal:AbortSignal.timeout(30000),headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_state:state})});
+   const data=await response.json();if(!response.ok||!data.ok)throw Error('presence_unavailable');
+  },
   async rpc(action,body={}){
    const response=await fetchImpl(new URL('/rest/v1/rpc/ip_practice_transcription_service',base),{method:'POST',redirect:'error',signal:AbortSignal.timeout(30000),headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_action:action,p_actor:{type:'worker',id:'practice-asr-pc'},p_body:body})});
    const data=await response.json();if(!response.ok||!data.ok)throw Error(data.message==='lease_lost'?'lease_lost':'queue_unavailable');return data;
@@ -68,6 +73,23 @@ async function importResults(file,options){
  }
  return outcomes;
 }
+function createPresenceReporter(send,{intervalMs=30000,schedule=setInterval,cancel=clearInterval,onError=()=>{}}={}){
+ let state='starting',closed=false,sending=false,flight=Promise.resolve();
+ function report(){
+  if(closed||sending)return flight;
+  const snapshot=state;sending=true;
+  flight=(async()=>{
+   try{await send(snapshot);}catch{onError();}finally{sending=false;}
+   if(!closed&&state!==snapshot)await report();
+  })();
+  return flight;
+ }
+ const ready=report(),timer=schedule(()=>{void report();},intervalMs);timer?.unref?.();
+ return {ready,setState(next){if(closed)return;state=next;void report();},async close(){
+  if(closed)return;closed=true;cancel(timer);await flight;
+  try{await send('stopped');}catch{onError();}
+ }};
+}
 async function main(){
  const remote=createRemote({url:process.env.SUPABASE_URL||'',key:process.env.SUPABASE_SERVICE_ROLE_KEY||''});
  const runtime=path.resolve(__dirname,'../.tmp/practice-asr');await fs.mkdir(runtime,{recursive:true});
@@ -82,7 +104,7 @@ async function main(){
   await fs.unlink(lockFile);lock=await fs.open(lockFile,'wx',0o600);
  }
  await lock.writeFile(String(process.pid));
- let adapter,stopping=false;const stop=()=>{stopping=true;};process.once('SIGINT',stop);process.once('SIGTERM',stop);
+ let adapter,presence,stopping=false;const stop=()=>{stopping=true;};process.once('SIGINT',stop);process.once('SIGTERM',stop);
  try{
   const options={...remote,cacheDir:path.join(runtime,'audio')};
   const importIndex=process.argv.indexOf('--import');
@@ -91,13 +113,16 @@ async function main(){
   const config=JSON.parse((await fs.readFile(configFile,'utf8')).replace(/^\uFEFF/,''));
   if(config.model!=='Whisper large-v3'||!/^[a-f0-9]{40}$/.test(config.modelRevision||'')||!path.isAbsolute(config.python)||!path.isAbsolute(config.modelDirectory))throw Error('runtime_unavailable');
   adapter=createTranscriber(configFile,config);let idle=30000;
+  presence=createPresenceReporter(state=>remote.presence(state),{onError:()=>console.error('presence_unavailable')});await presence.ready;
   while(!stopping){
-   try{const result=await runOnce({...options,transcribe:file=>adapter.transcribe(file)});if(result.worked)console.log(JSON.stringify({event:'transcription',completed:result.completed,error:result.error}));
+   try{const result=await runOnce({...options,transcribe:file=>adapter.transcribe(file),onClaim:()=>presence.setState('processing')});
+    presence.setState(result.worked&&!result.completed?'error':'idle');
+    if(result.worked)console.log(JSON.stringify({event:'transcription',completed:result.completed,error:result.error}));
     if(process.argv.includes('--once'))break;
     if(!result.worked){await sleep(idle);idle=Math.min(idle*2,300000);}else idle=30000;
-   }catch{console.error('queue_unavailable');if(process.argv.includes('--once')){process.exitCode=1;break;}await sleep(30000);}
+   }catch{presence.setState('error');console.error('queue_unavailable');if(process.argv.includes('--once')){process.exitCode=1;break;}await sleep(30000);}
   }
- }finally{adapter?.close();await lock.close();await fs.unlink(lockFile);}
+ }finally{await presence?.close();adapter?.close();await lock.close();await fs.unlink(lockFile);}
 }
 if(require.main===module)main().catch(error=>{console.error(error.code==='EEXIST'?'worker_lock_exists':'practice_worker_unavailable');process.exitCode=1;});
-module.exports={runOnce,validResult,createRemote,importResults};
+module.exports={runOnce,validResult,createRemote,importResults,createPresenceReporter};

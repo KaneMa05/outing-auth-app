@@ -22,6 +22,18 @@ function fixture(overrides={}){
    return [{last_seen_at:stamp(-75)}];
   }
   if(table==='ip_ai_settings')return [{enabled:true}];
+  if(table==='ip_practice_asr_worker_presence')return [{seen_at:stamp(-20),state:'idle'}];
+  if(table==='ip_practice_transcriptions'){
+   if(select==='transcribed_at')return [{transcribed_at:stamp(-100)}];
+   if(select==='updated_at')return [{updated_at:stamp(-200)}];
+   if(q.get('status')==='eq.processing'){assert.equal(q.get('lease_until'),'gt.'+stamp(0));return [{status:'processing'}];}
+   if(q.get('attempts')==='lt.3'){
+    assert.equal(q.get('or'),`(status.eq.pending,status.eq.failed,and(status.eq.processing,lease_until.lte.${stamp(0)}))`);
+    return [{status:'pending'},{status:'failed'}];
+   }
+   assert.equal(q.get('or'),`(status.eq.failed,and(status.eq.processing,attempts.gte.3,lease_until.lte.${stamp(0)}))`);
+   return [{status:'failed'}];
+  }
   if(table==='ip_pa_diagnoses'){
    assert.equal(q.get('engine_version'),'eq.'+ENGINE_VERSION);assert.equal(q.get('worker_queued'),'eq.true');
    if(q.get('status')==='eq.running'){
@@ -38,20 +50,21 @@ function fixture(overrides={}){
  };
  return {read,paths};
 }
-test('all three CLI queues report bounded metadata with the right heartbeat windows',async()=>{
+test('CLI and transcription queues report bounded metadata with the right heartbeat windows',async()=>{
  const f=fixture(),data=await cliStatus({},actor,f.read,options);
- assert.equal(f.paths.length,14);assert.equal(data.checkedAt,stamp(0));
- assert.deepEqual(data.workers.map(w=>[w.id,w.connected,w.running,w.queued]),[['core25',true,1,2],['questions',true,1,1],['answers',true,1,1]]);
- assert.deepEqual(data.workers.map(w=>w.thresholdSeconds),[60,45,120]);
- const stale=await cliStatus({},actor,fixture({ip_pa_worker_presence:[{seen_at:stamp(-61)}],ip_draft_worker_presence:[{seen_at:stamp(-46)}],ip_ai_workers:[{last_seen_at:stamp(-121)}]}).read,options);
+ assert.equal(f.paths.length,20);assert.equal(data.checkedAt,stamp(0));
+ assert.deepEqual(data.workers.map(w=>[w.id,w.connected,w.running,w.queued]),[['core25',true,1,2],['questions',true,1,1],['answers',true,1,1],['practice_asr',true,1,2]]);
+ assert.deepEqual(data.workers.map(w=>w.thresholdSeconds),[60,45,120,90]);
+ assert.equal(data.workers[3].failed,1);
+ const stale=await cliStatus({},actor,fixture({ip_pa_worker_presence:[{seen_at:stamp(-61)}],ip_draft_worker_presence:[{seen_at:stamp(-46)}],ip_ai_workers:[{last_seen_at:stamp(-121)}],ip_practice_asr_worker_presence:[{seen_at:stamp(-91),state:'processing'}]}).read,options);
  assert(stale.workers.every(w=>!w.connected));
- const noPresence=await cliStatus({},actor,fixture({ip_pa_worker_presence:[],ip_draft_worker_presence:[],ip_ai_workers:[]}).read,options);
+ const noPresence=await cliStatus({},actor,fixture({ip_pa_worker_presence:[],ip_draft_worker_presence:[],ip_ai_workers:[],ip_practice_asr_worker_presence:[]}).read,options);
  assert(noPresence.workers.every(w=>w.lastSeenAt===null&&!w.connected));
  const future=await cliStatus({},actor,fixture({ip_pa_worker_presence:[{seen_at:stamp(6)}]}).read,options);assert.equal(future.workers[0].connected,false);
 });
 test('disabled features still report connected workers, and one unavailable store leaves others visible',async()=>{
  const disabled=await cliStatus({},actor,fixture({ip_ai_settings:[{enabled:false}]}).read,{...options,env:{}});
- assert(disabled.workers.every(w=>w.connected&&!w.enabled));
+ assert(disabled.workers.every(w=>w.connected));assert(disabled.workers.slice(0,3).every(w=>!w.enabled));
  const partial=await cliStatus({},actor,fixture({ip_pa_worker_presence:()=>{throw Error('private DB error');}}).read,options);
  assert.deepEqual(partial.workers[0],{id:'core25',available:false});assert(partial.workers.slice(1).every(w=>w.available));assert(!JSON.stringify(partial).includes('private'));
  const limited=await cliStatus({},actor,fixture({ip_ai_jobs:q=>q.get('select')==='status'?Array.from({length:1000},()=>({status:'QUEUED'})):[]}).read,options);
@@ -69,7 +82,7 @@ test('the aggregate API keeps administrator read permissions and never invokes a
   }
   for(const user of [null,{username:'teacher',role:'teacher',permissions:['interview.read']},{username:'admin',role:'admin',permissions:[]}])assert([401,403].includes((await call(user)).status));
   assert.equal(f.paths.length,0);
-  const result=await call({username:'reader',role:'admin',permissions:['interview.read']});assert.equal(result.status,200);assert.equal(result.data.workers.length,3);
+  const result=await call({username:'reader',role:'admin',permissions:['interview.read']});assert.equal(result.status,200);assert.equal(result.data.workers.length,4);
  }finally{if(previous===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=previous;}
 });
 let modulePromise;
@@ -79,6 +92,16 @@ test('UI shows each CLI, independent failures, disabled features and escaped tim
  const html=renderCLIStatus(data);for(const text of ['핵심 25제 진단 CLI','경험 질문 생성 CLI','답변 초안 생성 CLI','처리 중 1건','대기 2건','상태 새로고침'])assert(html.includes(text));
  const failed=renderCLIStatus({workers:[{id:'core25',available:false},{id:'questions',available:true,enabled:false,connected:true,lastSeenAt:stamp(-15),running:0,queued:0,lastFailedAt:'<img onerror=x>'}]});
  assert.match(failed,/상태 확인 불가/);assert.match(failed,/연결됨 · 요청 대기 중/);assert.match(failed,/꺼짐/);assert.doesNotMatch(failed,/<img/);
+});
+test('transcription status distinguishes stopped, stale, working and unavailable without hiding other workers',async()=>{
+ const {renderCLIStatus}=await load();
+ for(const [state,seconds,label,connected] of [['idle',-20,'실행 중 · 녹음 대기',true],['processing',-20,'전사 중',true],['error',-20,'오류 확인 필요',true],['starting',-20,'시작 중',true],['stopped',-20,'중지됨',false],['processing',-91,'응답 없음',false],['idle',6,'응답 없음',false]]){
+  const data=await cliStatus({},actor,fixture({ip_practice_asr_worker_presence:[{seen_at:stamp(seconds),state}]}).read,options);
+  assert.equal(data.workers[3].connected,connected);const html=renderCLIStatus(data).split('data-cli-worker="practice_asr"')[1];
+  assert(html.includes(label),label);assert(html.includes('실패 1건'));assert(!html.includes('생성 기능:'));
+ }
+ const partial=await cliStatus({},actor,fixture({ip_practice_asr_worker_presence:()=>{throw Error('missing migration');}}).read,options);
+ assert(partial.workers.slice(0,3).every(w=>w.available));assert.deepEqual(partial.workers[3],{id:'practice_asr',available:false});
 });
 test('CLI status only refreshes on entry or request and ignores overlap and destroyed responses',async t=>{
  const {mountCLIStatus}=await load();let listeners=0,resolve,calls=0;

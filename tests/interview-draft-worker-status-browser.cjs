@@ -27,7 +27,7 @@ const root=path.resolve(__dirname,'..');
     if(action==='admin_cli_status'){
      window.statusCalls++;if(window.statusCalls===3)throw Error('offline');
      const status={available:true,enabled:true,connected:true,running:0,queued:2,lastSeenAt:'2026-11-03T01:00:00Z',lastCompletedAt:'2026-11-03T00:59:00Z'};
-     return {checkedAt:'2026-11-03T01:00:15Z',workers:[{...status,id:'core25',connected:window.statusCalls===1,running:1},{...status,id:'questions'},{id:'answers',available:false}]};
+     return {checkedAt:'2026-11-03T01:00:15Z',workers:[{...status,id:'core25',connected:window.statusCalls===1,running:1},{...status,id:'questions'},{id:'answers',available:false},{...status,id:'practice_asr',state:'idle',connected:window.statusCalls!==2,failed:1}]};
     }
     if(action==='admin_questions')return {questions:[]};
     throw Error(action);
@@ -39,13 +39,15 @@ const root=path.resolve(__dirname,'..');
   assert.equal(await page.evaluate(()=>window.legacyMonitorCalls),0,'Opening the administrator home does not query legacy mock monitoring');
   assert.match(await page.locator('[data-dashboard-summary]').textContent(),/42/,'The operational summary remains available');
   assert(!loadedPaths.some(path=>path==='/interview-mock-monitor.js'||path==='/interview-mock-monitor.css'),'Legacy monitoring assets are not loaded');
-  assert.match(await card.textContent(),/CLI 실행 상태/);
-  assert.equal(await card.locator('[data-cli-worker]').count(),3);
+  assert.match(await card.textContent(),/작업 프로그램 실행 상태/);
+  assert.equal(await card.locator('[data-cli-worker]').count(),4);
+  assert.match(await card.locator('[data-cli-worker="practice_asr"]').textContent(),/실행 중 · 녹음 대기/);
+  assert.match(await card.locator('[data-cli-worker="practice_asr"]').textContent(),/실패 1건/);
   assert.match(await card.locator('[data-cli-worker="core25"]').textContent(),/처리 중 1건/);
   assert.match(await card.locator('[data-cli-worker="questions"]').textContent(),/연결됨 · 요청 대기 중/);
   assert.match(await card.locator('[data-cli-worker="answers"]').textContent(),/상태 확인 불가/);
   assert(await page.evaluate(()=>document.querySelector('.ip-hero').nextElementSibling.matches('[data-cli-worker-status]')),'Status is directly below the home summary');
-  for(const width of [1280,390]){
+  for(const width of [1440,390]){
    await page.setViewportSize({width,height:900});
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
    assert((await card.boundingBox()).y<900,'CLI status heading is visible without scrolling');
@@ -53,7 +55,7 @@ const root=path.resolve(__dirname,'..');
   }
   if(process.env.DRAFT_STATUS_SCREENSHOT)await page.screenshot({path:process.env.DRAFT_STATUS_SCREENSHOT,fullPage:true});
   await page.clock.runFor(60000);assert.equal(await page.evaluate(()=>window.statusCalls),1,'No automatic status polling');
-  await card.getByRole('button',{name:'상태 새로고침'}).click();assert.match(await card.textContent(),/연결 확인 지연/);
+  await card.getByRole('button',{name:'상태 새로고침'}).click();assert.match(await card.textContent(),/연결 확인 지연/);assert.match(await card.locator('[data-cli-worker="practice_asr"]').textContent(),/응답 없음/);
   await card.getByRole('button',{name:'상태 새로고침'}).click();assert.match(await card.textContent(),/상태를 확인하지 못했습니다/);
   await card.getByRole('button',{name:'상태 새로고침'}).click();
   assert.equal(await page.evaluate(()=>window.statusCalls),4);

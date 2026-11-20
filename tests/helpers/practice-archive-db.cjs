@@ -16,6 +16,7 @@ async function createPracticeDb({afterArchive}={}){
  await db.exec(migration('_interview_practice_admin_records.sql'));
  if(afterArchive)await afterArchive(db);
  await db.exec(migration('_interview_practice_transcriptions.sql'));
+ await db.exec(migration('_interview_practice_asr_presence.sql'));
  return db;
 }
 module.exports={createPracticeDb};
