@@ -2,12 +2,13 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const labels={underline:'밑줄',strike:'빨간 취소선',bracket:'괄호',comment:'코멘트',color:'글자색'};
 const validColor=value=>typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);
 const palette=[['#c62828','빨강'],['#1d4ed8','파랑'],['#000000','검정'],['#15803d','초록'],['#7e22ce','보라']];
+const defaultColor='#1d4ed8';
 // Only original text contributes to offsets. Inline comments never shift them.
 export function validMarks(text,marks){
  const length=[...text].length;
  return (Array.isArray(marks)?marks:[]).filter(m=>m&&Object.hasOwn(labels,m.type)&&Number.isInteger(m.start)&&Number.isInteger(m.end)&&m.start>=0&&(m.type==='comment'?m.start<=m.end:m.start<m.end)&&m.end<=length&&typeof m.note==='string'&&m.note.length<=1000&&(m.color===undefined||validColor(m.color))&&(m.type!=='color'||validColor(m.color))).slice(0,100);
 }
-const comment=(note,index,{editing=false,disabled=false,legacy=false,color}={})=>`<span class="ip-inline-comment" data-comment-container ${editing?'contenteditable="false"':''} ${validColor(color)?`style="color:${color}"`:''}><span ${legacy?'data-inline-legacy':`data-inline-comment="${index}"`} ${editing?`contenteditable="${disabled?'false':'plaintext-only'}" role="textbox" aria-label="${legacy?'기존 교사 코멘트':`${index+1}번 교사 코멘트`}" aria-multiline="true" aria-readonly="${disabled}" data-placeholder="여기에 코멘트를 입력하세요"`:''}>${esc(note)}</span></span>`;
+const comment=(note,index,{editing=false,disabled=false,legacy=false,color}={})=>`<span class="ip-inline-comment" data-comment-container ${editing?'contenteditable="false"':''} ${validColor(color)?`style="color:${color}"`:''}><span ${legacy?'data-inline-legacy':`data-inline-comment="${index}"`} ${editing?`contenteditable="${disabled?'false':'plaintext-only'}" role="textbox" aria-label="${legacy?'기존 교사 코멘트':`${index+1}번 교사 코멘트`}" aria-multiline="true" aria-readonly="${disabled}"`:''}>${esc(note)}</span></span>`;
 export function annotatedText(text='',marks=[],options={}){
  const chars=[...text],safe=validMarks(text,marks),cuts=[...new Set([0,chars.length,...safe.flatMap(m=>[m.start,m.end])])].sort((a,b)=>a-b);
  const notesAt=offset=>safe.map((m,index)=>m.end===offset&&(m.note||options.editing&&m.type==='comment')?comment(m.note,index,{...options,color:m.color}):'').join('');
@@ -28,11 +29,11 @@ export function writingCorrections(saved){
  return `<div class="ip-corrections"><strong>${prior}${saved.feedback_round||saved.submission_round||1}차 원문 첨삭</strong><div class="ip-annotated-text">${annotatedText(body,saved.annotation_marks,{feedback:saved.feedback})}</div></div>`;
 }
 export function mountAnnotations(host,{text='',marks=[],feedback='',canWrite=false,onChange=()=>{}}){
- let current=validMarks(text,marks).map(m=>({...m})),legacy=feedback,selection=null,commentIndex=null,disabled=!canWrite,currentColor='#c62828';
+ let current=validMarks(text,marks).map(m=>({...m})),legacy=feedback,selection=null,commentIndex=null,disabled=!canWrite,currentColor=defaultColor;
  let sourceComposition=null,compositionTimer=null;
  const undo=[];
  const snapshot=()=>{undo.push({marks:current.map(m=>({...m})),legacy});if(undo.length>100)undo.shift();};
- host.innerHTML=`<div class="ip-annotation-editor"><div class="ip-toolbar" aria-label="원문 첨삭 도구">${Object.entries(labels).filter(([id])=>!['comment','color'].includes(id)).map(([id,label])=>`<button type="button" class="ip-btn" data-mark="${id}" ${disabled?'disabled':''}>${label}</button>`).join('')}<div class="ip-color-picker"><button type="button" class="ip-btn" data-color-toggle aria-expanded="false" ${disabled?'disabled':''}><span data-color-preview style="border-color:#c62828">가</span> 글자색 ▾</button><div class="ip-color-palette" data-color-palette hidden><strong>표준 색상</strong><div class="ip-color-grid" role="group" aria-label="첨삭 글자색 색상표">${palette.map(([color,name])=>`<button type="button" class="ip-color-swatch" data-palette-color="${color}" style="background-color:${color}" title="${name}" aria-label="${name}" aria-pressed="${color==='#c62828'}" ${disabled?'disabled':''}></button>`).join('')}</div></div></div><button type="button" class="ip-btn" data-mark-clear ${disabled?'disabled':''}>선택 표시 지우기</button><button type="button" class="ip-btn" data-mark-undo disabled>되돌리기</button></div><p class="ip-help">문장을 선택해 밑줄·취소선·괄호를 표시하세요. 원문의 원하는 위치를 클릭해 바로 입력하면 코멘트가 들어갑니다. 학생 원문은 그대로 보존됩니다. 문장을 선택하거나 코멘트를 누른 뒤 색상표의 색을 클릭하면 바로 적용됩니다.</p><p role="status" data-mark-message></p><div class="ip-annotated-text ip-annotation-source" tabindex="0" role="textbox" aria-multiline="true" contenteditable="${disabled?'false':'true'}" aria-readonly="${disabled}" aria-label="원문 첨삭 편집기" data-mark-source></div></div>`;
+ host.innerHTML=`<div class="ip-annotation-editor"><div class="ip-toolbar" aria-label="원문 첨삭 도구">${Object.entries(labels).filter(([id])=>!['comment','color'].includes(id)).map(([id,label])=>`<button type="button" class="ip-btn" data-mark="${id}" ${disabled?'disabled':''}>${label}</button>`).join('')}<div class="ip-color-picker"><button type="button" class="ip-btn" data-color-toggle aria-expanded="false" ${disabled?'disabled':''}><span data-color-preview style="border-color:${defaultColor}">가</span> 글자색 ▾</button><div class="ip-color-palette" data-color-palette hidden><strong>표준 색상</strong><div class="ip-color-grid" role="group" aria-label="첨삭 글자색 색상표">${palette.map(([color,name])=>`<button type="button" class="ip-color-swatch" data-palette-color="${color}" style="background-color:${color}" title="${name}" aria-label="${name}" aria-pressed="${color===defaultColor}" ${disabled?'disabled':''}></button>`).join('')}</div></div></div><button type="button" class="ip-btn" data-mark-clear ${disabled?'disabled':''}>선택 표시 지우기</button><button type="button" class="ip-btn" data-mark-undo disabled>되돌리기</button></div><p class="ip-help">문장을 선택해 밑줄·취소선·괄호를 표시하세요. 원문의 원하는 위치를 클릭해 바로 입력하면 코멘트가 들어갑니다. 학생 원문은 그대로 보존됩니다. 문장을 선택하거나 코멘트를 누른 뒤 색상표의 색을 클릭하면 바로 적용됩니다.</p><p role="status" data-mark-message></p><div class="ip-annotated-text ip-annotation-source" tabindex="0" role="textbox" aria-multiline="true" contenteditable="${disabled?'false':'true'}" aria-readonly="${disabled}" aria-label="원문 첨삭 편집기" data-mark-source></div></div>`;
  const source=host.querySelector('[data-mark-source]'),message=host.querySelector('[data-mark-message]');
  const syncUndo=()=>{host.querySelector('[data-mark-undo]').disabled=disabled||!undo.length;};
  const changed=()=>{syncUndo();onChange();};
@@ -73,8 +74,11 @@ export function mountAnnotations(host,{text='',marks=[],feedback='',canWrite=fal
  const ensureComment=()=>{
   if(disabled)return null;capture();
   if(!selection)return null;
-  if(current.length>=100){message.textContent='첨삭 표시는 최대 100개까지 추가할 수 있습니다.';return null;}
-  const end=selection.end;snapshot();current.push({start:end,end,type:'comment',note:'',color:currentColor});render();changed();
+  if(current.filter(m=>m.type!=='comment'||m.note.trim()).length>=100){message.textContent='첨삭 표시는 최대 100개까지 추가할 수 있습니다.';return null;}
+  const end=selection.end;snapshot();
+  // Empty insertion points are temporary; repeated clicks must not exhaust the mark limit.
+  current=current.filter(m=>m.type!=='comment'||m.note.trim());
+  current.push({start:end,end,type:'comment',note:'',color:currentColor});render();
   const field=source.querySelector('[data-inline-comment="'+(current.length-1)+'"]');field.focus();const range=document.createRange();range.selectNodeContents(field);range.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(range);return field;
  };
  const protectOriginal=()=>{
@@ -121,7 +125,14 @@ export function mountAnnotations(host,{text='',marks=[],feedback='',canWrite=fal
   if(['insertText','insertReplacementText','insertParagraph','insertLineBreak'].includes(e.inputType)){const note=ensureComment();if(note)insertText(note,e.data??'\n');}
  };
  host.onclick=e=>{
-  e.stopPropagation();const b=e.target.closest('[data-mark],[data-mark-clear],[data-mark-undo],[data-color-toggle],[data-palette-color]');if(!b||b.disabled||disabled)return;
+  e.stopPropagation();
+  // Put the caret in its comment before typing starts. Moving/rebuilding the
+  // original during Korean IME composition can discard the first characters.
+  if(!disabled&&!sourceComposition&&source.contains(e.target)&&!editable(e.target)){
+   capture();if(selection&&selection.start===selection.end)ensureComment();
+   return;
+  }
+  const b=e.target.closest('[data-mark],[data-mark-clear],[data-mark-undo],[data-color-toggle],[data-palette-color]');if(!b||b.disabled||disabled)return;
   if(b.hasAttribute('data-color-toggle')){paletteBox.hidden=!paletteBox.hidden;colorToggle.setAttribute('aria-expanded',String(!paletteBox.hidden));return;}
   const mark=b.hasAttribute('data-palette-color')?'color':b.dataset.mark;
   if(mark==='color'){currentColor=b.dataset.paletteColor;syncColor();closePalette();}

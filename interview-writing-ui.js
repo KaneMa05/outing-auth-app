@@ -1,4 +1,4 @@
-import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-comment-text';
+import {mountAnnotations,annotatedText,writingCorrections} from './interview-writing-annotations.js?v=20261120-comment-input';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const titles={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
 const statuses={draft:'임시저장',saved:'저장 완료',needs_revision:'보완 필요',approved:'강사 확인'};

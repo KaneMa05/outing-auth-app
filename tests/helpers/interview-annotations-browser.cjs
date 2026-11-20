@@ -47,10 +47,28 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await click('[data-mark=underline]');
  await ev('window.selectAnnotation(2,15)');await click('[data-mark=strike]');
  await ev('window.selectAnnotation(8,19)');await click('[data-mark=bracket]');
- await ev('window.selectAnnotation(19,19)');
+ // A real click prepares the comment BEFORE the first keystroke/IME session.
+ const insertion=await ev(`{window.selectAnnotation(19,19);const rect=getSelection().getRangeAt(0).getBoundingClientRect();({x:rect.x+1,y:rect.y+rect.height/2});}`);
+ await send('Input.dispatchMouseEvent',{type:'mousePressed',...insertion,button:'left',clickCount:1});
+ await send('Input.dispatchMouseEvent',{type:'mouseReleased',...insertion,button:'left',clickCount:1});
+ assert.equal(await ev("document.activeElement?.dataset.inlineComment"),'3');
+ assert.equal(await ev("getComputedStyle(document.activeElement).color"),'rgb(29, 78, 216)');
+ assert.equal(await ev("document.querySelector('[data-placeholder]')"),null);
+ assert.equal(await ev("document.querySelector('[data-palette-color=\"#1d4ed8\"]').getAttribute('aria-pressed')"),'true');
+ // Use native key events, then consecutive Korean compositions without refocusing.
+ await send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',text:'a'});
+ await send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA'});
+ assert.equal(await ev("document.activeElement.textContent"),'a');
+ await send('Input.imeSetComposition',{text:'ㅎ',selectionStart:1,selectionEnd:1});
+ await send('Input.insertText',{text:'한'});
+ await send('Input.imeSetComposition',{text:'ㄱ',selectionStart:1,selectionEnd:1});
+ await send('Input.insertText',{text:'글'});
+ assert.equal(await ev("document.activeElement.textContent"),'a한글');
+ await ev("{const range=document.createRange();range.selectNodeContents(document.activeElement);getSelection().removeAllRanges();getSelection().addRange(range);}");
  await send('Input.insertText',{text:'<img src=x onerror="window.__annotationXss=true">'});
  assert.equal(await ev("document.querySelectorAll('[data-mark-source] img').length"),0);
- await ev("{const field=document.querySelector('[data-inline-comment]');field.textContent='국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.';field.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText'}))}");
+ await ev("{const range=document.createRange();range.selectNodeContents(document.activeElement);getSelection().removeAllRanges();getSelection().addRange(range);}");
+ await send('Input.insertText',{text:'국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.'});
  assert.equal(await ev("document.querySelector('[data-mark-source]').textContent.includes('교사:')"),false);
  assert.equal(await ev("document.querySelector('.ip-inline-comment').textContent"),'국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.');
  assert.equal(await ev("document.querySelectorAll('[data-remove-comment],[data-remove-legacy],.ip-comment-remove').length"),0);

@@ -121,7 +121,7 @@ body[data-interview-portal=true].student-auth-pending .student-view{max-width:76
 
 .ip-inline-comment{color:#b42318;background:#fff2ef;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:2px 3px;margin:0 3px;white-space:pre-wrap;overflow-wrap:anywhere}
 .ip-inline-comment [contenteditable]{outline:none;min-width:1em;cursor:text}
-.ip-inline-comment [contenteditable=plaintext-only]:empty::before{content:attr(data-placeholder);color:#bd7168;font-weight:400}
+.ip-inline-comment [contenteditable=plaintext-only]:empty{display:inline-block;min-width:.6em;min-height:1em;vertical-align:baseline}
 .ip-inline-comment [contenteditable=plaintext-only]:focus{background:#ffe1da;outline:1px dashed #b42318;outline-offset:2px}
 
 .ip-root .ip-annotation-editor .ip-color-control{display:flex;flex:0 0 auto;align-items:center;gap:8px;min-width:0;margin:0;font-size:13px}
