@@ -42,7 +42,7 @@
 ## 운영 반영 순서 — 사용자 최종 확인 후
 
 1. 기존 적용된 `20261120050820_interview_writing_board_delete.sql` 등 과거 마이그레이션은 재실행하지 않는다. 새 후보 빌드와 격리 API/Postgres 시나리오를 먼저 검증한다.
-2. 새 오류 코드 매핑과 학생 모듈을 포함한 앱/API를 전환하고, 같은 반영 작업에서 `20261120062003_interview_writing_feedback_before_resubmission.sql`을 적용한다. 새 UI는 기존 응답에도 대기 상태를 추론하며, DB 적용 후 관리자 삭제 예외와 서버의 동시 제출 제한까지 활성화된다. 원문·첨삭·기존 회차는 보존한다.
+2. 새 오류 코드 매핑과 학생 모듈을 포함한 앱/API를 전환하고, 같은 반영 작업에서 `20261120071538_interview_writing_feedback_before_resubmission.sql`을 적용한다. 새 UI는 기존 응답에도 대기 상태를 추론하며, DB 적용 후 관리자 삭제 예외와 서버의 동시 제출 제한까지 활성화된다. 원문·첨삭·기존 회차는 보존한다.
 3. 운영 함수 정의·서비스 전용 권한을 확인한다. 제출 → 피드백 대기 → 교사 첨삭 → 재제출, 관리자 삭제 예외는 격리 fixture에서 검증하고, 운영 학생 자료로 시험하지 않는다.
 
-프런트엔드를 이전 버전으로 되돌려야 해도 새 DB 열과 기록은 보존한다. 첨삭 JSON을 모르는 이전 화면에서도 텍스트 피드백은 계속 동작한다. 최초 통합 운영 결과는 `docs/releases/20261120-feedback-worker-production.txt`, 제출 개시 시각·일반 글 코멘트·저장 후 닫기를 포함한 최종 승인 배포 결과는 `docs/releases/20261120-feedback-final-approved-production.txt`에 기록한다.
+프런트엔드를 이전 버전으로 되돌려야 해도 새 DB 열과 기록은 보존한다. 첨삭 JSON을 모르는 이전 화면에서도 텍스트 피드백은 계속 동작한다. 최초 통합 운영 결과는 `docs/releases/20261120-feedback-worker-production.txt`, 제출 개시 시각·일반 글 코멘트·저장 후 닫기를 포함한 승인 배포 결과는 `docs/releases/20261120-feedback-final-approved-production.txt`에 기록한다. 학생 제출 안내·현재 피드백 후 재제출·학생 기록 하단 배치의 운영 반영은 `docs/releases/20261120-writing-feedback-gate-production.txt`에 기록한다.

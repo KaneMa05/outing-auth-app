@@ -1,5 +1,6 @@
 학생 제출 안내 · 피드백 후 재제출 제한
-로컬 구현/검증 완료, 운영 DB 적용·푸시·배포는 최종 확인 대기
+로컬 구현/검증 기록. 이후 사용자 승인으로 운영 DB 적용·푸시·배포 완료.
+최종 결과: docs/releases/20261120-writing-feedback-gate-production.txt
 
 요청과 적용 범위
 - 기존 운영 화면은 제출 버튼에 '11/23 00시부터'만 표시했다. 학생 작성 화면에 '교사 제출은 11월 23일 00시(한국 시간)부터 가능합니다' 안내를 추가했다.
@@ -11,7 +12,7 @@
 - 학생 화면의 회차별 제출·피드백 기록은 답변/제출 안내와 AI 초안 다음인 페이지 맨 아래에 배치한다. PC/모바일 위치와 기록 펼치기를 확인했다.
 
 서버와 DB
-- 추가 마이그레이션: 20261120062003_interview_writing_feedback_before_resubmission.sql. Supabase CLI migration new로 생성했다.
+- 추가 마이그레이션: 20261120071538_interview_writing_feedback_before_resubmission.sql. CLI로 생성한 초안은 운영 적용 후 Supabase가 기록한 버전으로 파일명을 맞췄다.
 - 기존 작성 RPC의 소유자/등록/수정 충돌/행 잠금/동일 요청 재시도 검사를 보존한다.
 - 행 잠금 안에서 새 제출 회차를 검사하고 대기 중 변경 제출은 feedback_pending/HTTP 409로 거부한다.
 - awaiting_feedback은 서버가 계산하며 현재 제출 상태와 관리자 삭제 이력의 정확한 revision을 기준으로 한다. 작업본 상태와 과거 회차의 피드백으로 해제하지 않는다.
