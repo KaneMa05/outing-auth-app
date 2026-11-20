@@ -41,6 +41,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await openPopup();await wait("!!document.querySelector('[data-mark-source]')");
  assert.equal(await ev('window.opener===null'),true);
  assert.equal(await ev("document.querySelectorAll('header,[data-review-student],[data-review-close],.ip-writing-submission,[data-writing-history]').length"),0);
+ assert.equal(await ev("document.querySelector('[data-writing-close]').hidden"),true);
  for(const phrase of ['교사에게 제출된 답변','문장을 선택해 밑줄·취소선·괄호를 표시하세요.','피드백을 수정해도 회차는 늘어나지 않습니다.'])assert.equal(await ev(`document.body.textContent.includes(${JSON.stringify(phrase)})`),false,'Remove popup guidance: '+phrase);
  assert.equal(getCalls().slice(beforeOpen).includes('admin_ai_usage'),false,'Opening corrections must not load AI generation history');
  assert.equal(await ev("!!document.querySelector('[data-board-ai-usage],.ip-ai-usage')"),false);
@@ -125,6 +126,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await ev("{const field=document.querySelector('[data-inline-comment=\"3\"]');field.focus();const range=document.createRange();range.selectNodeContents(field);getSelection().removeAllRanges();getSelection().addRange(range);document.dispatchEvent(new Event('selectionchange'));}");await click('[data-color-toggle]');await click('[data-palette-color="#15803d"]');
  assert.equal(await ev("getComputedStyle(document.querySelector('[data-inline-comment=\"3\"]')).color"),'rgb(21, 128, 61)');
  failNext();await click('[data-writing-save=feedback]');await wait("document.querySelector('[data-writing-message]').dataset.error==='true'");
+ assert.equal(await ev("document.querySelector('[data-writing-close]').hidden"),true,'A failed save must not offer completion/close');
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').textContent"),'첨삭 다시 저장');
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').disabled"),false);
  assert((await ev("document.querySelector('[data-inline-comment=\"3\"]').textContent")).includes('구체적인 경험'));
@@ -133,12 +135,14 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await wait("document.querySelector('[data-writing-save=feedback]').textContent==='첨삭 저장 중…'");
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').disabled"),true);
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').getAttribute('aria-busy')"),'true');
+ assert.equal(await ev("document.querySelector('[data-writing-close]').hidden"),true,'Close is offered only after the server confirms saving');
  releaseSave();await wait("document.querySelector('[data-writing-message]').textContent==='피드백을 저장했습니다.'");
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').textContent"),'✓ 첨삭 저장 완료');
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').disabled"),true);
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').getAttribute('aria-busy')"),'false');
  assert.equal(await ev("getComputedStyle(document.querySelector('[data-writing-save=feedback]')).opacity"),'1');
- assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').nextElementSibling.matches('[data-writing-message]')"),true,'Save confirmation stays beside the button');
+ assert.equal(await ev("document.querySelector('[data-writing-close]').hidden || document.querySelector('[data-writing-close]').disabled"),false);
+ assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').parentElement.nextElementSibling.matches('[data-writing-message]')"),true,'Save confirmation stays beside the buttons');
  const saved=(await invoke('writing_list',student)).writings.find(w=>w.kind==='introduction');
  assert.equal(saved.annotation_marks.length,5);assert.equal(saved.submitted_body,text);assert.equal(saved.feedback,'');
  assert.deepEqual(saved.annotation_marks[3],{start:19,end:19,type:'comment',note:'국민의 안전을 지킨 구체적인 경험을 한 문장 추가해주세요.',color:'#15803d'});
@@ -149,6 +153,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').textContent"),'첨삭 저장 · 학생에게 전달');
  assert.equal(await ev("document.querySelector('[data-writing-save=feedback]').disabled"),false);
  assert.equal(await ev("document.querySelector('[data-writing-message]').textContent"),'','Editing clears prior save confirmation without showing an unsaved-changes notice');
+ assert.equal(await ev("document.querySelector('[data-writing-close]').hidden"),true,'Editing after saving requires saving again before closing');
  await ev("document.querySelector('[data-writing-review]').value='needs_revision';document.querySelector('[data-writing-review]').dispatchEvent(new Event('change',{bubbles:true}))");
  await click('[data-writing-save=feedback]');await wait("document.querySelector('[data-writing-save=feedback]').dataset.saveState==='saved'");
  await ev("document.querySelector('[data-writing-annotations]').scrollIntoView({block:'start',behavior:'instant'})");
@@ -160,7 +165,7 @@ module.exports=async({invoke,ev,wait,click,submit,screenshot,failNext,send,openP
  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
  assert.equal(await ev("document.querySelector('[data-color-palette]').hidden"),true);
  assert(await ev('document.documentElement.scrollWidth<=innerWidth'));
- await closePopup();
+ await closePopup({viaButton:true});
  assert.equal(await ev("!!document.querySelector('[data-board-open]')"),false,'Revision requests leave the administrator to-do list');
  assert.equal(await ev("document.querySelector('[data-board-action=revision] strong').textContent"),'1');
  await click('[data-board-action=revision] strong');await wait("document.querySelector('[data-board-heading]').textContent==='보완요청 제출물' && !!document.querySelector('[data-board-open]')");

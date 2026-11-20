@@ -1,4 +1,4 @@
-import {mountWriting} from './interview-writing-ui.js?v=20261120-review-quiet';
+import {mountWriting} from './interview-writing-ui.js?v=20261120-review-close';
 
 const host=document.querySelector('#app');
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
@@ -21,7 +21,7 @@ async function start(){
  const name=new URLSearchParams(location.hash.slice(1)).get('name')||studentId;
  const title=`${name} · ${kinds[kind]} ${canWrite?'첨삭':'조회'}`;
  document.title=title;
- const editor=mountWriting(host.querySelector('[data-review-editor]'),{request,admin:true,studentId,kind,initialItemId:itemId,canWrite,hideQuestionPicker:true,hideSubmissionDetails:true});
+ const editor=mountWriting(host.querySelector('[data-review-editor]'),{request,admin:true,studentId,kind,initialItemId:itemId,canWrite,hideQuestionPicker:true,hideSubmissionDetails:true,onClose:()=>window.close()});
  window.addEventListener('pagehide',event=>{if(!event.persisted)editor.destroy();});
 }
 start().catch(error=>{

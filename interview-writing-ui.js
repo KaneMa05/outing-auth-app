@@ -46,7 +46,7 @@ const error=e=>({
  forbidden:'이 내용을 볼 권한이 없습니다.'
 }[e.code||e.message]||'저장하지 못했습니다. 입력은 유지됩니다. 잠시 후 다시 시도해주세요.');
 
-export function mountWriting(host,{request,kind='introduction',admin=false,studentId='',canWrite=true,hideQuestionPicker=false,hideSubmissionDetails=false,initialItemId='',onFeedbackSaved=()=>{}}){
+export function mountWriting(host,{request,kind='introduction',admin=false,studentId='',canWrite=true,hideQuestionPicker=false,hideSubmissionDetails=false,initialItemId='',onFeedbackSaved=()=>{},onClose=null}){
  let rows=[],items=[],selected='',dirty=false,busy=true,destroyed=false,blocked=false;
  let history=null,annotations=null;
  let submissionTimer=null;
@@ -63,6 +63,8 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
   button.textContent=({saving:'첨삭 저장 중…',saved:'✓ 첨삭 저장 완료',error:'첨삭 다시 저장'})[feedbackSaveState]||'첨삭 저장 · 학생에게 전달';
   button.disabled=busy||!canWrite||!row()?.submitted_at||feedbackSaveState==='saved';
   button.setAttribute('aria-busy',String(feedbackSaveState==='saving'));
+  const close=host.querySelector('[data-writing-close]');
+  if(close){close.hidden=feedbackSaveState!=='saved';close.disabled=busy;}
  }
  const markDirty=()=>{dirty=true;if(admin){feedbackSaveState='idle';syncFeedbackSave();tell('');}};
  const canLeave=()=>{if(busy){tell('저장·불러오기가 끝난 뒤 이동해주세요.');return false;}return !dirty||confirm('저장하지 않은 답변이 있습니다. 변경 내용을 버리고 이동할까요?');};
@@ -87,7 +89,7 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
     ${!hideDetails&&saved?.submitted_at?'<div data-writing-history></div>':''}
     ${admin?`${hideDetails?'':`<p class="ip-help">${saved?.submitted_at?'교사에게 제출된 답변':'저장된 답변 · 미제출'}</p>`}<div data-writing-annotations></div>
     <label>처리<select data-writing-review ${canWrite?'':'disabled'}><option value="needs_revision">보완요청</option><option value="approved" ${saved?.submission_status==='approved'?'selected':''}>첨삭완료 (수고하셨습니다.)</option></select></label>
-    <button type="button" class="ip-btn ip-primary" data-writing-save="feedback" ${canWrite&&saved?.submitted_at?'':'disabled'}>첨삭 저장 · 학생에게 전달</button><p class="ip-message ip-feedback-save-message" data-writing-message role="status"></p>${hideDetails?'':'<p class="ip-help">피드백을 수정해도 회차는 늘어나지 않습니다.</p>'}`:
+    <div class="ip-feedback-save-actions"><button type="button" class="ip-btn ip-primary" data-writing-save="feedback" ${canWrite&&saved?.submitted_at?'':'disabled'}>첨삭 저장 · 학생에게 전달</button>${typeof onClose==='function'?'<button type="button" class="ip-btn ip-primary" data-writing-close hidden>창 닫기</button>':''}</div><p class="ip-message ip-feedback-save-message" data-writing-message role="status"></p>${hideDetails?'':'<p class="ip-help">피드백을 수정해도 회차는 늘어나지 않습니다.</p>'}`:
     `<label>나의 답변<textarea data-writing-text maxlength="10000" placeholder="나의 DB에 정리한 경험을 바탕으로 답변을 작성해주세요." ${current.retired?'readonly':''}>${esc(saved?.body||'')}</textarea></label>
     <div class="ip-row ip-help"><span data-writing-count>${(saved?.body||'').length.toLocaleString()} / 10,000자</span><span data-writing-saved>${saved?'서버에 저장됨':'아직 저장된 내용 없음'}</span></div>
     ${current.retired?'<p class="ip-help">현재 비공개인 질문의 기존 답변입니다. 읽기만 가능합니다.</p>':`<div class="ip-toolbar ip-writing-actions"><button type="button" class="ip-btn" data-writing-save="draft">임시저장</button><button type="button" class="ip-btn" data-writing-save="saved">저장</button><button type="button" class="ip-btn ip-primary" data-writing-save="submitted" ${submissionPending()?'disabled':''}>${saved?.submitted_at?'교사에게 다시 제출':'교사에게 제출'}${submissionPending()?' (11/23 00시부터)':''}</button></div>`}`}</section>`:
@@ -157,6 +159,8 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
  }
  host.onclick=async e=>{
   e.stopPropagation();
+  const close=e.target.closest('[data-writing-close]');
+  if(close){if(!close.hidden&&!close.disabled&&feedbackSaveState==='saved'&&canLeave()&&typeof onClose==='function')onClose();return;}
   if(e.target.closest('[data-writing-retry]')){if(!busy){busy=true;await load();}return;}
   const target=e.target.closest('[data-writing-save]');if(!target||target.disabled||busy)return;
   await save(target.dataset.writingSave);

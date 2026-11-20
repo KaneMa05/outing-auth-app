@@ -267,8 +267,10 @@ let db,server,browser,ws,localWorker;
   ws=await attach(reviewPage);
   await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
  };
- const closePopup=async()=>{
-  await reviewPage.close();ws=boardSocket;
+ const closePopup=async({viaButton=false}={})=>{
+  if(viaButton)await Promise.all([reviewPage.waitForEvent('close'),reviewPage.getByRole('button',{name:'창 닫기',exact:true}).click()]);
+  else await reviewPage.close();
+  ws=boardSocket;
   await send('Page.bringToFront');await ev("window.dispatchEvent(new Event('focus'))");
   await wait("document.querySelector('[data-board-results]')?.getAttribute('aria-busy')!=='true'");
  };

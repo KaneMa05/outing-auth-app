@@ -53,6 +53,7 @@ body[data-interview-portal=true] .app-frame{padding:0 20px}
 body[data-interview-portal=true].student-auth-pending .student-view{max-width:760px;margin:0 auto}
 .ip-writing-submission{border:1px solid #d6e6e7;border-radius:12px;background:#f2f8f8;padding:16px;margin:16px 0}.ip-writing-submission>strong{color:#235b63}.ip-writing-submission summary{cursor:pointer}.ip-writing-actions{flex-wrap:wrap}
 .ip-root [data-writing-save=feedback][data-save-state=saved]{background:#167147;border-color:#167147;color:#fff;opacity:1;cursor:default}
+.ip-feedback-save-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .ip-root .ip-feedback-save-message{margin:8px 0;font-weight:600}
 .ip-root [data-save-state=saved]+.ip-feedback-save-message{color:#166534}
 .ip-writing-history{margin:16px 0;border:1px solid #dce5ef;border-radius:12px;padding:14px 16px}.ip-writing-history summary{cursor:pointer;line-height:1.6}.ip-writing-round{margin:14px 0;padding:16px;background:#f7f9fc;border-radius:10px}.ip-writing-round h4{margin:16px 0 8px}.ip-writing-history .ip-writing-text{white-space:pre-wrap;overflow-wrap:anywhere}.ip-writing-history .ip-toolbar{margin-top:16px}
