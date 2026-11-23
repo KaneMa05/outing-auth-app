@@ -55,7 +55,8 @@ function renderCriminalLawOxAdmin() {
       if(id!==memberRequestId)return;
       memberTotal=data.total;
       if(Array.isArray(data.cohorts)){
-        memberCohorts=data.cohorts.map(String);
+        const preRegisteredCohorts=typeof PRE_REGISTERED_STUDENT_COHORTS==='undefined'?[]:PRE_REGISTERED_STUDENT_COHORTS;
+        memberCohorts=[...new Set([...preRegisteredCohorts,...data.cohorts.map(String)])];
         if(/^[0-9]{1,2}$/.test(memberCohort)&&!memberCohorts.includes(memberCohort))memberCohorts.push(memberCohort);
         memberCohorts.sort((a,b)=>Number(b)-Number(a));cohortsReady=true;
         const select=host.querySelector('[data-member-cohort]');select.innerHTML=cohortOptions();select.disabled=false;

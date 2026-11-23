@@ -246,7 +246,10 @@ async function saveStudentExamNumberChanges(studentId, saveButton, examNumberInp
 }
 
 function getStudentExamNumberCohorts() {
-  return [...new Set(studentExamNumberAdminState.students.map((student) => String(student.cohort || "")).filter(Boolean))]
+  return [...new Set([
+    ...PRE_REGISTERED_STUDENT_COHORTS,
+    ...studentExamNumberAdminState.students.map((student) => String(student.cohort || "")).filter(Boolean),
+  ])]
     .sort((a, b) => Number(b) - Number(a));
 }
 
@@ -656,10 +659,13 @@ function openManualLectureApplicationApprovalModal(application) {
 }
 
 function getManualApplicationCohortOptions() {
-  return [...new Set((state.students || [])
-    .filter((student) => getStudentCategory(student) !== "lecture")
-    .map((student) => getStudentCohort(student))
-    .filter(isValidCohort))]
+  return [...new Set([
+    ...PRE_REGISTERED_STUDENT_COHORTS,
+    ...(state.students || [])
+      .filter((student) => getStudentCategory(student) !== "lecture")
+      .map((student) => getStudentCohort(student))
+      .filter(isValidCohort),
+  ])]
     .sort((a, b) => Number(a) - Number(b));
 }
 

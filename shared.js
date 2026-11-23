@@ -2,6 +2,8 @@ const STORAGE_KEY = "ronpark_outing_auth_v2";
 const APP_MODE = document.body.dataset.appMode === "teacher" ? "teacher" : "student";
 const DEFAULT_ATTENDANCE_DEADLINE = "08:50";
 const DEFAULT_STUDENT_COHORT = "18";
+// Keep upcoming cohorts available to administrators before students enroll.
+const PRE_REGISTERED_STUDENT_COHORTS = APP_MODE === "teacher" ? ["19"] : [];
 const STUDENT_CATEGORY_OPTIONS = [
   { value: "offline", label: "오프라인 학생" },
   { value: "online_managed", label: "온라인 관리반" },
@@ -3773,7 +3775,7 @@ function studentHasStudyCafeAccess(student) {
 }
 
 function getStudentCohortStats() {
-  const counts = new Map();
+  const counts = new Map(PRE_REGISTERED_STUDENT_COHORTS.map((cohort) => [cohort, 0]));
   state.students.forEach((student) => {
     const cohort = getStudentCohort(student);
     const key = getStudentCategory(student) === "lecture" ? "lecture" : cohort || "미분류";

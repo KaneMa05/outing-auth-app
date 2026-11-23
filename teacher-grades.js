@@ -546,7 +546,7 @@ function renderWeeklyExamCohortPanel() {
     el("div", { className: "teacher-search weekly-cohort-filter compact-filter" }, [
       field("기수", selectNode),
     ]),
-    el("p", { className: "subtle" }, "새 기수는 학생 등록에서 해당 기수 학생을 등록하면 자동으로 추가됩니다."),
+    el("p", { className: "subtle" }, "학생이 없는 사전 등록 기수도 선택할 수 있습니다. 새 기수 학생을 등록하면 목록에 자동으로 추가됩니다."),
   ]);
 }
 
