@@ -15,8 +15,11 @@ async function call(handler, body, headers = {}) {
   return { status, data };
 }
 
-test('only the explicitly selected test account is a preview candidate', () => {
+test('only the existing Apple and Google Play review accounts are preview candidates', () => {
   assert.equal(isPreviewStudent('18120'), true);
+  assert.equal(isPreviewStudent('99001'), true);
+  assert.equal(isPreviewStudent('99002'), false);
+  assert.equal(isPreviewStudent('99003'), false);
   for (const id of [undefined, '', '*', '1812', '181200', '18121', ' 18120', 18120]) {
     assert.equal(isPreviewStudent(id), false);
   }
