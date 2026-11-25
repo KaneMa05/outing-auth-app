@@ -5,7 +5,7 @@ import {writingCorrections} from './interview-writing-annotations.js?v=20261120-
 import {getTopicQuestions} from './interview-prep-prompts.js';
 import {basicFields,basicFieldText} from './client/interview-basic-fields.js?v=20261024-school-status';
 import {renderLifeGraph,experienceText} from './interview-life-graph.js?v=20261027-label-layout';
-import {mountWriting,mountWritingHistory,writingFeedbackTitle} from './interview-writing-ui.js?v=20261120-history-bottom';
+import {mountWriting,mountWritingHistory,writingFeedbackTitle} from './interview-writing-ui.js?v=20261125-optional-feedback';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={draft:'임시저장',submitted:'확인 대기',saved:'저장 완료 · 미제출',needs_revision:'보완 필요',approved:'확인 완료',no_experience:'도움 요청'};
 const kinds={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
