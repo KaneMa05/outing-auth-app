@@ -161,7 +161,7 @@ struct PracticeRecordingCaptionEditor: View {
             Button("자막 수정") { presented = true }.accessibilityIdentifier("caption.fixture.open")
             Text(saved).accessibilityIdentifier("caption.fixture.saved")
         }.sheet(isPresented: $presented) {
-            PracticeRecordingCaptionEditor(caption: PracticeRecordingCaption(number: 1, status: "completed", text: "automatic original", studentText: nil, studentRevision: 1, studentUpdatedAt: nil)) { text in
+            PracticeRecordingCaptionEditor(caption: PracticeRecordingCaption(number: 1, status: "completed", text: "automatic original", studentText: "", studentRevision: 1, studentUpdatedAt: nil)) { text in
                 saved = text
                 return nil
             }
