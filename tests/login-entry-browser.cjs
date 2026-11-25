@@ -12,8 +12,8 @@ const {chromium} = require('C:/Users/W11/.cache/codex-runtimes/codex-primary-run
       if (req.method === 'GET') return res.end(JSON.stringify(current));
       let raw = ''; for await (const chunk of req) raw += chunk; const body = JSON.parse(raw); requests.push({path: url.pathname, body});
       if(url.pathname==='/api/interview-prep')return res.end(JSON.stringify({ok:true,allowed:false,member:{track:'공채',exam_number:'QA'}}));
-      if (body.action === 'legacy_login') {
-        current = {...current, authenticated: true, available: false, account: {ownerId: 'local-student', name: '로컬 수강생', appleLinked: true}, member: {enabled: true}};
+      if (body.action === 'apply') {
+        current = {...current, account: {ownerId: 'local-student', name: body.name, appleLinked: true}, application: {id: 'local-application', status: 'pending', name: body.name, track: body.track, exam_number: body.examNumber, access_product: body.accessProduct, revision: body.revision + 1}};
         return res.end('{"ok":true}');
       }
       return res.end(JSON.stringify({ok: true, url: '/__qa/authorization?provider=' + (url.pathname.endsWith('apple') ? 'apple' : 'kakao')}));
@@ -43,12 +43,32 @@ const {chromium} = require('C:/Users/W11/.cache/codex-runtimes/codex-primary-run
     assert.equal(requests.at(-1).body.intent, 'login');
     await page.goto(base + '/interview?app=1'); await page.locator('[data-kakao]').click(); await page.waitForURL('**/__qa/authorization?provider=kakao');
     current = {...current, authenticated: true, available: false, account: {ownerId: null}};
-    await page.goto(base + '/interview?app=1');
-    await page.locator('[data-link-student-form] input[name=studentId]').fill('local-student');
-    await page.locator('[data-link-student-form] input[name=password]').fill('local-fixture-password');
-    await page.locator('[data-link-student-form] button').click();
+    for (const [width, height] of [[320, 568], [375, 667], [1280, 900]]) {
+      await page.setViewportSize({width, height}); await page.goto(base + '/interview?app=1');
+      await page.getByRole('heading', {name: '면접반 수강 정보 확인', exact: true}).waitFor();
+      await page.locator('#app-startup').waitFor({state: 'hidden'});
+      const form = page.locator('[data-application-form]');
+      assert.equal(await form.locator('input, select').first().getAttribute('name'), 'accessProduct');
+      assert.equal(await page.locator('[name=studentId], [name=password], [data-link-student-form]').count(), 0);
+      assert.equal(await page.getByText('등록번호가 없나요?', {exact: true}).count(), 0);
+      assert.equal(await page.getByRole('button', {name: '다른 계정으로 로그인', exact: true}).count(), 0);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      const product = await form.locator('[name=accessProduct]').boundingBox();
+      assert(product.y + product.height <= height, 'Course selection must appear immediately after login');
+      await page.screenshot({path: path.join(output, 'enrollment-' + width + '.png'), fullPage: true});
+    }
+    const form = page.locator('[data-application-form]');
+    await form.getByLabel('수강 상품').selectOption('aptitude_only');
+    await form.getByLabel('이름', {exact: true}).fill('로컬 신청자');
+    await form.locator('[name=track]').selectOption({label: '공채'});
+    await form.getByLabel('수험번호', {exact: true}).fill('QA-001');
+    await form.getByRole('button', {name: '수강 등록 신청', exact: true}).click();
+    await page.getByRole('heading', {name: '수강 신청을 확인하고 있습니다.', exact: true}).waitFor();
+    assert.deepEqual(requests.at(-1).body, {action: 'apply', accessProduct: 'aptitude_only', name: '로컬 신청자', track: '공채', examNumber: 'QA-001', revision: 0});
+    assert.equal(requests.some(request => request.body.action === 'legacy_login'), false);
+    current = {...current, member: {enabled: true}};
+    await page.getByRole('button', {name: '등록 상태 확인', exact: true}).click();
     await page.getByText('면접반 운영 준비 중입니다.', {exact: true}).waitFor();
-    assert.equal(requests.at(-1).body.intent, 'link');
     await page.locator('[data-student-entry]').click(); await page.waitForURL('**/index.html?entry=student#home');
     assert.equal(await page.evaluate(() => localStorage.getItem('outing-interview-web-app')), null);
     current = {...current, authenticated: true, available: true, account: {ownerId:'local-student', name:'로컬 수강생', appleLinked:false,kakaoLinked:true}};
@@ -60,6 +80,6 @@ const {chromium} = require('C:/Users/W11/.cache/codex-runtimes/codex-primary-run
     await page.locator('.ip-app-shell [data-apple="link"]').click();await page.waitForURL('**/__qa/authorization?provider=apple');
     assert.equal(requests.at(-1).body.intent,'link');
     assert.deepEqual(errors, []);
-    console.log('PASS local browser login routes: mobile/desktop buttons, local Apple/Kakao redirects, existing account linking and student return. Screenshots: .tmp/app-review-login-qa');
+    console.log('PASS local browser login routes: mobile/desktop social login, course-first enrollment without registration credentials, application submission, registered status, My account linking and student return. Screenshots: .tmp/app-review-login-qa');
   } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

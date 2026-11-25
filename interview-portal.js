@@ -8,7 +8,7 @@ const appDisplay=()=>{let returning=false;try{returning=sessionStorage.getItem('
 const appMode=appDisplay();
 if(appMode)try{sessionStorage.setItem('interview-app-return','1');}catch{}
 const messages={
- unauthorized:'등록번호 또는 비밀번호를 확인해주세요. 로그인 시간이 만료되었다면 다시 로그인해주세요.',
+ unauthorized:'로그인이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.',
  forbidden:'이 요청을 처리할 수 없습니다. 현재 면접반 주소에서 다시 시도해주세요.',
  account_already_linked:'이미 다른 계정에 연결되어 있습니다. 기존 로그인 방식으로 다시 로그인하거나 관리자에게 연결 상태를 문의해주세요.',
  oauth_state_invalid:'로그인 요청이 만료되었거나 브라우저가 바뀌었습니다. 이 화면에서 로그인을 다시 시작해주세요.',
@@ -58,7 +58,7 @@ function render(){
    if(current!==version)view.destroy();else controller=view;
   }).catch(()=>{if(current===version)box.innerHTML='<p role="alert">화면을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-refresh>다시 시도</button>';});
  }else if(!state.account.ownerId){
-  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>면접반 수강 정보 확인</h2><p>다른 로그인 방식으로 이용하던 계정이 있다면 해당 계정으로 로그인한 뒤 마이에서 새 로그인 계정을 연결해주세요.</p><button class="ip-btn" type="button" data-logout>다른 계정으로 로그인</button><form data-link-student-form><p>기존 등록번호가 있다면 수강 정보와 학습 기록을 연결해주세요.</p><label>등록번호<input name="studentId" autocomplete="username" maxlength="120" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" maxlength="200" required></label><button class="ip-btn ip-primary">기존 수강 정보 연결</button></form><hr><h3>등록번호가 없나요?</h3>${applyForm()}</section>`;
+  box.innerHTML=`<section class="ip-panel ip-portal-status"><h2>면접반 수강 정보 확인</h2>${applyForm()}</section>`;
  }else{
   const app=state.application;
   const registered=state.member?.enabled&&(!state.member.expires_on||state.member.expires_on>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}));
@@ -99,10 +99,6 @@ document.addEventListener('click',e=>{
  });
 });
 host.addEventListener('submit',e=>{
- if(e.target.matches('[data-link-student-form]')){
-  e.preventDefault();const f=new FormData(e.target);
-  run(async()=>{await api('legacy_login',{studentId:f.get('studentId'),password:f.get('password'),intent:'link'});await refresh();});return;
- }
  if(!e.target.matches('[data-application-form]'))return;
  e.preventDefault();const f=new FormData(e.target);
  run(async()=>{
