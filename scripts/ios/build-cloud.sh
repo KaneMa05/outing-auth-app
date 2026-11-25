@@ -58,6 +58,9 @@ ditto -c -k --sequesterRsrc --keepParent \
   "$build_dir/derived/Build/Products/Debug-iphonesimulator/RonparkStudy.app" \
   "$output/RonparkStudy-simulator.app.zip"
 
+# A signed release pipeline archives once, after these simulator tests pass.
+if [[ "${RONPARK_SKIP_UNSIGNED_ARCHIVE:-0}" == "1" ]]; then exit 0; fi
+
 xcodebuild "${common[@]}" archive -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$build_dir/RonparkStudy-unsigned.xcarchive" \
   -derivedDataPath "$build_dir/device-derived" \

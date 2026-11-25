@@ -11,6 +11,10 @@ struct NativePracticeNavigation: UIViewControllerRepresentable {
         navigation.delegate = context.coordinator; navigation.interactivePopGestureRecognizer?.isEnabled = false
         context.coordinator.navigation = navigation
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--native-caption-editor-fixture") {
+            navigation.setViewControllers([UIHostingController(rootView: PracticeCaptionEditorFixture())], animated: false)
+            return navigation
+        }
         if ProcessInfo.processInfo.arguments.contains("--native-practice-navigation-fixture") {
             let root = UIHostingController(rootView: NativePracticeNavigationFixture(open: context.coordinator.openFixture))
             navigation.setViewControllers([root], animated: false); return navigation

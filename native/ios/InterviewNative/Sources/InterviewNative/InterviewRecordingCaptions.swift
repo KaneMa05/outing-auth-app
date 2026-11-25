@@ -149,3 +149,23 @@ struct PracticeRecordingCaptionEditor: View {
         }.interactiveDismissDisabled(saving || text != caption.editableText)
     }
 }
+
+#if DEBUG
+/// Synthetic editor fixture. No account, recording or server is accessed.
+@MainActor public struct PracticeCaptionEditorFixture: View {
+    @State private var presented = false
+    @State private var saved = ""
+    public init() {}
+    public var body: some View {
+        VStack {
+            Button("자막 수정") { presented = true }.accessibilityIdentifier("caption.fixture.open")
+            Text(saved).accessibilityIdentifier("caption.fixture.saved")
+        }.sheet(isPresented: $presented) {
+            PracticeRecordingCaptionEditor(caption: PracticeRecordingCaption(number: 1, status: "completed", text: "automatic original", studentText: nil, studentRevision: 1, studentUpdatedAt: nil)) { text in
+                saved = text
+                return nil
+            }
+        }
+    }
+}
+#endif
