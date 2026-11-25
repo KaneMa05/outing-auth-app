@@ -19,7 +19,7 @@ jobs:
     environment: ronpark-app-review-signing-20261109
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      RONPARK_BUILD_NUMBER: '6'
+      RONPARK_BUILD_NUMBER: '7'
       RONPARK_VERSION: '1.1.0'
       RONPARK_TEAM_ID: 3A8HPYVQ7M
       RONPARK_PROFILE_NAME: RONPARK Study GitHub App Store 20261109
@@ -34,6 +34,18 @@ jobs:
         run: node scripts/ios/verify-store-source.cjs
       - name: Install pinned XcodeGen
         run: bash scripts/ios/install-tools.sh
+      - name: Run native regression before signing
+        env:
+          RONPARK_SKIP_UNSIGNED_ARCHIVE: '1'
+        run: bash scripts/ios/build-cloud.sh
+      - name: Keep synthetic native test evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ios-caption-tests-${{ github.run_number }}
+          path: artifacts/ios-cloud/
+          retention-days: 3
+          compression-level: 0
       - name: Sign and upload build without submitting or releasing
         env:
           RONPARK_SIGNING_P12_B64: ${{ secrets.RONPARK_SIGNING_P12_B64 }}

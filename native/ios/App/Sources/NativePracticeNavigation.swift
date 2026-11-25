@@ -11,6 +11,10 @@ struct NativePracticeNavigation: UIViewControllerRepresentable {
         navigation.delegate = context.coordinator; navigation.interactivePopGestureRecognizer?.isEnabled = false
         context.coordinator.navigation = navigation
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--native-caption-editor-fixture") {
+            navigation.setViewControllers([UIHostingController(rootView: PracticeCaptionEditorFixture())], animated: false)
+            return navigation
+        }
         if ProcessInfo.processInfo.arguments.contains("--native-practice-navigation-fixture") {
             let root = UIHostingController(rootView: NativePracticeNavigationFixture(open: context.coordinator.openFixture))
             navigation.setViewControllers([root], animated: false); return navigation
@@ -32,7 +36,9 @@ struct NativePracticeNavigation: UIViewControllerRepresentable {
             guard session == nil, navigation?.viewControllers.count == 1 else { return }
             let session = PracticePortalSession(webView: web, mode: mode, sessionID: id); self.session = session
             let view = InterviewPracticeView(mode: mode, loadSession: { try await session.load() },
-                syncRecords: { body, files in try await session.syncRecords(body, files: files) }, onClose: { [weak self] in self?.close() }, onWebRecords: { [weak self] in self?.showWebRecords() })
+                syncRecords: { body, files in try await session.syncRecords(body, files: files) },
+                loadCaptions: { try await session.captions($0) },
+                saveCaptions: { try await session.saveCaption($0, number: $1, revision: $2, text: $3) }, onClose: { [weak self] in self?.close() }, onWebRecords: { [weak self] in self?.showWebRecords() })
             navigation?.pushViewController(UIHostingController(rootView: view), animated: true)
         }
         func close() { session?.close(); session = nil; navigation?.popToRootViewController(animated: true) }
