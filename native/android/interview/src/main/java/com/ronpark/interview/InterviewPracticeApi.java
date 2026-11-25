@@ -14,7 +14,7 @@ final class InterviewPracticeApi {
         if(closed||!path.equals("/api/interview-native-practice")&&!path.equals("/api/interview-practice-records"))throw new IOException("practice_action_forbidden");
         Request.Builder request=new Request.Builder().url(InterviewApi.ORIGIN+path).header("Origin",InterviewApi.ORIGIN).post(RequestBody.create(body.toString(),MediaType.get("application/json")));
         if(!token.isEmpty())request.header("Authorization","Bearer "+token);
-        try(Response response=http.newCall(request.build()).execute()){if(response.body()==null)throw new IOException("invalid_response");JSONObject result=new JSONObject(response.body().string());if(!response.isSuccessful()||!result.optBoolean("ok"))throw new IOException("practice_request_failed");return result;}
+        try(Response response=http.newCall(request.build()).execute()){if(response.body()==null)throw new IOException("invalid_response");JSONObject result=new JSONObject(response.body().string());if(!response.isSuccessful()||!result.optBoolean("ok"))throw new IOException(result.optString("error","practice_request_failed"));return result;}
     }
     JSONObject exchange(String code)throws Exception {JSONObject value=post("/api/interview-native-practice",InterviewApi.json("action","exchange","code",code,"mode",mode));if(!mode.equals(value.optString("mode"))||value.optString("accountId").isEmpty()||value.optString("token").isEmpty())throw new IOException("unauthorized");token=value.getString("token");return value;}
     JSONObject bootstrap(String requested)throws Exception{if(!mode.equals(requested))throw new IOException("practice_mode_changed");return post("/api/interview-native-practice",InterviewApi.json("action","bootstrap","mode",mode));}

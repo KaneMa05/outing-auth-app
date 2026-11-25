@@ -1,4 +1,5 @@
-import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261119-native-beta';
+import {mountPractice as mountRecordingPractice} from './interview-practice-core.mjs?v=20261125-recording-captions';
+import {captionNotice,captionSlot} from './interview-recording-captions.mjs?v=20261125-recording-captions';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const symbols={
@@ -47,13 +48,14 @@ export function renderPractice(state){
   html+=`<p class="ip-mock-practice-turn-status" data-live-status>${preparing?'면접 준비 중':talking?'질문을 듣는 중':'이제 답변해 주세요'}</p><p class="ip-mock-practice-prompt ${preparing?'is-countdown':''}">${preparing?countdown:esc(selected[index]?.prompt)}</p>`;
   html+=button(preparing?'면접 준비 중':talking?'질문 듣는 중':'답변 완료 →','answer',{primary:true,disabled:preparing||talking||busy})+button('면접 종료','end',{disabled:busy});
  }
- const turnCard=turn=>`<article class="ip-mock-practice-card"><h4>${turn.number}. ${esc(turn.question)}</h4><p class="ip-mock-practice-note">내 답변 · ${Math.round(turn.duration)}초</p><audio controls preload="metadata" src="${esc(audio(turn.blob))}"></audio></article>`;
+ const turnCard=(turn,showCaption=false)=>`<article class="ip-mock-practice-card"><h4>${turn.number}. ${esc(turn.question)}</h4><p class="ip-mock-practice-note">내 답변 · ${Math.round(turn.duration)}초</p><audio controls preload="metadata" src="${esc(audio(turn.blob))}"></audio>${showCaption?captionSlot(turn.number):''}</article>`;
  if(screen==='review'){
   html+=turnCard(run.turns.at(-1))+button(index+1===selected.length?'결과 보기':'다음 질문 →','next',{primary:true,disabled:busy})+button('면접 종료','end',{disabled:busy});
  }
  if(screen==='result'){
   html+=`<p class="ip-mock-practice-note">답변 ${run.turns.length} / ${run.questionCount}개 · ${run.completed?'면접 완료':'중단된 면접'}</p>`;
-  html+=run.turns.map(turnCard).join('')||'<p class="ip-mock-practice-note">저장된 답변이 없습니다.</p>';
+  if(run.turns.length)html+=captionNotice();
+  html+=run.turns.map(turn=>turnCard(turn,true)).join('')||'<p class="ip-mock-practice-note">저장된 답변이 없습니다.</p>';
   html+=(historyOnly?'':button('같은 질문으로 다시 연습','repeat',{primary:true,disabled:busy||!run.turns.length})+button('연습 홈으로','home'))+button('내 면접 기록','records');
  }
  if(screen==='records'){
@@ -71,7 +73,7 @@ function loadStyles(){
   let link=document.querySelector('[data-practice-styles]');
   if(link?.sheet){resolve();return;}
   const failed=()=>{link.remove();stylesReady=null;reject(Error('practice_styles_unavailable'));};
-  if(!link){link=document.createElement('link');link.rel='stylesheet';link.href='/client/interview-practice.css?v=20261119-mic-entry';link.dataset.practiceStyles='';}
+  if(!link){link=document.createElement('link');link.rel='stylesheet';link.href='/client/interview-practice.css?v=20261125-recording-captions';link.dataset.practiceStyles='';}
   link.addEventListener('load',resolve,{once:true});link.addEventListener('error',failed,{once:true});
   if(!link.isConnected)document.head.appendChild(link);
  });

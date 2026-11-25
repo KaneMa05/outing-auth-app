@@ -33,6 +33,88 @@ public final class InterviewBetaPracticeActivity extends Activity {
     final List<InterviewPracticeQuestion> bank=new ArrayList<>(),session=new ArrayList<>();final LinkedHashMap<String,String> fields=new LinkedHashMap<>();final Set<String> favorites=new HashSet<>();
     LinearLayout root,body;TextView liveQuestion,liveStatus,liveCount,liveTime;ProgressBar level;Button answer;
     Button playingButton;SeekBar playingSeek;TextView playingTime;int playingNumber=-1;boolean seeking,resumeAfterSeek,playbackReady;
+    String captionRun="";JSONArray captionRows;boolean captionLoading,captionError;int captionPolls,captionGeneration;
+    final Map<Integer,TextView> captionLabels=new HashMap<>();TextView captionStatus;
+    final Runnable captionPoll=()->refreshCaptions();
+    JSONObject captionEstimateData;TextView captionEstimateView;boolean captionSaving;AlertDialog captionEditDialog;
+    final Map<Integer,Button> captionEditButtons=new HashMap<>();final Map<Integer,TextView> captionMeta=new HashMap<>();
+
+    String captionEstimateMessage(){
+        if(captionEstimateData==null)return "예상 소요 시간을 확인하고 있습니다.";
+        switch(captionEstimateData.optString("state")){
+            case "completed":return "녹음 자막이 준비되었습니다.";
+            case "uploading":return "녹음 전송이 끝나면 예상 소요 시간을 안내합니다.";
+            case "waiting":return "자막 변환 대기 중입니다. 작업이 재개되면 예상 시간을 안내합니다.";
+            case "failed":return "일부 녹음 자막을 만들지 못했습니다. 저장된 녹음은 계속 들을 수 있습니다.";
+            case "unavailable":return "자막을 만들 수 있는 녹음이 없습니다.";
+            case "pending":int low=Math.max(1,(int)Math.ceil(captionEstimateData.optDouble("minSeconds")/60)),high=Math.max(low,(int)Math.ceil(captionEstimateData.optDouble("maxSeconds")/60));return "녹음 자막 완료까지 약 "+(low==high?String.valueOf(low):low+"~"+high)+"분 예상됩니다. 녹음 길이와 대기 상황에 따라 달라질 수 있습니다.";
+            default:return "예상 소요 시간을 확인하고 있습니다.";
+        }
+    }
+    JSONObject captionRow(int number){if(captionRows!=null)for(int i=0;i<captionRows.length();i++){JSONObject row=captionRows.optJSONObject(i);if(row!=null&&row.optInt("number")==number)return row;}return null;}
+    void editCaption(int number){
+        final JSONObject row=captionRow(number);if(row==null||!row.optString("status").equals("completed")||captionSaving)return;
+        final String id=runId;final int ticket=captionGeneration,revision=row.optInt("studentRevision");
+        LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(8),dp(20),dp(8));
+        answerPlayer(content,number);
+        EditText editor=new EditText(this);editor.setMinLines(6);editor.setGravity(Gravity.TOP);editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);editor.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(30000)});editor.setText(row.isNull("studentText")?row.optString("text"):row.optString("studentText"));content.addView(editor);
+        TextView message=text("",13,secondary);content.addView(message);
+        final AlertDialog dialog=new AlertDialog.Builder(this).setTitle("녹음 자막 수정").setView(content).setNegativeButton("취소",null).setPositiveButton("수정 저장",null).create();captionEditDialog=dialog;
+        dialog.setCanceledOnTouchOutside(false);dialog.setOnDismissListener(d->{stopPlayback();if(captionEditDialog==dialog)captionEditDialog=null;});dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(captionSaving)return;final String text=editor.getText().toString();captionSaving=true;dialog.setCancelable(false);editor.setEnabled(false);dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);message.setText("저장 중…");
+            io.execute(()->{try{
+                JSONObject result=api.post("/api/interview-practice-records",InterviewApi.json("action","caption_update","runId",id,"mode",mode,"number",number,"studentRevision",revision,"text",text));
+                if(!id.equalsIgnoreCase(result.optString("runId"))||!mode.equals(result.optString("mode")))throw new IOException("invalid_captions");final JSONObject updated=result.getJSONObject("caption");
+                ui.post(()->{if(destroyed)return;captionSaving=false;if(ticket!=captionGeneration||!id.equals(captionRun)){dialog.dismiss();return;}try{for(int i=0;i<captionRows.length();i++)if(captionRows.getJSONObject(i).optInt("number")==number)captionRows.put(i,updated);paintCaptions();scheduleCaptionPoll();dialog.dismiss();}catch(Exception invalid){message.setText("저장 상태를 다시 확인해주세요.");}});
+            }catch(Exception error){ui.post(()->{if(destroyed)return;captionSaving=false;dialog.setCancelable(true);editor.setEnabled(true);dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);message.setText(error.getMessage()!=null&&error.getMessage().contains("revision_conflict")?"다른 화면에서 먼저 수정했습니다. 입력 내용을 복사한 뒤 취소하고 기록을 다시 열어주세요.":"수정본을 저장하지 못했습니다. 입력한 내용은 유지됩니다. 다시 저장해주세요.");});}});
+        });
+    }
+
+    void captionNotice(){
+        if(!runId.equals(captionRun)){captionGeneration++;captionRun=runId;captionRows=null;captionEstimateData=null;captionLoading=false;captionError=false;captionPolls=0;}
+        captionEstimateView=text(captionEstimateMessage(),13,secondary);body.addView(captionEstimateView);
+        captionStatus=text("",13,secondary);body.addView(captionStatus);
+    }
+    String captionMessage(JSONObject row){
+        if(row==null)return "녹음 자막을 확인하고 있습니다.";
+        switch(row.optString("status")){
+            case "completed":if(!row.isNull("studentText"))return row.optString("studentText").isEmpty()?"수정한 자막 내용이 없습니다.":row.optString("studentText");return row.optString("text").trim().isEmpty()?"녹음에서 인식된 음성이 없습니다.":row.optString("text");
+            case "uploading":return "녹음 전송 후 자막을 준비합니다.";
+            case "processing":return "녹음 자막을 만들고 있습니다.";
+            case "failed":return "녹음 자막을 만들지 못했습니다. 저장된 녹음은 계속 들을 수 있습니다.";
+            case "unavailable":return "자막을 만들 수 있는 녹음이 없습니다.";
+            default:return "녹음 자막 준비 중입니다.";
+        }
+    }
+    void paintCaptions(){
+        if(!page.equals("result")||!runId.equals(captionRun))return;
+        for(Map.Entry<Integer,TextView> label:captionLabels.entrySet()){
+            JSONObject row=null;if(captionRows!=null)for(int i=0;i<captionRows.length();i++){JSONObject candidate=captionRows.optJSONObject(i);if(candidate!=null&&candidate.optInt("number")==label.getKey())row=candidate;}
+            label.getValue().setText(captionMessage(row));
+            Button edit=captionEditButtons.get(label.getKey());if(edit!=null)edit.setVisibility(row!=null&&row.optString("status").equals("completed")?View.VISIBLE:View.GONE);
+            TextView meta=captionMeta.get(label.getKey());if(meta!=null)meta.setText(row!=null&&!row.isNull("studentText")?"직접 수정한 자막":"");
+        }
+        if(captionEstimateView!=null){captionEstimateView.setText(captionEstimateMessage());boolean pending=captionRows==null||captionRows.length()==0||(captionEstimateData!=null&&Arrays.asList("pending","waiting","uploading").contains(captionEstimateData.optString("state")));if(captionRows!=null)for(int i=0;i<captionRows.length();i++){JSONObject row=captionRows.optJSONObject(i);if(row==null||!Arrays.asList("completed","failed","unavailable").contains(row.optString("status")))pending=true;}captionEstimateView.setVisibility(pending&&!captionError?View.VISIBLE:View.GONE);}
+        if(captionStatus!=null){captionStatus.setText("녹음 자막을 불러오지 못했습니다. 연결 상태를 확인하고 기록을 다시 열어주세요.");captionStatus.setVisibility(captionError?View.VISIBLE:View.GONE);}
+    }
+    void scheduleCaptionPoll(){
+        ui.removeCallbacks(captionPoll);
+        if(destroyed||!foreground||!page.equals("result")||captionError||captionPolls>=20)return;
+        boolean pending=captionRows==null||captionRows.length()==0||(captionEstimateData!=null&&Arrays.asList("pending","waiting","uploading").contains(captionEstimateData.optString("state")));
+        if(captionRows!=null)for(int i=0;i<captionRows.length();i++){JSONObject row=captionRows.optJSONObject(i);if(row==null||!Arrays.asList("completed","failed","unavailable").contains(row.optString("status")))pending=true;}
+        if(pending)ui.postDelayed(captionPoll,30000);
+    }
+    void refreshCaptions(){
+        if(destroyed||!foreground||!page.equals("result")||captionLoading||captionSaving||current==null||current.optJSONArray("turns")==null||current.optJSONArray("turns").length()==0)return;
+        final String id=runId;final int ticket=captionGeneration;captionLoading=true;captionError=false;ui.removeCallbacks(captionPoll);paintCaptions();
+        io.execute(()->{try{
+            JSONObject result=api.post("/api/interview-practice-records",InterviewApi.json("action","captions","runId",id));
+            if(!id.equalsIgnoreCase(result.optString("runId"))||!mode.equals(result.optString("mode")))throw new IOException("invalid_captions");
+            JSONArray rows=result.getJSONArray("captions");
+            final JSONObject timing=result.optJSONObject("estimate");ui.post(()->{if(destroyed||!id.equals(captionRun)||ticket!=captionGeneration)return;captionLoading=false;try{for(int i=0;i<rows.length();i++){JSONObject incoming=rows.getJSONObject(i),prior=captionRow(incoming.optInt("number"));if(prior!=null&&prior.optInt("studentRevision")>incoming.optInt("studentRevision"))rows.put(i,prior);}}catch(Exception invalid){}captionRows=rows;captionEstimateData=timing;captionPolls++;paintCaptions();scheduleCaptionPoll();});
+        }catch(Exception unavailable){ui.post(()->{if(destroyed||!id.equals(captionRun)||ticket!=captionGeneration)return;captionLoading=false;captionError=true;paintCaptions();});}});
+    }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);getWindow().setStatusBarColor(paper);getWindow().setNavigationBarColor(paper);
         if(Build.VERSION.SDK_INT>=34){overrideActivityTransition(OVERRIDE_TRANSITION_OPEN,R.anim.practice_slide_in,R.anim.practice_stay);overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE,R.anim.practice_stay,R.anim.practice_slide_out);}else overridePendingTransition(R.anim.practice_slide_in,R.anim.practice_stay);
@@ -43,7 +125,7 @@ public final class InterviewBetaPracticeActivity extends Activity {
         io.execute(()->{try{JSONObject identity=api.exchange(code),catalog=api.bootstrap(mode);ui.post(()->{if(destroyed||isFinishing())return;try{account=identity.getString("accountId");setupStore();applyCatalog(catalog);loading=false;page="home";render();sync();}catch(Exception error){failEntry();}});}catch(Exception error){ui.post(this::failEntry);}});
     }
     void setupStore(){store=new InterviewPracticeStore(this,account);prefs=getSharedPreferences("interview-beta-"+InterviewPracticeStore.hash(account.getBytes(java.nio.charset.StandardCharsets.UTF_8)),MODE_PRIVATE);favorites.addAll(prefs.getStringSet("favorites",Collections.emptySet()));count=prefs.getInt("count-"+mode,3);if(!Arrays.asList(3,5,10,15,20).contains(count))count=3;
-        archive=new InterviewPracticeArchive(store,api,pending->ui.post(()->{if(destroyed)return;syncPending=pending;if(page.equals("records"))render();}));}
+        archive=new InterviewPracticeArchive(store,api,pending->ui.post(()->{if(destroyed)return;syncPending=pending;if(page.equals("records"))render();if(page.equals("result")&&!pending)refreshCaptions();}));}
     void applyCatalog(JSONObject data)throws Exception {
         if(!account.equals(data.optString("accountId"))||!mode.equals(data.optString("mode"))||!InterviewQuestionPolicy.validTrack(data.optString("track")))throw new IOException("account_changed");track=data.getString("track");bank.clear();fields.clear();
         JSONArray rows=data.getJSONArray("questions");Set<String> ids=new HashSet<>();for(int i=0;i<rows.length();i++){InterviewPracticeQuestion q=new InterviewPracticeQuestion(rows.getJSONObject(i));if(q.matches(mode,track,"","")&&ids.add(q.id))bank.add(q);}
@@ -62,7 +144,7 @@ public final class InterviewBetaPracticeActivity extends Activity {
     String fieldLabel(){return fields.containsKey(field)?fields.get(field):"전체 분야";}
     String summary(){return fieldLabel()+(mode.equals("job")&&!region.isEmpty()?" · "+region:"");}
     List<InterviewPracticeQuestion> eligible(){return InterviewPracticeQuestion.filter(bank,mode,track,field,region,favorites,false);}
-    void render(){if(destroyed)return;stopPlayback();root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(paper);root.setPadding(dp(20),dp(8),dp(20),dp(16));setContentView(root);
+    void render(){if(destroyed)return;ui.removeCallbacks(captionPoll);captionLabels.clear();captionEditButtons.clear();captionMeta.clear();captionEstimateView=null;captionStatus=null;stopPlayback();root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(paper);root.setPadding(dp(20),dp(8),dp(20),dp(16));setContentView(root);
         root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(20)+insets.getSystemWindowInsetLeft(),dp(8)+insets.getSystemWindowInsetTop(),dp(20)+insets.getSystemWindowInsetRight(),dp(16)+insets.getSystemWindowInsetBottom());return insets;});root.requestApplyInsets();
         LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);Button back=new Button(this);back.setText(page.equals("home")||page.equals("entry")||page.equals("error")||page.equals("loading")?"닫기":"‹ 뒤로");back.setAllCaps(false);back.setTextColor(teal);back.setBackgroundColor(Color.TRANSPARENT);back.setTag("practice.back");back.setContentDescription(page.equals("home")||page.equals("entry")||page.equals("error")||page.equals("loading")?"닫기":"뒤로");back.setOnClickListener(v->back());nav.addView(back,new LinearLayout.LayoutParams(-2,dp(48)));TextView heading=text("모의면접",18,ink);heading.setGravity(Gravity.CENTER);nav.addView(heading,new LinearLayout.LayoutParams(0,-2,1));root.addView(nav);
         if(page.equals("catalog")){catalog();return;}
@@ -157,7 +239,8 @@ public final class InterviewBetaPracticeActivity extends Activity {
         endDialog=dialog;dialog.setOnDismissListener(d->{endDialog=null;confirmingEnd=false;lastSpeech=SystemClock.elapsedRealtime();});dialog.show();
     }
     void endSession(boolean completed){if(!page.equals("live")&&!page.equals("review"))return;try{capture();if(current!=null){JSONObject saved=new JSONObject(current.toString());saved.put("finished",true).put("completed",completed&&saved.getJSONArray("turns").length()==session.size());store.save(saved);current=saved;sync();}}catch(Exception error){notice="답변을 저장하지 못했습니다. 저장 공간을 확인해주세요.";}stopQuestion();if(endDialog!=null)endDialog.dismiss();getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);page="result";historyResult=false;render();}
-    void result(){label(body,"면접 결과",25,ink);if(current==null)return;JSONArray turns=current.optJSONArray("turns");label(body,"질문 "+(turns==null?0:turns.length())+"개",14,teal);if(turns!=null)for(int i=0;i<turns.length();i++){JSONObject turn=turns.optJSONObject(i);if(turn==null)continue;LinearLayout c=card(body);label(c,turn.optInt("number")+". "+turn.optString("question"),18,ink);label(c,(int)turn.optDouble("duration")+"초",13,secondary);answerPlayer(c,turn.optInt("number"));}
+    void result(){label(body,"면접 결과",25,ink);if(current==null)return;JSONArray turns=current.optJSONArray("turns");label(body,"질문 "+(turns==null?0:turns.length())+"개",14,teal);if(turns!=null&&turns.length()>0)captionNotice();if(turns!=null)for(int i=0;i<turns.length();i++){JSONObject turn=turns.optJSONObject(i);if(turn==null)continue;LinearLayout c=card(body);label(c,turn.optInt("number")+". "+turn.optString("question"),18,ink);label(c,(int)turn.optDouble("duration")+"초",13,secondary);answerPlayer(c,turn.optInt("number"));label(c,"녹음 자막",15,ink);TextView caption=text("",15,ink);caption.setTextIsSelectable(true);c.addView(caption);captionLabels.put(turn.optInt("number"),caption);TextView meta=text("",12,secondary);c.addView(meta);captionMeta.put(turn.optInt("number"),meta);Button edit=button(c,"자막 수정",false,"practice.caption-edit."+turn.optInt("number"),()->editCaption(turn.optInt("number")));captionEditButtons.put(turn.optInt("number"),edit);}
+        paintCaptions();if(captionRows==null)ui.post(this::refreshCaptions);else scheduleCaptionPoll();
         if(!historyResult&&!session.isEmpty())button(body,"같은 질문으로 다시 연습",false,"practice.repeat",()->{page="home";startSelected(new ArrayList<>(session));});button(body,"다시 연습하기",true,"practice.again",()->{page="home";notice="";render();});button(body,"내 면접 기록",false,"practice.records",()->{page="records";render();});button(body,"연습 홈으로",false,"practice.home",()->{page="home";notice="";render();});}
     void answerPlayer(LinearLayout c,int number){File file=store.audio(runId,number);TextView time=text("0:00",12,secondary);SeekBar seek=new SeekBar(this);seek.setTag("practice.playback.seek."+number);seek.setContentDescription("답변 재생 위치");Button play=button(c,"내 답변 듣기",false,"practice.playback."+number,()->{try{if(answerAudio!=null&&playingNumber==number){if(!playbackReady)return;if(answerAudio.isPlaying()){answerAudio.pause();playingButton.setText("이어 듣기");}else {answerAudio.start();playingButton.setText("일시정지");}return;}stopPlayback();if(!file.isFile())throw new IOException();playingButton=(Button)c.findViewWithTag("practice.playback."+number);playingButton.setEnabled(false);playbackReady=false;MediaPlayer p=new MediaPlayer();answerAudio=p;playingNumber=number;playingSeek=seek;playingTime=time;p.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());p.setDataSource(file.getAbsolutePath());p.setOnPreparedListener(v->{if(answerAudio!=v)return;playingButton=(Button)c.findViewWithTag("practice.playback."+number);playbackReady=true;if(playingButton!=null){playingButton.setEnabled(true);playingButton.setText("일시정지");}seek.setMax(v.getDuration());v.start();updatePlayback(v);});p.setOnCompletionListener(v->{if(answerAudio==v&&playingButton!=null)playingButton.setText("다시 듣기");});p.setOnErrorListener((v,a,b)->{if(answerAudio==v){time.setText("녹음을 재생하지 못했습니다.");stopPlayback();}return true;});p.prepareAsync();}catch(Exception error){stopPlayback();time.setText("저장된 녹음을 확인해주세요.");}});c.addView(seek);c.addView(time);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int value,boolean user){if(user&&answerAudio!=null&&playingNumber==number)answerAudio.seekTo(value);}public void onStartTrackingTouch(SeekBar s){if(playbackReady&&answerAudio!=null&&playingNumber==number){seeking=true;resumeAfterSeek=answerAudio.isPlaying();answerAudio.pause();}}public void onStopTrackingTouch(SeekBar s){seeking=false;if(playbackReady&&answerAudio!=null&&playingNumber==number&&resumeAfterSeek)answerAudio.start();}});}
     void updatePlayback(MediaPlayer p){if(destroyed||p!=answerAudio)return;try{if(!seeking){playingSeek.setProgress(p.getCurrentPosition());playingTime.setText(clock(p.getCurrentPosition())+" / "+clock(p.getDuration()));}}catch(Exception ignored){}ui.postDelayed(()->updatePlayback(p),200);}
@@ -174,11 +257,11 @@ public final class InterviewBetaPracticeActivity extends Activity {
     @Override public void finish(){super.finish();overridePendingTransition(R.anim.practice_stay,R.anim.practice_slide_out); }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){super.onRequestPermissionsResult(request,permissions,grants);if(request!=71||!permissionPending||destroyed||isFinishing()||!foreground)return;permissionPending=false;if(grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED)begin();else {notice="마이크 권한을 허용한 뒤 다시 시작해주세요.";render();}}
     @Override protected void onStart(){super.onStart();foreground=true;}
-    @Override protected void onResume(){super.onResume();if(!loading&&!page.equals("live"))render();sync();}
+    @Override protected void onResume(){super.onResume();if(!loading&&!page.equals("live"))render();sync();if(page.equals("result"))refreshCaptions();}
     @Override protected void onStop(){
-        foreground=false;permissionPending=false;
+        foreground=false;ui.removeCallbacks(captionPoll);permissionPending=false;
         if(loading){generation++;loading=false;voice.stop();notice="";}
         if(page.equals("live")||page.equals("review"))endSession(false);stopPlayback();super.onStop();
     }
-    @Override protected void onDestroy(){destroyed=true;stopQuestion();stopPlayback();if(speech!=null)speech.shutdown();if(api!=null)api.close();ui.removeCallbacksAndMessages(null);io.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){destroyed=true;if(captionEditDialog!=null)captionEditDialog.dismiss();stopQuestion();stopPlayback();if(speech!=null)speech.shutdown();if(api!=null)api.close();ui.removeCallbacksAndMessages(null);io.shutdown();super.onDestroy();}
 }

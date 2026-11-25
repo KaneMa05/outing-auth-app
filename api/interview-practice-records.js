@@ -21,10 +21,13 @@ function defaults(){const auth=require('./teacher-auth-utils');return {
  },
  invoke:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_practice_service',{p_action:action,p_actor:actor,p_body:body}),
  transcription:(action,actor,body)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_practice_transcription_service',{p_action:action,p_actor:actor,p_body:body}),
+ captions:(actor,runId)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_practice_student_captions',{p_actor:actor,p_run_id:runId}),
+ updateCaption:(actor,b)=>require('./curriculum')._private.requestSupabase('POST','rpc/ip_practice_update_student_caption',{p_actor:actor,p_run_id:b.runId,p_mode:b.mode,p_number:b.number,p_revision:b.studentRevision,p_text:b.text}),
  storage:require('../lib/interview-practice-storage').createStorage({url:process.env.SUPABASE_URL||'',key:process.env.SUPABASE_SERVICE_ROLE_KEY||''})
 };}
+function studentCaption(c){return {number:c.number,status:c.status,text:c.text,studentText:c.studentText??null,studentRevision:c.studentRevision??0,studentUpdatedAt:c.studentUpdatedAt??null};}
 function validate(b){
- const fields={sync:['runId','mode','track','fieldId','fieldLabel','region','recordedAt','questionCount','completed','finished','turns'],uploaded:['runId','number','audioHash'],admin_list:['page','search','mode'],admin_get:['runId'],admin_audio:['runId','number'],admin_review:['runId','number','revision','reviewStatus','correctedText','note'],admin_retry:['runId','number']};
+ const fields={caption_update:['runId','mode','number','studentRevision','text'],captions:['runId'],sync:['runId','mode','track','fieldId','fieldLabel','region','recordedAt','questionCount','completed','finished','turns'],uploaded:['runId','number','audioHash'],admin_list:['page','search','mode'],admin_get:['runId'],admin_audio:['runId','number'],admin_review:['runId','number','revision','reviewStatus','correctedText','note'],admin_retry:['runId','number']};
  if(!fields[b.action])fail('unsupported_action');
  if(Object.keys(b).some(k=>k!=='action'&&!fields[b.action].includes(k)))fail('invalid_request');
  if(b.action!=='admin_list'&&!UUID.test(b.runId||''))fail('invalid_request');
@@ -33,6 +36,7 @@ function validate(b){
  if(b.action==='admin_review'&&(!Number.isInteger(b.revision)||b.revision<1||!['pending','ok','minor','meaning','unclear'].includes(b.reviewStatus)||
   typeof b.correctedText!=='string'||b.correctedText.length>30000||typeof b.note!=='string'||b.note.length>3000||
   (['ok','minor','meaning'].includes(b.reviewStatus)&&!b.correctedText.trim())))fail('invalid_request');
+ if(b.action==='caption_update'&&(!['job','personality'].includes(b.mode)||!Number.isInteger(b.number)||!Number.isInteger(b.studentRevision)||b.studentRevision<0||b.studentRevision>2147483646||typeof b.text!=='string'||b.text.length>30000))fail('invalid_request');
  if(b.action==='uploaded'&&!/^[a-f0-9]{64}$/.test(b.audioHash||''))fail('invalid_request');
  if(b.action==='admin_list'){
   if(b.page!==undefined&&(!Number.isInteger(b.page)||b.page<0||b.page>10000))fail('invalid_request');
@@ -64,7 +68,16 @@ function createHandler(deps){return async(req,res)=>{try{
  const admin=b.action.startsWith('admin_');let user=admin?await d.authenticateAdmin(req,{write:['admin_review','admin_retry'].includes(b.action)}):(await d.authenticateWeb(req))||(d.authenticateNative?await d.authenticateNative(req):null);
  if(credentials){if(!d.previewAllowed?.(credentials.studentId))fail('forbidden');if(user&&user.id!==credentials.studentId)fail('forbidden');if(!user&&d.authenticateDevice)user=await d.authenticateDevice(credentials);if(user?.id!==credentials.studentId)fail('unauthorized');}
  if(!user?.id)fail('unauthorized');if(!admin&&d.requirePracticeAccess)await d.requirePracticeAccess(user.id);const actor={type:admin?'admin':'student',id:user.id};
- if(user.practiceMode&&b.action==='sync'&&b.mode!==user.practiceMode)fail('forbidden');
+ if(user.practiceMode&&['sync','caption_update'].includes(b.action)&&b.mode!==user.practiceMode)fail('forbidden');
+ if(b.action==='caption_update'){
+  const result=await d.updateCaption(actor,b);
+  return res.status(200).json({ok:true,runId:b.runId,mode:result.mode,caption:studentCaption(result.caption)});
+ }
+ if(b.action==='captions'){
+  const result=await d.captions(actor,b.runId);
+  if(user.practiceMode&&result.mode!==user.practiceMode)fail('forbidden');
+  return res.status(200).json({ok:true,runId:b.runId,mode:result.mode,captions:result.captions.map(studentCaption),estimate:result.estimate});
+ }
  if(b.action==='uploaded'){
   const data=await d.invoke('get',actor,{runId:b.runId});
   if(user.practiceMode&&data.run?.mode!==user.practiceMode)fail('forbidden');

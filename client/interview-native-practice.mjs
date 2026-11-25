@@ -5,12 +5,13 @@ export function createPracticeGateway({accountId,request,onWebRecords},target=wi
  const receive=async(sessionId,body)=>{
   const session=active;
   if(closed||!session||session.id!==sessionId||!body||typeof body!=='object'||Array.isArray(body))throw Error('practice_session_expired');
-  if(!['practice_bootstrap','sync','uploaded'].includes(body.action))throw Error('practice_action_forbidden');
-  if(body.action!=='uploaded'&&body.mode!==session.mode)throw Error('practice_mode_changed');
+  if(!['practice_bootstrap','sync','uploaded','captions','caption_update'].includes(body.action))throw Error('practice_action_forbidden');
+  if(!['uploaded','captions'].includes(body.action)&&body.mode!==session.mode)throw Error('practice_mode_changed');
   const url=body.action==='practice_bootstrap'?'/api/interview-prep':'/api/interview-practice-records';
   const result=await request(url,body);
   if(closed||active!==session)throw Error('practice_session_expired');
   if(body.action==='practice_bootstrap'&&(result.accountId!==accountId||result.mode!==session.mode))throw Error('practice_account_changed');
+  if(body.action==='captions'&&result.mode!==session.mode)throw Error('practice_mode_changed');
   return result;
  };
  const close=sessionId=>{if(active?.id===sessionId)active=null;};

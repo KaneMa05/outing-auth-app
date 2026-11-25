@@ -74,6 +74,35 @@ test('admin transcription views merge only matching turn results, without invoki
  const actions=[];const h=setup({transcription:async(action,actor,body)=>{actions.push(action);assert.equal(actor.type,'admin');assert.equal(body.runId,runId);return {ok:true,jobs:[{number:1,status:'completed',transcript:'아니다'}]};}});
  const r=await api(h.handler,{action:'admin_get',runId});assert.equal(r.code,200);assert.equal(r.out.turns[0].transcription.transcript,'아니다');assert.deepEqual(actions,['admin_get']);
 });
+
+test('student captions bind login identity and return only read-only subtitle fields',async()=>{
+ const h=setup({captions:async(actor,id)=>{
+  assert.deepEqual(actor,{type:'student',id:'student-a'});assert.equal(id,runId);
+  return {mode:'job',estimate:{state:'completed'},captions:[{number:1,status:'completed',text:'내 답변',review_note:'private',corrected_text:'private',lease_id:'private'}]};
+ }});
+ const r=await api(h.handler,{action:'captions',runId});
+ assert.equal(r.code,200);assert.deepEqual(r.out,{ok:true,mode:'job',runId,estimate:{state:'completed'},captions:[{number:1,status:'completed',text:'내 답변',studentText:null,studentRevision:0,studentUpdatedAt:null}]});
+ assert.equal(h.calls.length,0,'caption read never invokes sync or admin actions');
+ for(const extra of [{correctedText:'edit'},{number:1},{mode:'personality'},{actor:{type:'admin'}}])assert.equal((await api(h.handler,{action:'captions',runId,...extra})).code,400);
+ assert.equal((await api(setup({authenticateWeb:async()=>null}).handler,{action:'captions',runId})).code,401);
+ const denied=setup({captions:async()=>{throw Error('not_found');}});
+ assert.equal((await api(denied.handler,{action:'captions',runId})).code,404);
+ const native=setup({authenticateWeb:async()=>null,authenticateNative:async()=>({id:'student-a',practiceMode:'personality'}),captions:h.deps.captions});
+ assert.equal((await api(native.handler,{action:'captions',runId})).code,403);
+});
+
+test('caption updates bind student identity, enforce mode before writing and validate revisions/text',async()=>{
+ let writes=0;
+ const h=setup({updateCaption:async(actor,b)=>{writes++;assert.equal(actor.id,'student-a');assert.equal(b.text,'고친 자막');return {mode:'job',caption:{number:1,status:'completed',text:'원문',studentText:b.text,studentRevision:1,studentUpdatedAt:'2026-11-25T00:00:00Z',review_note:'private'}};}});
+ const body={action:'caption_update',runId,mode:'job',number:1,studentRevision:0,text:'고친 자막'};
+ const result=await api(h.handler,body);assert.equal(result.code,200);assert.equal(result.out.caption.studentText,'고친 자막');assert.equal('review_note' in result.out.caption,false);
+ for(const extra of [{studentRevision:-1},{studentRevision:0.5},{text:'x'.repeat(30001)},{number:0},{mode:'ai'},{correctedText:'forged'},{reviewStatus:'ok'}])assert.equal((await api(h.handler,{...body,...extra})).code,400);
+ assert.equal(writes,1);
+ const native=setup({authenticateWeb:async()=>null,authenticateNative:async()=>({id:'student-a',practiceMode:'personality'}),updateCaption:h.deps.updateCaption});
+ assert.equal((await api(native.handler,body)).code,403);assert.equal(writes,1);
+ assert.equal((await api(setup({updateCaption:async()=>{throw Error('revision_conflict');}}).handler,body)).code,409);
+ assert.equal((await api(setup({authenticateWeb:async()=>null}).handler,body)).code,401);
+});
 test('transcription edits require write permission and bounded, versioned admin input',async()=>{
  const body={action:'admin_review',runId,number:1,revision:1,reviewStatus:'meaning',correctedText:'아니다',note:''};let writes=[];
  const h=setup({authenticateAdmin:async(_req,{write})=>{writes.push(write);if(write)throw Error('forbidden');return {id:'read-only'};}});

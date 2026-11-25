@@ -1,7 +1,7 @@
 import {mountWorkspace} from './interview-workspace.js?v=20261125-termination';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
-import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261119-native-beta';
+import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261125-recording-captions';
 import {mountNativePracticeLauncher} from './client/interview-native-practice-launcher.mjs?v=20261119-native-beta';
 import {enrollmentEnded,enrollmentNotice,watchEnrollment} from './client/interview-enrollment-access.js?v=20261125-termination';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -147,7 +147,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
      if(!recordingPractice)box.innerHTML=mockScreen();
      if(!mockTestApp&&mockModes[route.mockMode]?.practiceMode)return;
      if(!mockTestApp&&['job','personality'].includes(route.mockMode)){
-      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261119-native-beta');
+      const {mountPractice}=await import('./client/interview-practice.mjs?v=20261125-recording-captions');
       if(destroyed||ticket!==generation)return;
       const next=await mountPractice(box,{mode:route.mockMode,accountId:account.id,initialScreen:route.legacyRecords==='1'?'records':'home',onClose:()=>go({tab:'mock',mockMode:''}),request:async(url,body)=>{
        if(aiRequest)return aiRequest(url,body);

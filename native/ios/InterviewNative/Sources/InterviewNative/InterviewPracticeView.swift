@@ -4,6 +4,7 @@ import AVKit
 /// Native practice settings, questions and local recordings from the authenticated catalog.
 @MainActor public struct InterviewPracticeView: View {
     @StateObject private var model = PracticeModel()
+    @StateObject private var recordingCaptions: PracticeRecordingCaptions
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var showExit = false
@@ -11,6 +12,7 @@ import AVKit
     @State private var showQuestionCatalog = false
     @State private var favoritesOnly = false
     @State private var showPracticeSettings = false
+    @State private var editingCaption: PracticeRecordingCaption?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let teal = Color(red: 8/255, green: 125/255, blue: 114/255)
     private let ink = Color(red: 21/255, green: 44/255, blue: 67/255)
@@ -19,9 +21,12 @@ import AVKit
     public init(mode: String = "job", loadSession: (() async throws -> [String: Any])? = nil,
                 requestAnalysis: ((String, [String: Any]) async throws -> [String: Any])? = nil,
                 syncRecords: (([String: Any], [Int: URL]) async throws -> Void)? = nil,
+                loadCaptions: ((String) async throws -> [String: Any])? = nil,
+                saveCaptions: ((String, Int, Int, String) async throws -> [String: Any])? = nil,
                 onClose: (() -> Void)? = nil, onWebRecords: (() -> Void)? = nil) {
         self.onClose = onClose
         self.onWebRecords = onWebRecords
+        _recordingCaptions = StateObject(wrappedValue: PracticeRecordingCaptions(request: loadCaptions, save: saveCaptions))
         let model = PracticeModel(); model.sessionLoader = loadSession; model.cliRequest = requestAnalysis
         model.archive.transport = syncRecords
         if loadSession != nil { model.mode = ["job", "personality", "ai"].contains(mode) ? mode : "job"; model.screen = .prep; model.sessionLoading = true }
@@ -77,6 +82,14 @@ import AVKit
             }
             .sheet(isPresented: $showQuestionCatalog) { questionCatalog }
             .sheet(isPresented: $showPracticeSettings) { practiceSettings }
+            .sheet(item: $editingCaption) { caption in
+                if let turn = model.record?.turns.first(where: { $0.id == caption.number }) {
+                PracticeRecordingCaptionEditor(caption: caption, player: AnyView(PracticeRecordedAnswerPlayer(model: model, turn: turn, tint: teal))) { text in
+                    guard let id = model.record?.id else { return "기록을 다시 열어주세요." }
+                    return await recordingCaptions.save(id, caption: caption, text: text) ? nil : recordingCaptions.saveError
+                }
+                }
+            }
             .alert("면접을 마칠까요?", isPresented: $showExit) {
                 Button("종료하고 기록 보기", role: .destructive) { model.stop() }
                 Button("계속 면접하기", role: .cancel) {}
@@ -98,8 +111,17 @@ import AVKit
         }
         .interactiveDismissDisabled(model.screen == .live || model.screen == .jobReview)
         .task { await model.load() }
+        .task(id: captionRecordID) { await recordingCaptions.observe(captionRecordID) }
+        .onChange(of: model.record?.adminSyncFingerprint) { _ in
+            if let id = captionRecordID { Task { await recordingCaptions.refresh(id) } }
+        }
         .onChange(of: phase) { value in if value == .background { model.background() } else if value == .active { model.foreground() } }
         .onDisappear { model.dispose() }
+    }
+    private var captionRecordID: String? {
+        guard phase == .active, model.screen == .result, model.feedbackDeferred,
+              let saved = model.record, !saved.turns.isEmpty else { return nil }
+        return saved.id
     }
     private var compactNotice: String {
         switch model.notice {
@@ -366,27 +388,27 @@ import AVKit
                 Text("답변 \(Int(turn.duration))초").font(.caption).foregroundStyle(.secondary)
                 PracticeRecordedAnswerPlayer(model: model, turn: turn, tint: teal)
                 if !turn.answer.isEmpty { DisclosureGroup("나의 답변") { Text(turn.answer).font(.body) } }
-                if let feedback = turn.analysis {
+                if !model.feedbackDeferred, let feedback = turn.analysis {
                     Text("AI 연습 피드백").font(.headline)
                     ForEach(["summary", "strength", "improvement"], id: \.self) { key in
                         if let value = key == "summary" ? turn.feedbackSummary : feedback[key], !value.isEmpty { Text(value).accessibilityIdentifier("practice.feedback.\(turn.id).\(key)").font(.subheadline) }
                     }
                 } else if model.feedbackDeferred {
-                    Text("답변을 저장했습니다. 녹음을 듣고 답변을 점검해 보세요.")
+                    Text("답변을 저장했습니다. 녹음 자막은 연습 결과에서 확인할 수 있습니다.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 } else {
                     Text(model.usesOnDemandFeedback && turn.analysisRequestID == nil ? "답변을 저장했습니다. 연습을 마친 뒤 결과에서 피드백을 요청할 수 있습니다." : turn.analysisPending ? "AI 분석 중 · 결과는 자동 저장됩니다." : turn.analysisError ? "AI 분석 실패 · 녹음은 저장됐습니다." : "AI 미연결 · 녹음을 듣고 점검해 보세요.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             } else { Text("저장된 답변이 없습니다. 마이크와 저장 공간을 확인해주세요.").foregroundStyle(.secondary) }
-            DisclosureGroup("답변 점검하기") {
+            if !model.feedbackDeferred { DisclosureGroup("답변 점검하기") {
                 VStack(alignment: .leading, spacing: 8) {
                 Text("질문의 핵심에 먼저 답했나요?")
                 Text("전공 용어와 근거를 정확하게 설명했나요?")
                 Text("실무 상황이나 적용 예시를 덧붙였나요?")
                 }
             }.font(.subheadline).padding().frame(maxWidth: .infinity, alignment: .leading)
-                .background(teal.opacity(0.06), in: RoundedRectangle(cornerRadius: 16))
+                .background(teal.opacity(0.06), in: RoundedRectangle(cornerRadius: 16)) }
             action(model.number >= model.questions.count ? "연습 결과 보기" : "다음 질문 →", primary: true, id: "practice.job-next") { model.nextJobQuestion() }
             action("연습 종료") { showExit = true }
         }
@@ -447,6 +469,13 @@ import AVKit
             }
             if let record = model.record {
                 Text("질문 \(record.turns.count)개").font(.subheadline).foregroundStyle(teal)
+                if model.feedbackDeferred, !record.turns.isEmpty {
+                    if recordingCaptions.error {
+                        Text("녹음 자막을 불러오지 못했습니다. 연결 상태를 확인하고 기록을 다시 열어주세요.").font(.footnote)
+                    } else if recordingCaptions.showsEstimate {
+                        Text(recordingCaptions.estimateMessage).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
                 if model.videoSaving { Text("영상 저장 중…").accessibilityIdentifier("practice.video-saving") }
                 if record.video != nil { action("면접 영상 보기", id: "practice.video-play") { model.playVideo() } }
                 ForEach(record.turns) { turn in
@@ -454,27 +483,37 @@ import AVKit
                         Text("\(turn.id). " + turn.question).font(.headline)
                         Text("\(Int(turn.duration))초").font(.caption).foregroundStyle(.secondary)
                         PracticeRecordedAnswerPlayer(model: model, turn: turn, tint: teal)
-                        if !turn.answer.isEmpty {
-                            DisclosureGroup("나의 답변") { Text(turn.answer).font(.subheadline) }
-                        } else if !turn.analysisPending && !model.usesOnDemandFeedback && !model.feedbackDeferred {
-                            Text("인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
-                        }
-                        if record.completed, let example = model.exampleAnswer(for: turn) {
-                            DisclosureGroup("예시답변") {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(example).font(.subheadline)
-                                    Text("학습 참고용 · 공식 정답이 아닙니다.").font(.caption).foregroundStyle(.secondary)
-                                }.padding(.top, 6)
-                            }.accessibilityIdentifier("practice.example.\(turn.id)")
-                        }
-                        if model.usesOnDemandFeedback, turn.analysis != nil {
-                            DisclosureGroup("피드백 보기") { analysisContent(turn: turn, record: record) }
-                                .accessibilityIdentifier("practice.feedback-view.\(turn.id)")
-                        } else if !model.feedbackDeferred {
-                            if model.canRequestFeedback(for: turn) {
-                                action("피드백 받기", id: "practice.feedback-request.\(turn.id)") { model.requestFeedback(turn.id) }
+                        if model.feedbackDeferred {
+                            Text("녹음 자막").font(.subheadline.weight(.semibold))
+                            Text(recordingCaptions.caption(turn.id)).font(.subheadline).textSelection(.enabled)
+                                .accessibilityIdentifier("practice.recording-caption.\(turn.id)")
+                            if let caption = recordingCaptions.rows.first(where: { $0.number == turn.id }), caption.status == "completed" {
+                                if caption.studentText != nil { Text("직접 수정한 자막").font(.caption).foregroundStyle(.secondary) }
+                                if recordingCaptions.canEdit { Button("자막 수정") { editingCaption = caption }.accessibilityIdentifier("practice.caption-edit.\(turn.id)") }
                             }
-                            analysisContent(turn: turn, record: record)
+                        } else {
+                            if !turn.answer.isEmpty {
+                                DisclosureGroup("나의 답변") { Text(turn.answer).font(.subheadline) }
+                            } else if !turn.analysisPending && !model.usesOnDemandFeedback {
+                                Text("인식된 답변 없음").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if record.completed, let example = model.exampleAnswer(for: turn) {
+                                DisclosureGroup("예시답변") {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(example).font(.subheadline)
+                                        Text("학습 참고용 · 공식 정답이 아닙니다.").font(.caption).foregroundStyle(.secondary)
+                                    }.padding(.top, 6)
+                                }.accessibilityIdentifier("practice.example.\(turn.id)")
+                            }
+                            if model.usesOnDemandFeedback, turn.analysis != nil {
+                                DisclosureGroup("피드백 보기") { analysisContent(turn: turn, record: record) }
+                                    .accessibilityIdentifier("practice.feedback-view.\(turn.id)")
+                            } else {
+                                if model.canRequestFeedback(for: turn) {
+                                    action("피드백 받기", id: "practice.feedback-request.\(turn.id)") { model.requestFeedback(turn.id) }
+                                }
+                                analysisContent(turn: turn, record: record)
+                            }
                         }
                     }.padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
                 }

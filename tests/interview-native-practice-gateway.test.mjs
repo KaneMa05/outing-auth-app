@@ -35,3 +35,19 @@ test('web history handoff closes only its current session and rejects pending re
  await assert.rejects(h.target.__ronparkPracticeRequest(id,{action:'uploaded'}),/expired/);
  const next=h.view.open('personality');assert.notEqual(next,id);h.view.destroy();assert.equal(h.target.__ronparkPracticeWebRecords,undefined);
 });
+
+test('native captions use the authenticated archive path and reject a different record mode',async()=>{
+ const h=harness(async()=>({ok:true,mode:'job',captions:[]})),id=h.view.open('job');
+ await h.target.__ronparkPracticeRequest(id,{action:'captions',runId:'owned'});
+ assert.equal(h.calls[0][0],'/api/interview-practice-records');h.view.destroy();
+ const foreign=harness(async()=>({ok:true,mode:'personality',captions:[]})),session=foreign.view.open('job');
+ await assert.rejects(foreign.target.__ronparkPracticeRequest(session,{action:'captions',runId:'other-mode'}),/mode_changed/);foreign.view.destroy();
+});
+
+test('native caption edits require the active session mode and cannot invoke admin review',async()=>{
+ const h=harness(async()=>({ok:true,mode:'job'})),id=h.view.open('job');
+ await h.target.__ronparkPracticeRequest(id,{action:'caption_update',mode:'job',runId:'owned',number:1,studentRevision:0,text:'수정'});
+ await assert.rejects(h.target.__ronparkPracticeRequest(id,{action:'caption_update',mode:'personality'}),/mode_changed/);
+ await assert.rejects(h.target.__ronparkPracticeRequest(id,{action:'admin_review',mode:'job'}),/forbidden/);
+ assert.equal(h.calls.length,1);h.view.destroy();
+});

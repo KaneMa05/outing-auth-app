@@ -60,5 +60,13 @@
 .ip-mock-practice-prompt.is-countdown{font-size:44px;font-variant-numeric:tabular-nums}
 .ip-mock-practice-notice{padding:14px;border-radius:14px;background:#e8f2ef;color:var(--practice-teal);font-size:13px;line-height:1.65}
 .ip-mock-practice-delete{border:0;color:#b44f4f;font-weight:400;font-size:14px}
+.ip-recording-caption{margin-top:18px;padding-top:16px;border-top:1px solid #e4ebe9;line-height:1.75;overflow-wrap:anywhere}
+.ip-recording-caption p{margin:8px 0 0;white-space:pre-wrap}
+.ip-recording-caption [hidden]{display:none!important}
+.ip-recording-caption textarea{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid #bdceca;border-radius:10px;font:inherit;line-height:1.7;resize:vertical}
+.ip-recording-caption [data-caption-editor]>p,.ip-recording-caption small{display:block;color:var(--practice-sub);font-size:12px;line-height:1.6}
+.ip-recording-caption-status{margin:0 0 20px;color:var(--practice-sub);font-size:13px;line-height:1.7}
+.ip-recording-caption-status p{margin:0 0 8px}
+.ip-recording-caption-status[hidden],.ip-recording-caption-status [hidden]{display:none!important}
 @media(min-width:768px){.ip-mock-practice-content{padding-top:32px}.ip-mock-practice-title h2{font-size:29px!important}}
 @media(prefers-reduced-motion:reduce){.ip-mock-practice-wave i{animation:none!important;transition:none}}

@@ -16,6 +16,12 @@ import InterviewNative
     func load() async throws -> [String: Any] {
         try await post(["action": "practice_bootstrap", "mode": mode])
     }
+    func captions(_ runID: String) async throws -> [String: Any] {
+        try await post(["action": "captions", "runId": runID.lowercased()])
+    }
+    func saveCaption(_ runID: String, number: Int, revision: Int, text: String) async throws -> [String: Any] {
+        try await post(["action": "caption_update", "runId": runID.lowercased(), "mode": mode, "number": number, "studentRevision": revision, "text": text])
+    }
     private func post(_ body: [String: Any]) async throws -> [String: Any] {
         guard !closed, let webView, let page = webView.url,
               page.scheme == "https", [InterviewLaunchPolicy.host, "app.ronparkpass.com"].contains(page.host ?? ""),

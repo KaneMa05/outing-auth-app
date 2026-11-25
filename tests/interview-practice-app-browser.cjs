@@ -24,6 +24,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
      if(url==='/api/interview-native-practice'&&body.action==='launch')return {ok:true,code:'a'.repeat(43),expiresIn:60};
      if(body.action==='practice_bootstrap'){if(window.failBootstrap)throw Error('network');const selected=body.mode;return {ok:true,accountId:window.account,mode:selected,track:'공채',fields:[{id:'coast_guard',label:'공통 직무'},{id:'teamwork',label:'협동심·팀워크'}],questions:[1,2,3].map(i=>({id:selected+'-q-'+i,prompt:selected==='job'?'해양경찰의 주요 임무를 설명해주세요.':'함께 협력해 문제를 해결한 경험을 말해주세요.',category:selected,tracks:['공채'],fieldIds:[selected==='job'?'coast_guard':'teamwork'],regions:['서해']}))};}
      if(url!=='/api/interview-practice-records')throw Error('Unexpected production API '+url);
+     if(body.action==='captions')return {ok:true,runId:body.runId,estimate:{state:'completed'},captions:[1,2,3].map(number=>({number,status:'completed',text:'수강생 본인의 녹음 자막 '+number}))};
      return {ok:true,uploads:body.action==='sync'?body.turns.map(t=>({number:t.number,audioHash:t.audioHash,url:'https://qa.supabase.co/storage/v1/object/upload/sign/interview-practice/'+body.runId+'/'+t.number+'-'+t.audioHash+'.'+({'audio/mp4':'m4a','audio/webm':'webm','audio/ogg':'ogg'}[t.audioMime])+'?token=fixture'})):[]};
     }});
    };
@@ -67,6 +68,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     if(mode==='job'){await page.locator('[data-practice-screen=review]').waitFor();assert.equal(await page.locator('audio').count(),1);assert.equal(await page.evaluate(()=>window.view.canLeave()),false);if(i===0)await page.screenshot({path:path.join(output,'job-review.png'),fullPage:true});await page.locator('[data-practice-action=next]').click();}
    }
    await page.locator('[data-practice-screen=result]').waitFor();assert.equal(await page.locator('audio').count(),3);
+   await page.waitForFunction(()=>document.querySelectorAll('[data-caption-text]').length===3&&[...document.querySelectorAll('[data-caption-text]')].every(n=>n.textContent.includes('수강생 본인의 녹음 자막')));
+   assert.equal(await page.locator('[data-caption-overview]:visible').count(),0);assert.equal(await page.locator('[data-caption-refresh]').count(),0);
+   assert.doesNotMatch(await page.locator('[data-practice-screen=result]').textContent(),/전사문|점검하기|채점/);
    await page.locator('audio').first().evaluate(a=>a.play());await page.waitForFunction(()=>document.querySelector('audio').currentTime>0);
    await page.waitForFunction(mode=>window.calls.some(c=>c.action==='sync'&&c.mode===mode&&c.completed&&c.turns.length===3),mode);
    await page.screenshot({path:path.join(output,mode+'-result.png'),fullPage:true});
