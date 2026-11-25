@@ -25,8 +25,8 @@ function validate(body) {
     if(!Number.isInteger(body.revision)||body.revision<0||body.revision>999999999)fail('invalid_request');
     try{body.phone=require('../lib/interview-admin-contacts.cjs').normalizePhone(body.phone);}catch{fail('invalid_phone');}
   }
-  if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save','admin_application_decide'].includes(body.action)||!['interview_package','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
-  if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
+  if(body.accessProduct!==undefined&&(!['admin_member_save','admin_application_product_save','admin_application_decide'].includes(body.action)||!['interview_package','interview_only','aptitude_only'].includes(body.accessProduct)))fail('invalid_request');
+  if(body.expectedProduct!==undefined&&(body.action!=='admin_application_product_save'||!['interview_package','interview_only','aptitude_only'].includes(body.expectedProduct)))fail('invalid_request');
   if(body.action==='admin_application_product_save'&&(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.id)||!Number.isInteger(body.revision)))fail('invalid_request');
   if(body.text!==undefined&&(typeof body.text!=='string'||body.text.length>10000))fail('invalid_request');
   if(body.itemId!==undefined&&(typeof body.itemId!=='string'||body.itemId.length>120))fail('invalid_request');

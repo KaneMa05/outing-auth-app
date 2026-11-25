@@ -1,4 +1,4 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261120-history-bottom';
+import {mountWorkspace} from './interview-workspace.js?v=20261125-interview-only';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261119-native-beta';
@@ -24,6 +24,8 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const androidPractice=!mockTestApp&&typeof navigator!=='undefined'&&/Android/i.test(navigator.userAgent)&&new URLSearchParams(location.search||'').get('nativePractice')==='1';
  let practiceGateway;
  const aptitudeOnly=account.accessProduct==='aptitude_only';
+ const interviewOnly=account.accessProduct==='interview_only';
+ const availableTabs=tabs.filter(([id])=>!interviewOnly||id!=='aptitude');
  let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
  let mockAllowed=false;
  const hasMockAccess=access=>access?.allowed===true||access?.betaAllowed===true;
@@ -34,7 +36,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  function readRoute(){
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
-  const tab=tabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
+  const tab=availableTabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
   return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))&&(mockTestApp||['job','personality'].includes(p.get('mockMode')))?p.get('mockMode'):'',...(p.get('legacyRecords')==='1'?{legacyRecords:'1'}:{})};
  }
  function url(){return '#interview-prep?'+new URLSearchParams(route);}
@@ -68,7 +70,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   const recordingPractice=!mockTestApp&&(route.legacyRecords==='1'||!nativePractice&&!androidPractice)&&!aptitudeOnly&&route.tab==='mock'&&['job','personality'].includes(route.mockMode);
   host.classList.toggle('ip-app-practice',recordingPractice);
   const keepMockShell=route.tab==='mock'&&host.querySelector('[data-app-content]')?.classList.contains('ip-app-mock');
-  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · ${aptitudeOnly?'인적성 단과':'면접반'}</small>${route.tab==='mock'&&!mockTestApp?'<span class="ip-app-beta-label">베타</span>':''}<h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div>${aptitudeOnly&&onLogout?'<button type="button" class="ip-btn" data-app-logout>로그아웃</button>':'<span class="ip-app-mark" aria-hidden="true">R</span>'}</header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${mockAllowed||aptitudeOnly?6:5},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${tabs.filter(([id])=>id!=='mock'||mockAllowed||aptitudeOnly).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
+  if(!keepMockShell)host.innerHTML=`<header class="ip-app-header"><div><small>론박스터디 · ${aptitudeOnly?'인적성 단과':interviewOnly?'면접 단과':'면접반'}</small>${route.tab==='mock'&&!mockTestApp?'<span class="ip-app-beta-label">베타</span>':''}<h1>${route.tab==='db'?'나의 DB 정리하기':tabs.find(([id])=>id===route.tab)[1]}</h1></div>${aptitudeOnly&&onLogout?'<button type="button" class="ip-btn" data-app-logout>로그아웃</button>':'<span class="ip-app-mark" aria-hidden="true">R</span>'}</header><main data-app-content><p role="status">자료를 불러오는 중…</p></main><nav class="ip-app-footer" style="grid-template-columns:repeat(${(mockAllowed||aptitudeOnly?6:5)-(interviewOnly?1:0)},minmax(0,1fr))" aria-label="면접반 하단 메뉴">${availableTabs.filter(([id])=>id!=='mock'||mockAllowed||aptitudeOnly).map(([id,label])=>`<button type="button" data-app-tab="${id}" ${route.tab===id?'aria-current="page"':''}><span class="ip-app-icon ip-app-icon-${icons[id]}" aria-hidden="true"></span><span>${label}</span></button>`).join('')}</nav>`;
   const box=host.querySelector('[data-app-content]');
   box.classList.toggle('ip-app-mock',route.tab==='mock');
   if(recordingPractice){

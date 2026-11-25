@@ -1,6 +1,6 @@
 import {taxonomyFilters,taxonomySummary,taxonomyEditor,taxonomyPayload} from './client/interview-taxonomy-ui.js?v=20261102-taxonomy';
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261110-products';
+import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261125-interview-only';
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
@@ -524,7 +524,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   function editMember(id){
     selected=list.find(s=>s.id===id);
-    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label><p class="ip-help">인적성 단과는 적성 모의고사만 이용합니다. 다른 탭에는 면접 패키지 구매 안내가 표시됩니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>이용 종료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 계정 중 지정한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
+    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label><p class="ip-help">면접 단과는 면접 준비, 인적성 단과는 적성 모의고사만 이용합니다. 면접 패키지는 모두 이용합니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>이용 종료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 또는 면접 단과 계정 중 별도로 허용한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
   }
   async function feedback(id,topicId){
     const student=list.find(s=>s.id===id),t=catalog.topics.find(t=>t.id===topicId);
@@ -557,7 +557,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         const version=loadVersion;
         const isCurrent=()=>!destroyed&&version===loadVersion;
         notify(host,'수강 명단을 불러오는 중…');
-        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261120-admin-contacts');
+        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261125-interview-only');
         const members=await loadInterviewRoster(request,{isCurrent,onProgress:count=>notify(host,`수강 명단 ${count.toLocaleString('ko-KR')}명 확인 중…`)});
         if(!members||!isCurrent())return;
         if(!members.length){notify(host,'다운로드할 등록 수강생이 없습니다.');return;}

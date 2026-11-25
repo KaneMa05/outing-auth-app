@@ -9,7 +9,7 @@ const areas=[['basic','기본 이력'],['experiences','인생그래프']];
 const menus=[['db','나의 DB 정리하기'],['introduction','자기소개 작성하기'],['motivation','지원동기 작성하기'],['public_service','공직관 작성하기'],['core','핵심 25제 작성하기'],['aptitude','적성 모의고사'],['my','마이']];
 const generationKinds={introduction:'self_intro',motivation:'motivation',public_service:'public_service',core:'core30'};
 export async function mountWorkspace(host,{request,aiRequest,account={},initialPage='db',initialArea='life:basic',compactNavigation=false,onPageChange=()=>{}}){
- const visibleMenus=compactNavigation?menus.filter(([id])=>!['aptitude','my'].includes(id)):menus;
+ const visibleMenus=menus.filter(([id])=>(!compactNavigation||!['aptitude','my'].includes(id))&&(account.accessProduct!=='interview_only'||id!=='aptitude'));
  if(initialPage==='preassignments')initialPage='core';
  host.className='ip-root ip-portal ip-workspace';
  host.innerHTML='<div data-workspace-content></div>';

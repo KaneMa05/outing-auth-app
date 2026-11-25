@@ -15,6 +15,7 @@ async function fixture(t){
  for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync(migration,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync('supabase/migrations/20261112152643_interview_aptitude_results_on_submission.sql','utf8').replace(/\r\n/g,'\n'));
+ for(const file of ['20261113073836_interview_application_product_changes.sql','20261113075252_interview_application_review_products.sql','20261125050455_interview_only_product.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
  const call=async(fn,action,actor,body={})=>(await db.query('select '+fn+'($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify(actor),JSON.stringify(body)])).rows[0].result;
  return {db,invoke,portal:(action,body)=>call('ip_portal_service',action,{type:'server'},body),mock:(action,actor,body)=>call('ip_mock_access_service',action,actor,body),aptitude:(action,actor,body)=>call('ip_aptitude_service',action,actor,body)};
 }
@@ -37,7 +38,7 @@ test('application product is pending until approval; aptitude members can take e
  await f.invoke('admin_application_decide',admin,{id:application.id,revision:1,status:'rejected',reviewNote:'구매 확인 필요'});
  response=await post({action:'apply',name:'단과 신청자',track:'공채',examNumber:'A-2',revision:2});
  application=response.data.application;assert.equal(application.access_product,'aptitude_only');
- await f.invoke('admin_application_decide',admin,{id:application.id,revision:3,status:'approved',reviewNote:'구매 확인',expiresOn:'2099-12-31',accessProduct:'interview_package'});
+ await f.invoke('admin_application_decide',admin,{id:application.id,revision:3,status:'approved',reviewNote:'구매 확인',expiresOn:'2099-12-31'});
  const session=await f.portal('session',{sessionHash});
  assert.equal(session.available,true);assert.equal(session.member.access_product,'aptitude_only');
  assert.equal(session.account.ownerId,'product-web');assert.equal(session.account.appleLinked,false);

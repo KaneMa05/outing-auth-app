@@ -1,4 +1,4 @@
-import {interviewProductLabel} from './interview-products.js?v=20261110-products';
+import {interviewProductLabel} from './interview-products.js?v=20261125-interview-only';
 import {createRosterWorkbook} from './roster-workbook.mjs?v=20261120-admin-contacts';
 import {formatInterviewPhone} from './interview-admin-contacts.mjs?v=20261120-admin-contacts';
 

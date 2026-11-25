@@ -34,6 +34,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   const context=await browser.newContext({serviceWorkers:'block',viewport:{width:390,height:844}}),page=await context.newPage(),base='http://127.0.0.1:'+server.address().port,errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/interview?app=1');
+  assert.deepEqual(await page.locator('[name=accessProduct] option').evaluateAll(options=>options.map(o=>[o.value,o.textContent])),[['interview_package','면접 패키지'],['interview_only','면접 단과'],['aptitude_only','인적성 단과']]);
   await page.locator('[name=accessProduct]').selectOption('aptitude_only');
   await page.locator('[name=name]').fill('단과 수강생');await page.locator('[name=examNumber]').fill('QA-001');
   await page.locator('#app-startup').waitFor({state:'hidden'});
@@ -43,6 +44,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   assert.equal(requests.find(r=>r.body.action==='apply').body.accessProduct,'aptitude_only');
   assert((await page.locator('.ip-portal-status').innerText()).includes('인적성 단과'));
   await page.screenshot({path:path.join(output,'pending-mobile.png'),fullPage:true});
+  await page.getByText('신청 정보 수정',{exact:true}).click();
+  await page.locator('[name=accessProduct]').selectOption('interview_only');
+  await page.getByRole('button',{name:'신청 정보 수정·다시 제출',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.ip-portal-status')?.textContent.includes('면접 단과 ·'));
+  assert.equal(requests.findLast(r=>r.body.action==='apply').body.accessProduct,'interview_only');
+  await page.getByText('신청 정보 수정',{exact:true}).click();assert.equal(await page.locator('[name=accessProduct]').inputValue(),'interview_only');
+  await page.screenshot({path:path.join(output,'interview-only-signup-mobile.png'),fullPage:true});
   state={...state,available:true,member:{enabled:true,access_product:'aptitude_only',expires_on:'2099-12-31'}};
   for(const width of [390,1280]){
    await page.setViewportSize({width,height:844});requests=[];
@@ -80,8 +88,29 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await page.locator('[data-ip=application-edit]').click();assert((await page.locator('[data-editor]').innerText()).includes('인적성 단과'));
   await page.evaluate(()=>adminView.openSection('members'));
   await page.locator('[data-ip=member-edit]').click();assert.equal(await page.locator('[name=accessProduct]').inputValue(),'aptitude_only');
-  await page.locator('[name=accessProduct]').selectOption('interview_package');await page.locator('[data-member-form] [data-write]').click();
-  await page.waitForFunction(()=>window.savedProduct==='interview_package');
+  await page.locator('[name=accessProduct]').selectOption('interview_only');await page.locator('[data-member-form] [data-write]').click();
+  await page.waitForFunction(()=>window.savedProduct==='interview_only');
+  state={ok:true,enabled:true,authenticated:true,available:true,account:{ownerId:'interview-only-qa',name:'면접 단과 수강생'},member:{enabled:true,access_product:'interview_only'}};
+  for(const width of [390,1280]){
+   await page.setViewportSize({width,height:844});requests=[];
+   await page.goto(base+'/interview?app=1#interview-prep?tab=aptitude');
+   await page.locator('.ip-app-stats').waitFor();
+   assert.equal(await page.locator('.ip-app-header h1').innerText(),'홈');
+   assert.equal(await page.locator('.ip-app-footer [data-app-tab=aptitude]').count(),0);
+   assert.equal(await page.locator('.ip-app-footer [data-app-tab]').count(),4);
+   assert.equal(requests.some(r=>r.url==='/api/interview-aptitude'),false);
+   await page.locator('.ip-app-footer [data-app-tab=my]').click();await page.locator('[data-my-export-open]').waitFor();
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   await page.screenshot({path:path.join(output,'interview-only-'+width+'.png'),fullPage:true});
+  }
+  // The desktop workspace also omits aptitude, including an old direct entry.
+  await page.goto(base+'/qa-admin');requests=[];
+  await page.evaluate(async()=>{
+   const {mountWorkspace}=await import('/interview-workspace.js');
+   await mountWorkspace(document.querySelector('#host'),{account:{accessProduct:'interview_only'},initialPage:'my',request:async(action,payload={})=>(await fetch('/api/interview-prep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload})})).json()});
+  });
+  await page.locator('[data-my-export-open]').waitFor();assert.equal(await page.locator('[data-workspace-page=aptitude]').count(),0);
+  assert.equal(requests.some(r=>r.url==='/api/interview-aptitude'),false);
   state={ok:true,enabled:true,authenticated:true,available:true,account:{ownerId:'package-qa',name:'패키지 수강생'},member:{enabled:true,access_product:'interview_package'}};
   for(const app of [true,false]){
    requests=[];
@@ -100,6 +129,6 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
    assert.equal(requests.filter(r=>['life_get','diagnosis_get'].includes(r.body.action)).length,2);
   }
   assert.deepEqual(errors,[]);
-  console.log('PASS browser: signup product, pending status, mobile/desktop aptitude entry, all five gated tabs, no package data reads, direct reload, logout, administrator review and product changes; screenshots in output/interview-products.');
+  console.log('PASS browser: all three signup courses, interview-only resubmit/persistence, mobile/desktop interview access without aptitude requests, administrator selection, existing aptitude/package access and layout; screenshots in output/interview-products.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -11,6 +11,7 @@ async function fixture(t){
  for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql','20261110074450_interview_access_products.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync(migration,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync('supabase/migrations/20261113075252_interview_application_review_products.sql','utf8').replace(/\r\n/g,'\n'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261125050455_interview_only_product.sql','utf8').replace(/\r\n/g,'\n'));
  await db.exec("insert into ip_owners(id,legacy_student_id,name) values('ip-a','ip-a','신청 학생')");
  const application=(await db.query("insert into ip_applications(owner_id,name,track,exam_number) values('ip-a','신청 학생','공채','0001') returning *")).rows[0];
  const save=(accessProduct,revision,expectedProduct='interview_package')=>invoke(action,admin,{id:application.id,revision,accessProduct,expectedProduct});
@@ -112,4 +113,57 @@ test('review rejection can correct the requested course without enrolling or par
  assert.equal((await f.current()).revision,1);assert.equal((await f.current()).access_product,'interview_package');
  const result=await f.invoke('admin_application_decide',admin,body);assert.equal(result.application.status,'rejected');assert.equal(result.application.access_product,'aptitude_only');
  assert.equal((await f.db.query("select count(*)::int n from ip_members where student_id='ip-a'")).rows[0].n,0);
+});
+
+test('interview-only signup remains pending until approval and grants interview access without aptitude access',async t=>{
+ const f=await fixture(t),webAuth=require('../lib/interview-web-auth'),token='i'.repeat(43),sessionHash=webAuth.hash(token);
+ await f.db.exec("insert into ip_owners(id,name) values('interview-unit','면접 단과 신청자')");
+ await f.db.query("insert into ip_web_sessions(token_hash,owner_id) values($1,'interview-unit')",[sessionHash]);
+ const portal=async(action,body)=>(await f.db.query('select ip_portal_service($1,$2::jsonb,$3::jsonb) result',[action,JSON.stringify({type:'server'}),JSON.stringify(body)])).rows[0].result;
+ const handler=require('../api/interview-auth').createHandler({getConfig:()=>({enabled:true,origin:'https://qa.local'}),invoke:portal});
+ async function apply(body){let response;await handler({method:'POST',url:'/api/interview-auth',headers:{host:'qa.local',origin:'https://qa.local',cookie:webAuth.COOKIE+'='+token},body:{action:'apply',name:'면접 단과 신청자',track:'공채',examNumber:'I-1',...body}},{setHeader(){},status(status){this.code=status;return this;},json(data){response={status:this.code,data};}});return response;}
+ const response=await apply({accessProduct:'interview_only',revision:0});
+ assert.equal(response.status,200);const application=response.data.application;
+ assert.equal(application.access_product,'interview_only');assert.equal(application.status,'pending');
+ assert.equal((await portal('session',{sessionHash})).available,false);
+ const student={type:'student',id:'interview-unit'};
+ await assert.rejects(f.invoke('bootstrap',student),/not_enrolled/);
+ // An old client that omits the product retains the requested course on resubmit.
+ assert.equal((await apply({revision:1})).data.application.access_product,'interview_only');
+ await f.invoke('admin_application_decide',admin,{id:application.id,revision:2,status:'approved',reviewNote:'구매 확인',expiresOn:'2099-12-31'});
+ const session=await portal('session',{sessionHash});assert.equal(session.available,true);assert.equal(session.member.access_product,'interview_only');
+ const status=await f.invoke('status',student);assert.equal(status.appEnabled,true);assert.equal(status.enabled,true);assert.equal(status.accessProduct,'interview_only');
+ assert.equal((await f.invoke('bootstrap',student)).member.access_product,'interview_only');
+ for(const action of ['questions','life_get','writing_list','core_questions'])assert.equal((await f.invoke(action,student)).ok,true,action);
+ for(const action of ['list','get','save','submit','file'])await assert.rejects(f.db.query('select ip_aptitude_service($1,$2::jsonb,$3::jsonb)',[action,JSON.stringify(student),'{}']),/not_enrolled/,action);
+ await f.db.exec("update ip_members set mock_test_enabled=true where student_id='interview-unit'");
+ const mock=async()=>(await f.db.query("select ip_mock_access_service('mock_status',$1::jsonb,'{}') result",[JSON.stringify(student)])).rows[0].result;
+ assert.equal((await mock()).allowed,true);
+ await f.db.exec("update ip_members set expires_on='2000-01-01' where student_id='interview-unit'");
+ assert.equal((await f.invoke('status',student)).appEnabled,false);assert.equal((await mock()).allowed,false);
+ await assert.rejects(f.invoke('bootstrap',student),/not_enrolled/);
+ await f.db.exec("update ip_members set expires_on=null,enabled=false where student_id='interview-unit'");
+ assert.equal((await f.invoke('status',student)).enabled,false);assert.equal((await mock()).allowed,false);
+});
+
+test('interview-only course is accepted by administrator review, product-change and member APIs with preserved work',async t=>{
+ const f=await fixture(t),auth=require('../api/teacher-auth-utils'),oldSecret=process.env.TEACHER_SESSION_SECRET;
+ process.env.TEACHER_SESSION_SECRET='interview-unit-qa';t.after(()=>{if(oldSecret===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=oldSecret;});
+ const cookie=auth.COOKIE_NAME+'='+auth.createSessionToken(process.env.TEACHER_SESSION_SECRET,{username:admin.id,role:'admin',permissions:['interview.write']});
+ const handler=require('../api/interview-prep').createHandler({invoke:f.invoke});
+ async function call(body){let response;await handler({method:'POST',body,headers:{host:'qa.local',cookie}},{setHeader(){},status(status){this.code=status;return this;},json(data){response={status:this.code,data};}});assert.equal(response.status,200,JSON.stringify(response));return response.data;}
+ await call({action,id:f.application.id,revision:1,accessProduct:'interview_only',expectedProduct:'interview_package'});
+ assert.equal((await f.current()).access_product,'interview_only');assert.equal((await f.current()).status,'pending');
+ await call({action:'admin_application_decide',id:f.application.id,revision:2,status:'approved',reviewNote:'확인',accessProduct:'interview_only',expiresOn:'2099-12-31'});
+ await f.db.exec("insert into ip_notes(student_id,topic_id,fields) values('ip-a','self','{\"situation\":\"보존할 답변\"}');update ip_members set mock_test_enabled=true");
+ const before=(await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0];
+ await call({action,id:f.application.id,revision:3,accessProduct:'aptitude_only',expectedProduct:'interview_only'});
+ await call({action,id:f.application.id,revision:4,accessProduct:'interview_only',expectedProduct:'aptitude_only'});
+ const after=(await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0];
+ for(const key of ['student_id','track','exam_number','enabled','expires_on','mock_test_enabled','created_at'])assert.deepEqual(after[key],before[key],key);
+ assert.equal(after.access_product,'interview_only');assert.equal((await f.current()).current_access_product,'interview_only');
+ await call({action:'admin_member_save',targetStudentId:'ip-a',track:'공채',examNumber:'0001',enabled:true,accessProduct:'interview_only',expiresOn:'2099-12-31'});
+ assert.equal((await f.db.query("select fields->>'situation' answer from ip_notes where student_id='ip-a'")).rows[0].answer,'보존할 답변');
+ await assert.rejects(f.db.exec("update ip_members set access_product='unknown'"),/check constraint/);
+ await assert.rejects(f.db.exec("update ip_applications set access_product='unknown'"),/check constraint/);
 });

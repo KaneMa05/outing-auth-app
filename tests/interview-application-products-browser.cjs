@@ -39,9 +39,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   const editor=page.locator('[data-editor]'),product=()=>page.locator('[data-application-product] [name=accessProduct]');
   const change=status=>page.locator('[data-ip=application-product][data-id="qa-'+status+'"]');
   await change('pending').click();assert.equal(await product().inputValue(),'interview_package');assert((await editor.innerText()).includes('수강 승인은 별도로'));
-  await product().selectOption('aptitude_only');await page.getByRole('button',{name:'변경 저장',exact:true}).click();
+  await product().selectOption('interview_only');await page.getByRole('button',{name:'변경 저장',exact:true}).click();
   await page.waitForFunction(()=>applicants[0].revision===2);await change('pending').waitFor();
-  assert.equal(await page.evaluate(()=>applicants[0].status),'pending');await change('pending').click();assert.equal(await product().inputValue(),'aptitude_only');
+  assert.equal(await page.evaluate(()=>applicants[0].status),'pending');await change('pending').click();assert.equal(await product().inputValue(),'interview_only');
   await product().selectOption('interview_package');await page.evaluate(()=>{mode='failure';});await page.getByRole('button',{name:'변경 저장',exact:true}).click();
   await page.getByText('면접 준비 기능에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',{exact:true}).waitFor();assert.equal(await product().inputValue(),'interview_package');
   await page.evaluate(()=>{mode='conflict';});await page.getByRole('button',{name:'변경 저장',exact:true}).click();
@@ -60,11 +60,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   assert.equal(await page.evaluate(()=>applicants[2].status),'rejected');
   assert.equal(await page.evaluate(()=>calls.some(c=>['admin_application_decide','admin_member_save'].includes(c.action))),false,'Editing a product does not approve or overwrite other member settings');
   await page.evaluate(()=>view.openSection('applications'));await page.locator('[data-ip=application-edit]').click();
-  const review=page.locator('[data-application-review]');assert.equal(await review.locator('[name=accessProduct]').inputValue(),'aptitude_only');
-  await review.locator('[name=accessProduct]').selectOption('interview_package');await review.locator('[name=expiresOn]').fill('2099-12-31');
+  const review=page.locator('[data-application-review]');assert.equal(await review.locator('[name=accessProduct]').inputValue(),'interview_only');
+  await review.locator('[name=accessProduct]').selectOption('interview_only');await review.locator('[name=expiresOn]').fill('2099-12-31');
   await page.locator('[data-editor]').screenshot({path:path.join(output,'review-mobile.png')});await page.setViewportSize({width:1280,height:900});await page.locator('[data-editor]').screenshot({path:path.join(output,'review-desktop.png')});
   await review.locator('[data-write]').click();await page.waitForFunction(()=>applicants[0].status==='approved');
-  const approval=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);assert.equal(approval.accessProduct,'interview_package');assert.equal(approval.status,'approved');assert.equal(approval.expiresOn,'2099-12-31');assert.equal(approval.revision,2);
+  const approval=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);assert.equal(approval.accessProduct,'interview_only');assert.equal(approval.status,'approved');assert.equal(approval.expiresOn,'2099-12-31');assert.equal(approval.revision,2);
   await page.evaluate(()=>remount(false));await page.locator('[data-filter] [name=status]').selectOption('');await page.locator('[data-filter] button').click();await change('approved').waitFor();assert.equal(await change('approved').isDisabled(),true);
   assert.deepEqual(errors,[]);console.log('PASS browser: standalone course changes and selection during approval, atomic approval payload, save/reopen, failures/conflicts preserve input, unsaved-change guard, read-only access and desktop/mobile layout.');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}

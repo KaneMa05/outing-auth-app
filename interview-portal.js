@@ -1,5 +1,5 @@
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261110-products';
+import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261125-interview-only';
 import {mountInterviewLogin} from './interview-login.js?v=20261109-apple-button';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -26,7 +26,7 @@ async function api(action,payload={},endpoint='/api/interview-auth'){
  const response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
-const applyForm=()=>`<form data-application-form><label>수강 상품<select name="accessProduct" required>${interviewProducts.map(([id,label])=>`<option value="${id}" ${(state.application?.access_product||'interview_package')===id?'selected':''}>${label}</option>`).join('')}</select></label><p class="ip-help">인적성 단과는 적성 모의고사를 이용할 수 있습니다. 면접 준비 기능은 면접 패키지 구매 후 이용할 수 있습니다.</p><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${interviewTracks.map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 구매한 수강 상품을 확인하고 승인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'수강 등록 신청'}</button></form>`;
+const applyForm=()=>`<form data-application-form><label>수강 상품<select name="accessProduct" required>${interviewProducts.map(([id,label])=>`<option value="${id}" ${(state.application?.access_product||'interview_package')===id?'selected':''}>${label}</option>`).join('')}</select></label><p class="ip-help">면접 패키지는 면접 준비와 적성 모의고사를 모두 이용할 수 있습니다. 면접 단과는 면접 준비, 인적성 단과는 적성 모의고사를 이용할 수 있습니다.</p><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${interviewTracks.map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 구매한 수강 상품을 확인하고 승인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'수강 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
  disposeLogin?.();disposeLogin=null;
@@ -46,7 +46,7 @@ function render(){
   const useApp=appMode||state.member?.access_product==='aptitude_only'||state.member?.mock_test_enabled===true;
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(useApp?'./interview-app-ui.js?v=20261120-pending-reflection':'./interview-workspace.js?v=20261120-history-bottom').then(async module=>{
+  return import(useApp?'./interview-app-ui.js?v=20261125-interview-only':'./interview-workspace.js?v=20261125-interview-only').then(async module=>{
    if(current!==version)return;
    const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
