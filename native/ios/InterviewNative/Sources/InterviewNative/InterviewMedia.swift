@@ -11,7 +11,6 @@ final class InterviewMedia: NSObject, ObservableObject {
     @Published var message = ""
     private(set) var noiseDb = -60.0
     private let capture = AVCaptureSession()
-    #if DEBUG
     private let movie = AVCaptureMovieFileOutput()
     private var movieDelegate: PracticeMovieDelegate?
     @Published private(set) var videoRecording = false
@@ -20,7 +19,7 @@ final class InterviewMedia: NSObject, ObservableObject {
             do {
                 guard self.capture.isRunning, self.movieDelegate == nil else { throw InterviewError.connection }
                 let audioSession = AVAudioSession.sharedInstance()
-                try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
+                try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
                 try audioSession.setActive(true)
                 if !self.capture.outputs.contains(self.movie) {
                     self.capture.beginConfiguration()
@@ -51,7 +50,6 @@ final class InterviewMedia: NSObject, ObservableObject {
         }
     }
     func stopPracticeVideo() { queue.async { if self.movie.isRecording { self.movie.stopRecording() } } }
-    #endif
     // A single preview stays connected for the lifetime of this media controller.
     // Moving it between view hosts must never reconfigure a running capture graph.
     let previewLayer: AVCaptureVideoPreviewLayer
@@ -73,9 +71,7 @@ final class InterviewMedia: NSObject, ObservableObject {
                 self.cameraReady = self.cameraOn && self.previewLayer.isPreviewing
                 if self.cameraReady, let requestedAt = self.cameraRequestedAt {
                     self.cameraRequestedAt = nil
-                    #if DEBUG
                     print(String(format: "Interview camera first preview: %.3f s", ProcessInfo.processInfo.systemUptime - requestedAt))
-                    #endif
                 }
             }
         }
@@ -140,9 +136,7 @@ final class InterviewMedia: NSObject, ObservableObject {
     func stopCamera() {
         cameraGeneration += 1; cameraOn = false; cameraReady = false; cameraStarting = false; cameraRequestedAt = nil
         queue.async {
-            #if DEBUG
             if self.movie.isRecording { self.movie.stopRecording() }
-            #endif
             self.capture.stopRunning()
         }
     }
@@ -209,7 +203,6 @@ struct InterviewCameraPreview: UIViewRepresentable {
     static func dismantleUIView(_ uiView: Preview, coordinator: ()) { uiView.unmount() }
 }
 
-#if DEBUG
 private final class PracticeMovieDelegate: NSObject, AVCaptureFileOutputRecordingDelegate {
     let started: (Bool) -> Void
     let finished: (Bool) -> Void
@@ -233,4 +226,3 @@ private final class PracticeMovieDelegate: NSObject, AVCaptureFileOutputRecordin
         }
     }
 }
-#endif

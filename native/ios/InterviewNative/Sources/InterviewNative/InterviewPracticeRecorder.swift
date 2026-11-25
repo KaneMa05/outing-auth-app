@@ -1,4 +1,3 @@
-#if DEBUG
 import AVFoundation
 
 enum PracticeAudioRouting {
@@ -15,7 +14,7 @@ enum PracticeAudioRouting {
     static func configurePlayback() throws {
         let session = AVAudioSession.sharedInstance()
         // Prepared question audio is media playback, not a telephone conversation.
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
         try session.setActive(true)
         try preferSpeakerForBuiltInOutput()
     }
@@ -28,24 +27,27 @@ final class PracticeRecorder {
     private let lock = NSLock()
     private let controlQueue = DispatchQueue(label: "interview.practice.audio", qos: .userInitiated)
     private var generation = UUID()
+    private var lastAudioAt: TimeInterval = 0
+    private var failed = false
     func start(url: URL, noiseDb: Double = -60, completion: @escaping (Result<Void, Error>) -> Void, sample: @escaping (Float, Bool, Data) -> Void) {
         stop()
         lock.lock(); let active = generation; lock.unlock()
         controlQueue.async {
             do {
-                try self.startOnQueue(url: url, noiseDb: noiseDb, active: active, ready: { completion(.success(())) }, sample: sample)
+                try self.startOnQueue(url: url, noiseDb: noiseDb, active: active, ready: { completion(.success(Void())) }, failure: { completion(.failure($0)) }, sample: sample)
+                self.watchInput(active: active, completion: completion)
             } catch {
                 self.stopEngineOnQueue()
                 DispatchQueue.main.async { completion(.failure(error)) }
             }
         }
     }
-    private func startOnQueue(url: URL, noiseDb: Double, active: UUID, ready: @escaping () -> Void, sample: @escaping (Float, Bool, Data) -> Void) throws {
+    private func startOnQueue(url: URL, noiseDb: Double, active: UUID, ready: @escaping () -> Void, failure: @escaping (Error) -> Void, sample: @escaping (Float, Bool, Data) -> Void) throws {
         stopEngineOnQueue()
         lock.lock(); let valid = generation == active; lock.unlock()
         guard valid else { throw CancellationError() }
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
         try session.setActive(true)
         let engine = AVAudioEngine()
         try engine.inputNode.setVoiceProcessingEnabled(true)
@@ -59,13 +61,14 @@ final class PracticeRecorder {
         lock.lock()
         guard generation == active else { lock.unlock(); try? file.close(); throw CancellationError() }
         self.file = file; self.engine = engine
+        lastAudioAt = ProcessInfo.processInfo.systemUptime; failed = false
         lock.unlock()
         var signal = InterviewMicSignal(noiseDb: noiseDb)
         var receivedAudio = false
         engine.inputNode.installTap(onBus: 0, bufferSize: 2048, format: input) { [weak self] buffer, _ in
             guard let self else { return }
             self.lock.lock(); defer { self.lock.unlock() }
-            guard self.generation == active else { return }
+            guard self.generation == active, !self.failed else { return }
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * 16000 / input.sampleRate) + 8
             guard let pcm = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: capacity) else { return }
             var consumed = false
@@ -75,7 +78,7 @@ final class PracticeRecorder {
                 consumed = true; status.pointee = .haveData; return buffer
             }
             guard conversionError == nil, pcm.frameLength > 0, let samples = pcm.int16ChannelData?[0] else { return }
-            
+
             let count = Int(pcm.frameLength)
             var sum = 0.0, squares = 0.0
             for index in 0..<count { let n = Double(samples[index]); sum += n; squares += n*n }
@@ -83,13 +86,36 @@ final class PracticeRecorder {
             signal.sample(rms: rms, seconds: Double(count) / 16000)
             let level = signal.level, speaking = signal.speaking
             let data = Data(bytes: samples, count: count * 2)
-            do { try self.file?.write(contentsOf: data) } catch { return }
+            do {
+                guard let file = self.file else { throw InterviewError.connection }
+                try file.write(contentsOf: data)
+                self.lastAudioAt = ProcessInfo.processInfo.systemUptime
+            } catch {
+                self.failed = true
+                self.controlQueue.async { self.stopEngineOnQueue() }
+                DispatchQueue.main.async { failure(error) }
+                return
+            }
             // Engine startup alone does not guarantee that microphone audio is arriving.
             if !receivedAudio { receivedAudio = true; DispatchQueue.main.async { ready() } }
             DispatchQueue.main.async { sample(level, speaking, data) }
         }
         try engine.start()
         try PracticeAudioRouting.preferSpeakerForBuiltInOutput()
+    }
+    private func watchInput(active: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
+        controlQueue.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            guard self.generation == active, !self.failed else { self.lock.unlock(); return }
+            let stalled = ProcessInfo.processInfo.systemUptime - self.lastAudioAt >= 3 || self.engine?.isRunning != true
+            if stalled { self.failed = true }
+            self.lock.unlock()
+            if stalled {
+                self.stopEngineOnQueue()
+                DispatchQueue.main.async { completion(.failure(InterviewError.connection)) }
+            } else { self.watchInput(active: active, completion: completion) }
+        }
     }
     func waitUntilStopped() {
         // Call only from the playback queue. Voice-processing teardown can change
@@ -119,4 +145,3 @@ final class PracticeRecorder {
     }
 
 }
-#endif

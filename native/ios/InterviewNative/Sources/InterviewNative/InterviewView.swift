@@ -14,6 +14,26 @@ import SwiftUI
     #if DEBUG
     public init(preview: Bool) { _model = StateObject(wrappedValue: InterviewModel(code: "", demo: preview)) }
     #endif
+
+    #if DEBUG
+    static func retentionDate(_ value: String?) -> String {
+        guard let value else { return "확인 중" }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = parser.date(from: value)
+        if date == nil {
+            parser.formatOptions = [.withInternetDateTime]
+            date = parser.date(from: value)
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.dateFormat = "yyyy-MM-dd"
+        if date == nil { date = formatter.date(from: value) }
+        guard let date else { return "확인 중" }
+        return formatter.string(from: date)
+    }
+    #endif
     public var body: some View {
         NavigationStack {
             ScrollView {
@@ -61,7 +81,11 @@ import SwiftUI
             Text("편안하게 앉아 주세요.").font(.largeTitle.bold())
             Text("질문은 한 번에 하나씩, 충분히 듣겠습니다.").font(.subheadline).foregroundStyle(.secondary)
             InterviewPreparationMedia(media: model.media)
+            #if DEBUG
+            Text("메인 질문 3개 · 질문마다 꼬리질문 2개 · 최대 10분").font(.subheadline)
+            #else
             Text("기본 질문 3개 · 꼬리 질문 최대 2개씩 · 최대 10분").font(.subheadline)
+            #endif
             Text("이어폰 사용을 권장합니다. 음성과 대화 기록은 수강 종료 후 30일까지 보관합니다. 확정 점수는 부여하지 않습니다.").font(.footnote).foregroundStyle(.secondary)
             action("면접 시작하기 →", primary: true, enabled: model.ready) { model.start() }.accessibilityIdentifier("interview.start")
             action("내 면접 기록") { Task { await model.loadRecords() } }
@@ -77,13 +101,14 @@ import SwiftUI
                         .onChange(of: seconds) { value in if value >= 600 { model.stop() } }
                 }
             }
-            ZStack(alignment: .bottomTrailing) {
-                InterviewLiveCamera(media: model.media)
+            ZStack(alignment: .topTrailing) {
                 ZStack {
-                    Circle().fill(teal.opacity(0.12)).frame(width: 70, height: 70)
-                    Circle().fill(RadialGradient(colors: [Color(red: 0.84, green: 0.99, blue: 0.95), teal, ink], center: .topLeading, startRadius: 0, endRadius: 65)).frame(width: 48, height: 48)
-                }.background(.ultraThinMaterial, in: Circle()).padding(10).accessibilityLabel("AI 면접관 음성")
-            }.frame(maxWidth: 260).frame(maxWidth: .infinity)
+                    Circle().fill(teal.opacity(0.04)).frame(width: 180, height: 180)
+                    Circle().fill(teal.opacity(0.06)).frame(width: 150, height: 150)
+                    Circle().fill(RadialGradient(colors: [Color(red: 0.84, green: 0.99, blue: 0.95), Color(red: 0.54, green: 0.84, blue: 0.77), Color(red: 0.16, green: 0.28, blue: 0.37)], center: .topLeading, startRadius: 0, endRadius: 145)).frame(width: 120, height: 120)
+                }.frame(maxWidth: .infinity).accessibilityLabel("AI 면접관")
+                InterviewSmallCamera(media: model.media)
+            }
             Text(String(format: "진행 질문 %02d", model.questionNumber)).font(.caption).foregroundStyle(teal)
             Text(model.question).font(.title2.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity)
             if showCaptions {
@@ -92,6 +117,7 @@ import SwiftUI
                     Text("내 답변 · 실시간 자막").font(.caption).foregroundStyle(teal); Text(model.transcript)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.white, in: RoundedRectangle(cornerRadius: 18))
             }
+            action(model.muted ? "마이크 켜기" : "마이크 끄기", enabled: model.screen == .live) { model.mute() }
             action(showCaptions ? "자막 숨기기" : "자막 보기") { showCaptions.toggle() }
             action(model.answering ? "답변 확인 중…" : "답변 완료 →", primary: true,
                    enabled: model.screen == .live && !model.answering && !model.muted) { model.answer() }.accessibilityIdentifier("interview.answer")
@@ -123,40 +149,17 @@ import SwiftUI
                 }
             } else {
                 Text("완료한 답변 \(turns.filter { $0["complete"] as? Bool == true }.count)개").font(.title2).foregroundStyle(teal)
+                #if DEBUG
+                Text("보관 종료: " + Self.retentionDate(run["retain_until"] as? String)).font(.caption)
+                    .accessibilityIdentifier("interview.retention-date")
+                #else
                 Text("보관 종료: " + (run["retain_until"] as? String ?? "확인 중")).font(.caption)
-                Text("질문별 기록에서 답변과 녹음을 확인하세요.").font(.subheadline)
-                if model.record?["analysisEnabled"] as? Bool == true { analysis }
+                #endif
+                Text("질문별 기록에서 답변과 녹음을 확인하세요. 강점·보완점 자동 분석은 아직 제공하지 않습니다.").font(.subheadline)
             }
             if !model.demo { action("기록 다시 확인") { Task { await model.loadRecord() } } }
             action("다시 연습하기", primary: true) { Task { await model.checkReady() } }
             action("내 면접 기록") { Task { await model.loadRecords() } }
-        }
-    }
-    @ViewBuilder private var analysis: some View {
-        let processing = model.record?["processing"] as? InterviewJSON
-        let report = processing?["report"] as? InterviewJSON
-        let feedback = report?["analysis"] as? InterviewJSON
-        Text("종합 피드백").font(.headline)
-        if let feedback {
-            Text(feedback["summary"] as? String ?? "").font(.subheadline)
-            ForEach(["strengths", "improvements", "nextPractice"], id: \.self) { key in
-                let rows = feedback[key] as? [InterviewJSON] ?? []
-                if !rows.isEmpty {
-                    Text(key == "strengths" ? "잘한 점" : key == "improvements" ? "보완할 점" : "다음 연습").font(.subheadline.bold())
-                    ForEach(rows.indices, id: \.self) { index in
-                        Text(rows[index]["quote"] as? String ?? "").font(.caption).foregroundStyle(.secondary)
-                        Text(rows[index]["feedback"] as? String ?? "").font(.subheadline)
-                    }
-                }
-            }
-            Text("저장된 전사에 근거한 연습 피드백이며 확정 성적이 아닙니다.").font(.caption).foregroundStyle(.secondary)
-        } else if processing?["state"] as? String == "running" {
-            Text("저장된 답변을 분석하고 있습니다. 기록 다시 확인으로 결과를 확인해주세요.").font(.subheadline)
-        } else if processing != nil {
-            Text("분석 완료 여부를 확인해야 합니다. 자동으로 다시 실행하지 않습니다.").font(.subheadline)
-        } else {
-            action(model.analysisLoading ? "분석 중…" : "종합 피드백 받기", enabled: !model.analysisLoading) { Task { await model.requestAnalysis() } }
-                .accessibilityIdentifier("interview.analysis")
         }
     }
     private var records: some View {
@@ -194,13 +197,9 @@ private struct InterviewPreparationMedia: View {
         }
     }
 }
-private struct InterviewLiveCamera: View {
+private struct InterviewSmallCamera: View {
     @ObservedObject var media: InterviewMedia
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24).fill(Color.gray.opacity(0.12))
-            if media.cameraOn { InterviewCameraPreview(media: media) }
-            else { VStack { Image(systemName: "person.crop.rectangle").font(.largeTitle); Text("내 모습 미리보기"); Button("카메라 켜기") { media.toggleCamera() } }.foregroundStyle(.secondary) }
-        }.aspectRatio(3/4, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 24)).accessibilityLabel("내 카메라 미리보기")
+        if media.cameraOn { InterviewCameraPreview(media: media).frame(width: 72, height: 96).clipShape(RoundedRectangle(cornerRadius: 14)).accessibilityLabel("내 카메라 미리보기") }
     }
 }

@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 struct PracticeRecording: Decodable {
@@ -78,6 +77,16 @@ struct PracticeTurn: Codable, Identifiable {
         return (try? JSONDecoder().decode([PracticeAssessment].self, from: data)) ?? []
     }
 
+    var feedbackSummary: String? {
+        guard let summary = analysis?["summary"] else { return nil }
+        let rows = assessment
+        if !rows.isEmpty, rows.allSatisfy({ ["O", "partial", "X"].contains($0.status) }),
+           summary.hasPrefix("음성 인식 결과가 일부 달라 근거와 판정이 일치하는 ") {
+            return "음성 인식에 일부 차이가 있지만 \(rows.count)개 항목 모두의 근거와 판정을 확인했습니다."
+        }
+        return summary
+    }
+
     var overallAssessment: String {
         let rows = assessment
         guard !rows.isEmpty, !rows.contains(where: { !["O", "partial", "X"].contains($0.status) }) else { return "uncertain" }
@@ -92,6 +101,7 @@ struct PracticeTurn: Codable, Identifiable {
     var questionID: String?
     var analysis: [String: String]?
     var exampleAnswer: String?
+    var exampleChecked: Bool?
     var analysisPending = false
     var analysisError = false
     var remoteRequestID: String?
@@ -114,6 +124,21 @@ struct PracticeRecord: Codable, Identifiable {
     var completed = false
     var turns: [PracticeTurn] = []
     var accountID: String?
+    var questionCount: Int?
+    var finished: Bool?
+    var adminSyncFingerprint: String?
+}
+struct PracticeQuestionProgress {
+    var count = 0
+    var latest: Date?
+    var label: String {
+        guard count > 0, let latest else { return "아직 연습하지 않음 · 0회 · 최근 연습 없음" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.dateFormat = "yyyy.MM.dd"
+        return "답변 완료 · \(count)회 · 최근 \(formatter.string(from: latest))"
+    }
 }
 struct PracticeStore {
     let root: URL
@@ -139,6 +164,23 @@ struct PracticeStore {
             return try? JSONDecoder().decode(PracticeRecord.self, from: data)
         }.sorted { $0.createdAt > $1.createdAt }
     }
+    func questionProgress(account: String, mode: String) throws -> [String: PracticeQuestionProgress] {
+        var result: [String: PracticeQuestionProgress] = [:]
+        for record in try list() where record.accountID == account && record.mode == mode {
+            var seen = Set<String>()
+            for turn in record.turns {
+                guard let id = turn.questionID, !id.isEmpty, !seen.contains(id),
+                      let url = try? audio(record.id, turn.audio),
+                      let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, bytes > 44 else { continue }
+                seen.insert(id)
+                var progress = result[id] ?? PracticeQuestionProgress()
+                progress.count += 1
+                progress.latest = max(progress.latest ?? record.createdAt, record.createdAt)
+                result[id] = progress
+            }
+        }
+        return result
+    }
     // Only called for the currently authenticated account's own scoped folder.
     func migrateLegacyCLI(account: String) throws {
         for var record in try list() where record.accountID == nil {
@@ -163,4 +205,3 @@ struct PracticeStore {
     func video(_ id: String) throws -> URL { try folder(id).appendingPathComponent("interview.mov") }
     func delete(_ id: String) throws { try FileManager.default.removeItem(at: folder(id)) }
 }
-#endif

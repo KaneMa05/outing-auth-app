@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Security
 
@@ -23,6 +22,7 @@ import Security
         #else
         let simulator = false
         #endif
+        #if DEBUG
         if !ProcessInfo.processInfo.arguments.contains("--interview-offline-testing"), let file = Bundle.main.url(forResource: "interview-local-bridge", withExtension: "json"),
            let data = try? Data(contentsOf: file), let config = try? JSONSerialization.jsonObject(with: data) as? InterviewJSON,
            let raw = config["url"] as? String, InterviewBridgePolicy.accepts(raw, simulator: simulator), let url = URL(string: raw),
@@ -32,6 +32,7 @@ import Security
                 token = key; endpoint = url; certificate = pin
             }
         }
+        #endif
         self.token = token; self.endpoint = endpoint; self.certificateData = certificate
         super.init()
     }
@@ -157,4 +158,3 @@ import Security
     }
     func close() { completed = nil; finish(text: text, confirmed: false); readTask?.cancel() }
 }
-#endif

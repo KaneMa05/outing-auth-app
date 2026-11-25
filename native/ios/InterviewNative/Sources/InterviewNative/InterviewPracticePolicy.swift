@@ -24,26 +24,36 @@ public enum InterviewPracticePolicy {
     }
 }
 
-/// Four seconds of local microphone silence advances once, including an empty answer.
+/// Silence may advance only after sustained microphone input has been confirmed.
 public struct InterviewAnswerGate {
     public static let silenceSeconds: TimeInterval = 4
     public enum State { case waiting, speaking, pause, complete }
     private let started: TimeInterval
     private var lastVoice: TimeInterval?
     private var completed = false
-    public init(now: TimeInterval) { started = now }
+    private var previous: TimeInterval?
+    private var continuous: TimeInterval = 0
+    public private(set) var hasInput = false
+    public init(now: TimeInterval) { started = now; previous = now }
     public mutating func sample(now: TimeInterval, speaking: Bool) -> State {
         if completed { return .complete }
-        if speaking { lastVoice = now; return .speaking }
-        if now - (lastVoice ?? started) >= Self.silenceSeconds {
+        let delta = previous.map { max(0, min(0.2, now - $0)) } ?? 0
+        previous = now
+        if speaking {
+            continuous += delta; lastVoice = now
+            if continuous >= 0.3 { hasInput = true }
+            return .speaking
+        }
+        continuous = 0
+        if hasInput, let lastVoice, now - lastVoice >= Self.silenceSeconds {
             completed = true; return .complete
         }
-        if now - started < 0.6 && lastVoice == nil { return .waiting }
+        if !hasInput { return .waiting }
         if let lastVoice, now - lastVoice < 1.2 { return .speaking }
         return .pause
     }
     public func remaining(now: TimeInterval) -> TimeInterval {
-        max(0, Self.silenceSeconds - (now - (lastVoice ?? started)))
+        hasInput ? max(0, Self.silenceSeconds - (now - (lastVoice ?? started))) : Self.silenceSeconds
     }
 }
 

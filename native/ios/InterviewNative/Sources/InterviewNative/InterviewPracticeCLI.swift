@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 enum PracticeCLIError: Error { case server(String), invalidResponse }
@@ -80,4 +79,3 @@ struct PracticeCLIResult {
         return result
     }
 }
-#endif

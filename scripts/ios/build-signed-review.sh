@@ -19,7 +19,7 @@ import json, os, pathlib, sys
 pathlib.Path(sys.argv[1]).write_text(json.dumps({
     'success': sys.argv[2] == '0', 'exitCode': int(sys.argv[2]),
     'commit': os.environ.get('GITHUB_SHA'),
-    'version': '1.0.0', 'buildNumber': os.environ.get('RONPARK_BUILD_NUMBER'),
+    'version': os.environ.get('RONPARK_VERSION'), 'buildNumber': os.environ.get('RONPARK_BUILD_NUMBER'),
     'uploadedToAppStoreConnect': sys.argv[3] == 'true',
     'submittedForReview': False, 'publicReleasePerformed': False
 }, indent=2) + '\n')
@@ -64,7 +64,7 @@ xcodegen generate --spec "$root/native/ios/App/project.yml"
 archive="$task/RonparkStudy.xcarchive"
 xcodebuild -project "$root/native/ios/App/RonparkStudy.xcodeproj" -scheme RonparkStudy \
   -configuration Release -destination 'generic/platform=iOS' -archivePath "$archive" \
-  -derivedDataPath "$task/DerivedData" CURRENT_PROJECT_VERSION="$RONPARK_BUILD_NUMBER" \
+  -derivedDataPath "$task/DerivedData" CURRENT_PROJECT_VERSION="$RONPARK_BUILD_NUMBER" MARKETING_VERSION="$RONPARK_VERSION" \
   DEVELOPMENT_TEAM="$RONPARK_TEAM_ID" CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$RONPARK_PROFILE_NAME" archive
 

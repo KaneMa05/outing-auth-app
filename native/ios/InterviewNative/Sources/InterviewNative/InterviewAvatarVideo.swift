@@ -1,4 +1,3 @@
-#if DEBUG
 import AVFoundation
 import SwiftUI
 
@@ -8,6 +7,12 @@ struct InterviewAvatarVideo: UIViewRepresentable {
         ["interviewer-man-1", "interviewer-woman", "interviewer-man-2"].compactMap {
             Bundle.main.url(forResource: $0, withExtension: "mp4", subdirectory: "InterviewAvatar")
         }
+    }
+    static var liveURLs: [URL] {
+        let clips = ["interviewer-man-1", "interviewer-woman", "interviewer-man-2"].compactMap {
+            Bundle.main.url(forResource: $0, withExtension: "mp4", subdirectory: "InterviewLiveAvatar")
+        }
+        return clips.isEmpty ? availableURLs : clips
     }
     let url: URL
     let paused: Bool
@@ -106,4 +111,3 @@ struct InterviewAvatarVideo: UIViewRepresentable {
         uiView.surfaces.forEach { $0.player = nil }
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if DEBUG
 import AVFoundation
 import SwiftUI
 
@@ -25,4 +24,3 @@ struct InterviewQuestionVideo: UIViewRepresentable {
     func updateUIView(_ uiView: Surface, context: Context) { uiView.playerLayer.player = player }
     static func dismantleUIView(_ uiView: Surface, coordinator: ()) { uiView.playerLayer.player = nil }
 }
-#endif

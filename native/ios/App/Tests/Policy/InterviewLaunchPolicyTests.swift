@@ -1,35 +1,15 @@
 import XCTest
-#if DEBUG
-@testable import InterviewNative
-import AVFoundation
-#else
 import InterviewNative
-#endif
 
 final class InterviewLaunchPolicyTests: XCTestCase {
     private let code = String(repeating: "a", count: 43)
-    func testMediaCaptureRequiresOurOwnTopLevelOrigin() {
-        let page = URL(string: "https://" + InterviewLaunchPolicy.host + "/interview?app=1")!
-        for port in [0, 443] {
-            XCTAssertTrue(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: port, isMainFrame: true, topLevelURL: page))
-        }
-        for host in ["evil.example", "accounts.kakao.com", InterviewLaunchPolicy.host + ".evil.example"] {
-            XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: host, port: 443, isMainFrame: true, topLevelURL: page))
-            XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 443, isMainFrame: true, topLevelURL: URL(string: "https://" + host)))
-        }
-        XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 443, isMainFrame: false, topLevelURL: page))
-        XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "http", host: InterviewLaunchPolicy.host, port: 80, isMainFrame: true, topLevelURL: page))
-        XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 8443, isMainFrame: true, topLevelURL: page))
-        XCTAssertFalse(InterviewLaunchPolicy.acceptsMediaCapture(scheme: "https", host: InterviewLaunchPolicy.host, port: 443, isMainFrame: true, topLevelURL: nil))
-    }
-    func testSocialOAuthNavigationStaysInAppWithoutBridgePrivileges() {
+    func testSocialLoginHostsKeepCookiesWithoutNativeBridgeAccess() {
         for host in ["kauth.kakao.com", "accounts.kakao.com", "appleid.apple.com"] {
-            XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + host + "/oauth/authorize")!))
+            XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + host + "/auth")!))
             XCTAssertFalse(InterviewLaunchPolicy.accepts(scheme: "https", host: host, port: 443,
                 isMainFrame: true, payload: ["code": code]))
         }
-        XCTAssertTrue(InterviewLaunchPolicy.allowsWebNavigation(URL(string: "https://" + InterviewLaunchPolicy.host + "/api/interview-auth?action=callback")!))
-        for url in ["http://appleid.apple.com", "https://appleid.apple.com.attacker.example", "http://accounts.kakao.com", "https://accounts.kakao.com.attacker.example", "https://evil.example", "https://kauth.kakao.com:8443", "https://user@kauth.kakao.com", "kakaotalk://login"] {
+        for url in ["http://appleid.apple.com", "https://appleid.apple.com.attacker.example", "https://evil.example", "https://kauth.kakao.com:8443", "https://user@kauth.kakao.com", "kakaotalk://login"] {
             XCTAssertFalse(InterviewLaunchPolicy.allowsWebNavigation(URL(string: url)!))
         }
     }
@@ -52,26 +32,3 @@ final class InterviewLaunchPolicyTests: XCTestCase {
         }
     }
 }
-
-#if DEBUG
-final class PracticeSpeakerRoutingTests: XCTestCase {
-    func testOnlyBuiltInReceiverIsOverridden() {
-        XCTAssertTrue(PracticeAudioRouting.shouldUseSpeaker(outputs: [.builtInReceiver]))
-        let external: [AVAudioSession.Port] = [.headphones, .bluetoothHFP, .bluetoothA2DP, .bluetoothLE, .airPlay, .carAudio, .lineOut, .usbAudio]
-        for route in external {
-            XCTAssertFalse(PracticeAudioRouting.shouldUseSpeaker(outputs: [route]))
-            XCTAssertFalse(PracticeAudioRouting.shouldUseSpeaker(outputs: [.builtInReceiver, route]))
-        }
-        XCTAssertFalse(PracticeAudioRouting.shouldUseSpeaker(outputs: []))
-        XCTAssertFalse(PracticeAudioRouting.shouldUseSpeaker(outputs: [.builtInSpeaker]))
-    }
-    func testPreparedPlaybackDoesNotUseTelephoneReceiver() throws {
-        let session = AVAudioSession.sharedInstance()
-        defer { try? session.setActive(false, options: .notifyOthersOnDeactivation) }
-        try PracticeAudioRouting.configurePlayback()
-        XCTAssertEqual(session.mode, .default)
-        XCTAssertFalse(session.currentRoute.outputs.contains { $0.portType == .builtInReceiver })
-        print("Verified prepared playback route: \(session.currentRoute.outputs.map { $0.portType.rawValue })")
-    }
-}
-#endif

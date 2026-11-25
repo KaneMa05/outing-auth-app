@@ -19,7 +19,8 @@ jobs:
     environment: ronpark-app-review-signing-20261109
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      RONPARK_BUILD_NUMBER: '5'
+      RONPARK_BUILD_NUMBER: '6'
+      RONPARK_VERSION: '1.1.0'
       RONPARK_TEAM_ID: 3A8HPYVQ7M
       RONPARK_PROFILE_NAME: RONPARK Study GitHub App Store 20261109
       RONPARK_ASC_KEY_ID: 7MQQAK26JR
@@ -29,6 +30,8 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+      - name: Verify exact reviewed source
+        run: node scripts/ios/verify-store-source.cjs
       - name: Install pinned XcodeGen
         run: bash scripts/ios/install-tools.sh
       - name: Sign and upload build without submitting or releasing
