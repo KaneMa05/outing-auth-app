@@ -52,6 +52,8 @@ iOS
   제출과 앱 버전 모두 WAITING_FOR_REVIEW, 선택 빌드 7, AFTER_APPROVAL을 재확인했다.
   https://appstoreconnect.apple.com/apps/6827374000/distribution/reviewsubmissions/details/1adff9e3-7925-4fe2-b0a6-052e6065c9bc
 - 기존 내부 TestFlight 그룹에 빌드 7을 연결했다. 새 테스터 초대는 없다.
+- 16:04 KST 최종 조회에서 internalBuildState=IN_BETA_TESTING을 확인했다.
+  정식 제출과 버전은 여전히 WAITING_FOR_REVIEW이며 자막 변경 안내도 저장돼 있다.
 - 현재 공개 App Store의 1.0.0은 Apple 승인 전까지 유지된다. 새 버전의 공개 출시를
   완료한 상태로 안내하지 않는다.
 - 현재 main에 반영할 iOS 입력 45개가 서명된 snapshot과 모두 일치함을 SHA256으로
