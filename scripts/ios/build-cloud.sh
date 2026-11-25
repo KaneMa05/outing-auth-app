@@ -48,10 +48,17 @@ xcodebuild "${common[@]}" build-for-testing -configuration Debug \
 
 xcrun simctl boot "$simulator" || true
 xcrun simctl bootstatus "$simulator" -b
+test_selection=()
+case "${RONPARK_IOS_TEST_SELECTION:-all}" in
+  all) ;;
+  caption-editor) test_selection=(-only-testing:InterviewUITests/NativeCaptionEditorTests) ;;
+  *) printf '%s\n' 'Unknown native test selection.' >&2; exit 1 ;;
+esac
 xcodebuild "${common[@]}" test-without-building -configuration Debug \
   -destination "platform=iOS Simulator,id=$simulator" -destination-timeout 120 \
   -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
   -derivedDataPath "$build_dir/derived" -resultBundlePath "$build_dir/NativeTests.xcresult" \
+  "${test_selection[@]}" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$output/simulator-tests.log"
 
 ditto -c -k --sequesterRsrc --keepParent \
