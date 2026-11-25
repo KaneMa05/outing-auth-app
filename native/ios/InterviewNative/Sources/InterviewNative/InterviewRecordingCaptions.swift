@@ -143,7 +143,7 @@ struct PracticeRecordingCaptionEditor: View {
                 .toolbar { ToolbarItem(placement: .cancellationAction) {
                     Button("취소") { if text != caption.editableText { confirmDiscard = true } else { dismiss() } }.disabled(saving)
                 } }
-                .confirmationDialog("저장하지 않은 수정 내용을 버릴까요?", isPresented: $confirmDiscard) {
+                .alert("저장하지 않은 수정 내용을 버릴까요?", isPresented: $confirmDiscard) {
                     Button("수정 취소", role: .destructive) { dismiss() }; Button("계속 수정", role: .cancel) {}
                 }
         }.interactiveDismissDisabled(saving || text != caption.editableText)

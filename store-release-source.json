@@ -1,10 +1,14 @@
 {
-  "sourceCommit": "0943ff72a8e472de4256d43de26ec388f2881758",
+  "sourceCommit": "da98ad981e2ffce1a3cfeeb98212e7650f804126",
   "captionCommit": "108fdd191e960cd5b3e3bc059480646374fb85d7",
   "version": "1.1.0",
   "buildNumber": 7,
-  "previousUnsubmittedBuild": 6,
-  "simulatorTestsRequiredBeforeSigning": true,
+  "priorRegressionRun": 45559682237,
+  "priorUnitTestsPassed": 20,
+  "priorExistingUITestsPassed": 4,
+  "priorPhysicalOnlyTestsSkipped": 2,
+  "priorFailure": "Caption editor discard-confirmation action not exposed",
+  "retryTest": "NativeCaptionEditorTests",
   "files": [
     {
       "path": ".github/workflows/ios-native-build.yml",
@@ -64,7 +68,7 @@
     },
     {
       "path": "native/ios/App/Tests/UI/NativeCaptionEditorTests.swift",
-      "sha256": "18d360c4bc85dc88f721c9164b6968d08db77f5b9437498223902e6630c8f837"
+      "sha256": "717c19237b0a532e60a0aca26e39078c389a5fc07bc68fe76aa8f0fb36684845"
     },
     {
       "path": "native/ios/App/Tests/UI/NativePracticeNavigationTests.swift",
@@ -152,7 +156,7 @@
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewRecordingCaptions.swift",
-      "sha256": "18002a141e5e4f5b12ca65f280e7cf1112823d3d80f58575aaf9b8c571195267"
+      "sha256": "45c9b77bf94209bff2828199873254e03feaf8c3900bd904b8f0a4d25e512b77"
     },
     {
       "path": "native/ios/InterviewNative/Sources/InterviewNative/InterviewSpeakerAudio.swift",
@@ -172,7 +176,7 @@
     },
     {
       "path": "scripts/ios/build-cloud.sh",
-      "sha256": "89d80e082c13d694e86205d8751e0bb49a4e1b03dd89c2dbe498b92764d4b030"
+      "sha256": "2851de35f973af68a47a31c03f6407c4d83f4691943e5d61e3c5c6ae09778a20"
     },
     {
       "path": "scripts/ios/capture-store.sh",

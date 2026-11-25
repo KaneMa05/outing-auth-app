@@ -37,13 +37,19 @@ jobs:
       - name: Run native regression before signing
         env:
           RONPARK_SKIP_UNSIGNED_ARCHIVE: '1'
+          # Full run 45559682237 passed 20 unit tests and four existing UI cases.
+          # Recheck the failed caption editor after changing only its discard dialog.
+          RONPARK_IOS_TEST_SELECTION: 'caption-editor'
         run: bash scripts/ios/build-cloud.sh
       - name: Keep synthetic native test evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ios-caption-tests-${{ github.run_number }}
-          path: artifacts/ios-cloud/
+          path: |
+            artifacts/ios-cloud/build-status.json
+            artifacts/ios-cloud/*.log
+            artifacts/ios-cloud/screenshots/
           retention-days: 3
           compression-level: 0
       - name: Sign and upload build without submitting or releasing
