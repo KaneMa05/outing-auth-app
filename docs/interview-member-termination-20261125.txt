@@ -54,5 +54,5 @@ DB 변경
 - DB 테스트 런타임이 필요한 환경은 PGLITE_MODULE, 전체 회귀에는 OX_PGLITE_MODULE도 설정한다.
 
 적용 상태
-- 로컬 구현과 마이그레이션 준비 완료.
-- 운영 DB 적용, 푸시, 배포는 수행하지 않았다.
+- 운영 DB 적용, main 푸시 및 검증한 배포본의 운영 전환 완료.
+- 운영 반영 기록: docs/releases/20261125-interview-member-termination-production.txt.
