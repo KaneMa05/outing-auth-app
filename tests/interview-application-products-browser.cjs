@@ -39,7 +39,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   const editor=page.locator('[data-editor]'),product=()=>page.locator('[data-application-product] [name=accessProduct]');
   const change=status=>page.locator('[data-ip=application-product][data-id="qa-'+status+'"]');
   await change('pending').click();assert.equal(await product().inputValue(),'interview_package');assert((await editor.innerText()).includes('수강 승인은 별도로'));
-  await product().selectOption('interview_only');await page.getByRole('button',{name:'변경 저장',exact:true}).click();
+  assert.equal(await editor.locator('[data-purchase-product-name]').innerText(),'해양경찰 인적성+면접 대비');
+  await product().selectOption('interview_only');assert.equal(await editor.locator('[data-purchase-product-name]').innerText(),'해양경찰 및 일반직 면접');await page.getByRole('button',{name:'변경 저장',exact:true}).click();
   await page.waitForFunction(()=>applicants[0].revision===2);await change('pending').waitFor();
   assert.equal(await page.evaluate(()=>applicants[0].status),'pending');await change('pending').click();assert.equal(await product().inputValue(),'interview_only');
   await product().selectOption('interview_package');await page.evaluate(()=>{mode='failure';});await page.getByRole('button',{name:'변경 저장',exact:true}).click();
@@ -51,6 +52,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await page.locator('[data-filter] [name=status]').selectOption('');await page.locator('[data-filter] button').click();await change('approved').waitFor();
   await change('approved').click();assert.equal(await product().inputValue(),'aptitude_only','Current membership overrides the original application product');
   assert((await editor.innerText()).includes('이용 권한이 바로 적용'));
+  assert.equal(await editor.locator('[data-purchase-product-name]').innerText(),'해양경찰 인적성검사 대비강의');
   await product().selectOption('interview_package');await page.getByRole('button',{name:'변경 저장',exact:true}).click();await page.waitForFunction(()=>applicants[1].revision===2);
   await change('approved').click();assert.equal(await product().inputValue(),'interview_package');
   await page.screenshot({path:path.join(output,'approved-desktop.png'),fullPage:true});
@@ -61,7 +63,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   assert.equal(await page.evaluate(()=>calls.some(c=>['admin_application_decide','admin_member_save'].includes(c.action))),false,'Editing a product does not approve or overwrite other member settings');
   await page.evaluate(()=>view.openSection('applications'));await page.locator('[data-ip=application-edit]').click();
   const review=page.locator('[data-application-review]');assert.equal(await review.locator('[name=accessProduct]').inputValue(),'interview_only');
-  await review.locator('[name=accessProduct]').selectOption('interview_only');await review.locator('[name=expiresOn]').fill('2099-12-31');
+  assert.equal(await review.locator('[data-purchase-product-name]').innerText(),'해양경찰 및 일반직 면접');
+  await review.locator('[name=expiresOn]').fill('2099-12-31');
+  await review.locator('[name=accessProduct]').selectOption('interview_package');assert.equal(await review.locator('[data-purchase-product-name]').innerText(),'해양경찰 인적성+면접 대비');
+  await review.locator('[name=accessProduct]').selectOption('interview_only');assert.equal(await review.locator('[name=expiresOn]').inputValue(),'2099-12-31');
   await page.locator('[data-editor]').screenshot({path:path.join(output,'review-mobile.png')});await page.setViewportSize({width:1280,height:900});await page.locator('[data-editor]').screenshot({path:path.join(output,'review-desktop.png')});
   await review.locator('[data-write]').click();await page.waitForFunction(()=>applicants[0].status==='approved');
   const approval=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);assert.equal(approval.accessProduct,'interview_only');assert.equal(approval.status,'approved');assert.equal(approval.expiresOn,'2099-12-31');assert.equal(approval.revision,2);

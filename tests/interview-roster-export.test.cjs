@@ -46,7 +46,7 @@ test('full registered roster spans database pages, includes web accounts and bot
   assert.equal(blob.type,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   const sheet=entries.get('xl/worksheets/sheet1.xml');
   assert.equal((sheet.match(/<row /g)||[]).length,67);
-  for(const label of ['이름','직렬','수험번호','과정','휴대폰 번호','면접 패키지','인적성 단과','010-1234-5678'])assert(sheet.includes(label));
+  for(const label of ['이름','직렬','수험번호','과정','휴대폰 번호','면접 패키지 (인적성+면접)','인적성 단과','010-1234-5678'])assert(sheet.includes(label));
   assert.match(sheet,/<c r="C2" s="0" t="inlineStr"><is><t xml:space="preserve">00123/);
   assert.match(sheet,/autoFilter ref="A1:E67"/);
   assert.doesNotMatch(sheet,/roster-001|ip-a|feedback|notes/);
@@ -57,7 +57,7 @@ test('text cells preserve zeroes, special characters and literal formula text; l
   const {createInterviewRosterWorkbook}=await exporter();
   const blob=createInterviewRosterWorkbook([{name:'=1+1 & <가상>\u0001',track:'기관',exam_number:'0000123'}]);
   const sheet=zipEntries(Buffer.from(await blob.arrayBuffer())).get('xl/worksheets/sheet1.xml');
-  assert.match(sheet,/=1\+1 &amp; &lt;가상&gt;/);assert.match(sheet,/>0000123</);assert.match(sheet,/면접 패키지/);
+  assert.match(sheet,/=1\+1 &amp; &lt;가상&gt;/);assert.match(sheet,/>0000123</);assert.match(sheet,/면접 패키지 \(인적성\+면접\)/);
   assert.doesNotMatch(sheet,/<f[ >]|\u0001/);
 });
 

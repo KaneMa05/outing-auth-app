@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v582-course-home";
+const CACHE_NAME = "outing-auth-app-v583-product-labels";
 const APP_SHELL = [
   "/app.js?v=20261120-pending-reflection",
   "/student-content-safety.js?v=20261028-safety-fallback",

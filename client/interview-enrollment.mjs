@@ -1,4 +1,4 @@
-import {interviewProductLabel} from './interview-products.js?v=20261125-interview-only';
+import {interviewProductLabel} from './interview-products.js?v=20261125-product-labels';
 import {createRosterWorkbook} from './roster-workbook.mjs?v=20261112-roster-phone';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const scopeLabels={active:'정상',interview:'면접 기능 종료',app:'면접 앱 전체 종료'};

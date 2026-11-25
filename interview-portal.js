@@ -1,5 +1,5 @@
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261125-interview-only';
+import {interviewProducts,interviewProductLabel,interviewPurchaseProductName} from './client/interview-products.js?v=20261125-product-labels';
 import {mountInterviewLogin} from './interview-login.js?v=20261109-apple-button';
 import {enrollmentEnded,enrollmentNotice} from './client/interview-enrollment-access.js?v=20261125-termination';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
@@ -28,7 +28,7 @@ async function api(action,payload={},endpoint='/api/interview-auth'){
  const response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
  const data=await response.json();if(!response.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});return data;
 }
-const applyForm=()=>`<form data-application-form><label>수강 상품<select name="accessProduct" required>${interviewProducts.map(([id,label])=>`<option value="${id}" ${(state.application?.access_product||'interview_package')===id?'selected':''}>${label}</option>`).join('')}</select></label><p class="ip-help">면접 패키지는 면접 준비와 적성 모의고사를 모두 이용할 수 있습니다. 면접 단과는 면접 준비, 인적성 단과는 적성 모의고사를 이용할 수 있습니다.</p><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${interviewTracks.map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 구매한 수강 상품을 확인하고 승인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'수강 등록 신청'}</button></form>`;
+const applyForm=()=>`<form data-application-form><label>수강 상품<select name="accessProduct" required>${interviewProducts.map(([id,label])=>`<option value="${id}" ${(state.application?.access_product||'interview_package')===id?'selected':''}>${label}</option>`).join('')}</select></label><p class="ip-help" aria-live="polite">구매 상품명: <strong data-purchase-product-name>${esc(interviewPurchaseProductName(state.application?.access_product))}</strong></p><p class="ip-help">면접 패키지는 면접 준비와 적성 모의고사를 모두 이용할 수 있습니다. 면접 단과는 면접 준비, 인적성 단과는 적성 모의고사를 이용할 수 있습니다.</p><label>이름<input name="name" autocomplete="name" maxlength="80" required value="${esc(state.application?.name||state.account?.name||'')}"></label><label>직렬<select name="track">${interviewTracks.map(t=>`<option ${state.application?.track===t?'selected':''}>${t}</option>`).join('')}</select></label><label>수험번호<input name="examNumber" maxlength="80" required value="${esc(state.application?.exam_number||'')}"></label><p class="ip-help">등록 신청 후 관리자가 구매한 수강 상품을 확인하고 승인합니다.</p><button class="ip-btn ip-primary">${state.application?.status==='rejected'?'재신청':state.application?'신청 정보 수정·다시 제출':'수강 등록 신청'}</button></form>`;
 function render(){
  controller?.destroy();controller=null;
  disposeLogin?.();disposeLogin=null;
@@ -103,6 +103,10 @@ document.addEventListener('click',e=>{
   else if(n.hasAttribute('data-logout')||n.hasAttribute('data-enrollment-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
   else await refresh();
  });
+});
+host.addEventListener('change',e=>{
+ if(!e.target.matches('[data-application-form] [name=accessProduct]'))return;
+ e.target.closest('form').querySelector('[data-purchase-product-name]').textContent=interviewPurchaseProductName(e.target.value);
 });
 host.addEventListener('submit',e=>{
  if(!e.target.matches('[data-application-form]'))return;
