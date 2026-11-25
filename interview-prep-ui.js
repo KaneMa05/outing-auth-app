@@ -1,6 +1,6 @@
 import {taxonomyFilters,taxonomySummary,taxonomyEditor,taxonomyPayload} from './client/interview-taxonomy-ui.js?v=20261102-taxonomy';
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
-import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261125-interview-only';
+import {interviewProducts,interviewProductLabel,interviewPurchaseProductName} from './client/interview-products.js?v=20261125-product-labels';
 import {topicQuestions,elementQuestions,getTopicQuestions} from './interview-prep-prompts.js';
 import {indexQuestionAudioCatalog,resolveQuestionAudio} from './client/interview-question-audio.js?v=20261102-category-audio';
 import {mountLife} from './interview-life-ui.js?v=20261024-school-status';
@@ -30,6 +30,7 @@ const message = e=>errors[e.code] || errors[e.message] || '처리하지 못했�
 const btn=(label,action,extra='',primary=false)=>`<button type="button" class="ip-btn${primary?' ip-primary':''}" data-ip="${action}" ${extra}>${label}</button>`;
 const badge=n=>`<span class="ip-badge ${esc(n?.status||'')}">${states[n?.status]||states.empty}</span>`;
 const options=(rows,value)=>rows.map(([id,title])=>`<option value="${esc(id)}" ${id===value?'selected':''}>${esc(title)}</option>`).join('');
+const purchaseProductHelp=value=>`<p class="ip-help" aria-live="polite">구매 상품명: <strong data-purchase-product-name>${esc(interviewPurchaseProductName(value))}</strong></p>`;
 const tracks=interviewTracks;
 const analysisDispositions={personal:'학생 인성 소재 연결 후보',knowledge_review:'직무·시사 재분류 검토',context_needed:'앞선 문맥 확인',rapport:'안부·진행 질문',sensitive_review:'개인정보 수집 범위 검토',unresolved:'요소 판정 보류'};
 const analysisForms={experience:'실제 경험',value:'가치·이유',situation:'가정 상황',profile:'자기 설명',mixed:'복합 질문',context:'문맥 필요'};
@@ -400,7 +401,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       const enrollmentTabs=`<nav class="ip-tabs" aria-label="수강생 이용 관리 구분">${btn('신청·승인','enrollment-mode',`data-mode="applications" ${enrollmentMode==='applications'?'aria-current="page"':''}`)}${btn('등록 수강생·이용 종료','enrollment-mode',`data-mode="members" ${enrollmentMode==='members'?'aria-current="page"':''}`)}</nav>`;
       if(enrollmentMode==='members'){
         box.innerHTML=enrollmentTabs+'<div data-enrollment-host></div>';
-        const {mountEnrollment}=await import('./client/interview-enrollment.mjs?v=20261125-termination');
+        const {mountEnrollment}=await import('./client/interview-enrollment.mjs?v=20261125-product-labels');
         if(destroyed||version!==loadVersion)return;
         life=mountEnrollment(box.querySelector('[data-enrollment-host]'),{request,canWrite,onSummary:data=>{if(!destroyed&&version===loadVersion)summary.innerHTML=applicationSummary(data);}});await life.ready;return;
       }
@@ -532,7 +533,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   function editMember(id){
     selected=list.find(s=>s.id===id);
-    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label><p class="ip-help">면접 단과는 면접 준비, 인적성 단과는 홈 공지와 적성 모의고사를 이용합니다. 면접 패키지는 모두 이용합니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>수강 만료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 또는 면접 단과 계정 중 별도로 허용한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
+    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label>${purchaseProductHelp(selected.access_product)}<p class="ip-help">면접 단과는 면접 준비, 인적성 단과는 홈 공지와 적성 모의고사를 이용합니다. 면접 패키지는 모두 이용합니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>수강 만료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 또는 면접 단과 계정 중 별도로 허용한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
   }
   async function feedback(id,topicId){
     const student=list.find(s=>s.id===id),t=catalog.topics.find(t=>t.id===topicId);
@@ -568,7 +569,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         const version=loadVersion;
         const isCurrent=()=>!destroyed&&version===loadVersion;
         notify(host,'수강 명단을 불러오는 중…');
-        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261125-interview-only');
+        const {loadInterviewRoster,downloadInterviewRoster}=await import('./client/interview-roster-export.mjs?v=20261125-product-labels');
         const members=await loadInterviewRoster(request,{isCurrent,onProgress:count=>notify(host,`수강 명단 ${count.toLocaleString('ko-KR')}명 확인 중…`)});
         if(!members||!isCurrent())return;
         if(!members.length){notify(host,'다운로드할 등록 수강생이 없습니다.');return;}
@@ -627,14 +628,14 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         if(!canWrite)return;
         selected=list.find(x=>x.id===target.dataset.id);
         editor(`<h3>수강 과정 변경</h3><p>${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p>
-        <form data-application-product><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><p class="ip-help">${selected.status==='approved'?'저장하면 선택한 과정의 이용 권한이 바로 적용됩니다. 기존 작성 내용과 응시 기록은 유지됩니다.':'신청 과정만 변경합니다. 수강 승인은 별도로 진행해주세요.'}</p><button class="ip-btn ip-primary" data-write>변경 저장</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+        <form data-application-product><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label>${purchaseProductHelp(applicationProduct(selected))}<p class="ip-help">${selected.status==='approved'?'저장하면 선택한 과정의 이용 권한이 바로 적용됩니다. 기존 작성 내용과 응시 기록은 유지됩니다.':'신청 과정만 변경합니다. 수강 승인은 별도로 진행해주세요.'}</p><button class="ip-btn ip-primary" data-write>변경 저장</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='application-edit'||a==='application-reject'){
         if(!canWrite)return;
         const reject=a==='application-reject';
         selected=list.find(x=>x.id===target.dataset.id);
         editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 아래에서 선택한 과정의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>수강 만료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label>${purchaseProductHelp(applicationProduct(selected))}<label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>수강 만료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);
@@ -675,6 +676,10 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     }catch(e){notify(host,message(e),true);}finally{busy=false;submit.disabled=false;}
   };
   host.onchange=e=>{
+    if(e.target.matches('[name=accessProduct]')){
+      const name=e.target.closest('form')?.querySelector('[data-purchase-product-name]');
+      if(name)name.textContent=interviewPurchaseProductName(e.target.value);
+    }
     if(e.target.matches('[data-application-review] [name=status]')){
       e.target.closest('form').querySelector('[data-write]').textContent=e.target.value==='approved'?'승인':'반려';
       e.target.closest('form').querySelector('[name=reviewNote]').required=e.target.value==='rejected';
