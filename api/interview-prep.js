@@ -7,7 +7,7 @@ const { isPreviewStudent } = require('../lib/interview-preview-access');
 const { authenticatePortal } = require('../lib/interview-web-auth');
 const writingSubmissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
 const scheduledWritingKinds=new Set(['introduction','motivation','public_service']);
-const actions = new Set(['admin_question_example_detail','admin_question_example_save','practice_reference','admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
+const actions = new Set(['admin_question_example_detail','admin_question_example_save','practice_reference','admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','home','bootstrap','questions','question_detail','note_save','history',
   'admin_enrollment_list','admin_enrollment_history','admin_enrollment_reason_save','admin_enrollment_change',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_contact_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
@@ -164,7 +164,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
         :body.action==='admin_assignment_overview'
         ?await require('../lib/interview-assignment-overview.cjs').overview(payload,actor,invoke,read)
         :await invoke(body.action,actor,payload);
-      if(body.action==='bootstrap'&&body.includeNotices===true&&result?.ok===true){
+      if((body.action==='home'||body.action==='bootstrap'&&body.includeNotices===true)&&result?.ok===true){
         try{result.notices=await require('../lib/interview-notices.cjs').publishedInterviewNotices(read);}
         catch{result.notices=[];result.noticesUnavailable=true;}
       }

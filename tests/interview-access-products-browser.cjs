@@ -17,7 +17,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
    }
    if(body.action==='logout'){state={ok:true,enabled:true,authenticated:false};return res.end('{"ok":true}');}
    if(url.pathname==='/api/interview-aptitude')return res.end(JSON.stringify({ok:true,rounds:[],studentId:'unit-qa'}));
-   if(body.action==='mock_status')return res.end('{"ok":true,"allowed":false}');
+   if(body.action==='mock_status')return res.end(JSON.stringify({ok:true,allowed:false,betaAllowed:['interview_package','interview_only'].includes(state.member?.access_product)}));
+   if(body.action==='home')return res.end(JSON.stringify({ok:true,member:state.member,notices:[{title:'인적성 수강 안내',body:'적성 모의고사 답안을 입력해주세요.'}]}));
+   if(body.action==='practice_bootstrap')return res.end(JSON.stringify({ok:true,accountId:state.account.ownerId,mode:body.mode,track:'공채',fields:[],questions:require('../lib/interview-test-question-scope.json').questions.filter(q=>q.category===body.mode).map(q=>({...q,tracks:['공채'],fieldIds:[],regions:[]}))}));
    if(body.action==='life_get')return res.end(JSON.stringify({ok:true,profile:{content:{experiences:[{age:'23',title:'가상 경험 확인',content:'가상 환경에서 의견을 조율한 경험입니다.',appeal:'경청을 배웠습니다.'}]}}}));
    if(body.action==='diagnosis_get')return res.end(JSON.stringify({ok:true,answers:[]}));
    if(['bootstrap','writing_list'].includes(body.action))return res.end(JSON.stringify({ok:true,member:{...state.member,track:'공채',exam_number:'QA'},notes:[],topics:[],writings:[]}));
@@ -55,20 +57,26 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   for(const width of [390,1280]){
    await page.setViewportSize({width,height:844});requests=[];
    await page.goto(base+'/interview'+(width===390?'?app=1':''));
+   await page.getByRole('heading',{name:'나의 적성 모의고사',exact:true}).waitFor();
+   await page.getByRole('heading',{name:'인적성 수강 안내',exact:true}).waitFor();
+   assert.equal(await page.locator('[data-app-notice=preassignments]').count(),0);
+   assert.equal(requests.some(r=>['bootstrap','life_get','writing_list'].includes(r.body.action)),false);
+   await page.screenshot({path:path.join(output,'aptitude-home-'+width+'.png'),fullPage:true});
+   await page.locator('.ip-app-footer [data-app-tab=aptitude]').click();
    await page.locator('[data-timer-clock]').waitFor();
    assert.equal(await page.locator('.ip-app-header h1').innerText(),'적성 모의고사');
    assert.equal(await page.locator('.ip-app-footer [data-app-tab]').count(),6);
-   for(const tab of ['home','db','writing','mock','my']){
+   for(const tab of ['db','writing','mock','my']){
     await page.locator('.ip-app-footer [data-app-tab="'+tab+'"]').click();
-    await page.getByRole('heading',{name:'면접 패키지로 구매하셔야 이용가능합니다',exact:true}).waitFor();
+    await page.getByRole('heading',{name:'면접 패키지 또는 면접 단과로 등록 후 이용할 수 있습니다',exact:true}).waitFor();
     assert.equal(await page.locator('.ip-app-footer [aria-current=page]').getAttribute('data-app-tab'),tab);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    }
-   assert.equal(requests.filter(r=>r.url==='/api/interview-prep'&&!['mock_status','status'].includes(r.body.action)).length,0,'Blocked tabs may check access but must not load package data');
+   assert.equal(requests.filter(r=>r.url==='/api/interview-prep'&&!['mock_status','home','status'].includes(r.body.action)).length,0,'Home and blocked tabs must not load interview data');
    await page.screenshot({path:path.join(output,'package-required-'+width+'.png'),fullPage:true});
    await page.getByRole('button',{name:'적성 모의고사로 이동',exact:true}).click();await page.locator('[data-timer-clock]').waitFor();
    await page.locator('.ip-app-footer [data-app-tab=db]').click();await page.reload();
-   await page.getByRole('heading',{name:'면접 패키지로 구매하셔야 이용가능합니다',exact:true}).waitFor();
+   await page.getByRole('heading',{name:'면접 패키지 또는 면접 단과로 등록 후 이용할 수 있습니다',exact:true}).waitFor();
   }
   await page.locator('.ip-app-header [data-app-logout]').click();await page.locator('[data-application-form]').waitFor({state:'detached'});
   assert(requests.some(r=>r.body.action==='logout'));
@@ -97,11 +105,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
    await page.locator('.ip-app-stats').waitFor();
    assert.equal(await page.locator('.ip-app-header h1').innerText(),'홈');
    assert.equal(await page.locator('.ip-app-footer [data-app-tab=aptitude]').count(),0);
-   assert.equal(await page.locator('.ip-app-footer [data-app-tab]').count(),4);
+   assert.equal(await page.locator('.ip-app-footer [data-app-tab]').count(),5);
    assert.equal(requests.some(r=>r.url==='/api/interview-aptitude'),false);
    await page.locator('.ip-app-footer [data-app-tab=my]').click();await page.locator('[data-my-export-open]').waitFor();
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await page.screenshot({path:path.join(output,'interview-only-'+width+'.png'),fullPage:true});
+   await page.locator('.ip-app-footer [data-app-tab=mock]').click();await page.locator('[data-app-mock=job]').click();
+   await page.locator('[data-practice-screen=home]').waitFor();assert.equal(await page.getByRole('button',{name:'연습 시작',exact:true}).isEnabled(),true);
+   await page.screenshot({path:path.join(output,'interview-only-mock-beta-'+width+'.png'),fullPage:true});
   }
   // The desktop workspace also omits aptitude, including an old direct entry.
   await page.goto(base+'/qa-admin');requests=[];

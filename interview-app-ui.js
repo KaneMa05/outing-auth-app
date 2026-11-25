@@ -37,7 +37,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  function readRoute(){
   const p=new URLSearchParams(location.hash.split('?')[1]||'');
   if(p.get('tab')==='preassignments')return {tab:'writing',page:'core',area:'life:basic',mockMode:''};
-  const tab=availableTabs.some(([id])=>id===p.get('tab'))?p.get('tab'):aptitudeOnly?'aptitude':'home';
+  const tab=availableTabs.some(([id])=>id===p.get('tab'))?p.get('tab'):'home';
   return {tab,notice:tab==='home'&&p.get('notice')==='preassignments'?'preassignments':'',page:Object.hasOwn(pages,p.get('page'))?p.get('page'):'introduction',area:p.get('area')||'life:basic',mockMode:Object.hasOwn(mockModes,p.get('mockMode'))&&(mockTestApp||['job','personality'].includes(p.get('mockMode')))?p.get('mockMode'):'',...(p.get('legacyRecords')==='1'?{legacyRecords:'1'}:{})};
  }
  function url(){return '#interview-prep?'+new URLSearchParams(route);}
@@ -81,8 +81,12 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   try{
    if(enrollmentEnded(enrollmentAccess)&&(enrollmentAccess.terminationScope==='app'||route.tab!=='aptitude'||interviewOnly)){
     box.innerHTML=enrollmentNotice(enrollmentAccess,{aptitude:!interviewOnly&&enrollmentAccess.appEnabled===true,exit:!!onExit,logout:!!onLogout});
+   }else if(aptitudeOnly&&route.tab==='home'){
+    const data=await request('home');
+    if(destroyed||ticket!==generation)return;
+    box.innerHTML=`${homeNotices(data)}<section class="ip-panel"><span class="ip-badge">인적성 단과</span><h2>나의 적성 모의고사</h2><p class="ip-help">타이머로 풀이 시간을 확인하고, 답안을 입력한 뒤 성적을 조회하세요.</p>${link('적성 모의고사 이용하기','aptitude')}</section>`;
    }else if(aptitudeOnly&&route.tab!=='aptitude'){
-    box.innerHTML='<section class="ip-panel ip-package-required" aria-labelledby="ip-package-required-title"><span class="ip-badge">면접 패키지 전용</span><h2 id="ip-package-required-title" tabindex="-1">면접 패키지로 구매하셔야 이용가능합니다</h2><button type="button" class="ip-btn ip-primary" data-app-tab="aptitude">적성 모의고사로 이동</button></section>';
+    box.innerHTML='<section class="ip-panel ip-package-required" aria-labelledby="ip-package-required-title"><span class="ip-badge">면접 과정 전용</span><h2 id="ip-package-required-title" tabindex="-1">면접 패키지 또는 면접 단과로 등록 후 이용할 수 있습니다</h2><button type="button" class="ip-btn ip-primary" data-app-tab="aptitude">적성 모의고사로 이동</button></section>';
     box.querySelector('#ip-package-required-title')?.focus?.({preventScroll:true});
    }else if(route.tab==='home'&&route.notice==='preassignments'){
     box.innerHTML=assignmentArticle();

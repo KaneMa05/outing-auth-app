@@ -6,11 +6,11 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261125-termination"));
+  assert.ok(index.includes("interview-prep.js?v=20261125-course-home"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261125-termination"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261125-course-home"));
   }
   for(const module of ['interview-native-practice.mjs','interview-native-practice-launcher.mjs'])assert.ok(fs.readFileSync('interview-app-ui.js','utf8').includes(module+'?v=20261119-native-beta'));
   for(const page of [index,portal])assert.ok(page.includes('interview-app.css?v=20261120-compact-footer'));
