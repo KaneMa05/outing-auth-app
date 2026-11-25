@@ -1,8 +1,9 @@
-import {mountWorkspace} from './interview-workspace.js?v=20261125-interview-only';
+import {mountWorkspace} from './interview-workspace.js?v=20261125-termination';
 import {mountMyResources} from './client/interview-my-resources.mjs?v=20261109-db-copy';
 import {mountAptitude} from './client/interview-aptitude.mjs?v=20261116-aptitude-percentile';
 import {createPracticeGateway} from './client/interview-native-practice.mjs?v=20261119-native-beta';
 import {mountNativePracticeLauncher} from './client/interview-native-practice-launcher.mjs?v=20261119-native-beta';
+import {enrollmentEnded,enrollmentNotice,watchEnrollment} from './client/interview-enrollment-access.js?v=20261125-termination';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 25제'};
 const icons={home:'home',db:'question-board',writing:'study-todo',aptitude:'stopwatch',mock:'study-cafe',my:'mypage'};
@@ -26,7 +27,7 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  const aptitudeOnly=account.accessProduct==='aptitude_only';
  const interviewOnly=account.accessProduct==='interview_only';
  const availableTabs=tabs.filter(([id])=>!interviewOnly||id!=='aptitude');
- let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute();
+ let destroyed=false,busy=false,child=null,feedbackDialog=null,generation=0,route=readRoute(),enrollmentAccess=account.enrollmentAccess||{};
  let mockAllowed=false;
  const hasMockAccess=access=>access?.allowed===true||access?.betaAllowed===true;
  try{mockAllowed=hasMockAccess(await request('mock_status'));}catch{}
@@ -78,7 +79,9 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
    window.scrollTo({top:0,behavior:'auto'});
   }
   try{
-   if(aptitudeOnly&&route.tab!=='aptitude'){
+   if(enrollmentEnded(enrollmentAccess)&&(enrollmentAccess.terminationScope==='app'||route.tab!=='aptitude'||interviewOnly)){
+    box.innerHTML=enrollmentNotice(enrollmentAccess,{aptitude:!interviewOnly&&enrollmentAccess.appEnabled===true,exit:!!onExit,logout:!!onLogout});
+   }else if(aptitudeOnly&&route.tab!=='aptitude'){
     box.innerHTML='<section class="ip-panel ip-package-required" aria-labelledby="ip-package-required-title"><span class="ip-badge">면접 패키지 전용</span><h2 id="ip-package-required-title" tabindex="-1">면접 패키지로 구매하셔야 이용가능합니다</h2><button type="button" class="ip-btn ip-primary" data-app-tab="aptitude">적성 모의고사로 이동</button></section>';
     box.querySelector('#ip-package-required-title')?.focus?.({preventScroll:true});
    }else if(route.tab==='home'&&route.notice==='preassignments'){
@@ -233,6 +236,13 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
   finally{if(ticket===generation)busy=false;}
  }
  async function click(e){
+  const enrollment=e.target.closest('[data-enrollment-aptitude],[data-enrollment-refresh],[data-enrollment-exit],[data-enrollment-logout]');
+  if(enrollment&&!destroyed&&['data-enrollment-aptitude','data-enrollment-refresh','data-enrollment-exit','data-enrollment-logout'].some(name=>enrollment.hasAttribute(name))){
+   if(enrollment.hasAttribute('data-enrollment-aptitude')){route={...route,tab:'aptitude',notice:'',mockMode:''};setUrl(true);await render();}
+   else if(enrollment.hasAttribute('data-enrollment-refresh')){await enrollmentWatcher.check();if(!destroyed)await render();}
+   else await (enrollment.hasAttribute('data-enrollment-exit')?onExit:onLogout)?.();
+   return;
+  }
   const n=e.target.closest('[data-app-notice],[data-app-tab],[data-app-mock],[data-app-exit],[data-app-logout],[data-app-reload],[data-app-feedback]');if(!n||n.disabled||destroyed)return;
   if(n.hasAttribute('data-app-feedback')){
    if(!canLeave())return;
@@ -260,5 +270,6 @@ export async function mountInterviewApp(host,{request,aiRequest,aptitudeRequest,
  host.addEventListener('pointerdown',preserveWritingFocus);
  host.addEventListener('click',click);host.addEventListener('input',rememberClick);window.addEventListener('hashchange',pop);window.addEventListener('popstate',pop);window.visualViewport?.addEventListener('resize',keyboard);
  setUrl(true);await render();
- return {canLeave,destroy(){destroyed=true;++generation;saveResume();practiceGateway?.destroy();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('pointerdown',preserveWritingFocus);host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
+ const enrollmentWatcher=watchEnrollment(request,async access=>{if(destroyed)return;if(access.accessProduct&&access.accessProduct!==account.accessProduct){location.reload();return;}enrollmentAccess=access;if(enrollmentEnded(access)){mockAllowed=false;route={...route,tab:'home',notice:'',mockMode:''};setUrl(true);}else{try{mockAllowed=hasMockAccess(await request('mock_status'));}catch{mockAllowed=false;}}await render();},enrollmentAccess);
+ return {canLeave,destroy(){destroyed=true;++generation;enrollmentWatcher.destroy();saveResume();practiceGateway?.destroy();child?.destroy();feedbackDialog?.destroy();host.removeEventListener('pointerdown',preserveWritingFocus);host.removeEventListener('click',click);host.removeEventListener('input',rememberClick);window.removeEventListener('hashchange',pop);window.removeEventListener('popstate',pop);window.visualViewport?.removeEventListener('resize',keyboard);host.replaceChildren();}};
 }

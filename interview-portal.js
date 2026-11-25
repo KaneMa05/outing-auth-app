@@ -1,6 +1,7 @@
 import {interviewTracks} from './client/interview-tracks.js?v=20261102-source-tracks';
 import {interviewProducts,interviewProductLabel} from './client/interview-products.js?v=20261125-interview-only';
 import {mountInterviewLogin} from './interview-login.js?v=20261109-apple-button';
+import {enrollmentEnded,enrollmentNotice} from './client/interview-enrollment-access.js?v=20261125-termination';
 const host=document.querySelector('#interview-portal'),actions=document.querySelector('#portal-actions');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state,controller=null,busy=false,version=0,disposeLogin=null;
@@ -19,6 +20,7 @@ const messages={
  too_many_attempts:'로그인 시도가 많습니다. 15분 후 다시 시도해주세요.',
  revision_conflict:'신청 상태가 변경되었습니다. 새로 확인한 뒤 다시 제출해주세요.',
  already_enrolled:'이미 이용 등록된 계정입니다. 등록 상태를 다시 확인해주세요.',
+ enrollment_ended:'이용이 종료된 계정입니다. 학원에 문의해 주세요.',
  invalid_request:'입력 내용을 확인해주세요.',interview_unavailable:'연결하지 못했습니다. 잠시 후 다시 시도해주세요.'
 };
 const tell=(text,error=false)=>{const n=host.querySelector('[data-auth-message]');if(n){n.textContent=text;n.dataset.error=String(error);}};
@@ -42,13 +44,15 @@ function render(){
  }
  host.innerHTML='<p class="ip-auth-message" data-auth-message role="status"></p><div data-portal-content></div>';
  const box=host.querySelector('[data-portal-content]');
- if(state.available){
-  const useApp=appMode||state.member?.access_product==='aptitude_only'||state.member?.mock_test_enabled===true;
+ if(state.access?.terminationScope==='app'){
+  box.innerHTML=enrollmentNotice(state.access,{exit:true,logout:true});
+ }else if(state.available||state.member?.mock_test_enabled===true||enrollmentEnded(state.access)){
+  const useApp=appMode||state.member?.access_product==='aptitude_only'||enrollmentEnded(state.access);
   box.innerHTML='<p role="status">면접 준비 화면을 불러오는 중…</p>';
   const current=++version;
-  return import(useApp?'./interview-app-ui.js?v=20261125-interview-only':'./interview-workspace.js?v=20261125-interview-only').then(async module=>{
+  return import(useApp?'./interview-app-ui.js?v=20261125-termination':'./interview-workspace.js?v=20261125-termination').then(async module=>{
    if(current!==version)return;
-   const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
+   const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,enrollmentAccess:state.access,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
     const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;
    },aiRequest:async(url,body)=>{
@@ -85,16 +89,18 @@ async function run(task){
  finally{busy=false;controls.forEach(([n,disabled])=>{if(n.isConnected)n.disabled=disabled;});}
 }
 document.addEventListener('click',e=>{
- const n=e.target.closest('[data-kakao],[data-apple],[data-refresh],[data-logout],[data-student-entry]');if(!n||n.disabled)return;
+ const n=e.target.closest('[data-kakao],[data-apple],[data-refresh],[data-logout],[data-student-entry],[data-enrollment-refresh],[data-enrollment-logout],[data-enrollment-exit]');if(!n||n.disabled)return;
+ if(n.hasAttribute('data-enrollment-refresh')&&controller)return;
+ if((n.hasAttribute('data-enrollment-logout')||n.hasAttribute('data-enrollment-exit'))&&controller)return;
  run(async()=>{
   if(controller?.canLeave&&!controller.canLeave())return;
-  if(n.hasAttribute('data-student-entry')){
+  if(n.hasAttribute('data-student-entry')||n.hasAttribute('data-enrollment-exit')){
    try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}
    location.assign('/index.html?entry=student#home');
   }
   else if(n.hasAttribute('data-apple')){const d=await api('start',{intent:n.dataset.apple},'/api/interview-apple');location.assign(d.url);}
   else if(n.hasAttribute('data-kakao')){const d=await api('kakao_start',{intent:n.dataset.kakao});location.assign(d.url);}
-  else if(n.hasAttribute('data-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
+  else if(n.hasAttribute('data-logout')||n.hasAttribute('data-enrollment-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
   else await refresh();
  });
 });

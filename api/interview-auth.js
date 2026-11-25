@@ -94,10 +94,10 @@ function createHandler({getConfig=webAuth.config,invoke=webAuth.invoke,exchange=
    res.setHeader('Set-Cookie',[webAuth.cookie(webAuth.COOKIE,'',0,cfg),clearState()]);
    return res.status(200).json({ok:true});
   }catch(error){
-   const known=['oauth_state_invalid','account_already_linked','kakao_cancelled','kakao_login_failed','kakao_not_configured','portal_not_configured','invalid_request','forbidden','unauthorized','revision_conflict','already_enrolled','unsupported_action','method_not_allowed','too_many_attempts'];
-   const code=known.includes(error.message)?error.message:error instanceof SyntaxError?'invalid_request':'interview_unavailable';
+   const known=['oauth_state_invalid','account_already_linked','kakao_cancelled','kakao_login_failed','kakao_not_configured','portal_not_configured','invalid_request','forbidden','unauthorized','revision_conflict','already_enrolled','enrollment_ended','unsupported_action','method_not_allowed','too_many_attempts'];
+   const code=known.find(code=>error.message===code||error.message?.includes(`"message":"${code}"`))||(error instanceof SyntaxError?'invalid_request':'interview_unavailable');
    if(callback){res.setHeader('Set-Cookie',clearState());return redirect(code);}
-   return res.status(({unauthorized:401,forbidden:403,revision_conflict:409,account_already_linked:409,interview_unavailable:503,portal_not_configured:503,kakao_not_configured:503,too_many_attempts:429,method_not_allowed:405}[code]||400)).json({ok:false,error:code});
+   return res.status(({unauthorized:401,forbidden:403,enrollment_ended:403,revision_conflict:409,account_already_linked:409,interview_unavailable:503,portal_not_configured:503,kakao_not_configured:503,too_many_attempts:429,method_not_allowed:405}[code]||400)).json({ok:false,error:code});
   }
  };
 }

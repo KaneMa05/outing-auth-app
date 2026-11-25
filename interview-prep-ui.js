@@ -224,6 +224,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   const approvalBadge=q=>`<span class="ip-badge ${q.status==='published'?'approved':''}" data-question-approval="${esc(q.status)}">${publicationLabels[q.status]}</span>`;
   const applicationSummary=summary=>[['students','수강생 수'],['pending','신청 대기'],['approved','승인 완료'],['rejected','반려']]
     .map(([key,label])=>`<span><strong>${Number.isSafeInteger(summary?.[key])?summary[key].toLocaleString('ko-KR'):'—'}</strong>${label}</span>`).join('');
+  let enrollmentMode='applications';
   const applicationProduct=application=>application.current_access_product||application.access_product||'interview_package';
   const rosterDownload=()=>`<div class="ip-toolbar">${btn('수강 명단 엑셀 다운로드','roster-export')}${btn('휴대폰 번호 입력·수정','contacts-open')}</div><p class="ip-help">이름·직렬·수험번호·과정·휴대폰 번호가 포함됩니다. 번호 미등록은 빈칸으로 표시됩니다. 검색 조건과 관계없이 등록된 전체 수강생을 다운로드합니다(이용 중지·기간 만료 포함).</p>`;
   function shell(){
@@ -232,9 +233,9 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     life?.destroy();life=null;
     const counts=catalog.categoryCounts?.[category]||{total:0,draft:0,published:0};
     host.innerHTML=`<nav class="ip-tabs ip-category-tabs" aria-label="면접 상위 카테고리">${[['personality','인성'],['job','직무']].map(([key,label])=>btn(label,'category',`data-category="${key}" ${key===category?'aria-current="page"':''}`)).join('')}</nav>
-    ${tab==='applications'?`<div class="ip-hero"><div class="ip-eyebrow">ENROLLMENT MANAGEMENT</div><h2>수강 신청·승인 현황</h2><p>면접반 수강생과 신청 현황을 확인하고, 수강 신청을 검토·승인하세요.</p><div class="ip-summary" data-application-summary role="status" aria-label="전체 수강 신청 현황">${applicationSummary()}</div><p class="ip-help">수강생 수는 이용 중지·기간 만료를 제외한 현재 이용 가능한 등록 학생 수입니다.</p></div>`:`<div class="ip-hero"><div class="ip-eyebrow">INTERVIEW MANAGEMENT</div><h2>${tab==='dashboard'?'면접반 홈':category==='personality'?'인성 준비 관리':'직무 기출 관리'}</h2><p>${category==='personality'?'인성 기출과 학생 개인 경험·가치관을 관리합니다.':'직무 기출을 별도로 관리합니다. 학생 개인 준비 노트와 작성률에는 포함하지 않습니다.'}</p><div class="ip-summary"><span><strong>${counts.total}</strong>질문</span><span><strong>${counts.draft}</strong>승인 대기</span><span><strong>${counts.published}</strong>공개 승인</span></div></div>
+    ${tab==='applications'?`<div class="ip-hero"><div class="ip-eyebrow">ENROLLMENT MANAGEMENT</div><h2>수강생·이용 관리</h2><p>면접반 수강생과 신청 현황을 확인하고, 수강 신청을 검토·승인하세요.</p><div class="ip-summary" data-application-summary role="status" aria-label="전체 수강 신청 현황">${applicationSummary()}</div><p class="ip-help">수강생 수는 이용 중지·기간 만료를 제외한 현재 이용 가능한 등록 학생 수입니다.</p></div>`:`<div class="ip-hero"><div class="ip-eyebrow">INTERVIEW MANAGEMENT</div><h2>${tab==='dashboard'?'면접반 홈':category==='personality'?'인성 준비 관리':'직무 기출 관리'}</h2><p>${category==='personality'?'인성 기출과 학생 개인 경험·가치관을 관리합니다.':'직무 기출을 별도로 관리합니다. 학생 개인 준비 노트와 작성률에는 포함하지 않습니다.'}</p><div class="ip-summary"><span><strong>${counts.total}</strong>질문</span><span><strong>${counts.draft}</strong>승인 대기</span><span><strong>${counts.published}</strong>공개 승인</span></div></div>
     <div class="ip-row"><p>학생 이용: <strong>${catalog.enabled?'등록 학생에게 개방':'준비 중'}</strong></p>${btn(catalog.enabled?'이용 중지':'등록 학생에게 개방','enabled',canWrite?'':'disabled')}</div>`}
-    <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강 신청·승인'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
+    <div class="ip-tabs">${(category==='personality'?[['dashboard','면접반 홈'],['applications','수강생·이용 관리'],['review','피드백 관리'],['questions','인성 기출'],['core','핵심인성 30제'],['analysis','질문 요소 분석'],['topics','인성 준비 항목'],['members','학생별 인성 준비 현황']]:[['questions','직무 기출']]).map(([key,label])=>btn(label,'tab',`data-tab="${key}" ${key===tab?'aria-current="page"':''}`)).join('')}</div>
     <p class="ip-message" data-message role="status"></p><div data-content></div><section class="ip-panel" data-editor hidden></section>`;
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('과제 관리','tab',`data-tab="preassignments" ${tab==='preassignments'?'aria-current="page"':''}`));
     host.querySelector('.ip-tabs:not(.ip-category-tabs)').insertAdjacentHTML('beforeend',btn('앱 오류·개선 의견','tab',`data-tab="app_feedback" ${tab==='app_feedback'?'aria-current="page"':''}`));
@@ -387,7 +388,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       box.innerHTML=`<section class="ip-panel"><div class="ip-row"><h3>우선 확인할 업무</h3>${btn('현황 새로고침','section','data-section="home"')}</div>
       <p class="ip-help">이용 가능 수강생은 이용 중지·기간 만료를 제외합니다. 확인 대기와 보완·도움 요청은 전체 등록 학생의 저장 기록 기준이며, 같은 학생이 두 항목에 포함될 수 있습니다.</p>
       ${!enrollment||!review?'<p role="alert">일부 현황을 불러오지 못했습니다. —는 집계 불가를 의미합니다. 새로고침하거나 해당 관리 화면에서 확인하세요.</p>':''}
-      <div class="ip-toolbar">${btn('수강 신청·승인','section','data-section="applications"',true)}${btn('피드백 관리','section','data-section="review"')}${btn('과제 관리','section','data-section="preassignments"')}${btn('학생 등록·첨삭','section','data-section="members"')}</div></section>
+      <div class="ip-toolbar">${btn('수강생·이용 관리','section','data-section="applications"',true)}${btn('피드백 관리','section','data-section="review"')}${btn('과제 관리','section','data-section="preassignments"')}${btn('학생 등록·첨삭','section','data-section="members"')}</div></section>
       <section class="ip-panel"><h3>기출 질문 현황</h3><p class="ip-help">질문 자료의 공개 상태이며 학생 수·제출물 수와 별도로 집계합니다.</p>
       ${[['personality','인성 기출','questions'],['job','직무 기출','job']].map(([key,label,section])=>{const c=catalog.categoryCounts?.[key];return `<div class="ip-question"><div class="ip-row"><strong>${label}</strong>${btn('관리 열기','section',`data-section="${section}"`)}</div><p>전체 ${number(c?.total)}개 · 승인 대기 ${number(c?.draft)}개 · 공개 승인 ${number(c?.published)}개</p></div>`;}).join('')}
       <div class="ip-toolbar">${btn('핵심인성 30제','section','data-section="core"')}${btn('질문 요소 분석','section','data-section="analysis"')}</div></section>`;
@@ -396,13 +397,20 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
     if(tab==='applications'){
       const summary=host.querySelector('[data-application-summary]');
       summary.innerHTML=applicationSummary();
+      const enrollmentTabs=`<nav class="ip-tabs" aria-label="수강생 이용 관리 구분">${btn('신청·승인','enrollment-mode',`data-mode="applications" ${enrollmentMode==='applications'?'aria-current="page"':''}`)}${btn('등록 수강생·이용 종료','enrollment-mode',`data-mode="members" ${enrollmentMode==='members'?'aria-current="page"':''}`)}</nav>`;
+      if(enrollmentMode==='members'){
+        box.innerHTML=enrollmentTabs+'<div data-enrollment-host></div>';
+        const {mountEnrollment}=await import('./client/interview-enrollment.mjs?v=20261125-termination');
+        if(destroyed||version!==loadVersion)return;
+        life=mountEnrollment(box.querySelector('[data-enrollment-host]'),{request,canWrite,onSummary:data=>{if(!destroyed&&version===loadVersion)summary.innerHTML=applicationSummary(data);}});await life.ready;return;
+      }
       const r=await request('admin_applications',{...filter,status:filter.status??'pending',page});
       if(destroyed||version!==loadVersion)return;
       summary.innerHTML=applicationSummary(r.summary);
       if(!r.summary)notify(host,'전체 현황을 불러오지 못했습니다. 신청 목록은 아래에서 확인할 수 있습니다.',true);
       list=r.applications;
       const labels={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
-      box.innerHTML=`${rosterDownload()}<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
+      box.innerHTML=`${enrollmentTabs}${rosterDownload()}<section class="ip-panel"><h3>면접반 수강 신청</h3><p>실제 수강 등록을 확인한 뒤 승인하세요. 신규 학생은 면접반 전용 계정으로 등록되고, 기존 학생은 원래 계정에 이용 권한이 추가됩니다.</p></section>
       <form data-filter class="ip-toolbar"><label>이름·수험번호 검색<input name="search" maxlength="200" value="${esc(filter.search||'')}"></label><label>상태<select name="status">${options([['pending','승인 대기'],['approved','승인 완료'],['rejected','반려'],['','전체']],filter.status??'pending')}</select></label><button class="ip-btn ip-primary">검색</button></form>
       <section class="ip-panel">${list.map(a=>`<article class="ip-question"><div class="ip-row"><strong>${esc(a.name)} · ${esc(a.track)}</strong><span>${labels[a.status]}</span></div><p><strong>${esc(interviewProductLabel(applicationProduct(a)))}</strong><br>수험번호 ${esc(a.exam_number)} · ${a.legacy_student_id?'기존 학생 '+esc(a.legacy_student_id):'신규 면접반 전용 계정'}<br><small>신청 ${esc(new Date(a.created_at).toLocaleString('ko-KR'))}</small></p>${a.review_note?`<p>${esc(a.review_note)}</p>`:''}<div class="ip-toolbar">${btn('수강 과정 변경','application-product',`data-id="${esc(a.id)}" data-write ${canWrite?'':'disabled'}`)}${a.status==='pending'?btn('신청 검토','application-edit',`data-id="${esc(a.id)}"`)+btn('반려','application-reject',`data-id="${esc(a.id)}" ${canWrite?'':'disabled'}`):''}</div></article>`).join('')||'<p class="ip-empty">신청 내역이 없습니다.</p>'}</section>
       <div class="ip-toolbar">${btn('이전','prev',page===0?'disabled':'')}<span>${page+1} 페이지</span>${btn('다음','next',list.length<30?'disabled':'')}</div>`;
@@ -524,7 +532,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
   }
   function editMember(id){
     selected=list.find(s=>s.id===id);
-    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label><p class="ip-help">면접 단과는 면접 준비, 인적성 단과는 적성 모의고사만 이용합니다. 면접 패키지는 모두 이용합니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>이용 종료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 또는 면접 단과 계정 중 별도로 허용한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
+    editor(`<h3>${esc(selected.name)} · 면접반 이용 등록</h3><form data-member-form><label>수강 상품<select name="accessProduct">${options(interviewProducts,selected.access_product||'interview_package')}</select></label><p class="ip-help">면접 단과는 면접 준비, 인적성 단과는 적성 모의고사만 이용합니다. 면접 패키지는 모두 이용합니다.</p><label>직렬<select name="track">${options(tracks.map(t=>[t,t]),selected.track||'공채')}</select></label><label>수험번호<input name="examNumber" required maxlength="80" value="${esc(selected.exam_number||'')}"></label><label>수강 만료일 <small>(빈칸이면 제한 없음)</small><input type="date" name="expiresOn" value="${esc(selected.expires_on||'')}"></label><label><input name="enabled" type="checkbox" ${selected.enabled!==false?'checked':''}> 이용 허용</label><label><input name="mockTestEnabled" type="checkbox" ${selected.mock_test_enabled===true?'checked':''}> 모의면접 테스트 허용</label><p class="ip-help">면접 패키지 또는 면접 단과 계정 중 별도로 허용한 계정만 전공·인성·실전 모의면접 테스트를 사용할 수 있습니다.</p><button class="ip-btn ip-primary" data-write>저장</button></form>`);
   }
   async function feedback(id,topicId){
     const student=list.find(s=>s.id===id),t=catalog.topics.find(t=>t.id===topicId);
@@ -546,6 +554,9 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         host.querySelectorAll('[data-ip=question-example]').forEach(button=>button.setAttribute('aria-expanded','false'));
       }
 
+      if(a==='enrollment-mode'){
+        if(!canLeave())return;life?.destroy();life=null;dirty=false;enrollmentMode=target.dataset.mode;page=0;filter={};await load();return;
+      }
       if(['category','tab','section','prev','next','question-new','question-edit','question-example','taxonomy-edit','analysis-edit','application-reject','application-edit','application-product','topic-new','topic-edit','member-edit','feedback','life','writing','close','enabled','contacts-open','roster-export'].includes(a)&&!canLeave())return;
       if(['category','tab','section','close'].includes(a))dirty=false;
       if(a==='section'){if(onSection)onSection(target.dataset.section);else await openSection(target.dataset.section);}
@@ -623,7 +634,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
         const reject=a==='application-reject';
         selected=list.find(x=>x.id===target.dataset.id);
         editor(`<h3>면접반 신청 검토</h3><p><strong>${esc(interviewProductLabel(selected.access_product))}</strong> · ${esc(selected.name)} · ${esc(selected.track)} · 수험번호 ${esc(selected.exam_number)}</p><p>구매한 수강 상품을 확인한 뒤 승인해주세요. 승인하면 아래에서 선택한 과정의 이용 권한이 적용됩니다.</p><p>${selected.legacy_student_id?'기존 학생 계정 '+esc(selected.legacy_student_id):'신규 면접반 전용 계정'}</p>
-        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>이용 종료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
+        <form data-application-review><label>수강 과정<select name="accessProduct">${options(interviewProducts,applicationProduct(selected))}</select></label><label>처리<select name="status"><option value="approved">수강 확인·승인</option><option value="rejected" ${reject?'selected':''}>반려</option></select></label><label>수강 만료일 (승인 시 적용, 빈칸은 제한 없음)<input name="expiresOn" type="date"></label><label>반려 사유 / 승인 안내 (반려 시 필수)<textarea name="reviewNote" maxlength="2000" ${reject?'required':''}></textarea></label><p class="ip-help">반려하면 학생에게 사유가 표시됩니다. 학생이 재신청해야 다시 승인 대기 목록에 표시됩니다.</p><button class="ip-btn ip-primary" data-write>${reject?'반려':'승인'}</button>${btn('닫기','close')}</form>`,target.closest('.ip-question'));
       }
       else if(a==='life'){
         editor(`${btn('닫기','close')}<div data-life-host></div>`);

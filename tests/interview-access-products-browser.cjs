@@ -64,7 +64,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
     assert.equal(await page.locator('.ip-app-footer [aria-current=page]').getAttribute('data-app-tab'),tab);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    }
-   assert.equal(requests.filter(r=>r.url==='/api/interview-prep'&&r.body.action!=='mock_status').length,0,'Blocked tabs must not load package data');
+   assert.equal(requests.filter(r=>r.url==='/api/interview-prep'&&!['mock_status','status'].includes(r.body.action)).length,0,'Blocked tabs may check access but must not load package data');
    await page.screenshot({path:path.join(output,'package-required-'+width+'.png'),fullPage:true});
    await page.getByRole('button',{name:'적성 모의고사로 이동',exact:true}).click();await page.locator('[data-timer-clock]').waitFor();
    await page.locator('.ip-app-footer [data-app-tab=db]').click();await page.reload();

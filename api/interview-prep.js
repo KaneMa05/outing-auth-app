@@ -8,6 +8,7 @@ const { authenticatePortal } = require('../lib/interview-web-auth');
 const writingSubmissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
 const scheduledWritingKinds=new Set(['introduction','motivation','public_service']);
 const actions = new Set(['admin_question_example_detail','admin_question_example_save','practice_reference','admin_app_feedback_list','admin_app_feedback_update','admin_mock_monitor','admin_cli_status','admin_question_taxonomy_save','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','practice_bootstrap','mock_status','status','bootstrap','questions','question_detail','note_save','history',
+  'admin_enrollment_list','admin_enrollment_history','admin_enrollment_reason_save','admin_enrollment_change',
   'admin_catalog','admin_enabled','admin_members','admin_member_save','admin_contact_save','admin_questions',
   'admin_question_detail','admin_question_save','admin_question_delete','admin_question_publish','admin_question_publication','admin_topic_save','admin_feedback','admin_history','admin_note_detail',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_analysis_save','admin_core_questions','core_questions',
@@ -15,10 +16,12 @@ const actions = new Set(['admin_question_example_detail','admin_question_example
   'admin_writing_board','admin_writing_delete','writing_list','writing_save','writing_history','admin_writing_history','admin_writing_list','admin_writing_feedback','admin_review_students','admin_review_detail',
   'admin_rubric_list','admin_rubric_detail','admin_rubric_save']);
 const reads = new Set(['admin_question_example_detail','admin_app_feedback_list','admin_mock_monitor','admin_cli_status','admin_draft_worker_status','admin_assignment_detail','admin_ai_usage','admin_assignment_overview','admin_writing_board','admin_writing_history','admin_catalog','admin_members','admin_questions','admin_question_detail','admin_history','admin_note_detail',
+  'admin_enrollment_list','admin_enrollment_history',
   'admin_analysis_catalog','admin_analysis_questions','admin_analysis_detail','admin_core_questions','admin_life_get','admin_applications','admin_writing_list','admin_review_students','admin_review_detail','admin_rubric_list','admin_rubric_detail']);
 const fail = (code,status=400) => { throw Object.assign(new Error(code),{status}); };
 function validate(body) {
   if (!body || Array.isArray(body) || !actions.has(body.action)) fail('unsupported_action');
+  if(body.action.startsWith('admin_enrollment_'))require('../lib/interview-enrollment.cjs').validate(body);
   if(body.includeNotices!==undefined&&(body.action!=='bootstrap'||typeof body.includeNotices!=='boolean'))fail('invalid_request');
   if(body.includeContacts!==undefined&&(body.action!=='admin_members'||typeof body.includeContacts!=='boolean'))fail('invalid_request');
   if(body.action==='admin_contact_save'){
@@ -144,7 +147,9 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
       }
       const payload={...body};
       for(const key of ['action','studentId','deviceToken','actor','client'])delete payload[key];
-      const result=body.action.startsWith('admin_app_feedback_')
+      const result=body.action.startsWith('admin_enrollment_')
+        ?await require('../lib/interview-enrollment.cjs').invoke(body.action,actor,payload,read)
+        :body.action.startsWith('admin_app_feedback_')
         ?await require('../lib/interview-app-feedback.cjs').feedback(body.action,actor,payload,read)
         :body.action==='admin_mock_monitor'
         ?await require('../lib/interview-mock-monitor.cjs').monitorStatus(payload,actor,read)
@@ -168,6 +173,7 @@ function createHandler({authenticate=authenticateStudent, previewAllowed=isPrevi
     } catch(error) {
       const known=['not_found','unauthorized','forbidden','not_enrolled','revision_conflict','topic_changed','topic_in_use','invalid_topic','invalid_request','incomplete_note','incomplete_life','help_reason_required','not_submitted','question_unavailable','student_unavailable','unsupported_action','method_not_allowed','request_too_large','review_note_required'];
       known.push('rubric_incomplete','submission_not_open','feedback_pending','invalid_phone');
+      known.push('reason_in_use','enrollment_ended');
       known.push('invalid_experience_date','incomplete_experience_date');
       known.push('invalid_satisfaction');
       const code=known.find(c=>error.message===c || error.message?.includes(`"message":"${c}"`));
