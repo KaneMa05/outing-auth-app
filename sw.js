@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v585-core-diagnosis-only";
+const CACHE_NAME = "outing-auth-app-v586-review-complete";
 const APP_SHELL = [
   "/app.js?v=20261120-pending-reflection",
   "/student-content-safety.js?v=20261028-safety-fallback",

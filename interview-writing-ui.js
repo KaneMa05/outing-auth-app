@@ -3,6 +3,8 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const titles={introduction:'자기소개',motivation:'지원동기',public_service:'공직관',core:'핵심 30제'};
 const statuses={draft:'임시저장',saved:'저장 완료',needs_revision:'보완 필요',approved:'강사 확인'};
 const submissionLabels={submitted:'교사 확인 대기',needs_revision:'보완 필요',approved:'확인 완료'};
+const emptyReviewMessage='선생님이 확인했습니다. 별도로 등록된 첨삭 내용은 없습니다.';
+const reviewedWithoutCorrections=(row,status)=>status==='approved'&&!row?.annotation_marks?.length&&!String(row?.feedback??'').trim();
 const reviewLabels={submitted:'확인 대기',needs_revision:'보완요청',approved:'첨삭완료 (수고하셨습니다.)'};
 const submittedDate=v=>new Date(v).toLocaleString('ko-KR');
 const submissionOpensAt=Date.parse('2026-11-23T00:00:00+09:00');
@@ -23,7 +25,10 @@ export function mountWritingHistory(host,{request,admin=false,studentId='',kind,
   try{
    const result=await request(admin?'admin_writing_history':'writing_history',{kind,itemId,page,...(admin?{targetStudentId:studentId}:{})});
    if(destroyed)return;
-   box.innerHTML=result.rounds.map((r,i)=>`<details class="ip-writing-round" ${i===0?'open':''}><summary><strong>${r.round}차 제출 · ${(admin?reviewLabels:submissionLabels)[r.status]}</strong></summary><p class="ip-help">제출일 ${esc(submittedDate(r.submitted_at))}</p><h4>제출한 답변</h4><div class="ip-annotated-text">${annotatedText(r.submitted_body,r.annotation_marks,{feedback:r.feedback})}</div>${r.feedback_at?`<small>첨삭 수정일 ${esc(submittedDate(r.feedback_at))}</small>`:''}</details>`).join('')||'<p>아직 제출 기록이 없습니다.</p>';
+   box.innerHTML=result.rounds.map((r,i)=>{
+    const emptyReview=!admin&&reviewedWithoutCorrections(r,r.status);
+    return `<details class="ip-writing-round" ${i===0?'open':''}><summary><strong>${r.round}차 제출 · ${emptyReview?'검토 완료':(admin?reviewLabels:submissionLabels)[r.status]}</strong></summary>${emptyReview?`<p class="ip-help" data-writing-review-complete>${emptyReviewMessage}</p>`:''}<p class="ip-help">제출일 ${esc(submittedDate(r.submitted_at))}</p><h4>제출한 답변</h4><div class="ip-annotated-text">${annotatedText(r.submitted_body,r.annotation_marks,{feedback:r.feedback})}</div>${r.feedback_at?`<small>첨삭 수정일 ${esc(submittedDate(r.feedback_at))}</small>`:''}</details>`;
+   }).join('')||'<p>아직 제출 기록이 없습니다.</p>';
    box.insertAdjacentHTML('beforeend',`<div class="ip-toolbar"><button class="ip-btn" type="button" data-round-page="prev" ${page===0?'disabled':''}>이전</button><span>${page+1} / ${Math.max(1,Math.ceil(result.total/result.pageSize))}</span><button class="ip-btn" type="button" data-round-page="next" ${(page+1)*result.pageSize>=result.total?'disabled':''}>다음</button></div>`);
    loaded=true;
   }catch(e){if(!destroyed)box.innerHTML='<p role="alert">제출 기록을 불러오지 못했습니다.</p><button class="ip-btn" type="button" data-round-retry>다시 시도</button>';}
@@ -87,10 +92,11 @@ export function mountWriting(host,{request,kind='introduction',admin=false,stude
  function render(){
   history?.destroy();history=null;annotations?.destroy();annotations=null;
   const current=item(),saved=row();
+  const emptyReview=!admin&&!!saved?.submitted_at&&reviewedWithoutCorrections(saved,saved.submission_status);
   host.innerHTML=`${items.length&& (admin&&!hideQuestionPicker||kind==='core'&&!hideQuestionPicker)?`<label class="ip-writing-picker">${admin?'작성 답변 선택':'질문 선택'}<select data-writing-select>${items.map(i=>`<option value="${esc(i.key)}" ${i.key===selected?'selected':''}>${esc(i.label)}${i.retired?' (비공개·기존 답변)':''}</option>`).join('')}</select></label>`:''}
    ${admin?'':'<p class="ip-message" data-writing-message role="status"></p>'}
-   ${current?`<section class="ip-panel ip-writing-editor"><div class="ip-row"><h3>${esc(current.prompt)}</h3><span class="ip-badge" data-writing-status>${(admin?reviewLabels[saved?.submission_status]:statuses[saved?.status])||statuses[saved?.status]||'미작성'}</span></div>
-    ${hideDetails?'':saved?.submitted_at?`<div class="ip-writing-submission"><strong>${saved.submission_round||1}차 제출 · ${(admin?reviewLabels:submissionLabels)[saved.submission_status]}</strong><p class="ip-help">제출일 ${esc(submittedDate(saved.submitted_at))}${saved.body!==saved.submitted_body?' · 제출 후 수정한 내용이 있습니다. 다시 제출하면 교사에게 전달됩니다.':''}</p>${!admin?`<details><summary>제출한 답변 보기</summary><p class="ip-writing-text">${esc(saved.submitted_body)}</p></details>`:''}</div>`:'<p class="ip-help">아직 교사에게 제출하지 않은 답변입니다.</p>'}
+   ${current?`<section class="ip-panel ip-writing-editor"><div class="ip-row"><h3>${esc(current.prompt)}</h3><span class="ip-badge" data-writing-status>${emptyReview&&saved.status==='approved'?'검토 완료':(admin?reviewLabels[saved?.submission_status]:statuses[saved?.status])||statuses[saved?.status]||'미작성'}</span></div>
+    ${hideDetails?'':saved?.submitted_at?`<div class="ip-writing-submission"><strong>${saved.submission_round||1}차 제출 · ${emptyReview?'검토 완료':(admin?reviewLabels:submissionLabels)[saved.submission_status]}</strong>${emptyReview?`<p class="ip-help" data-writing-review-complete>${emptyReviewMessage}</p>`:''}<p class="ip-help">제출일 ${esc(submittedDate(saved.submitted_at))}${saved.body!==saved.submitted_body?' · 제출 후 수정한 내용이 있습니다. 다시 제출하면 교사에게 전달됩니다.':''}</p>${!admin?`<details><summary>제출한 답변 보기</summary><p class="ip-writing-text">${esc(saved.submitted_body)}</p></details>`:''}</div>`:'<p class="ip-help">아직 교사에게 제출하지 않은 답변입니다.</p>'}
     ${!admin||saved?.feedback_revision!==saved?.submitted_revision?writingCorrections(saved):''}
     ${admin&&!hideDetails&&saved?.submitted_at?'<div data-writing-history></div>':''}
     ${admin?`${hideDetails?'':`<p class="ip-help">${saved?.submitted_at?'교사에게 제출된 답변':'저장된 답변 · 미제출'}</p>`}<div data-writing-annotations></div>
