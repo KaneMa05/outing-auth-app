@@ -1,24 +1,10 @@
 {
-  "sourceCommit": "13887e5f1e2c175627a7912e03a19289b8fa164b",
-  "captionCommit": "108fdd191e960cd5b3e3bc059480646374fb85d7",
-  "version": "1.1.0",
-  "buildNumber": 7,
-  "priorRegressionRun": 45559682237,
-  "priorUnitTestsPassed": 20,
-  "priorExistingUITestsPassed": 4,
-  "priorPhysicalOnlyTestsSkipped": 2,
-  "discardDialogCorrected": true,
-  "retryInputUsesValidEmptyStudentCorrection": true,
-  "retryTest": "NativeCaptionEditorTests",
+  "sourceCommit": "f4aa63cb497c381c8f08f088e5ea8a0f116d49e5",
+  "version": "1.1.1",
+  "buildNumber": 8,
+  "forcedUpdate": false,
+  "fullNativeRegression": true,
   "files": [
-    {
-      "path": ".github/workflows/ios-native-build.yml",
-      "sha256": "3c54f44f873bab87eafa3b92a7d1866216aac938a2345f2c6174210048c49873"
-    },
-    {
-      "path": "AGENTS.md",
-      "sha256": "5287e36893889bbb0918224df0f879e6dff4c498b221d4f9a60e929e898251f1"
-    },
     {
       "path": "native/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
       "sha256": "8e8b977d57ec6e4c4808709c8ae208e923b79a67e9167b43846c284b4b1164e9"
@@ -37,7 +23,7 @@
     },
     {
       "path": "native/ios/App/Sources/NativePracticeNavigation.swift",
-      "sha256": "cf8eabdefd0ee9d33f15dfb2be0a4603f4783fb0a0eb1fc43fdb3f314023dcd8"
+      "sha256": "3cbc56e28905a81c1c6739d1f519a1404c66061a138731f75e416924d3f67c07"
     },
     {
       "path": "native/ios/App/Sources/PracticePortalSession.swift",
@@ -45,7 +31,7 @@
     },
     {
       "path": "native/ios/App/Sources/RonparkStudyApp.swift",
-      "sha256": "ed7d2c99b2e7ea7b2b37149b5f51cbd887e81377a9c9f6522def88c83c1fdecb"
+      "sha256": "856ee09141cc4f5a6507a5a191a4f879a58dbd701782844c4435fd6215893c2f"
     },
     {
       "path": "native/ios/App/Tests/Policy/InterviewLaunchPolicyTests.swift",
@@ -65,7 +51,7 @@
     },
     {
       "path": "native/ios/App/Tests/UI/InterviewUITests.swift",
-      "sha256": "50e8d245fbb45e038b3d1e9f09278926bdfa492c3937d5a26637a815006a8ec5"
+      "sha256": "4d02d84a8d5da9e3d84d38722a6089bdd70cc1f69201b59198804259e04214db"
     },
     {
       "path": "native/ios/App/Tests/UI/NativeCaptionEditorTests.swift",
@@ -85,7 +71,7 @@
     },
     {
       "path": "native/ios/App/project.yml",
-      "sha256": "59a25974aeaf3b37e8ef89624686122d5d70233ef9e8f7d1fca03cc2e636e99d"
+      "sha256": "05e6453866c67ede454819b42a59c47d981b4f6cc01d9a318d8e2ef4726e8bb0"
     },
     {
       "path": "native/ios/InterviewNative/Package.swift",
@@ -176,20 +162,24 @@
       "sha256": "d37d3b8c00296ad99b1bf35d029e613d820c4a1b5f46e0f9527c605186d31633"
     },
     {
+      "path": "scripts/ios/install-tools.sh",
+      "sha256": "62ca08a9d32df1299ca7db8bd6236e6430c660cfbe421632d6d77b973e285899"
+    },
+    {
       "path": "scripts/ios/build-cloud.sh",
       "sha256": "2851de35f973af68a47a31c03f6407c4d83f4691943e5d61e3c5c6ae09778a20"
+    },
+    {
+      "path": "scripts/ios/select-simulator.py",
+      "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
     },
     {
       "path": "scripts/ios/capture-store.sh",
       "sha256": "4579167a46cd721abdb62ce744145657bc6053be1559d35f53c1b1aee0ba7e9d"
     },
     {
-      "path": "scripts/ios/install-tools.sh",
-      "sha256": "62ca08a9d32df1299ca7db8bd6236e6430c660cfbe421632d6d77b973e285899"
-    },
-    {
-      "path": "scripts/ios/select-simulator.py",
-      "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
+      "path": ".github/workflows/ios-app-review-signed.yml",
+      "sha256": "6d4998b421cd188262ef94c7d308d1f747b5f19d474ce47be2277848dab27b38"
     }
   ]
 }

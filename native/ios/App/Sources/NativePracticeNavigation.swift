@@ -5,9 +5,11 @@ import InterviewNative
 /// UIKit owns the horizontal push/pop. The student WKWebView remains underneath.
 struct NativePracticeNavigation: UIViewControllerRepresentable {
     let onInterview: (String) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    let onAppearance: (WebPageAppearance?) -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(onAppearance: onAppearance) }
     func makeUIViewController(context: Context) -> UINavigationController {
         let navigation = UINavigationController(); navigation.setNavigationBarHidden(true, animated: false)
+        navigation.view.backgroundColor = .clear
         navigation.delegate = context.coordinator; navigation.interactivePopGestureRecognizer?.isEnabled = false
         context.coordinator.navigation = navigation
         #if DEBUG
@@ -20,8 +22,9 @@ struct NativePracticeNavigation: UIViewControllerRepresentable {
             navigation.setViewControllers([root], animated: false); return navigation
         }
         #endif
-        let root = UIHostingController(rootView: StudentWebApp(onInterview: onInterview,
+        let root = UIHostingController(rootView: StudentWebApp(onAppearance: { context.coordinator.updateAppearance($0) }, onInterview: onInterview,
             onPractice: { web, mode, id in context.coordinator.open(web: web, mode: mode, id: id) }))
+        root.view.backgroundColor = .clear
         navigation.setViewControllers([root], animated: false); return navigation
     }
     func updateUIViewController(_ controller: UINavigationController, context: Context) {}
@@ -29,8 +32,17 @@ struct NativePracticeNavigation: UIViewControllerRepresentable {
     @MainActor final class Coordinator: NSObject, UINavigationControllerDelegate {
         weak var navigation: UINavigationController?
         var session: PracticePortalSession?
+        let onAppearance: (WebPageAppearance?) -> Void
+        private var webAppearance: WebPageAppearance?
+        init(onAppearance: @escaping (WebPageAppearance?) -> Void) { self.onAppearance = onAppearance }
+        func updateAppearance(_ appearance: WebPageAppearance?) {
+            webAppearance = appearance
+            if navigation?.viewControllers.count == 1 { onAppearance(appearance) }
+        }
         func navigationController(_ navigationController: UINavigationController, willShow viewController: UIViewController, animated: Bool) {
             navigationController.setNavigationBarHidden(true, animated: false)
+            let appearance = navigationController.viewControllers.first === viewController ? webAppearance : nil
+            DispatchQueue.main.async { [weak self] in self?.onAppearance(appearance) }
         }
         func open(web: WKWebView, mode: String, id: String) {
             guard session == nil, navigation?.viewControllers.count == 1 else { return }
