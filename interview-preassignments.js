@@ -1,5 +1,6 @@
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={empty:'미작성',draft:'작성 중',submitted:'제출 완료',needs_revision:'제출 완료',approved:'제출 완료'};
+const submissionNotice='핵심인성 답변의 교사 제출은 현재 이용할 수 없습니다. 임시저장과 답변 진단은 계속 이용할 수 있습니다.';
 const errors={diagnosis_worker_offline:'진단 실행기가 연결되어 있지 않습니다. 답변은 저장되어 있으니 잠시 후 다시 요청해주세요.',diagnosis_not_configured:'진단 기준은 등록되어 있습니다. 진단 실행 연결을 확인해주세요.',diagnosis_busy:'다른 진단이 진행 중입니다. 잠시 후 다시 눌러주세요.',diagnosis_limit:'오늘 진단 요청 한도에 도달했습니다. 내일 다시 이용해주세요.',criteria_not_ready:'이 문항의 진단 기준을 확인해주세요.',disabled:'사전과제 제출을 준비하고 있습니다.',revision_conflict:'다른 화면에서 변경되었습니다. 입력 내용을 복사해 보관한 뒤 최신 내용 불러오기를 눌러주세요.',idempotency_conflict:'제출 요청이 변경되었습니다. 최신 내용을 불러온 뒤 다시 시도해주세요.',incomplete:'내 답변을 작성해주세요.',deadline_passed:'제출 기한이 지났습니다. 담당 선생님께 문의해주세요.',not_enrolled:'면접반 등록과 이용 기간을 확인해주세요.',forbidden:'이 자료에 접근할 권한이 없습니다.',unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.'};
 const date=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'—';
 const deadlineText=v=>new Date(Date.parse(v)-1).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
@@ -77,7 +78,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
    <section class="pa-card pa-intro"><small>${esc(u.group)}${admin?' · '+esc(detail.student?.name):''}</small><h2>${esc(u.title)}</h2><p>${badge(s?.status||(detail.draft?'draft':'empty'))}${s?` · ${s.round}차 제출 · ${date(s.submitted_at)}`:' · 아직 제출하지 않았습니다.'}</p></section>
    <section class="pa-card"><h3>질문</h3><p class="pa-body">${esc(s?.definition?.prompt||u.prompt)}</p></section>
    ${admin?`${s?record(s):'<section class="pa-card">접수된 제출물이 없습니다.</section>'}<p class="pa-muted">진단은 학생이 직접 요청하며 강의 기준에 따른 답변 코칭을 받습니다.</p>`:
-   `<section class="pa-card">${fieldsHtml(u,detail.draft?.fields||{})}<div class="pa-toolbar">${button('임시저장','save')}${button(s?'수정 후 다시 제출':'제출하기','submit')}${button('내 답변 진단하기','diagnose','',true)}</div><p class="pa-muted">임시저장은 제출 이력에 포함되지 않습니다. 진단 버튼을 누르면 현재 답변을 먼저 저장합니다.</p></section>
+   `<section class="pa-card">${fieldsHtml(u,detail.draft?.fields||{})}<div class="pa-toolbar">${button('임시저장','save')}${button(s?'수정 후 다시 제출':'제출하기','submit','disabled aria-describedby="pa-submission-notice"')}${button('내 답변 진단하기','diagnose','',true)}</div><p class="pa-muted" id="pa-submission-notice">${submissionNotice}</p><p class="pa-muted">임시저장은 제출 이력에 포함되지 않습니다. 진단 버튼을 누르면 현재 답변을 먼저 저장합니다.</p></section>
    <section class="pa-card" data-diagnosis aria-live="polite">${diagnosisHtml(detail.diagnosis)}</section>
    ${s?`<details><summary>현재 제출한 답변</summary>${record(s)}</details>`:''}`}
 
@@ -101,12 +102,13 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
  }
  async function mutation(action,payload){const signature=JSON.stringify({action,...payload});if(lastMutation?.signature!==signature)lastMutation={signature,id:crypto.randomUUID()};const r=await request(action,{...payload,requestId:lastMutation.id});lastMutation=null;return r;}
  async function submit(saveOnly){
+  if(!admin&&!saveOnly){tell(submissionNotice,true);return;}
   const values=readFields();
   if(!saveOnly&&!values.f1?.trim()){tell('내 답변을 작성해주세요.',true);host.querySelector('[data-field="f1"]').focus();return;}
   const revision=detail.draft?.revision||0;
   const r=await mutation(saveOnly?'save':'submit',saveOnly?{unitId:selected,revision,fields:values}:{unitIds:[selected],revisions:{[selected]:revision},fields:values});
   dirty=false;await open(selected);
-  tell(saveOnly?'임시저장했습니다. 아직 제출하지 않은 내용은 제출하기를 눌러주세요.':`제출 접수 완료 · ${r.receipts[0].round}차 · ${r.receipts[0].id}${r.receipts[0].reused?' (기존 접수)':''}`);
+  tell(saveOnly?'임시저장했습니다.':`제출 접수 완료 · ${r.receipts[0].round}차 · ${r.receipts[0].id}${r.receipts[0].reused?' (기존 접수)':''}`);
  }
  function diagnosisHtml(d,edited=false){
   if(!d)return '<h3>내 답변 진단</h3><p>강의 기반 기준별로 충분·보완·미확인과 답변 근거, 보완 질문을 확인할 수 있습니다.</p>';
