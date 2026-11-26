@@ -7,19 +7,36 @@
   if (!enabled) return;
   const root = document.documentElement;
   let interviewReturn = false;
-  try { interviewReturn = document.currentScript?.dataset.startupPage === 'student' && new URLSearchParams(location.search).get('entry') !== 'student' && localStorage.getItem('outing-interview-web-app') === '1'; } catch {}
-  if (portal || interviewReturn) {
-    root.classList.add('interview-stable-startup');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f2f5f7');
-    // Only returning interview users activate these launch images on the shared start URL.
-    if (interviewReturn) {
+  // Restore the selected app before the student shell or its remote data loads.
+  // Session expiry belongs to the interview login screen, not the written-course app.
+  if (document.currentScript?.dataset.startupPage === 'student') {
+    const studentEntry = new URLSearchParams(location.search).get('entry') === 'student';
+    let interview = false;
+    try {
+      if (studentEntry) localStorage.removeItem('outing-interview-web-app');
+      else interview = localStorage.getItem('outing-interview-web-app') === '1';
+    } catch {}
+    try {
+      if (studentEntry) sessionStorage.removeItem('interview-app-return');
+      else interview ||= sessionStorage.getItem('interview-app-return') === '1';
+    } catch {}
+    interviewReturn = interview;
+    if (interview) {
+      window.__interviewAppRedirecting = true;
+      root.classList.add('app-starting-interview');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#050f1c');
       const images = document.getElementById?.('interview-startup-images');
       if (images?.content) document.head?.appendChild(images.content.cloneNode(true));
+      location.replace('/interview?app=1');
     }
+  }
+  if (portal) {
+    root.classList.add('interview-stable-startup');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f2f5f7');
   }
   // iOS chooses the installed app's edge colors during launch. Restore the
   // lecture appearance before painting, rather than after the roster loads.
-  if (document.currentScript?.dataset.startupPage === 'student' && navigator.standalone === true &&
+  if (!window.__interviewAppRedirecting && document.currentScript?.dataset.startupPage === 'student' && navigator.standalone === true &&
       /iPhone|iPad|iPod/.test(navigator.userAgent || '') && !window.webkit?.messageHandlers?.interviewNative) {
     const viewport = document.querySelector('meta[name="viewport"]');
     const statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
@@ -59,7 +76,7 @@
   });
   window.__appStartup = {
     finish() {
-      if (finished) return;
+      if (finished || window.__interviewAppRedirecting) return;
       finished = true;
       window.clearTimeout(slow);
       // Paint the completed view beneath the same cover before fading it away.

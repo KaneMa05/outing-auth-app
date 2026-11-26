@@ -2,6 +2,40 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const read=file=>fs.readFileSync(file,'utf8');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('installed apps restore the remembered interview before student initialization and keep the cover until navigation',()=>{
+ const scenarios=[
+  {remembered:true,redirect:true},
+  {remembered:true,studentEntry:true,redirect:false},
+  {remembered:true,page:'teacher',redirect:false},
+  {remembered:true,standalone:false,redirect:false},
+  {remembered:false,redirect:false},
+  {remembered:false,returning:true,redirect:true},
+  {brokenStorage:true,returning:true,redirect:true},
+  {brokenStorage:true,redirect:false},
+ ];
+ for(const options of scenarios){
+  const storage=new Map(options.remembered?[['outing-interview-web-app','1']]:[]),session=new Map(options.returning?[['interview-app-return','1']]:[]);
+  const classes=new Set(),redirects=[],frames=[],theme={setAttribute(_key,value){this.value=value;}};
+  const context=vm.createContext({navigator:{standalone:options.standalone??true},URLSearchParams,
+   location:{search:options.studentEntry?'?entry=student':'',replace:url=>redirects.push(url)},
+   localStorage:{getItem:key=>{if(options.brokenStorage)throw Error('storage denied');return storage.get(key);},removeItem:key=>storage.delete(key)},
+   sessionStorage:{getItem:key=>session.get(key),removeItem:key=>session.delete(key)},requestAnimationFrame:fn=>frames.push(fn),
+   window:{matchMedia:()=>({matches:false}),setTimeout(){},clearTimeout(){}},
+   fetch:()=>assert.fail('App selection must not wait for authentication or student reads'),
+   document:{currentScript:{dataset:{startupPage:options.page||'student'}},referrer:'',documentElement:{classList:{add:(...xs)=>xs.forEach(x=>classes.add(x))}},
+    querySelector:()=>theme,addEventListener(){}}
+  });
+  vm.runInContext(read('app-startup.js'),context);
+  assert.deepEqual(redirects,options.redirect?['/interview?app=1']:[]);
+  if(options.redirect){
+   assert(classes.has('app-starting-interview'));assert.equal(theme.value,'#050f1c');
+   context.window.__appStartup.finish();assert.equal(frames.length,0,'Student readiness must not expose the wrong app during redirect');
+   if(options.remembered)assert.equal(storage.get('outing-interview-web-app'),'1');
+  }
+  if(options.studentEntry){assert.equal(storage.has('outing-interview-web-app'),false);assert.equal(session.size,0);}
+ }
+});
+
 test('only the installed iOS lecture screen restores dark full-screen edges and resets on account changes',()=>{
  for(const [category,standalone,ua,page,native] of [
   ['lecture',true,'iPhone','student',false],['offline',true,'iPhone','student',false],
@@ -32,6 +66,7 @@ function portalHarness(){
   document:{referrer:'',body:{classList:{toggle(){}}},querySelector:s=>s==='#interview-portal'?host:s==='#portal-actions'?actions:null,addEventListener(){}},
   fetch:()=>session.promise,
   mountInterviewLogin:(host,options)=>{calls.push(options.retry?'retry':'login');return ()=>{};},
+  enrollmentEnded:()=>false,
   loadModule:async()=>({mountInterviewApp:async()=>{calls.push('mount');await home.promise;calls.push('home');return {destroy(){}};}})
  });
  vm.runInContext(read('interview-portal.js').replace(/^import .*\r?\n/gm,'').replace('import(useApp?', 'loadModule(useApp?'),context);

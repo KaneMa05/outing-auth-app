@@ -1,6 +1,33 @@
 import XCTest
+import UIKit
 
 final class StudentWebUITests: XCTestCase {
+    private func matchesLoginBackground(_ image: UIImage, x: CGFloat, y: CGFloat) -> Bool {
+        guard let cg = image.cgImage, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return false }
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8,
+                                          bytesPerRow: 4, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+            context.translateBy(x: -(x * image.scale), y: -(CGFloat(cg.height) - y * image.scale - 1))
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: CGFloat(cg.width), height: CGFloat(cg.height)))
+        }
+        return abs(Int(pixel[0]) - 5) <= 5 && abs(Int(pixel[1]) - 15) <= 5 && abs(Int(pixel[2]) - 28) <= 5
+    }
+    func testInterviewLoginColorsBothNativeSafeAreas() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--interview-login-preview", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.webViews.buttons["카카오 로그인하기"].waitForExistence(timeout: 60))
+        let colored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let image = app.screenshot().image
+            return self.matchesLoginBackground(image, x: 10, y: 10) &&
+                self.matchesLoginBackground(image, x: 10, y: image.size.height - 10)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [colored], timeout: 20), .completed,
+                       "The native top and bottom safe areas must match #050f1c without white bands")
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "08-interview-login-safe-areas"; screenshot.lifetime = .keepAlways; add(screenshot)
+    }
     func testInstalledAppShowsStudentLoginWithoutInstallGate() {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]

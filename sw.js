@@ -1,4 +1,4 @@
-const CACHE_NAME = "outing-auth-app-v586-review-complete";
+const CACHE_NAME = "outing-auth-app-v587-app-reentry";
 const APP_SHELL = [
   "/app.js?v=20261120-pending-reflection",
   "/student-content-safety.js?v=20261028-safety-fallback",
@@ -8,8 +8,8 @@ const APP_SHELL = [
   "/inquiry-board.js?v=20261028-safety-fallback",
   "/styles.css?v=20261120-pending-reflection",
   "/styles.css?v=20261028-deletion-request",
-  "/app-startup.css?v=20261113-pwa-cold-start",
-  "/app-startup.js?v=20261113-pwa-cold-start",
+  "/app-startup.css?v=20261126-app-reentry",
+  "/app-startup.js?v=20261126-app-reentry",
   "/app.js?v=20261024-startup",
   "/app.js?v=20261027-student-login",
   "/styles.css?v=20261027-student-login",

@@ -6,6 +6,7 @@ const host=document.querySelector('#interview-portal'),actions=document.querySel
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state,controller=null,busy=false,version=0,disposeLogin=null;
 const appDisplay=()=>{let returning=false;try{returning=sessionStorage.getItem('interview-app-return')==='1';}catch{}return Boolean(new URLSearchParams(location.search).get('app')==='1'||window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone||document.referrer.startsWith('android-app://')||returning);};
+const androidClient=()=>/Android/i.test(navigator.userAgent||'')||/Android/i.test(navigator.userAgentData?.platform||'')||document.referrer.startsWith('android-app://');
 const appMode=appDisplay();
 if(appMode)try{sessionStorage.setItem('interview-app-return','1');}catch{}
 const messages={
@@ -34,9 +35,10 @@ function render(){
  disposeLogin?.();disposeLogin=null;
  document.body.classList.toggle('ip-login-page',!state.authenticated);
  document.body.classList.toggle('ip-coast-page',!state.authenticated);
- document.querySelector('meta[name="theme-color"]')?.setAttribute('content',state.authenticated?'#234e83':'#050f1c');
+ document.querySelector('meta[name="theme-color"]')?.setAttribute('content',state.authenticated?'#f2f5f7':'#050f1c');
  document.body.classList.toggle('ip-portal-app',appMode&&state.available===true);
- if(appMode&&state.authenticated)try{localStorage.setItem('outing-interview-web-app','1');}catch{}
+ // Remember successful social login even if its OAuth callback lost the app query/session flag.
+ if(state.authenticated)try{localStorage.setItem('outing-interview-web-app','1');}catch{}
  actions.innerHTML=state.authenticated?`${state.account?.ownerId&&state.appleEnabled&&!state.account.appleLinked?'<button type="button" data-apple="link">Apple 계정 연결</button>':''}${state.account?.ownerId&&state.kakaoEnabled&&!state.account.kakaoLinked?'<button type="button" data-kakao="link">카카오 계정 연결</button>':''}<button type="button" data-student-entry>수강생 화면</button><button type="button" data-logout>로그아웃</button>`:'';
  if(!state.authenticated){
   disposeLogin=mountInterviewLogin(host,state);
@@ -52,7 +54,7 @@ function render(){
   const current=++version;
   return import(useApp?'./interview-app-ui.js?v=20261126-review-complete':'./interview-workspace.js?v=20261126-review-complete').then(async module=>{
    if(current!==version)return;
-   const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,enrollmentAccess:state.access,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
+   const view=await (useApp?module.mountInterviewApp:module.mountWorkspace)(box,{account:{id:state.account.ownerId,name:state.account.name,accessProduct:state.member?.access_product,enrollmentAccess:state.access,canLinkApple:state.appleEnabled&&!state.account.appleLinked,canLinkKakao:state.kakaoEnabled&&!state.account.kakaoLinked},onLogout:async()=>{await api('logout');++version;controller?.destroy();controller=null;await refresh();},onExit:appMode?async()=>{try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}location.assign('/index.html?entry=student#home');}:undefined,request:async(action,payload={})=>{
     const r=await fetch('/api/interview-prep',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});
     const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;
    },aiRequest:async(url,body)=>{
@@ -80,7 +82,8 @@ async function refresh(){
  const r=await fetch('/api/interview-auth?action=session',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(15000)});
  const data=await r.json();if(!r.ok||!data.ok)throw Object.assign(Error(data.error),{code:data.error});
  if(current!==version)return;
- state=data;await render();
+ // Keep server capabilities intact; filter Apple actions only in this device's UI.
+ state={...data,appleEnabled:Boolean(data.appleEnabled)&&!androidClient()};await render();
 }
 async function run(task){
  if(busy)return;busy=true;
@@ -100,7 +103,7 @@ document.addEventListener('click',e=>{
   }
   else if(n.hasAttribute('data-apple')){const d=await api('start',{intent:n.dataset.apple},'/api/interview-apple');location.assign(d.url);}
   else if(n.hasAttribute('data-kakao')){const d=await api('kakao_start',{intent:n.dataset.kakao});location.assign(d.url);}
-  else if(n.hasAttribute('data-logout')||n.hasAttribute('data-enrollment-logout')){await api('logout');try{localStorage.removeItem('outing-interview-web-app');sessionStorage.removeItem('interview-app-return');}catch{}++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
+  else if(n.hasAttribute('data-logout')||n.hasAttribute('data-enrollment-logout')){await api('logout');++version;controller?.destroy();controller=null;host.replaceChildren();await refresh();}
   else await refresh();
  });
 });

@@ -1,4 +1,6 @@
 #app-startup{display:none}
+html.app-starting.app-starting-interview,html.app-starting.app-starting-interview body,html.app-starting.app-starting-interview #app-startup{background:#050f1c!important;color:#fff}
+html.app-starting-interview #app-startup p{color:#dce7f4}
 html.student-lecture-ios-standalone.app-starting,html.student-lecture-ios-standalone.app-starting body,html.student-lecture-ios-standalone.app-starting #app-startup{background:#0b2746!important;color:#fff}
 html.student-lecture-ios-standalone #app-startup p{color:#dce7f4}
 html.app-starting,html.app-starting body{background:#f3f7fb!important}

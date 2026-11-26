@@ -17,5 +17,5 @@ assert(read('interview-assignment-overview.js').includes('data-overview-student'
 assert(read('interview-assignment-overview.js').includes('modal:true'));
 console.log('PASS administrator entry: teacher HTML and versioned imports preserve access without interview precaching');
 
-assert(read('interview.html').includes('interview-portal.js?v=20261126-review-complete'));
+assert(read('interview.html').includes('interview-portal.js?v=20261126-app-reentry'));
 for(const file of ['interview-prep-ui.js','interview-review-ui.js','interview-assignment-overview.js','interview-portal.js'])assert(read(file).includes('./client/interview-tracks.js?v=20261102-source-tracks'));

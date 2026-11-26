@@ -83,18 +83,10 @@ function prepareInterviewAppEntry(){
   }
   let web=false;try{web=localStorage.getItem('outing-interview-web-app')==='1';}catch{}
   if(web&&!prepareInterviewAppEntry.webChecked){
-    let cache=prepareInterviewAppEntry.web;
-    if(!cache){
-      cache={state:'loading'};prepareInterviewAppEntry.web=cache;
-      fetch('/api/interview-auth?action=session',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)}).then(async r=>{
-        const d=await r.json();if(!r.ok||!d.ok)throw Error('session_failed');
-        if(d.authenticated){location.replace('/interview?app=1');return;}
-        try{localStorage.removeItem('outing-interview-web-app');}catch{}
-        prepareInterviewAppEntry.webChecked=true;render();
-      }).catch(()=>{cache.state='error';render();});
-    }
+    // Fallback for an older startup loader. Let the portal handle expired sessions.
+    if(!prepareInterviewAppEntry.web){prepareInterviewAppEntry.web={state:'redirecting'};location.replace('/interview?app=1');}
     document.body.classList.add('student-interview-app-mode');
-    return el('section',{className:'ip-app-shell','data-startup-pending':String(cache.state==='loading')},[el('p',{role:'status'},cache.state==='error'?'로그인 상태를 확인하지 못했습니다. 연결을 확인해주세요.':'면접반 로그인 상태를 확인하는 중…'),...(cache.state==='error'?[button('다시 시도','btn','button',()=>{prepareInterviewAppEntry.web=null;render();})]:[])]);
+    return el('section',{className:'ip-app-shell','data-startup-pending':'true'},[el('p',{role:'status'},'면접반 앱을 여는 중…')]);
   }
   const student=getAuthedStudent(),token=getStudentProfile(student?.id)?.deviceToken;
   let saved=false;try{saved=localStorage.getItem('outing-student-mode:'+student?.id)==='interview';}catch{}
