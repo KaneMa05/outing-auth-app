@@ -6,18 +6,18 @@ const { test } = require("node:test");
 test("both mobile interview entry points bypass the cached pre-announcement loaders", () => {
   const index = fs.readFileSync("index.html", "utf8");
   const portal = fs.readFileSync("interview.html", "utf8");
-  assert.ok(index.includes("interview-prep.js?v=20261126-core-submit-disabled"));
+  assert.ok(index.includes("interview-prep.js?v=20261126-core-diagnosis-only"));
   const portalVersion=portal.match(/interview-portal\.js\?v=([^"']+)/)?.[1];
   assert.ok(portalVersion&&portalVersion.slice(0,8)>='20261030','Interview portal must bypass pre-announcement cached loaders');
   for (const file of ["interview-prep.js", "interview-portal.js"]) {
-    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261126-core-submit-disabled"));
+    assert.ok(fs.readFileSync(file, "utf8").includes("interview-app-ui.js?v=20261126-core-diagnosis-only"));
   }
   for(const [module,version] of [['interview-native-practice.mjs','20261125-recording-captions'],['interview-native-practice-launcher.mjs','20261119-native-beta']])assert.ok(fs.readFileSync('interview-app-ui.js','utf8').includes(module+'?v='+version));
   for(const page of [index,portal])assert.ok(page.includes('interview-app.css?v=20261120-compact-footer'));
   for(const [file,module,version] of [['interview-app-ui.js','./client/interview-practice.mjs','20261125-recording-captions'],['client/interview-practice.mjs','./interview-practice-core.mjs','20261125-recording-captions'],['client/interview-practice-core.mjs','./interview-input-activity.mjs','20261119-mic-entry']])
     assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh practice permission and input fixes: '+file);
   assert.ok(!fs.readFileSync("sw.js", "utf8").includes("outing-auth-app-v550-ios-lecture-edges"));
-  for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261126-core-submit-disabled'],['interview-workspace.js','interview-preassignments.js','20261126-core-submit-disabled'],['interview-workspace.js','interview-writing-ui.js','20261120-history-bottom'],['interview-workspace.js','interview-ai-ui.js','20261111-ai-retry'],['interview-ai-ui.js','client/interview-ai-client.js','20261111-ai-retry']])
+  for(const [file,module,version] of [['interview-app-ui.js','interview-workspace.js','20261126-core-diagnosis-only'],['interview-workspace.js','interview-preassignments.js','20261126-core-diagnosis-only'],['interview-workspace.js','interview-writing-ui.js','20261120-history-bottom'],['interview-workspace.js','interview-ai-ui.js','20261111-ai-retry'],['interview-ai-ui.js','client/interview-ai-client.js','20261111-ai-retry']])
     assert.ok(fs.readFileSync(file,'utf8').includes(module+'?v='+version),'Refresh the entire cached interview module chain: '+file);
 });
 

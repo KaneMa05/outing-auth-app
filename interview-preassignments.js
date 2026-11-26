@@ -1,10 +1,10 @@
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={empty:'미작성',draft:'작성 중',submitted:'제출 완료',needs_revision:'제출 완료',approved:'제출 완료'};
-const submissionNotice='핵심인성 답변의 교사 제출은 현재 이용할 수 없습니다. 임시저장과 답변 진단은 계속 이용할 수 있습니다.';
+const diagnosisGuide='핵심인성 25제는 교사에게 제출하지 않고, 작성한 답변을 진단받는 학습 과정입니다.';
 const errors={diagnosis_worker_offline:'진단 실행기가 연결되어 있지 않습니다. 답변은 저장되어 있으니 잠시 후 다시 요청해주세요.',diagnosis_not_configured:'진단 기준은 등록되어 있습니다. 진단 실행 연결을 확인해주세요.',diagnosis_busy:'다른 진단이 진행 중입니다. 잠시 후 다시 눌러주세요.',diagnosis_limit:'오늘 진단 요청 한도에 도달했습니다. 내일 다시 이용해주세요.',criteria_not_ready:'이 문항의 진단 기준을 확인해주세요.',disabled:'사전과제 제출을 준비하고 있습니다.',revision_conflict:'다른 화면에서 변경되었습니다. 입력 내용을 복사해 보관한 뒤 최신 내용 불러오기를 눌러주세요.',idempotency_conflict:'제출 요청이 변경되었습니다. 최신 내용을 불러온 뒤 다시 시도해주세요.',incomplete:'내 답변을 작성해주세요.',deadline_passed:'제출 기한이 지났습니다. 담당 선생님께 문의해주세요.',not_enrolled:'면접반 등록과 이용 기간을 확인해주세요.',forbidden:'이 자료에 접근할 권한이 없습니다.',unauthorized:'로그인이 만료되었습니다. 다시 로그인해주세요.'};
 const date=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'—';
-const deadlineText=v=>new Date(Date.parse(v)-1).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
 const badge=s=>`<span class="pa-badge ${esc(s)}">${labels[s]||'미작성'}</span>`;
+const answerBadge=saved=>`<span class="pa-badge ${saved?'draft':'empty'}">${saved?'저장됨':'미작성'}</span>`;
 const button=(label,action,extra='',primary=false)=>`<button type="button" class="ip-btn ${primary?'ip-primary':''}" data-pa="${action}" ${extra}>${label}</button>`;
 async function defaultRequest(action,payload={}){const r=await fetch('/api/interview-preassignments',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,action})});const d=await r.json();if(!r.ok||!d.ok)throw Object.assign(Error(d.error),{code:d.error});return d;}
 export async function mountPreassignments(host,{request=defaultRequest,admin=false,canWrite=true}={}){
@@ -42,12 +42,12 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
   const ticket=++version;const next=await request(admin?'admin_list':'bootstrap',admin?{...filter,page}:{});if(destroyed||ticket!==version)return;
   data=next;selected='';detail=null;dirty=false;guidanceMode=false;
   if(admin){adminOverview();return;}
-  if(!data.settings.enabled){shell('<section class="pa-card"><h2>핵심 25제 작성하기</h2><p>사전과제 제출을 준비하고 있습니다.</p>'+button('다시 확인','reload')+'</section>');return;}
+  if(!data.settings.enabled){shell('<section class="pa-card"><h2>핵심 25제 작성하기</h2><p>핵심인성 25제 작성을 준비하고 있습니다.</p>'+button('다시 확인','reload')+'</section>');return;}
   const rows=data.units,core=rows.filter(r=>r.id.startsWith('core-'));
-  shell(`<section class="pa-card pa-intro"><small>${esc(data.settings.cohort)} · 사전과제</small><h2>핵심 25제 작성하기</h2><p>질문을 확인하고 <strong>내 답변</strong>을 작성하세요. 진단 버튼을 눌러 강의 기준에 따른 답변 코칭을 받을 수 있습니다.</p><p class="pa-muted">제출 마감 ${deadlineText(data.settings.due_at)}까지 · 한국시간${data.settings.allow_late?' · 기한 후 지각 제출 가능':''}</p></section>
-   <section class="pa-stats" aria-label="핵심 25제 진행 현황">${[[`${core.filter(r=>r.revision>0).length}/25`,'저장한 답변'],[`${core.filter(r=>r.round).length}/25`,'제출한 답변'],[data.diagnosisEnabled?'사용 가능':'연결 대기','강의 기반 진단']].map(([v,l])=>`<div class="pa-stat"><strong>${v}</strong><span>${l}</span></div>`).join('')}</section>
-   ${rows.some(r=>r.changed)?'<p class="pa-notice">제출 후 수정한 답변이 있습니다. 수정한 답변을 제출하면 제출 이력에 반영됩니다.</p>':''}
-   ${[...new Set(data.catalog.map(u=>u.group))].map(group=>`<section class="pa-card"><h3>${esc(group)}</h3><div class="pa-grid">${data.catalog.filter(u=>u.group===group).map(u=>`<button type="button" class="pa-unit" data-pa="open" data-unit="${u.id}"><span><strong>${esc(u.title)}</strong><small>${esc(u.prompt)}</small>${status(u).changed?'<small>수정본 미제출</small>':''}</span>${badge(status(u).status)}</button>`).join('')}</div></section>`).join('')}`);
+  shell(`<section class="pa-card pa-intro"><small>${esc(data.settings.cohort)} · 핵심인성 25제</small><h2>핵심 25제 작성하기</h2><p>질문을 확인하고 <strong>내 답변</strong>을 작성하세요. 진단 버튼을 눌러 강의 기준에 따른 답변 코칭을 받을 수 있습니다.</p><p class="pa-muted" data-core-guide>${diagnosisGuide}</p></section>
+   <section class="pa-stats" aria-label="핵심 25제 진행 현황">${[[`${core.filter(r=>r.revision>0||r.round).length}/25`,'저장한 답변'],[core.length,'전체 문항'],[data.diagnosisEnabled?'사용 가능':'연결 대기','강의 기반 진단']].map(([v,l])=>`<div class="pa-stat"><strong>${v}</strong><span>${l}</span></div>`).join('')}</section>
+   ${rows.some(r=>r.changed)?'<p class="pa-notice">수정한 답변이 있습니다. 현재 답변을 저장하고 다시 진단해보세요.</p>':''}
+   ${[...new Set(data.catalog.map(u=>u.group))].map(group=>`<section class="pa-card"><h3>${esc(group)}</h3><div class="pa-grid">${data.catalog.filter(u=>u.group===group).map(u=>`<button type="button" class="pa-unit" data-pa="open" data-unit="${u.id}"><span><strong>${esc(u.title)}</strong><small>${esc(u.prompt)}</small>${status(u).changed?'<small>답변 수정됨</small>':''}</span>${answerBadge(status(u).revision>0||status(u).round>0)}</button>`).join('')}</div></section>`).join('')}`);
  }
  function adminOverview(){
   const settings=data.settings;
@@ -75,14 +75,14 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
   selected=id;detail=next;dirty=false;historyPage=0;
   const u=unit(),s=detail.latest;
   shell(`${!admin?`<div class="pa-summary-top">${button('요약서 보기','summary',`aria-expanded="false" aria-controls="pa-summary-${id}"`,true)}</div><section class="pa-card pa-handout" id="pa-summary-${id}" data-summary hidden aria-label="${esc(u.title)} 요약서"></section>`:''}<div class="pa-toolbar">${button(admin?'학생 목록':'과제 목록','back')}${button('최신 내용 불러오기','reload')} ${admin?`<label>조회할 과제<select data-unit-select>${data.catalog.map(x=>`<option value="${x.id}" ${x.id===id?'selected':''}>${x.group} · ${esc(x.title)} · ${labels[detail.units.find(r=>r.id===x.id)?.status]||'미작성'}</option>`).join('')}</select></label>`:''}</div>
-   <section class="pa-card pa-intro"><small>${esc(u.group)}${admin?' · '+esc(detail.student?.name):''}</small><h2>${esc(u.title)}</h2><p>${badge(s?.status||(detail.draft?'draft':'empty'))}${s?` · ${s.round}차 제출 · ${date(s.submitted_at)}`:' · 아직 제출하지 않았습니다.'}</p></section>
+   <section class="pa-card pa-intro"><small>${esc(u.group)}${admin?' · '+esc(detail.student?.name):''}</small><h2>${esc(u.title)}</h2><p>${admin?`${badge(s?.status||(detail.draft?'draft':'empty'))}${s?` · ${s.round}차 제출 · ${date(s.submitted_at)}`:' · 아직 제출하지 않았습니다.'}`:answerBadge(!!detail.draft||!!s)}</p></section>
    <section class="pa-card"><h3>질문</h3><p class="pa-body">${esc(s?.definition?.prompt||u.prompt)}</p></section>
    ${admin?`${s?record(s):'<section class="pa-card">접수된 제출물이 없습니다.</section>'}<p class="pa-muted">진단은 학생이 직접 요청하며 강의 기준에 따른 답변 코칭을 받습니다.</p>`:
-   `<section class="pa-card">${fieldsHtml(u,detail.draft?.fields||{})}<div class="pa-toolbar">${button('임시저장','save')}${button(s?'수정 후 다시 제출':'제출하기','submit','disabled aria-describedby="pa-submission-notice"')}${button('내 답변 진단하기','diagnose','',true)}</div><p class="pa-muted" id="pa-submission-notice">${submissionNotice}</p><p class="pa-muted">임시저장은 제출 이력에 포함되지 않습니다. 진단 버튼을 누르면 현재 답변을 먼저 저장합니다.</p></section>
+   `<section class="pa-card">${fieldsHtml(u,detail.draft?.fields||{})}<div class="pa-toolbar">${button('임시저장','save')}${button('내 답변 진단하기','diagnose','',true)}</div><p class="pa-muted" data-core-guide>${diagnosisGuide}</p></section>
    <section class="pa-card" data-diagnosis aria-live="polite">${diagnosisHtml(detail.diagnosis)}</section>
-   ${s?`<details><summary>현재 제출한 답변</summary>${record(s)}</details>`:''}`}
+   ${s?`<details><summary>이전에 제출한 답변</summary>${record(s)}</details>`:''}`}
 
-   <section class="pa-card"><h3>제출 이력</h3>${button('이력 불러오기','history')}<div data-history></div></section>`);
+   ${admin?`<section class="pa-card"><h3>제출 이력</h3>${button('이력 불러오기','history')}<div data-history></div></section>`:s?`<details class="pa-card"><summary>이전 제출 이력</summary>${button('이력 불러오기','history')}<div data-history></div></details>`:''}`);
   scheduleDiagnosis();
   if(!admin&&showSummary)await toggleSummary();
  }
@@ -101,14 +101,12 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
   panel.hidden=false;toggle.textContent='요약서 접기';toggle.setAttribute('aria-expanded','true');
  }
  async function mutation(action,payload){const signature=JSON.stringify({action,...payload});if(lastMutation?.signature!==signature)lastMutation={signature,id:crypto.randomUUID()};const r=await request(action,{...payload,requestId:lastMutation.id});lastMutation=null;return r;}
- async function submit(saveOnly){
-  if(!admin&&!saveOnly){tell(submissionNotice,true);return;}
+ async function saveDraft(){
   const values=readFields();
-  if(!saveOnly&&!values.f1?.trim()){tell('내 답변을 작성해주세요.',true);host.querySelector('[data-field="f1"]').focus();return;}
   const revision=detail.draft?.revision||0;
-  const r=await mutation(saveOnly?'save':'submit',saveOnly?{unitId:selected,revision,fields:values}:{unitIds:[selected],revisions:{[selected]:revision},fields:values});
+  await mutation('save',{unitId:selected,revision,fields:values});
   dirty=false;await open(selected);
-  tell(saveOnly?'임시저장했습니다.':`제출 접수 완료 · ${r.receipts[0].round}차 · ${r.receipts[0].id}${r.receipts[0].reused?' (기존 접수)':''}`);
+  tell('임시저장했습니다.');
  }
  function diagnosisHtml(d,edited=false){
   if(!d)return '<h3>내 답변 진단</h3><p>강의 기반 기준별로 충분·보완·미확인과 답변 근거, 보완 질문을 확인할 수 있습니다.</p>';
@@ -140,7 +138,7 @@ export async function mountPreassignments(host,{request=defaultRequest,admin=fal
    else if(a==='open'){await open(n.dataset.unit);}
    else if(a==='student'){student=n.dataset.student;await open('core-01');}
    else if(a==='prev'||a==='next'){page+=a==='next'?1:-1;await overview();}
-   else if(a==='save'||a==='submit'){await submit(a==='save');}
+   else if(a==='save'){await saveDraft();}
    else if(a==='summary'){await toggleSummary();}
    else if(a==='summaryClose'){await toggleSummary();host.querySelector('[data-pa=summary]').focus();}
    else if(a==='diagnose'){await diagnose();}

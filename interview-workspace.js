@@ -51,7 +51,7 @@ export async function mountWorkspace(host,{request,aiRequest,account={},initialP
     next=mountMyResources(box.querySelector('[data-my-resources]'),{request});
    }else if(page==='core'){
     host.querySelector('.ip-workspace-hero').style.display='none';
-    const {mountPreassignments}=await import('./interview-preassignments.js?v=20261126-core-submit-disabled');
+    const {mountPreassignments}=await import('./interview-preassignments.js?v=20261126-core-diagnosis-only');
     if(destroyed||ticket!==generation)return;
     next=await mountPreassignments(host.querySelector('[data-writing-host]'),{request:aiRequest?(action,payload={})=>aiRequest('/api/interview-preassignments',{...payload,action}):undefined});
    }else if(page==='aptitude'){
