@@ -18,14 +18,15 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:'+server.address().port+'/qa');
   await page.evaluate(async()=>{
    const {mountAdmin}=await import('/interview-prep-ui.js');window.calls=[];window.mode='normal';
-   window.applicants=['pending','approved','rejected'].map((status,i)=>({id:'qa-'+status,name:['대기 신청자','승인 수강생','반려 신청자'][i],track:'공채',exam_number:'000'+i,status,access_product:'interview_package',current_access_product:status==='approved'?'aptitude_only':'interview_package',revision:1,created_at:new Date().toISOString()}));
+   window.applicants=['pending','approved','rejected'].map((status,i)=>({id:'qa-'+status,name:['대기 신청자','승인 수강생','반려 신청자'][i],track:'공채',exam_number:'000'+i,status,review_note:status==='rejected'?'구매 내역 확인 <확인>':'',access_product:'interview_package',current_access_product:status==='approved'?'aptitude_only':'interview_package',revision:1,created_at:new Date().toISOString()}));
    const request=async(action,body={})=>{
     calls.push({action,body});
     if(action==='admin_catalog')return {topics:[],counts:{},enabled:true};
     if(action==='admin_applications')return {applications:structuredClone(applicants.filter(a=>!body.status||a.status===body.status)),summary:{students:1,pending:1,approved:1,rejected:1}};
     if(action==='admin_application_decide'){
-     const application=applicants.find(a=>a.id===body.id);if(application.revision!==body.revision||application.status!=='pending')throw Error('revision_conflict');
-     Object.assign(application,{status:body.status,access_product:body.accessProduct,current_access_product:body.accessProduct,revision:application.revision+1});return {ok:true,application};
+     if(mode==='failure')throw Error('interview_unavailable');if(mode==='conflict')throw Error('revision_conflict');
+     const application=applicants.find(a=>a.id===body.id);if(application.revision!==body.revision||!(application.status==='pending'||application.status==='rejected'&&body.status==='approved'))throw Error('revision_conflict');
+     Object.assign(application,{status:body.status,review_note:body.reviewNote,access_product:body.accessProduct,current_access_product:body.accessProduct,revision:application.revision+1});return {ok:true,application};
     }
     if(action==='admin_application_product_save'){
      if(mode==='failure')throw Error('interview_unavailable');if(mode==='conflict')throw Error('revision_conflict');
@@ -71,6 +72,26 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/W11/.cache/cod
   await review.locator('[data-write]').click();await page.waitForFunction(()=>applicants[0].status==='approved');
   const approval=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);assert.equal(approval.accessProduct,'interview_only');assert.equal(approval.status,'approved');assert.equal(approval.expiresOn,'2099-12-31');assert.equal(approval.revision,2);
   await page.evaluate(()=>remount(false));await page.locator('[data-filter] [name=status]').selectOption('');await page.locator('[data-filter] button').click();await change('approved').waitFor();assert.equal(await change('approved').isDisabled(),true);
-  assert.deepEqual(errors,[]);console.log('PASS browser: standalone course changes and selection during approval, atomic approval payload, save/reopen, failures/conflicts preserve input, unsaved-change guard, read-only access and desktop/mobile layout.');
+  const reconsider=page.getByRole('button',{name:'다시 검토·승인',exact:true});assert.equal(await reconsider.isDisabled(),true);
+  await page.evaluate(()=>remount(true));await page.locator('[data-filter] [name=status]').selectOption('rejected');await page.locator('[data-filter] button').click();await reconsider.click();
+  assert((await editor.innerText()).includes('구매 내역 확인 <확인>'));assert((await editor.innerText()).includes('학생의 재신청 없이 승인'));
+  assert.equal(await review.locator('[name=reviewNote]').inputValue(),'');assert.equal(await review.locator('[name=status]').inputValue(),'approved');assert.equal(await review.locator('[name=status] option').count(),1);
+  assert.equal(await review.locator('[name=accessProduct]').inputValue(),'aptitude_only');
+  await review.locator('[name=accessProduct]').selectOption('interview_only');await review.locator('[name=expiresOn]').fill('2099-12-31');await review.locator('[name=reviewNote]').fill('구매 확인 완료');
+  for(const width of [1280,390]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await editor.screenshot({path:path.join(output,'reconsider-'+width+'.png')});}
+  for(const mode of ['failure','conflict']){
+   await page.evaluate(mode=>{window.mode=mode;},mode);await review.locator('[data-write]').click();
+   await page.getByText(mode==='failure'?'면접 준비 기능에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.':'다른 기기 또는 관리자가 내용을 수정했습니다. 입력 내용을 복사해 보관한 후 최신 내용을 불러오세요.',{exact:true}).waitFor();
+   assert.equal(await review.locator('[name=reviewNote]').inputValue(),'구매 확인 완료');assert.equal(await review.locator('[name=accessProduct]').inputValue(),'interview_only');assert.equal(await page.evaluate(()=>applicants[2].status),'rejected');
+  }
+  await page.evaluate(()=>{mode='normal';});const callsBefore=await page.evaluate(()=>calls.filter(c=>c.action==='admin_application_decide').length);
+  await review.locator('[data-write]').evaluate(button=>{button.click();button.click();});await page.waitForFunction(()=>applicants[2].status==='approved');
+  assert.equal(await page.evaluate(()=>calls.filter(c=>c.action==='admin_application_decide').length),callsBefore+1);
+  const reconsidered=await page.evaluate(()=>calls.findLast(c=>c.action==='admin_application_decide').body);
+  assert.deepEqual(reconsidered,{id:'qa-rejected',revision:2,accessProduct:'interview_only',status:'approved',reviewNote:'구매 확인 완료',expiresOn:'2099-12-31'});
+  await page.getByText('신청 내역이 없습니다.',{exact:true}).waitFor();
+  await page.locator('[data-filter] [name=status]').selectOption('approved');await page.locator('[data-filter] button').click();await change('rejected').waitFor();assert.equal(await reconsider.count(),0);
+  assert.equal(await page.evaluate(()=>calls.some(c=>c.action==='apply')),false);
+  assert.deepEqual(errors,[]);console.log('PASS browser: course changes, pending approval, rejected approval without reapplying, previous reason, failure/conflict input preservation, duplicate-click prevention, read-only access and desktop/mobile layout.');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

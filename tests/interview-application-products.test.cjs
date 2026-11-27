@@ -5,13 +5,14 @@ const {createDb}=require('./helpers/interview-db.cjs');
 const admin={type:'admin',id:'application-product-qa'},action='admin_application_product_save';
 const migration='supabase/migrations/20261113073836_interview_application_product_changes.sql';
 
-async function fixture(t){
+async function fixture(t,{reapproval=true}={}){
  const {db,invoke}=await createDb();t.after(()=>db.close());
  await db.exec("create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);update ip_settings set enabled=true;");
  for(const file of ['20261030140517_interview_mock_test_access.sql','20261031052127_fix_mock_access_portal_accounts.sql','20261109053559_interview_aptitude_exams.sql','20261109054842_interview_apple_login.sql','20261110074450_interview_access_products.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync(migration,'utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync('supabase/migrations/20261113075252_interview_application_review_products.sql','utf8').replace(/\r\n/g,'\n'));
  await db.exec(fs.readFileSync('supabase/migrations/20261125050455_interview_only_product.sql','utf8').replace(/\r\n/g,'\n'));
+ if(reapproval)await db.exec(fs.readFileSync('supabase/migrations/20261127044253_interview_rejected_application_approval.sql','utf8').replace(/\r\n/g,'\n'));
  await db.exec("insert into ip_owners(id,legacy_student_id,name) values('ip-a','ip-a','신청 학생')");
  const application=(await db.query("insert into ip_applications(owner_id,name,track,exam_number) values('ip-a','신청 학생','공채','0001') returning *")).rows[0];
  const save=(accessProduct,revision,expectedProduct='interview_package')=>invoke(action,admin,{id:application.id,revision,accessProduct,expectedProduct});
@@ -29,7 +30,6 @@ test('pending/rejected product changes do not approve applicants; approval uses 
  result=await f.save('interview_package',3,'aptitude_only');
  assert.equal(result.application.status,'rejected');assert.equal(result.application.review_note,'등록 확인 필요');
  assert.equal((await f.db.query("select count(*)::int n from ip_members where student_id='ip-a'")).rows[0].n,0);
- await f.db.exec("update ip_applications set status='pending'");
  await f.save('aptitude_only',4);
  await f.invoke('admin_application_decide',admin,{id:f.application.id,revision:5,status:'approved',reviewNote:'등록 확인',expiresOn:'2099-12-31'});
  assert.equal((await f.invoke('status',{type:'student',id:'ip-a'},{})).accessProduct,'aptitude_only');
@@ -113,6 +113,95 @@ test('review rejection can correct the requested course without enrolling or par
  assert.equal((await f.current()).revision,1);assert.equal((await f.current()).access_product,'interview_package');
  const result=await f.invoke('admin_application_decide',admin,body);assert.equal(result.application.status,'rejected');assert.equal(result.application.access_product,'aptitude_only');
  assert.equal((await f.db.query("select count(*)::int n from ip_members where student_id='ip-a'")).rows[0].n,0);
+});
+
+for(const product of ['interview_package','interview_only','aptitude_only'])test(`rejected interview-only account can be approved without reapplying: ${product}`,async t=>{
+ const f=await fixture(t),owner='iw_rejected',sessionHash='a'.repeat(64);
+ const studentsBefore=(await f.db.query('select * from students order by id')).rows;
+ await f.db.query('insert into ip_owners(id,name) values($1,$2)',[owner,'반려 신청자']);
+ await f.db.query('insert into ip_web_sessions(token_hash,owner_id) values($1,$2)',[sessionHash,owner]);
+ const application=(await f.db.query("insert into ip_applications(owner_id,name,track,exam_number) values($1,'반려 신청자','공채','R-1') returning *",[owner])).rows[0];
+ const body={id:application.id,revision:1,status:'rejected',reviewNote:'구매 확인 필요 <확인>'};
+ await f.invoke('admin_application_decide',admin,body);
+ const session=()=>f.invoke('session',{type:'server'},{sessionHash});
+ assert.equal((await session()).available,false);
+ assert.equal((await f.db.query('select count(*)::int n from ip_members where student_id=$1',[owner])).rows[0].n,0);
+ const expiresOn=product==='aptitude_only'?'':'2099-12-31';
+ const result=await f.invoke('admin_application_decide',admin,{...body,revision:2,status:'approved',reviewNote:'수강 확인 완료',accessProduct:product,expiresOn});
+ assert.equal(result.application.id,application.id);assert.equal(result.application.revision,3);assert.equal(result.application.status,'approved');
+ assert.equal(result.application.review_note,'수강 확인 완료');assert.equal(result.application.reviewed_by,admin.id);
+ const current=await session();assert.equal(current.available,true);assert.equal(current.application.status,'approved');
+ assert.equal(current.member.access_product,product);assert.equal(current.member.expires_on,expiresOn||null);
+ const status=await f.invoke('status',{type:'student',id:owner});
+ assert.equal(status.appEnabled,true);assert.equal(status.enabled,product!=='aptitude_only');assert.equal(status.accessProduct,product);
+ const history=(await f.db.query("select snapshot,actor_id from ip_history where entity='application' and entity_id=$1 order by id",[application.id])).rows;
+ assert.deepEqual(history.map(h=>h.snapshot.status),['rejected','approved']);assert.equal(history[0].snapshot.review_note,body.reviewNote);
+ assert(history.every(h=>h.actor_id===admin.id));
+ assert.deepEqual((await f.db.query('select * from students order by id')).rows,studentsBefore);
+ assert.equal((await f.db.query('select count(*)::int n from ip_applications where owner_id=$1',[owner])).rows[0].n,1);
+});
+
+test('reconsideration preserves work and rejects stale, duplicate or invalid decisions atomically',async t=>{
+ const f=await fixture(t),id=f.application.id;
+ await f.invoke('admin_member_save',admin,{targetStudentId:'ip-a',track:'공채',examNumber:'old',enabled:false,mockTestEnabled:true,accessProduct:'interview_package'});
+ await f.db.exec("insert into ip_notes(student_id,topic_id,fields) values('ip-a','self','{\"situation\":\"보존할 답변\"}');update ip_members set mock_test_enabled=true where student_id='ip-a'");
+ await f.invoke('admin_application_decide',admin,{id,revision:1,status:'rejected',reviewNote:'구매 내역 확인 필요'});
+ const before=await f.current(),memberBefore=(await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0];
+ const body={id,revision:2,status:'approved',reviewNote:'',accessProduct:'interview_only',expiresOn:'2099-12-31'};
+ for(const [patch,error] of [[{revision:1},/revision_conflict/],[{status:'rejected'},/revision_conflict/],[{status:'pending'},/revision_conflict/],[{accessProduct:'unknown'},/invalid_request/],[{expiresOn:'2000-01-01'},/invalid_request/]]){
+  await assert.rejects(f.invoke('admin_application_decide',admin,{...body,...patch}),error);
+  assert.deepEqual(await f.current(),before);
+  assert.deepEqual((await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0],memberBefore);
+ }
+ await assert.rejects(f.invoke('admin_application_decide',{type:'student',id:'ip-a'},body),/forbidden/);
+ await f.invoke('admin_application_decide',admin,body);
+ await assert.rejects(f.invoke('admin_application_decide',admin,body),/revision_conflict/);
+ await assert.rejects(f.invoke('admin_application_decide',admin,{...body,revision:3,status:'rejected',reviewNote:'이미 승인'}),/revision_conflict/);
+ assert.equal((await f.current()).revision,3);assert.equal((await f.current()).review_note,'');
+ const member=(await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0];
+ assert.equal(member.enabled,true);assert.equal(member.access_product,'interview_only');assert.equal(member.expires_on.toISOString().slice(0,10),'2099-12-31');
+ assert.deepEqual(member.created_at,memberBefore.created_at);assert.equal(member.mock_test_enabled,true);
+ assert.equal((await f.db.query("select fields->>'situation' answer from ip_notes where student_id='ip-a'")).rows[0].answer,'보존할 답변');
+});
+
+test('approving a rejected application through the API still requires administrator write permission',async t=>{
+ const f=await fixture(t),auth=require('../api/teacher-auth-utils'),oldSecret=process.env.TEACHER_SESSION_SECRET;
+ process.env.TEACHER_SESSION_SECRET='rejected-approval-qa';t.after(()=>{if(oldSecret===undefined)delete process.env.TEACHER_SESSION_SECRET;else process.env.TEACHER_SESSION_SECRET=oldSecret;});
+ await f.invoke('admin_application_decide',admin,{id:f.application.id,revision:1,status:'rejected',reviewNote:'등록 확인 필요'});
+ const handler=require('../api/interview-prep').createHandler({invoke:f.invoke});
+ const cookie=permissions=>auth.COOKIE_NAME+'='+auth.createSessionToken(process.env.TEACHER_SESSION_SECRET,{username:admin.id,role:'admin',permissions});
+ const body={action:'admin_application_decide',id:f.application.id,revision:2,status:'approved',reviewNote:'등록 확인',accessProduct:'interview_only',expiresOn:'2099-12-31'};
+ async function call(headers){let response;await handler({method:'POST',body,headers:{host:'qa.local',...headers}},{setHeader(){},status(status){this.code=status;return this;},json(data){response={status:this.code,data};}});return response;}
+ assert.equal((await call({})).status,401);
+ assert.equal((await call({cookie:cookie(['interview.read'])})).status,403);
+ assert.equal((await call({cookie:cookie(['interview.write']),origin:'https://other.invalid'})).status,403);
+ assert.equal((await f.current()).status,'rejected');
+ const approved=await call({cookie:cookie(['interview.write'])});assert.equal(approved.status,200);assert.equal(approved.data.application.status,'approved');
+ assert.equal((await call({cookie:cookie(['interview.write'])})).status,409);
+ for(const role of ['anon','authenticated']){await f.db.exec('set role '+role);await assert.rejects(f.invoke('admin_application_decide',admin,body),/permission denied/);await f.db.exec('reset role');}
+});
+
+test('one requested approval can use the current production service atomically without deploying the new function',async t=>{
+ const f=await fixture(t,{reapproval:false});
+ await f.invoke('admin_application_decide',admin,{id:f.application.id,revision:1,status:'rejected',reviewNote:'이전 반려 사유'});
+ const body={id:f.application.id,revision:2,status:'approved',reviewNote:'수강 승인 완료',expiresOn:'2099-12-31'};
+ await assert.rejects(f.invoke('admin_application_decide',admin,body),/revision_conflict/);
+ await f.db.exec('begin');
+ await f.db.query("select id from ip_applications where id=$1 and revision=2 and status='rejected' for update",[f.application.id]);
+ await f.db.query("update ip_applications set status='pending' where id=$1",[f.application.id]);
+ await assert.rejects(f.invoke('admin_application_decide',admin,{...body,expiresOn:'2000-01-01'}),/invalid_request/);
+ await f.db.exec('rollback');assert.equal((await f.current()).status,'rejected');assert.equal((await f.current()).revision,2);
+ await f.db.exec('begin');
+ await f.db.query("select id from ip_applications where id=$1 and revision=2 and status='rejected' for update",[f.application.id]);
+ await f.db.query("update ip_applications set status='pending' where id=$1",[f.application.id]);
+ await f.invoke('admin_application_decide',{type:'admin',id:'codex:user-request'},body);
+ await f.db.exec('commit');
+ assert.equal((await f.current()).status,'approved');assert.equal((await f.current()).revision,3);
+ assert.equal((await f.current()).access_product,'interview_package');
+ const member=(await f.db.query("select * from ip_members where student_id='ip-a'")).rows[0];
+ assert.equal(member.enabled,true);assert.equal(member.expires_on.toISOString().slice(0,10),'2099-12-31');
+ const history=(await f.db.query("select snapshot->>'status' status,actor_id from ip_history where entity='application' and entity_id=$1 order by id",[f.application.id])).rows;
+ assert.deepEqual(history.map(h=>h.status),['rejected','approved']);assert.equal(history[1].actor_id,'codex:user-request');
 });
 
 test('interview-only signup remains pending until approval and grants interview access without aptitude access',async t=>{
