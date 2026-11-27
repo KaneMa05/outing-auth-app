@@ -112,3 +112,9 @@ test('transcription edits require write permission and bounded, versioned admin 
  assert.equal((await api(allowed.handler,body)).code,200);assert.equal(allowed.calls.length,0);
  assert.equal((await api(allowed.handler,{action:'complete',runId,number:1})).code,400);
 });
+
+test('admins can save corrections without classifying transcription accuracy',async()=>{
+ const body={action:'admin_review',runId,number:1,revision:1,reviewStatus:'pending',correctedText:'녹음에 맞게 수정한 글',note:''};
+ const h=setup({transcription:async(action,actor,value)=>{assert.equal(action,'admin_review');assert.equal(actor.type,'admin');assert.equal(value.reviewStatus,'pending');assert.equal(value.correctedText,body.correctedText);return {ok:true};}});
+ assert.equal((await api(h.handler,body)).code,200);assert.equal(h.calls.length,0);
+});

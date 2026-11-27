@@ -356,7 +356,7 @@ export async function mountAdmin(host,{request,canWrite=true,initialSection,onSe
       return;
     }
     if(tab==='practice'){
-      const {mountPracticeRecords}=await import('./interview-practice-admin-ui.js?v=20261125-recording-captions');
+      const {mountPracticeRecords}=await import('./interview-practice-admin-ui.js?v=20261127-inline-records');
       if(destroyed||version!==loadVersion)return;
       const next=await mountPracticeRecords(box,{canWrite});
       if(destroyed||version!==loadVersion)next.destroy();else life=next;
