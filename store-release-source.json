@@ -167,11 +167,11 @@
     },
     {
       "path": "scripts/ios/build-cloud.sh",
-      "sha256": "1060ab378f2901cf43d28df4284c80c4bf002d04356dab91cdca2b7992e5154a"
+      "sha256": "34f57710c47151ba2a759f978fdfda8de5a6637fe2976920aa8ff67aeadd2e7a"
     },
     {
       "path": "scripts/ios/select-simulator.py",
-      "sha256": "7b774d252dfe6df42bf308aecdc6e8bc490d2205e5512439dca7f543eb86599d"
+      "sha256": "6f02cc30132af32bc840eefb050e585544f78714f6d8f60c0b09e553f42d3b29"
     },
     {
       "path": "scripts/ios/capture-store.sh",
@@ -183,8 +183,9 @@
     },
     {
       "path": ".github/workflows/ios-native-build.yml",
-      "sha256": "d953e5b3f83c88d2fc3fc95613552060fa590b8770a78b997f1995b5c4ab0db2"
+      "sha256": "f2a8d8ea062a8e7859c534edd8731c1c2af56e32b2c4781587d326b240a218d9"
     }
   ],
-  "validationOnly": true
+  "validationOnly": true,
+  "homeIndicatorValidation": true
 }

@@ -18,10 +18,11 @@ def select_device(inventory):
                 continue
             udid = device.get("udid", "")
             if re.fullmatch(r"[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}", udid):
-                choices.append((version, device["name"], udid))
+                # Exercise both top and bottom safe areas when a modern iPhone is installed.
+                choices.append((version, not device["name"].startswith("iPhone SE"), device["name"], udid))
     if not choices:
         raise ValueError("No available iPhone simulator on this runner")
-    return sorted(choices, reverse=True)[0][2]
+    return sorted(choices, reverse=True)[0][3]
 
 
 if __name__ == "__main__":

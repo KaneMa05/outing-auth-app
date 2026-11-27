@@ -56,6 +56,7 @@ test_selection=(-only-testing:InterviewPolicyTests -only-testing:InterviewUITest
 case "${RONPARK_IOS_TEST_SELECTION:-all}" in
   all) ;;
   caption-editor) test_selection=(-only-testing:InterviewUITests/NativeCaptionEditorTests) ;;
+  web-edges) test_selection=(-only-testing:InterviewUITests/StudentWebUITests/testInterviewLoginColorsBothNativeSafeAreas) ;;
   *) printf '%s\n' 'Unknown native test selection.' >&2; exit 1 ;;
 esac
 xcodebuild "${common[@]}" test-without-building -configuration Debug \

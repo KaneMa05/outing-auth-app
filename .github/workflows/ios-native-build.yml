@@ -21,6 +21,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       RONPARK_SKIP_UNSIGNED_ARCHIVE: '1'
+      RONPARK_IOS_TEST_SELECTION: 'web-edges'
     steps:
       - name: Checkout iOS build source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
