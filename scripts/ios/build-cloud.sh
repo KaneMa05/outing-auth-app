@@ -6,6 +6,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 app_dir="$root/native/ios/App"
 output="$root/artifacts/ios-cloud"
 build_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/ronpark-ios.XXXXXX")
+export RONPARK_NATIVE_RESULT_PATH="$build_dir/NativeTests.xcresult"
 mkdir -p "$output"
 
 collect_evidence() {
@@ -23,7 +24,8 @@ out = pathlib.Path(sys.argv[1])
     'success': sys.argv[2] == '0', 'exitCode': int(sys.argv[2]),
     'commit': os.environ.get('GITHUB_SHA', ''), 'signedForDevice': False,
     'paidAIRequests': False, 'deploymentPerformed': False,
-    'note': 'Simulator app and unsigned archive only. Neither is an installable signed iPhone IPA.'
+    'testResultProduced': pathlib.Path(os.environ.get('RONPARK_NATIVE_RESULT_PATH', '')).is_dir() if os.environ.get('RONPARK_NATIVE_RESULT_PATH') else False,
+    'note': 'Simulator validation only; signing and App Store upload use a separate workflow.'
 }, indent=2) + '\n')
 PY
   exit "$code"
@@ -48,7 +50,9 @@ xcodebuild "${common[@]}" build-for-testing -configuration Debug \
 
 xcrun simctl boot "$simulator" || true
 xcrun simctl bootstatus "$simulator" -b
-test_selection=()
+# macOS ships Bash 3.2: always pass a nonempty array under nounset.
+# Require actual XCTest results below instead of compile-only success.
+test_selection=(-only-testing:InterviewPolicyTests -only-testing:InterviewUITests)
 case "${RONPARK_IOS_TEST_SELECTION:-all}" in
   all) ;;
   caption-editor) test_selection=(-only-testing:InterviewUITests/NativeCaptionEditorTests) ;;
@@ -60,6 +64,13 @@ xcodebuild "${common[@]}" test-without-building -configuration Debug \
   -derivedDataPath "$build_dir/derived" -resultBundlePath "$build_dir/NativeTests.xcresult" \
   "${test_selection[@]}" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$output/simulator-tests.log"
+
+python3 - "$build_dir/NativeTests.xcresult" "$output/simulator-tests.log" <<'PY'
+import pathlib, re, sys
+result, log = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+if not result.is_dir() or not re.search(r'Executed [1-9][0-9]* tests?', log.read_text(errors='replace')):
+    raise SystemExit('Native validation did not execute XCTest cases; refusing a compile-only success.')
+PY
 
 ditto -c -k --sequesterRsrc --keepParent \
   "$build_dir/derived/Build/Products/Debug-iphonesimulator/RonparkStudy.app" \

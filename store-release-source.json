@@ -167,7 +167,7 @@
     },
     {
       "path": "scripts/ios/build-cloud.sh",
-      "sha256": "2851de35f973af68a47a31c03f6407c4d83f4691943e5d61e3c5c6ae09778a20"
+      "sha256": "1060ab378f2901cf43d28df4284c80c4bf002d04356dab91cdca2b7992e5154a"
     },
     {
       "path": "scripts/ios/select-simulator.py",
@@ -180,6 +180,11 @@
     {
       "path": ".github/workflows/ios-app-review-signed.yml",
       "sha256": "6d4998b421cd188262ef94c7d308d1f747b5f19d474ce47be2277848dab27b38"
+    },
+    {
+      "path": ".github/workflows/ios-native-build.yml",
+      "sha256": "d953e5b3f83c88d2fc3fc95613552060fa590b8770a78b997f1995b5c4ab0db2"
     }
-  ]
+  ],
+  "validationOnly": true
 }
