@@ -1,5 +1,6 @@
 """Offline large-v3 adapter. stdin/stdout are private JSON-lines IPC, not logs."""
 import ctypes, gc, importlib.metadata, json, os, pathlib, sys, time
+from interview_practice_asr_guard import SAMPLE_RATE, transcribe_audio
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
@@ -15,6 +16,8 @@ if os.name == 'nt' and config.get('cudaLibraries'):
     for dll in ['cublasLt64_12.dll', 'cublas64_12.dll', 'cudnn64_9.dll']:
         handles.append(ctypes.CDLL(str(folder / dll)))
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio
+from faster_whisper.vad import VadOptions, get_speech_timestamps
 
 device, compute = 'cuda', 'float16'
 def load():
@@ -37,13 +40,16 @@ for line in sys.stdin:
         if file.suffix not in ('.m4a', '.webm', '.ogg') or not 44 < file.stat().st_size <= 16777216:
             raise ValueError('invalid_audio')
         started = time.perf_counter()
+        audio = decode_audio(str(file), sampling_rate=SAMPLE_RATE)
+        # Unpadded speech boundaries let us check words which VAD's playback
+        # padding alone would otherwise allow through, especially at the tail.
+        speech_intervals = [(s['start'] / SAMPLE_RATE, s['end'] / SAMPLE_RATE)
+            for s in get_speech_timestamps(audio, VadOptions(
+                min_silence_duration_ms=500, speech_pad_ms=0))]
         def run():
-            chunks, info = model.transcribe(str(file), language='ko', beam_size=5, temperature=0,
-                condition_on_previous_text=False, word_timestamps=True, vad_filter=True,
-                vad_parameters={'min_silence_duration_ms': 500}, initial_prompt=None)
-            return list(chunks), info
+            return transcribe_audio(model, audio, speech_intervals)
         try:
-            segments, info = run()
+            transcription = run()
         except RuntimeError:
             if device != 'cuda':
                 raise
@@ -51,12 +57,11 @@ for line in sys.stdin:
             gc.collect()
             device, compute = 'cpu', 'float32'
             model = load()
-            segments, info = run()
+            transcription = run()
         result = {'model': 'Whisper large-v3', 'modelRevision': config['modelRevision'],
             'engineVersion': importlib.metadata.version('faster-whisper'),
-            'transcript': ''.join(s.text for s in segments).strip(),
-            'segments': [{'start': round(s.start, 3), 'end': round(s.end, 3), 'text': s.text.strip()} for s in segments],
-            'processingSeconds': round(time.perf_counter() - started, 3), 'decodedSeconds': info.duration}
+            **transcription,
+            'processingSeconds': round(time.perf_counter() - started, 3), 'decodedSeconds': len(audio) / SAMPLE_RATE}
         print(json.dumps({'id': packet['id'], 'result': result}, ensure_ascii=False), flush=True)
     except Exception:
         print(json.dumps({'id': packet.get('id'), 'error': 'transcription_failed'}), flush=True)
